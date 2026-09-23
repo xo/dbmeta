@@ -1655,6 +1655,196 @@ Do not treat this as permission to skip it quietly. A base model that no test
 touches is a gap, and the support table that `gen.go` writes must say so.
 
 
+### D36. The client drives. dbmeta decides nothing about the connection. Decided.
+
+The client opens the connection, chooses the dialect, and chooses the version
+used to resolve queries. `dbmeta` never detects any of the three and never
+guesses.
+
+```go
+func New(dialect Dialect, ver VersionSet) (*Meta, error)
+```
+
+`dbmeta` reads a version from a server only in the sense that it hands the
+client a query to run. It does not run it. See D38.
+
+#### Why an override is not a luxury
+
+Both reviews gave the same reasons, and each is a real deployment.
+
+A proxy hides the server. PgBouncer and ProxySQL report themselves rather than
+the database behind them.
+
+A compatible product lies on purpose. CockroachDB answers a PostgreSQL version
+query, and the answer describes neither its real catalog nor a PostgreSQL
+release that behaves like it. This is the D14 flavor axis arriving at run time.
+
+A code generator has no server. `dbtpl` generates against a target release the
+developer names, with nothing to connect to.
+
+A person is debugging. Forcing an older query set is how you find out whether a
+fault is a version gate.
+
+#### Out of range
+
+Follow D21, which already settled the behavior and now gets an API.
+
+Above the newest version `dbmeta` knows, use the newest query set and proceed.
+Do not fail. People upgrade a server faster than a library.
+
+Below the oldest, return `ErrVersionTooOld`. The client can pass an explicit
+override to try anyway, which is the opt-in escape D21 requires.
+
+An unknown version is treated as newest, not as oldest. A serverless database
+is continuously released, so newest is the truthful reading, and it agrees with
+the rule above the ceiling.
+
+### D37. A version is a list of numbers with a name, and there can be several. Decided.
+
+The current `Version` type in this repository has `Major`, `Minor` and `Patch`.
+That is wrong and it must be replaced. Oracle reports five components and SQL
+Server reports four.
+
+The real shapes, taken from the version queries `usql` runs today:
+
+| Database | Reported | Note |
+| --- | --- | --- |
+| Trino | `443` | one component |
+| Presto | `0.287` | two |
+| PostgreSQL | `16.2` | two, plus an integer form |
+| SQLite3 | `3.45.1` | three |
+| MariaDB | `11.4.2-MariaDB` | three, with a suffix |
+| DuckDB | `v1.1.3` | three, with a leading letter |
+| ClickHouse | `24.3.1.2672` | four |
+| SQL Server | `16.0.4115.5` | four, in one of three columns |
+| Oracle | `19.3.0.0.0` | five |
+| Cassandra | `4.1.3`, `3.4.6`, `5` | three independent versions |
+| YDB | `<unknown>` | none |
+| Snowflake, BigQuery, Athena | none | serverless |
+
+Two types, because a reported version and a minimum version are not the same
+thing. A minimum is numbers only. A reported version also carries the text it
+came from, a suffix, and whether it is known at all.
+
+```go
+// Version is one version.
+type Version struct {
+	Raw     string
+	Parts   []uint32
+	Suffix  string
+	Unknown bool
+}
+
+// VersionSet is every version one server reports, keyed by name, with the
+// empty name for the main one.
+type VersionSet struct {
+	Versions map[string]Version
+	Display  string
+}
+```
+
+Compare by padding the shorter list with zeros, so `16.2` equals `16.2.0` and
+equals `16.2.0.0.0`. Compare left to right. Never compare version strings.
+
+Ignore the suffix when comparing. `11.4.2-MariaDB` and `11.4.2` compare equal,
+and D14 already says the flavor is a separate axis. The suffix is recorded, not
+ranked.
+
+Cassandra needs the set rather than one version, because its release version,
+its CQL version and its protocol version move independently. A fragment names
+which one it gates on. When a reported set lacks the name a minimum asks for,
+the gate fails rather than passing by accident.
+
+### D38. dbmeta supplies the version query. The client runs it. Decided.
+
+`dbmeta` holds the version query for every database, because that knowledge
+belongs with the metadata queries. It cannot run one, because D26 gives it no
+driver and D36 gives it no connection.
+
+So it hands over the query, the client executes it as its first statement, and
+the client hands the raw columns back to be parsed.
+
+```go
+// VersionQuery returns the query that reads the server version. The second
+// result is false when the database reports no version.
+func (d Dialect) VersionQuery() (VersionQuery, bool)
+
+// ParseVersion parses the columns of the first row.
+func (d Dialect) ParseVersion(cols []any) (VersionSet, error)
+
+type VersionQuery struct {
+	SQL     string
+	Columns []Column
+}
+```
+
+The column count is part of the query and the client must be told it, because
+two databases return more than one column. SQL Server returns the product
+version, the product level and the edition. Cassandra returns three independent
+versions.
+
+Parsing produces both things the client needs from one call. `VersionSet` gates
+the queries. `Display` is the line `usql` prints, and it is built where the
+shape is known rather than by the client guessing. For SQL Server that is
+`Microsoft SQL Server 16.0.4115.5, RTM-CU12, Developer Edition`, which is what
+`usql` prints today.
+
+A database with no version returns false, and the client uses an unknown
+version, which D36 treats as newest.
+
+### D39. Queries are listed, described, and rendered for the client to run. Decided.
+
+The client can ask what queries exist, what each one takes, and what it
+returns, then run one itself.
+
+```go
+func (m *Meta) Queries() []QueryDef
+func (m *Meta) QueryDef(name string) (QueryDef, error)
+
+// Render resolves the query for the version held by m and writes its
+// placeholders in the dialect's syntax. It returns SQL ready to execute and
+// the arguments in order.
+func (m *Meta) Render(name string, args map[string]any) (string, []any, error)
+
+type QueryDef struct {
+	Name        string
+	Description string
+	Params      []Param
+	Columns     []Column
+}
+```
+
+#### Placeholders
+
+Write every query once, with named parameters such as `@schema`. `Render`
+translates them into what the dialect wants and returns the arguments in the
+matching order: `$1` for PostgreSQL, `?` for MySQL, `:1` for Oracle, `@p1` for
+SQL Server.
+
+Named parameters are worth the small cost. A query with four parameters is
+unreadable in positional form, and D39 exists so a person can read a query and
+understand it.
+
+#### Columns are declared, and the SQL is not
+
+This is where DeepSeek was wrong and the error would have broken D8. It said
+fragments may change only the `WHERE`, `ORDER` and `LIMIT` text and never the
+select list.
+
+That is the opposite of D8. Fragments exist to change the select list. Padding
+a missing column with `NULL AS "name"` is a change to the select list, and it
+is the central mechanism.
+
+The rule is that the column SET is fixed and the SQL is not. `QueryDef.Columns`
+declares the columns once, and every fragment of every version produces exactly
+those columns under exactly those names. Gemini stated this correctly.
+
+A client therefore knows the result shape before it runs anything, and the same
+scan code works against every supported version. That declared list is also
+what the generator emits scan code from, which is D30's reason for not needing
+to introspect.
+
+
 ## What exists today
 
 An agent that starts work must read these sources first.
