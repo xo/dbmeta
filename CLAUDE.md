@@ -29,10 +29,11 @@ Do not decide an open question on your own. Ask Ken.
    describe the same object differently, follow `psql`. This decides the shape
    of an answer. It does not require every database to answer every question.
 3. A query that must differ between releases is one query with version
-   fragments, held as generated data in the one driver package. There is no
+   fragments, held as generated data in the one model package. There is no
    package per release. A fragment must never change the set of columns a
-   query returns: select the column as `NULL AS name` when the server is too
-   old to have it.
+   query returns. Whichever side lacks a source pads, old or new: select the
+   column as `NULL AS name` on the server that has no source for it. A type
+   that differs between versions is cast to a common one, never left to `any`.
 4. Stay backward compatible within reason. An old database keeps working when
    support for a new one arrives.
 5. Configuration is a value that the caller owns. Do not put a configured
@@ -153,6 +154,12 @@ Return an iterator, `iter.Seq2[Table, error]`. Read the result one record at a
 time and never materialize it into a slice. Do not write a cursor type. An
 error can arrive part way through a result, so a caller must be able to tell
 the end of a result from a failure in the middle of one.
+
+An iterator holds a database connection until it ends. Stopping early, by
+`break` or by `yield` returning false, must close the rows and release the
+connection, and so must cancelling the context. A caller that nests one
+iterator inside another uses a second connection, which deadlocks on a pool of
+one. Document the filter form that avoids nesting.
 
 Use generics rather than `interface{}` for a container of one type. Compare
 errors with `errors.Is` and `errors.As`, never by string.

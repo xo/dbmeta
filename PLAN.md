@@ -187,12 +187,52 @@ change. Do not add one per release.
 #### The rule that makes this work: pad the column list
 
 A fragment must never change the set of columns that a query returns. When a
-column has no source on an older server, the fragment still selects it, as a
+column has no source on a given server, the fragment still selects it, as a
 literal NULL under the same name:
 
 ```sql
 NULL AS "access_privileges"
 ```
+
+The rule is symmetric, and an earlier version of this section got that wrong.
+Both external reviews caught it. Padding is not only for a column that arrives
+in a newer release. A column can exist on an older server and be removed from a
+newer one, and then the newer fragment is the one that pads.
+
+`pg_attrdef.adsrc` is the case. Commit `fe5038236c` in the PostgreSQL tree
+removed it in 2018, so it is present up to release 11 and gone from 12. If the
+canonical shape includes a field with no replacement, releases 12 and later pad
+it. Most removals do have a replacement, as `adsrc` does in
+`pg_get_expr(adbin, adrelid)`, and then both fragments select a real value
+under the same name. The padding case is the one where nothing replaces it.
+
+State it as: whichever side lacks a source pads, old or new.
+
+#### Padding does not cover a type change
+
+A NULL pad fixes the presence of a column. It does not fix its type. Both
+reviews raised this and it is a real limit of the mechanism.
+
+If a column exists on both versions but its type differs, one Go field cannot
+scan both. The fix is a cast in the fragment, so that every version returns the
+same type under the same name, chosen to lose nothing:
+
+```sql
+CAST(col AS text) AS "col"
+```
+
+Do not reach for `any` or an empty interface to paper over this. That discards
+the typed scanning the whole design rests on.
+
+A NULL pad also needs a type where the database cannot infer one. PostgreSQL
+accepts a bare `NULL AS name`, but a stricter database can require
+`CAST(NULL AS text) AS "name"`. Write the cast when the server asks for it.
+
+Gemini offered `pg_class.reltuples` as an example of a type change, saying it
+went from `real` to `bigint` in release 14. That is wrong and it was checked:
+it is still `float4` in the PostgreSQL tree. Release 14 changed its default and
+its meaning, not its type. The category of risk is real even though that
+example is not.
 
 This rule exists because Go scans into a fixed struct. Without it, one query
 returns 12 columns on one server and 13 on another, no single generated struct
@@ -995,6 +1035,21 @@ development machine. This applies to every database, PostgreSQL included.
 architecture, and no code path that branches on either. `dburl` works this way
 and `dbmeta` follows it.
 
+Two clarifications, because both external reviews misread this decision in
+different ways.
+
+This is a testing policy, not a restriction on where the code runs. `dbmeta` is
+pure Go under D29, so it builds and runs anywhere Go does. Nothing enforces
+amd64 and nothing should. Gemini read the decision as needing a `//go:build
+amd64` constraint to enforce itself, which would contradict the rule. It does
+not, because nothing is being enforced. Only testing is limited.
+
+The ban is on operating system and architecture constraints. It is not a ban on
+build tags of every kind. D31 gates model registration with the feature tags
+`none`, `base`, `most` and `all`, which say nothing about a platform. DeepSeek
+read the two as contradictory. They are not, and the difference is the subject
+of the tag.
+
 #### The assumption, stated plainly
 
 The same version of the same database, given the same schema, answers a query
@@ -1414,6 +1469,30 @@ as the primary databases in the phase plan. It has `clickhouse` and `csvq`,
 which the phases do not mention, and it does not have Cassandra, which phase 3
 does.
 
+#### The risk this carries
+
+Both external reviews objected to build tags in a library, and the objection is
+recorded because Ken chose this deliberately to match `usql`.
+
+Their point: a build tag is global to a build, not per dependency. A consumer
+cannot ask for `dbmeta` with the `most` tier while another dependency asks for
+`base`. The tier is chosen by whoever builds the final binary. That works for
+`usql`, which already sets these tags and is a binary, and it is surprising for
+a library consumed by something else.
+
+DeepSeek added the sharper version, which is an interaction with D34. A model
+excluded by a build tag is not present at all, so it cannot report a
+capability and it cannot return `ErrNotSupported`. That is a third state beyond
+the two D34 names, and the API must distinguish all three:
+
+1. The database does not have that object.
+2. The model exists and the database cannot answer.
+3. The model was not compiled into this binary.
+
+The third needs its own error. Call it what it is, and do not let it surface as
+either of the others. A user whose build is missing a model must be told that,
+not told their database lacks a feature.
+
 #### gen.go
 
 A `gen.go` generates the `internal/<model>.go` files. It reads the metadata
@@ -1490,6 +1569,56 @@ Note what this requires of the error handling. An error can arrive part way
 through a result, so the iterator must be able to report one. Use
 `iter.Seq2[T, error]`, and make the caller able to tell the end of a result
 from a failure in the middle of one.
+
+#### The iterator holds a connection, and that is a hazard
+
+Both external reviews raised the same failure and it is the sharpest finding
+against this decision. A live iterator holds an open `*sql.Rows`, and an open
+`*sql.Rows` holds a connection from the pool.
+
+So this deadlocks:
+
+```go
+for table, err := range meta.Tables(ctx, f) {
+    for col, err := range meta.Columns(ctx, filterFor(table)) { // second connection
+        ...
+    }
+}
+```
+
+The outer loop holds one connection while the inner one asks for another. With
+a pool of N, N nested iterations exhaust it. With `MaxOpenConns(1)`, which is
+ordinary for SQLite3 and common in tests, the first nested call deadlocks
+immediately.
+
+Three things address it and all three are required.
+
+1. Document it. The package documentation must say that an iterator holds a
+   connection until it is exhausted or stopped, and must show the filter form
+   that avoids nesting. Asking for every column in a schema in one call is
+   almost always what the caller wanted.
+2. Define the lifecycle. Stopping early, by `break` or by a `yield` returning
+   false, must close the rows and release the connection. An iterator that
+   leaks a connection on `break` is worse than a slice. Cancelling the context
+   must do the same.
+3. Make the escape hatch available. A caller that genuinely needs the whole
+   result in memory collects the iterator into a slice with `slices.Collect`,
+   which releases the connection at once. That is the caller's choice and it
+   needs no API of its own.
+
+This is the cost of D33 and it is accepted. Note that materializing by default
+would trade this hazard for unbounded memory on a large catalog, which is the
+worse failure.
+
+#### Reading more than one catalog needs one snapshot
+
+Gemini raised this and the plan did not cover it. Reading tables and then
+reading their columns are two queries, and a table can be dropped between them.
+
+`dbmeta` does not solve this and must not pretend to. The `DB` interface from
+D17 is satisfied by `*sql.Tx` as well as `*sql.DB`, so a caller that needs a
+consistent view opens a transaction and passes that in. Say so in the package
+documentation, because a caller who does not know cannot guess.
 
 ### D34. Report capabilities, and return a typed error when asked anyway. Decided.
 
