@@ -16,6 +16,7 @@ import (
 const (
 	plain  dbmeta.Dialect = "plaindb"
 	mylike dbmeta.Dialect = "mylikedb"
+	odd    dbmeta.Dialect = "odddb"
 )
 
 func init() {
@@ -32,6 +33,10 @@ func init() {
 			is.PrivilegeGrantor:     "''",
 		},
 		SystemSchemas: []string{"mysql", "information_schema", "performance_schema", "sys"},
+	})
+	is.Register(odd, is.Profile{
+		Placeholder:   func(int) string { return "?" },
+		SystemSchemas: []string{"it's"},
 	})
 }
 
@@ -142,11 +147,6 @@ func TestFieldsMatchTheStatement(t *testing.T) {
 // quoted literal and cannot end the string early.
 func TestSystemSchemasAreQuoted(t *testing.T) {
 	t.Parallel()
-	const odd dbmeta.Dialect = "odddb"
-	is.Register(odd, is.Profile{
-		Placeholder:   func(int) string { return "?" },
-		SystemSchemas: []string{"it's"},
-	})
 	s, _, err := dbmeta.Tables.SQL(meta(t, odd), nil)
 	if err != nil {
 		t.Fatal(err)

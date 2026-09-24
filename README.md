@@ -117,18 +117,32 @@ call and filter in the loop.
 
 # Database Support
 
-| Database   | Model        | Queries | Status      |
-| ---------- | ------------ | ------- | ----------- |
-| PostgreSQL | native       | 48      | Complete    |
-| MariaDB    | planned      | 0       | Not started |
-| MySQL      | planned      | 0       | Not started |
-| SQLite3    | planned      | 0       | Not started |
-| SQL Server | planned      | 0       | Not started |
-| Oracle     | planned      | 0       | Not started |
-| Cassandra  | planned      | 0       | Not started |
+| Database   | Model              | Queries | Status      |
+| ---------- | ------------------ | ------- | ----------- |
+| PostgreSQL | native             | 48      | Complete    |
+| any with an information_schema | shared | 7 | Ready to build on |
+| MariaDB    | shared, planned    | 0       | Not started |
+| MySQL      | shared, planned    | 0       | Not started |
+| SQL Server | shared, planned    | 0       | Not started |
+| DuckDB     | shared, planned    | 0       | Not started |
+| SQLite3    | native, planned    | 0       | Not started |
+| Oracle     | native, planned    | 0       | Not started |
+| Cassandra  | native, planned    | 0       | Not started |
 
-A native model reads the catalog the database keeps for itself. A generic model
-reads `information_schema`, which is a smaller answer that many databases share.
+A native model reads the catalog the database keeps for itself. A shared model
+reads `information_schema`, which is a smaller answer that many databases have.
+It answers 7 object kinds where the native PostgreSQL model answers 48, and
+answers none of them completely: no size, owner or access method for a table,
+no storage or index detail for a column, no exclusion constraint, no aggregate.
+
+SQLite3, Oracle and Cassandra have no `information_schema` at all and need a
+native model. `usql` builds on the same shared reader today for DuckDB, SQL
+Server, MySQL and MariaDB, Snowflake, Trino, Databend and Netezza, which is the
+evidence for who the shared model serves.
+
+A model ships its queries and a fixture together. The fixture is a known good
+schema containing one of every object the queries read, exported so that other
+projects can generate against it.
 
 # Version Support
 

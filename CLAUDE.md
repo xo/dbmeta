@@ -51,15 +51,20 @@ Do not decide an open question on your own. Ask Ken.
    parameter. There are no exceptions. Call `QueryContext` and its relatives,
    never `Query`, `Exec`, `QueryRow`, or `Prepare`. Never call
    `context.Background()` or `context.TODO()` inside this library.
-9. This project is pure Go. No cgo, anywhere, including in the `test` module.
+9. Every model ships both its queries and its fixtures. The fixture creates one
+   of every object the queries read, so a test gets rows worth checking. It is
+   versioned like the queries, because syntax and objects arrive in different
+   releases, and a step the server is too old for is skipped rather than
+   refused. A query that has never run against a real server is not finished.
+10. This project is pure Go. No cgo, anywhere, including in the `test` module.
    Use the pure Go driver for every database: `jackc/pgx` or `lib/pq`,
    `go-sql-driver/mysql`, `modernc.org/sqlite`, `microsoft/go-mssqldb`,
    `sijms/go-ora`, `gocql/gocql`. Never `mattn/go-sqlite3` and never `godror`.
-10. Never write a `//go:build` constraint on an operating system or an
+11. Never write a `//go:build` constraint on an operating system or an
    architecture, and never branch on either. Testing is `linux/amd64` only.
    The same database version is assumed to answer the same way everywhere.
    A driver may carry its own platform builds, which is the driver's business.
-11. Write idiomatic Go. This code is a move of an older package, so a pattern
+12. Write idiomatic Go. This code is a move of an older package, so a pattern
    being present in the source is not a reason to keep it. See D18 in
    `PLAN.md` for the two patterns that must not carry over.
 
@@ -197,10 +202,15 @@ between groups.
 Run these:
 
 ```bash
-gofmt -l . && go vet ./... && go build ./... && go test ./...
+gofmt -l . && go vet ./... && go build ./... && go test -race -count=2 ./...
 ```
 
 `gofmt -l .` must print nothing.
+
+Run it with `-count=2`, because that is what CI runs and a weaker local command
+has already let two failures through. Both were the same fault: a test body
+that registers a dialect or a query, which a registry rejects the second time.
+Registration belongs in `init`.
 
 That does not cover the `test` module. `./...` does not descend into a
 directory that has its own `go.mod`, so run the integration tests separately:

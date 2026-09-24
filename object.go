@@ -602,12 +602,16 @@ type IndexColumn struct {
 
 // Constraint is a check, unique, primary key, foreign key or exclusion
 // constraint. psql shows them inside \d name.
+//
+// Definition is absent where the database records no expression for the kind
+// of constraint. Read through information_schema, only a check constraint has
+// one, because check_clause is the only expression the standard records.
 type Constraint struct {
 	Schema     string
 	Table      string
 	Name       string
 	Type       string
-	Definition string
+	Definition Text
 	Deferrable bool
 	Deferred   bool
 	Comment    Text
