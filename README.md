@@ -187,6 +187,9 @@ release are translated from an older checkout.
 
 # Design
 
+[`COMMANDS.md`](COMMANDS.md) maps every `psql` metadata command to the Go value
+that answers it, which is what wiring up a client needs.
+
 Read [`NULLS.md`](NULLS.md) before writing a query for any database. It is the
 shortest document here and the one that cost the most to learn.
 

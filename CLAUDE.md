@@ -7,7 +7,8 @@ and `dbtpl` consume it.
 `Reader` and `Writer` pair from `usql` is a `usql` concept and it does not
 come here.
 
-Read `NULLS.md` and `PLAN.md` before you change anything. It records the architecture, the
+Read `NULLS.md` and `PLAN.md` before you change anything. `COMMANDS.md` maps
+every `psql` metadata command to the Go value that answers it. It records the architecture, the
 decisions, the known defects, and the questions that nobody has answered yet.
 Do not decide an open question on your own. Ask Ken.
 

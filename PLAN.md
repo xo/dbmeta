@@ -12,7 +12,8 @@ writing code here. `EVALUATION.md` holds the method for deciding which versions
 of a database to support. `QUERIES.md` surveys what `psql` and
 `information_schema` each describe, and compares them side by side. Read
 `QUERIES.md` before designing the object set, and `NULLS.md` before writing a
-query for any database.
+query for any database. `COMMANDS.md` maps every `psql` metadata command to the
+Go value that answers it, for wiring up a client.
 
 ## Purpose
 
