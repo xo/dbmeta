@@ -131,8 +131,11 @@ The catalog monotonicity question is the worked example. One model said catalog
 changes are monotonic and a sampled test matrix is therefore safe. The other
 said the opposite. Checking the PostgreSQL tree settled it: commit
 `fe5038236c` is titled "Remove obsolete pg_attrdef.adsrc column", and
-`describe.c` contains 11 gates of the form `pset.sversion < N`, which exist
-only because something present in an older release is absent in a newer one.
+`describe.c` contains 3 gates of the form `pset.sversion < N`, at 11, 12 and
+15, which exist only because something present in an older release is absent in
+a newer one. The release 15 tree had 11 such gates. The count fell because
+release 20 dropped support for servers below 10, not because the catalog became
+monotonic.
 The claim was false and the test matrix decision changed.
 
 ## Worked example: PostgreSQL
@@ -162,15 +165,17 @@ year policy, not independently checked: 18 through 14 are supported, 13 ended
 on 2025-11-13, 12 ended on 2024-11-14. Release 14 ends on 2026-11-12, which is
 under two months away.
 
-**Criterion 4.** Counted from `describe.c`, which holds 76 version gates.
+**Criterion 5.** Counted from `describe.c` on the current tree, which is
+`REL_19_BETA1-1062-gd9de60c5e47` on `master`, release 20 under development. It
+holds 68 version gates spanning release 11 to release 19.
 
 | Floor | Live gates | Gates that collapse |
 | --- | --- | --- |
-| 9.6 | 63 | 13 |
-| 14 | 13 | 63 |
-
-The 9.6 floor costs close to five times the version work. That is the price of
-`psql` compatibility.
+| 10 | 68 | 0 |
+| 11 | 55 | 13 |
+| 12 | 44 | 24 |
+| 14 | 34 | 34 |
+| 18 | 9 | 59 |
 
 Count the gates with a command rather than by reading:
 
@@ -178,8 +183,18 @@ Count the gates with a command rather than by reading:
 grep -oE 'pset\.sversion *(<|>=) *[0-9]+' src/bin/psql/describe.c | sort | uniq -c
 ```
 
-A gate is dead at a given floor when it is always true or always false there. A
-gate reading `>= 90400` is always true once the floor is 9.6.
+A gate is dead at a given floor when it is always true or always false there.
+
+**A warning about this criterion.** These numbers describe only the releases
+the current `psql` still supports. On 2026-07-02, commit `831bec45924` removed
+every `psql` code path for a server below release 10, stating the upstream
+policy of supporting at least ten previous major versions. A release 15 tree
+measured 76 gates spanning 9.3 to 16. The current tree measures 68 spanning 11
+to 19.
+
+So a cost measurement is only valid for the tree it was taken from, and a floor
+below what upstream supports cannot be measured from the current tree at all.
+Record the tree you measured, as this section does. Re-measure when it moves.
 
 ## The PostgreSQL version list
 
@@ -202,10 +217,10 @@ running `pg_upgrade`, which breaks the cluster.
 
 This matters to `dbmeta` because the server reports an integer. `SHOW
 server_version_num` returns 90600 for 9.6 and 100000 for release 10. Below 10
-the integer packs three fields as major, minor and patch. At 10 and above it
-packs two, as major and patch. Comparison still works across the boundary,
-because the integers increase, but do not try to recover a human readable
-version by dividing by 10000 without handling the two schemes.
+the integer packs three fields. At 10 and above it packs two. Comparison still
+works across the boundary, because the integers increase, but do not try to
+recover a human readable version by dividing by 10000 without handling both
+schemes.
 
 ### The list
 
@@ -213,7 +228,8 @@ Ten major versions, from 9.6 to the newest stable release:
 
 9.6, 10, 11, 12, 13, 14, 15, 16, 17, 18.
 
-Release 18 is the newest stable as of 2026-09-24. Release 19 is in beta.
+Release 18 is the newest stable as of 2026-09-24. Release 19 is in beta and
+release 20 is in development.
 
 ### Verified: major granularity is safe
 
@@ -222,19 +238,13 @@ which would force a gate at something like 14.3 and make major granularity
 wrong.
 
 It cannot, and `describe.c` demonstrates it. Every version gate in the file
-sits on a major boundary. There are 11 distinct gate values and all of them end
-at patch zero:
+sits on a major boundary. On the current tree the gate values are 110000,
+120000, 130000, 140000, 150000, 160000, 170000, 180000 and 190000, and every
+one ends at patch zero.
 
-```
-90300 = 9.3.0    100000 = 10.0    130000 = 13.0
-90400 = 9.4.0    110000 = 11.0    140000 = 14.0
-90500 = 9.5.0    120000 = 12.0    150000 = 15.0
-90600 = 9.6.0                     160000 = 16.0
-```
-
-Not one gate sits at a patch level. This matches the PostgreSQL rule that a
-patch release must not change the on disk format, which a catalog change would
-do. A patch release is a drop in binary replacement.
+This matches the PostgreSQL rule that a patch release must not change the on
+disk format, which a catalog change would do. A patch release is a drop in
+binary replacement.
 
 Recheck this when translating, with:
 
@@ -242,13 +252,23 @@ Recheck this when translating, with:
 grep -oE 'pset\.sversion *(<|>=) *[0-9]+' src/bin/psql/describe.c | grep -oE '[0-9]+$' | sort -u
 ```
 
-A value that does not end in `00` would be a patch level gate and would break
-this assumption.
+A value that does not end in `0000` for a release 10 or later gate, or in `00`
+for an earlier one, would be a patch level gate and would break this
+assumption.
+
+### Two source trees are needed
+
+The current tree describes releases 10 and newer only. Commit `831bec45924`
+removed the older code paths on 2026-07-02.
+
+Translate releases 10 through 19 from the current tree. Translate 9.6 from a
+release 15 or older checkout. Record which tree each fragment came from, beside
+the fragment.
 
 ### Which image tag to pin
 
-Generation and testing want different answers, because they are protecting
-different things.
+Generation and testing want different answers, because they protect different
+things.
 
 For generation, pin a digest. Generated code must be reproducible, so the
 server that produced a model must be exactly recoverable. A tag moves when the
@@ -262,39 +282,36 @@ the newest patch of that major, because that is what people run.
 ### Which versions get tested where
 
 D24 governs and it overrides any split by version. CI runs the latest release
-only. Every other major runs on a development machine.
+only. Every other major runs on a development machine, and D40 names the tier
+each one sits in.
 
-For PostgreSQL that means CI tests release 18, and 9.6 through 17 are tested
-locally before a release.
+### Recorded dissent: both reviews argued for a higher floor
 
-### Recorded dissent: Gemini argued for a floor of 10
+Gemini first recommended a floor of 10 on the grounds that 9.6 has been end of
+life since 2021, its image has not been rebuilt since February 2022, and
+release 10 introduced declarative partitioning, identity columns and logical
+replication, so supporting 9.6 means a fallback path for a catalog without any
+of them.
 
-Gemini was asked and recommended dropping 9.6 and starting at 10. Ken decided
-9.6. The argument is recorded because it names what 9.6 costs.
+When the upstream removal was put to both models, Gemini recommended dropping
+the old releases outright and DeepSeek recommended keeping them only as a named
+tier with scheduled tests.
 
-Gemini's case: 9.6 has been end of life since 2021, its image has not been
-rebuilt since February 2022, and release 10 introduced declarative
-partitioning with `pg_partitioned_table` and `pg_class.relpartbound`, identity
-columns through `pg_attribute.attidentity`, and logical replication with
-`pg_publication` and `pg_subscription`. Supporting 9.6 means a fallback path for
-a catalog without any of those, plus handling the pre-10 versioning scheme.
-
-Ken's reason overrides it. Compatibility with `psql` is the product, so
-PostgreSQL is the specification rather than one supported database. The source
-for every release is public, so nothing has to be guessed.
+Ken kept 9.6. D20 records why the reasoning survived review, including that
+upstream's 2026 reason was a scope policy rather than a finding that the old
+releases cannot be tested, and that 9.6 was verified to run on 2026-09-24.
 
 ### Corrected: the old images do publish arm64
 
-Gemini also claimed that the 9.6, 10 and 11 images lack native `linux/arm64`
-builds and would need emulation on Apple Silicon or Graviton. That is wrong.
-Checked against the Docker Hub API on 2026-09-24, all three publish
-`linux/386`, `linux/amd64`, `linux/arm` and `linux/arm64`.
+Gemini claimed that the 9.6, 10 and 11 images lack native `linux/arm64` builds
+and would need emulation. That is wrong. Checked against the Docker Hub API on
+2026-09-24, all three publish `linux/386`, `linux/amd64`, `linux/arm` and
+`linux/arm64`.
 
-The rest of Gemini's warning about those images stands and is unverified. They
-were last built in 2022 on a Debian base of that era, so the archive
-repositories for that base may be gone, which matters if a test installs
-anything inside the container. Whether they start at all on a current host is
-still unchecked. Pull each one and start it before planning work around it.
+The related warning that those images might not start at all is also now
+answered. `postgres:9.6` was pulled and run under podman 6.1.2 on a current
+Linux host on 2026-09-24. It became ready in four seconds and answered `\d` and
+`\dt` correctly.
 
 ## Template for the next database
 

@@ -35,24 +35,31 @@ Do not decide an open question on your own. Ask Ken.
    column as `NULL AS name` on the server that has no source for it. A type
    that differs between versions is cast to a common one, never left to `any`.
 4. Stay backward compatible within reason. An old database keeps working when
-   support for a new one arrives.
-5. Configuration is a value that the caller owns. Do not put a configured
+   support for a new one arrives. Every version sits in one of three tiers:
+   Tested in CI, Verified on a development machine before a release, or
+   Archived with no tests at all. Never call a version supported without naming
+   its tier. See D40.
+5. A query translated from a source tree that upstream no longer ships records
+   the release and commit of that tree beside the query. PostgreSQL 9.6 is the
+   case: `psql` dropped it in release 20, so there is nothing current to check
+   a translation against.
+6. Configuration is a value that the caller owns. Do not put a configured
    value in a package level variable. One driver borrowed another driver's
    configuration in `usql` and shipped a fault to users.
-6. Do not import `usql` or `dbtpl`. The dependency runs the other way.
-7. Every function that reads metadata takes `ctx context.Context` as its first
+7. Do not import `usql` or `dbtpl`. The dependency runs the other way.
+8. Every function that reads metadata takes `ctx context.Context` as its first
    parameter. There are no exceptions. Call `QueryContext` and its relatives,
    never `Query`, `Exec`, `QueryRow`, or `Prepare`. Never call
    `context.Background()` or `context.TODO()` inside this library.
-8. This project is pure Go. No cgo, anywhere, including in the `test` module.
+9. This project is pure Go. No cgo, anywhere, including in the `test` module.
    Use the pure Go driver for every database: `jackc/pgx` or `lib/pq`,
    `go-sql-driver/mysql`, `modernc.org/sqlite`, `microsoft/go-mssqldb`,
    `sijms/go-ora`, `gocql/gocql`. Never `mattn/go-sqlite3` and never `godror`.
-9. Never write a `//go:build` constraint on an operating system or an
+10. Never write a `//go:build` constraint on an operating system or an
    architecture, and never branch on either. Testing is `linux/amd64` only.
    The same database version is assumed to answer the same way everywhere.
    A driver may carry its own platform builds, which is the driver's business.
-10. Write idiomatic Go. This code is a move of an older package, so a pattern
+11. Write idiomatic Go. This code is a move of an older package, so a pattern
    being present in the source is not a reason to keep it. See D18 in
    `PLAN.md` for the two patterns that must not carry over.
 
