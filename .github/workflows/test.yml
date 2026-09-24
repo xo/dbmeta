@@ -1,0 +1,59 @@
+# Tests dbmeta on every push and pull request.
+#
+# One job on one runner. The queries are SQL and the code is pure Go, so there
+# is nothing to gain from a matrix of operating systems or architectures, and
+# dbmeta does not carry a build constraint on either. Tests here open no
+# database connection: they render statements and read rows from a fake driver
+# replaying recorded data. Older releases and other databases are tested on a
+# development machine before a release.
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Check formatting
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "these files are not formatted:"
+            echo "$out"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -race -count=2 ./...
+
+      - name: Build the model tiers
+        # a consumer chooses how many models to compile in, so each tier must
+        # build. no_base is the tier with none.
+        run: |
+          for tag in no_base most all; do
+            echo "building with -tags $tag"
+            go build -tags "$tag" ./...
+          done
