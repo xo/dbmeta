@@ -369,7 +369,6 @@ func bind(s string, placeholder func(int) string, params []Param, args map[strin
 	var (
 		out  strings.Builder
 		vals []any
-		seen = make(map[string]int)
 	)
 	for {
 		i := strings.IndexByte(s, '@')
@@ -400,13 +399,13 @@ func bind(s string, placeholder func(int) string, params []Param, args map[strin
 			}
 			v = p.Default
 		}
-		n, repeated := seen[name]
-		if !repeated {
-			vals = append(vals, v)
-			n = len(vals)
-			seen[name] = n
-		}
-		out.WriteString(placeholder(n))
+		// A repeated parameter gets a new placeholder and a repeated value,
+		// rather than reusing the first one. PostgreSQL would accept either,
+		// because $2 may appear twice, but MySQL writes ? and every ? consumes
+		// one argument. Reusing the number there gives "expected 5 arguments,
+		// got 3". Appending is correct for both.
+		vals = append(vals, v)
+		out.WriteString(placeholder(len(vals)))
 	}
 	return out.String(), vals, nil
 }

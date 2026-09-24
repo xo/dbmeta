@@ -12,6 +12,11 @@ const testDialect Dialect = "testdb"
 
 func init() {
 	RegisterDialect(quietDialect, &Info{Placeholder: func(int) string { return "?" }})
+	RegisterDialect(seqDialect, &Info{Placeholder: func(int) string { return "?" }})
+	repeatedQuery.Register(seqDialect, &Binding[Table]{
+		Stmt:   Always(`SELECT 1 WHERE (@name = '' OR a LIKE @name)`),
+		Params: []Param{{Name: "name", Default: ""}},
+	})
 	RegisterDialect(testDialect, &Info{
 		Placeholder:    func(n int) string { return "$" + string(rune('0'+n)) },
 		VersionSQL:     `SHOW server_version`,
@@ -280,5 +285,31 @@ func TestDialectVersion(t *testing.T) {
 	}
 	if !versions.Main().Unknown {
 		t.Error("expected an unknown version")
+	}
+}
+
+// TestRepeatedParamBindsTwice guards a fault that only a placeholder style
+// like MySQL's can show. A parameter named twice in one statement must get two
+// placeholders and two values, because every ? consumes an argument.
+// PostgreSQL hides this, since $2 may appear twice.
+// declared at package level, not in the test body: NewQuery and Register both
+// reject a duplicate, and a test body runs again under -count=2.
+const seqDialect Dialect = "seqdb"
+
+var repeatedQuery = NewQuery[Table]("repeated")
+
+func TestRepeatedParamBindsTwice(t *testing.T) {
+	t.Parallel()
+	q := repeatedQuery
+	m := &Meta{dialect: seqDialect}
+	s, args, err := q.SQL(m, map[string]any{"name": "x"})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if n := strings.Count(s, "?"); n != 2 {
+		t.Errorf("expected two placeholders, got %d in:\n%s", n, s)
+	}
+	if len(args) != 2 || args[0] != "x" || args[1] != "x" {
+		t.Errorf("expected the value twice, got %v", args)
 	}
 }

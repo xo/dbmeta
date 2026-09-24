@@ -68,6 +68,17 @@ Do not decide an open question on your own. Ask Ken.
 12. Write idiomatic Go. This code is a move of an older package, so a pattern
    being present in the source is not a reason to keep it. See D18 in
    `PLAN.md` for the two patterns that must not carry over.
+13. A new dialect is not finished until several AI models have been asked
+   about the queries it cannot answer. Consult at least two of Gemini,
+   DeepSeek and Astra, and ask each one to sort the unanswered queries into
+   three groups: absent from the product, present under another name, and
+   derivable from several catalog reads or one complex statement. A first pass
+   only finds the objects that the product names the way PostgreSQL names
+   them, and MariaDB proved the cost: 29 queries looked unanswerable until a
+   second opinion named the tables that hold four of them. Treat every answer
+   as a lead and run it against a real server. Leave an analogue that is a
+   stretch unsupported, and record it in `COVERAGE.md` with the reason. See
+   D43.
 
 ## Layout
 

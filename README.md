@@ -121,8 +121,8 @@ call and filter in the loop.
 | ---------- | ------------------ | ------- | ----------- |
 | PostgreSQL | native             | 48      | Complete    |
 | any with an information_schema | shared | 7 | Ready to build on |
-| MariaDB    | shared, planned    | 0       | Not started |
-| MySQL      | shared, planned    | 0       | Not started |
+| MariaDB    | native             | 23      | Complete    |
+| MySQL      | native, untested   | 23      | Shares the MariaDB model |
 | SQL Server | shared, planned    | 0       | Not started |
 | DuckDB     | shared, planned    | 0       | Not started |
 | SQLite3    | native, planned    | 0       | Not started |
@@ -137,8 +137,12 @@ no storage or index detail for a column, no exclusion constraint, no aggregate.
 
 SQLite3, Oracle and Cassandra have no `information_schema` at all and need a
 native model. `usql` builds on the same shared reader today for DuckDB, SQL
-Server, MySQL and MariaDB, Snowflake, Trino, Databend and Netezza, which is the
-evidence for who the shared model serves.
+Server, Snowflake, Trino, Databend and Netezza, which is the evidence for who
+the shared model serves.
+
+[`COVERAGE.md`](COVERAGE.md) says what each database answers, what it cannot,
+and which analogues were found and rejected. MariaDB answers 23 of the 48
+because a native model beats the shared one by sixteen.
 
 A model ships its queries and a fixture together. The fixture is a known good
 schema containing one of every object the queries read, exported so that other
@@ -192,6 +196,9 @@ that answers it, which is what wiring up a client needs.
 
 Read [`NULLS.md`](NULLS.md) before writing a query for any database. It is the
 shortest document here and the one that cost the most to learn.
+
+[`COVERAGE.md`](COVERAGE.md) records what each database answers and why, and
+names the analogues that looked right and were rejected.
 
 The full record is in [`PLAN.md`](PLAN.md), which holds every decision and the
 evidence behind it. [`QUERIES.md`](QUERIES.md) surveys what `psql` and

@@ -202,8 +202,10 @@ func TestPlaceholders(t *testing.T) {
 	if strings.Contains(s, "@") {
 		t.Errorf("expected every named parameter to be rewritten:\n%s", s)
 	}
-	if len(args) != 3 {
-		t.Errorf("expected three arguments, got %v", args)
+	// a parameter named twice in the statement binds twice, because a
+	// placeholder style like MySQL's consumes one argument per placeholder
+	if len(args) != 5 {
+		t.Errorf("expected five arguments, got %v", args)
 	}
 }
 

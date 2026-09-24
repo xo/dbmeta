@@ -111,9 +111,9 @@ func Example_sql() {
 	// , pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"
 	// FROM pg_catalog.pg_namespace n
 	// WHERE ($1 OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))
-	// AND ($2 = '' OR n.nspname LIKE $2)
+	// AND ($2 = '' OR n.nspname LIKE $3)
 	// ORDER BY 2
-	// args: [false public]
+	// args: [false public public]
 }
 
 // Example_oldServer shows the same query against a server too old for one of
