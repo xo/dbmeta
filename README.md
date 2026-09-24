@@ -160,15 +160,18 @@ version.
 Supported from release 9.6 to release 18, which is ten major versions: 9.6, 10,
 11, 12, 13, 14, 15, 16, 17 and 18.
 
-| Releases    | Tier     |
-| ----------- | -------- |
-| 18          | Tested   |
-| 9.6 to 17   | Verified |
+| Releases          | Tier     |
+| ----------------- | -------- |
+| 9.6, 12, 15, 18   | Tested   |
+| 10, 11, 13, 14, 16, 17 | Verified |
 
-Release 18 is Tested: CI starts a real PostgreSQL 18 and runs the integration
-tests against it on every change. The other nine are Verified: the same tests
-run against a real server for each of them, on a development machine, with
-`test/run.sh`, and that has to pass before a release.
+Four releases are Tested: CI starts a real server for each and runs the
+integration tests on every change. They are the floor, the ceiling and one on
+each side of the middle, which is the smallest set that catches every fault
+found so far. Testing only the newest would have caught two of six.
+
+The other six are Verified. All ten run nightly in CI, and `test/run.sh` runs
+them on a development machine before a release.
 
 Every query is executed against a real server at all ten releases by
 `test/run.sh`, which also checks that the columns returned match the fields

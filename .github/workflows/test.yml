@@ -10,8 +10,14 @@
 #
 # The integration job runs the queries against a real server, which is the only
 # thing that catches SQL a database rejects and a Go type the driver cannot
-# fill. It tests the newest release, as D24 requires. The other nine run on a
-# development machine before a release, with test/run.sh.
+# fill. It tests four releases rather than one, chosen in D42: the floor, the
+# ceiling, and one on each side of the middle. Every bug found so far would
+# have been caught by those four, and four of the six would have been missed by
+# testing the newest release alone.
+#
+# The nightly job runs all ten, because a wrong version gate is only visible in
+# the window between the release it claims and the release that is true, and
+# that window cannot be predicted.
 name: Test
 
 on:
@@ -19,6 +25,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # every night, for the full release matrix
+    - cron: "17 3 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -65,14 +75,23 @@ jobs:
           done
 
   integration:
-    name: Integration
+    name: PostgreSQL ${{ matrix.postgres }}
+    # the nightly job covers these four and six more, so skip them there
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    strategy:
+      # one release failing must not hide another, because the interesting
+      # faults are version specific
+      fail-fast: false
+      matrix:
+        # the floor, one on each side of the middle, and the ceiling. See D42.
+        postgres: ["9.6", "12", "15", "18"]
     services:
-      # the newest PostgreSQL release, per D24. Health checks force TCP with
-      # -h, because pg_isready on the socket reports ready during the
-      # bootstrap phase, before the server restarts to accept connections.
+      # health checks force TCP with -h, because pg_isready on the socket
+      # reports ready during the bootstrap phase, before the server restarts
+      # to accept connections.
       postgres:
-        image: postgres:18
+        image: postgres:${{ matrix.postgres }}
         env:
           POSTGRES_PASSWORD: P4ssw0rd
         ports:
@@ -100,3 +119,45 @@ jobs:
         env:
           DBMETA_POSTGRES: postgres://postgres:P4ssw0rd@localhost:5432/postgres?sslmode=disable
         run: go test -count=1 -v ./...
+
+  nightly:
+    name: PostgreSQL ${{ matrix.postgres }} (nightly)
+    # every supported release, on a schedule rather than on a push. A wrong
+    # version gate is only visible between the release it claims and the
+    # release that is true, and nothing predicts that window, so the only
+    # complete answer is to run them all. It is too slow for a push and cheap
+    # enough for a night.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ["9.6", "10", "11", "12", "13", "14", "15", "16", "17", "18"]
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_PASSWORD: P4ssw0rd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -h 127.0.0.1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against PostgreSQL
+        working-directory: test
+        env:
+          DBMETA_POSTGRES: postgres://postgres:P4ssw0rd@localhost:5432/postgres?sslmode=disable
+        run: go test -count=1 ./...
