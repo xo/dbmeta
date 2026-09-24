@@ -134,9 +134,9 @@ func Example_oldServer() {
 	// attidentity arrived in release 11 and attgenerated in release 12, so an
 	// older server selects a literal under the same name. The column set never
 	// changes, which is what lets one scan function read every release.
-	fmt.Println("10 pads identity: ", strings.Contains(sqlOf("10.23"), `, '' AS "identity"`))
+	fmt.Println("10 pads identity: ", strings.Contains(sqlOf("10.23"), `, NULL AS "identity"`))
 	fmt.Println("11 reads identity:", strings.Contains(sqlOf("11.22"), `a.attidentity`))
-	fmt.Println("11 pads generated:", strings.Contains(sqlOf("11.22"), `, '' AS "generated"`))
+	fmt.Println("11 pads generated:", strings.Contains(sqlOf("11.22"), `, NULL AS "generated"`))
 	fmt.Println("12 reads generated:", strings.Contains(sqlOf("12.18"), `a.attgenerated`))
 
 	// a caller tells "absent at this version" from "genuinely null" by the

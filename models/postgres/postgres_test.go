@@ -134,10 +134,10 @@ func TestPaddingAtOldReleases(t *testing.T) {
 		ver      string
 		contains string
 	}{
-		{"10.23", `, '' AS "identity"`},
-		{"10.23", `, '' AS "generated"`},
+		{"10.23", `, NULL AS "identity"`},
+		{"10.23", `, NULL AS "generated"`},
 		{"11.22", `a.attidentity`},
-		{"11.22", `, '' AS "generated"`},
+		{"11.22", `, NULL AS "generated"`},
 		{"12.18", `a.attidentity`},
 		{"12.18", `a.attgenerated`},
 		{"18.6", `a.attgenerated`},
@@ -179,7 +179,7 @@ func TestFieldMinMatchesTheGate(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			padded := strings.Contains(s, `, '' AS "`+name+`"`)
+			padded := strings.Contains(s, `, NULL AS "`+name+`"`)
 			old := !dbmeta.ParseVersion(ver).AtLeast(dbmeta.ParseVersion(minVer))
 			if padded != old {
 				t.Errorf("%s at %s: padded=%v but the field minimum says old=%v", name, ver, padded, old)

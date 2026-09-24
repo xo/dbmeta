@@ -7,7 +7,7 @@ and `dbtpl` consume it.
 `Reader` and `Writer` pair from `usql` is a `usql` concept and it does not
 come here.
 
-Read `PLAN.md` before you change anything. It records the architecture, the
+Read `NULLS.md` and `PLAN.md` before you change anything. It records the architecture, the
 decisions, the known defects, and the questions that nobody has answered yet.
 Do not decide an open question on your own. Ask Ken.
 
@@ -128,11 +128,14 @@ if err != nil {
 Write error messages in lower case, starting with a gerund. Do not write
 "failed to" or "error". Name the object that failed.
 
-Never wrap a nullable catalog column in `COALESCE`. Give the field the type
-`Text` and let the NULL through. A NULL access control list means the default
-privileges apply and an empty one means every privilege was revoked, and
-collapsing them hides that. `COALESCE` is still right over an aggregate that
-matched no rows, where NULL and empty mean the same thing.
+Never hide a NULL. Read `NULLS.md` before writing a query for any database. It
+is the shortest document here and it is the one that has cost the most to
+learn.
+
+In brief: never wrap a nullable catalog column in `COALESCE`, and never pad an
+absent column with a literal. Give the field the type `Text` and select
+`NULL AS "name"`. Before padding, ask whether the value on the old release is
+unknown or genuinely that value, and set `Field.Min` only for the first.
 
 Declare sentinel errors as constants of a defined string type, never as
 variables. A `var` declared with `errors.New` can be reassigned by any

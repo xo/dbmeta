@@ -175,12 +175,12 @@ func registerColumns() {
 			{{SQL: `, pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS "default"`}},
 			// attidentity arrived in release 11
 			{
-				{SQL: `, '' AS "identity"`},
+				{SQL: `, NULL AS "identity"`},
 				{Min: v11, SQL: `, a.attidentity AS "identity"`},
 			},
 			// attgenerated arrived in release 12
 			{
-				{SQL: `, '' AS "generated"`},
+				{SQL: `, NULL AS "generated"`},
 				{Min: v12, SQL: `, a.attgenerated AS "generated"`},
 			},
 			{{SQL: `, pg_catalog.col_description(c.oid, a.attnum) AS "comment"`}},

@@ -102,7 +102,7 @@ func registerRoleGrants() {
 			{{SQL: `SELECT m.rolname AS "role"`}},
 			{{SQL: `, r.rolname AS "member_of"`}},
 			{
-				{SQL: `, '' AS "grantor"`},
+				{SQL: `, NULL AS "grantor"`},
 				{Min: v16, SQL: `, g.rolname AS "grantor"`},
 			},
 			{{SQL: `, a.admin_option AS "admin"`}},
@@ -128,8 +128,8 @@ func registerRoleGrants() {
 			{Name: "role"}, {Name: "member_of"},
 			{Name: "grantor", Desc: "role that granted the membership", Min: v16},
 			{Name: "admin"},
-			{Name: "inherit", Desc: "whether the member inherits the privileges", Min: v16},
-			{Name: "set", Desc: "whether the member may SET ROLE to it", Min: v16},
+			{Name: "inherit", Desc: "whether the member inherits the privileges. Always true below release 16, which had no other behaviour"},
+			{Name: "set", Desc: "whether the member may SET ROLE to it. Always true below release 16, which had no other behaviour"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "member role name pattern, empty for every role", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.RoleGrant, error) {

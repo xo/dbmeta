@@ -18,6 +18,12 @@ import "database/sql"
 // when the difference matters.
 type Text = sql.Null[string]
 
+// Int is an integer a database may report as NULL, or that this package pads
+// with NULL because the server is too old to have it. A sequence read from a
+// server before release 10 has no recorded bounds, and reporting zero would be
+// a claim rather than an absence.
+type Int = sql.Null[int64]
+
 // This file declares the object kinds and the query for each one.
 //
 // There is one exported Query value per kind. A caller names the value, so the
@@ -158,7 +164,7 @@ type Cast struct {
 type Collation struct {
 	Schema        string
 	Name          string
-	Provider      string
+	Provider      Text
 	Collate       string
 	CType         string
 	Locale        Text
@@ -622,12 +628,12 @@ type Trigger struct {
 type Sequence struct {
 	Schema    string
 	Name      string
-	DataType  string
-	Start     int64
-	Minimum   int64
-	Maximum   int64
-	Increment int64
-	Cycles    bool
+	DataType  Text
+	Start     Int
+	Minimum   Int
+	Maximum   Int
+	Increment Int
+	Cycles    sql.Null[bool]
 	OwnedBy   string
 	Comment   Text
 }

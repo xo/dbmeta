@@ -124,6 +124,15 @@ type Binding[T any] struct {
 	Scan func(*sql.Rows) (T, error)
 }
 
+// Fields declares result columns that no version gates, which is most of them.
+func Fields(names ...string) []Field {
+	out := make([]Field, len(names))
+	for i, name := range names {
+		out[i] = Field{Name: name}
+	}
+	return out
+}
+
 // Query is one kind of metadata object, such as a table or a column.
 //
 // There is one exported Query value per object kind, and a model registers

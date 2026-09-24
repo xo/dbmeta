@@ -167,27 +167,27 @@ func registerSequences() {
 			{{SQL: `SELECT n.nspname AS "schema"`}},
 			{{SQL: `, c.relname AS "name"`}},
 			{
-				{SQL: `, '' AS "data_type"`},
+				{SQL: `, NULL AS "data_type"`},
 				{Min: v10, SQL: `, pg_catalog.format_type(s.seqtypid, NULL) AS "data_type"`},
 			},
 			{
-				{SQL: `, 0::bigint AS "start"`},
+				{SQL: `, NULL::bigint AS "start"`},
 				{Min: v10, SQL: `, s.seqstart AS "start"`},
 			},
 			{
-				{SQL: `, 0::bigint AS "minimum"`},
+				{SQL: `, NULL::bigint AS "minimum"`},
 				{Min: v10, SQL: `, s.seqmin AS "minimum"`},
 			},
 			{
-				{SQL: `, 0::bigint AS "maximum"`},
+				{SQL: `, NULL::bigint AS "maximum"`},
 				{Min: v10, SQL: `, s.seqmax AS "maximum"`},
 			},
 			{
-				{SQL: `, 0::bigint AS "increment"`},
+				{SQL: `, NULL::bigint AS "increment"`},
 				{Min: v10, SQL: `, s.seqincrement AS "increment"`},
 			},
 			{
-				{SQL: `, false AS "cycles"`},
+				{SQL: `, NULL::boolean AS "cycles"`},
 				{Min: v10, SQL: `, s.seqcycle AS "cycles"`},
 			},
 			{{SQL: `, COALESCE((SELECT pg_catalog.quote_ident(dn.nspname) || '.' ||` +

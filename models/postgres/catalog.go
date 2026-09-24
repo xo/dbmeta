@@ -202,14 +202,17 @@ func registerCollations() {
 			{{SQL: `SELECT n.nspname AS "schema"`}},
 			{{SQL: `, c.collname AS "name"`}},
 			{
-				{SQL: `, '' AS "provider"`},
+				{SQL: `, NULL AS "provider"`},
 				{Min: v10, SQL: `, CASE c.collprovider WHEN 'd' THEN 'default' WHEN 'c' THEN 'libc' WHEN 'i' THEN 'icu' WHEN 'b' THEN 'builtin' ELSE '' END AS "provider"`},
 			},
 			{{SQL: `, c.collcollate AS "collate"`}},
 			{{SQL: `, c.collctype AS "ctype"`}},
+			// the locale column was renamed twice. psql gates it the same
+			// way at describe.c:5093, and an older server falls back to the
+			// collate string rather than reporting nothing.
 			{
-				{SQL: `, '' AS "locale"`},
-				{Min: v12, SQL: `, c.colliculocale AS "locale"`},
+				{SQL: `, c.collcollate AS "locale"`},
+				{Min: v15, SQL: `, c.colliculocale AS "locale"`},
 				{Min: v17, SQL: `, c.colllocale AS "locale"`},
 			},
 			{
@@ -230,8 +233,8 @@ func registerCollations() {
 			{Name: "provider", Desc: "libc, icu or builtin", Min: v10},
 			{Name: "collate"},
 			{Name: "ctype"},
-			{Name: "locale", Desc: "ICU locale, empty when the provider is not ICU", Min: v12},
-			{Name: "deterministic", Desc: "whether equal strings are always identical", Min: v12},
+			{Name: "locale", Desc: "the locale, from colllocale at 17, colliculocale at 15, and collcollate below that"},
+			{Name: "deterministic", Desc: "whether equal strings are always identical. Always true below release 12, which had no other behaviour"},
 			{Name: "comment"},
 		},
 		Params: schemaNameSystem("collation"),
@@ -301,7 +304,7 @@ func registerSettings() {
 			{{SQL: `, s.vartype AS "type"`}},
 			{{SQL: `, s.context AS "context"`}},
 			{
-				{SQL: `, '' AS "access"`},
+				{SQL: `, NULL AS "access"`},
 				{Min: v15, SQL: `, pg_catalog.array_to_string(p.paracl, E'\n') AS "access"`},
 			},
 			{{SQL: `FROM pg_catalog.pg_settings s`}},

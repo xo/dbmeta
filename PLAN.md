@@ -11,7 +11,8 @@ Three other documents sit beside this one. `CLAUDE.md` holds the rules for
 writing code here. `EVALUATION.md` holds the method for deciding which versions
 of a database to support. `QUERIES.md` surveys what `psql` and
 `information_schema` each describe, and compares them side by side. Read
-`QUERIES.md` before designing the object set.
+`QUERIES.md` before designing the object set, and `NULLS.md` before writing a
+query for any database.
 
 ## Purpose
 

@@ -2,14 +2,8 @@ package postgres
 
 import "github.com/xo/dbmeta"
 
-// fields declares result columns that no version gates, which is most of them.
-func fields(names ...string) []dbmeta.Field {
-	out := make([]dbmeta.Field, len(names))
-	for i, name := range names {
-		out[i] = dbmeta.Field{Name: name}
-	}
-	return out
-}
+// fields is [dbmeta.Fields], kept short because this file uses it often.
+var fields = dbmeta.Fields
 
 // schemaNameSystem is the usual parameter set for an object that lives in a
 // schema: narrow by schema, narrow by name, and choose whether to include the

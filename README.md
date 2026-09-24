@@ -146,23 +146,30 @@ version.
 Supported from release 9.6 to release 18, which is ten major versions: 9.6, 10,
 11, 12, 13, 14, 15, 16, 17 and 18.
 
-| Releases   | Tier     |
-| ---------- | -------- |
-| 18         | Tested   |
-| 9.6 to 17  | Verified |
+| Releases    | Tier     |
+| ----------- | -------- |
+| 9.6 to 18   | Verified |
 
-All 48 queries were executed against a live PostgreSQL 18 server, and the 43
-that apply were executed against a live PostgreSQL 9.6 server. The five that do
-not apply are the objects PostgreSQL did not have before release 10:
+No release is in the Tested tier, because CI starts no database. Every release
+is Verified: the integration tests in `test/` run against a real server for all
+ten, and `test/run.sh` runs the whole matrix.
+
+Every query is executed against a real server at all ten releases by
+`test/run.sh`, which also checks that the columns returned match the fields
+declared and that a field the server is too old for arrives as NULL. The
+objects PostgreSQL did not have before release 10 are refused there rather than
+returning an empty result:
 publications, publication tables, subscriptions, extended statistics and
-partitioned tables. Asking for one of those on an older server reports that the
-version is too old rather than returning an empty result.
+partitioned tables.
 
 Note that `psql` itself dropped support for servers below release 10 in
 PostgreSQL 20. `dbmeta` supports 9.6 deliberately, and its queries for that
 release are translated from an older checkout.
 
 # Design
+
+Read [`NULLS.md`](NULLS.md) before writing a query for any database. It is the
+shortest document here and the one that cost the most to learn.
 
 The full record is in [`PLAN.md`](PLAN.md), which holds every decision and the
 evidence behind it. [`QUERIES.md`](QUERIES.md) surveys what `psql` and

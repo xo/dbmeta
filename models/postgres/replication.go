@@ -51,7 +51,13 @@ func registerPublications() {
 		Fields: []dbmeta.Field{
 			{Name: "name", Min: v10}, {Name: "owner", Min: v10}, {Name: "all_tables", Min: v10},
 			{Name: "insert", Min: v10}, {Name: "update", Min: v10}, {Name: "delete", Min: v10},
-			{Name: "truncate", Min: v11}, {Name: "via_root", Min: v13}, {Name: "comment", Min: v10},
+			// not padded: a publication before release 11 could not publish a
+			// truncate at all, and one before release 13 could not publish
+			// via the root partition, so false is the correct answer rather
+			// than an absence
+			{Name: "truncate", Desc: "publishes truncate. Always false below release 11", Min: v10},
+			{Name: "via_root", Desc: "publishes via the root partition. Always false below release 13", Min: v10},
+			{Name: "comment", Min: v10},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "publication name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Publication, error) {
@@ -92,8 +98,10 @@ func registerPublicationTables() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "publication", Min: v10}, {Name: "schema", Min: v10}, {Name: "name", Min: v10},
-			{Name: "columns", Desc: "published columns, empty for every column", Min: v15},
-			{Name: "where", Desc: "row filter, empty for every row", Min: v15},
+			// not padded either: before release 15 a publication published
+			// every column and filtered no rows, which is what empty means
+			{Name: "columns", Desc: "published columns, empty for every column. Always empty below release 15", Min: v10},
+			{Name: "where", Desc: "row filter, empty for every row. Always empty below release 15", Min: v10},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "publication name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.PublicationTable, error) {
