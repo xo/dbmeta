@@ -10,7 +10,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/xo/dbmeta"
-	_ "github.com/xo/dbmeta/models/mysql"
+	"github.com/xo/dbmeta/models/mysql"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 )
 
@@ -216,16 +216,24 @@ func TestMySQLAnalogues(t *testing.T) {
 	}
 }
 
-// TestMySQLForeignData covers the four kinds that only a second look found.
-// They read mysql.proc, mysql.func and mysql.servers, which information_schema
-// does not publish, so a server that answers them at all answers them here.
-func TestMySQLForeignData(t *testing.T) {
+// TestMySQLAggregates covers \da, which only MariaDB answers. MySQL dropped
+// mysql.proc in 8.0 and has no aggregate of its own at any release, so it must
+// report the query unsupported rather than returning nothing.
+func TestMySQLAggregates(t *testing.T) {
 	db := openMySQL(t)
 	m := setupMySQL(t, db)
 	ctx := t.Context()
 	schema := myfixture.Everything.Schema
 
-	// the fixture creates one aggregate, on a release that has them
+	if !mysql.IsMariaDB(m.Version()) {
+		if got := dbmeta.Aggregates.Support(m); got != dbmeta.NotSupported {
+			t.Errorf("expected MySQL to report aggregates unsupported, got %v", got)
+		}
+		if _, _, err := dbmeta.Aggregates.SQL(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
+			t.Errorf("expected ErrNotSupported, got: %v", err)
+		}
+		return
+	}
 	var aggs int
 	for v, err := range dbmeta.Aggregates.All(ctx, m, db, myArgs()) {
 		if err != nil {
@@ -238,20 +246,24 @@ func TestMySQLForeignData(t *testing.T) {
 		if v.Name == "total" && v.Schema != schema {
 			t.Errorf("expected %q, got %q", schema, v.Schema)
 		}
-	}
-	if m.Version().Main().AtLeast(dbmeta.V(10, 3)) && aggs == 0 {
-		t.Error("expected the fixture aggregate to be listed")
-	}
-	// a plain function must not appear here, which is the whole reason this
-	// query reads mysql.proc rather than information_schema.ROUTINES
-	for v, err := range dbmeta.Aggregates.All(ctx, m, db, myArgs()) {
-		if err != nil {
-			t.Fatalf("reading aggregates: %v", err)
-		}
+		// a plain function must not appear here, which is the whole reason
+		// this query reads mysql.proc rather than information_schema.ROUTINES
 		if v.Name == "shout" {
 			t.Error("expected a plain function to be left out of the aggregates")
 		}
 	}
+	if m.Version().Main().AtLeast(dbmeta.V(10, 3)) && aggs == 0 {
+		t.Error("expected the fixture aggregate to be listed")
+	}
+}
+
+// TestMySQLForeignData covers the kinds that only a second look found. They
+// read mysql.servers, which information_schema does not publish, and both
+// products keep it.
+func TestMySQLForeignData(t *testing.T) {
+	db := openMySQL(t)
+	m := setupMySQL(t, db)
+	ctx := t.Context()
 
 	var servers int
 	for v, err := range dbmeta.ForeignServers.All(ctx, m, db, nil) {
@@ -315,8 +327,25 @@ func TestMySQLUnsupported(t *testing.T) {
 		// Each one was run against a server and rejected. See COVERAGE.md.
 		dbmeta.Tablespaces, dbmeta.ForeignDataWrappers, dbmeta.ExtendedStats,
 	} {
+		checkUnsupported(t, m, q)
+	}
+	// Sequences and aggregates are the other kind of unsupported. The dialect
+	// answers them and this product does not, at any release, so the answer
+	// must be ErrNotSupported and never ErrVersionTooOld. Comparing the
+	// numbers alone got this wrong: MySQL 9 is below MariaDB 11.5, which made
+	// a product difference look like an old server. See D44.
+	if !mysql.IsMariaDB(m.Version()) {
+		for _, q := range []dbmeta.AnyQuery{dbmeta.Sequences, dbmeta.Aggregates} {
+			checkUnsupported(t, m, q)
+		}
+	}
+}
+
+func checkUnsupported(t *testing.T, m *dbmeta.Meta, q dbmeta.AnyQuery) {
+	t.Helper()
+	{
 		if got := q.Support(m); got != dbmeta.NotSupported {
-			t.Errorf("%s: expected MariaDB to report it unsupported, got %v", q.Name(), got)
+			t.Errorf("%s: expected it to be reported unsupported, got %v", q.Name(), got)
 		}
 		if _, _, err := q.SQL(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
 			t.Errorf("%s: expected ErrNotSupported, got: %v", q.Name(), err)

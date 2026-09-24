@@ -3,27 +3,53 @@ package dbmeta
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"iter"
 	"strings"
 	"sync"
 )
 
-// Fragment is one alternative for one piece of a statement. It applies when
-// the server is at Min or newer.
+// Gate is a version test. The server must report Key at Min or newer. A zero
+// Gate is met by every server.
 //
 // Key names which reported version to compare against. The empty key is the
-// main one. Cassandra reports several that move independently, so a fragment
-// gating on the CQL version sets Key to "cql".
+// main one, which every server reports. A named key is a fact about the
+// server, and a server that does not report it does not meet the gate however
+// new it is. Two things use a name:
 //
-// A Fragment with a zero Min applies to every server.
+// A database that reports several versions that move independently. Cassandra
+// reports three, so a gate on the CQL version sets Key to "cql".
+//
+// A product that shares a dialect with another product. MariaDB and MySQL
+// share one dialect and one model, and their release numbers have no relation
+// to each other, so a gate on MariaDB 10.3 sets Key to "mariadb" and never
+// applies to MySQL. Comparing the numbers alone is the fault D44 records.
+type Gate struct {
+	Min Version
+	Key string
+}
+
+// Met reports whether versions satisfies g.
+func (g Gate) Met(versions VersionSet) bool {
+	if g.Key != "" && !versions.Has(g.Key) {
+		return false
+	}
+	return versions.Get(g.Key).AtLeast(g.Min)
+}
+
+// Fragment is one alternative for one piece of a statement. It applies when
+// the server meets its gate.
 type Fragment struct {
 	Min Version
 	Key string
 	SQL string
 }
 
+// Gate returns the version test this fragment applies.
+func (f Fragment) Gate() Gate { return Gate{Min: f.Min, Key: f.Key} }
+
 // Choice holds the alternatives for one piece of a statement. Exactly one is
-// used: the one with the highest Min the server meets.
+// used, and [Choice.Resolve] says which.
 //
 // A piece is usually one column of the select list, because that is what
 // changes between releases.
@@ -36,20 +62,56 @@ type Fragment struct {
 type Choice []Fragment
 
 // Resolve returns the SQL of the alternative that applies to versions.
+//
+// Three rules decide it, in order. An alternative whose gate the server does
+// not meet is out. Among those left, a named key beats the empty key, because
+// a fragment written for one product is more specific than one written for the
+// family. Among those sharing a key, the highest Min wins.
+//
+// Two alternatives naming different keys, both met, return
+// [ErrAmbiguousFragment]. Nothing decides between them and guessing would pick
+// by a number that means something different on each side. It is a fault in
+// the model.
+//
+// A Choice where every alternative names a key and the server reports none of
+// them returns [ErrNotSupported] rather than [ErrVersionTooOld]. The server is
+// not too old for this piece. It is the wrong product for it, and no upgrade
+// changes that. A server that does report the key and is below the Min is too
+// old, which an upgrade fixes, so that stays [ErrVersionTooOld].
 func (c Choice) Resolve(versions VersionSet) (string, error) {
 	best, found := -1, false
+	// reachable counts the alternatives this server could meet on a newer
+	// release: the ones with no key, and the ones whose key it reports.
+	var reachable int
 	for i, f := range c {
-		if !versions.Get(f.Key).AtLeast(f.Min) {
+		if f.Key == "" || versions.Has(f.Key) {
+			reachable++
+		}
+		if !f.Gate().Met(versions) {
 			continue
 		}
-		if !found || c[best].Min.Compare(f.Min) < 0 {
+		switch {
+		case !found:
 			best, found = i, true
+		case c[best].Key == f.Key:
+			if c[best].Min.Compare(f.Min) < 0 {
+				best = i
+			}
+		case c[best].Key == "":
+			best = i
+		case f.Key == "":
+			// the more specific alternative already won
+		default:
+			return "", ErrAmbiguousFragment
 		}
 	}
-	if !found {
-		return "", ErrVersionTooOld
+	switch {
+	case found:
+		return c[best].SQL, nil
+	case len(c) > 0 && reachable == 0:
+		return "", ErrNotSupported
 	}
-	return c[best].SQL, nil
+	return "", ErrVersionTooOld
 }
 
 // Stmt is the pieces of one statement, in order. Each piece resolves on its
@@ -86,15 +148,39 @@ func Always(sql string) Stmt {
 
 // Field is a result column that a query declares.
 //
-// The set of fields is fixed for every version. Min records the oldest version
-// where the field has a real source, so a caller can tell a value that is null
-// from a field the server is too old to have. Below Min the column is padded
-// with NULL.
+// The set of fields is fixed for every version. Min and Key record the oldest
+// version where the field has a real source, so a caller can tell a value that
+// is null from a field the server has no source for. Below that the column is
+// padded with NULL. Read [Field.Present] rather than the gate, which cannot
+// tell an absent key from an old server on its own.
 type Field struct {
 	Name string
 	Desc string
-	Min  Version
-	Key  string
+
+	// Min and Key are the gate that gives the field a real source. They mean
+	// what they mean on a [Gate].
+	Min Version
+	Key string
+	// Also holds further gates, for a field that arrived in a different
+	// release of each product. The field has a source when the gate above is
+	// met or any gate here is met. MariaDB recorded a check constraint from
+	// 10.2 and MySQL from 8.0.16, and no single number says both.
+	Also []Gate
+}
+
+// Present reports whether the field has a real source on this server. A field
+// that is not present is padded with NULL, so a caller reading NULL calls this
+// to find out which of the two it has.
+func (f Field) Present(versions VersionSet) bool {
+	if (Gate{Min: f.Min, Key: f.Key}).Met(versions) {
+		return true
+	}
+	for _, g := range f.Also {
+		if g.Met(versions) {
+			return true
+		}
+	}
+	return false
 }
 
 // Param is a query parameter that a query declares. The name is what appears
@@ -242,7 +328,15 @@ func (q *Query[T]) Support(m *Meta) Support {
 	if _, ok := m.dialect.Info(); !ok {
 		return NotBuilt
 	}
-	if q.binding(m.dialect) == nil {
+	b := q.binding(m.dialect)
+	if b == nil {
+		return NotSupported
+	}
+	// A dialect two products share registers one binding for both, so the
+	// binding alone does not say the product answers. A statement built only
+	// from fragments naming a key this server does not report is a statement
+	// for the other product. See D44.
+	if _, err := b.Stmt.SQL(m.versions); errors.Is(err, ErrNotSupported) {
 		return NotSupported
 	}
 	return Supported

@@ -313,3 +313,182 @@ func TestRepeatedParamBindsTwice(t *testing.T) {
 		t.Errorf("expected the value twice, got %v", args)
 	}
 }
+
+// A dialect two products share. It is the MariaDB and MySQL case reduced to
+// what the rules need: two keys, neither of them the main one.
+const twinDialect Dialect = "twindb"
+
+var (
+	twinQuery      = NewQuery[Table]("twin")
+	twinOnlyQuery  = NewQuery[Table]("twin_only")
+	twinMixedQuery = NewQuery[Table]("twin_mixed")
+)
+
+func init() {
+	RegisterDialect(twinDialect, &Info{Placeholder: func(int) string { return "?" }})
+	twinQuery.Register(twinDialect, &Binding[Table]{
+		Stmt: Stmt{
+			{
+				{SQL: `SELECT 'neither' AS "name"`},
+				{Key: "alpha", Min: V(10, 2), SQL: `SELECT 'alpha' AS "name"`},
+				{Key: "beta", Min: V(8, 0, 16), SQL: `SELECT 'beta' AS "name"`},
+			},
+		},
+		Fields: []Field{{
+			Name: "name",
+			Min:  V(10, 2), Key: "alpha",
+			Also: []Gate{{Key: "beta", Min: V(8, 0, 16)}},
+		}},
+	})
+	// every alternative names a key, so a server reporting neither is the
+	// wrong product rather than an old one
+	twinOnlyQuery.Register(twinDialect, &Binding[Table]{
+		Stmt: Stmt{{{Key: "alpha", Min: V(11, 5), SQL: `SELECT 1`}}},
+	})
+	// a model fault: two keys, both met, nothing to choose between them
+	twinMixedQuery.Register(twinDialect, &Binding[Table]{
+		Stmt: Stmt{{
+			{Key: "alpha", SQL: `SELECT 'a'`},
+			{Key: "beta", SQL: `SELECT 'b'`},
+		}},
+	})
+}
+
+func twin(t *testing.T, pairs ...string) *Meta {
+	t.Helper()
+	var s VersionSet
+	for i := 0; i < len(pairs); i += 2 {
+		s.Set(pairs[i], ParseVersion(pairs[i+1]))
+	}
+	m, err := New(twinDialect, s)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	return m
+}
+
+// TestKeyedFragmentNeedsTheKey is the rule D44 rests on. A named key is a fact
+// about the server, so a server that does not report it does not meet the
+// gate, however new its numbers are. Before this, MySQL 9 satisfied a gate
+// written for MariaDB 10.2, because 9 is unknown under that key and unknown
+// sorts above everything.
+func TestKeyedFragmentNeedsTheKey(t *testing.T) {
+	t.Parallel()
+	want := map[*Meta]string{
+		twin(t, "alpha", "11.8"): "alpha",
+		twin(t, "beta", "9.7"):   "beta",
+		// reports alpha, but too old for the alpha fragment
+		twin(t, "alpha", "10.1"): "neither",
+		// reports neither key
+		twin(t, "", "1.0"): "neither",
+	}
+	for m, expect := range want {
+		s, _, err := twinQuery.SQL(m, nil)
+		if err != nil {
+			t.Fatalf("%s: expected no error, got: %v", m, err)
+		}
+		if !strings.Contains(s, "'"+expect+"'") {
+			t.Errorf("%s: expected the %s alternative, got:\n%s", m, expect, s)
+		}
+	}
+}
+
+// TestKeyedFieldKnowsBothProducts checks that a field arriving in a different
+// release of each product reports its presence for both.
+func TestKeyedFieldKnowsBothProducts(t *testing.T) {
+	t.Parallel()
+	want := map[*Meta]bool{
+		twin(t, "alpha", "11.8"):   true,
+		twin(t, "alpha", "10.1"):   false,
+		twin(t, "beta", "9.7"):     true,
+		twin(t, "beta", "8.0.1"):   false,
+		twin(t, "beta", "8.0.16"):  true,
+		twin(t, "gamma", "999.99"): false,
+	}
+	for m, expect := range want {
+		fields, err := twinQuery.Fields(m)
+		if err != nil {
+			t.Fatalf("%s: expected no error, got: %v", m, err)
+		}
+		if got := fields[0].Present(m.Version()); got != expect {
+			t.Errorf("%s: expected present=%v, got %v", m, expect, got)
+		}
+	}
+}
+
+// TestWrongProductIsNotSupported separates the two reasons a statement does
+// not resolve. A server too old for a piece can be upgraded. A server of the
+// other product cannot, so it gets ErrNotSupported and reports the query as
+// unsupported rather than answering with a failure.
+func TestWrongProductIsNotSupported(t *testing.T) {
+	t.Parallel()
+	other := twin(t, "beta", "9.7")
+	if got := twinOnlyQuery.Support(other); got != NotSupported {
+		t.Errorf("expected not supported, got %v", got)
+	}
+	if _, _, err := twinOnlyQuery.SQL(other, nil); !errors.Is(err, ErrNotSupported) {
+		t.Errorf("expected ErrNotSupported, got: %v", err)
+	}
+	// the same query on the right product, at too old a release, is a
+	// different answer
+	old := twin(t, "alpha", "10.6")
+	if got := twinOnlyQuery.Support(old); got != Supported {
+		t.Errorf("expected supported, got %v", got)
+	}
+	if _, _, err := twinOnlyQuery.SQL(old, nil); !errors.Is(err, ErrVersionTooOld) {
+		t.Errorf("expected ErrVersionTooOld, got: %v", err)
+	}
+}
+
+// TestTwoKeysBothMetIsAFault checks that nothing guesses. Two alternatives for
+// different products cannot both apply, and picking by the number would
+// compare releases that mean different things.
+func TestTwoKeysBothMetIsAFault(t *testing.T) {
+	t.Parallel()
+	both := twin(t, "alpha", "11.8", "beta", "9.7")
+	if _, _, err := twinMixedQuery.SQL(both, nil); !errors.Is(err, ErrAmbiguousFragment) {
+		t.Errorf("expected ErrAmbiguousFragment, got: %v", err)
+	}
+	// one key alone resolves
+	if _, _, err := twinMixedQuery.SQL(twin(t, "alpha", "11.8"), nil); err != nil {
+		t.Errorf("expected no error, got: %v", err)
+	}
+}
+
+// TestKeyedBeatsUnkeyed checks the specificity rule. A fragment written for
+// one product wins over one written for the family, whatever the numbers say.
+func TestKeyedBeatsUnkeyed(t *testing.T) {
+	t.Parallel()
+	c := Choice{
+		{Min: V(99), SQL: `family`},
+		{Key: "alpha", SQL: `product`},
+	}
+	var s VersionSet
+	s.Set("", ParseVersion("100"))
+	s.Set("alpha", ParseVersion("1"))
+	got, err := c.Resolve(s)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if got != "product" {
+		t.Errorf("expected the keyed alternative, got %q", got)
+	}
+}
+
+func TestVersionSetHasAndKeys(t *testing.T) {
+	t.Parallel()
+	var s VersionSet
+	s.Set("", ParseVersion("11.8"))
+	s.Set("mariadb", ParseVersion("11.8"))
+	if !s.Has("mariadb") || s.Has("mysql") {
+		t.Error("expected only the key that was set")
+	}
+	if got := strings.Join(s.Keys(), ","); got != ",mariadb" {
+		t.Errorf("expected the keys sorted, got %q", got)
+	}
+	// Get cannot tell an absent key from an unreadable version, which is why
+	// Has exists
+	if !s.Get("mysql").Unknown {
+		t.Error("expected an absent key to read as unknown")
+	}
+}

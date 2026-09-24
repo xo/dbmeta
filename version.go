@@ -1,6 +1,7 @@
 package dbmeta
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -163,9 +164,35 @@ func (s *VersionSet) Set(key string, ver Version) {
 	s.Versions[key] = ver
 }
 
+// Has reports whether key was recorded.
+//
+// A named key is a fact about the server, so its absence is a fact too. A
+// server that reports no "mariadb" version is not a MariaDB server, and a
+// fragment naming that key must not apply to it. Read this rather than [Get],
+// which cannot tell an absent key from an unreadable version. See D44.
+func (s VersionSet) Has(key string) bool {
+	_, ok := s.Versions[key]
+	return ok
+}
+
+// Keys returns every key recorded, sorted, so that a caller can show what the
+// server reported.
+func (s VersionSet) Keys() []string {
+	out := make([]string, 0, len(s.Versions))
+	for key := range s.Versions {
+		out = append(out, key)
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Get returns the version recorded under key. A key that was never set returns
 // an unknown version, so a fragment gating on a version the server does not
 // report is treated as newest rather than failing.
+//
+// A caller deciding whether a fragment applies calls [Has] first. An unknown
+// version is newer than every known one, so Get alone makes an absent key look
+// like the newest possible server.
 func (s VersionSet) Get(key string) Version {
 	if ver, ok := s.Versions[key]; ok {
 		return ver

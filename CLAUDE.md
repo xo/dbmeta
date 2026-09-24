@@ -35,6 +35,12 @@ Do not decide an open question on your own. Ask Ken.
    query returns. Whichever side lacks a source pads, old or new: select the
    column as `NULL AS name` on the server that has no source for it. A type
    that differs between versions is cast to a common one, never left to `any`.
+   Where two products share a dialect, a fragment for one of them gates on
+   that product's version key and never on the number alone. MariaDB 11.8 and
+   MySQL 9 have no numeric relation, so a gate at `V(10, 2)` silently means
+   "MariaDB only" and shipped a wrong answer once already. Write
+   `Gate{Key: MariaDB, Min: V(10, 2)}`. Set a key only for a product you
+   detected. See D44.
 4. Stay backward compatible within reason. An old database keeps working when
    support for a new one arrives. Every version sits in one of three tiers:
    Tested in CI, Verified on a development machine before a release, or

@@ -18,6 +18,12 @@
 # The nightly job runs all ten, because a wrong version gate is only visible in
 # the window between the release it claims and the release that is true, and
 # that window cannot be predicted.
+#
+# MariaDB and MySQL are two products sharing one dialect and one model, so each
+# has its own job and a third compares them. The compare job builds the same
+# fixture on one server of each and checks that the same queries answer the
+# same way, which is the only thing that catches a query written for one
+# product and run against the other. See D44.
 name: Test
 
 on:
@@ -159,6 +165,91 @@ jobs:
         env:
           DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
         run: go test -count=1 -v -run 'MySQL|InformationSchema' ./...
+
+  mysql:
+    name: MySQL ${{ matrix.mysql }}
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # MySQL is the other product of the mysql dialect. 8.4 is the current
+        # long term release and 9 is the innovation release. They differ on
+        # where a system variable lives, which is a gate the model carries.
+        mysql: ["8.4", "9"]
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: P4ssw0rd
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pP4ssw0rd"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against MySQL
+        working-directory: test
+        env:
+          DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
+        run: go test -count=1 -v -run 'MySQL|InformationSchema' ./...
+
+  compare:
+    name: MariaDB against MySQL
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: P4ssw0rd
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      mysql:
+        image: mysql:9
+        env:
+          MYSQL_ROOT_PASSWORD: P4ssw0rd
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pP4ssw0rd"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Compare the two products
+        working-directory: test
+        env:
+          DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
+          DBMETA_MYSQL_COMPARE: root:P4ssw0rd@tcp(localhost:3307)/?parseTime=true
+        run: go test -count=1 -v -run MySQLAgainstMariaDB ./...
 
   nightly:
     name: PostgreSQL ${{ matrix.postgres }} (nightly)

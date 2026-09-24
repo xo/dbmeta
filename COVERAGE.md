@@ -18,14 +18,23 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 | Model | Answers | Of | Tested against |
 | --- | --- | --- | --- |
 | `models/postgres` | 48 | 48 | PostgreSQL 9.6 through 18 |
-| `models/mysql` | 23 | 48 | MariaDB 11.8.9 and 10.6.28 |
+| `models/mysql` | 23 on MariaDB, 21 on MySQL | 48 | MariaDB 11.8 and 10.6, MySQL 9 and 8.4 |
 | `models/informationschema` | 7 | 48 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers seven: tables, schemas, columns,
 functions, privileges, constraints and sequences. It is the floor. A native
 model exists to beat it, and `models/mysql` beats it by sixteen.
 
-## MariaDB
+## MariaDB and MySQL
+
+These are two products sharing one dialect and one model. Most of what follows
+is true of both. Where they differ, the model gates on the product rather than
+on the release number, because MariaDB is at 11.8 and MySQL at 9 and neither
+number says anything about the other. See D44.
+
+MariaDB answers 23 of the 48 and MySQL answers 21. The two MySQL cannot answer
+are sequences, which it has never had, and aggregates, which it has no form of
+and whose catalog table it dropped in 8.0.
 
 ### What it answers with the same thing PostgreSQL has
 
@@ -57,6 +66,42 @@ driver, not from `dbmeta`.
 `ForeignTables` reports the engine in the `server` column, because
 `information_schema` does not publish the `CONNECTION` setting that names the
 server. The field says so.
+
+### Where the two products differ
+
+| Question | MariaDB reads | MySQL reads |
+| --- | --- | --- |
+| `Constraints`, the check clause | `information_schema.CHECK_CONSTRAINTS` from 10.2, joined on the table as well as the name | the same view from 8.0.16, joined on the schema and the name, because it has no table column |
+| `Settings` | `information_schema.SYSTEM_VARIABLES` | `performance_schema.global_variables` on 8.4, which holds the value alone, and `variables_metadata` joined to it from 9, which adds the type and the scope |
+| `Roles`, whether it can log in | `mysql.user.is_role` | `mysql.user.account_locked`, because MySQL marks a role by locking the account and has no such column |
+| `RoleGrants` | `mysql.roles_mapping`, which names the member and the role it holds | `mysql.role_edges`, which names the role it came from and the account it went to, so the columns are read the other way round |
+| `Extensions` | `information_schema.ALL_PLUGINS` | `information_schema.PLUGINS`, which MySQL has instead |
+| `Sequences` | `information_schema.SEQUENCES` from 11.5 | nothing: MySQL has no sequences at any release |
+| `Aggregates` | `mysql.proc` and `mysql.func` | nothing: MySQL dropped `mysql.proc` in 8.0 and has no aggregate of its own |
+
+`Functions` reads `routine_body` for the language and never
+`external_language`. MariaDB leaves `external_language` NULL for a SQL routine
+and MySQL writes `SQL`, and the field is not nullable, so reading it fails to
+scan on MariaDB. The cross product test found that.
+
+### What the two products answer the same way, and what they spell differently
+
+`TestMySQLAgainstMariaDB` builds the same fixture on one server of each product
+and compares every query that narrows to one schema. Eleven queries compare,
+and every column agrees except two.
+
+`Columns.DataType` and `Columns.Default`. MariaDB keeps the display width of an
+integer and MySQL dropped it, so a column reads `int(11)` on one and `int` on
+the other. MariaDB quotes a string default and MySQL does not, so the same
+default reads `'red'` and `red`.
+
+`Constraints.Definition`. MariaDB records the check clause as written and MySQL
+rewrites it with the character set introducer, so ``` `title` <> '' ``` becomes
+``` (`title` <> _utf8mb4'') ```.
+
+Those two are named in the test. Any other difference fails it, so a query
+written for one product and run against the other is caught here rather than by
+a user.
 
 ### What it cannot answer, and why
 

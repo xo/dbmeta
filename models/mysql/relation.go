@@ -193,8 +193,10 @@ func registerRelations() {
 		},
 	})
 
-	// CHECK_CONSTRAINTS arrived in MariaDB 10.2. Below it the check clause has
-	// no source, so it is padded with NULL rather than an empty string.
+	// CHECK_CONSTRAINTS arrived in MariaDB 10.2 and in MySQL 8.0.16. Neither
+	// number tells you anything about the other product, so each one is a
+	// fragment gating on its own key. Below both the check clause has no
+	// source, so it is padded with NULL rather than an empty string.
 	dbmeta.Constraints.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Constraint]{
 		Stmt: dbmeta.Stmt{
 			{{SQL: `SELECT t.table_schema AS "schema"`}},
@@ -203,7 +205,8 @@ func registerRelations() {
 			{{SQL: `, LOWER(t.constraint_type) AS "type"`}},
 			{
 				{SQL: `, NULL AS "definition"`},
-				{Min: v10_2, SQL: `, k.check_clause AS "definition"`},
+				frag(mariaCheck, `, k.check_clause AS "definition"`),
+				frag(mysqlCheck, `, k.check_clause AS "definition"`),
 			},
 			// MariaDB has no deferred constraints at all
 			{{SQL: `, FALSE AS "deferrable"`}},
@@ -212,10 +215,8 @@ func registerRelations() {
 			{{SQL: `FROM information_schema.TABLE_CONSTRAINTS t`}},
 			{
 				{SQL: ``},
-				{Min: v10_2, SQL: `LEFT JOIN information_schema.CHECK_CONSTRAINTS k` +
-					` ON k.constraint_schema = t.constraint_schema` +
-					` AND k.table_name = t.table_name` +
-					` AND k.constraint_name = t.constraint_name`},
+				frag(mariaCheck, mariaCheckJoin),
+				frag(mysqlCheck, mysqlCheckJoin),
 			},
 			{{SQL: `WHERE (@with_system OR t.table_schema NOT IN (` + systemSchemas + `))`}},
 			{{SQL: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
@@ -225,7 +226,12 @@ func registerRelations() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "schema"}, {Name: "table"}, {Name: "name"}, {Name: "type"},
-			{Name: "definition", Desc: "the check clause, for a check constraint", Min: v10_2},
+			{
+				Name: "definition",
+				Desc: "the check clause, for a check constraint",
+				Min:  mariaCheck.Min, Key: mariaCheck.Key,
+				Also: []dbmeta.Gate{mysqlCheck},
+			},
 			{Name: "deferrable", Desc: "always false: MariaDB has no deferred constraints"},
 			{Name: "deferred", Desc: "always false: MariaDB has no deferred constraints"},
 			{Name: "comment"},
@@ -277,28 +283,27 @@ func registerRelations() {
 	// answered empty, because there is nothing to read.
 	dbmeta.Sequences.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Sequence]{
 		Stmt: dbmeta.Stmt{
-			{{Min: v11_5, SQL: `SELECT s.sequence_schema AS "schema"`}},
-			{{Min: v11_5, SQL: `, s.sequence_name AS "name"`}},
-			{{Min: v11_5, SQL: `, s.data_type AS "data_type"`}},
-			{{Min: v11_5, SQL: `, s.start_value AS "start"`}},
-			{{Min: v11_5, SQL: `, s.minimum_value AS "minimum"`}},
-			{{Min: v11_5, SQL: `, s.maximum_value AS "maximum"`}},
-			{{Min: v11_5, SQL: `, s.increment AS "increment"`}},
-			{{Min: v11_5, SQL: `, s.cycle_option = 1 AS "cycles"`}},
-			{{Min: v11_5, SQL: `, '' AS "owned_by"`}},
-			{{Min: v11_5, SQL: `, NULL AS "comment"`}},
-			{{Min: v11_5, SQL: `FROM information_schema.SEQUENCES s`}},
-			{{Min: v11_5, SQL: `WHERE (@with_system OR s.sequence_schema NOT IN (` + systemSchemas + `))`}},
-			{{Min: v11_5, SQL: `AND (@schema = '' OR s.sequence_schema LIKE @schema)`}},
-			{{Min: v11_5, SQL: `AND (@name = '' OR s.sequence_name LIKE @name)`}},
-			{{Min: v11_5, SQL: `ORDER BY 1, 2`}},
+			{frag(mariaSeq, `SELECT s.sequence_schema AS "schema"`)},
+			{frag(mariaSeq, `, s.sequence_name AS "name"`)},
+			{frag(mariaSeq, `, s.data_type AS "data_type"`)},
+			{frag(mariaSeq, `, s.start_value AS "start"`)},
+			{frag(mariaSeq, `, s.minimum_value AS "minimum"`)},
+			{frag(mariaSeq, `, s.maximum_value AS "maximum"`)},
+			{frag(mariaSeq, `, s.increment AS "increment"`)},
+			{frag(mariaSeq, `, s.cycle_option = 1 AS "cycles"`)},
+			{frag(mariaSeq, `, '' AS "owned_by"`)},
+			{frag(mariaSeq, `, NULL AS "comment"`)},
+			{frag(mariaSeq, `FROM information_schema.SEQUENCES s`)},
+			{frag(mariaSeq, `WHERE (@with_system OR s.sequence_schema NOT IN (`+systemSchemas+`))`)},
+			{frag(mariaSeq, `AND (@schema = '' OR s.sequence_schema LIKE @schema)`)},
+			{frag(mariaSeq, `AND (@name = '' OR s.sequence_name LIKE @name)`)},
+			{frag(mariaSeq, `ORDER BY 1, 2`)},
 		},
 		Fields: []dbmeta.Field{
-			{Name: "schema", Min: v11_5}, {Name: "name", Min: v11_5},
-			{Name: "data_type", Min: v11_5}, {Name: "start", Min: v11_5},
-			{Name: "minimum", Min: v11_5}, {Name: "maximum", Min: v11_5},
-			{Name: "increment", Min: v11_5}, {Name: "cycles", Min: v11_5},
-			{Name: "owned_by", Min: v11_5}, {Name: "comment", Min: v11_5},
+			seqField("schema"), seqField("name"), seqField("data_type"),
+			seqField("start"), seqField("minimum"), seqField("maximum"),
+			seqField("increment"), seqField("cycles"), seqField("owned_by"),
+			seqField("comment"),
 		},
 		Params: schemaNameSystem("sequence"),
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
@@ -360,4 +365,24 @@ func registerRelations() {
 			return v, err
 		},
 	})
+}
+
+// The two products reach the check clause through views of different shape.
+// MariaDB records the table on CHECK_CONSTRAINTS and MySQL does not, so MySQL
+// matches on the schema and the constraint name alone. A constraint name is
+// unique within a schema in MySQL, so that is enough.
+const (
+	mariaCheckJoin = `LEFT JOIN information_schema.CHECK_CONSTRAINTS k` +
+		` ON k.constraint_schema = t.constraint_schema` +
+		` AND k.table_name = t.table_name` +
+		` AND k.constraint_name = t.constraint_name`
+	mysqlCheckJoin = `LEFT JOIN information_schema.CHECK_CONSTRAINTS k` +
+		` ON k.constraint_schema = t.constraint_schema` +
+		` AND k.constraint_name = t.constraint_name`
+)
+
+// seqField declares one column of the sequence query. Every one of them needs
+// MariaDB 11.5, and MySQL has no sequences at any release.
+func seqField(name string) dbmeta.Field {
+	return dbmeta.Field{Name: name, Min: mariaSeq.Min, Key: mariaSeq.Key}
 }

@@ -29,9 +29,16 @@
 //     credential every local user reaches it with
 //   - a foreign table is a table on an engine that reads remote data
 //
-// This model answers 23 of the 48 questions. The four that read the mysql
-// schema need SELECT on it, because MariaDB publishes none of them through
-// information_schema.
+// This model answers 23 of the 48 questions on MariaDB and 21 on MySQL. The
+// four that read the mysql schema need SELECT on it, because neither product
+// publishes those tables through information_schema.
+//
+// # Two products, one dialect
+//
+// A fragment that belongs to one product gates on that product's version key,
+// [MariaDB] or [MySQL], and never on the number alone. MariaDB is at 11.8 and
+// MySQL at 9, and neither number says anything about the other, so a gate at
+// 10.2 quietly means "MariaDB only" and answers wrongly for MySQL. See D44.
 //
 // A schema and a database are the same thing here, which is the one place the
 // object model does not fit. See COVERAGE.md for what it cannot answer.
@@ -44,11 +51,47 @@ import "github.com/xo/dbmeta"
 // Reference is the MariaDB release these queries were written against.
 const Reference = "11.8.9-MariaDB"
 
-// Releases a fragment gates on. These are MariaDB releases.
-var (
-	v10_2 = dbmeta.V(10, 2)
-	v11_5 = dbmeta.V(11, 5)
+// Version keys, one per product.
+//
+// MariaDB and MySQL share this dialect and this model, and their release
+// numbers have no relation to each other: MariaDB is at 11.8 while MySQL is at
+// 9.x, and a feature in one says nothing about the other. So a fragment that
+// belongs to one product gates on that product's key rather than on the number
+// alone. [parseVersion] records the version under the key of the product it
+// found, and under no other, so a gate on the key the server did not report
+// never applies. See D44.
+const (
+	// MariaDB is the version key a MariaDB server reports under.
+	MariaDB = "mariadb"
+	// MySQL is the version key a MySQL server reports under.
+	MySQL = "mysql"
 )
+
+// Releases a fragment gates on, per product.
+var (
+	// MariaDB recorded a check constraint from 10.2 and grew the view that
+	// lists sequences in 11.5.
+	mariaCheck = dbmeta.Gate{Key: MariaDB, Min: dbmeta.V(10, 2)}
+	mariaSeq   = dbmeta.Gate{Key: MariaDB, Min: dbmeta.V(11, 5)}
+	mariaAgg   = dbmeta.Gate{Key: MariaDB, Min: dbmeta.V(10, 3)}
+	// MySQL recorded a check constraint from 8.0.16. It has no sequences at
+	// any release and no aggregate of its own.
+	mysqlCheck = dbmeta.Gate{Key: MySQL, Min: dbmeta.V(8, 0, 16)}
+	// performance_schema.variables_metadata arrived in MySQL 9. Below it the
+	// server publishes a variable's value and neither its type nor its scope.
+	mysqlVarMeta = dbmeta.Gate{Key: MySQL, Min: dbmeta.V(9)}
+
+	// onMaria and onMySQL say "this product, any release". Use them where the
+	// two products spell the same thing differently and both have always
+	// spelled it their own way.
+	onMaria = dbmeta.Gate{Key: MariaDB}
+	onMySQL = dbmeta.Gate{Key: MySQL}
+)
+
+// frag returns a fragment that applies when the server meets g.
+func frag(g dbmeta.Gate, sqlstr string) dbmeta.Fragment {
+	return dbmeta.Fragment{Min: g.Min, Key: g.Key, SQL: sqlstr}
+}
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.MySQL, &dbmeta.Info{
@@ -82,14 +125,19 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	}
 	var set dbmeta.VersionSet
 	set.Set("", ver)
+	// The product gets its own key, and only the product that was found. A
+	// fragment naming the other key then cannot apply, whatever the numbers
+	// say. Never set a key for a product this did not detect.
+	set.Set(strings.ToLower(product), ver)
 	set.Display = product + " " + raw
 	return set, nil
 }
 
 // IsMariaDB reports whether a version set came from MariaDB rather than MySQL.
-// A caller narrowing behaviour by flavor reads this.
+// A caller narrowing behaviour by product reads this. A fragment does not: it
+// gates on the [MariaDB] key instead.
 func IsMariaDB(versions dbmeta.VersionSet) bool {
-	return strings.Contains(strings.ToLower(versions.Main().Suffix), "mariadb")
+	return versions.Has(MariaDB)
 }
 
 // systemSchemas are the schemas MariaDB keeps for itself.

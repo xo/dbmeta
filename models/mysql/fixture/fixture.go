@@ -4,9 +4,11 @@
 // add an object and will not rename or remove one. See the PostgreSQL fixture
 // for the rules, which are the same.
 //
-// It is versioned on the MariaDB release, because sequences arrived in 10.3
-// and check constraints in 10.2, and because MySQL has neither. A step the
-// server cannot run is skipped rather than refused.
+// It is versioned per product, because MariaDB and MySQL share this dialect
+// and their release numbers have no relation to each other. A step that needs
+// MariaDB 10.3 gates on the "mariadb" key and never runs on MySQL, whatever
+// number MySQL reports. A step the server cannot run is skipped rather than
+// refused. See D44.
 package fixture
 
 import (
@@ -15,11 +17,23 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// Releases a step needs.
+// Version keys, one per product. They repeat the ones the model declares,
+// because a fixture must not import the model it builds a schema for.
+const (
+	mariaKey = "mariadb"
+	mysqlKey = "mysql"
+)
+
+// What a step needs, per product.
 var (
-	v10_2 = dbmeta.V(10, 2)
-	v10_3 = dbmeta.V(10, 3)
-	v11_5 = dbmeta.V(11, 5)
+	// A check constraint is recorded from MariaDB 10.2 and from MySQL 8.0.16.
+	// MySQL below that accepts the syntax and ignores it, which is worse than
+	// refusing, so the step is skipped there too.
+	maria10_2 = dbmeta.Gate{Key: mariaKey, Min: dbmeta.V(10, 2)}
+	mysql8_0  = dbmeta.Gate{Key: mysqlKey, Min: dbmeta.V(8, 0, 16)}
+	// A sequence and an aggregate are MariaDB only at every release.
+	maria10_3 = dbmeta.Gate{Key: mariaKey, Min: dbmeta.V(10, 3)}
+	maria11_5 = dbmeta.Gate{Key: mariaKey, Min: dbmeta.V(11, 5)}
 )
 
 // Step is one statement of a fixture, with its alternatives by version.
@@ -65,6 +79,12 @@ func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 				Skipped: true,
 				Reason:  "the server is older than this step needs",
 			})
+		case errors.Is(err, dbmeta.ErrNotSupported):
+			out = append(out, Result{
+				Name:    step.Name,
+				Skipped: true,
+				Reason:  "this product has no such object at any release",
+			})
 		case err != nil:
 			return nil, err
 		default:
@@ -78,8 +98,14 @@ func at(name, sqlstr string) Step {
 	return Step{Name: name, Stmt: dbmeta.Always(sqlstr)}
 }
 
-func from(name string, min dbmeta.Version, sqlstr string) Step {
-	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: min, SQL: sqlstr}}}}
+// when returns a step that runs on a server meeting any of the gates. A step
+// with no gate met is skipped.
+func when(name, sqlstr string, gates ...dbmeta.Gate) Step {
+	c := make(dbmeta.Choice, len(gates))
+	for i, g := range gates {
+		c[i] = dbmeta.Fragment{Min: g.Min, Key: g.Key, SQL: sqlstr}
+	}
+	return Step{Name: name, Stmt: dbmeta.Stmt{c}}
 }
 
 // Everything is a schema holding one of every object the MariaDB queries read.
@@ -130,20 +156,20 @@ var Everything = Fixture{
 			"	PARTITION pmax VALUES LESS THAN MAXVALUE\n"+
 			")"),
 
-		// a check constraint is recorded from MariaDB 10.2 and MySQL 8.0.16
-		from("check constraint", v10_2,
-			"ALTER TABLE dbmeta_fixture.book ADD CONSTRAINT title_not_empty CHECK (title <> '')"),
+		when("check constraint",
+			"ALTER TABLE dbmeta_fixture.book ADD CONSTRAINT title_not_empty CHECK (title <> '')",
+			maria10_2, mysql8_0),
 
 		// a sequence can be created from MariaDB 10.3, but the view that
 		// lists them arrived in 11.5, so creating one below that builds an
-		// object no query can read
-		from("sequence", v11_5,
-			"CREATE SEQUENCE dbmeta_fixture.counter START WITH 10 INCREMENT BY 2"),
+		// object no query can read. MySQL has no sequences at all.
+		when("sequence",
+			"CREATE SEQUENCE dbmeta_fixture.counter START WITH 10 INCREMENT BY 2",
+			maria11_5),
 
-		// CREATE AGGREGATE FUNCTION arrived in MariaDB 10.3, and MySQL has no
-		// form of it at all. The gate skips MySQL as well, because its release
-		// numbers are below 10.3.
-		from("aggregate", v10_3,
+		// CREATE AGGREGATE FUNCTION arrived in MariaDB 10.3. MySQL has no form
+		// of it at any release, which the key says and the number cannot.
+		when("aggregate",
 			"CREATE AGGREGATE FUNCTION dbmeta_fixture.total(x INT) RETURNS INT\n"+
 				"BEGIN\n"+
 				"	DECLARE sum INT DEFAULT 0;\n"+
@@ -152,7 +178,8 @@ var Everything = Fixture{
 				"		FETCH GROUP NEXT ROW;\n"+
 				"		SET sum = sum + x;\n"+
 				"	END LOOP;\n"+
-				"END"),
+				"END",
+			maria10_3),
 
 		// A server is global rather than part of a schema, so dropping the
 		// schema does not remove it and the teardown drops it by name. Nothing

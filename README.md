@@ -122,7 +122,7 @@ call and filter in the loop.
 | PostgreSQL | native             | 48      | Complete    |
 | any with an information_schema | shared | 7 | Ready to build on |
 | MariaDB    | native             | 23      | Complete    |
-| MySQL      | native, untested   | 23      | Shares the MariaDB model |
+| MySQL      | native             | 21      | Complete    |
 | SQL Server | shared, planned    | 0       | Not started |
 | DuckDB     | shared, planned    | 0       | Not started |
 | SQLite3    | native, planned    | 0       | Not started |
@@ -141,8 +141,13 @@ Server, Snowflake, Trino, Databend and Netezza, which is the evidence for who
 the shared model serves.
 
 [`COVERAGE.md`](COVERAGE.md) says what each database answers, what it cannot,
-and which analogues were found and rejected. MariaDB answers 23 of the 48
-because a native model beats the shared one by sixteen.
+and which analogues were found and rejected. MariaDB answers 23 of the 48 and
+MySQL answers 21, because a native model beats the shared one by sixteen.
+
+MariaDB and MySQL share one model. A query written for one of them gates on the
+product rather than on the release number, because MariaDB is at 11.8 and MySQL
+at 9 and neither number says anything about the other. CI runs both products
+and a third job compares them against the same schema.
 
 A model ships its queries and a fixture together. The fixture is a known good
 schema containing one of every object the queries read, exported so that other

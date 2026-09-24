@@ -22,7 +22,11 @@ func registerRoutines() {
 			{{SQL: `, r.definer AS "owner"`}},
 			{{SQL: `, LOWER(r.security_type) AS "security"`}},
 			{{SQL: `, NULL AS "access"`}},
-			{{SQL: `, r.external_language AS "language"`}},
+			// Never external_language. MariaDB leaves it NULL for a SQL
+			// routine and MySQL writes SQL, and the field is not nullable, so
+			// reading it fails to scan on MariaDB. routine_body says SQL or
+			// EXTERNAL on both.
+			{{SQL: `, LOWER(r.routine_body) AS "language"`}},
 			{{SQL: `, r.routine_definition AS "source"`}},
 			{{SQL: `, NULLIF(r.routine_comment, '') AS "comment"`}},
 			{{SQL: `FROM information_schema.ROUTINES r`}},
@@ -88,7 +92,13 @@ func registerServer() {
 			{{SQL: `, p.plugin_version AS "version"`}},
 			{{SQL: `, '' AS "schema"`}},
 			{{SQL: `, NULLIF(p.plugin_description, '') AS "comment"`}},
-			{{SQL: `FROM information_schema.ALL_PLUGINS p`}},
+			// ALL_PLUGINS lists what is installed and what could be. MySQL has
+			// only PLUGINS, which lists what is installed. The filter on an
+			// active status makes the two agree on what they return.
+			{
+				frag(onMaria, `FROM information_schema.ALL_PLUGINS p`),
+				frag(onMySQL, `FROM information_schema.PLUGINS p`),
+			},
 			{{SQL: `WHERE p.plugin_status = 'ACTIVE'`}},
 			{{SQL: `AND (@name = '' OR p.plugin_name LIKE @name)`}},
 			{{SQL: `ORDER BY 1`}},
@@ -142,18 +152,46 @@ func registerServer() {
 	dbmeta.Settings.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Setting]{
 		Stmt: dbmeta.Stmt{
 			{{SQL: `SELECT LOWER(v.variable_name) AS "name"`}},
-			{{SQL: `, v.global_value AS "value"`}},
-			{{SQL: `, LOWER(v.variable_type) AS "type"`}},
-			{{SQL: `, LOWER(v.variable_scope) AS "context"`}},
+			// MariaDB keeps the value beside the metadata. MySQL 8 dropped
+			// information_schema.SYSTEM_VARIABLES and split the two across
+			// performance_schema, so the value is joined back on. MySQL 8 has
+			// the value and nothing else, and MySQL 9 added the type and the
+			// scope in variables_metadata.
+			{
+				frag(onMaria, `, v.global_value AS "value"`),
+				frag(onMySQL, `, v.variable_value AS "value"`),
+				frag(mysqlVarMeta, `, g.variable_value AS "value"`),
+			},
+			{
+				frag(onMaria, `, LOWER(v.variable_type) AS "type"`),
+				frag(onMySQL, `, NULL AS "type"`),
+				frag(mysqlVarMeta, `, LOWER(v.data_type) AS "type"`),
+			},
+			{
+				frag(onMaria, `, LOWER(v.variable_scope) AS "context"`),
+				frag(onMySQL, `, NULL AS "context"`),
+				frag(mysqlVarMeta, `, LOWER(v.variable_scope) AS "context"`),
+			},
 			{{SQL: `, NULL AS "access"`}},
-			{{SQL: `FROM information_schema.SYSTEM_VARIABLES v`}},
+			{
+				frag(onMaria, `FROM information_schema.SYSTEM_VARIABLES v`),
+				frag(onMySQL, `FROM performance_schema.global_variables v`),
+				frag(mysqlVarMeta, `FROM performance_schema.variables_metadata v`+
+					` JOIN performance_schema.global_variables g`+
+					` ON g.variable_name = v.variable_name`),
+			},
 			{{SQL: `WHERE (@name = '' OR LOWER(v.variable_name) LIKE @name)`}},
 			{{SQL: `ORDER BY 1`}},
 		},
 		Fields: []dbmeta.Field{
-			{Name: "name"}, {Name: "value"}, {Name: "type"},
-			{Name: "context", Desc: "the variable scope, such as global or session"},
-			{Name: "access", Desc: "always absent: MariaDB has no grants on a variable"},
+			{Name: "name"}, {Name: "value"},
+			{Name: "type", Also: []dbmeta.Gate{onMaria, mysqlVarMeta}},
+			{
+				Name: "context",
+				Desc: "the variable scope, such as global or session",
+				Also: []dbmeta.Gate{onMaria, mysqlVarMeta},
+			},
+			{Name: "access", Desc: "always absent: neither product grants on a variable"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "variable name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
@@ -163,16 +201,20 @@ func registerServer() {
 		},
 	})
 
-	// A user and a role are both rows of mysql.user here, separated by the
-	// is_role column, so one query answers for both and psql's \du and \dg
-	// land on the same place.
+	// A user and a role are both rows of mysql.user here, so one query answers
+	// for both and psql's \du and \dg land on the same place. What separates
+	// them differs: MariaDB marks a role with is_role, and MySQL locks the
+	// account instead and has no such column.
 	dbmeta.Roles.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Role]{
 		Stmt: dbmeta.Stmt{
 			{{SQL: `SELECT CONCAT(u.user, IF(u.host = '', '', CONCAT('@', u.host))) AS "name"`}},
 			{{SQL: `, u.super_priv = 'Y' AS "superuser"`}},
 			{{SQL: `, u.create_user_priv = 'Y' AS "create_role"`}},
 			{{SQL: `, u.create_priv = 'Y' AS "create_db"`}},
-			{{SQL: `, u.is_role = 'N' AS "can_login"`}},
+			{
+				frag(onMaria, `, u.is_role = 'N' AS "can_login"`),
+				frag(onMySQL, `, u.account_locked = 'N' AS "can_login"`),
+			},
 			{{SQL: `, u.repl_slave_priv = 'Y' AS "replication"`}},
 			{{SQL: `, FALSE AS "bypass_rls"`}},
 			{{SQL: `, TRUE AS "inherit"`}},
@@ -187,7 +229,8 @@ func registerServer() {
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: "the user, with its host where it has one"},
 			{Name: "superuser"}, {Name: "create_role"}, {Name: "create_db"},
-			{Name: "can_login", Desc: "false for a role, which cannot log in"},
+			{Name: "can_login", Desc: "false for a role, which cannot log in;" +
+				" MySQL locks the account of a role, so a locked user reads the same way"},
 			{Name: "replication"},
 			{Name: "bypass_rls", Desc: "always false: MariaDB has no row level security"},
 			{Name: "inherit", Desc: "always true: MariaDB has no other behaviour"},
@@ -208,19 +251,38 @@ func registerServer() {
 
 	dbmeta.RoleGrants.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.RoleGrant]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT CONCAT(m.user, IF(m.host = '', '', CONCAT('@', m.host))) AS "role"`}},
-			{{SQL: `, m.role AS "member_of"`}},
-			{{SQL: `, NULLIF(m.admin_option, 0) IS NOT NULL AS "grantor"`}},
-			{{SQL: `, m.admin_option = 1 AS "admin"`}},
+			// The two products record a membership in different tables with
+			// different column names. MariaDB names the member and the role it
+			// holds. MySQL names the role it came from and the account it went
+			// to, so the columns are read the other way round.
+			{
+				frag(onMaria, `SELECT CONCAT(m.user, IF(m.host = '', '', CONCAT('@', m.host))) AS "role"`),
+				frag(onMySQL, `SELECT CONCAT(m.to_user, IF(m.to_host = '', '', CONCAT('@', m.to_host))) AS "role"`),
+			},
+			{
+				frag(onMaria, `, m.role AS "member_of"`),
+				frag(onMySQL, `, m.from_user AS "member_of"`),
+			},
+			{{SQL: `, NULL AS "grantor"`}},
+			{
+				frag(onMaria, `, m.admin_option = 1 AS "admin"`),
+				frag(onMySQL, `, m.with_admin_option = 'Y' AS "admin"`),
+			},
 			{{SQL: `, TRUE AS "inherit"`}},
 			{{SQL: `, TRUE AS "set"`}},
-			{{SQL: `FROM mysql.roles_mapping m`}},
-			{{SQL: `WHERE (@name = '' OR m.user LIKE @name)`}},
+			{
+				frag(onMaria, `FROM mysql.roles_mapping m`),
+				frag(onMySQL, `FROM mysql.role_edges m`),
+			},
+			{
+				frag(onMaria, `WHERE (@name = '' OR m.user LIKE @name)`),
+				frag(onMySQL, `WHERE (@name = '' OR m.to_user LIKE @name)`),
+			},
 			{{SQL: `ORDER BY 1, 2`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "role"}, {Name: "member_of"},
-			{Name: "grantor", Desc: "not recorded by MariaDB"},
+			{Name: "grantor", Desc: "always absent: neither product records who granted it"},
 			{Name: "admin"},
 			{Name: "inherit", Desc: "always true: MariaDB has no other behaviour"},
 			{Name: "set", Desc: "always true: MariaDB has no other behaviour"},

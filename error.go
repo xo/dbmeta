@@ -37,4 +37,9 @@ const (
 	// ErrMissingParam is the missing parameter error. The statement names a
 	// parameter that the arguments do not supply.
 	ErrMissingParam Error = "missing parameter"
+	// ErrAmbiguousFragment is the ambiguous fragment error. Two alternatives
+	// of one choice name different versions and the server reports both, so
+	// nothing decides between them. It is a fault in the model, not in the
+	// database or the call. See D44.
+	ErrAmbiguousFragment Error = "ambiguous fragment"
 )
