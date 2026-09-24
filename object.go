@@ -70,3 +70,572 @@ var (
 	// Indexes lists the indexes of a table. No model provides it yet.
 	Indexes = NewQuery[Index]("indexes")
 )
+
+// Database is a database within a server. psql lists them with \l.
+type Database struct {
+	Name       string
+	Owner      string
+	Encoding   string
+	Collate    string
+	CType      string
+	Access     string
+	Tablespace string
+	Size       string
+	Comment    string
+}
+
+// Tablespace is a location the server stores data in. psql lists them with \db.
+type Tablespace struct {
+	Name     string
+	Owner    string
+	Location string
+	Options  string
+	Size     string
+	Access   string
+	Comment  string
+}
+
+// AccessMethod is an index or table access method. psql lists them with \dA.
+type AccessMethod struct {
+	Name    string
+	Type    string
+	Handler string
+	Comment string
+}
+
+// Language is a procedural language. psql lists them with \dL.
+type Language struct {
+	Name      string
+	Owner     string
+	Trusted   bool
+	Internal  bool
+	Handler   string
+	Validator string
+	Inline    string
+	Access    string
+	Comment   string
+}
+
+// Conversion is an encoding conversion. psql lists them with \dc.
+type Conversion struct {
+	Schema  string
+	Name    string
+	Source  string
+	Target  string
+	Default bool
+	Comment string
+}
+
+// Cast converts one type to another. psql lists them with \dC.
+type Cast struct {
+	Source    string
+	Target    string
+	Function  string
+	Implicit  string
+	LeakProof bool
+	Comment   string
+}
+
+// Collation is a sorting rule. psql lists them with \dO.
+type Collation struct {
+	Schema        string
+	Name          string
+	Provider      string
+	Collate       string
+	CType         string
+	Locale        string
+	Deterministic bool
+	Comment       string
+}
+
+// LargeObject is a large object. psql lists them with \dl.
+type LargeObject struct {
+	OID     int64
+	Owner   string
+	Access  string
+	Comment string
+}
+
+// EventTrigger fires on a DDL event. psql lists them with \dy.
+type EventTrigger struct {
+	Name     string
+	Event    string
+	Owner    string
+	Enabled  string
+	Function string
+	Tags     string
+	Comment  string
+}
+
+// Setting is a configuration parameter. psql lists them with \dconfig.
+type Setting struct {
+	Name    string
+	Value   string
+	Type    string
+	Context string
+	Access  string
+}
+
+// Queries for the objects above.
+var (
+	// Databases lists the databases of a server.
+	Databases = NewQuery[Database]("databases")
+	// Tablespaces lists the places a server stores data.
+	Tablespaces = NewQuery[Tablespace]("tablespaces")
+	// AccessMethods lists the index and table access methods.
+	AccessMethods = NewQuery[AccessMethod]("access_methods")
+	// Languages lists the procedural languages.
+	Languages = NewQuery[Language]("languages")
+	// Conversions lists the encoding conversions.
+	Conversions = NewQuery[Conversion]("conversions")
+	// Casts lists the conversions between types.
+	Casts = NewQuery[Cast]("casts")
+	// Collations lists the sorting rules.
+	Collations = NewQuery[Collation]("collations")
+	// LargeObjects lists the large objects.
+	LargeObjects = NewQuery[LargeObject]("large_objects")
+	// EventTriggers lists the triggers that fire on a DDL event.
+	EventTriggers = NewQuery[EventTrigger]("event_triggers")
+	// Settings lists the configuration parameters.
+	Settings = NewQuery[Setting]("settings")
+)
+
+// Function is a function, procedure, aggregate or window function. psql lists
+// them with \df and aggregates alone with \da.
+type Function struct {
+	Catalog    string
+	Schema     string
+	Name       string
+	Kind       string
+	ResultType string
+	ArgTypes   string
+	Volatility string
+	Parallel   string
+	Owner      string
+	Security   string
+	Access     string
+	Language   string
+	Source     string
+	Comment    string
+}
+
+// Type is a data type. psql lists them with \dT.
+type Type struct {
+	Catalog  string
+	Schema   string
+	Name     string
+	Internal string
+	Kind     string
+	Elements string
+	Owner    string
+	Access   string
+	Comment  string
+}
+
+// Domain is a type with a constraint. psql lists them with \dD.
+type Domain struct {
+	Catalog     string
+	Schema      string
+	Name        string
+	DataType    string
+	Collation   string
+	Nullable    bool
+	Default     string
+	Constraints string
+	Access      string
+	Comment     string
+}
+
+// Operator is an operator. psql lists them with \do.
+type Operator struct {
+	Schema     string
+	Name       string
+	LeftType   string
+	RightType  string
+	ResultType string
+	Function   string
+	Comment    string
+}
+
+// Queries for routines and types.
+var (
+	// Functions lists functions, procedures, aggregates and window functions.
+	Functions = NewQuery[Function]("functions")
+	// Aggregates lists aggregate functions alone.
+	Aggregates = NewQuery[Function]("aggregates")
+	// Types lists data types.
+	Types = NewQuery[Type]("types")
+	// Domains lists types that carry a constraint.
+	Domains = NewQuery[Domain]("domains")
+	// Operators lists operators.
+	Operators = NewQuery[Operator]("operators")
+)
+
+// Role is a database role. psql lists them with \du and \dg.
+type Role struct {
+	Name        string
+	Superuser   bool
+	CreateRole  bool
+	CreateDB    bool
+	CanLogin    bool
+	Replication bool
+	BypassRLS   bool
+	Inherit     bool
+	ConnLimit   int64
+	ValidUntil  string
+	MemberOf    string
+	Comment     string
+}
+
+// RoleSetting is a configuration value set for a role, optionally in one
+// database. psql lists them with \drds.
+type RoleSetting struct {
+	Role     string
+	Database string
+	Settings string
+}
+
+// RoleGrant is one role's membership of another. psql lists them with \drg.
+type RoleGrant struct {
+	Role     string
+	MemberOf string
+	Grantor  string
+	Admin    bool
+	Inherit  bool
+	Set      bool
+}
+
+// Privilege is the grants on one object. psql lists them with \z and \dp.
+type Privilege struct {
+	Schema       string
+	Name         string
+	Type         string
+	Access       string
+	ColumnAccess string
+	Policies     string
+}
+
+// DefaultACL is a default grant applied to objects created later. psql lists
+// them with \ddp.
+type DefaultACL struct {
+	Owner  string
+	Schema string
+	Type   string
+	Access string
+}
+
+// ForeignDataWrapper reaches data outside the database. psql lists them with
+// \dew.
+type ForeignDataWrapper struct {
+	Name      string
+	Owner     string
+	Handler   string
+	Validator string
+	Access    string
+	Options   string
+	Comment   string
+}
+
+// ForeignServer is a server reached through a wrapper. psql lists them with
+// \des.
+type ForeignServer struct {
+	Name    string
+	Owner   string
+	Wrapper string
+	Type    string
+	Version string
+	Access  string
+	Options string
+	Comment string
+}
+
+// UserMapping maps a local role onto a foreign server. psql lists them with
+// \deu.
+type UserMapping struct {
+	Server  string
+	Name    string
+	Options string
+}
+
+// ForeignTable is a table on a foreign server. psql lists them with \det.
+type ForeignTable struct {
+	Schema  string
+	Name    string
+	Server  string
+	Options string
+	Comment string
+}
+
+// Queries for roles, privileges and foreign data.
+var (
+	// Roles lists the database roles.
+	Roles = NewQuery[Role]("roles")
+	// RoleSettings lists the configuration set for a role.
+	RoleSettings = NewQuery[RoleSetting]("role_settings")
+	// RoleGrants lists role memberships.
+	RoleGrants = NewQuery[RoleGrant]("role_grants")
+	// Privileges lists the grants on tables and their columns.
+	Privileges = NewQuery[Privilege]("privileges")
+	// DefaultACLs lists the grants applied to objects created later.
+	DefaultACLs = NewQuery[DefaultACL]("default_acls")
+	// ForeignDataWrappers lists the wrappers that reach outside data.
+	ForeignDataWrappers = NewQuery[ForeignDataWrapper]("foreign_data_wrappers")
+	// ForeignServers lists the servers reached through a wrapper.
+	ForeignServers = NewQuery[ForeignServer]("foreign_servers")
+	// UserMappings lists the local roles mapped onto a foreign server.
+	UserMappings = NewQuery[UserMapping]("user_mappings")
+	// ForeignTables lists the tables on a foreign server.
+	ForeignTables = NewQuery[ForeignTable]("foreign_tables")
+)
+
+// Publication is a set of changes offered for replication. psql lists them
+// with \dRp.
+type Publication struct {
+	Name      string
+	Owner     string
+	AllTables bool
+	Insert    bool
+	Update    bool
+	Delete    bool
+	Truncate  bool
+	ViaRoot   bool
+	Comment   string
+}
+
+// PublicationTable is one table a publication offers. psql shows them with
+// \dRp+.
+type PublicationTable struct {
+	Publication string
+	Schema      string
+	Name        string
+	Columns     string
+	Where       string
+}
+
+// Subscription receives changes from a publication. psql lists them with \dRs.
+type Subscription struct {
+	Name         string
+	Owner        string
+	Enabled      bool
+	Publications string
+	Synchronous  string
+	Slot         string
+	Comment      string
+}
+
+// TextSearchParser splits text into tokens. psql lists them with \dFp.
+type TextSearchParser struct {
+	Schema  string
+	Name    string
+	Comment string
+}
+
+// TextSearchDictionary normalizes tokens. psql lists them with \dFd.
+type TextSearchDictionary struct {
+	Schema   string
+	Name     string
+	Template string
+	Options  string
+	Comment  string
+}
+
+// TextSearchTemplate is the code behind a dictionary. psql lists them with
+// \dFt.
+type TextSearchTemplate struct {
+	Schema  string
+	Name    string
+	Init    string
+	Lexize  string
+	Comment string
+}
+
+// TextSearchConfig ties a parser to dictionaries. psql lists them with \dF.
+type TextSearchConfig struct {
+	Schema  string
+	Name    string
+	Parser  string
+	Comment string
+}
+
+// OperatorClass tells an access method how to index a type. psql lists them
+// with \dAc.
+type OperatorClass struct {
+	AccessMethod string
+	Schema       string
+	Name         string
+	InputType    string
+	Default      bool
+	Family       string
+	Owner        string
+}
+
+// OperatorFamily groups operator classes. psql lists them with \dAf.
+type OperatorFamily struct {
+	AccessMethod string
+	Schema       string
+	Name         string
+	Owner        string
+}
+
+// OperatorFamilyOperator is one operator of a family. psql lists them with
+// \dAo.
+type OperatorFamilyOperator struct {
+	AccessMethod string
+	Family       string
+	Operator     string
+	Strategy     int64
+	Purpose      string
+}
+
+// OperatorFamilyFunction is one support function of a family. psql lists them
+// with \dAp.
+type OperatorFamilyFunction struct {
+	AccessMethod string
+	Family       string
+	LeftType     string
+	RightType    string
+	Number       int64
+	Function     string
+}
+
+// Extension is an installed extension. psql lists them with \dx.
+type Extension struct {
+	Name    string
+	Version string
+	Schema  string
+	Comment string
+}
+
+// ExtensionObject is one object an extension owns. psql lists them with \dx+.
+type ExtensionObject struct {
+	Extension   string
+	Description string
+}
+
+// ExtendedStat is a statistics object over several columns. psql lists them
+// with \dX.
+type ExtendedStat struct {
+	Schema  string
+	Name    string
+	Owner   string
+	Table   string
+	Kinds   string
+	Comment string
+}
+
+// Comment is a comment on any object. psql shows them with \dd.
+type Comment struct {
+	Schema  string
+	Name    string
+	Type    string
+	Comment string
+}
+
+// Queries for replication, text search, operator families and extensions.
+var (
+	// Publications lists the sets of changes offered for replication.
+	Publications = NewQuery[Publication]("publications")
+	// PublicationTables lists the tables each publication offers.
+	PublicationTables = NewQuery[PublicationTable]("publication_tables")
+	// Subscriptions lists the subscriptions to a publication.
+	Subscriptions = NewQuery[Subscription]("subscriptions")
+	// TextSearchParsers lists the parsers that split text into tokens.
+	TextSearchParsers = NewQuery[TextSearchParser]("text_search_parsers")
+	// TextSearchDictionaries lists the dictionaries that normalize tokens.
+	TextSearchDictionaries = NewQuery[TextSearchDictionary]("text_search_dictionaries")
+	// TextSearchTemplates lists the code behind the dictionaries.
+	TextSearchTemplates = NewQuery[TextSearchTemplate]("text_search_templates")
+	// TextSearchConfigs lists the configurations.
+	TextSearchConfigs = NewQuery[TextSearchConfig]("text_search_configs")
+	// OperatorClasses lists the operator classes.
+	OperatorClasses = NewQuery[OperatorClass]("operator_classes")
+	// OperatorFamilies lists the operator families.
+	OperatorFamilies = NewQuery[OperatorFamily]("operator_families")
+	// OperatorFamilyOperators lists the operators of each family.
+	OperatorFamilyOperators = NewQuery[OperatorFamilyOperator]("operator_family_operators")
+	// OperatorFamilyFunctions lists the support functions of each family.
+	OperatorFamilyFunctions = NewQuery[OperatorFamilyFunction]("operator_family_functions")
+	// Extensions lists the installed extensions.
+	Extensions = NewQuery[Extension]("extensions")
+	// ExtensionObjects lists the objects each extension owns.
+	ExtensionObjects = NewQuery[ExtensionObject]("extension_objects")
+	// ExtendedStats lists the statistics objects over several columns.
+	ExtendedStats = NewQuery[ExtendedStat]("extended_stats")
+	// Comments lists the comments on objects.
+	Comments = NewQuery[Comment]("comments")
+)
+
+// IndexColumn is one column of an index, in index order.
+type IndexColumn struct {
+	Schema     string
+	Table      string
+	Index      string
+	Name       string
+	Ordinal    int64
+	Expression string
+	Descending bool
+}
+
+// Constraint is a check, unique, primary key, foreign key or exclusion
+// constraint. psql shows them inside \d name.
+type Constraint struct {
+	Schema     string
+	Table      string
+	Name       string
+	Type       string
+	Definition string
+	Deferrable bool
+	Deferred   bool
+	Comment    string
+}
+
+// Trigger fires on a change to a table. psql shows them inside \d name.
+type Trigger struct {
+	Schema     string
+	Table      string
+	Name       string
+	Enabled    string
+	Definition string
+	Comment    string
+}
+
+// Sequence generates numbers. psql lists them with \ds and shows the detail
+// inside \d name.
+type Sequence struct {
+	Schema    string
+	Name      string
+	DataType  string
+	Start     int64
+	Minimum   int64
+	Maximum   int64
+	Increment int64
+	Cycles    bool
+	OwnedBy   string
+	Comment   string
+}
+
+// PartitionedTable is a table split into partitions. psql lists them with \dP.
+type PartitionedTable struct {
+	Schema     string
+	Name       string
+	Owner      string
+	Type       string
+	Parent     string
+	Strategy   string
+	Expression string
+	Comment    string
+}
+
+// Queries for the detail of a table.
+var (
+	// IndexColumns lists the columns of each index, in index order.
+	IndexColumns = NewQuery[IndexColumn]("index_columns")
+	// Constraints lists the constraints on a table.
+	Constraints = NewQuery[Constraint]("constraints")
+	// Triggers lists the triggers on a table.
+	Triggers = NewQuery[Trigger]("triggers")
+	// Sequences lists sequences and their bounds.
+	Sequences = NewQuery[Sequence]("sequences")
+	// PartitionedTables lists the tables split into partitions.
+	PartitionedTables = NewQuery[PartitionedTable]("partitioned_tables")
+)

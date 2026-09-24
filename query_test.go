@@ -11,6 +11,7 @@ import (
 const testDialect Dialect = "testdb"
 
 func init() {
+	RegisterDialect(quietDialect, &Info{Placeholder: func(int) string { return "?" }})
 	RegisterDialect(testDialect, &Info{
 		Placeholder:    func(n int) string { return "$" + string(rune('0'+n)) },
 		VersionSQL:     `SHOW server_version`,
@@ -261,6 +262,11 @@ func TestAlwaysAndAccessors(t *testing.T) {
 	}
 }
 
+// quietDialect is a model whose database reports no version. Registration
+// happens once, in init, because a registry rejects a second registration and
+// a test body can run more than once.
+const quietDialect Dialect = "quietdb"
+
 func TestDialectVersion(t *testing.T) {
 	t.Parallel()
 	// a dialect no model was built for
@@ -268,9 +274,7 @@ func TestDialectVersion(t *testing.T) {
 		t.Errorf("expected ErrModelNotBuilt, got: %v", err)
 	}
 	// a model that reports no version at all treats the server as newest
-	const quiet Dialect = "quietdb"
-	RegisterDialect(quiet, &Info{Placeholder: func(int) string { return "?" }})
-	versions, err := quiet.Version(context.Background(), nil)
+	versions, err := quietDialect.Version(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}

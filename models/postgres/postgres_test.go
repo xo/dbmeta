@@ -1,6 +1,7 @@
 package postgres_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -26,19 +27,43 @@ func meta(t *testing.T, ver string) *dbmeta.Meta {
 
 // TestEveryReleaseResolves checks that every supported release produces a
 // statement. A release with no applicable fragment would fail here.
+// TestEveryReleaseResolves checks that each query either produces a statement
+// or says the server is too old. An object that PostgreSQL did not have yet is
+// the second case: publications and subscriptions arrived in release 10, so a
+// 9.6 server is told the version is too old rather than handed an empty
+// result. D34 requires that distinction.
 func TestEveryReleaseResolves(t *testing.T) {
 	t.Parallel()
 	for _, ver := range releases {
 		m := meta(t, ver)
-		for name, sqlOf := range statements() {
-			s, err := sqlOf(m)
-			if err != nil {
-				t.Errorf("%s at %s: expected no error, got: %v", name, ver, err)
+		for _, q := range supported(t, m) {
+			s, _, err := q.SQL(m, nil)
+			switch {
+			case errors.Is(err, dbmeta.ErrVersionTooOld):
 				continue
+			case err != nil:
+				t.Errorf("%s at %s: expected no error, got: %v", q.Name(), ver, err)
+			case !strings.HasPrefix(s, "SELECT "):
+				t.Errorf("%s at %s: expected a select, got:\n%s", q.Name(), ver, s)
 			}
-			if !strings.HasPrefix(s, "SELECT ") {
-				t.Errorf("%s at %s: expected a select, got:\n%s", name, ver, s)
-			}
+		}
+	}
+}
+
+// TestObjectsAddedInTen records which queries need a server newer than the
+// floor, and asserts the boundary rather than leaving it implicit. Each of
+// these objects arrived in release 10.
+func TestObjectsAddedInTen(t *testing.T) {
+	t.Parallel()
+	for _, q := range []dbmeta.AnyQuery{
+		dbmeta.Publications, dbmeta.PublicationTables,
+		dbmeta.Subscriptions, dbmeta.ExtendedStats,
+	} {
+		if _, _, err := q.SQL(meta(t, "9.6.24"), nil); !errors.Is(err, dbmeta.ErrVersionTooOld) {
+			t.Errorf("%s at 9.6: expected ErrVersionTooOld, got: %v", q.Name(), err)
+		}
+		if _, _, err := q.SQL(meta(t, "10.23"), nil); err != nil {
+			t.Errorf("%s at 10.23: expected no error, got: %v", q.Name(), err)
 		}
 	}
 }
@@ -48,23 +73,28 @@ func TestEveryReleaseResolves(t *testing.T) {
 // cannot read them all.
 func TestColumnSetNeverChanges(t *testing.T) {
 	t.Parallel()
-	for name, sqlOf := range statements() {
+	for _, q := range supported(t, meta(t, "18.6")) {
 		var want []string
 		for _, ver := range releases {
-			s, err := sqlOf(meta(t, ver))
+			m := meta(t, ver)
+			s, _, err := q.SQL(m, nil)
+			if errors.Is(err, dbmeta.ErrVersionTooOld) {
+				// the object did not exist at this release
+				continue
+			}
 			if err != nil {
-				t.Fatalf("%s at %s: expected no error, got: %v", name, ver, err)
+				t.Fatalf("%s at %s: expected no error, got: %v", q.Name(), ver, err)
 			}
 			got := namedColumns(s)
 			if want == nil {
 				want = got
 				if len(want) == 0 {
-					t.Fatalf("%s: expected named columns", name)
+					t.Fatalf("%s: expected named columns", q.Name())
 				}
 				continue
 			}
 			if strings.Join(got, ",") != strings.Join(want, ",") {
-				t.Errorf("%s at %s: column set changed\n want %v\n  got %v", name, ver, want, got)
+				t.Errorf("%s at %s: column set changed\n want %v\n  got %v", q.Name(), ver, want, got)
 			}
 		}
 	}
@@ -76,10 +106,22 @@ func TestColumnSetNeverChanges(t *testing.T) {
 func TestFieldsMatchTheStatement(t *testing.T) {
 	t.Parallel()
 	m := meta(t, "18.6")
-	for name, pair := range fieldsAndSQL(t, m) {
-		if strings.Join(pair.fields, ",") != strings.Join(pair.columns, ",") {
+	for _, q := range supported(t, m) {
+		fields, err := q.Fields(m)
+		if err != nil {
+			t.Fatalf("%s: expected no error, got: %v", q.Name(), err)
+		}
+		names := make([]string, len(fields))
+		for i, f := range fields {
+			names[i] = f.Name
+		}
+		s, _, err := q.SQL(m, nil)
+		if err != nil {
+			t.Fatalf("%s: expected no error, got: %v", q.Name(), err)
+		}
+		if got := namedColumns(s); strings.Join(names, ",") != strings.Join(got, ",") {
 			t.Errorf("%s: declared fields and selected columns differ\n fields  %v\n columns %v",
-				name, pair.fields, pair.columns)
+				q.Name(), names, got)
 		}
 	}
 }
@@ -212,52 +254,19 @@ func TestVersionQuery(t *testing.T) {
 	}
 }
 
-// statements returns a way to render each registered query, so a test can
-// treat them alike despite their different result types.
-func statements() map[string]func(*dbmeta.Meta) (string, error) {
-	return map[string]func(*dbmeta.Meta) (string, error){
-		"schemas": func(m *dbmeta.Meta) (string, error) {
-			s, _, err := dbmeta.Schemas.SQL(m, nil)
-			return s, err
-		},
-		"tables": func(m *dbmeta.Meta) (string, error) {
-			s, _, err := dbmeta.Tables.SQL(m, nil)
-			return s, err
-		},
-		"columns": func(m *dbmeta.Meta) (string, error) {
-			s, _, err := dbmeta.Columns.SQL(m, nil)
-			return s, err
-		},
-	}
-}
-
-type pair struct {
-	fields  []string
-	columns []string
-}
-
-func fieldsAndSQL(t *testing.T, m *dbmeta.Meta) map[string]pair {
+// supported returns every query PostgreSQL answers, so a test covers each new
+// one the moment it is registered and nothing has to be listed by hand.
+func supported(t *testing.T, m *dbmeta.Meta) []dbmeta.AnyQuery {
 	t.Helper()
-	out := map[string]pair{}
-	add := func(name string, fields []dbmeta.Field, err error, sqlstr string) {
-		if err != nil {
-			t.Fatalf("%s: expected no error, got: %v", name, err)
+	var out []dbmeta.AnyQuery
+	for _, q := range dbmeta.Queries() {
+		if q.Support(m) == dbmeta.Supported {
+			out = append(out, q)
 		}
-		names := make([]string, len(fields))
-		for i, f := range fields {
-			names[i] = f.Name
-		}
-		out[name] = pair{fields: names, columns: namedColumns(sqlstr)}
 	}
-	f, err := dbmeta.Schemas.Fields(m)
-	s, _, _ := dbmeta.Schemas.SQL(m, nil)
-	add("schemas", f, err, s)
-	f, err = dbmeta.Tables.Fields(m)
-	s, _, _ = dbmeta.Tables.SQL(m, nil)
-	add("tables", f, err, s)
-	f, err = dbmeta.Columns.Fields(m)
-	s, _, _ = dbmeta.Columns.SQL(m, nil)
-	add("columns", f, err, s)
+	if len(out) == 0 {
+		t.Fatal("expected PostgreSQL to answer at least one query")
+	}
 	return out
 }
 
@@ -277,5 +286,23 @@ func namedColumns(s string) []string {
 		}
 		out = append(out, s[:j])
 		s = s[j+1:]
+	}
+}
+
+// TestCoverage records which queries PostgreSQL answers, so the count is
+// visible and a regression that silently drops one is obvious.
+func TestCoverage(t *testing.T) {
+	t.Parallel()
+	m := meta(t, "18.6")
+	var named []string
+	for _, q := range dbmeta.Queries() {
+		if q.Support(m) == dbmeta.Supported {
+			named = append(named, q.Name())
+		}
+	}
+	t.Logf("PostgreSQL answers %d of %d declared queries: %s",
+		len(named), len(dbmeta.Queries()), strings.Join(named, " "))
+	if len(named) < 40 {
+		t.Errorf("expected at least 40 queries, got %d", len(named))
 	}
 }

@@ -28,8 +28,13 @@ const Tree = "REL_19_BETA1-1062-gd9de60c5e47"
 
 // Release versions that a fragment gates on.
 var (
+	v10 = dbmeta.V(10)
 	v11 = dbmeta.V(11)
 	v12 = dbmeta.V(12)
+	v13 = dbmeta.V(13)
+	v15 = dbmeta.V(15)
+	v16 = dbmeta.V(16)
+	v17 = dbmeta.V(17)
 )
 
 func init() {

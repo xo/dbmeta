@@ -136,10 +136,51 @@ type Query[T any] struct {
 	bindings map[Dialect]*Binding[T]
 }
 
+// AnyQuery is a query with its result type erased, so that a caller can list
+// every query and describe it without naming 40 types. [Query] satisfies it.
+//
+// Use it to list what dbmeta knows. To read rows, use the [Query] value
+// itself, which keeps the result type.
+type AnyQuery interface {
+	// Name returns the name of the object kind.
+	Name() string
+	// Support says whether the query can be asked of m.
+	Support(m *Meta) Support
+	// Fields returns the result columns for m, in order.
+	Fields(m *Meta) ([]Field, error)
+	// Params returns the parameters the query takes for m.
+	Params(m *Meta) ([]Param, error)
+	// SQL returns the statement for m and the arguments in order.
+	SQL(m *Meta, args map[string]any) (string, []any, error)
+}
+
+var (
+	queryMu sync.RWMutex
+	queries []AnyQuery
+)
+
 // NewQuery returns a query for one kind of object. The root package declares
 // one value per kind. A model does not call this.
 func NewQuery[T any](name string) *Query[T] {
-	return &Query[T]{name: name, bindings: make(map[Dialect]*Binding[T])}
+	q := &Query[T]{name: name, bindings: make(map[Dialect]*Binding[T])}
+	queryMu.Lock()
+	defer queryMu.Unlock()
+	for _, other := range queries {
+		if other.Name() == name {
+			panic("dbmeta: query declared twice: " + name)
+		}
+	}
+	queries = append(queries, q)
+	return q
+}
+
+// Queries returns every query dbmeta knows, in the order they were declared.
+// A caller lists them to show a person what it can ask for, and calls
+// [AnyQuery.Support] to find out which of them this database answers.
+func Queries() []AnyQuery {
+	queryMu.RLock()
+	defer queryMu.RUnlock()
+	return append([]AnyQuery(nil), queries...)
 }
 
 // Name returns the name of the object kind.

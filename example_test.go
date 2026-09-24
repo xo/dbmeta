@@ -169,10 +169,12 @@ func Example_support() {
 		log.Fatal(err)
 	}
 	fmt.Println("tables: ", dbmeta.Tables.Support(m))
-	// not supported covers two cases that a caller cannot tell apart: the
-	// database has no such object, and no model provides it yet. Indexes is
-	// the second.
 	fmt.Println("indexes:", dbmeta.Indexes.Support(m))
+	// an object a release does not have is a different answer again: the query
+	// exists, and the server is too old for it
+	if _, _, err := dbmeta.Publications.SQL(versionMeta("9.6.24"), nil); err != nil {
+		fmt.Println("publications on 9.6:", err)
+	}
 
 	// a dialect no model was built for is a different answer entirely
 	if _, err := dbmeta.New("cassandra", dbmeta.VersionSet{}); err != nil {
@@ -181,8 +183,17 @@ func Example_support() {
 
 	// Output:
 	// tables:  supported
-	// indexes: not supported
+	// indexes: supported
+	// publications on 9.6: version too old
 	// cassandra: model not built
+}
+
+func versionMeta(ver string) *dbmeta.Meta {
+	m, err := dbmeta.New(dbmeta.PostgreSQL, versionSet(ver))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return m
 }
 
 func versionSet(s string) dbmeta.VersionSet {
