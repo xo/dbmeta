@@ -80,7 +80,7 @@ func registerSchemas() {
 			{{SQL: `SELECT current_database() AS "catalog"`}},
 			{{SQL: `, n.nspname AS "name"`}},
 			{{SQL: `, pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(n.oid, 'pg_namespace'), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_namespace n`}},
 			{{SQL: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{SQL: `AND (@name = '' OR n.nspname LIKE @name)`}},
@@ -123,7 +123,7 @@ func registerTables() {
 				` WHEN 'S' THEN 'sequence'` +
 				` WHEN 'f' THEN 'foreign table'` +
 				` ELSE c.relkind::text END AS "type"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(c.oid, 'pg_class'), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_class c`}},
 			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{SQL: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
@@ -172,18 +172,18 @@ func registerColumns() {
 			{{SQL: `, a.attnum AS "ordinal"`}},
 			{{SQL: `, pg_catalog.format_type(a.atttypid, a.atttypmod) AS "data_type"`}},
 			{{SQL: `, NOT a.attnotnull AS "nullable"`}},
-			{{SQL: `, COALESCE(pg_catalog.pg_get_expr(d.adbin, d.adrelid), '') AS "default"`}},
+			{{SQL: `, pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS "default"`}},
 			// attidentity arrived in release 11
 			{
 				{SQL: `, '' AS "identity"`},
-				{Min: v11, SQL: `, COALESCE(a.attidentity, '') AS "identity"`},
+				{Min: v11, SQL: `, a.attidentity AS "identity"`},
 			},
 			// attgenerated arrived in release 12
 			{
 				{SQL: `, '' AS "generated"`},
-				{Min: v12, SQL: `, COALESCE(a.attgenerated, '') AS "generated"`},
+				{Min: v12, SQL: `, a.attgenerated AS "generated"`},
 			},
-			{{SQL: `, COALESCE(pg_catalog.col_description(c.oid, a.attnum), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.col_description(c.oid, a.attnum) AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_attribute a`}},
 			{{SQL: `JOIN pg_catalog.pg_class c ON c.oid = a.attrelid`}},
 			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},

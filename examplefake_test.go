@@ -28,7 +28,7 @@ var answers = []struct {
 	{"FROM pg_catalog.pg_namespace n\nWHERE", answer{
 		[]string{"catalog", "name", "owner", "comment"},
 		[][]driver.Value{
-			{"example", "public", "postgres", ""},
+			{"example", "public", "postgres", nil},
 			{"example", "sales", "reporting", "sales reporting"},
 		},
 	}},
@@ -36,17 +36,18 @@ var answers = []struct {
 		[]string{"catalog", "schema", "name", "type", "comment"},
 		[][]driver.Value{
 			{"example", "public", "author", "table", "people who write"},
-			{"example", "public", "book", "table", ""},
-			{"example", "public", "recent_book", "view", ""},
+			// a relation with no comment reports NULL, not an empty string
+			{"example", "public", "book", "table", nil},
+			{"example", "public", "recent_book", "view", nil},
 		},
 	}},
 	{"FROM pg_catalog.pg_attribute a", answer{
 		[]string{"catalog", "schema", "table", "name", "ordinal", "data_type", "nullable", "default", "identity", "generated", "comment"},
 		[][]driver.Value{
-			{"example", "public", "book", "book_id", int64(1), "integer", false, "", "a", "", "surrogate key"},
-			{"example", "public", "book", "title", int64(2), "text", false, "", "", "", ""},
-			{"example", "public", "book", "published", int64(3), "date", true, "", "", "", ""},
-			{"example", "public", "book", "slug", int64(4), "text", true, "", "", "s", "derived from the title"},
+			{"example", "public", "book", "book_id", int64(1), "integer", false, nil, "a", nil, "surrogate key"},
+			{"example", "public", "book", "title", int64(2), "text", false, nil, nil, nil, nil},
+			{"example", "public", "book", "published", int64(3), "date", true, nil, nil, nil, nil},
+			{"example", "public", "book", "slug", int64(4), "text", true, nil, nil, "s", "derived from the title"},
 		},
 	}},
 }

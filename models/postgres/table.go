@@ -31,7 +31,7 @@ func registerIndexes() {
 			{{SQL: `, am.amname AS "type"`}},
 			{{SQL: `, i.indisunique AS "unique"`}},
 			{{SQL: `, i.indisprimary AS "primary"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(c.oid, 'pg_class'), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_index i`}},
 			{{SQL: `JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`}},
 			{{SQL: `JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
@@ -62,10 +62,10 @@ func registerIndexColumns() {
 			{{SQL: `SELECT n.nspname AS "schema"`}},
 			{{SQL: `, t.relname AS "table"`}},
 			{{SQL: `, c.relname AS "index"`}},
-			{{SQL: `, COALESCE(a.attname, '') AS "name"`}},
+			{{SQL: `, a.attname AS "name"`}},
 			{{SQL: `, k.ordinality AS "ordinal"`}},
-			{{SQL: `, COALESCE(pg_catalog.pg_get_indexdef(i.indexrelid, k.ordinality::int, true), '') AS "expression"`}},
-			{{SQL: `, COALESCE(pg_catalog.pg_index_column_has_property(i.indexrelid, k.ordinality::int, 'desc'), false) AS "descending"`}},
+			{{SQL: `, pg_catalog.pg_get_indexdef(i.indexrelid, k.ordinality::int, true) AS "expression"`}},
+			{{SQL: `, pg_catalog.pg_index_column_has_property(i.indexrelid, k.ordinality::int, 'desc') AS "descending"`}},
 			{{SQL: `FROM pg_catalog.pg_index i`}},
 			{{SQL: `JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`}},
 			{{SQL: `JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
@@ -102,7 +102,7 @@ func registerConstraints() {
 			{{SQL: `, pg_catalog.pg_get_constraintdef(r.oid, true) AS "definition"`}},
 			{{SQL: `, r.condeferrable AS "deferrable"`}},
 			{{SQL: `, r.condeferred AS "deferred"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(r.oid, 'pg_constraint'), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.obj_description(r.oid, 'pg_constraint') AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_constraint r`}},
 			{{SQL: `JOIN pg_catalog.pg_class t ON t.oid = r.conrelid`}},
 			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace`}},
@@ -134,7 +134,7 @@ func registerTriggers() {
 			{{SQL: `, CASE t.tgenabled WHEN 'O' THEN 'enabled' WHEN 'D' THEN 'disabled'` +
 				` WHEN 'R' THEN 'replica' WHEN 'A' THEN 'always' ELSE '' END AS "enabled"`}},
 			{{SQL: `, pg_catalog.pg_get_triggerdef(t.oid, true) AS "definition"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(t.oid, 'pg_trigger'), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.obj_description(t.oid, 'pg_trigger') AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_trigger t`}},
 			{{SQL: `JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid`}},
 			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
@@ -197,7 +197,7 @@ func registerSequences() {
 				` JOIN pg_catalog.pg_namespace dn ON dn.oid = dc.relnamespace` +
 				` JOIN pg_catalog.pg_attribute da ON da.attrelid = d.refobjid AND da.attnum = d.refobjsubid` +
 				` WHERE d.objid = c.oid AND d.deptype IN ('a', 'i') LIMIT 1), '') AS "owned_by"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(c.oid, 'pg_class'), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_class c`}},
 			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{
@@ -244,9 +244,9 @@ func registerPartitionedTables() {
 				` JOIN pg_catalog.pg_class pc ON pc.oid = h.inhparent` +
 				` JOIN pg_catalog.pg_namespace pn ON pn.oid = pc.relnamespace` +
 				` WHERE h.inhrelid = c.oid), '') AS "parent"`}},
-			{{Min: v10, SQL: `, COALESCE(SUBSTRING(pg_catalog.pg_get_partkeydef(c.oid) FROM '^[A-Za-z]+'), '') AS "strategy"`}},
-			{{Min: v10, SQL: `, COALESCE(pg_catalog.pg_get_partkeydef(c.oid), '') AS "expression"`}},
-			{{Min: v10, SQL: `, COALESCE(pg_catalog.obj_description(c.oid, 'pg_class'), '') AS "comment"`}},
+			{{Min: v10, SQL: `, SUBSTRING(pg_catalog.pg_get_partkeydef(c.oid) FROM '^[A-Za-z]+') AS "strategy"`}},
+			{{Min: v10, SQL: `, pg_catalog.pg_get_partkeydef(c.oid) AS "expression"`}},
+			{{Min: v10, SQL: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
 			{{Min: v10, SQL: `FROM pg_catalog.pg_class c`}},
 			{{Min: v10, SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Min: v10, SQL: `WHERE c.relkind IN ('p', 'I')`}},

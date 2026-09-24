@@ -306,3 +306,29 @@ func TestCoverage(t *testing.T) {
 		t.Errorf("expected at least 40 queries, got %d", len(named))
 	}
 }
+
+// TestNoCoalesceOnCatalogColumns guards the fix for a real bug. Wrapping a
+// nullable catalog column in COALESCE collapses two different answers into
+// one. PostgreSQL reports a NULL access control list when the default
+// privileges apply and an empty list when every privilege was revoked, and
+// psql prints the second as "(none)". Coalescing both to an empty string makes
+// "the owner has full access" read the same as "nobody has any access".
+//
+// COALESCE is still right over an aggregate that matched no rows, where NULL
+// and empty mean the same thing, so this checks the columns rather than the
+// count.
+func TestNoCoalesceOnCatalogColumns(t *testing.T) {
+	t.Parallel()
+	m := meta(t, "18.6")
+	for _, q := range supported(t, m) {
+		s, _, err := q.SQL(m, nil)
+		if err != nil {
+			t.Fatalf("%s: expected no error, got: %v", q.Name(), err)
+		}
+		for _, name := range []string{"access", "comment", "default", "options"} {
+			if strings.Contains(s, `, '') AS "`+name+`"`) {
+				t.Errorf("%s: %q is a nullable catalog column and must not be coalesced", q.Name(), name)
+			}
+		}
+	}
+}

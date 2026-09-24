@@ -128,6 +128,12 @@ if err != nil {
 Write error messages in lower case, starting with a gerund. Do not write
 "failed to" or "error". Name the object that failed.
 
+Never wrap a nullable catalog column in `COALESCE`. Give the field the type
+`Text` and let the NULL through. A NULL access control list means the default
+privileges apply and an empty one means every privilege was revoked, and
+collapsing them hides that. `COALESCE` is still right over an aggregate that
+matched no rows, where NULL and empty mean the same thing.
+
 Declare sentinel errors as constants of a defined string type, never as
 variables. A `var` declared with `errors.New` can be reassigned by any
 importer. A constant cannot.

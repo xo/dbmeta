@@ -49,10 +49,10 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 			` WHEN 'u' THEN 'unsafe' ELSE '' END AS "parallel"`}},
 		{{SQL: `, pg_catalog.pg_get_userbyid(p.proowner) AS "owner"`}},
 		{{SQL: `, CASE WHEN p.prosecdef THEN 'definer' ELSE 'invoker' END AS "security"`}},
-		{{SQL: `, COALESCE(pg_catalog.array_to_string(p.proacl, E'\n'), '') AS "access"`}},
+		{{SQL: `, pg_catalog.array_to_string(p.proacl, E'\n') AS "access"`}},
 		{{SQL: `, l.lanname AS "language"`}},
-		{{SQL: `, COALESCE(CASE WHEN l.lanname IN ('internal', 'c') THEN p.prosrc END, '') AS "source"`}},
-		{{SQL: `, COALESCE(pg_catalog.obj_description(p.oid, 'pg_proc'), '') AS "comment"`}},
+		{{SQL: `, CASE WHEN l.lanname IN ('internal', 'c') THEN p.prosrc END AS "source"`}},
+		{{SQL: `, pg_catalog.obj_description(p.oid, 'pg_proc') AS "comment"`}},
 		{{SQL: `FROM pg_catalog.pg_proc p`}},
 		{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
 		{{SQL: `LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang`}},
@@ -121,8 +121,8 @@ func registerTypes() {
 				` ORDER BY e.enumsortorder) FROM pg_catalog.pg_enum e` +
 				` WHERE e.enumtypid = t.oid), '') AS "elements"`}},
 			{{SQL: `, pg_catalog.pg_get_userbyid(t.typowner) AS "owner"`}},
-			{{SQL: `, COALESCE(pg_catalog.array_to_string(t.typacl, E'\n'), '') AS "access"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(t.oid, 'pg_type'), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
+			{{SQL: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_type t`}},
 			{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
 			// leave out the composite types that back a table, and the array
@@ -157,11 +157,11 @@ func registerDomains() {
 				` WHERE c.oid = t.typcollation AND bt.oid = t.typbasetype` +
 				` AND t.typcollation <> bt.typcollation), '') AS "collation"`}},
 			{{SQL: `, NOT t.typnotnull AS "nullable"`}},
-			{{SQL: `, COALESCE(t.typdefault, '') AS "default"`}},
+			{{SQL: `, t.typdefault AS "default"`}},
 			{{SQL: `, COALESCE((SELECT pg_catalog.string_agg(pg_catalog.pg_get_constraintdef(r.oid, true), ' '` +
 				` ORDER BY r.conname) FROM pg_catalog.pg_constraint r WHERE t.oid = r.contypid), '') AS "constraints"`}},
-			{{SQL: `, COALESCE(pg_catalog.array_to_string(t.typacl, E'\n'), '') AS "access"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(t.oid, 'pg_type'), '') AS "comment"`}},
+			{{SQL: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
+			{{SQL: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_type t`}},
 			{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
 			{{SQL: `WHERE t.typtype = 'd'`}},
@@ -196,7 +196,7 @@ func registerOperators() {
 			{{SQL: `, pg_catalog.format_type(o.oprresult, NULL) AS "result_type"`}},
 			{{SQL: `, o.oprcode::text AS "function"`}},
 			{{SQL: `, COALESCE(pg_catalog.obj_description(o.oid, 'pg_operator'),` +
-				` pg_catalog.obj_description(o.oprcode, 'pg_proc'), '') AS "comment"`}},
+				` pg_catalog.obj_description(o.oprcode, 'pg_proc')) AS "comment"`}},
 			{{SQL: `FROM pg_catalog.pg_operator o`}},
 			{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = o.oprnamespace`}},
 			{{SQL: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},

@@ -1,5 +1,23 @@
 package dbmeta
 
+import "database/sql"
+
+// Text is a string a database may report as NULL.
+//
+// An absent Text is not the same as an empty one. A table with no comment is
+// absent. A table whose comment is the empty string is present and empty.
+//
+// PostgreSQL relies on that difference for access privileges: a NULL means the
+// default privileges apply, and an empty list means every privilege was
+// revoked. Collapsing the two, which an earlier version of this package did
+// with COALESCE, makes "the owner has full access" read the same as "nobody
+// has any access".
+//
+// Read [database/sql.Null.V] to print it, which is empty for an absent value
+// and so behaves the way a plain string did. Read [database/sql.Null.Valid]
+// when the difference matters.
+type Text = sql.Null[string]
+
 // This file declares the object kinds and the query for each one.
 //
 // There is one exported Query value per kind. A caller names the value, so the
@@ -16,7 +34,7 @@ type Table struct {
 	Schema  string
 	Name    string
 	Type    string
-	Comment string
+	Comment Text
 }
 
 // Schema is a namespace within a catalog.
@@ -24,7 +42,7 @@ type Schema struct {
 	Catalog string
 	Name    string
 	Owner   string
-	Comment string
+	Comment Text
 }
 
 // Column is one column of a table.
@@ -36,15 +54,15 @@ type Column struct {
 	Ordinal  int
 	DataType string
 	Nullable bool
-	Default  string
+	Default  Text
 	// Identity is the identity kind, empty when the column is not an identity.
 	// PostgreSQL gained it in release 11, so an older server reports empty
 	// under the padding rule and [Field.Min] says which is which.
-	Identity string
+	Identity Text
 	// Generated is the generated kind, empty when the column is not
 	// generated. PostgreSQL gained it in release 12.
-	Generated string
-	Comment   string
+	Generated Text
+	Comment   Text
 }
 
 // Index is an index on a table.
@@ -56,7 +74,7 @@ type Index struct {
 	Type    string
 	Unique  bool
 	Primary bool
-	Comment string
+	Comment Text
 }
 
 // Queries. One value per object kind.
@@ -78,10 +96,10 @@ type Database struct {
 	Encoding   string
 	Collate    string
 	CType      string
-	Access     string
-	Tablespace string
+	Access     Text
+	Tablespace Text
 	Size       string
-	Comment    string
+	Comment    Text
 }
 
 // Tablespace is a location the server stores data in. psql lists them with \db.
@@ -89,10 +107,10 @@ type Tablespace struct {
 	Name     string
 	Owner    string
 	Location string
-	Options  string
+	Options  Text
 	Size     string
-	Access   string
-	Comment  string
+	Access   Text
+	Comment  Text
 }
 
 // AccessMethod is an index or table access method. psql lists them with \dA.
@@ -100,7 +118,7 @@ type AccessMethod struct {
 	Name    string
 	Type    string
 	Handler string
-	Comment string
+	Comment Text
 }
 
 // Language is a procedural language. psql lists them with \dL.
@@ -112,8 +130,8 @@ type Language struct {
 	Handler   string
 	Validator string
 	Inline    string
-	Access    string
-	Comment   string
+	Access    Text
+	Comment   Text
 }
 
 // Conversion is an encoding conversion. psql lists them with \dc.
@@ -123,7 +141,7 @@ type Conversion struct {
 	Source  string
 	Target  string
 	Default bool
-	Comment string
+	Comment Text
 }
 
 // Cast converts one type to another. psql lists them with \dC.
@@ -133,7 +151,7 @@ type Cast struct {
 	Function  string
 	Implicit  string
 	LeakProof bool
-	Comment   string
+	Comment   Text
 }
 
 // Collation is a sorting rule. psql lists them with \dO.
@@ -143,17 +161,17 @@ type Collation struct {
 	Provider      string
 	Collate       string
 	CType         string
-	Locale        string
+	Locale        Text
 	Deterministic bool
-	Comment       string
+	Comment       Text
 }
 
 // LargeObject is a large object. psql lists them with \dl.
 type LargeObject struct {
 	OID     int64
 	Owner   string
-	Access  string
-	Comment string
+	Access  Text
+	Comment Text
 }
 
 // EventTrigger fires on a DDL event. psql lists them with \dy.
@@ -163,17 +181,17 @@ type EventTrigger struct {
 	Owner    string
 	Enabled  string
 	Function string
-	Tags     string
-	Comment  string
+	Tags     Text
+	Comment  Text
 }
 
 // Setting is a configuration parameter. psql lists them with \dconfig.
 type Setting struct {
 	Name    string
-	Value   string
-	Type    string
-	Context string
-	Access  string
+	Value   Text
+	Type    Text
+	Context Text
+	Access  Text
 }
 
 // Queries for the objects above.
@@ -213,10 +231,10 @@ type Function struct {
 	Parallel   string
 	Owner      string
 	Security   string
-	Access     string
+	Access     Text
 	Language   string
-	Source     string
-	Comment    string
+	Source     Text
+	Comment    Text
 }
 
 // Type is a data type. psql lists them with \dT.
@@ -228,8 +246,8 @@ type Type struct {
 	Kind     string
 	Elements string
 	Owner    string
-	Access   string
-	Comment  string
+	Access   Text
+	Comment  Text
 }
 
 // Domain is a type with a constraint. psql lists them with \dD.
@@ -240,10 +258,10 @@ type Domain struct {
 	DataType    string
 	Collation   string
 	Nullable    bool
-	Default     string
+	Default     Text
 	Constraints string
-	Access      string
-	Comment     string
+	Access      Text
+	Comment     Text
 }
 
 // Operator is an operator. psql lists them with \do.
@@ -254,7 +272,7 @@ type Operator struct {
 	RightType  string
 	ResultType string
 	Function   string
-	Comment    string
+	Comment    Text
 }
 
 // Queries for routines and types.
@@ -282,9 +300,9 @@ type Role struct {
 	BypassRLS   bool
 	Inherit     bool
 	ConnLimit   int64
-	ValidUntil  string
+	ValidUntil  Text
 	MemberOf    string
-	Comment     string
+	Comment     Text
 }
 
 // RoleSetting is a configuration value set for a role, optionally in one
@@ -292,14 +310,14 @@ type Role struct {
 type RoleSetting struct {
 	Role     string
 	Database string
-	Settings string
+	Settings Text
 }
 
 // RoleGrant is one role's membership of another. psql lists them with \drg.
 type RoleGrant struct {
 	Role     string
 	MemberOf string
-	Grantor  string
+	Grantor  Text
 	Admin    bool
 	Inherit  bool
 	Set      bool
@@ -310,7 +328,7 @@ type Privilege struct {
 	Schema       string
 	Name         string
 	Type         string
-	Access       string
+	Access       Text
 	ColumnAccess string
 	Policies     string
 }
@@ -321,7 +339,7 @@ type DefaultACL struct {
 	Owner  string
 	Schema string
 	Type   string
-	Access string
+	Access Text
 }
 
 // ForeignDataWrapper reaches data outside the database. psql lists them with
@@ -329,11 +347,11 @@ type DefaultACL struct {
 type ForeignDataWrapper struct {
 	Name      string
 	Owner     string
-	Handler   string
-	Validator string
-	Access    string
-	Options   string
-	Comment   string
+	Handler   Text
+	Validator Text
+	Access    Text
+	Options   Text
+	Comment   Text
 }
 
 // ForeignServer is a server reached through a wrapper. psql lists them with
@@ -342,19 +360,19 @@ type ForeignServer struct {
 	Name    string
 	Owner   string
 	Wrapper string
-	Type    string
-	Version string
-	Access  string
-	Options string
-	Comment string
+	Type    Text
+	Version Text
+	Access  Text
+	Options Text
+	Comment Text
 }
 
 // UserMapping maps a local role onto a foreign server. psql lists them with
 // \deu.
 type UserMapping struct {
 	Server  string
-	Name    string
-	Options string
+	Name    Text
+	Options Text
 }
 
 // ForeignTable is a table on a foreign server. psql lists them with \det.
@@ -362,8 +380,8 @@ type ForeignTable struct {
 	Schema  string
 	Name    string
 	Server  string
-	Options string
-	Comment string
+	Options Text
+	Comment Text
 }
 
 // Queries for roles, privileges and foreign data.
@@ -399,7 +417,7 @@ type Publication struct {
 	Delete    bool
 	Truncate  bool
 	ViaRoot   bool
-	Comment   string
+	Comment   Text
 }
 
 // PublicationTable is one table a publication offers. psql shows them with
@@ -409,7 +427,7 @@ type PublicationTable struct {
 	Schema      string
 	Name        string
 	Columns     string
-	Where       string
+	Where       Text
 }
 
 // Subscription receives changes from a publication. psql lists them with \dRs.
@@ -418,16 +436,16 @@ type Subscription struct {
 	Owner        string
 	Enabled      bool
 	Publications string
-	Synchronous  string
-	Slot         string
-	Comment      string
+	Synchronous  Text
+	Slot         Text
+	Comment      Text
 }
 
 // TextSearchParser splits text into tokens. psql lists them with \dFp.
 type TextSearchParser struct {
 	Schema  string
 	Name    string
-	Comment string
+	Comment Text
 }
 
 // TextSearchDictionary normalizes tokens. psql lists them with \dFd.
@@ -435,8 +453,8 @@ type TextSearchDictionary struct {
 	Schema   string
 	Name     string
 	Template string
-	Options  string
-	Comment  string
+	Options  Text
+	Comment  Text
 }
 
 // TextSearchTemplate is the code behind a dictionary. psql lists them with
@@ -444,9 +462,9 @@ type TextSearchDictionary struct {
 type TextSearchTemplate struct {
 	Schema  string
 	Name    string
-	Init    string
+	Init    Text
 	Lexize  string
-	Comment string
+	Comment Text
 }
 
 // TextSearchConfig ties a parser to dictionaries. psql lists them with \dF.
@@ -454,7 +472,7 @@ type TextSearchConfig struct {
 	Schema  string
 	Name    string
 	Parser  string
-	Comment string
+	Comment Text
 }
 
 // OperatorClass tells an access method how to index a type. psql lists them
@@ -503,7 +521,7 @@ type Extension struct {
 	Name    string
 	Version string
 	Schema  string
-	Comment string
+	Comment Text
 }
 
 // ExtensionObject is one object an extension owns. psql lists them with \dx+.
@@ -520,7 +538,7 @@ type ExtendedStat struct {
 	Owner   string
 	Table   string
 	Kinds   string
-	Comment string
+	Comment Text
 }
 
 // Comment is a comment on any object. psql shows them with \dd.
@@ -572,7 +590,7 @@ type IndexColumn struct {
 	Index      string
 	Name       string
 	Ordinal    int64
-	Expression string
+	Expression Text
 	Descending bool
 }
 
@@ -586,7 +604,7 @@ type Constraint struct {
 	Definition string
 	Deferrable bool
 	Deferred   bool
-	Comment    string
+	Comment    Text
 }
 
 // Trigger fires on a change to a table. psql shows them inside \d name.
@@ -596,7 +614,7 @@ type Trigger struct {
 	Name       string
 	Enabled    string
 	Definition string
-	Comment    string
+	Comment    Text
 }
 
 // Sequence generates numbers. psql lists them with \ds and shows the detail
@@ -611,7 +629,7 @@ type Sequence struct {
 	Increment int64
 	Cycles    bool
 	OwnedBy   string
-	Comment   string
+	Comment   Text
 }
 
 // PartitionedTable is a table split into partitions. psql lists them with \dP.
@@ -623,7 +641,7 @@ type PartitionedTable struct {
 	Parent     string
 	Strategy   string
 	Expression string
-	Comment    string
+	Comment    Text
 }
 
 // Queries for the detail of a table.

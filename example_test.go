@@ -53,8 +53,10 @@ func Example() {
 			log.Fatal(err)
 		}
 		line := fmt.Sprintf("  %s.%s (%s)", t.Schema, t.Name, t.Type)
-		if t.Comment != "" {
-			line += " " + t.Comment
+		// Comment is a Text, so a table with no comment is absent rather than
+		// empty. Reading .V prints empty for both, which is what a CLI wants.
+		if t.Comment.Valid {
+			line += " " + t.Comment.V
 		}
 		fmt.Println(line)
 	}
@@ -106,7 +108,7 @@ func Example_sql() {
 	// SELECT current_database() AS "catalog"
 	// , n.nspname AS "name"
 	// , pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"
-	// , COALESCE(pg_catalog.obj_description(n.oid, 'pg_namespace'), '') AS "comment"
+	// , pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"
 	// FROM pg_catalog.pg_namespace n
 	// WHERE ($1 OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))
 	// AND ($2 = '' OR n.nspname LIKE $2)
