@@ -1,0 +1,109 @@
+# Lint configuration for the test module.
+#
+# golangci-lint reads the go.mod of the directory it runs in, so this module is
+# linted by its own run and needs its own configuration. It inherits nothing
+# from the root.
+#
+# The difference that matters is depguard. This module holds the database
+# drivers, which the root module must never import, so the allow list is wider
+# here and narrow there. That split is the reason the module exists.
+#
+# The rule for adding to this file is the one in the root configuration. A
+# linter that makes idiomatic Go worse is disabled with its reason beside it,
+# and only a real defect gets a code change.
+version: "2"
+
+linters:
+  default: all
+  disable:
+    # A test registers into a package level registry and names its fixtures at
+    # package level, the same way the models do.
+    - gochecknoinits
+    - gochecknoglobals
+    # Long SQL and long expected values.
+    - goconst
+    - lll
+    - wsl
+    - wsl_v5
+    # A table driven test over 48 queries is long and flat, not complex.
+    - cyclop
+    - funlen
+    - gocognit
+    - gocyclo
+    - maintidx
+    - nestif
+    - dupl
+    # A test that opens a database builds a schema every other test reads, so
+    # these run in order rather than in parallel.
+    - paralleltest
+    - tparallel
+    # Style opinions.
+    - err113
+    - wrapcheck
+    - nlreturn
+    - varnamelen
+    - exhaustruct
+    - exhaustruct_v5
+    - mnd
+    - nilnil
+    - ireturn
+    - prealloc
+    - noinlineerr
+    - testpackage
+    # depguard holds the dependency rule.
+    - gomodguard
+    - gomodguard_v2
+    # A test builds its own indexes and reads a password from the environment,
+    # and is not the attack surface gosec looks for.
+    - gosec
+    # The replace directive pointing at the parent is the whole point of this
+    # module: it tests the working tree rather than a published version.
+    - gomoddirectives
+    # A switch that handles two of three enum values and answers the third
+    # after the switch says more than an empty case with no body.
+    - exhaustive
+  settings:
+    # The drivers live here and nowhere else. Adding one to the root module is
+    # the mistake this is here to stop, and the root configuration refuses it
+    # from the other side.
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          allow:
+            - $gostd
+            - github.com/xo/dbmeta
+            - github.com/xo/dburl
+            - github.com/go-sql-driver/mysql
+            - github.com/jackc/pgx
+            - github.com/lib/pq
+            - modernc.org/sqlite
+    # A deferred Close returns an error nothing can act on.
+    errcheck:
+      exclude-functions:
+        - (*database/sql.Rows).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Stmt).Close
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    gocritic:
+      disabled-checks:
+        - exitAfterDefer
+
+  exclusions:
+    rules:
+      # A command prints. That is what it is for.
+      - path: tool/
+        linters:
+          - forbidigo
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/xo/dbmeta

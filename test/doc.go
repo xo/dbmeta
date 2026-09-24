@@ -5,17 +5,22 @@
 // brings its own driver and chooses its own version, and nothing here reaches
 // that consumer.
 //
-// The tests skip unless a server is running. Start one with podman and point
-// the test at it:
+// The tests skip unless a server is running, and each dialect reads its
+// connection string from its own variable: DBMETA_POSTGRES and DBMETA_MYSQL.
+// A third, DBMETA_MYSQL_COMPARE, names a second server of the other product
+// and turns on the comparison between MariaDB and MySQL.
 //
-//	podman run -d --rm --name dbmeta-pg18 -e POSTGRES_PASSWORD=P4ssw0rd \
-//	    -p 55432:5432 docker.io/library/postgres:18
-//	DBMETA_POSTGRES=postgres://postgres:P4ssw0rd@localhost:55432/postgres?sslmode=disable \
-//	    go test ./...
+// The simplest way to run them is the script beside this file, which starts
+// what it needs and removes it afterwards:
 //
-// Run every supported release with the script beside this file:
+//	./run.sh                 every release of every product
+//	./run.sh tested          the releases CI runs on every push
+//	./run.sh mariadb-13.0    one release
 //
-//	./run.sh
+// It takes the list from github.com/xo/dbmeta/container, which is where a
+// release is added. To start a server by hand instead, read the same list:
+//
+//	go run ./tool/servers postgres-18
 //
 // `go test ./...` in the root module does not reach here, because the go
 // command does not descend into a directory that has its own go.mod.

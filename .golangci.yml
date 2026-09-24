@@ -1,0 +1,198 @@
+# Lint configuration for the root module. The test module has its own, because
+# it holds the database drivers this module must never import.
+#
+# # The rule for adding to this file
+#
+# A linter that makes idiomatic Go worse is disabled here, with the reason
+# written beside it. Only a real defect gets a code change. A change made to
+# quiet a linter, rather than to fix something, is itself the defect: it leaves
+# code that no reader can explain and that the next person copies. Two of them
+# were written and reverted before this file settled, and both are named in
+# CLAUDE.md so that they do not come back.
+#
+# # The posture
+#
+# `default: all`, with a disable list, which is the house style in
+# github.com/xo/dburl. A new linter arriving in a release gets a look rather
+# than silence, and that has paid: turning this on found a missing rows.Err
+# check, a parameter shadowing the min builtin, and a copy loop the standard
+# library now does.
+#
+# Gemini and DeepSeek both argued for an explicit enable list instead, on the
+# grounds that an upgrade then cannot break the build. The version in CI is
+# pinned, which answers that without giving up the reading.
+#
+# # What it enforces
+#
+# Several hard rules from CLAUDE.md are held here rather than by review.
+# depguard keeps the dependency list to the standard library and dburl.
+# forbidigo bans context.Background, context.TODO and the database/sql calls
+# that take no context. errorlint requires %w.
+version: "2"
+
+run:
+  # the test module is linted on its own, from its own directory
+  modules-download-mode: readonly
+
+linters:
+  default: all
+  disable:
+    # Deliberate patterns. A query and a dialect register themselves from
+    # init into a package level registry, and the exported *Query values are
+    # the API a caller names.
+    - gochecknoinits
+    - gochecknoglobals
+    # The SQL is built one column per line on purpose, so that a version
+    # fragment can replace one column without touching the rest. These fight
+    # that, and the shape is worth more than they are.
+    - goconst
+    - lll
+    - wsl
+    - wsl_v5
+    # Complexity metrics. A statement built from 30 fragments is a long
+    # literal, not a complex function, and these count it as one.
+    - cyclop
+    - funlen
+    - gocognit
+    - gocyclo
+    - maintidx
+    - nestif
+    # err113 wants every error to be a wrapped sentinel and flags the
+    # fmt.Errorf calls that carry %w. The rule here is stricter than err113
+    # and different in kind: a sentinel is a constant of type Error, which
+    # err113 does not know how to check.
+    - err113
+    # wrapcheck would wrap the errors that come back from database/sql,
+    # which destroys the identity a caller tests with errors.Is.
+    - wrapcheck
+    # Style opinions that argue with gofmt or with plain code.
+    - nlreturn
+    - varnamelen
+    - exhaustruct
+    - mnd
+    - nilnil
+    - ireturn
+    # An iterator is returned by design and documented. See CLAUDE.md.
+    - nonamedreturns
+    # prealloc rewrites readable loops for a gain nothing has measured here.
+    - prealloc
+    # depguard holds the dependency rule, and holding it twice means two
+    # places to change it. gomodguard is deprecated on top of that.
+    - gomodguard
+    - gomodguard_v2
+    # A test that opens a database mutates a schema every other test reads,
+    # so the integration tests are deliberately not parallel.
+    - paralleltest
+    # A root test is in package dbmeta rather than dbmeta_test, because it
+    # reads the unexported fields of Meta and registers a fake dialect.
+    - testpackage
+    # exhaustruct wants every field of every literal named. A Fragment is
+    # written as {Min: v15, SQL: "..."} on purpose, because Key is the
+    # exception and naming it everywhere would bury it.
+    - exhaustruct_v5
+    # noinlineerr bans `if err := f(); err != nil`, which is the form the Go
+    # standard library uses and gofmt is built around.
+    - noinlineerr
+    # recvcheck reports that VersionSet mixes receivers. It does: Set records
+    # a version and needs a pointer, and everything else reads and does not.
+    # Making them all pointers would stop a VersionSet value from answering,
+    # and every Set call builds up a local variable rather than mutating a
+    # copy taken out of a container, which is the case that would be a bug.
+    - recvcheck
+    # exhaustive fires on two switches that handle two of three values and
+    # answer the third after the switch. Its remedy is an empty case with no
+    # body, which says less than the code already does.
+    - exhaustive
+  settings:
+    # Hard rule 1. The root module imports the standard library and dburl and
+    # nothing else, and never a database driver. A consumer picks its own
+    # driver and its own version of it.
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          allow:
+            - $gostd
+            - github.com/xo/dburl
+            - github.com/xo/dbmeta
+    # Hard rules 8 and the database/sql half of the Go conventions.
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^context\.(Background|TODO)$
+          msg: take the context from the caller, never make one here
+        - pattern: ^\(\*database/sql\.(DB|Conn|Tx|Stmt)\)\.(Query|Exec|QueryRow|Prepare)$
+          msg: use the Context form, such as QueryContext
+    # Errors wrap with %w so that errors.Is reaches through.
+    # A deferred Close returns an error nothing can act on, and the one that
+    # matters was already reported by Err. Wrapping the defer in a closure to
+    # discard it reads worse than the call it replaces.
+    errcheck:
+      exclude-functions:
+        - (*database/sql.Rows).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Stmt).Close
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    gocritic:
+      disabled-checks:
+        - exitAfterDefer
+    gosec:
+      excludes:
+        # the SQL here is the product, not a risk: it is built from fragments
+        # this package owns, and every value a caller supplies is a parameter
+        - G101
+        - G201
+        - G202
+        # G115 fires on reading a PostgreSQL server_version_num, which is six
+        # digits, into a uint32. A guard against four billion would be dead
+        # code, and the one first written here tested the wrong quantity and
+        # could never fire.
+        - G115
+        # G602 fires on an index guarded by a separate bool it cannot follow.
+        - G602
+    revive:
+      rules:
+        - name: context-as-argument
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: exported
+        - name: indent-error-flow
+        - name: package-comments
+        - name: receiver-naming
+        - name: var-naming
+  exclusions:
+    rules:
+      # A test builds its own statements and versions and does not answer to
+      # the dependency rule or the context rule.
+      - path: _test\.go
+        linters:
+          - dupl
+          - forbidigo
+          # a fake driver embeds its answer type where the literal reads best
+          - embeddedstructfieldcheck
+          # a test builds its own indexes and placeholders, and is not the
+          # attack surface gosec looks for
+          - gosec
+      # A fixture is a schema to read metadata about, not a query to run. A
+      # view over every column is the point of it.
+      - path: fixture/
+        linters:
+          - unqueryvet
+      # Two bindings that read different catalogs can select the same shape.
+      # Merging them would tie two unrelated queries together.
+      - path: models/
+        linters:
+          - dupl
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/xo/dbmeta

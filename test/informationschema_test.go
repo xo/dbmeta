@@ -80,15 +80,9 @@ func TestInformationSchemaQueriesRun(t *testing.T) {
 			t.Errorf("%s: rendering: %v", q.Name(), err)
 			continue
 		}
-		rows, err := db.QueryContext(t.Context(), sqlstr, vals...)
+		cols, err := columnsOf(t, db, sqlstr, vals)
 		if err != nil {
 			t.Errorf("%s: executing: %v\n%s", q.Name(), err, sqlstr)
-			continue
-		}
-		cols, err := rows.Columns()
-		rows.Close()
-		if err != nil {
-			t.Errorf("%s: reading columns: %v", q.Name(), err)
 			continue
 		}
 		fields, err := q.Fields(m)

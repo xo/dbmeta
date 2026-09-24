@@ -53,6 +53,21 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
+      - name: Lint
+        # Pinned. The configuration is `default: all`, so an unpinned upgrade
+        # would enable a new linter and fail a build that changed nothing.
+        # Both modules are linted, because golangci-lint reads the go.mod of
+        # the directory it runs in and the test module has its own.
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.1
+
+      - name: Lint the test module
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.1
+          working-directory: test
+
       - name: Check formatting
         run: |
           out=$(gofmt -l .)
@@ -133,10 +148,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # MariaDB is the reference product for the mysql driver, per D14. The
-        # two releases are the oldest maintained long term release and the
-        # newest, which is where the sequence and check constraint gates sit.
-        mariadb: ["10.6", "11.8"]
+        # These come from container.MariaDB in the Go package, and a test
+        # fails when the two disagree. 10.6 is the oldest maintained long term
+        # release and 13.0 is the current stable.
+        mariadb: ["10.6", "13.0"]
     services:
       mariadb:
         image: mariadb:${{ matrix.mariadb }}
@@ -173,10 +188,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # MySQL is the other product of the mysql dialect. 8.4 is the current
-        # long term release and 9 is the innovation release. They differ on
-        # where a system variable lives, which is a gate the model carries.
-        mysql: ["8.4", "9"]
+        # These come from container.MySQL in the Go package, and a test fails
+        # when the two disagree. 8.4 is the long term release and 26.7 is the
+        # current innovation release, where MySQL's year based numbering
+        # starts. They sit on either side of the one gate this model has for
+        # MySQL, which is where a system variable moved in release 9.
+        mysql: ["8.4", "26.7"]
     services:
       mysql:
         image: mysql:${{ matrix.mysql }}
@@ -212,7 +229,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:11.8
+        image: mariadb:13.0
         env:
           MARIADB_ROOT_PASSWORD: P4ssw0rd
         ports:
@@ -223,7 +240,7 @@ jobs:
           --health-timeout 5s
           --health-retries 20
       mysql:
-        image: mysql:9
+        image: mysql:26.7
         env:
           MYSQL_ROOT_PASSWORD: P4ssw0rd
         ports:
@@ -250,6 +267,47 @@ jobs:
           DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
           DBMETA_MYSQL_COMPARE: root:P4ssw0rd@tcp(localhost:3307)/?parseTime=true
         run: go test -count=1 -v -run MySQLAgainstMariaDB ./...
+
+  nightly-mysql:
+    name: ${{ matrix.image }} (nightly)
+    # The releases of the mysql dialect that a push does not carry. The list
+    # comes from container.MariaDB and container.MySQL at the Nightly tier,
+    # and a test fails when the two disagree.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["mariadb:10.11", "mariadb:11.4", "mariadb:11.8", "mariadb:12.3", "mysql:9.7"]
+    services:
+      db:
+        image: ${{ matrix.image }}
+        env:
+          MARIADB_ROOT_PASSWORD: P4ssw0rd
+          MYSQL_ROOT_PASSWORD: P4ssw0rd
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pP4ssw0rd"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test
+        working-directory: test
+        env:
+          DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
+        run: go test -count=1 -v -run 'MySQL|InformationSchema' ./...
 
   nightly:
     name: PostgreSQL ${{ matrix.postgres }} (nightly)

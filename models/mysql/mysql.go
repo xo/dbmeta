@@ -44,9 +44,11 @@
 // object model does not fit. See COVERAGE.md for what it cannot answer.
 package mysql
 
-import "strings"
+import (
+	"strings"
 
-import "github.com/xo/dbmeta"
+	"github.com/xo/dbmeta"
+)
 
 // Reference is the MariaDB release these queries were written against.
 const Reference = "11.8.9-MariaDB"

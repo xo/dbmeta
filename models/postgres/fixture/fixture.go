@@ -122,8 +122,8 @@ func at(name, sqlstr string) Step {
 
 // from builds a step that needs a server at min or newer, and is skipped
 // below it.
-func from(name string, min dbmeta.Version, sqlstr string) Step {
-	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: min, SQL: sqlstr}}}}
+func from(name string, since dbmeta.Version, sqlstr string) Step {
+	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: since, SQL: sqlstr}}}}
 }
 
 // choose builds a step whose syntax changed, taking the alternatives in any

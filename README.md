@@ -205,6 +205,30 @@ shortest document here and the one that cost the most to learn.
 [`COVERAGE.md`](COVERAGE.md) records what each database answers and why, and
 names the analogues that looked right and were rejected.
 
+# Testing
+
+`container/container.go` names every database release the tests run against,
+as Go data. It holds the image, the tag, the environment, the readiness
+command and the connection string, and it starts nothing: a caller brings its
+own podman, docker or Go client, and `dbmeta` depends on none of them.
+
+```go
+for _, s := range container.All() {
+	fmt.Println(s.Name(), s.Tier, s.Ref())
+}
+```
+
+Run the tests against a release, or a product, or a tier:
+
+```bash
+cd test && ./run.sh mariadb-13.0
+```
+
+`./run.sh` with no argument runs every release. It reads the list from
+`container`, starts each server, waits for it to accept a connection, runs the
+tests and removes the container. CI repeats the same list in YAML, and
+`container/workflow_test.go` fails when the two disagree.
+
 The full record is in [`PLAN.md`](PLAN.md), which holds every decision and the
 evidence behind it. [`QUERIES.md`](QUERIES.md) surveys what `psql` and
 `information_schema` each describe. [`EVALUATION.md`](EVALUATION.md) records
@@ -245,10 +269,10 @@ gofmt -l . && go vet ./... && go build ./... && go test -race -count=2 ./...
 To run the integration tests, start a server and point the test module at it:
 
 ```sh
-cd test && ./run.sh 18
+cd test && ./run.sh postgres-18
 ```
 
-`./run.sh` with no argument runs every supported release, which is what has to
+`./run.sh` with no argument runs every supported release of every product, which is what has to
 pass before a release.
 
 Tests in this module never open a database connection. They render statements,

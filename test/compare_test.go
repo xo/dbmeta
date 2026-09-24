@@ -162,25 +162,12 @@ func readRows(t *testing.T, db *sql.DB, m *dbmeta.Meta, q dbmeta.AnyQuery, args 
 	if err != nil {
 		t.Fatalf("%s: rendering: %v", q.Name(), err)
 	}
-	rs, err := db.QueryContext(t.Context(), sqlstr, vals...)
+	cols, cells, err := nullableStrings(t, db, sqlstr, vals)
 	if err != nil {
 		t.Fatalf("%s: executing: %v\n%s", q.Name(), err, sqlstr)
 	}
-	defer rs.Close()
-	cols, err := rs.Columns()
-	if err != nil {
-		t.Fatalf("%s: reading columns: %v", q.Name(), err)
-	}
-	var out []row
-	for rs.Next() {
-		cells := make([]sql.Null[string], len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range cells {
-			ptrs[i] = &cells[i]
-		}
-		if err := rs.Scan(ptrs...); err != nil {
-			t.Fatalf("%s: scanning: %v", q.Name(), err)
-		}
+	out := make([]row, 0, len(cells))
+	for _, cells := range cells {
 		r := row{cells: make(map[string]string, len(cols)), nulls: make(map[string]bool, len(cols))}
 		for i, name := range cols {
 			r.cells[name] = cells[i].V
@@ -191,9 +178,6 @@ func readRows(t *testing.T, db *sql.DB, m *dbmeta.Meta, q dbmeta.AnyQuery, args 
 		}
 		r.key = strings.Join(r.labels, "/")
 		out = append(out, r)
-	}
-	if err := rs.Err(); err != nil {
-		t.Fatalf("%s: reading rows: %v", q.Name(), err)
 	}
 	return out
 }
@@ -253,7 +237,7 @@ func show(r row, col string) string {
 // expectedOnlyOnMaria reports whether a row is one of the objects only MariaDB
 // builds, which is not a difference worth reporting.
 func expectedOnlyOnMaria(key string) bool {
-	for _, part := range strings.Split(key, "/") {
+	for part := range strings.SplitSeq(key, "/") {
 		if slices.Contains(mariaOnly, part) {
 			return true
 		}

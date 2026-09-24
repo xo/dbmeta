@@ -14,7 +14,7 @@
 // and will not rename or remove one.
 package fixture
 
-// Dialect differences a fixture statement needs.
+// Syntax holds the dialect differences a fixture statement needs.
 //
 // A native fixture varies by version, because one database changed over time.
 // A shared fixture varies by dialect as well, because the databases never

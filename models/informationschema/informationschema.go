@@ -32,6 +32,7 @@ package informationschema
 
 import (
 	"database/sql"
+	"maps"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -105,9 +106,7 @@ func (f Features) Has(name Feature) bool { return f[name] }
 
 func (f Features) clone() Features {
 	out := make(Features, len(f))
-	for k, v := range f {
-		out[k] = v
-	}
+	maps.Copy(out, f)
 	return out
 }
 

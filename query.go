@@ -79,26 +79,31 @@ type Choice []Fragment
 // changes that. A server that does report the key and is below the Min is too
 // old, which an upgrade fixes, so that stays [ErrVersionTooOld].
 func (c Choice) Resolve(versions VersionSet) (string, error) {
-	best, found := -1, false
-	// reachable counts the alternatives this server could meet on a newer
-	// release: the ones with no key, and the ones whose key it reports.
-	var reachable int
-	for i, f := range c {
+	var (
+		best  Fragment
+		found bool
+		// reachable counts the alternatives this server could meet on a newer
+		// release: the ones with no key, and the ones whose key it reports.
+		reachable int
+	)
+	for _, f := range c {
 		if f.Key == "" || versions.Has(f.Key) {
 			reachable++
 		}
 		if !f.Gate().Met(versions) {
 			continue
 		}
+		if !found {
+			best, found = f, true
+			continue
+		}
 		switch {
-		case !found:
-			best, found = i, true
-		case c[best].Key == f.Key:
-			if c[best].Min.Compare(f.Min) < 0 {
-				best = i
+		case best.Key == f.Key:
+			if best.Min.Compare(f.Min) < 0 {
+				best = f
 			}
-		case c[best].Key == "":
-			best = i
+		case best.Key == "":
+			best = f
 		case f.Key == "":
 			// the more specific alternative already won
 		default:
@@ -107,7 +112,7 @@ func (c Choice) Resolve(versions VersionSet) (string, error) {
 	}
 	switch {
 	case found:
-		return c[best].SQL, nil
+		return best.SQL, nil
 	case len(c) > 0 && reachable == 0:
 		return "", ErrNotSupported
 	}
@@ -315,6 +320,8 @@ func (s Support) String() string {
 		return "not built"
 	case NotSupported:
 		return "not supported"
+	case Supported:
+		return "supported"
 	}
 	return "supported"
 }

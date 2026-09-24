@@ -99,6 +99,9 @@ Do not decide an open question on your own. Ask Ken.
   by the build tags `none`, `base`, `most` and `all`, following `usql`. A
   `gen.go` generates those files and the model table in `README.md`. Say model,
   not driver: `dbmeta` never opens a connection.
+- `container/` names every database release the tests run against, as Go data.
+  It starts no container and imports no container client. `test/run.sh` and the
+  CI workflow both read it, and a test fails when they drift.
 - `test/` is a separate module with its own `go.mod`. It holds the integration
   tests, the database drivers, and the `tool` directive pinning `dbtpl`. None
   of that may appear in the root module.
@@ -215,12 +218,69 @@ every method of the type. Never write `this` or `self`.
 Group struct fields by purpose, with exported fields first and a blank line
 between groups.
 
+## Linting
+
+`.golangci.yml` holds the rules, and `test/.golangci.yml` holds them for the
+test module. golangci-lint reads the `go.mod` of the directory it runs in, so
+both are linted separately and CI runs it twice.
+
+```bash
+golangci-lint run ./... && (cd test && golangci-lint run ./...)
+```
+
+The posture is `default: all` with a disable list. A new linter gets a look
+rather than silence, and that has paid: turning it on found a missing
+`rows.Err` check, a parameter shadowing the `min` builtin, and a copy loop that
+`maps.Copy` now does.
+
+### The rule for a lint finding
+
+A linter that makes idiomatic Go worse is disabled, with the reason written
+beside it in the configuration. Only a real defect gets a code change. Ask
+which one it is before you touch the code, and if the remedy reads worse than
+what it replaces, that is the answer.
+
+A change made to quiet a linter rather than to fix something is itself a
+defect. It leaves code that no reader can explain and that the next person
+copies. Two were written here and reverted, and they are named so that they do
+not come back:
+
+Never write `defer func() { _ = rows.Close() }()`. Write `defer rows.Close()`.
+A deferred `Close` returns an error nothing can act on, and the error that
+matters was already reported by `Err`. `errcheck` is configured to allow it.
+
+Never add an empty `case X:` to satisfy `exhaustive`. A switch that handles two
+of three values and answers the third after the switch says more than a case
+with no body. `exhaustive` is disabled.
+
+A guard that can never fire is not a fix. `gosec` wanted a bound on a
+conversion of a PostgreSQL `server_version_num`, which is six digits, and the
+guard first written for it tested the wrong quantity and could never have
+fired. That warning is excluded with its reason.
+
+Read `golangci-lint run` output as a list of questions, not a list of tasks.
+
+## Container images
+
+`container/container.go` names every database release dbmeta is tested
+against, as Go data. It starts nothing and imports no container client, and it
+must not: a consumer brings its own podman, docker or Go client and picks its
+own version of it, the same way it brings its own driver.
+
+That list is the only copy. `test/run.sh` reads it through
+`test/tool/servers`, the CI workflow repeats it in YAML, and
+`container/workflow_test.go` fails when the workflow and the Go list disagree.
+Change `container/container.go` first and the workflow second.
+
+Add a release there before you add it anywhere else.
+
 ## Before you commit
 
 Run these:
 
 ```bash
 gofmt -l . && go vet ./... && go build ./... && go test -race -count=2 ./...
+golangci-lint run ./... && (cd test && golangci-lint run ./...)
 ```
 
 `gofmt -l .` must print nothing.

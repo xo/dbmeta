@@ -107,14 +107,6 @@ func (v Version) Compare(ver Version) int {
 	return 0
 }
 
-// part returns the component at i, or zero when v is shorter than that.
-func (v Version) part(i int) uint32 {
-	if i < len(v.Parts) {
-		return v.Parts[i]
-	}
-	return 0
-}
-
 // AtLeast reports whether v is ver or newer.
 func (v Version) AtLeast(ver Version) bool {
 	return v.Compare(ver) >= 0
@@ -139,6 +131,14 @@ func (v Version) String() string {
 		out += "-" + v.Suffix
 	}
 	return out
+}
+
+// part returns the component at i, or zero when v is shorter than that.
+func (v Version) part(i int) uint32 {
+	if i < len(v.Parts) {
+		return v.Parts[i]
+	}
+	return 0
 }
 
 // VersionSet is every version one server reports.

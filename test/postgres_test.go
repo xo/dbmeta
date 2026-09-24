@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/postgres"
 	"github.com/xo/dbmeta/models/postgres/fixture"
@@ -107,15 +108,9 @@ func TestEveryQueryRuns(t *testing.T) {
 			t.Errorf("%s: rendering: %v", q.Name(), err)
 			continue
 		}
-		rows, err := db.QueryContext(t.Context(), sqlstr, vals...)
+		cols, err := columnsOf(t, db, sqlstr, vals)
 		if err != nil {
 			t.Errorf("%s: executing: %v\n%s", q.Name(), err, sqlstr)
-			continue
-		}
-		cols, err := rows.Columns()
-		rows.Close()
-		if err != nil {
-			t.Errorf("%s: reading columns: %v", q.Name(), err)
 			continue
 		}
 		fields, err := q.Fields(m)
@@ -175,21 +170,7 @@ func TestPaddedFieldsAreNull(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		rows, err := db.QueryContext(t.Context(), sqlstr, vals...)
-		if err != nil {
-			t.Errorf("%s: %v", q.Name(), err)
-			continue
-		}
-		dest := make([]any, len(fields))
-		raw := make([]sql.RawBytes, len(fields))
-		for i := range dest {
-			dest[i] = &raw[i]
-		}
-		for rows.Next() {
-			if err := rows.Scan(dest...); err != nil {
-				t.Errorf("%s: scanning: %v", q.Name(), err)
-				break
-			}
+		err = eachRawRow(t, db, sqlstr, vals, len(fields), func(raw []sql.RawBytes) {
 			for _, i := range padded {
 				if raw[i] != nil {
 					t.Errorf("%s: %q arrived in %s and the server is %s, so it must be NULL, got %q",
@@ -197,8 +178,11 @@ func TestPaddedFieldsAreNull(t *testing.T) {
 				}
 			}
 			checked++
+		})
+		if err != nil {
+			t.Errorf("%s: %v", q.Name(), err)
+			continue
 		}
-		rows.Close()
 	}
 	t.Logf("checked %d padded values", checked)
 }
