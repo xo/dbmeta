@@ -1,11 +1,17 @@
 # Tests dbmeta on every push and pull request.
 #
-# One job on one runner. The queries are SQL and the code is pure Go, so there
-# is nothing to gain from a matrix of operating systems or architectures, and
-# dbmeta does not carry a build constraint on either. Tests here open no
-# database connection: they render statements and read rows from a fake driver
-# replaying recorded data. Older releases and other databases are tested on a
-# development machine before a release.
+# Two jobs, both on one runner. The queries are SQL and the code is pure Go, so
+# there is nothing to gain from a matrix of operating systems or architectures,
+# and dbmeta does not carry a build constraint on either.
+#
+# The unit job opens no database connection. It renders statements and reads
+# rows from a fake driver replaying recorded data, so it covers releases whose
+# container images no longer start.
+#
+# The integration job runs the queries against a real server, which is the only
+# thing that catches SQL a database rejects and a Go type the driver cannot
+# fill. It tests the newest release, as D24 requires. The other nine run on a
+# development machine before a release, with test/run.sh.
 name: Test
 
 on:
@@ -18,8 +24,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Test
+  unit:
+    name: Unit
     runs-on: ubuntu-latest
     steps:
       - name: Check out
@@ -57,3 +63,40 @@ jobs:
             echo "building with -tags $tag"
             go build -tags "$tag" ./...
           done
+
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    services:
+      # the newest PostgreSQL release, per D24. Health checks force TCP with
+      # -h, because pg_isready on the socket reports ready during the
+      # bootstrap phase, before the server restarts to accept connections.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: P4ssw0rd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -h 127.0.0.1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against PostgreSQL
+        # test/ is a separate module, because it imports a database driver and
+        # the root module must not. `./...` in the root does not reach it.
+        working-directory: test
+        env:
+          DBMETA_POSTGRES: postgres://postgres:P4ssw0rd@localhost:5432/postgres?sslmode=disable
+        run: go test -count=1 -v ./...

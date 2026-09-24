@@ -162,11 +162,13 @@ Supported from release 9.6 to release 18, which is ten major versions: 9.6, 10,
 
 | Releases    | Tier     |
 | ----------- | -------- |
-| 9.6 to 18   | Verified |
+| 18          | Tested   |
+| 9.6 to 17   | Verified |
 
-No release is in the Tested tier, because CI starts no database. Every release
-is Verified: the integration tests in `test/` run against a real server for all
-ten, and `test/run.sh` runs the whole matrix.
+Release 18 is Tested: CI starts a real PostgreSQL 18 and runs the integration
+tests against it on every change. The other nine are Verified: the same tests
+run against a real server for each of them, on a development machine, with
+`test/run.sh`, and that has to pass before a release.
 
 Every query is executed against a real server at all ten releases by
 `test/run.sh`, which also checks that the columns returned match the fields
@@ -216,11 +218,20 @@ that are not obvious: the standard library and `dburl` only, pure Go with no
 cgo, no build constraint on an operating system or an architecture, and a
 context on every function that reads from a database.
 
-Run the checks before you send a change:
+Run the checks before you send a change, with the same flags CI uses:
 
 ```sh
-gofmt -l . && go vet ./... && go build ./... && go test ./...
+gofmt -l . && go vet ./... && go build ./... && go test -race -count=2 ./...
 ```
+
+To run the integration tests, start a server and point the test module at it:
+
+```sh
+cd test && ./run.sh 18
+```
+
+`./run.sh` with no argument runs every supported release, which is what has to
+pass before a release.
 
 Tests in this module never open a database connection. They render statements,
 resolve versions, and read rows from a fake driver replaying recorded data, so

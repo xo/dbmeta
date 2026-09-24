@@ -1173,6 +1173,17 @@ The CI databases are PostgreSQL, MySQL and SQLite3. D35 removed DuckDB, because
 D29 makes the project pure Go and DuckDB has no pure Go driver. More can be
 added later.
 
+CI runs two jobs, not one. The first opens no connection and covers every
+release through a fake driver replaying recorded data. The second starts a real
+PostgreSQL 18 as a service container and runs the integration tests against it.
+Only the newest release runs there, which is what this decision requires. The
+other nine run with `test/run.sh` before a release.
+
+One detail the container needs. Its health check must force TCP, with
+`pg_isready -U postgres -h 127.0.0.1`. Checking the socket reports ready during
+the bootstrap phase, before the server restarts to accept connections, and a
+job that starts then fails with a connection reset.
+
 #### What the runner actually provides
 
 Checked against `actions/runner-images` for Ubuntu 24.04 on 2026-09-24. The
