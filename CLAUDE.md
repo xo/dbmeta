@@ -7,10 +7,16 @@ and `dbtpl` consume it.
 `Reader` and `Writer` pair from `usql` is a `usql` concept and it does not
 come here.
 
-Read `NULLS.md` and `PLAN.md` before you change anything. `COMMANDS.md` maps
-every `psql` metadata command to the Go value that answers it. It records the architecture, the
-decisions, the known defects, and the questions that nobody has answered yet.
-Do not decide an open question on your own. Ask Ken.
+Read `NULLS.md` and `PLAN.md` before you change anything. `PLAN.md` records the
+architecture, the decisions, the known defects, and the questions that nobody
+has answered yet. Do not decide an open question on your own. Ask Ken.
+
+The other documents: `COMMANDS.md` maps every `psql` metadata command to the Go
+value that answers it. `COVERAGE.md` says what each database can and cannot
+answer, and which analogues were rejected. `USQL.md` and `DBTPL.md` measure
+what the two consumers read today and what `dbmeta` would have to add before
+either can move onto it. D46 holds that list: five object kinds, three of which
+both consumers need.
 
 ## Hard rules
 

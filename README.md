@@ -208,6 +208,11 @@ release are translated from an older checkout.
 [`COMMANDS.md`](COMMANDS.md) maps every `psql` metadata command to the Go value
 that answers it, which is what wiring up a client needs.
 
+[`USQL.md`](USQL.md) measures what `usql` answers today for each of its 47
+drivers, and what changes if it reads `dbmeta`. [`DBTPL.md`](DBTPL.md) does the
+same for `dbtpl`. Both name what `dbmeta` would have to add first, and the two
+lists overlap.
+
 Read [`NULLS.md`](NULLS.md) before writing a query for any database. It is the
 shortest document here and the one that cost the most to learn.
 
@@ -268,9 +273,11 @@ that is null from a field the server is too old to have.
 a client can take the parts it needs.
 
 - [`usql`][usql] is a command line client for many databases. It is the reason
-  the object model follows `psql`.
+  the object model follows `psql`. [`USQL.md`](USQL.md) measures what it
+  answers today and what `dbmeta` would change.
 - [`dbtpl`][dbtpl] generates Go code from a database schema. It reads the same
-  metadata and it can build against the fixtures here.
+  metadata and it can build against the fixtures here. [`DBTPL.md`](DBTPL.md)
+  measures the same thing for it.
 - [`dburl`][dburl] parses a database URL and opens a connection. `dbmeta` never
   parses one, and it never repeats the scheme and flavor taxonomy that `dburl`
   holds.
