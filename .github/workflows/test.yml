@@ -19,6 +19,10 @@
 # the window between the release it claims and the release that is true, and
 # that window cannot be predicted.
 #
+# SQLite has no job of its own with a service container, because it has no
+# server: it is a library, and the version is whichever one the pinned driver
+# ships. Its tests run in the sqlite job, which starts nothing. See D42.
+#
 # MariaDB and MySQL are two products sharing one dialect and one model, so each
 # has its own job and a third compares them. The compare job builds the same
 # fixture on one server of each and checks that the same queries answer the
@@ -140,6 +144,28 @@ jobs:
         env:
           DBMETA_POSTGRES: postgres://postgres:P4ssw0rd@localhost:5432/postgres?sslmode=disable
         run: go test -count=1 -v ./...
+
+  sqlite:
+    name: SQLite
+    # No service container. SQLite is a library, so the release under test is
+    # whichever one modernc.org/sqlite ships, and there is nothing to start.
+    # The test still lives in the test module, because it needs that driver
+    # and the root module holds no driver at all.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against SQLite
+        working-directory: test
+        run: go test -count=1 -v -run SQLite ./...
 
   mariadb:
     name: MariaDB ${{ matrix.mariadb }}

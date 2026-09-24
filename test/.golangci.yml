@@ -73,11 +73,10 @@ linters:
           allow:
             - $gostd
             - github.com/xo/dbmeta
-            - github.com/xo/dburl
             - github.com/go-sql-driver/mysql
+            - modernc.org/sqlite
             - github.com/jackc/pgx
             - github.com/lib/pq
-            - modernc.org/sqlite
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

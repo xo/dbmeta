@@ -41,8 +41,13 @@ is the purpose of this package.
 go get github.com/xo/dbmeta
 ```
 
-`dbmeta` depends on the standard library and on [`dburl`][dburl]. It imports no
-database driver. The caller opens the connection with the driver of its choice.
+`dbmeta` depends on the standard library and on nothing else. It imports no
+database driver and no URL parser. The caller opens the connection with the
+driver of its choice and passes it in.
+
+Nothing here parses a connection string, because nothing here opens a
+connection. If you want a URL to open a database, use [`dburl`][dburl], which
+is what the examples below do. `dbmeta` never sees it.
 
 # Using
 
@@ -123,9 +128,9 @@ call and filter in the loop.
 | any with an information_schema | shared | 7 | Ready to build on |
 | MariaDB    | native             | 23      | Complete    |
 | MySQL      | native             | 21      | Complete    |
+| SQLite3    | native             | 11      | Complete    |
 | SQL Server | shared, planned    | 0       | Not started |
 | DuckDB     | shared, planned    | 0       | Not started |
-| SQLite3    | native, planned    | 0       | Not started |
 | Oracle     | native, planned    | 0       | Not started |
 | Cassandra  | native, planned    | 0       | Not started |
 
@@ -135,8 +140,8 @@ It answers 7 object kinds where the native PostgreSQL model answers 48, and
 answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
-SQLite3, Oracle and Cassandra have no `information_schema` at all and need a
-native model. `usql` builds on the same shared reader today for DuckDB, SQL
+Oracle and Cassandra have no `information_schema` at all and need a native
+model, as SQLite did. `usql` builds on the same shared reader today for DuckDB, SQL
 Server, Snowflake, Trino, Databend and Netezza, which is the evidence for who
 the shared model serves.
 
@@ -145,9 +150,13 @@ and which analogues were found and rejected. MariaDB answers 23 of the 48 and
 MySQL answers 21, because a native model beats the shared one by sixteen.
 
 MariaDB and MySQL share one model. A query written for one of them gates on the
-product rather than on the release number, because MariaDB is at 11.8 and MySQL
-at 9 and neither number says anything about the other. CI runs both products
+product rather than on the release number, because MariaDB is at 13.0 and MySQL
+at 26.7 and neither number says anything about the other. CI runs both products
 and a third job compares them against the same schema.
+
+SQLite is the one database here with no server. It is a library, so the release
+under test is whichever one the Go driver was built with, it needs no container,
+and its model carries no version gate.
 
 A model ships its queries and a fixture together. The fixture is a known good
 schema containing one of every object the queries read, exported so that other
@@ -253,12 +262,28 @@ that is null from a field the server is too old to have.
 **Results stream.** A query returns an iterator rather than a slice, so
 `dbmeta` holds no state, caches nothing and never loads a catalog into memory.
 
+# Related Projects
+
+`dbmeta` is one of a set of packages that each do one part of the job, so that
+a client can take the parts it needs.
+
+- [`usql`][usql] is a command line client for many databases. It is the reason
+  the object model follows `psql`.
+- [`dbtpl`][dbtpl] generates Go code from a database schema. It reads the same
+  metadata and it can build against the fixtures here.
+- [`dburl`][dburl] parses a database URL and opens a connection. `dbmeta` never
+  parses one, and it never repeats the scheme and flavor taxonomy that `dburl`
+  holds.
+- [`tblfmt`][tblfmt] renders a result set the way `psql` does. `dbmeta` reads
+  metadata and does not render it, so a client that wants a table passes the
+  rows to `tblfmt`.
+
 # Contributing
 
 Read [`CLAUDE.md`](CLAUDE.md) first. It holds the rules, including the ones
-that are not obvious: the standard library and `dburl` only, pure Go with no
-cgo, no build constraint on an operating system or an architecture, and a
-context on every function that reads from a database.
+that are not obvious: the standard library only, pure Go with no cgo, no build
+constraint on an operating system or an architecture, and a context on every
+function that reads from a database.
 
 Run the checks before you send a change, with the same flags CI uses:
 
@@ -283,4 +308,5 @@ longer start.
 [usql]: https://github.com/xo/usql "usql"
 [dbtpl]: https://github.com/xo/dbtpl "dbtpl"
 [dburl]: https://github.com/xo/dburl "dburl"
+[tblfmt]: https://github.com/xo/tblfmt "tblfmt"
 [psql]: https://www.postgresql.org/docs/current/app-psql.html "psql"

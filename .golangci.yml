@@ -13,7 +13,7 @@
 # # The posture
 #
 # `default: all`, with a disable list, which is the house style in
-# github.com/xo/dburl. A new linter arriving in a release gets a look rather
+# github.com/xo/dburl's. A new linter arriving in a release gets a look rather
 # than silence, and that has paid: turning this on found a missing rows.Err
 # check, a parameter shadowing the min builtin, and a copy loop the standard
 # library now does.
@@ -25,7 +25,7 @@
 # # What it enforces
 #
 # Several hard rules from CLAUDE.md are held here rather than by review.
-# depguard keeps the dependency list to the standard library and dburl.
+# depguard keeps the dependency list to the standard library alone.
 # forbidigo bans context.Background, context.TODO and the database/sql calls
 # that take no context. errorlint requires %w.
 version: "2"
@@ -46,6 +46,9 @@ linters:
     # fragment can replace one column without touching the rest. These fight
     # that, and the shape is worth more than they are.
     - goconst
+    # dupword reads a string as prose. Almost every string here is SQL, where
+    # `, FALSE, FALSE, NULL` is a column list and not a typo.
+    - dupword
     - lll
     - wsl
     - wsl_v5
@@ -104,16 +107,16 @@ linters:
     # body, which says less than the code already does.
     - exhaustive
   settings:
-    # Hard rule 1. The root module imports the standard library and dburl and
-    # nothing else, and never a database driver. A consumer picks its own
-    # driver and its own version of it.
+    # Hard rule 1. The root module imports the standard library and nothing
+    # else, and never a database driver. A consumer picks its own driver and
+    # its own version of it. go.mod has no require block, and this is what
+    # stops one appearing.
     depguard:
       rules:
         main:
           list-mode: strict
           allow:
             - $gostd
-            - github.com/xo/dburl
             - github.com/xo/dbmeta
     # Hard rules 8 and the database/sql half of the Go conventions.
     forbidigo:

@@ -14,18 +14,24 @@ Do not decide an open question on your own. Ask Ken.
 
 ## Hard rules
 
-1. The root module depends on the standard library and `github.com/xo/dburl`,
-   and on nothing else. Never add a database driver to the root `go.mod`, not
-   even for a test. A consumer brings its own driver and picks its own version
-   of it, and `dbmeta` must not constrain that. Anything needing a driver goes
-   in the `test` module. Do not add any other third party package without
-   asking Ken first.
-   Do not repeat `dburl`. Never write a scheme list, an alias list, a flavor
-   table, or a connection string parser in this module. Read `dburl` instead.
-   `URL.Driver` names the family and selects the model package.
-   `URL.UnaliasedDriver` names a wire compatible product such as `cockroachdb`.
-   `URL.OriginalScheme` holds an alias such as `mariadb`. A flavor arrives on
-   one of the last two, never on both, so read both.
+1. The root module depends on the standard library and on nothing else. Its
+   `go.mod` has no `require` block and must keep it that way. Never add a
+   database driver, not even for a test. A consumer brings its own driver and
+   picks its own version of it, and `dbmeta` must not constrain that. Anything
+   needing a driver goes in the `test` module. Do not add any third party
+   package without asking Ken first.
+   D19 once made `github.com/xo/dburl` a direct dependency. It never became
+   one, because nothing here opens a connection: the caller passes a `DB` and
+   names a `Dialect`, so there is no URL to parse. That is the better answer
+   and it stands.
+   The rule that outlived the dependency is this one. Never write a scheme
+   list, an alias list, a flavor table, or a connection string parser in this
+   module. That taxonomy is `dburl`'s and repeating it is how two copies start
+   disagreeing. A consumer that has a URL reads `dburl` itself:
+   `URL.Driver` names the family and selects the model package,
+   `URL.UnaliasedDriver` names a wire compatible product such as `cockroachdb`,
+   and `URL.OriginalScheme` holds an alias such as `mariadb`. A flavor arrives
+   on one of the last two, never on both, so a consumer reads both.
 2. PostgreSQL is the primary model, and `psql` defines it. When two databases
    describe the same object differently, follow `psql`. This decides the shape
    of an answer. It does not require every database to answer every question.
@@ -266,6 +272,11 @@ Read `golangci-lint run` output as a list of questions, not a list of tasks.
 against, as Go data. It starts nothing and imports no container client, and it
 must not: a consumer brings its own podman, docker or Go client and picks its
 own version of it, the same way it brings its own driver.
+
+An embedded database is not in there and must not be. SQLite has no server and
+no container, and its release is whichever one the pinned Go driver ships, so
+it is tested in a CI job that starts nothing. The same will be true of DuckDB.
+See D42.
 
 That list is the only copy. `test/run.sh` reads it through
 `test/tool/servers`, the CI workflow repeats it in YAML, and

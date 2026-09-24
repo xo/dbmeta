@@ -18,7 +18,8 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 | Model | Answers | Of | Tested against |
 | --- | --- | --- | --- |
 | `models/postgres` | 48 | 48 | PostgreSQL 9.6 through 18 |
-| `models/mysql` | 23 on MariaDB, 21 on MySQL | 48 | MariaDB 11.8 and 10.6, MySQL 9 and 8.4 |
+| `models/mysql` | 23 on MariaDB, 21 on MySQL | 48 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
+| `models/sqlite3` | 11 | 48 | whichever release the pinned driver ships |
 | `models/informationschema` | 7 | 48 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers seven: tables, schemas, columns,
@@ -169,3 +170,113 @@ form of. `information_schema.PERIODS` holds application time periods. It is pres
 11.8 and absent on 10.6, so a query for it needs a version gate. `information_schema.PARAMETERS` holds routine
 parameters, which `dbmeta.Functions` reports as absent because PostgreSQL packs
 them into one string.
+
+## SQLite
+
+SQLite answers 11 of the 48. It is the smallest native model here and it still
+beats the shared `information_schema` one, which SQLite does not have at all.
+
+It is also the only database here with no server. SQLite is a library, so the
+release under test is whichever one the Go driver was built with. There is
+nothing to upgrade separately, nothing to run in a container, and no version
+gate in the model: every pragma it reads arrived by SQLite 3.37 in 2021, and
+the only way to reach an older one is to pin an old driver on purpose.
+
+### What it answers
+
+| Question | What SQLite reads |
+| --- | --- |
+| `Schemas`, `Databases` | `pragma_database_list`. An attached database is what SQLite calls a schema and it is also the only thing it calls a database, so both answer with the same rows. |
+| `Tables` | `sqlite_schema`. A table backed by a module reports its type as `virtual` rather than `table`, because it does not behave like one. |
+| `Columns` | `sqlite_schema` joined to `pragma_table_xinfo`. The xinfo form rather than info, so that a generated column and a virtual table's hidden column appear. |
+| `Indexes` | `pragma_index_list`, which carries what `sqlite_schema` cannot: whether the index is unique and whether SQLite made it for a constraint. |
+| `IndexColumns` | `pragma_index_xinfo`, filtered to the columns the index is on rather than the ones it carries to reach a row. |
+| `Constraints` | Three pragmas joined. See below. |
+| `Triggers` | `sqlite_schema`. The definition is the whole `CREATE TRIGGER` statement, because SQLite keeps nothing else. |
+| `Functions` | `pragma_function_list`, folded to one row per name and kind. |
+| `Collations` | `pragma_collation_list`. |
+| `Settings` | One `SELECT` per pragma, joined by `UNION ALL`. See below. |
+
+A correlated table-valued join is what makes most of these one statement
+rather than one per table:
+
+```sql
+FROM sqlite_schema m JOIN pragma_table_xinfo(m.name) c
+```
+
+### The one query that answers incompletely
+
+`Constraints` reports primary key, unique and foreign key, and never reports a
+check constraint. SQLite records a check constraint only inside the
+`CREATE TABLE` text in `sqlite_schema.sql`, and `dbmeta` does not parse DDL.
+
+This is the one place a query here answers partially rather than not at all.
+Both Gemini and DeepSeek argued for it and they are right: three kinds read
+exactly are worth more than refusing all four over the fourth. The field
+description says so, and the test creates two check constraints and asserts
+that neither appears, so the gap is tested rather than assumed.
+
+### Settings, which is assembled rather than written
+
+There is no way to ask SQLite for the value of a pragma it names.
+`pragma_pragma_list` gives names and no values, and reading a value means
+naming the pragma in the SQL. So the query is built at startup from a list of
+36 pragmas, one `SELECT` each, joined by `UNION ALL`.
+
+Two things that only running it reveals. A pragma appears in
+`pragma_pragma_list` whether or not it can be read as a table, so
+`mmap_size`, `wal_autocheckpoint`, `wal_checkpoint`, `case_sensitive_like` and
+`temp_store_directory` are left out: they are pragmas and they are not tables.
+And `busy_timeout` returns a column called `timeout`, which is the only one in
+the list not named after its own pragma.
+
+`compile_options` is left out on purpose. A build flag is not a setting a
+caller can change, which is what `\dconfig` means.
+
+### Analogues that were found and rejected
+
+Two AI models were asked what SQLite holds for the 37 questions the first pass
+could not answer, which is the rule D43 sets. They agreed on almost all of it,
+and every rejection below is theirs as well as mine.
+
+`sqlite_sequence` for `Sequences`. It exists only when a table uses
+`AUTOINCREMENT`, and it gets a row only after the first insert. It is a counter
+SQLite keeps for itself, not an object anyone created, and nothing can read the
+next value from it.
+
+`pragma_module_list` for `Extensions`, `AccessMethods` or
+`ForeignDataWrappers`. A module implements a virtual table. It is not an
+extension, it is not an index method, and nothing wraps foreign data with it.
+
+A virtual table for `ForeignTables`, the way a `FEDERATED` engine answers for
+MariaDB. This one looked right and it is not: a virtual table is also how
+SQLite does full text search, JSON and R-trees, so most of what the query
+returned would be local data.
+
+`pragma_compile_options` for `Settings`, rejected above.
+
+`sqlite_stat1` for `ExtendedStats`. It holds one row per index, which is
+PostgreSQL's `pg_statistic`, not the `CREATE STATISTICS` objects that `\dX`
+lists.
+
+`pragma_table_xinfo.type` for `Types`. A declared type in SQLite is an
+unenforced affinity hint. Presenting a column of them as a type catalog would
+suggest a check that does not happen.
+
+`pragma_function_list` type `a` and `w` for `Aggregates`. This is the one the
+models split on, and running it settled it against both. Gemini said to map
+both and called it exact. DeepSeek said to map only `a`. On a real server,
+`sum`, `count`, `avg` and `group_concat` all report as `w`, and so do
+`row_number`, `rank` and `lag`. Type `a` matched one function, an extension.
+So mapping `w` would list `row_number` as an aggregate and mapping `a` would
+omit `sum`. Both mislead, there is no third option, and SQLite simply cannot
+tell an aggregate from a window function. `Aggregates` is unsupported and
+`Functions` reports the kind SQLite reports.
+
+### What it has none of
+
+SQLite has no users, no roles and no grants of any kind, so `Roles`,
+`RoleGrants`, `RoleSettings`, `Privileges` and `DefaultACLs` are absent rather
+than empty. It records no comment on any object. It has no type catalog, no
+operators that can be created, no casts, no procedural languages, no
+replication, no tablespaces and no partitioning.

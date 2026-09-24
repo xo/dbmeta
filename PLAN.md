@@ -170,7 +170,7 @@ flags, not in hand written patches.
 add a third party package without asking Ken first.
 
 There are exactly two dependencies. `database/sql` is in the standard library.
-`github.com/xo/dburl` is the one approved outside package, under D19, and it
+`github.com/xo/dburl` was the one approved outside package under D19, and it
 handles everything to do with a connection string.
 
 The survey below shows that the reader half of the code already meets this rule
@@ -453,7 +453,7 @@ through whatever `dbtpl` sits on the path.
 
 This pin is a build dependency, not a runtime dependency. It does not weaken
 D7. The generated code and the root package still import the standard library
-and `dburl` only.
+only.
 
 ### D12. Generate against live databases running in containers. Decided.
 
@@ -650,15 +650,37 @@ interface small and define it where it is consumed.
 
 `gofmt` and `go vet` must both be clean. See `CLAUDE.md` for the command.
 
-### D19. dburl is a direct dependency. Do not repeat it. Decided.
+### D19. Do not repeat dburl. Half decided, half overtaken by the code.
 
-`github.com/xo/dburl` is a direct dependency of `dbmeta`. It is the named
-exception to D7.
+The half that stands: `dbmeta` must not carry its own list of schemes, its own
+aliases, its own flavor table, or its own connection string parser. That
+taxonomy belongs to `github.com/xo/dburl`, and a second copy of it is how two
+copies start disagreeing. Everything below about what `dburl` records is still
+how a consumer reads a URL.
 
-Every package that uses `dbmeta` is expected to use `dburl` as well, so the
-dependency costs a consumer nothing that it does not already carry. Use it for
-connection information in tests and anywhere else that `dbmeta` handles a
-connection string.
+The half that was wrong: this decision made `dburl` a direct dependency, and it
+never became one. `dbmeta` imports the standard library and nothing else, and
+its `go.mod` has no `require` block at all.
+
+#### Why the dependency never happened
+
+The API took the shape that made it unnecessary. A caller opens its own
+connection, passes a `DB`, and names a `Dialect`. No URL ever reaches this
+module, so there is nothing here to parse and nothing to look up. D36 decided
+that the client drives, and this is a consequence of D36 that nobody noticed
+until the code was written.
+
+A zero dependency library is the better answer, and it is strictly stronger
+than the rule it replaces: a `go.mod` with no `require` block cannot acquire a
+transitive dependency, and `depguard` now refuses one at lint time. A consumer
+that has a URL imports `dburl` itself, which it was going to do anyway.
+
+Do not add `dburl` back to reach the taxonomy below. Read it from a consumer.
+
+#### What dburl is still for
+
+Every package that uses `dbmeta` is expected to use `dburl` as well, and that
+is where a connection string is handled.
 
 Do not repeat any part of it. `dbmeta` must not carry its own list of schemes,
 its own aliases, its own flavor table, or its own connection string parser. If
@@ -1308,7 +1330,7 @@ them.
 
 ### D26. No database driver in the dbmeta module. Decided.
 
-The `dbmeta` module depends on the standard library and on `dburl`. It does not
+The `dbmeta` module depends on the standard library alone. It does not
 depend on a database driver, and its `go.mod` does not name one.
 
 A package that uses `dbmeta` brings its own driver and chooses its own version
@@ -2404,6 +2426,60 @@ Anything else fails. It found the fault where `external_language` is NULL on
 MariaDB and `SQL` on MySQL, which would have failed to scan into a field that
 is not nullable.
 
+### D45. A query may answer partially, once, and must say so. Decided.
+
+`Constraints` on SQLite returns primary key, unique and foreign key rows and
+never returns a check constraint. It is the only query in `dbmeta` that answers
+part of a question rather than all of it or none of it.
+
+#### Why this one is allowed
+
+D34 says a database that cannot answer reports `ErrNotSupported` rather than an
+empty result, and D43 says an analogue that is a stretch is left unsupported.
+Neither rule covers this case. SQLite can answer three quarters of the question
+exactly, from pragmas, and the missing quarter is missing for a reason that
+will not change: a check constraint exists only as text inside the
+`CREATE TABLE` statement in `sqlite_schema.sql`, and `dbmeta` does not parse
+DDL.
+
+Both Gemini and DeepSeek were asked and both said the same thing. Three kinds
+read exactly are worth more than refusing all four over the fourth. A caller
+asking what constrains a table gets the primary key, the unique constraints and
+the foreign keys, which is most of what it wanted.
+
+#### The conditions
+
+A partial answer is allowed only when all four hold. The part that is returned
+is exact, not approximate. The part that is missing is missing structurally,
+not because nobody wrote the query yet. The field description names what is
+missing, in the API, where a caller reads it. A test asserts the absence, so
+that it stays a decision rather than becoming a bug.
+
+The SQLite fixture creates two check constraints and `TestSQLiteConstraints`
+asserts that neither appears. Without that test this would be indistinguishable
+from a query that forgot them.
+
+#### What it is not a licence for
+
+Do not use this to ship a query that half works. The question to ask is whether
+a caller reading the result would be wrong about anything. Here it would not:
+it would be missing something the field description told it would be missing.
+A query that returns a wrong value, or that silently drops rows a caller would
+expect, is not a partial answer. It is a defect.
+
+#### The rejection this sits beside
+
+`Aggregates` on SQLite went the other way, and the contrast is the point.
+SQLite reports `sum`, `count` and `group_concat` with the same type code as
+`row_number` and `rank`, because both groups can be used over a window. Gemini
+said to map that code to aggregates and called it exact. DeepSeek said to map
+only the other code. Running it against a server showed that the first would
+list `row_number` as an aggregate and the second would omit `sum`. Every
+available answer is wrong about something, so there is no exact part to return,
+and `Aggregates` is unsupported.
+
+Exact but incomplete is allowed. Complete but wrong is not.
+
 ## What exists today
 
 An agent that starts work must read these sources first.
@@ -2866,7 +2942,8 @@ both at release 5.
 ### dburl holds the flavor taxonomy. Import it.
 
 Do not invent a list of flavors and do not copy one. D19 makes
-`github.com/xo/dburl` a direct dependency, so read the taxonomy from it.
+`github.com/xo/dburl` the place the taxonomy lives, so read it from there
+rather than copying it here. D19 records why `dbmeta` does not import it.
 `dburl` separates two kinds of flavor and puts them on different fields of a
 parsed URL. See D19 for which field carries which.
 
