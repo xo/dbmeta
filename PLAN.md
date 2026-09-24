@@ -1906,14 +1906,60 @@ its CQL version and its protocol version move independently. A fragment names
 which one it gates on. When a reported set lacks the name a minimum asks for,
 the gate fails rather than passing by accident.
 
-### D38. dbmeta supplies the version query. The client runs it. Decided.
+### D38. dbmeta holds the version query, and will run it on request. Amended.
 
 `dbmeta` holds the version query for every database, because that knowledge
-belongs with the metadata queries. It cannot run one, because D26 gives it no
-driver and D36 gives it no connection.
+belongs with the metadata queries.
 
-So it hands over the query, the client executes it as its first statement, and
-the client hands the raw columns back to be parsed.
+#### The original reasoning was wrong
+
+The first version of this decision said `dbmeta` "cannot run one, because D26
+gives it no driver and D36 gives it no connection", and exposed only the two
+step form. Writing the examples showed that premise is false, and it is
+corrected here rather than quietly dropped.
+
+Running a query needs no driver, only the `DB` interface, and the caller hands
+one over for every `Query.All` call. `dbmeta` already runs queries against a
+caller supplied connection. There was never a reason the version query was
+different.
+
+What D36 actually requires is that `dbmeta` decides nothing. It must not detect
+a version behind the caller's back and must let the caller override. A method
+the caller chooses to call satisfies that. A constructor that silently probes
+the server would not.
+
+#### Both forms exist
+
+The one step form is what nearly every caller wants:
+
+```go
+// Version runs the version statement against db and parses the result.
+func (d Dialect) Version(ctx context.Context, db DB) (VersionSet, error)
+```
+
+A method named `Version` coexists with the `Version` type. A method name lives
+in the method set of its receiver, not in the package scope, so there is no
+collision. `Dialect.Version`, `Dialect.VersionQuery` and `Dialect.ParseVersion`
+then read as one group.
+
+The two step form stays, for a caller that wants the statement without running
+it. `usql` prints statements in its trace output and needs this:
+
+```go
+// VersionQuery returns the statement and how many columns it returns.
+func (d Dialect) VersionQuery() (sql string, cols int, ok bool)
+
+// ParseVersion parses the columns of the first row.
+func (d Dialect) ParseVersion(cols []string) (VersionSet, error)
+```
+
+The one step form exists because the two step form made every caller build a
+slice of pointers into a slice of strings to scan into. That is the same nine
+lines in every consumer, which is a sign the package drew the line in the wrong
+place.
+
+Neither form takes override away. A caller that wants to force a version builds
+a `VersionSet` and passes it to `New`, and never calls either.
 
 ```go
 // VersionQuery returns the query that reads the server version. The second
@@ -1929,8 +1975,8 @@ type VersionQuery struct {
 }
 ```
 
-The column count is part of the query and the client must be told it, because
-two databases return more than one column. SQL Server returns the product
+The column count is part of the two step form and the client must be told it,
+because two databases return more than one column. SQL Server returns the product
 version, the product level and the edition. Cassandra returns three independent
 versions.
 

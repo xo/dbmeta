@@ -1,0 +1,220 @@
+// Package postgres holds the metadata queries for PostgreSQL.
+//
+// Import it for its effect. It registers what PostgreSQL provides, and the
+// root package answers for it afterwards:
+//
+//	import _ "github.com/xo/dbmeta/models/postgres"
+//
+// Every query here is translated from src/bin/psql/describe.c in the
+// PostgreSQL source. Each one records which command it backs and which tree it
+// was translated from, because a query for a release below 10 comes from an
+// older checkout. See QUERIES.md.
+package postgres
+
+import (
+	"database/sql"
+	"strconv"
+	"strings"
+
+	"github.com/xo/dbmeta"
+)
+
+// Tree is the PostgreSQL checkout every query below was translated from.
+//
+// Release 20 removed the psql code paths for servers below release 10, so a
+// fragment for an older release cannot come from this tree. Any such fragment
+// names its own source beside it.
+const Tree = "REL_19_BETA1-1062-gd9de60c5e47"
+
+// Release versions that a fragment gates on.
+var (
+	v11 = dbmeta.V(11)
+	v12 = dbmeta.V(12)
+)
+
+func init() {
+	dbmeta.RegisterDialect(dbmeta.PostgreSQL, &dbmeta.Info{
+		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
+		VersionSQL:     `SHOW server_version`,
+		VersionColumns: 1,
+		ParseVersion:   parseVersion,
+	})
+	registerSchemas()
+	registerTables()
+	registerColumns()
+}
+
+// parseVersion reads what SHOW server_version returns, such as "16.2" or
+// "16.2 (Debian 16.2-1.pgdg120+2)".
+func parseVersion(cols []string) (dbmeta.VersionSet, error) {
+	if len(cols) == 0 {
+		return dbmeta.VersionSet{}, dbmeta.ErrInvalidVersion
+	}
+	raw := strings.TrimSpace(cols[0])
+	var set dbmeta.VersionSet
+	// a packaged build appends its own detail in brackets, which is not part
+	// of the version
+	ver := dbmeta.ParseVersion(raw)
+	ver.Raw = raw
+	if i := strings.IndexByte(ver.Suffix, '('); i >= 0 {
+		ver.Suffix = strings.TrimSpace(ver.Suffix[:i])
+	}
+	set.Set("", ver)
+	set.Display = "PostgreSQL " + raw
+	return set, nil
+}
+
+// registerSchemas backs \dn.
+//
+// Translated from listSchemas. It carries no version gate below release 15,
+// and the gate at 15 covers publication membership, which this query does not
+// return, so the statement is the same for every supported release.
+func registerSchemas() {
+	dbmeta.Schemas.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Schema]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT current_database() AS "catalog"`}},
+			{{SQL: `, n.nspname AS "name"`}},
+			{{SQL: `, pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"`}},
+			{{SQL: `, COALESCE(pg_catalog.obj_description(n.oid, 'pg_namespace'), '') AS "comment"`}},
+			{{SQL: `FROM pg_catalog.pg_namespace n`}},
+			{{SQL: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
+			{{SQL: `AND (@name = '' OR n.nspname LIKE @name)`}},
+			{{SQL: `ORDER BY 2`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "catalog", Desc: "database the schema belongs to"},
+			{Name: "name", Desc: "schema name"},
+			{Name: "owner", Desc: "role that owns the schema"},
+			{Name: "comment", Desc: "comment on the schema"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "name", Desc: "schema name pattern, empty for every schema", Default: ""},
+			{Name: "with_system", Desc: "include the schemas PostgreSQL keeps for itself", Default: false},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
+			var s dbmeta.Schema
+			err := rows.Scan(&s.Catalog, &s.Name, &s.Owner, &s.Comment)
+			return s, err
+		},
+	})
+}
+
+// registerTables backs \dt, \dv, \dm and \ds.
+//
+// Translated from listTables. The relation kinds follow pg_class.relkind: r is
+// an ordinary table, p a partitioned table, v a view, m a materialized view, S
+// a sequence, f a foreign table.
+func registerTables() {
+	dbmeta.Tables.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Table]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT current_database() AS "catalog"`}},
+			{{SQL: `, n.nspname AS "schema"`}},
+			{{SQL: `, c.relname AS "name"`}},
+			{{SQL: `, CASE c.relkind` +
+				` WHEN 'r' THEN 'table'` +
+				` WHEN 'p' THEN 'table'` +
+				` WHEN 'v' THEN 'view'` +
+				` WHEN 'm' THEN 'materialized view'` +
+				` WHEN 'S' THEN 'sequence'` +
+				` WHEN 'f' THEN 'foreign table'` +
+				` ELSE c.relkind::text END AS "type"`}},
+			{{SQL: `, COALESCE(pg_catalog.obj_description(c.oid, 'pg_class'), '') AS "comment"`}},
+			{{SQL: `FROM pg_catalog.pg_class c`}},
+			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{SQL: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
+			{{SQL: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
+			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{SQL: `AND (@name = '' OR c.relname LIKE @name)`}},
+			{{SQL: `ORDER BY 2, 3`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "catalog", Desc: "database the relation belongs to"},
+			{Name: "schema", Desc: "schema the relation belongs to"},
+			{Name: "name", Desc: "relation name"},
+			{Name: "type", Desc: "table, view, materialized view, sequence or foreign table"},
+			{Name: "comment", Desc: "comment on the relation"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
+			{Name: "name", Desc: "relation name pattern, empty for every relation", Default: ""},
+			{Name: "with_system", Desc: "include the relations PostgreSQL keeps for itself", Default: false},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
+			var t dbmeta.Table
+			err := rows.Scan(&t.Catalog, &t.Schema, &t.Name, &t.Type, &t.Comment)
+			return t, err
+		},
+	})
+}
+
+// registerColumns backs the column list of \d name.
+//
+// Translated from describeOneTableDetails, which is the hardest entry point in
+// describe.c and carries 21 of its 68 version gates. Only the column list is
+// here. The indexes, constraints, triggers and partition detail that \d also
+// prints are separate objects and follow later.
+//
+// Two fragments show the padding rule. The generated column expression arrived
+// in release 12, and identity arrived in release 11, so an older server
+// selects a literal under the same name and the column set never changes.
+func registerColumns() {
+	dbmeta.Columns.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Column]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT current_database() AS "catalog"`}},
+			{{SQL: `, n.nspname AS "schema"`}},
+			{{SQL: `, c.relname AS "table"`}},
+			{{SQL: `, a.attname AS "name"`}},
+			{{SQL: `, a.attnum AS "ordinal"`}},
+			{{SQL: `, pg_catalog.format_type(a.atttypid, a.atttypmod) AS "data_type"`}},
+			{{SQL: `, NOT a.attnotnull AS "nullable"`}},
+			{{SQL: `, COALESCE(pg_catalog.pg_get_expr(d.adbin, d.adrelid), '') AS "default"`}},
+			// attidentity arrived in release 11
+			{
+				{SQL: `, '' AS "identity"`},
+				{Min: v11, SQL: `, COALESCE(a.attidentity, '') AS "identity"`},
+			},
+			// attgenerated arrived in release 12
+			{
+				{SQL: `, '' AS "generated"`},
+				{Min: v12, SQL: `, COALESCE(a.attgenerated, '') AS "generated"`},
+			},
+			{{SQL: `, COALESCE(pg_catalog.col_description(c.oid, a.attnum), '') AS "comment"`}},
+			{{SQL: `FROM pg_catalog.pg_attribute a`}},
+			{{SQL: `JOIN pg_catalog.pg_class c ON c.oid = a.attrelid`}},
+			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{SQL: `LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum`}},
+			{{SQL: `WHERE a.attnum > 0 AND NOT a.attisdropped`}},
+			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{SQL: `AND (@parent = '' OR c.relname LIKE @parent)`}},
+			{{SQL: `AND (@name = '' OR a.attname LIKE @name)`}},
+			{{SQL: `ORDER BY 2, 3, 5`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "catalog", Desc: "database the column belongs to"},
+			{Name: "schema", Desc: "schema the table belongs to"},
+			{Name: "table", Desc: "table the column belongs to"},
+			{Name: "name", Desc: "column name"},
+			{Name: "ordinal", Desc: "position of the column in the table"},
+			{Name: "data_type", Desc: "type of the column, as PostgreSQL writes it"},
+			{Name: "nullable", Desc: "whether the column accepts NULL"},
+			{Name: "default", Desc: "default expression, empty when there is none"},
+			{Name: "identity", Desc: "identity kind, empty when the column is not an identity", Min: v11},
+			{Name: "generated", Desc: "generated kind, empty when the column is not generated", Min: v12},
+			{Name: "comment", Desc: "comment on the column"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
+			{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+			{Name: "name", Desc: "column name pattern, empty for every column", Default: ""},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
+			var c dbmeta.Column
+			err := rows.Scan(
+				&c.Catalog, &c.Schema, &c.Table, &c.Name, &c.Ordinal,
+				&c.DataType, &c.Nullable, &c.Default,
+				&c.Identity, &c.Generated, &c.Comment,
+			)
+			return c, err
+		},
+	})
+}

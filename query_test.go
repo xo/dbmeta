@@ -1,191 +1,280 @@
 package dbmeta
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
 )
 
-var (
-	v96 = Version{Major: 9, Minor: 6}
-	v11 = Version{Major: 11}
-	v12 = Version{Major: 12}
-	v15 = Version{Major: 15}
-	v18 = Version{Major: 18}
-)
+const testDialect Dialect = "testdb"
 
-func TestChoiceResolve(t *testing.T) {
-	t.Parallel()
-	c := Choice{
-		{SQL: "old"},
-		{Min: v12, SQL: "twelve"},
-		{Min: v15, SQL: "fifteen"},
-	}
-	tests := []struct {
-		ver Version
-		exp string
-	}{
-		{v96, "old"},
-		{v11, "old"},
-		{v12, "twelve"},
-		{Version{Major: 13}, "twelve"},
-		{v15, "fifteen"},
-		{v18, "fifteen"},
-	}
-	for _, test := range tests {
-		s, err := c.Resolve(test.ver)
-		if err != nil {
-			t.Fatalf("%v: expected no error, got: %v", test.ver, err)
-		}
-		if s != test.exp {
-			t.Errorf("%v: expected %q, got %q", test.ver, test.exp, s)
-		}
-	}
-}
-
-// TestChoiceResolveUnordered checks that the order the alternatives are
-// written in does not change the answer.
-func TestChoiceResolveUnordered(t *testing.T) {
-	t.Parallel()
-	c := Choice{
-		{Min: v15, SQL: "fifteen"},
-		{SQL: "old"},
-		{Min: v12, SQL: "twelve"},
-	}
-	for ver, exp := range map[Version]string{v96: "old", v12: "twelve", v18: "fifteen"} {
-		s, err := c.Resolve(ver)
-		if err != nil {
-			t.Fatalf("%v: expected no error, got: %v", ver, err)
-		}
-		if s != exp {
-			t.Errorf("%v: expected %q, got %q", ver, exp, s)
-		}
-	}
-}
-
-func TestChoiceResolveTooOld(t *testing.T) {
-	t.Parallel()
-	c := Choice{{Min: v12, SQL: "twelve"}}
-	if _, err := c.Resolve(v11); !errors.Is(err, ErrVersionTooOld) {
-		t.Errorf("expected ErrVersionTooOld, got: %v", err)
-	}
-	if _, err := (Choice{}).Resolve(v18); !errors.Is(err, ErrVersionTooOld) {
-		t.Errorf("expected ErrVersionTooOld for an empty choice, got: %v", err)
-	}
-}
-
-// TestPaddingBothDirections is the rule the whole design rests on. A query
-// returns the same columns on every version. A column with no source on a
-// server is selected as a literal NULL there, and that happens on the old side
-// and on the new side.
-//
-// The new side is the case that an earlier draft of the plan missed.
-// pg_attrdef.adsrc exists through release 11 and was removed in release 12.
-func TestPaddingBothDirections(t *testing.T) {
-	t.Parallel()
-	q := Query{
-		{{SQL: `SELECT`}},
-		// added in 15, so releases below 15 pad
-		{
-			{SQL: `  NULL AS "access_privileges"`},
-			{Min: v15, SQL: `  p.paracl AS "access_privileges"`},
+func init() {
+	RegisterDialect(testDialect, &Info{
+		Placeholder:    func(n int) string { return "$" + string(rune('0'+n)) },
+		VersionSQL:     `SHOW server_version`,
+		VersionColumns: 1,
+		ParseVersion: func(cols []string) (VersionSet, error) {
+			var s VersionSet
+			s.Set("", ParseVersion(cols[0]))
+			s.Display = "TestDB " + cols[0]
+			return s, nil
 		},
-		// removed in 12, so releases from 12 pad
-		{
-			{SQL: `, d.adsrc AS "default_source"`},
-			{Min: v12, SQL: `, NULL AS "default_source"`},
+	})
+	Tables.Register(testDialect, &Binding[Table]{
+		Stmt: Stmt{
+			{{SQL: `SELECT n.nspname AS "schema"`}},
+			{{SQL: `, c.relname AS "name"`}},
+			// added in 15, so older releases pad
+			{
+				{SQL: `, NULL AS "access_privileges"`},
+				{Min: V(15), SQL: `, c.relacl AS "access_privileges"`},
+			},
+			// removed in 12, so newer releases pad
+			{
+				{SQL: `, d.adsrc AS "default_source"`},
+				{Min: V(12), SQL: `, NULL AS "default_source"`},
+			},
+			{{SQL: `FROM pg_class c WHERE n.nspname = @schema`}},
 		},
-		{{SQL: `FROM pg_catalog.pg_attrdef d`}},
-	}
-	exp := map[Version][]string{
-		v11: {`NULL AS "access_privileges"`, `d.adsrc AS "default_source"`},
-		v12: {`NULL AS "access_privileges"`, `NULL AS "default_source"`},
-		v18: {`p.paracl AS "access_privileges"`, `NULL AS "default_source"`},
-	}
-	for ver, want := range exp {
-		sql, err := q.SQL(ver)
-		if err != nil {
-			t.Fatalf("%v: expected no error, got: %v", ver, err)
-		}
-		for _, w := range want {
-			if !strings.Contains(sql, w) {
-				t.Errorf("%v: expected the query to contain %q, got:\n%s", ver, w, sql)
-			}
-		}
-		// the column set must be identical on every version
-		if n := strings.Count(sql, `AS "`); n != 2 {
-			t.Errorf("%v: expected 2 named columns, got %d:\n%s", ver, n, sql)
-		}
-	}
+		Fields: []Field{
+			{Name: "schema"},
+			{Name: "name"},
+			{Name: "access_privileges", Min: V(15)},
+			{Name: "default_source"},
+		},
+		Params: []Param{{Name: "schema"}},
+		Scan: func(rows *sql.Rows) (Table, error) {
+			var t Table
+			var priv, def *string
+			err := rows.Scan(&t.Schema, &t.Name, &priv, &def)
+			return t, err
+		},
+	})
 }
 
-func TestQuerySQL(t *testing.T) {
-	t.Parallel()
-	q := Query{
-		{{SQL: "SELECT a"}},
-		{{SQL: ", b"}, {Min: v15, SQL: ", c"}},
-		{{SQL: "FROM t"}},
-	}
-	s, err := q.SQL(v96)
+func meta(t *testing.T, ver string) *Meta {
+	t.Helper()
+	var s VersionSet
+	s.Set("", ParseVersion(ver))
+	m, err := New(testDialect, s)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	if exp := "SELECT a\n, b\nFROM t"; s != exp {
-		t.Errorf("expected %q, got %q", exp, s)
+	return m
+}
+
+// TestPaddingBothDirections is the rule the whole design rests on. A query
+// returns the same columns on every version. Padding happens on the old side
+// and on the new side, and the new side is the case an earlier draft missed.
+func TestPaddingBothDirections(t *testing.T) {
+	t.Parallel()
+	want := map[string][]string{
+		"11": {`NULL AS "access_privileges"`, `d.adsrc AS "default_source"`},
+		"12": {`NULL AS "access_privileges"`, `NULL AS "default_source"`},
+		"18": {`c.relacl AS "access_privileges"`, `NULL AS "default_source"`},
 	}
-	if s, err = q.SQL(v18); err != nil {
+	for ver, parts := range want {
+		s, _, err := Tables.SQL(meta(t, ver), map[string]any{"schema": "public"})
+		if err != nil {
+			t.Fatalf("%s: expected no error, got: %v", ver, err)
+		}
+		for _, p := range parts {
+			if !strings.Contains(s, p) {
+				t.Errorf("%s: expected %q in:\n%s", ver, p, s)
+			}
+		}
+		if n := strings.Count(s, ` AS "`); n != 4 {
+			t.Errorf("%s: expected 4 named columns, got %d:\n%s", ver, n, s)
+		}
+	}
+}
+
+// TestFieldMinDistinguishesAbsentFromNull covers the ambiguity the padding
+// rule creates. A NULL means either that the value is null or that the server
+// is too old to have the field, and only the declared minimum tells them
+// apart.
+func TestFieldMinDistinguishesAbsentFromNull(t *testing.T) {
+	t.Parallel()
+	fields, err := Tables.Fields(meta(t, "11"))
+	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	if exp := "SELECT a\n, c\nFROM t"; s != exp {
-		t.Errorf("expected %q, got %q", exp, s)
+	var found bool
+	for _, f := range fields {
+		if f.Name != "access_privileges" {
+			continue
+		}
+		found = true
+		if ParseVersion("11").AtLeast(f.Min) {
+			t.Error("expected access_privileges to be absent at release 11")
+		}
+		if !ParseVersion("18").AtLeast(f.Min) {
+			t.Error("expected access_privileges to be present at release 18")
+		}
+	}
+	if !found {
+		t.Fatal("expected an access_privileges field")
 	}
 }
 
-func TestQuerySQLEmpty(t *testing.T) {
+func TestSupportStates(t *testing.T) {
 	t.Parallel()
-	if _, err := (Query{}).SQL(v18); !errors.Is(err, ErrEmptyQuery) {
-		t.Errorf("expected ErrEmptyQuery, got: %v", err)
+	m := meta(t, "18")
+	if got := Tables.Support(m); got != Supported {
+		t.Errorf("expected supported, got %v", got)
 	}
-	// every piece resolving to nothing is also empty
-	q := Query{{{SQL: "  "}}, {{SQL: ""}}}
-	if _, err := q.SQL(v18); !errors.Is(err, ErrEmptyQuery) {
-		t.Errorf("expected ErrEmptyQuery, got: %v", err)
+	// registered dialect, no binding for this query
+	if got := Schemas.Support(m); got != NotSupported {
+		t.Errorf("expected not supported, got %v", got)
+	}
+	if _, err := Schemas.Fields(m); !errors.Is(err, ErrNotSupported) {
+		t.Errorf("expected ErrNotSupported, got: %v", err)
+	}
+	// a dialect no model was built for is a different state entirely
+	if _, err := New("nosuchdb", VersionSet{}); !errors.Is(err, ErrModelNotBuilt) {
+		t.Errorf("expected ErrModelNotBuilt, got: %v", err)
+	}
+	if got := Tables.Support(nil); got != NotBuilt {
+		t.Errorf("expected not built, got %v", got)
 	}
 }
 
-func TestQuerySQLTooOld(t *testing.T) {
+// TestParamsAreCheckedNotIgnored is the criticism both reviews made of the
+// earlier sketch. A typo must not silently drop a filter.
+func TestParamsAreCheckedNotIgnored(t *testing.T) {
 	t.Parallel()
-	q := Query{{{SQL: "SELECT a"}}, {{Min: v12, SQL: ", b"}}}
-	if _, err := q.SQL(v11); !errors.Is(err, ErrVersionTooOld) {
+	m := meta(t, "18")
+	if _, _, err := Tables.SQL(m, map[string]any{"schma": "public"}); !errors.Is(err, ErrUnknownParam) {
+		t.Errorf("expected ErrUnknownParam for a typo, got: %v", err)
+	}
+	if _, _, err := Tables.SQL(m, nil); !errors.Is(err, ErrMissingParam) {
+		t.Errorf("expected ErrMissingParam, got: %v", err)
+	}
+}
+
+func TestPlaceholdersAndArgs(t *testing.T) {
+	t.Parallel()
+	s, args, err := Tables.SQL(meta(t, "18"), map[string]any{"schema": "public"})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !strings.Contains(s, "= $1") {
+		t.Errorf("expected the dialect placeholder, got:\n%s", s)
+	}
+	if strings.Contains(s, "@schema") {
+		t.Error("expected the named parameter to be rewritten")
+	}
+	if len(args) != 1 || args[0] != "public" {
+		t.Errorf("expected one argument, got %v", args)
+	}
+}
+
+func TestVersionTooOld(t *testing.T) {
+	t.Parallel()
+	st := Stmt{{{Min: V(12), SQL: "SELECT 1"}}}
+	if _, err := st.SQL(meta(t, "11").versions); !errors.Is(err, ErrVersionTooOld) {
 		t.Errorf("expected ErrVersionTooOld, got: %v", err)
 	}
 }
 
-func TestAlways(t *testing.T) {
+func TestVersionQueryIsDataNotExecuted(t *testing.T) {
 	t.Parallel()
-	q := Always("SELECT 1")
-	for _, ver := range []Version{v96, v12, v18, {}} {
-		s, err := q.SQL(ver)
-		if err != nil {
-			t.Fatalf("%v: expected no error, got: %v", ver, err)
-		}
-		if s != "SELECT 1" {
-			t.Errorf("%v: expected %q, got %q", ver, "SELECT 1", s)
-		}
+	sql, cols, ok := testDialect.VersionQuery()
+	if !ok {
+		t.Fatal("expected a version query")
+	}
+	if sql != "SHOW server_version" || cols != 1 {
+		t.Errorf("unexpected version query %q with %d columns", sql, cols)
+	}
+	// the caller runs it and hands the columns back
+	s, err := testDialect.ParseVersion([]string{"18.6"})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if got := s.Main().String(); got != "18.6" {
+		t.Errorf("expected 18.6, got %s", got)
+	}
+	if got := s.String(); got != "TestDB 18.6" {
+		t.Errorf("expected the display line, got %s", got)
 	}
 }
 
-func TestErrorsAreConstants(t *testing.T) {
+func TestFirstDistinguishesEmptyFromZero(t *testing.T) {
 	t.Parallel()
-	// wrapping must keep errors.Is working
-	err := errWrap(ErrNotSupported)
-	if !errors.Is(err, ErrNotSupported) {
-		t.Errorf("expected the wrapped error to match ErrNotSupported, got: %v", err)
+	empty := func(yield func(Table, error) bool) {}
+	if _, ok, err := First(empty); ok || err != nil {
+		t.Errorf("expected not found and no error, got ok=%v err=%v", ok, err)
 	}
-	if errors.Is(err, ErrNotFound) {
-		t.Error("expected the wrapped error not to match ErrNotFound")
+	one := func(yield func(Table, error) bool) { yield(Table{Name: "t"}, nil) }
+	v, ok, err := First(one)
+	if !ok || err != nil || v.Name != "t" {
+		t.Errorf("expected the first value, got %v ok=%v err=%v", v, ok, err)
 	}
-	if s := ErrNotSupported.Error(); s != "not supported" {
-		t.Errorf("expected %q, got %q", "not supported", s)
+}
+
+func TestArgsMapOmitsUnset(t *testing.T) {
+	t.Parallel()
+	m := Args{Schema: "public"}.Map()
+	if len(m) != 1 || m["schema"] != "public" {
+		t.Errorf("expected only schema, got %v", m)
+	}
+}
+
+func TestAlwaysAndAccessors(t *testing.T) {
+	t.Parallel()
+	m := meta(t, "18")
+	if s, err := Always("SELECT 1").SQL(m.versions); err != nil || s != "SELECT 1" {
+		t.Errorf("expected SELECT 1, got %q err %v", s, err)
+	}
+	if Tables.Name() != "tables" {
+		t.Errorf("expected tables, got %s", Tables.Name())
+	}
+	if m.Dialect() != testDialect {
+		t.Errorf("expected %s, got %s", testDialect, m.Dialect())
+	}
+	if m.Version().Main().String() != "18" {
+		t.Errorf("expected 18, got %s", m.Version().Main())
+	}
+	params, err := Tables.Params(m)
+	if err != nil || len(params) != 1 || params[0].Name != "schema" {
+		t.Errorf("expected one schema param, got %v err %v", params, err)
+	}
+	var found bool
+	for _, d := range Dialects() {
+		found = found || d == testDialect
+	}
+	if !found {
+		t.Error("expected the test dialect to be listed")
+	}
+	if ErrNotSupported.Error() != "not supported" {
+		t.Errorf("unexpected error text %q", ErrNotSupported.Error())
+	}
+	for s, exp := range map[Support]string{NotBuilt: "not built", NotSupported: "not supported", Supported: "supported"} {
+		if s.String() != exp {
+			t.Errorf("expected %q, got %q", exp, s)
+		}
+	}
+	if !(Version{}).IsZero() || ParseVersion("1").IsZero() {
+		t.Error("unexpected IsZero result")
+	}
+}
+
+func TestDialectVersion(t *testing.T) {
+	t.Parallel()
+	// a dialect no model was built for
+	if _, err := Dialect("nosuchdb").Version(context.Background(), nil); !errors.Is(err, ErrModelNotBuilt) {
+		t.Errorf("expected ErrModelNotBuilt, got: %v", err)
+	}
+	// a model that reports no version at all treats the server as newest
+	const quiet Dialect = "quietdb"
+	RegisterDialect(quiet, &Info{Placeholder: func(int) string { return "?" }})
+	versions, err := quiet.Version(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !versions.Main().Unknown {
+		t.Error("expected an unknown version")
 	}
 }

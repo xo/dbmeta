@@ -28,6 +28,13 @@ const (
 	ErrVersionTooOld Error = "version too old"
 	// ErrInvalidVersion is the invalid version error.
 	ErrInvalidVersion Error = "invalid version"
-	// ErrEmptyQuery is the empty query error. A query resolved to no SQL.
+	// ErrEmptyQuery is the empty query error. A statement resolved to no SQL.
 	ErrEmptyQuery Error = "empty query"
+	// ErrUnknownParam is the unknown parameter error. An argument was given a
+	// name the statement does not take. It is never ignored, because ignoring
+	// it turns a typo into a query that silently drops a filter.
+	ErrUnknownParam Error = "unknown parameter"
+	// ErrMissingParam is the missing parameter error. The statement names a
+	// parameter that the arguments do not supply.
+	ErrMissingParam Error = "missing parameter"
 )

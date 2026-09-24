@@ -25,18 +25,51 @@
 // has no source on an older server, the fragment selects it as a literal NULL
 // under the same name, so one result shape fits every version.
 //
-// # Connections
+// # The caller drives
 //
-// dbmeta does not open a connection and does not import a database driver. The
-// caller opens the connection with the driver of its choice and passes it in.
-// Any type that satisfies [DB] works, which includes [database/sql.DB] and
-// [database/sql.Tx].
+// dbmeta does not open a connection, does not import a database driver, and
+// does not detect anything. The caller opens the connection, names the
+// dialect, and supplies the version. Any type that satisfies [DB] works, which
+// includes [database/sql.DB] and [database/sql.Tx]. Pass a transaction to read
+// more than one catalog in one snapshot.
 //
-// Every function that reads from a database takes a [context.Context] as its
-// first argument.
+// Every function that reads from a database takes a [context.Context] first.
+//
+// A caller reads the version by asking for the query and running it:
+//
+//	sqlstr, _, ok := dbmeta.Postgres.VersionQuery()
+//	// caller runs sqlstr and scans the columns as strings
+//	versions, err := dbmeta.Postgres.ParseVersion(cols)
+//	m, err := dbmeta.New(dbmeta.Postgres, versions)
+//
+// The version can be anything the caller chooses. Overriding it matters for a
+// proxy that hides the server, for a product that reports a version it does
+// not behave like, and for a generator with no server at all.
+//
+// # Asking for an object
+//
+// There is one [Query] value per kind of object. Name the value, and the
+// result type follows from it:
+//
+//	for t, err := range dbmeta.Tables.All(ctx, m, db, dbmeta.Args{Schema: "public"}.Map()) {
+//		...
+//	}
+//
+// An iterator holds a database connection until it ends. Stopping early
+// releases it, and so does cancelling the context. Do not open a second
+// iterator inside the body of the first, because that needs a second
+// connection and deadlocks on a pool of one.
+//
+// A caller that would rather run the statement itself asks for it instead:
+//
+//	sqlstr, args, err := dbmeta.Tables.SQL(m, map[string]any{"schema": "public"})
+//
+// [Query.Fields] and [Query.Params] describe what a query returns and takes.
+// [Query.Support] says whether it can be asked at all, and tells a database
+// that has no such object apart from a model that was left out of the build.
 //
 // # Layout
 //
-// The models for one database live in a package under models, named after the
-// driver. Those packages hold generated code. Callers use this package.
+// The models for one database live under internal, one file per model, and
+// register what their dialect provides. Callers use this package.
 package dbmeta
