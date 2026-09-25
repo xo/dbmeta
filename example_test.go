@@ -183,10 +183,11 @@ func Example_support() {
 	}
 
 	// a dialect no model was built for is a different answer entirely.
-	// Trino is one usql speaks and dbmeta has no model for. It is next on
-	// D66's list, so this example moves on when it arrives.
-	if _, err := dbmeta.New("trino", dbmeta.VersionSet{}); err != nil {
-		fmt.Println("trino:", err)
+	// Vertica is one usql speaks and dbmeta has no model for. It sits at
+	// number 5 on D66's list, so this example moves on when it arrives, the
+	// way it moved off Trino.
+	if _, err := dbmeta.New("vertica", dbmeta.VersionSet{}); err != nil {
+		fmt.Println("vertica:", err)
 	}
 
 	// Output:
@@ -194,7 +195,7 @@ func Example_support() {
 	// indexes: supported
 	// publications on 9.6: version too old
 	// and building it: version too old
-	// trino: model not built
+	// vertica: model not built
 }
 
 func versionMeta(ver string) *dbmeta.Meta {

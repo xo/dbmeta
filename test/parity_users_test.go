@@ -241,3 +241,25 @@ func makeClickHouseGrantee(t *testing.T, db *sql.DB, dsn, schema string) string 
 	exec(t, db, `GRANT SELECT ON `+schema+`.* TO dbmeta_parity`)
 	return replaceUser(t, dsn, "dbmeta_parity", parityPassword)
 }
+
+// makeTrinoPrincipal names a different principal on the connection.
+//
+// Trino has no users to create. A client states who it is on every request
+// and the server takes it, because the image configures no authenticator, so
+// becoming somebody else is a change to the DSN and nothing more. A password
+// cannot go with it: Trino refuses username and password authentication over
+// plain HTTP.
+//
+// With no access control plugin the server then allows that principal
+// everything, so this target is expected to find no difference at all. That
+// is the measurement rather than a gap in it, and D61 wants it written down
+// either way.
+func makeTrinoPrincipal(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.User("dbmeta_other")
+	return u.String()
+}

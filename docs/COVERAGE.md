@@ -36,6 +36,7 @@ rather than reading one.
 | `models/oracle` | 25 | 55 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/cassandra` | 17 | 55 | Cassandra 3.11, 4.0, 4.1 and 5.0 |
 | `models/clickhouse` | 23 | 55 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
+| `models/trino` | 13 | 55 | Trino 476 and 483 |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -558,6 +559,149 @@ overloaded across types and `system.functions` records no signature.
 `ColumnStats` is absent: `system.columns` carries compressed and uncompressed
 sizes and nothing about distribution, and what `system.parts` holds is per
 part rather than per column.
+
+## Trino
+
+Trino is a query engine rather than a store. It reads other people's data
+through a connector and keeps almost nothing of its own, so most of what it
+cannot answer is missing because the thing does not exist rather than because
+the catalog hides it.
+
+### A catalog is a real level, and Trino is the only one
+
+Every other model here returns an empty catalog or repeats the database name
+into it, because the products have two levels of namespace and `psql` has
+three. Trino has all three. A table is `catalog.schema.name`, a catalog is a
+configured connector, and one server reaches many at once.
+
+So Trino is the only model that answers a catalog filter, and
+[`dbmeta.Args`](../args.go) has carried the field all along waiting for it.
+
+### system.jdbc, not information_schema
+
+Trino ships an `information_schema` inside every catalog and a `system`
+catalog beside them, and the two differ in reach. A query against
+`memory.information_schema.tables` sees the memory catalog and nothing else,
+and the catalog cannot come from a bind parameter, so a filter naming a second
+catalog would return nothing rather than an answer. That is a wrong answer
+rather than an empty one, which rule 13 does not allow. The tables under
+`system.jdbc` span every catalog the server has.
+
+`system.jdbc` is also the richer of the two. Its `columns` table carries the
+column comment in `remarks`, and `information_schema.columns` has no column
+for a comment at all.
+
+### What it answers
+
+13 of the 55. Catalogs as databases, schemas, tables, columns, views,
+comments, types, access methods, roles, role grants, privileges, the current
+schema and the current user.
+
+A connector is the analogue for an access method, the same way a storage
+engine is for MariaDB: both answer "how is this stored and reached". The
+`comment` on a connector is the list of catalogs it backs, because one
+connector can back several.
+
+### The one query that cannot span catalogs
+
+Views. No cross catalog source carries a view definition:
+`system.metadata.materialized_views` has one and covers materialized views
+only, and a plain view's definition lives in the `information_schema.views` of
+its own catalog. Reading every catalog would mean one statement per catalog,
+which rule 13 forbids.
+
+So Views reads the session catalog, and its `schema` parameter says so where a
+caller reads it. Every other query here spans catalogs.
+
+### A boolean is not an integer
+
+Every other model writes `@with_system = 1` and the server coerces. Trino
+applies no implicit conversion between a boolean and an integer and refuses
+the statement with `Cannot apply operator: boolean = integer`, so this model
+writes `= true`. Seven queries were written the other way first and all seven
+failed at once, which is the cheapest way for that to be found.
+
+### What the fixture cannot build
+
+No primary key, no foreign key, no unique constraint and no check. Trino has
+no constraint of any kind at any release, so nothing enforces that a book has
+an author. No sequence, no trigger, no index and no user defined type. No
+default: Trino parses `DEFAULT` and the memory connector keeps none.
+
+No role and no grant either, and that one is the connector rather than the
+engine. A Trino role belongs to a catalog, only a connector that implements
+role management has any, and the memory connector answers "does not support
+role management" to `CREATE ROLE`. Roles, RoleGrants and Privileges are
+verified to run and return no rows, and `TestTrinoRolesAreEmptyOnMemory` pins
+that so it stays distinguishable from a broken query. A connector with
+sql-standard security, such as Hive, populates all three.
+
+No materialized view: the memory connector refuses to create one.
+
+### What the conformance test says
+
+Trino builds every core object D53 asks for, including the view, and the
+column ordinals and nullability match every other database. It is left out of
+the relational agreement count for the same reason ClickHouse is: with no
+constraint catalog every column reads `primary_key=false` where the others
+agree on the key, and there are no constraint lines to compare.
+
+### What a second opinion found, and what it cost to check
+
+D43 requires asking at least two models about the queries a new dialect cannot
+answer. Gemini and DeepSeek were both asked to sort 42 unanswered kinds into
+absent, present under another name, and derivable from one statement.
+
+Every lead was run against a real server, which is the part of the rule that
+matters. DeepSeek named eight sources that do not exist:
+
+```
+system.metadata.functions             ABSENT
+system.metadata.partitions            ABSENT
+system.metadata.types                 ABSENT
+system.metadata.column_comments       ABSENT
+system.metadata.session_properties    ABSENT
+information_schema.parameters         ABSENT
+information_schema.table_constraints  ABSENT
+information_schema.key_column_usage   ABSENT
+```
+
+Three of its answers rested on `system.metadata.functions` alone: functions,
+aggregates and operators. `SHOW CASTS` is not a statement Trino has, and no
+table reports `table_type = 'FOREIGN'`. Gemini named nothing that does not
+exist, and put all but six kinds in absent.
+
+Two answers were worth the exercise.
+
+**Functions cannot be read as a relation, and now that is settled.** Gemini
+said `SHOW FUNCTIONS` cannot be wrapped in a subquery and it is right, though
+not for the reason it gave. The parser does not reject it: it reads `SHOW` as
+a table name and reports `Table 'memory.default.show' does not exist`. So
+there is no table valued source for the function list, the column names carry
+spaces, and Functions and Aggregates stay unanswered. `SHOW SESSION` has the
+same shape, which is why Settings is unanswered too, and both models agreed
+`SHOW STATS FOR` has no table valued form, so ColumnStats is as well.
+
+**information_schema.columns has an undocumented column.** Gemini derived
+partitioned tables from `extra_info = 'partition key'`. `SHOW COLUMNS` does
+not list `extra_info` and the column resolves anyway, which a control
+settled: a name that really does not exist fails with `Column
+'definitely_not_a_column' cannot be resolved`, and `extra_info` returns 0 non
+null values over 34 rows. It is real, and the memory connector never sets it.
+A connector that partitions, such as Hive, does.
+
+PartitionedTables is left unanswered on that basis rather than on absence. The
+source exists and no connector in the test image populates it, so rule 9 has
+no object to build and the query would be verified against nothing.
+
+### Which answers depend on who is asking
+
+None of them, and that is the measurement rather than a gap in it. Trino has
+no users to create: a client states a principal on every request and the
+server takes it, because the image configures no authenticator. With no access
+control plugin the server then allows that principal everything, so the only
+query that answers differently for a second principal is `current_user`, which
+is the one that is supposed to.
 
 ## Which answers depend on who is asking
 

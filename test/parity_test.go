@@ -17,6 +17,7 @@ import (
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
+	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 )
 
 // The privilege parity test, which D61 requires of every dialect.
@@ -166,6 +167,18 @@ func parityTargets() []parityTarget {
 					principals: []parityPrincipal{{name: "contained", make: makeSQLServerContained}},
 				},
 			},
+		},
+		{
+			dialect: dbmeta.Trino, driver: "trino", env: "DBMETA_TRINO",
+			open: openTrino, build: setupTrino, schema: trfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Trino has no containment and no users. A catalog is a grant
+				// scope for a connector that implements roles, the memory
+				// connector implements none, and a principal is whatever the
+				// client says it is.
+				name:       "same",
+				principals: []parityPrincipal{{name: "other", make: makeTrinoPrincipal}},
+			}},
 		},
 		{
 			dialect: dbmeta.Cassandra, driver: "cql", env: "DBMETA_CASSANDRA",

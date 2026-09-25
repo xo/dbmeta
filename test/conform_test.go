@@ -20,6 +20,7 @@ import (
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
+	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 )
 
 // The cross family conformance test.
@@ -106,6 +107,11 @@ func conformTargets() []conformTarget {
 			name: "clickhouse", dialect: dbmeta.ClickHouse,
 			open: openClickHouse, schema: chfixture.Everything.Schema,
 			build: setupClickHouse,
+		},
+		{
+			name: "trino", dialect: dbmeta.Trino,
+			open: openTrino, schema: trfixture.Everything.Schema,
+			build: setupTrino,
 		},
 	}
 }
@@ -481,6 +487,10 @@ var agreementExcluded = map[string]string{
 		" no foreign key and no unique constraint, and system.constraints holds" +
 		" the expression a CHECK asserts rather than the columns behind it, so" +
 		" the section has no constraint lines at all",
+	"trino": "a query engine rather than a store: it has no constraint of any" +
+		" kind at any release, so every column reads primary_key=false where" +
+		" the relational databases agree on the key, and there are no" +
+		" constraint lines to compare",
 }
 
 // agreedLines returns the lines every named section has.

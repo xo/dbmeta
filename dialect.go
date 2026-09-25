@@ -29,6 +29,7 @@ const (
 	PostgreSQL Dialect = "postgres"
 	SQLite3    Dialect = "sqlite3"
 	SQLServer  Dialect = "sqlserver"
+	Trino      Dialect = "trino"
 )
 
 // Info is what a model declares about its database.

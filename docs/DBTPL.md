@@ -69,6 +69,7 @@ than from memory.
 | SQLite | 8 | `RoutineParameters`: a SQLite function has no named parameters |
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
+| Trino | 4 | `Indexes`, `IndexColumns`, `Functions`, `RoutineParameters` and `ConstraintColumns`: Trino is a query engine and has no index, no constraint of any kind, and no table valued source for its function list |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
 Four answer all nine: PostgreSQL, the MySQL dialect, SQL Server and Oracle.
@@ -96,12 +97,17 @@ dialect is added.
 | DuckDB | no | yes, without index columns |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |
 | Cassandra | no | partly: no current keyspace expression and no parameter names |
+| Trino | no | **no** |
 
-A clear no is possible and it is not the same as answering few of the nine.
-`dbtpl` generates typed access from a schema and follows a foreign key to
-decide what relates to what, so a database with no foreign key gives it a
-struct per table and nothing tying them together. A query engine answers that
-way. Say so in the table rather than leaving the count to imply it.
+Trino is the first that is a clear no, and it is not the same as answering few
+of the nine. `dbtpl` generates typed access from a schema and follows a foreign
+key to decide what relates to what. Trino has no foreign key, no unique
+constraint and no index at any release, so the relationships are not there to
+read and a generator would produce a struct per table with nothing tying them
+together.
+
+That is the answer for a query engine rather than for Trino alone. Presto sits
+next to it on D66 and will answer the same way.
 
 ## What dbmeta added
 

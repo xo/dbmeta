@@ -232,7 +232,7 @@ Eleven lines match exactly. Thirteen are `dbmeta` reporting strictly more. Two
 are the SQLite naming, which is the only real disagreement.
 
 That table predates `models/oracle`, `models/cassandra`, `models/clickhouse`
-and `models/clickhouse`, and it compares what the two print rather than what they
+and `models/trino`, and it compares what the two print rather than what they
 run. The statements are compared below, because comparing only the output hid
 a case where `usql` has no answer at all.
 
@@ -247,6 +247,7 @@ a case where `usql` has no answer at all.
 | MySQL | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |
 | ClickHouse | `SELECT version()` | no function, so the generic `SELECT version();` | same answer |
 | DuckDB | `SELECT version()` | `SELECT library_version FROM pragma_version()` | different statement, same answer |
+| Trino | `SELECT version()` | `SELECT node_version FROM system.runtime.nodes LIMIT 1` | different statement, same answer |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | no function, so the generic `SELECT version();` | **`usql` cannot answer** |
 
@@ -270,15 +271,17 @@ is silent and `usql` prints no version for Oracle at all. `dbmeta` reads
 This is the strongest single case for the move, and comparing the printed
 lines would never have found it, because Oracle was not in the table above.
 
-#### DuckDB, where the statement differs and the answer does not
+#### DuckDB and Trino, where the statement differs and the answer does not
 
 DuckDB returns `v1.5.5` from both `version()` and `library_version` in
-`pragma_version()`, measured on the same build.
+`pragma_version()`. Trino returns `483` from both `version()` and
+`node_version` in `system.runtime.nodes`, byte for byte.
 
-That is not a divergence worth closing, and the scalar function is the better
-of the pair, because `pragma_version()` is a table function where `version()`
-is a plain call. A difference of statement with no difference of answer is
-recorded and left alone.
+Neither is a divergence worth closing, and the scalar function is the better of
+each pair. `pragma_version()` is a table function where `version()` is a plain
+call. `system.runtime.nodes` has one row per node, so `usql`'s `LIMIT 1` with
+no `ORDER BY` picks an arbitrary one, which on a cluster mid upgrade can be a
+worker rather than the coordinator that parses the SQL.
 
 ### MySQL and MariaDB, where usql prints no product at all
 

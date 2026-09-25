@@ -85,3 +85,6 @@ current_user the same rows with different values
 [sqlserver/same/login]
 current_user the same rows with different values
 roles fewer rows than the administrator
+
+[trino/same/other]
+current_user the same rows with different values

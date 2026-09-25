@@ -96,6 +96,7 @@ linters:
             - github.com/sijms/go-ora
             - github.com/MichaelS11/go-cql-driver
             - github.com/ClickHouse/clickhouse-go
+            - github.com/trinodb/trino-go-client
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:
