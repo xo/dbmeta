@@ -17,6 +17,16 @@
 #   ./run.sh postgres         every PostgreSQL release
 #   ./run.sh mariadb mysql    both products of the mysql dialect
 #   ./run.sh mariadb-11.8     one release
+#   ./run.sh vms              every provisioned Windows machine
+#
+# It starts what it needs and removes it afterwards. It never uses a container
+# somebody else started: the names and ports here are its own, so a container
+# called postgres or mssql on a default port is left alone.
+#
+# The Windows machines are the exception, because installing one takes an hour.
+# `./run.sh vms` runs against the machines vm/provision.sh has already made,
+# starting any that are stopped, and says which are missing rather than
+# building them.
 #
 # It needs podman on the path. Set DBMETA_RUNNER=docker to use docker instead.
 # Neither is a dependency of dbmeta: this script runs a command, and the Go
@@ -27,6 +37,46 @@ set -u
 RUNNER="${DBMETA_RUNNER:-podman}"
 if ! command -v "$RUNNER" >/dev/null 2>&1; then
   echo "$RUNNER is not on the path. Set DBMETA_RUNNER to the one you have."
+  exit 1
+fi
+
+# The Windows machines, which are provisioned rather than started fresh.
+if [ "${1:-}" = "vms" ] || [ "${1:-}" = "vm" ]; then
+  PASSED=()
+  FAILED=()
+  while IFS=$'\x1f' read -r name release image port viewer regkey license url file dsn; do
+    printf '=== %s ===\n' "$name"
+    if ! $RUNNER container exists "$name" 2>/dev/null; then
+      echo "  not provisioned. Run ./vm/provision.sh $release, which takes an hour."
+      FAILED+=("$name: not provisioned")
+      continue
+    fi
+    if [ "$($RUNNER inspect --format '{{.State.Status}}' "$name" 2>/dev/null)" != "running" ]; then
+      echo "  starting it"
+      $RUNNER start "$name" >/dev/null 2>&1
+    fi
+    # A machine boots Windows before SQL Server listens, so this waits on a
+    # query rather than on the port. See vm/README.md.
+    if ! go run ./tool/vms -wait 10m "$release" >/dev/null 2>&1; then
+      echo "  it never answered. Look at http://127.0.0.1:$viewer"
+      FAILED+=("$name: never answered")
+      continue
+    fi
+    if env DBMETA_SQLSERVER="$dsn" go test -count=1 ./...; then
+      echo "  passed"
+      PASSED+=("$name")
+    else
+      FAILED+=("$name")
+    fi
+  done < <(go run ./tool/vms)
+
+  echo
+  if [ ${#FAILED[@]} -eq 0 ]; then
+    echo "every machine passed: ${PASSED[*]}"
+    exit 0
+  fi
+  echo "passed: ${PASSED[*]-none}"
+  echo "failed: ${FAILED[*]}"
   exit 1
 fi
 

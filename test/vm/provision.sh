@@ -78,7 +78,11 @@ FAILED=()
 while IFS=$'\x1f' read -r name release image port viewer regkey license url file dsn; do
   printf '=== %s (SQL Server %s on %s) ===\n' "$name" "$release" "$image"
   oem="$STATE/$name/oem"
-  mkdir -p "$oem" "$STATE/$name/storage"
+  shared="$STATE/$name/shared"
+  mkdir -p "$oem" "$STATE/$name/storage" "$shared"
+  # install.bat looks for this marker to find the shared drive, because the
+  # letter Windows gives it varies by release.
+  : > "$shared/.shared"
 
   # 1. the installer, fetched here rather than in the machine
   if [ "$RENDER" = yes ]; then
@@ -132,6 +136,7 @@ while IFS=$'\x1f' read -r name release image port viewer regkey license url file
       --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN \
       --volume "$STATE/$name/storage:/storage" \
       --volume "$oem:/oem" \
+      --volume "$shared:/shared" \
       --stop-timeout 120 \
       docker.io/dockurr/windows >/dev/null || {
         echo "  could not start the machine"
@@ -157,8 +162,10 @@ while IFS=$'\x1f' read -r name release image port viewer regkey license url file
   echo "  waiting for SQL Server on 127.0.0.1:$port"
   echo "  the first run installs Windows and then SQL Server, so allow an hour"
   if ! (cd "$HERE/.." && go run ./tool/vms -wait 90m "$release"); then
-    echo "  it never answered. Look at http://127.0.0.1:$viewer, and at"
-    echo "  C:\\OEM\\provision.log inside the machine."
+    echo "  it never answered. The install log, if it got that far:"
+    echo "    $shared/provision-*.log"
+    echo "  and the screen is at http://127.0.0.1:$viewer"
+    ls -la "$shared" 2>/dev/null | tail -3
     FAILED+=("$name: never answered")
     continue
   fi

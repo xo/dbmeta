@@ -6,8 +6,13 @@ rem dockurr/windows copies this whole folder to C:\OEM and runs this file at the
 rem end of the unattended Windows install, as SYSTEM. provision.sh writes the
 rem four placeholder values below before it starts the machine.
 rem
-rem It writes C:\OEM\ready.txt on success and C:\OEM\failed.txt on failure, so
-rem the host can tell the difference without reading the console.
+rem It writes C:\OEM\ready.txt on success and C:\OEM\failed.txt on failure.
+rem
+rem dockur copies /oem into the image rather than mounting it, so nothing
+rem written to C:\OEM reaches the host. The log is therefore also copied to the
+rem directory mounted at /shared, which Windows shows as a drive, so a failed
+rem install can be read from Linux instead of through the console. Finding that
+rem out the hard way cost an afternoon on 2008 R2.
 rem ---------------------------------------------------------------------------
 
 set OEM=%~dp0
@@ -78,9 +83,22 @@ cscript //nologo %SystemRoot%\System32\slmgr.vbs /xpr >> "%LOG%" 2>&1
 
 echo [oem] done %DATE% %TIME% >> "%LOG%"
 echo ready > "%SystemDrive%\OEM\ready.txt"
+call :publish ready
 exit /b 0
 
 :failed
 echo [oem] FAILED %DATE% %TIME% >> "%LOG%"
 echo failed > "%SystemDrive%\OEM\failed.txt"
+call :publish failed
 exit /b 1
+
+rem publish copies the log and the outcome to whichever drive is the shared
+rem folder, so the host can read both. The drive letter varies, so try each.
+:publish
+for %%d in (D E F G H I J K L M N O P Q R S T U V W X Y Z) do (
+  if exist "%%d:\.shared" (
+    copy /y "%LOG%" "%%d:\provision-%COMPUTERNAME%.log" >nul 2>&1
+    echo %~1 > "%%d:\outcome-%COMPUTERNAME%.txt"
+  )
+)
+exit /b 0
