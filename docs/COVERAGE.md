@@ -526,7 +526,8 @@ sysadmin on every query, which is the cleanest result of the four.
 Oracle answers identically on every query for a local user that owns the
 objects. That is worth saying plainly, because D60 began from the worry that
 `ALL_` views would under-report. They do, but only for a caller asking about
-a schema it has no privilege on, which is a different question.
+a schema it has no privilege on, which is a different question, and that
+measurement is what closed D60 with no change to the model.
 
 ## What every database agrees on
 
@@ -1092,8 +1093,9 @@ release here, and checking took one query:
 | `ALL_COLLATIONS` | no | no | no |
 | `ALL_PDBS` | no | no | no |
 
-`Tablespaces` is in `USER_TABLESPACES` and `DBA_TABLESPACES` only, so it waits
-on D60. `Collations` was said to have arrived in 12.2, and it did not: 26ai has
+`Tablespaces` is in `USER_TABLESPACES` and `DBA_TABLESPACES` only, which D60
+decided against. `Collations` was said to have arrived in 12.2, and it did
+not: 26ai has
 no such view either. `Databases` has the same problem, and `ALL_PDBS` never
 existed under that name.
 
@@ -1133,10 +1135,10 @@ no text search objects of the shape `psql` names, and no extension.
 both, in `DBA_ROLES` and `DBA_ROLE_PRIVS`, and there is no `ALL_` equivalent:
 an ordinary user sees only its own, through `USER_ROLE_PRIVS` and
 `SESSION_ROLES`. Answering them means reading `DBA_`, which needs
-`SELECT_CATALOG_ROLE`. D60 sets the rule that allows it and neither query is
-written yet.
+`SELECT_CATALOG_ROLE`, and D60 decided not to reach for it. Neither query is
+written.
 
 `Databases` is the same shape of problem. Oracle has one database per
 instance, and the nearest list is the pluggable databases, which no `ALL_`
 view carries: `ALL_PDBS` does not exist on any release here. `DBA_PDBS` and
-`V$DATABASE` do, and both are behind D60.
+`V$DATABASE` do, and D60 decided against reading either.

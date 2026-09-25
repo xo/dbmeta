@@ -26,8 +26,11 @@
 #
 # The Windows images are Microsoft evaluation editions, which are free for 180
 # days of testing and need no activation and no product key. Nothing here
-# activates Windows. When 180 days runs out, `slmgr /rearm` inside the machine
-# extends it, which is Microsoft's own mechanism.
+# activates Windows. A scheduled task inside the machine runs rearm.bat at
+# every startup, which extends the evaluation before it runs out using
+# `slmgr /rearm`, Microsoft's own mechanism. The rearm count is finite, so it
+# spends one only when fewer than ten days are left. When the count is gone the
+# machine is rebuilt or the release drops to Archived. See D65.
 #
 # The first run of a release takes 30 to 60 minutes: Windows installs, then SQL
 # Server installs. Later runs start an existing machine in about a minute.
@@ -115,7 +118,10 @@ while IFS=$'\x1f' read -r name release image port viewer regkey license url file
       -e "s|@@LICENSE_FLAG@@|$license|g" \
       "$HERE/oem/install.bat" > "$oem/install.bat"
   # Windows reads a batch file, so the line endings have to be its own.
-  sed -i 's/$/\r/' "$oem/install.bat" "$oem/ConfigurationFile.ini"
+  # rearm.bat needs no substitution: it reads the grace period rather than
+  # being told anything about the release. See D65.
+  cp "$HERE/oem/rearm.bat" "$oem/rearm.bat"
+  sed -i 's/$/\r/' "$oem/install.bat" "$oem/ConfigurationFile.ini" "$oem/rearm.bat"
 
   if [ "$RENDER" = yes ]; then
     echo "  wrote $oem/install.bat and $oem/ConfigurationFile.ini"

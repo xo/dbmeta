@@ -311,6 +311,13 @@ const (
 	NotSupported
 	// Supported means the query can be asked.
 	Supported
+	// TooOld means the model is present and the product has the object, and
+	// this release of it does not. [Query.SQL] returns [ErrVersionTooOld].
+	//
+	// It is last rather than in order of how supported each one is, so that
+	// the three values that existed before it keep their numbers. A caller
+	// compares these by equality and never by rank. See D54.
+	TooOld
 )
 
 // String satisfies the [fmt.Stringer] interface.
@@ -322,12 +329,15 @@ func (s Support) String() string {
 		return "not supported"
 	case Supported:
 		return "supported"
+	case TooOld:
+		return "version too old"
 	}
 	return "supported"
 }
 
-// Support reports whether m can answer this query, distinguishing a database
-// that has no such object from a model that was left out of this binary.
+// Support reports whether m can answer this query, distinguishing four cases:
+// a model left out of this binary, a database with no such object, a release
+// too old to have it, and a query that can be asked.
 func (q *Query[T]) Support(m *Meta) Support {
 	if m == nil {
 		return NotBuilt
@@ -343,8 +353,17 @@ func (q *Query[T]) Support(m *Meta) Support {
 	// binding alone does not say the product answers. A statement built only
 	// from fragments naming a key this server does not report is a statement
 	// for the other product. See D44.
-	if _, err := b.Stmt.SQL(m.versions); errors.Is(err, ErrNotSupported) {
+	_, err := b.Stmt.SQL(m.versions)
+	if errors.Is(err, ErrNotSupported) {
 		return NotSupported
+	}
+	// A query whose every fragment is gated above this release builds no
+	// statement at all. The product has the object and this server does not,
+	// which is neither of the answers above: telling a caller "not supported"
+	// would say stop asking, and telling it "supported" walks it into a query
+	// it cannot build. D54 left this open and it is now its own answer.
+	if errors.Is(err, ErrVersionTooOld) {
+		return TooOld
 	}
 	return Supported
 }

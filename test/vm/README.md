@@ -42,8 +42,20 @@ DBMETA_SQLSERVER='sqlserver://sa:P4ssw0rd%21x@127.0.0.1:51434?database=master&en
 Every Windows image here is a Microsoft **evaluation** edition, fetched from
 Microsoft by dockur. Evaluation editions are free for 180 days of testing and
 need no product key and no activation, which is why nothing here activates
-Windows. When the 180 days runs out, `slmgr /rearm` inside the machine extends
-it, and that is Microsoft's own mechanism rather than a way around one.
+Windows. When the 180 days runs out, `slmgr /rearm` extends it, and that is
+Microsoft's own mechanism rather than a way around one.
+
+The rearm is automatic. `oem/rearm.bat` runs at every startup as a scheduled
+task, reads the grace period, and spends a rearm only when fewer than ten days
+are left. It does not rearm on every boot, because the count is finite, three
+on most of these editions, and a machine that is started often would spend the
+whole budget in a week. A rearm applies at the next start, and the script does
+not restart the machine, because `run.sh` starts one and waits for SQL Server
+and a reboot underneath that looks exactly like a failed boot.
+
+When the rearms are spent, `C:\OEM\rearm.log` says so. At that point the
+machine is rebuilt, which takes about an hour, or the release drops to
+Archived under D40 and nothing is claimed for it. See D65.
 
 SQL Server Express is likewise free, and is enough for this: every catalog view
 the queries read is present in Express.

@@ -19,8 +19,9 @@
 // that does not exist both return. A consumer that needs the whole catalog
 // connects as somebody who can see it.
 //
-// Whether a caller that knows it is a DBA can ask for the DBA_ twin instead is
-// open. D60 in docs/PLAN.md holds the measurements and the candidates.
+// Reading the DBA_ twin instead was considered and rejected. D61 measured that
+// a local user owning the objects already gets the administrator's answer to
+// every query here, so there was nothing to gain. D60 holds the numbers.
 //
 // # A schema is a user
 //

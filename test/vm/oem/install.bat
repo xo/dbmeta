@@ -94,6 +94,17 @@ rem Microsoft's own way to extend it. Nothing here activates anything.
 echo [oem] evaluation period >> "%LOG%"
 cscript //nologo %SystemRoot%\System32\slmgr.vbs /xpr >> "%LOG%" 2>&1
 
+rem A machine that sits idle past 180 days stops being usable, and these are
+rem rebuilt in about an hour each, so the rearm is automatic. rearm.bat reads
+rem the grace period and spends a rearm only when one is nearly needed. See
+rem D65.
+echo [oem] scheduling the rearm >> "%LOG%"
+schtasks /create /tn "dbmeta-rearm" /tr "\"%SystemDrive%\OEM\rearm.bat\"" /sc onstart /ru SYSTEM /rl HIGHEST /f >> "%LOG%" 2>&1
+if errorlevel 1 echo [oem] WARNING: the rearm task was not scheduled >> "%LOG%"
+rem And once now, so a machine built from an image that already sat a while
+rem does not wait for its second boot.
+call "%SystemDrive%\OEM\rearm.bat" >> "%LOG%" 2>&1
+
 echo [oem] done %DATE% %TIME% >> "%LOG%"
 echo ready > "%SystemDrive%\OEM\ready.txt"
 call :publish ready

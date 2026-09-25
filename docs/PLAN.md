@@ -117,15 +117,18 @@ records the argument.
 | [D51](#d51-there-is-no-alias-for-a-nullable-type-decided) | There is no alias for a nullable type | Decided |
 | [D52](#d52-a-test-driver-is-the-one-usql-uses-or-it-is-the-wrong-driver-amended-by-d59) | A test driver is the one usql uses, or it is the wrong driver | Amended by D59 |
 | [D53](#d53-one-canonical-expectation-checked-in-that-every-database-must-meet-decided) | One canonical expectation, checked in, that every database must meet | Decided |
-| [D54](#d54-sql-server-covers-every-release-that-ships-a-linux-container-decided) | SQL Server covers every release that ships a Linux container | Decided |
+| [D54](#d54-sql-server-covers-every-release-that-ships-a-linux-container-amended-by-d63) | SQL Server covers every release that ships a Linux container | Amended by D63 |
 | [D55](#d55-the-current-user-moves-here-changing-a-password-does-not-decided) | The current user moves here. Changing a password does not | Decided |
 | [D56](#d56-the-password-statement-is-built-here-and-run-by-the-caller-amends-d5) | The password statement is built here and run by the caller | Amends D5 |
 | [D57](#d57-a-windows-machine-is-how-a-pre-2017-sql-server-gets-tested-and-it-is-verified-decided) | A Windows machine is how a pre 2017 SQL Server gets tested, and it is Verified | Decided |
 | [D58](#d58-one-gitignore-in-the-repository-root-decided) | One .gitignore, in the repository root | Decided |
 | [D59](#d59-oracle-is-tested-with-go-ora-v2-until-v3-tags-its-fix-amends-d52) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52 |
-| [D60](#d60-the-oracle-model-reads-all_-views-and-the-dba_-variant-is-open-not-decided) | The Oracle model reads ALL_ views, and the DBA_ variant is open | Not decided |
+| [D60](#d60-the-oracle-model-reads-all_-views-and-there-is-no-dba_-variant-decided) | The Oracle model reads ALL_ views, and there is no DBA_ variant | Decided |
 | [D61](#d61-every-dialect-is-measured-against-every-principal-the-product-has-decided) | Every dialect is measured against every principal the product has | Decided |
 | [D62](#d62-cql-cannot-compute-so-the-cassandra-model-computes-in-scan-decided) | CQL cannot compute, so the Cassandra model computes in Scan | Decided |
+| [D63](#d63-support-says-when-a-release-is-too-old-amends-d54) | Support says when a release is too old | Amends D54 |
+| [D64](#d64-the-verified-tier-is-checked-against-the-document-decided) | The Verified tier is checked against the document | Decided |
+| [D65](#d65-a-windows-machine-rearms-its-evaluation-before-it-expires-decided) | A Windows machine rearms its evaluation before it expires | Decided |
 
 ## Decisions
 
@@ -3233,7 +3236,7 @@ file stops being knowledge. `canonicalFields` is the same idea for the
 canonical comparison, which is why every entry carries a reason rather than a
 flag.
 
-### D54. SQL Server covers every release that ships a Linux container. Decided.
+### D54. SQL Server covers every release that ships a Linux container. Amended by D63.
 
 Four releases, 2017, 2019, 2022 and 2025, and every one of them at the Tested
 tier. CI runs all four on every push. 2016 and older are Archived.
@@ -3312,6 +3315,8 @@ about the product, and the release is the error's business. Writing the test
 above raised the question of whether a caller is well served by that, because a
 caller that trusts Support walks into a query it cannot build. It is left as it
 is, and it is for Ken.
+
+D63 answers it: Support gained a fourth value and now says so itself.
 
 #### Oracle, recorded and not decided
 
@@ -3748,7 +3753,7 @@ commit needs no explanation later.
 This amendment covers Oracle and nothing else. Every other database still uses
 the driver `usql` ships, which D52 requires and this does not change.
 
-### D60. The Oracle model reads ALL_ views, and the DBA_ variant is open. Not decided.
+### D60. The Oracle model reads ALL_ views, and there is no DBA_ variant. Decided.
 
 Every Oracle query reads an `ALL_` view. Two read `DBA_`, because the fact is
 in no `ALL_` view at all. Whether `dbmeta` must also offer a `DBA_` variant of
@@ -3791,7 +3796,7 @@ narrows the answer silently, which `models/sqlserver` documents. Oracle refuses
 outright, and that refusal is the most useful of the three, because nothing is
 hidden and nothing is guessed.
 
-#### What is open
+#### What was open, and what closed it
 
 An `ALL_` view and its `DBA_` twin are the same question asked with two
 different privileges, and the difference is invisible to the caller.
@@ -3828,7 +3833,19 @@ Three mechanisms have been sketched and none chosen:
 3. A second dialect, `oracle-dba`. This is the least code and the worst
    answer, because it doubles a model that is otherwise identical.
 
-Nothing is implemented. Ask Ken before choosing one.
+None was chosen, and D61 is the reason. The parity harness measured what a
+principal actually gets, and an Oracle local user that owns the objects
+receives the administrator's answer to every query. There was no gap to close
+for the case that matters.
+
+So the model stays `ALL_` only and nothing is added. What remains unanswered
+is the third row of the table above: a caller asking about a schema it has no
+grant on gets no rows, and cannot tell that from an empty schema or from one
+that does not exist. `Tablespaces`, `Collations` and `Databases` stay
+unsupported for the same reason, which `docs/COVERAGE.md` records.
+
+Reopen this if a consumer asks for the difference. The three mechanisms above
+are the candidates and the measurements are here.
 
 ### D61. Every dialect is measured against every principal the product has. Decided.
 
@@ -4032,6 +4049,97 @@ because that arrived in 4.0. The two forms select the same rows on 5.0, 102 of
 them, and no regular or static column has a position at or above zero on
 either release. One form that works everywhere beats a fragment that makes the
 same query mean two things on two releases.
+
+### D63. Support says when a release is too old. Amends D54.
+
+`Query.Support` has a fourth value, `TooOld`. It means the model is present,
+the product has the object, and this release of it does not. `Query.SQL` then
+returns `ErrVersionTooOld`, as it always did.
+
+#### What it replaces
+
+D54 left this open. `Support` answered a question about the product and the
+release was the error's business, so a query gated above the server reported
+`Supported` and then refused to build. `TestWrongProductIsNotSupported` fixed
+that on purpose and D54 recorded the doubt: a caller that trusts `Support`
+walks into a query it cannot build.
+
+Cassandra made it concrete. `Settings` reads `system_views`, which arrived in
+4.0, so on 3.11 `Support` said yes and `SQL` said no. Every smoke test already
+carried the same two step dance, catching `ErrVersionTooOld` after being told
+the query was supported.
+
+#### Why a fourth value rather than folding it into NotSupported
+
+Because they are different answers and a caller acts differently on them.
+`NotSupported` means stop asking: no upgrade changes it. `TooOld` means this
+server cannot and a newer one can, which is something a person can act on.
+Folding them together would lose that, and a consumer showing a person what it
+can offer would say "this database does not have roles" when the truth is
+"yours is too old".
+
+#### The ordering
+
+`TooOld` is last in the constant block rather than in order of how supported
+each value is, so that `NotBuilt`, `NotSupported` and `Supported` keep their
+numbers. They are compared by equality and never by rank, and nothing in the
+tree orders them.
+
+### D64. The Verified tier is checked against the document. Decided.
+
+`TestEveryVerifiedReleaseIsDocumented` fails when a release the Go list calls
+Verified is not named in `docs/COVERAGE.md`.
+
+#### Why the tier needed anything
+
+D40 gives three tiers and two of them have a machine behind them. CI runs
+Tested and Nightly, and `TestWorkflowMatchesTheList` fails when the workflow
+and `container/container.go` disagree. Verified has nothing: it means a person
+ran the release on a development machine, and no test can prove that.
+
+What a test can prove is that the two lists agree, and that is the failure that
+happens. Oracle 18c spent months connecting to the container database while
+every other release connected to a pluggable one, and nothing noticed, because
+nothing compared the list to the document.
+
+#### What it does not do
+
+It checks one direction. A release the Go list calls Verified has to appear in
+the document, so adding one and not writing it down fails. It cannot check the
+other direction, because the document says what a release was verified against
+in prose a person wrote, and parsing that to find a claim with no release
+behind it would be guessing.
+
+It also cannot prove anybody ran anything, and it does not pretend to. Recording
+a date and a checked-in log was considered and not taken: it is stronger
+evidence and one more thing to keep current by hand, and the failure it would
+catch is not the one that has happened.
+
+### D65. A Windows machine rearms its evaluation before it expires. Decided.
+
+`test/vm/oem/rearm.bat` runs at every startup as a scheduled task, reads the
+grace period, and spends a rearm only when fewer than ten days are left.
+
+#### Why not on every boot
+
+The rearm count is finite, three on most of these editions, and it cannot be
+reset. A machine that is started often would spend the whole budget in a week
+and be no better off. Reading `GracePeriodRemaining` first turns that into one
+rearm every 170 days.
+
+#### Why it does not reboot
+
+A rearm applies at the next start. `test/run.sh` starts a machine and waits for
+SQL Server, and a reboot underneath that looks exactly like a machine that
+failed to come up. There is more than a week of grace left when the rearm runs,
+so the next ordinary start is soon enough.
+
+#### When the rearms are gone
+
+`C:\OEM\rearm.log` says so and nothing else happens. At that point the machine
+is rebuilt, which is about an hour, or the release drops to Archived under D40
+and nothing is claimed for it. Neither is automatic, because both are a
+person's decision about how much a pre-2017 SQL Server is worth.
 
 ## What exists today
 
@@ -4602,11 +4710,9 @@ D35: how DuckDB is reached, given pure Go only. Deferred until before work
 starts on the models outside the base tier. DuckDB is a base model in `usql`,
 so this cannot be dropped, only scheduled.
 
-D60 is open and has no trigger yet. The Oracle model reads `ALL_` views
-throughout, which is the compatible choice and the one a caller with no
-special grant can use. Whether a caller that knows it is a DBA can ask for the
-`DBA_` twin, and by what mechanism, is unanswered. D60 holds the measurements
-and the three candidate mechanisms. Nothing is blocked on it: every Oracle
-query works today for the privilege the caller has.
+D60 was the last one and it is answered. D61 measured what a principal
+actually gets, and an Oracle local user that owns the objects receives the
+administrator's answer to every query, so there was no gap to close. The model
+stays `ALL_` only.
 
 Raise a new question here rather than deciding one alone.

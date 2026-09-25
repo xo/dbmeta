@@ -430,10 +430,13 @@ func TestWrongProductIsNotSupported(t *testing.T) {
 		t.Errorf("expected ErrNotSupported, got: %v", err)
 	}
 	// the same query on the right product, at too old a release, is a
-	// different answer
+	// different answer again. It used to report Supported and leave the
+	// release to the error, which D54 recorded as an open question and
+	// answered: a caller that trusts Support walked into a query it could
+	// not build.
 	old := twin(t, "alpha", "10.6")
-	if got := twinOnlyQuery.Support(old); got != Supported {
-		t.Errorf("expected supported, got %v", got)
+	if got := twinOnlyQuery.Support(old); got != TooOld {
+		t.Errorf("expected version too old, got %v", got)
 	}
 	if _, _, err := twinOnlyQuery.SQL(old, nil); !errors.Is(err, ErrVersionTooOld) {
 		t.Errorf("expected ErrVersionTooOld, got: %v", err)

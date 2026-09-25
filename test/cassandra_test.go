@@ -195,6 +195,11 @@ func TestCassandraSmoke(t *testing.T) {
 		case dbmeta.NotBuilt, dbmeta.NotSupported:
 			unsupported++
 			continue
+		case dbmeta.TooOld:
+			// The product has the object and this release does not, which
+			// Support says on its own since D54 was answered.
+			tooOld++
+			continue
 		case dbmeta.Supported:
 		}
 		sqlstr, vals, err := q.SQL(m, nil)
