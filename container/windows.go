@@ -61,8 +61,9 @@ type WindowsVM struct {
 	// it is where the listening port is set, because Express installs with a
 	// dynamic port whatever the configuration file says.
 	RegistryKey string
-	// LicenseFlag says setup takes /IACCEPTSQLSERVERLICENSETERMS. It arrived
-	// in 2012 and 2008 R2 refuses it.
+	// LicenseFlag says setup takes /IACCEPTSQLSERVERLICENSETERMS. Every
+	// release here requires it, and the field stays because a release that
+	// does not is exactly the kind of thing this list should be able to say.
 	LicenseFlag bool
 
 	// Port is the host port this machine publishes SQL Server on. One per
@@ -103,8 +104,14 @@ var WindowsVMs = []WindowsVM{
 		// SQL Server 2008 R2 SP2 Express.
 		Installer:   "https://download.microsoft.com/download/0/4/b/04be03cd-eaf3-4797-9d8d-2e08e316c998/SQLEXPR_x64_ENU.exe",
 		RegistryKey: "MSSQL10_50.MSSQLSERVER",
-		// /IACCEPTSQLSERVERLICENSETERMS arrived in 2012.
-		LicenseFlag: false,
+		// This was written false, on a review that said the flag arrived in
+		// 2012 and 2008 R2 refuses it. The opposite is true for SP2 Express,
+		// and the machine said so:
+		//
+		//	The /IAcceptSQLServerLicenseTerms command line parameter is
+		//	missing or has not been set to true. It is a required parameter
+		//	for the setup action you are running.
+		LicenseFlag: true,
 		Port:        51433, Viewer: 8106,
 	},
 	{

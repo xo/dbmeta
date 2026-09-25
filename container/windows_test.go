@@ -99,15 +99,18 @@ func TestTheRegistryKeyMatchesTheRelease(t *testing.T) {
 	}
 }
 
-// TestOnly2008R2RefusesTheLicenseFlag pins the one per release difference in
-// the setup command line. /IACCEPTSQLSERVERLICENSETERMS arrived in 2012 and
-// 2008 R2 fails when it is given one.
-func TestOnly2008R2RefusesTheLicenseFlag(t *testing.T) {
+// TestEveryReleaseTakesTheLicenseFlag pins a fact that was recorded wrong.
+//
+// The list said 2008 R2 refused /IACCEPTSQLSERVERLICENSETERMS, on a review
+// that said the flag arrived in 2012. Its setup then refused to install
+// without it. Unattended setup requires it on every release here, and a future
+// release that does not can flip its own field and this test with it.
+func TestEveryReleaseTakesTheLicenseFlag(t *testing.T) {
 	t.Parallel()
 	for _, v := range container.WindowsVMs {
-		want := v.Release != "2008R2"
-		if v.LicenseFlag != want {
-			t.Errorf("%s: expected LicenseFlag %v, got %v", v.Release, want, v.LicenseFlag)
+		if !v.LicenseFlag {
+			t.Errorf("%s: setup will refuse to run without the license flag. "+
+				"If a release really does reject it, say so here and why.", v.Release)
 		}
 	}
 }

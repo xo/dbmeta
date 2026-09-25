@@ -101,10 +101,9 @@ while IFS=$'\x1f' read -r name release image port viewer regkey license url file
   # 2. the OEM payload, with the per release values filled in
   cp "$HERE/oem/ConfigurationFile.ini" "$oem/ConfigurationFile.ini"
   if [ "$release" = "2008R2" ]; then
-    # 2008 R2 wants its own section header and rejects the license flag, which
-    # arrived in 2012.
+    # 2008 R2 wants its own section header. It does take the license flag,
+    # despite a review saying otherwise, and refuses to install without it.
     sed -i 's/^\[OPTIONS\]$/[SQLSERVER2008]/' "$oem/ConfigurationFile.ini"
-    sed -i '/^IACCEPTSQLSERVERLICENSETERMS=/d' "$oem/ConfigurationFile.ini"
   fi
   sed -e "s|@@REGISTRY_KEY@@|$regkey|g" \
       -e "s|@@SA_PASSWORD@@|$SAPWD|g" \
