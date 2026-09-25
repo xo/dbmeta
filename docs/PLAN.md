@@ -114,6 +114,7 @@ records the argument.
 | [D48](#d48-cgo-is-allowed-in-the-test-module-and-nowhere-else-amends-d26) | cgo is allowed in the test module, and nowhere else | Amends D26 |
 | [D49](#d49-one-method-on-the-interface-and-a-not-null-is-not-a-constraint-row-decided) | One method on the interface, and a NOT NULL is not a constraint row | Decided |
 | [D50](#d50-documentation-lives-in-docs-and-the-decision-log-stays-one-file-decided) | Documentation lives in docs, and the decision log stays one file | Decided |
+| [D51](#d51-there-is-no-alias-for-a-nullable-type-decided) | There is no alias for a nullable type | Decided |
 
 ## Decisions
 
@@ -210,7 +211,7 @@ PostgreSQL 18 server:
 #### The rule
 
 Never wrap a nullable catalog column in `COALESCE`. Let the NULL through and
-give the field the type `Text`, which is `sql.Null[string]` under an alias.
+give the field the type `sql.Null[string]`. There is no alias. See D51.
 
 `COALESCE` is still correct over an aggregate that matched no rows, because
 there NULL and empty mean the same thing. "No members" and "an empty member
@@ -2967,6 +2968,62 @@ the counts drift would, and `container/workflow_test.go` already does exactly
 that for the CI matrix. That is worth more than any amount of organizing and it
 is not done yet.
 
+### D51. There is no alias for a nullable type. Decided.
+
+A field a database may report as NULL is declared `sql.Null[T]` and never a
+named alias of one. `Text` and `Int` are gone.
+
+#### What was inconsistent
+
+Two of the four nullable kinds were aliased and two were not: 93 fields as
+`Text`, 5 as `Int`, and five written out as `sql.Null[bool]` or
+`sql.Null[float64]`. Two structs declared next to each other read differently
+for no reason a caller could see.
+
+#### Why not alias all four instead
+
+Both reviews rejected that and so did Ken, for the same reason, and the reason
+is what a reader actually sees.
+
+`go doc` in a terminal prints plain text. With an alias a reader of
+`go doc dbmeta.Sequence` sees `Cycles Text` and has to run a second command to
+learn that it can be absent. Without one they see `Cycles sql.Null[bool]` and
+already know. A code review diff and an editor's field list behave the same
+way, and pkg.go.dev's clickable link is the only place where the alias costs
+nothing.
+
+The other two would have had to be called `Bool` and `Float`, which read like
+primitives and hide the single thing a caller has to know about the field.
+Gemini's phrasing: a name like `Text` is dangerous for a nullable type, because
+a reader assumes it behaves like a string and does not expect to check `Valid`.
+
+Neither review thought 93 against 5 argued for keeping one alias. DeepSeek
+called that status quo bias, and it is. Frequency makes a name dominant, not
+clear.
+
+#### Defined types were never an option
+
+`type Text sql.Null[string]` does not inherit the methods of its underlying
+type, so it loses `Scan` and `Value` and every `rows.Scan(&v.Comment)` in all
+54 bindings stops working. The aliases worked only because they were aliases.
+
+#### Where the lesson went
+
+The `Text` doc comment held the canonical account of this project's most
+expensive mistake, that collapsing a NULL access list into an empty string made
+"the owner has full access" read identically to "nobody has any access". That
+is in `NULLS.md` in full, where it always was, and the package documentation in
+`object.go` now points there.
+
+An invariant that governs the whole project should not have been hanging off a
+type alias. Deleting the alias fixed that as a side effect.
+
+#### The shape of the change
+
+98 field declarations in `object.go` and nothing in `models/`, because every
+binding names the struct field rather than the type. It was mechanical, and it
+was cheap only because no release is tagged: `Text` was exported.
+
 ## What exists today
 
 An agent that starts work must read these sources first.
@@ -3518,8 +3575,7 @@ An open question lives here until it is answered, and then it becomes a
 decision above. The argument behind a decision belongs with the decision, which
 is why there is no separate document for it. See D50.
 
-
-None. The floor question that the upstream change reopened has been answered:
+None of the older questions are open. The floor question that the upstream change reopened has been answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
 asked for in exchange.
 

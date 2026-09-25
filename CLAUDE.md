@@ -10,7 +10,7 @@ come here.
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 50
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 51
 at the top; read the status, because six of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -217,8 +217,11 @@ is the shortest document here and it is the one that has cost the most to
 learn.
 
 In brief: never wrap a nullable catalog column in `COALESCE`, and never pad an
-absent column with a literal. Give the field the type `Text` and select
-`NULL AS "name"`. Before padding, ask whether the value on the old release is
+absent column with a literal. Give the field the type `sql.Null[string]`, or
+`sql.Null[T]` for whatever T it is, and select `NULL AS "name"`. There is no
+alias for a nullable type and there must not be one: a reader of
+`go doc dbmeta.Sequence` learns from the field itself that it can be absent,
+and would not from a name like `Text`. See D51. Before padding, ask whether the value on the old release is
 unknown or genuinely that value, and set `Field.Min` only for the first.
 
 Declare sentinel errors as constants of a defined string type, never as

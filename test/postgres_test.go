@@ -245,7 +245,7 @@ func TestNullAccessDiffersFromEmpty(t *testing.T) {
 	db := open(t)
 	m := setup(t, db)
 
-	got := map[string]dbmeta.Text{}
+	got := map[string]sql.Null[string]{}
 	for v, err := range dbmeta.Privileges.All(t.Context(), m, db, args()) {
 		if err != nil {
 			t.Fatalf("reading privileges: %v", err)

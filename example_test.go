@@ -53,7 +53,7 @@ func Example() {
 			log.Fatal(err)
 		}
 		line := fmt.Sprintf("  %s.%s (%s)", t.Schema, t.Name, t.Type)
-		// Comment is a Text, so a table with no comment is absent rather than
+		// Comment is a sql.Null[string], so a table with no comment is absent rather than
 		// empty. Reading .V prints empty for both, which is what a CLI wants.
 		if t.Comment.Valid {
 			line += " " + t.Comment.V

@@ -38,7 +38,8 @@ Demonstrated on a live PostgreSQL 18 server:
  revoked_privs | f           |       0 | (none)     |
 ```
 
-**Do this instead.** Let the NULL through and give the field the type [`Text`],
+**Do this instead.** Let the NULL through and give the field the type
+[`sql.Null[string]`],
 which is `sql.Null[string]`. Reading `.V` prints empty for an absent value, so
 a command line client behaves as it would have. Reading `.Valid` recovers the
 difference for anyone who needs it, and a code generator does.
@@ -115,4 +116,4 @@ each column before choosing a Go type, write the fixture so that both the
 absent and the empty case exist, and let `TestPaddedFieldsAreNull` and its
 equivalents run against a real server before believing any of it.
 
-[`Text`]: https://pkg.go.dev/github.com/xo/dbmeta#Text
+[`sql.Null[string]`]: https://pkg.go.dev/database/sql#Null

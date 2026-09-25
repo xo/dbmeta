@@ -2,33 +2,22 @@ package dbmeta
 
 import "database/sql"
 
-// Text is a string a database may report as NULL.
-//
-// An absent Text is not the same as an empty one. A table with no comment is
-// absent. A table whose comment is the empty string is present and empty.
-//
-// PostgreSQL relies on that difference for access privileges: a NULL means the
-// default privileges apply, and an empty list means every privilege was
-// revoked. Collapsing the two, which an earlier version of this package did
-// with COALESCE, makes "the owner has full access" read the same as "nobody
-// has any access".
-//
-// Read [database/sql.Null.V] to print it, which is empty for an absent value
-// and so behaves the way a plain string did. Read [database/sql.Null.Valid]
-// when the difference matters.
-type Text = sql.Null[string]
-
-// Int is an integer a database may report as NULL, or that this package pads
-// with NULL because the server is too old to have it. A sequence read from a
-// server before release 10 has no recorded bounds, and reporting zero would be
-// a claim rather than an absence.
-type Int = sql.Null[int64]
-
 // This file declares the object kinds and the query for each one.
 //
 // There is one exported Query value per kind. A caller names the value, so the
 // result type is inferred and a type the package does not know cannot be
 // asked for. A model registers what its dialect provides for each value.
+//
+// A field a database may report as NULL is declared sql.Null[T] and never a
+// plain T. An absent value is not an empty one: a table with no comment and a
+// table whose comment is the empty string are different facts, and collapsing
+// them shipped a real bug once. Read docs/NULLS.md before writing a query.
+// That document is short and it is the one that cost the most to learn.
+//
+// Read Null.V to print a value, which is the zero value when absent and so
+// behaves the way a plain field did. Read Null.Valid where the difference
+// matters, and read Field.Present to tell an absent value from a column the
+// server is too old to have.
 //
 // The object set comes from psql, which describes 49 kinds. Only the first few
 // are declared here, because D13 builds the models before the API and the
@@ -40,7 +29,7 @@ type Table struct {
 	Schema  string
 	Name    string
 	Type    string
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // Schema is a namespace within a catalog.
@@ -48,7 +37,7 @@ type Schema struct {
 	Catalog string
 	Name    string
 	Owner   string
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // Column is one column of a table.
@@ -60,7 +49,7 @@ type Column struct {
 	Ordinal  int
 	DataType string
 	Nullable bool
-	Default  Text
+	Default  sql.Null[string]
 	// PrimaryKey reports whether the column is part of the primary key.
 	//
 	// psql does not print this and it is here under D47, because two
@@ -71,11 +60,11 @@ type Column struct {
 	// Identity is the identity kind, empty when the column is not an identity.
 	// PostgreSQL gained it in release 11, so an older server reports empty
 	// under the padding rule and [Field.Min] says which is which.
-	Identity Text
+	Identity sql.Null[string]
 	// Generated is the generated kind, empty when the column is not
 	// generated. PostgreSQL gained it in release 12.
-	Generated Text
-	Comment   Text
+	Generated sql.Null[string]
+	Comment   sql.Null[string]
 }
 
 // Index is an index on a table.
@@ -87,7 +76,7 @@ type Index struct {
 	Type    string
 	Unique  bool
 	Primary bool
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // Queries. One value per object kind.
@@ -109,10 +98,10 @@ type Database struct {
 	Encoding   string
 	Collate    string
 	CType      string
-	Access     Text
-	Tablespace Text
+	Access     sql.Null[string]
+	Tablespace sql.Null[string]
 	Size       string
-	Comment    Text
+	Comment    sql.Null[string]
 }
 
 // Tablespace is a location the server stores data in. psql lists them with \db.
@@ -120,10 +109,10 @@ type Tablespace struct {
 	Name     string
 	Owner    string
 	Location string
-	Options  Text
+	Options  sql.Null[string]
 	Size     string
-	Access   Text
-	Comment  Text
+	Access   sql.Null[string]
+	Comment  sql.Null[string]
 }
 
 // AccessMethod is an index or table access method. psql lists them with \dA.
@@ -131,7 +120,7 @@ type AccessMethod struct {
 	Name    string
 	Type    string
 	Handler string
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // Language is a procedural language. psql lists them with \dL.
@@ -143,8 +132,8 @@ type Language struct {
 	Handler   string
 	Validator string
 	Inline    string
-	Access    Text
-	Comment   Text
+	Access    sql.Null[string]
+	Comment   sql.Null[string]
 }
 
 // Conversion is an encoding conversion. psql lists them with \dc.
@@ -154,7 +143,7 @@ type Conversion struct {
 	Source  string
 	Target  string
 	Default bool
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // Cast converts one type to another. psql lists them with \dC.
@@ -164,27 +153,27 @@ type Cast struct {
 	Function  string
 	Implicit  string
 	LeakProof bool
-	Comment   Text
+	Comment   sql.Null[string]
 }
 
 // Collation is a sorting rule. psql lists them with \dO.
 type Collation struct {
 	Schema        string
 	Name          string
-	Provider      Text
+	Provider      sql.Null[string]
 	Collate       string
 	CType         string
-	Locale        Text
+	Locale        sql.Null[string]
 	Deterministic bool
-	Comment       Text
+	Comment       sql.Null[string]
 }
 
 // LargeObject is a large object. psql lists them with \dl.
 type LargeObject struct {
 	OID     int64
 	Owner   string
-	Access  Text
-	Comment Text
+	Access  sql.Null[string]
+	Comment sql.Null[string]
 }
 
 // EventTrigger fires on a DDL event. psql lists them with \dy.
@@ -194,17 +183,17 @@ type EventTrigger struct {
 	Owner    string
 	Enabled  string
 	Function string
-	Tags     Text
-	Comment  Text
+	Tags     sql.Null[string]
+	Comment  sql.Null[string]
 }
 
 // Setting is a configuration parameter. psql lists them with \dconfig.
 type Setting struct {
 	Name    string
-	Value   Text
-	Type    Text
-	Context Text
-	Access  Text
+	Value   sql.Null[string]
+	Type    sql.Null[string]
+	Context sql.Null[string]
+	Access  sql.Null[string]
 }
 
 // Queries for the objects above.
@@ -240,7 +229,7 @@ type Function struct {
 	// ID identifies the routine where a name does not. PostgreSQL overloads a
 	// name, so [RoutineParameters] joins on this rather than on Name. A
 	// database that does not overload reports it absent.
-	ID         Text
+	ID         sql.Null[string]
 	Kind       string
 	ResultType string
 	ArgTypes   string
@@ -248,10 +237,10 @@ type Function struct {
 	Parallel   string
 	Owner      string
 	Security   string
-	Access     Text
+	Access     sql.Null[string]
 	Language   string
-	Source     Text
-	Comment    Text
+	Source     sql.Null[string]
+	Comment    sql.Null[string]
 }
 
 // Type is a data type. psql lists them with \dT.
@@ -263,8 +252,8 @@ type Type struct {
 	Kind     string
 	Elements string
 	Owner    string
-	Access   Text
-	Comment  Text
+	Access   sql.Null[string]
+	Comment  sql.Null[string]
 }
 
 // Domain is a type with a constraint. psql lists them with \dD.
@@ -275,10 +264,10 @@ type Domain struct {
 	DataType    string
 	Collation   string
 	Nullable    bool
-	Default     Text
+	Default     sql.Null[string]
 	Constraints string
-	Access      Text
-	Comment     Text
+	Access      sql.Null[string]
+	Comment     sql.Null[string]
 }
 
 // Operator is an operator. psql lists them with \do.
@@ -289,7 +278,7 @@ type Operator struct {
 	RightType  string
 	ResultType string
 	Function   string
-	Comment    Text
+	Comment    sql.Null[string]
 }
 
 // Queries for routines and types.
@@ -317,9 +306,9 @@ type Role struct {
 	BypassRLS   bool
 	Inherit     bool
 	ConnLimit   int64
-	ValidUntil  Text
+	ValidUntil  sql.Null[string]
 	MemberOf    string
-	Comment     Text
+	Comment     sql.Null[string]
 }
 
 // RoleSetting is a configuration value set for a role, optionally in one
@@ -327,14 +316,14 @@ type Role struct {
 type RoleSetting struct {
 	Role     string
 	Database string
-	Settings Text
+	Settings sql.Null[string]
 }
 
 // RoleGrant is one role's membership of another. psql lists them with \drg.
 type RoleGrant struct {
 	Role     string
 	MemberOf string
-	Grantor  Text
+	Grantor  sql.Null[string]
 	Admin    bool
 	Inherit  bool
 	Set      bool
@@ -345,7 +334,7 @@ type Privilege struct {
 	Schema       string
 	Name         string
 	Type         string
-	Access       Text
+	Access       sql.Null[string]
 	ColumnAccess string
 	Policies     string
 }
@@ -356,7 +345,7 @@ type DefaultACL struct {
 	Owner  string
 	Schema string
 	Type   string
-	Access Text
+	Access sql.Null[string]
 }
 
 // ForeignDataWrapper reaches data outside the database. psql lists them with
@@ -364,11 +353,11 @@ type DefaultACL struct {
 type ForeignDataWrapper struct {
 	Name      string
 	Owner     string
-	Handler   Text
-	Validator Text
-	Access    Text
-	Options   Text
-	Comment   Text
+	Handler   sql.Null[string]
+	Validator sql.Null[string]
+	Access    sql.Null[string]
+	Options   sql.Null[string]
+	Comment   sql.Null[string]
 }
 
 // ForeignServer is a server reached through a wrapper. psql lists them with
@@ -377,19 +366,19 @@ type ForeignServer struct {
 	Name    string
 	Owner   string
 	Wrapper string
-	Type    Text
-	Version Text
-	Access  Text
-	Options Text
-	Comment Text
+	Type    sql.Null[string]
+	Version sql.Null[string]
+	Access  sql.Null[string]
+	Options sql.Null[string]
+	Comment sql.Null[string]
 }
 
 // UserMapping maps a local role onto a foreign server. psql lists them with
 // \deu.
 type UserMapping struct {
 	Server  string
-	Name    Text
-	Options Text
+	Name    sql.Null[string]
+	Options sql.Null[string]
 }
 
 // ForeignTable is a table on a foreign server. psql lists them with \det.
@@ -397,8 +386,8 @@ type ForeignTable struct {
 	Schema  string
 	Name    string
 	Server  string
-	Options Text
-	Comment Text
+	Options sql.Null[string]
+	Comment sql.Null[string]
 }
 
 // Queries for roles, privileges and foreign data.
@@ -434,7 +423,7 @@ type Publication struct {
 	Delete    bool
 	Truncate  bool
 	ViaRoot   bool
-	Comment   Text
+	Comment   sql.Null[string]
 }
 
 // PublicationTable is one table a publication offers. psql shows them with
@@ -444,7 +433,7 @@ type PublicationTable struct {
 	Schema      string
 	Name        string
 	Columns     string
-	Where       Text
+	Where       sql.Null[string]
 }
 
 // Subscription receives changes from a publication. psql lists them with \dRs.
@@ -453,16 +442,16 @@ type Subscription struct {
 	Owner        string
 	Enabled      bool
 	Publications string
-	Synchronous  Text
-	Slot         Text
-	Comment      Text
+	Synchronous  sql.Null[string]
+	Slot         sql.Null[string]
+	Comment      sql.Null[string]
 }
 
 // TextSearchParser splits text into tokens. psql lists them with \dFp.
 type TextSearchParser struct {
 	Schema  string
 	Name    string
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // TextSearchDictionary normalizes tokens. psql lists them with \dFd.
@@ -470,8 +459,8 @@ type TextSearchDictionary struct {
 	Schema   string
 	Name     string
 	Template string
-	Options  Text
-	Comment  Text
+	Options  sql.Null[string]
+	Comment  sql.Null[string]
 }
 
 // TextSearchTemplate is the code behind a dictionary. psql lists them with
@@ -479,9 +468,9 @@ type TextSearchDictionary struct {
 type TextSearchTemplate struct {
 	Schema  string
 	Name    string
-	Init    Text
+	Init    sql.Null[string]
 	Lexize  string
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // TextSearchConfig ties a parser to dictionaries. psql lists them with \dF.
@@ -489,7 +478,7 @@ type TextSearchConfig struct {
 	Schema  string
 	Name    string
 	Parser  string
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // OperatorClass tells an access method how to index a type. psql lists them
@@ -538,7 +527,7 @@ type Extension struct {
 	Name    string
 	Version string
 	Schema  string
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // ExtensionObject is one object an extension owns. psql lists them with \dx+.
@@ -555,7 +544,7 @@ type ExtendedStat struct {
 	Owner   string
 	Table   string
 	Kinds   string
-	Comment Text
+	Comment sql.Null[string]
 }
 
 // Comment is a comment on any object. psql shows them with \dd.
@@ -607,7 +596,7 @@ type IndexColumn struct {
 	Index      string
 	Name       string
 	Ordinal    int64
-	Expression Text
+	Expression sql.Null[string]
 	Descending bool
 }
 
@@ -622,10 +611,10 @@ type Constraint struct {
 	Table      string
 	Name       string
 	Type       string
-	Definition Text
+	Definition sql.Null[string]
 	Deferrable bool
 	Deferred   bool
-	Comment    Text
+	Comment    sql.Null[string]
 }
 
 // Trigger fires on a change to a table. psql shows them inside \d name.
@@ -635,7 +624,7 @@ type Trigger struct {
 	Name       string
 	Enabled    string
 	Definition string
-	Comment    Text
+	Comment    sql.Null[string]
 }
 
 // Sequence generates numbers. psql lists them with \ds and shows the detail
@@ -643,14 +632,14 @@ type Trigger struct {
 type Sequence struct {
 	Schema    string
 	Name      string
-	DataType  Text
-	Start     Int
-	Minimum   Int
-	Maximum   Int
-	Increment Int
+	DataType  sql.Null[string]
+	Start     sql.Null[int64]
+	Minimum   sql.Null[int64]
+	Maximum   sql.Null[int64]
+	Increment sql.Null[int64]
 	Cycles    sql.Null[bool]
 	OwnedBy   string
-	Comment   Text
+	Comment   sql.Null[string]
 }
 
 // PartitionedTable is a table split into partitions. psql lists them with \dP.
@@ -662,7 +651,7 @@ type PartitionedTable struct {
 	Parent     string
 	Strategy   string
 	Expression string
-	Comment    Text
+	Comment    sql.Null[string]
 }
 
 // Queries for the detail of a table.
@@ -704,10 +693,10 @@ type ConstraintColumn struct {
 	Name       string
 	Ordinal    int64
 
-	ForeignCatalog Text
-	ForeignSchema  Text
-	ForeignTable   Text
-	ForeignName    Text
+	ForeignCatalog sql.Null[string]
+	ForeignSchema  sql.Null[string]
+	ForeignTable   sql.Null[string]
+	ForeignName    sql.Null[string]
 }
 
 // RoutineParameter is one parameter of a function or a procedure, in
@@ -723,15 +712,15 @@ type RoutineParameter struct {
 	Catalog   string
 	Schema    string
 	Routine   string
-	RoutineID Text
-	Name      Text
+	RoutineID sql.Null[string]
+	Name      sql.Null[string]
 	Ordinal   int64
 	// Mode is in, out, inout, variadic or table for a column of a returned
 	// table. A return value reports mode return and ordinal zero where the
 	// database records one.
 	Mode     string
 	DataType string
-	Default  Text
+	Default  sql.Null[string]
 }
 
 // EnumValue is one label of an enumerated type, in sort order.
@@ -764,10 +753,10 @@ type View struct {
 	Name       string
 	Definition string
 	// CheckOption is none, local or cascaded.
-	CheckOption Text
+	CheckOption sql.Null[string]
 	Updatable   sql.Null[bool]
 	Insertable  sql.Null[bool]
-	Comment     Text
+	Comment     sql.Null[string]
 }
 
 // ColumnStat is what the planner knows about the values in a column.
@@ -784,7 +773,7 @@ type ColumnStat struct {
 	Name    string
 
 	// AvgWidth is the average size of a value in bytes.
-	AvgWidth Int
+	AvgWidth sql.Null[int64]
 	// NullFrac is the fraction of values that are null, from zero to one.
 	NullFrac sql.Null[float64]
 	// Distinct is the number of distinct values. A negative number is a
@@ -792,13 +781,13 @@ type ColumnStat struct {
 	// whose distinct count grows with the table.
 	Distinct sql.Null[float64]
 
-	Min  Text
-	Max  Text
-	Mean Text
+	Min  sql.Null[string]
+	Max  sql.Null[string]
+	Mean sql.Null[string]
 	// TopN holds the most common values and TopNFreqs their frequencies, both
 	// as text, one entry per line. They are the same length.
-	TopN      Text
-	TopNFreqs Text
+	TopN      sql.Null[string]
+	TopNFreqs sql.Null[string]
 }
 
 // Queries for the kinds psql has no command for.
