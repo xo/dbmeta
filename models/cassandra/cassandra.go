@@ -51,16 +51,16 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// versionSQL reads the three versions Cassandra reports.
+// versionQuery reads the three versions Cassandra reports.
 //
 // They move independently, which is why [dbmeta.VersionSet] holds more than
 // one. The release is the main version, because that is what a fragment gates
 // on. CQL and the native protocol are recorded under their own keys so a
 // caller can read them, and so a future fragment can gate on either.
-const versionSQL = `SELECT release_version, cql_version, native_protocol_version` +
+const versionQuery = `SELECT release_version, cql_version, native_protocol_version` +
 	` FROM system.local WHERE key = 'local'`
 
-// parseVersion reads the three columns versionSQL returns.
+// parseVersion reads the three columns versionQuery returns.
 func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	var s dbmeta.VersionSet
 	if len(cols) != 3 {
@@ -97,7 +97,7 @@ func init() {
 		// CQL binds by position and writes a question mark, the same as
 		// MySQL. The number is not used.
 		Placeholder:    func(int) string { return "?" },
-		VersionSQL:     versionSQL,
+		VersionQuery:   versionQuery,
 		VersionColumns: 3,
 		ParseVersion:   parseVersion,
 		ChangePassword: changePassword,
@@ -111,7 +111,7 @@ func init() {
 var v40 = dbmeta.V(4)
 
 // always is a fragment every release takes.
-func always(sqlstr string) dbmeta.Choice { return dbmeta.Choice{{SQL: sqlstr}} }
+func always(query string) dbmeta.Choice { return dbmeta.Choice{{Query: query}} }
 
 // filters declares the filters a caller may pass.
 //

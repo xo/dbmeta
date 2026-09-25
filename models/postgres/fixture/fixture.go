@@ -58,8 +58,8 @@ type Step struct {
 type Result struct {
 	// Name is the step's name.
 	Name string
-	// SQL is the statement to run. It is empty when the step was skipped.
-	SQL string
+	// Query is the statement to run. It is empty when the step was skipped.
+	Query string
 	// Skipped reports that the server is too old for the step, so there is
 	// nothing to run. The object the step would have created does not exist on
 	// that release, and the query that reads it is refused there too.
@@ -98,7 +98,7 @@ func (f Fixture) ResolveTeardown(versions dbmeta.VersionSet) ([]Result, error) {
 func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 	out := make([]Result, 0, len(steps))
 	for _, step := range steps {
-		sqlstr, err := step.Stmt.SQL(versions)
+		query, err := step.Stmt.Build(versions)
 		switch {
 		case errors.Is(err, dbmeta.ErrVersionTooOld):
 			out = append(out, Result{
@@ -109,21 +109,21 @@ func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 		case err != nil:
 			return nil, err
 		default:
-			out = append(out, Result{Name: step.Name, SQL: sqlstr})
+			out = append(out, Result{Name: step.Name, Query: query})
 		}
 	}
 	return out, nil
 }
 
 // at builds a step whose statement is the same on every server.
-func at(name, sqlstr string) Step {
-	return Step{Name: name, Stmt: dbmeta.Always(sqlstr)}
+func at(name, query string) Step {
+	return Step{Name: name, Stmt: dbmeta.Always(query)}
 }
 
 // from builds a step that needs a server at min or newer, and is skipped
 // below it.
-func from(name string, since dbmeta.Version, sqlstr string) Step {
-	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: since, SQL: sqlstr}}}}
+func from(name string, since dbmeta.Version, query string) Step {
+	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: since, Query: query}}}}
 }
 
 // choose builds a step whose syntax changed, taking the alternatives in any

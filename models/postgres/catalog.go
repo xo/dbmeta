@@ -26,21 +26,21 @@ func init() {
 func registerDatabases() {
 	dbmeta.Databases.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Database]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT d.datname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(d.datdba) AS "owner"`}},
-			{{SQL: `, pg_catalog.pg_encoding_to_char(d.encoding) AS "encoding"`}},
-			{{SQL: `, d.datcollate AS "collate"`}},
-			{{SQL: `, d.datctype AS "ctype"`}},
-			{{SQL: `, pg_catalog.array_to_string(d.datacl, E'\n') AS "access"`}},
-			{{SQL: `, t.spcname AS "tablespace"`}},
-			{{SQL: `, CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')` +
+			{{Query: `SELECT d.datname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(d.datdba) AS "owner"`}},
+			{{Query: `, pg_catalog.pg_encoding_to_char(d.encoding) AS "encoding"`}},
+			{{Query: `, d.datcollate AS "collate"`}},
+			{{Query: `, d.datctype AS "ctype"`}},
+			{{Query: `, pg_catalog.array_to_string(d.datacl, E'\n') AS "access"`}},
+			{{Query: `, t.spcname AS "tablespace"`}},
+			{{Query: `, CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')` +
 				` THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))` +
 				` ELSE 'no access' END AS "size"`}},
-			{{SQL: `, pg_catalog.shobj_description(d.oid, 'pg_database') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_database d`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_tablespace t ON t.oid = d.dattablespace`}},
-			{{SQL: `WHERE (@name = '' OR d.datname LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `, pg_catalog.shobj_description(d.oid, 'pg_database') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_database d`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_tablespace t ON t.oid = d.dattablespace`}},
+			{{Query: `WHERE (@name = '' OR d.datname LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "owner", "encoding", "collate", "ctype", "access", "tablespace", "size", "comment"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "database name pattern, empty for every database", Default: ""}},
@@ -57,16 +57,16 @@ func registerDatabases() {
 func registerTablespaces() {
 	dbmeta.Tablespaces.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Tablespace]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT spcname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(spcowner) AS "owner"`}},
-			{{SQL: `, pg_catalog.pg_tablespace_location(oid) AS "location"`}},
-			{{SQL: `, pg_catalog.array_to_string(spcoptions, ', ') AS "options"`}},
-			{{SQL: `, pg_catalog.pg_size_pretty(pg_catalog.pg_tablespace_size(oid)) AS "size"`}},
-			{{SQL: `, pg_catalog.array_to_string(spcacl, E'\n') AS "access"`}},
-			{{SQL: `, pg_catalog.shobj_description(oid, 'pg_tablespace') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_tablespace`}},
-			{{SQL: `WHERE (@name = '' OR spcname LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `SELECT spcname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(spcowner) AS "owner"`}},
+			{{Query: `, pg_catalog.pg_tablespace_location(oid) AS "location"`}},
+			{{Query: `, pg_catalog.array_to_string(spcoptions, ', ') AS "options"`}},
+			{{Query: `, pg_catalog.pg_size_pretty(pg_catalog.pg_tablespace_size(oid)) AS "size"`}},
+			{{Query: `, pg_catalog.array_to_string(spcacl, E'\n') AS "access"`}},
+			{{Query: `, pg_catalog.shobj_description(oid, 'pg_tablespace') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_tablespace`}},
+			{{Query: `WHERE (@name = '' OR spcname LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "owner", "location", "options", "size", "access", "comment"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "tablespace name pattern, empty for every tablespace", Default: ""}},
@@ -85,13 +85,13 @@ func registerTablespaces() {
 func registerAccessMethods() {
 	dbmeta.AccessMethods.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.AccessMethod]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT amname AS "name"`}},
-			{{SQL: `, CASE amtype WHEN 'i' THEN 'index' WHEN 't' THEN 'table' ELSE amtype::text END AS "type"`}},
-			{{SQL: `, amhandler::text AS "handler"`}},
-			{{SQL: `, pg_catalog.obj_description(oid, 'pg_am') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_am`}},
-			{{SQL: `WHERE (@name = '' OR amname LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `SELECT amname AS "name"`}},
+			{{Query: `, CASE amtype WHEN 'i' THEN 'index' WHEN 't' THEN 'table' ELSE amtype::text END AS "type"`}},
+			{{Query: `, amhandler::text AS "handler"`}},
+			{{Query: `, pg_catalog.obj_description(oid, 'pg_am') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_am`}},
+			{{Query: `WHERE (@name = '' OR amname LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "type", "handler", "comment"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "access method name pattern, empty for every one", Default: ""}},
@@ -107,20 +107,20 @@ func registerAccessMethods() {
 func registerLanguages() {
 	dbmeta.Languages.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Language]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT l.lanname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(l.lanowner) AS "owner"`}},
-			{{SQL: `, l.lanpltrusted AS "trusted"`}},
-			{{SQL: `, NOT l.lanispl AS "internal"`}},
-			{{SQL: `, l.lanplcallfoid::pg_catalog.regprocedure::text AS "handler"`}},
-			{{SQL: `, l.lanvalidator::pg_catalog.regprocedure::text AS "validator"`}},
-			{{SQL: `, l.laninline::pg_catalog.regprocedure::text AS "inline"`}},
-			{{SQL: `, pg_catalog.array_to_string(l.lanacl, E'\n') AS "access"`}},
-			{{SQL: `, d.description AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_language l`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_description d ON d.objoid = l.oid AND d.classoid = 'pg_language'::regclass`}},
-			{{SQL: `WHERE l.lanplcallfoid != 0`}},
-			{{SQL: `AND (@name = '' OR l.lanname LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `SELECT l.lanname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(l.lanowner) AS "owner"`}},
+			{{Query: `, l.lanpltrusted AS "trusted"`}},
+			{{Query: `, NOT l.lanispl AS "internal"`}},
+			{{Query: `, l.lanplcallfoid::pg_catalog.regprocedure::text AS "handler"`}},
+			{{Query: `, l.lanvalidator::pg_catalog.regprocedure::text AS "validator"`}},
+			{{Query: `, l.laninline::pg_catalog.regprocedure::text AS "inline"`}},
+			{{Query: `, pg_catalog.array_to_string(l.lanacl, E'\n') AS "access"`}},
+			{{Query: `, d.description AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_language l`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_description d ON d.objoid = l.oid AND d.classoid = 'pg_language'::regclass`}},
+			{{Query: `WHERE l.lanplcallfoid != 0`}},
+			{{Query: `AND (@name = '' OR l.lanname LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "owner", "trusted", "internal", "handler", "validator", "inline", "access", "comment"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "language name pattern, empty for every language", Default: ""}},
@@ -137,19 +137,19 @@ func registerLanguages() {
 func registerConversions() {
 	dbmeta.Conversions.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Conversion]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT n.nspname AS "schema"`}},
-			{{SQL: `, c.conname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_encoding_to_char(c.conforencoding) AS "source"`}},
-			{{SQL: `, pg_catalog.pg_encoding_to_char(c.contoencoding) AS "target"`}},
-			{{SQL: `, c.condefault AS "default"`}},
-			{{SQL: `, d.description AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_conversion c`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.connamespace`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.classoid = 'pg_conversion'::regclass`}},
-			{{SQL: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR c.conname LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, c.conname AS "name"`}},
+			{{Query: `, pg_catalog.pg_encoding_to_char(c.conforencoding) AS "source"`}},
+			{{Query: `, pg_catalog.pg_encoding_to_char(c.contoencoding) AS "target"`}},
+			{{Query: `, c.condefault AS "default"`}},
+			{{Query: `, d.description AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_conversion c`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.connamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.classoid = 'pg_conversion'::regclass`}},
+			{{Query: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR c.conname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: fields("schema", "name", "source", "target", "default", "comment"),
 		Params: schemaNameSystem("conversion"),
@@ -165,22 +165,22 @@ func registerConversions() {
 func registerCasts() {
 	dbmeta.Casts.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Cast]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT pg_catalog.format_type(c.castsource, NULL) AS "source"`}},
-			{{SQL: `, pg_catalog.format_type(c.casttarget, NULL) AS "target"`}},
-			{{SQL: `, CASE WHEN c.castmethod = 'b' THEN '(binary coercible)'` +
+			{{Query: `SELECT pg_catalog.format_type(c.castsource, NULL) AS "source"`}},
+			{{Query: `, pg_catalog.format_type(c.casttarget, NULL) AS "target"`}},
+			{{Query: `, CASE WHEN c.castmethod = 'b' THEN '(binary coercible)'` +
 				` WHEN c.castmethod = 'i' THEN '(with inout)'` +
 				` ELSE p.proname::text END AS "function"`}},
-			{{SQL: `, CASE WHEN c.castcontext = 'e' THEN 'no'` +
+			{{Query: `, CASE WHEN c.castcontext = 'e' THEN 'no'` +
 				` WHEN c.castcontext = 'a' THEN 'in assignment'` +
 				` ELSE 'yes' END AS "implicit"`}},
-			{{SQL: `, p.proleakproof AS "leakproof"`}},
-			{{SQL: `, d.description AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_cast c`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_proc p ON c.castfunc = p.oid`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.classoid = 'pg_cast'::regclass`}},
-			{{SQL: `WHERE (@name = '' OR pg_catalog.format_type(c.castsource, NULL) LIKE @name` +
+			{{Query: `, p.proleakproof AS "leakproof"`}},
+			{{Query: `, d.description AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_cast c`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_proc p ON c.castfunc = p.oid`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.classoid = 'pg_cast'::regclass`}},
+			{{Query: `WHERE (@name = '' OR pg_catalog.format_type(c.castsource, NULL) LIKE @name` +
 				` OR pg_catalog.format_type(c.casttarget, NULL) LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: fields("source", "target", "function", "implicit", "leakproof", "comment"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "type name pattern on either side, empty for every cast", Default: ""}},
@@ -199,33 +199,33 @@ func registerCasts() {
 func registerCollations() {
 	dbmeta.Collations.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Collation]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT n.nspname AS "schema"`}},
-			{{SQL: `, c.collname AS "name"`}},
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, c.collname AS "name"`}},
 			{
-				{SQL: `, NULL AS "provider"`},
-				{Min: v10, SQL: `, CASE c.collprovider WHEN 'd' THEN 'default' WHEN 'c' THEN 'libc' WHEN 'i' THEN 'icu' WHEN 'b' THEN 'builtin' ELSE '' END AS "provider"`},
+				{Query: `, NULL AS "provider"`},
+				{Min: v10, Query: `, CASE c.collprovider WHEN 'd' THEN 'default' WHEN 'c' THEN 'libc' WHEN 'i' THEN 'icu' WHEN 'b' THEN 'builtin' ELSE '' END AS "provider"`},
 			},
-			{{SQL: `, c.collcollate AS "collate"`}},
-			{{SQL: `, c.collctype AS "ctype"`}},
+			{{Query: `, c.collcollate AS "collate"`}},
+			{{Query: `, c.collctype AS "ctype"`}},
 			// the locale column was renamed twice. psql gates it the same
 			// way at describe.c:5093, and an older server falls back to the
 			// collate string rather than reporting nothing.
 			{
-				{SQL: `, c.collcollate AS "locale"`},
-				{Min: v15, SQL: `, c.colliculocale AS "locale"`},
-				{Min: v17, SQL: `, c.colllocale AS "locale"`},
+				{Query: `, c.collcollate AS "locale"`},
+				{Min: v15, Query: `, c.colliculocale AS "locale"`},
+				{Min: v17, Query: `, c.colllocale AS "locale"`},
 			},
 			{
-				{SQL: `, true AS "deterministic"`},
-				{Min: v12, SQL: `, c.collisdeterministic AS "deterministic"`},
+				{Query: `, true AS "deterministic"`},
+				{Min: v12, Query: `, c.collisdeterministic AS "deterministic"`},
 			},
-			{{SQL: `, pg_catalog.obj_description(c.oid, 'pg_collation') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_collation c`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace`}},
-			{{SQL: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR c.collname LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_collation') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_collation c`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace`}},
+			{{Query: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR c.collname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "schema"},
@@ -251,12 +251,12 @@ func registerCollations() {
 func registerLargeObjects() {
 	dbmeta.LargeObjects.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.LargeObject]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT o.oid AS "oid"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(o.lomowner) AS "owner"`}},
-			{{SQL: `, pg_catalog.array_to_string(o.lomacl, E'\n') AS "access"`}},
-			{{SQL: `, pg_catalog.obj_description(o.oid, 'pg_largeobject') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_largeobject_metadata o`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `SELECT o.oid AS "oid"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(o.lomowner) AS "owner"`}},
+			{{Query: `, pg_catalog.array_to_string(o.lomacl, E'\n') AS "access"`}},
+			{{Query: `, pg_catalog.obj_description(o.oid, 'pg_largeobject') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_largeobject_metadata o`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("oid", "owner", "access", "comment"),
 		Scan: func(rows *sql.Rows) (dbmeta.LargeObject, error) {
@@ -271,17 +271,17 @@ func registerLargeObjects() {
 func registerEventTriggers() {
 	dbmeta.EventTriggers.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.EventTrigger]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT e.evtname AS "name"`}},
-			{{SQL: `, e.evtevent AS "event"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(e.evtowner) AS "owner"`}},
-			{{SQL: `, CASE e.evtenabled WHEN 'O' THEN 'enabled' WHEN 'R' THEN 'replica'` +
+			{{Query: `SELECT e.evtname AS "name"`}},
+			{{Query: `, e.evtevent AS "event"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(e.evtowner) AS "owner"`}},
+			{{Query: `, CASE e.evtenabled WHEN 'O' THEN 'enabled' WHEN 'R' THEN 'replica'` +
 				` WHEN 'A' THEN 'always' WHEN 'D' THEN 'disabled' ELSE '' END AS "enabled"`}},
-			{{SQL: `, e.evtfoid::pg_catalog.regproc::text AS "function"`}},
-			{{SQL: `, pg_catalog.array_to_string(e.evttags, ', ') AS "tags"`}},
-			{{SQL: `, pg_catalog.obj_description(e.oid, 'pg_event_trigger') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_event_trigger e`}},
-			{{SQL: `WHERE (@name = '' OR e.evtname LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `, e.evtfoid::pg_catalog.regproc::text AS "function"`}},
+			{{Query: `, pg_catalog.array_to_string(e.evttags, ', ') AS "tags"`}},
+			{{Query: `, pg_catalog.obj_description(e.oid, 'pg_event_trigger') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_event_trigger e`}},
+			{{Query: `WHERE (@name = '' OR e.evtname LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "event", "owner", "enabled", "function", "tags", "comment"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "event trigger name pattern, empty for every one", Default: ""}},
@@ -299,21 +299,21 @@ func registerEventTriggers() {
 func registerSettings() {
 	dbmeta.Settings.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Setting]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT s.name AS "name"`}},
-			{{SQL: `, s.setting AS "value"`}},
-			{{SQL: `, s.vartype AS "type"`}},
-			{{SQL: `, s.context AS "context"`}},
+			{{Query: `SELECT s.name AS "name"`}},
+			{{Query: `, s.setting AS "value"`}},
+			{{Query: `, s.vartype AS "type"`}},
+			{{Query: `, s.context AS "context"`}},
 			{
-				{SQL: `, NULL AS "access"`},
-				{Min: v15, SQL: `, pg_catalog.array_to_string(p.paracl, E'\n') AS "access"`},
+				{Query: `, NULL AS "access"`},
+				{Min: v15, Query: `, pg_catalog.array_to_string(p.paracl, E'\n') AS "access"`},
 			},
-			{{SQL: `FROM pg_catalog.pg_settings s`}},
+			{{Query: `FROM pg_catalog.pg_settings s`}},
 			{
-				{SQL: ``},
-				{Min: v15, SQL: `LEFT JOIN pg_catalog.pg_parameter_acl p ON p.parname = s.name`},
+				{Query: ``},
+				{Min: v15, Query: `LEFT JOIN pg_catalog.pg_parameter_acl p ON p.parname = s.name`},
 			},
-			{{SQL: `WHERE (@name = '' OR s.name LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `WHERE (@name = '' OR s.name LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"}, {Name: "value"}, {Name: "type"}, {Name: "context"},

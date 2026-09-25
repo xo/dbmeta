@@ -117,15 +117,18 @@ func registerSchema() {
 		},
 		Params: filters("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
+			// Both hold the column kind. The statement selects it twice,
+			// once under each name, so the names say which field each copy
+			// feeds rather than pretending to hold a boolean.
 			var (
-				v                    dbmeta.Column
-				nullable, primaryKey string
+				v                 dbmeta.Column
+				nullKind, keyKind string
 			)
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
-				&v.DataType, &nullable, pad{}, &primaryKey, pad{},
+				&v.DataType, &nullKind, pad{}, &keyKind, pad{},
 				pad{}, pad{})
-			v.Nullable = !isKey(nullable)
-			v.PrimaryKey = isKey(primaryKey)
+			v.Nullable = !isKey(nullKind)
+			v.PrimaryKey = isKey(keyKind)
 			return v, err
 		},
 	})

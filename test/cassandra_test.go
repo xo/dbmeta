@@ -56,7 +56,7 @@ func setupCassandra(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	for _, step := range down {
 		if !step.Skipped {
 			//nolint:errcheck // a teardown before setup is best effort
-			db.ExecContext(ctx, step.SQL)
+			db.ExecContext(ctx, step.Query)
 		}
 	}
 
@@ -70,11 +70,11 @@ func setupCassandra(t *testing.T, db *sql.DB) *dbmeta.Meta {
 			skipped++
 			continue
 		}
-		if _, err := db.ExecContext(ctx, step.SQL); err != nil {
+		if _, err := db.ExecContext(ctx, step.Query); err != nil {
 			// A refused function, view or role means the server is the
 			// published image rather than the one this repository builds.
 			// Say so, because the statement alone does not.
-			t.Fatalf("setup %s: %v\n%s\n\n%s", step.Name, err, step.SQL, imageHint)
+			t.Fatalf("setup %s: %v\n%s\n\n%s", step.Name, err, step.Query, imageHint)
 		}
 		ran++
 	}
@@ -82,7 +82,7 @@ func setupCassandra(t *testing.T, db *sql.DB) *dbmeta.Meta {
 		for _, step := range down {
 			if !step.Skipped {
 				//nolint:errcheck // the test has already reported what matters
-				db.ExecContext(context.WithoutCancel(ctx), step.SQL)
+				db.ExecContext(context.WithoutCancel(ctx), step.Query)
 			}
 		}
 	})
@@ -202,7 +202,7 @@ func TestCassandraSmoke(t *testing.T) {
 			continue
 		case dbmeta.Supported:
 		}
-		sqlstr, vals, err := q.SQL(m, nil)
+		query, vals, err := q.Build(m, nil)
 		if errors.Is(err, dbmeta.ErrVersionTooOld) {
 			tooOld++
 			continue
@@ -211,9 +211,9 @@ func TestCassandraSmoke(t *testing.T) {
 			t.Errorf("%s: building: %v", q.Name(), err)
 			continue
 		}
-		cs, err := columnsOf(t, db, sqlstr, vals)
+		cs, err := columnsOf(t, db, query, vals)
 		if err != nil {
-			t.Errorf("%s: %v\n%s", q.Name(), err, sqlstr)
+			t.Errorf("%s: %v\n%s", q.Name(), err, query)
 			continue
 		}
 		fields, ferr := q.Fields(m)

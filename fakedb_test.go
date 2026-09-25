@@ -26,10 +26,10 @@ var (
 )
 
 // record registers the answer the fake driver gives for a statement.
-func record(sqlstr string, cols []string, rows [][]driver.Value, err error) {
+func record(query string, cols []string, rows [][]driver.Value, err error) {
 	replayMu.Lock()
 	defer replayMu.Unlock()
-	replays[sqlstr] = replay{cols: cols, rows: rows, err: err}
+	replays[query] = replay{cols: cols, rows: rows, err: err}
 }
 
 func init() {

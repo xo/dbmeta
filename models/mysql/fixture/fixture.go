@@ -45,7 +45,7 @@ type Step struct {
 // Result is what a step resolved to for one server.
 type Result struct {
 	Name    string
-	SQL     string
+	Query   string
 	Skipped bool
 	Reason  string
 }
@@ -71,7 +71,7 @@ func (f Fixture) ResolveTeardown(versions dbmeta.VersionSet) ([]Result, error) {
 func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 	out := make([]Result, 0, len(steps))
 	for _, step := range steps {
-		sqlstr, err := step.Stmt.SQL(versions)
+		query, err := step.Stmt.Build(versions)
 		switch {
 		case errors.Is(err, dbmeta.ErrVersionTooOld):
 			out = append(out, Result{
@@ -88,22 +88,22 @@ func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 		case err != nil:
 			return nil, err
 		default:
-			out = append(out, Result{Name: step.Name, SQL: sqlstr})
+			out = append(out, Result{Name: step.Name, Query: query})
 		}
 	}
 	return out, nil
 }
 
-func at(name, sqlstr string) Step {
-	return Step{Name: name, Stmt: dbmeta.Always(sqlstr)}
+func at(name, query string) Step {
+	return Step{Name: name, Stmt: dbmeta.Always(query)}
 }
 
 // when returns a step that runs on a server meeting any of the gates. A step
 // with no gate met is skipped.
-func when(name, sqlstr string, gates ...dbmeta.Gate) Step {
+func when(name, query string, gates ...dbmeta.Gate) Step {
 	c := make(dbmeta.Choice, len(gates))
 	for i, g := range gates {
-		c[i] = dbmeta.Fragment{Min: g.Min, Key: g.Key, SQL: sqlstr}
+		c[i] = dbmeta.Fragment{Min: g.Min, Key: g.Key, Query: query}
 	}
 	return Step{Name: name, Stmt: dbmeta.Stmt{c}}
 }

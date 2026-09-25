@@ -92,18 +92,18 @@ var (
 )
 
 // frag returns a fragment that applies when the server meets g.
-func frag(g dbmeta.Gate, sqlstr string) dbmeta.Fragment {
-	return dbmeta.Fragment{Min: g.Min, Key: g.Key, SQL: sqlstr}
+func frag(g dbmeta.Gate, query string) dbmeta.Fragment {
+	return dbmeta.Fragment{Min: g.Min, Key: g.Key, Query: query}
 }
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.MySQL, &dbmeta.Info{
 		Placeholder:    func(int) string { return "?" },
-		VersionSQL:     `SELECT VERSION()`,
+		VersionQuery:   `SELECT VERSION()`,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
 
-		QuotingSQL:     `SELECT @@sql_mode`,
+		QuotingQuery:   `SELECT @@sql_mode`,
 		QuotingColumns: 1,
 		ParseQuoting:   parseQuoting,
 		ChangePassword: changePassword,

@@ -27,25 +27,25 @@ func init() {
 func registerRoles() {
 	dbmeta.Roles.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Role]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT r.rolname AS "name"`}},
-			{{SQL: `, r.rolsuper AS "superuser"`}},
-			{{SQL: `, r.rolcreaterole AS "create_role"`}},
-			{{SQL: `, r.rolcreatedb AS "create_db"`}},
-			{{SQL: `, r.rolcanlogin AS "can_login"`}},
-			{{SQL: `, r.rolreplication AS "replication"`}},
-			{{SQL: `, r.rolbypassrls AS "bypass_rls"`}},
-			{{SQL: `, r.rolinherit AS "inherit"`}},
-			{{SQL: `, r.rolconnlimit AS "conn_limit"`}},
-			{{SQL: `, r.rolvaliduntil::text AS "valid_until"`}},
-			{{SQL: `, COALESCE((SELECT pg_catalog.string_agg(b.rolname, ', ' ORDER BY b.rolname)` +
+			{{Query: `SELECT r.rolname AS "name"`}},
+			{{Query: `, r.rolsuper AS "superuser"`}},
+			{{Query: `, r.rolcreaterole AS "create_role"`}},
+			{{Query: `, r.rolcreatedb AS "create_db"`}},
+			{{Query: `, r.rolcanlogin AS "can_login"`}},
+			{{Query: `, r.rolreplication AS "replication"`}},
+			{{Query: `, r.rolbypassrls AS "bypass_rls"`}},
+			{{Query: `, r.rolinherit AS "inherit"`}},
+			{{Query: `, r.rolconnlimit AS "conn_limit"`}},
+			{{Query: `, r.rolvaliduntil::text AS "valid_until"`}},
+			{{Query: `, COALESCE((SELECT pg_catalog.string_agg(b.rolname, ', ' ORDER BY b.rolname)` +
 				` FROM pg_catalog.pg_auth_members m` +
 				` JOIN pg_catalog.pg_roles b ON m.roleid = b.oid` +
 				` WHERE m.member = r.oid), '') AS "member_of"`}},
-			{{SQL: `, pg_catalog.shobj_description(r.oid, 'pg_authid') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_roles r`}},
-			{{SQL: `WHERE (@with_system OR r.rolname !~ '^pg_')`}},
-			{{SQL: `AND (@name = '' OR r.rolname LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `, pg_catalog.shobj_description(r.oid, 'pg_authid') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_roles r`}},
+			{{Query: `WHERE (@with_system OR r.rolname !~ '^pg_')`}},
+			{{Query: `AND (@name = '' OR r.rolname LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "superuser", "create_role", "create_db", "can_login",
 			"replication", "bypass_rls", "inherit", "conn_limit", "valid_until",
@@ -68,15 +68,15 @@ func registerRoles() {
 func registerRoleSettings() {
 	dbmeta.RoleSettings.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.RoleSetting]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT r.rolname AS "role"`}},
-			{{SQL: `, d.datname AS "database"`}},
-			{{SQL: `, pg_catalog.array_to_string(s.setconfig, E'\n') AS "settings"`}},
-			{{SQL: `FROM pg_catalog.pg_db_role_setting s`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_database d ON d.oid = s.setdatabase`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_roles r ON r.oid = s.setrole`}},
-			{{SQL: `WHERE (@name = '' OR COALESCE(r.rolname, '') LIKE @name)`}},
-			{{SQL: `AND (@database = '' OR COALESCE(d.datname, '') LIKE @database)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `SELECT r.rolname AS "role"`}},
+			{{Query: `, d.datname AS "database"`}},
+			{{Query: `, pg_catalog.array_to_string(s.setconfig, E'\n') AS "settings"`}},
+			{{Query: `FROM pg_catalog.pg_db_role_setting s`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_database d ON d.oid = s.setdatabase`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_roles r ON r.oid = s.setrole`}},
+			{{Query: `WHERE (@name = '' OR COALESCE(r.rolname, '') LIKE @name)`}},
+			{{Query: `AND (@database = '' OR COALESCE(d.datname, '') LIKE @database)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: fields("role", "database", "settings"),
 		Params: []dbmeta.Param{
@@ -99,30 +99,30 @@ func registerRoleSettings() {
 func registerRoleGrants() {
 	dbmeta.RoleGrants.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.RoleGrant]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT m.rolname AS "role"`}},
-			{{SQL: `, r.rolname AS "member_of"`}},
+			{{Query: `SELECT m.rolname AS "role"`}},
+			{{Query: `, r.rolname AS "member_of"`}},
 			{
-				{SQL: `, NULL AS "grantor"`},
-				{Min: v16, SQL: `, g.rolname AS "grantor"`},
+				{Query: `, NULL AS "grantor"`},
+				{Min: v16, Query: `, g.rolname AS "grantor"`},
 			},
-			{{SQL: `, a.admin_option AS "admin"`}},
+			{{Query: `, a.admin_option AS "admin"`}},
 			{
-				{SQL: `, true AS "inherit"`},
-				{Min: v16, SQL: `, a.inherit_option AS "inherit"`},
+				{Query: `, true AS "inherit"`},
+				{Min: v16, Query: `, a.inherit_option AS "inherit"`},
 			},
 			{
-				{SQL: `, true AS "set"`},
-				{Min: v16, SQL: `, a.set_option AS "set"`},
+				{Query: `, true AS "set"`},
+				{Min: v16, Query: `, a.set_option AS "set"`},
 			},
-			{{SQL: `FROM pg_catalog.pg_auth_members a`}},
-			{{SQL: `JOIN pg_catalog.pg_roles m ON m.oid = a.member`}},
-			{{SQL: `JOIN pg_catalog.pg_roles r ON r.oid = a.roleid`}},
+			{{Query: `FROM pg_catalog.pg_auth_members a`}},
+			{{Query: `JOIN pg_catalog.pg_roles m ON m.oid = a.member`}},
+			{{Query: `JOIN pg_catalog.pg_roles r ON r.oid = a.roleid`}},
 			{
-				{SQL: ``},
-				{Min: v16, SQL: `LEFT JOIN pg_catalog.pg_roles g ON g.oid = a.grantor`},
+				{Query: ``},
+				{Min: v16, Query: `LEFT JOIN pg_catalog.pg_roles g ON g.oid = a.grantor`},
 			},
-			{{SQL: `WHERE (@name = '' OR m.rolname LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `WHERE (@name = '' OR m.rolname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "role"}, {Name: "member_of"},
@@ -144,26 +144,26 @@ func registerRoleGrants() {
 func registerPrivileges() {
 	dbmeta.Privileges.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Privilege]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT n.nspname AS "schema"`}},
-			{{SQL: `, c.relname AS "name"`}},
-			{{SQL: `, CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'table'` +
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, c.relname AS "name"`}},
+			{{Query: `, CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'table'` +
 				` WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view'` +
 				` WHEN 'S' THEN 'sequence' WHEN 'f' THEN 'foreign table'` +
 				` ELSE c.relkind::text END AS "type"`}},
-			{{SQL: `, pg_catalog.array_to_string(c.relacl, E'\n') AS "access"`}},
-			{{SQL: `, COALESCE((SELECT pg_catalog.string_agg(a.attname || ':' ||` +
+			{{Query: `, pg_catalog.array_to_string(c.relacl, E'\n') AS "access"`}},
+			{{Query: `, COALESCE((SELECT pg_catalog.string_agg(a.attname || ':' ||` +
 				` pg_catalog.array_to_string(a.attacl, ','), E'\n' ORDER BY a.attnum)` +
 				` FROM pg_catalog.pg_attribute a` +
 				` WHERE a.attrelid = c.oid AND a.attnum > 0 AND a.attacl IS NOT NULL), '') AS "column_access"`}},
-			{{SQL: `, COALESCE((SELECT pg_catalog.string_agg(p.polname, ', ' ORDER BY p.polname)` +
+			{{Query: `, COALESCE((SELECT pg_catalog.string_agg(p.polname, ', ' ORDER BY p.polname)` +
 				` FROM pg_catalog.pg_policy p WHERE p.polrelid = c.oid), '') AS "policies"`}},
-			{{SQL: `FROM pg_catalog.pg_class c`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
-			{{SQL: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
-			{{SQL: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR c.relname LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `FROM pg_catalog.pg_class c`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
+			{{Query: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: fields("schema", "name", "type", "access", "column_access", "policies"),
 		Params: schemaNameSystem("relation"),
@@ -179,16 +179,16 @@ func registerPrivileges() {
 func registerDefaultACLs() {
 	dbmeta.DefaultACLs.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.DefaultACL]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT pg_catalog.pg_get_userbyid(d.defaclrole) AS "owner"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, CASE d.defaclobjtype WHEN 'r' THEN 'table' WHEN 'S' THEN 'sequence'` +
+			{{Query: `SELECT pg_catalog.pg_get_userbyid(d.defaclrole) AS "owner"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, CASE d.defaclobjtype WHEN 'r' THEN 'table' WHEN 'S' THEN 'sequence'` +
 				` WHEN 'f' THEN 'function' WHEN 'T' THEN 'type' WHEN 'n' THEN 'schema'` +
 				` ELSE d.defaclobjtype::text END AS "type"`}},
-			{{SQL: `, pg_catalog.array_to_string(d.defaclacl, E'\n') AS "access"`}},
-			{{SQL: `FROM pg_catalog.pg_default_acl d`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = d.defaclnamespace`}},
-			{{SQL: `WHERE (@schema = '' OR COALESCE(n.nspname, '') LIKE @schema)`}},
-			{{SQL: `ORDER BY 1, 2, 3`}},
+			{{Query: `, pg_catalog.array_to_string(d.defaclacl, E'\n') AS "access"`}},
+			{{Query: `FROM pg_catalog.pg_default_acl d`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = d.defaclnamespace`}},
+			{{Query: `WHERE (@schema = '' OR COALESCE(n.nspname, '') LIKE @schema)`}},
+			{{Query: `ORDER BY 1, 2, 3`}},
 		},
 		Fields: fields("owner", "schema", "type", "access"),
 		Params: []dbmeta.Param{{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""}},
@@ -204,16 +204,16 @@ func registerDefaultACLs() {
 func registerForeignDataWrappers() {
 	dbmeta.ForeignDataWrappers.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ForeignDataWrapper]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT w.fdwname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(w.fdwowner) AS "owner"`}},
-			{{SQL: `, w.fdwhandler::pg_catalog.regproc::text AS "handler"`}},
-			{{SQL: `, w.fdwvalidator::pg_catalog.regproc::text AS "validator"`}},
-			{{SQL: `, pg_catalog.array_to_string(w.fdwacl, E'\n') AS "access"`}},
-			{{SQL: `, pg_catalog.array_to_string(w.fdwoptions, ', ') AS "options"`}},
-			{{SQL: `, pg_catalog.obj_description(w.oid, 'pg_foreign_data_wrapper') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_foreign_data_wrapper w`}},
-			{{SQL: `WHERE (@name = '' OR w.fdwname LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `SELECT w.fdwname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(w.fdwowner) AS "owner"`}},
+			{{Query: `, w.fdwhandler::pg_catalog.regproc::text AS "handler"`}},
+			{{Query: `, w.fdwvalidator::pg_catalog.regproc::text AS "validator"`}},
+			{{Query: `, pg_catalog.array_to_string(w.fdwacl, E'\n') AS "access"`}},
+			{{Query: `, pg_catalog.array_to_string(w.fdwoptions, ', ') AS "options"`}},
+			{{Query: `, pg_catalog.obj_description(w.oid, 'pg_foreign_data_wrapper') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_foreign_data_wrapper w`}},
+			{{Query: `WHERE (@name = '' OR w.fdwname LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "owner", "handler", "validator", "access", "options", "comment"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "wrapper name pattern, empty for every wrapper", Default: ""}},
@@ -229,18 +229,18 @@ func registerForeignDataWrappers() {
 func registerForeignServers() {
 	dbmeta.ForeignServers.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ForeignServer]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT s.srvname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(s.srvowner) AS "owner"`}},
-			{{SQL: `, w.fdwname AS "wrapper"`}},
-			{{SQL: `, s.srvtype AS "type"`}},
-			{{SQL: `, s.srvversion AS "version"`}},
-			{{SQL: `, pg_catalog.array_to_string(s.srvacl, E'\n') AS "access"`}},
-			{{SQL: `, pg_catalog.array_to_string(s.srvoptions, ', ') AS "options"`}},
-			{{SQL: `, pg_catalog.obj_description(s.oid, 'pg_foreign_server') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_foreign_server s`}},
-			{{SQL: `JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw`}},
-			{{SQL: `WHERE (@name = '' OR s.srvname LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `SELECT s.srvname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(s.srvowner) AS "owner"`}},
+			{{Query: `, w.fdwname AS "wrapper"`}},
+			{{Query: `, s.srvtype AS "type"`}},
+			{{Query: `, s.srvversion AS "version"`}},
+			{{Query: `, pg_catalog.array_to_string(s.srvacl, E'\n') AS "access"`}},
+			{{Query: `, pg_catalog.array_to_string(s.srvoptions, ', ') AS "options"`}},
+			{{Query: `, pg_catalog.obj_description(s.oid, 'pg_foreign_server') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_foreign_server s`}},
+			{{Query: `JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw`}},
+			{{Query: `WHERE (@name = '' OR s.srvname LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "owner", "wrapper", "type", "version", "access", "options", "comment"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "server name pattern, empty for every server", Default: ""}},
@@ -257,13 +257,13 @@ func registerForeignServers() {
 func registerUserMappings() {
 	dbmeta.UserMappings.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.UserMapping]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT um.srvname AS "server"`}},
-			{{SQL: `, um.usename AS "name"`}},
-			{{SQL: `, pg_catalog.array_to_string(um.umoptions, ', ') AS "options"`}},
-			{{SQL: `FROM pg_catalog.pg_user_mappings um`}},
-			{{SQL: `WHERE (@name = '' OR COALESCE(um.usename, '') LIKE @name)`}},
-			{{SQL: `AND (@server = '' OR um.srvname LIKE @server)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `SELECT um.srvname AS "server"`}},
+			{{Query: `, um.usename AS "name"`}},
+			{{Query: `, pg_catalog.array_to_string(um.umoptions, ', ') AS "options"`}},
+			{{Query: `FROM pg_catalog.pg_user_mappings um`}},
+			{{Query: `WHERE (@name = '' OR COALESCE(um.usename, '') LIKE @name)`}},
+			{{Query: `AND (@server = '' OR um.srvname LIKE @server)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: fields("server", "name", "options"),
 		Params: []dbmeta.Param{
@@ -282,18 +282,18 @@ func registerUserMappings() {
 func registerForeignTables() {
 	dbmeta.ForeignTables.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ForeignTable]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT n.nspname AS "schema"`}},
-			{{SQL: `, c.relname AS "name"`}},
-			{{SQL: `, s.srvname AS "server"`}},
-			{{SQL: `, pg_catalog.array_to_string(ft.ftoptions, ', ') AS "options"`}},
-			{{SQL: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_foreign_table ft`}},
-			{{SQL: `JOIN pg_catalog.pg_class c ON c.oid = ft.ftrelid`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
-			{{SQL: `JOIN pg_catalog.pg_foreign_server s ON s.oid = ft.ftserver`}},
-			{{SQL: `WHERE (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR c.relname LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, c.relname AS "name"`}},
+			{{Query: `, s.srvname AS "server"`}},
+			{{Query: `, pg_catalog.array_to_string(ft.ftoptions, ', ') AS "options"`}},
+			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_foreign_table ft`}},
+			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = ft.ftrelid`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `JOIN pg_catalog.pg_foreign_server s ON s.oid = ft.ftserver`}},
+			{{Query: `WHERE (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: fields("schema", "name", "server", "options", "comment"),
 		Params: []dbmeta.Param{

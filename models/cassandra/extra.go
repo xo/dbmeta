@@ -85,12 +85,12 @@ func registerExtra() {
 			// declares fields. One copy is read and the other is only there
 			// to be consumed.
 			var (
-				v           dbmeta.IndexColumn
-				name, spare any
+				v              dbmeta.IndexColumn
+				options, spare any
 			)
-			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &name, &v.Ordinal,
+			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &options, &v.Ordinal,
 				&spare, &v.Descending)
-			col, call := indexTarget(textMap(name))
+			col, call := indexTarget(textMap(options))
 			v.Name = col
 			if call != "" {
 				v.Expression = sql.Null[string]{V: call, Valid: true}

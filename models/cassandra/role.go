@@ -150,12 +150,12 @@ func registerRoles() {
 	// is too old rather than a wrong answer.
 	dbmeta.Settings.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Setting]{
 		Stmt: dbmeta.Stmt{
-			{{Min: v40, SQL: `SELECT name`}},
-			{{Min: v40, SQL: `, value`}},
-			{{Min: v40, SQL: `, (text)NULL AS "type"`}},
-			{{Min: v40, SQL: `, (text)NULL AS "context"`}},
-			{{Min: v40, SQL: `, (text)NULL AS "access"`}},
-			{{Min: v40, SQL: `FROM system_views.settings`}},
+			{{Min: v40, Query: `SELECT name`}},
+			{{Min: v40, Query: `, value`}},
+			{{Min: v40, Query: `, (text)NULL AS "type"`}},
+			{{Min: v40, Query: `, (text)NULL AS "context"`}},
+			{{Min: v40, Query: `, (text)NULL AS "access"`}},
+			{{Min: v40, Query: `FROM system_views.settings`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"},

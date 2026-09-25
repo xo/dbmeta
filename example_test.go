@@ -97,11 +97,11 @@ func Example_sql() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sqlstr, args, err := dbmeta.Schemas.SQL(m, dbmeta.Args{Name: "public"}.Map())
+	query, args, err := dbmeta.Schemas.Build(m, dbmeta.Args{Name: "public"}.Map())
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(sqlstr)
+	fmt.Println(query)
 	fmt.Println("args:", args)
 
 	// Output:
@@ -125,11 +125,11 @@ func Example_oldServer() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		sqlstr, _, err := dbmeta.Columns.SQL(m, dbmeta.Args{Schema: "public"}.Map())
+		query, _, err := dbmeta.Columns.Build(m, dbmeta.Args{Schema: "public"}.Map())
 		if err != nil {
 			log.Fatal(err)
 		}
-		return sqlstr
+		return query
 	}
 	// attidentity arrived in release 11 and attgenerated in release 12, so an
 	// older server selects a literal under the same name. The column set never
@@ -174,7 +174,7 @@ func Example_support() {
 	fmt.Println("indexes:", dbmeta.Indexes.Support(m))
 	// an object a release does not have is a different answer again: the query
 	// exists, and the server is too old for it
-	if _, _, err := dbmeta.Publications.SQL(versionMeta("9.6.24"), nil); err != nil {
+	if _, _, err := dbmeta.Publications.Build(versionMeta("9.6.24"), nil); err != nil {
 		fmt.Println("publications on 9.6:", err)
 	}
 
@@ -210,11 +210,11 @@ func versionSet(s string) dbmeta.VersionSet {
 // statement without running it. usql prints the statement in its trace output,
 // so it needs this rather than [dbmeta.Dialect.Version].
 func Example_versionByHand() {
-	sqlstr, n, ok := dbmeta.PostgreSQL.VersionQuery()
+	query, n, ok := dbmeta.PostgreSQL.VersionQuery()
 	if !ok {
 		log.Fatal("expected a version query")
 	}
-	fmt.Printf("%s (%d column)\n", sqlstr, n)
+	fmt.Printf("%s (%d column)\n", query, n)
 
 	// the client runs it however it likes, then hands the columns back
 	versions, err := dbmeta.PostgreSQL.ParseVersion([]string{"16.2"})

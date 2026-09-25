@@ -11,9 +11,9 @@ import (
 // result sets open until the test ended.
 
 // columnsOf runs the statement and returns the columns it returned.
-func columnsOf(t *testing.T, db *sql.DB, sqlstr string, vals []any) ([]string, error) {
+func columnsOf(t *testing.T, db *sql.DB, query string, vals []any) ([]string, error) {
 	t.Helper()
-	rows, err := db.QueryContext(t.Context(), sqlstr, vals...)
+	rows, err := db.QueryContext(t.Context(), query, vals...)
 	if err != nil {
 		return nil, err
 	}
@@ -30,9 +30,9 @@ func columnsOf(t *testing.T, db *sql.DB, sqlstr string, vals []any) ([]string, e
 
 // eachRawRow runs the statement and calls fn once per row, with every column
 // read as raw bytes so that a NULL is visible as one.
-func eachRawRow(t *testing.T, db *sql.DB, sqlstr string, vals []any, width int, fn func([]sql.RawBytes)) error {
+func eachRawRow(t *testing.T, db *sql.DB, query string, vals []any, width int, fn func([]sql.RawBytes)) error {
 	t.Helper()
-	rows, err := db.QueryContext(t.Context(), sqlstr, vals...)
+	rows, err := db.QueryContext(t.Context(), query, vals...)
 	if err != nil {
 		return err
 	}
@@ -56,9 +56,9 @@ func eachRawRow(t *testing.T, db *sql.DB, sqlstr string, vals []any, width int, 
 
 // nullableStrings reads every column of every row as a nullable string, which
 // is how the cross product comparison reads an answer it does not interpret.
-func nullableStrings(t *testing.T, db *sql.DB, sqlstr string, vals []any) ([]string, [][]sql.Null[string], error) {
+func nullableStrings(t *testing.T, db *sql.DB, query string, vals []any) ([]string, [][]sql.Null[string], error) {
 	t.Helper()
-	rows, err := db.QueryContext(t.Context(), sqlstr, vals...)
+	rows, err := db.QueryContext(t.Context(), query, vals...)
 	if err != nil {
 		return nil, nil, err
 	}

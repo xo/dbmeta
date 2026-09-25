@@ -265,7 +265,7 @@ concatenates the new password into the statement, so a password holding a quote
 or a backslash breaks the statement or sets something other than what was
 asked.
 
-`Dialect.ChangePasswordSQL` builds the statement instead and returns the text
+`Dialect.ChangePassword` builds the statement instead and returns the text
 for `usql` to run. It takes no database, so `dbmeta` still executes only reads.
 The escaping needs the server, because whether a backslash escapes inside a
 string literal is `sql_mode` on MySQL and MariaDB and

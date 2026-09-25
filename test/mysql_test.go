@@ -49,8 +49,8 @@ func setupMySQL(t *testing.T, db *sql.DB) *dbmeta.Meta {
 			if s.Skipped {
 				continue
 			}
-			if _, err := db.ExecContext(ctx, s.SQL); err != nil && fatal {
-				t.Fatalf("%s: %v\n%s", s.Name, err, s.SQL)
+			if _, err := db.ExecContext(ctx, s.Query); err != nil && fatal {
+				t.Fatalf("%s: %v\n%s", s.Name, err, s.Query)
 			}
 		}
 	}
@@ -93,7 +93,7 @@ func TestMySQLEveryQueryRuns(t *testing.T) {
 			unsupported++
 			continue
 		}
-		sqlstr, vals, err := q.SQL(m, nil)
+		query, vals, err := q.Build(m, nil)
 		switch {
 		case errors.Is(err, dbmeta.ErrVersionTooOld):
 			tooOld++
@@ -102,9 +102,9 @@ func TestMySQLEveryQueryRuns(t *testing.T) {
 			t.Errorf("%s: rendering: %v", q.Name(), err)
 			continue
 		}
-		cols, err := columnsOf(t, db, sqlstr, vals)
+		cols, err := columnsOf(t, db, query, vals)
 		if err != nil {
-			t.Errorf("%s: executing: %v\n%s", q.Name(), err, sqlstr)
+			t.Errorf("%s: executing: %v\n%s", q.Name(), err, query)
 			continue
 		}
 		fields, err := q.Fields(m)
@@ -225,7 +225,7 @@ func TestMySQLAggregates(t *testing.T) {
 		if got := dbmeta.Aggregates.Support(m); got != dbmeta.NotSupported {
 			t.Errorf("expected MySQL to report aggregates unsupported, got %v", got)
 		}
-		if _, _, err := dbmeta.Aggregates.SQL(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
+		if _, _, err := dbmeta.Aggregates.Build(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
 			t.Errorf("expected ErrNotSupported, got: %v", err)
 		}
 		return
@@ -343,7 +343,7 @@ func checkUnsupported(t *testing.T, m *dbmeta.Meta, q dbmeta.AnyQuery) {
 		if got := q.Support(m); got != dbmeta.NotSupported {
 			t.Errorf("%s: expected it to be reported unsupported, got %v", q.Name(), got)
 		}
-		if _, _, err := q.SQL(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
+		if _, _, err := q.Build(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
 			t.Errorf("%s: expected ErrNotSupported, got: %v", q.Name(), err)
 		}
 	}

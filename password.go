@@ -12,7 +12,7 @@ import (
 // # Why it is here at all
 //
 // D5 says dbmeta reads. This does not break that and it comes close enough to
-// need saying why. Nothing here executes the statement. [Dialect.ChangePasswordSQL]
+// need saying why. Nothing here executes the statement. [Dialect.ChangePassword]
 // returns text and takes no database, so a caller still hands dbmeta a read
 // only connection for everything dbmeta runs. The statement is the caller's to
 // execute, or not.
@@ -80,16 +80,16 @@ type Quoting struct {
 }
 
 // QuotingQuery returns the statement that reads the session state
-// [Dialect.ChangePasswordSQL] needs, and how many columns it returns.
+// [Dialect.ChangePassword] needs, and how many columns it returns.
 //
 // The result is false when the product needs none, which is not an error: SQL
 // Server has no setting that changes how a literal is escaped.
-func (d Dialect) QuotingQuery() (sqlstr string, cols int, ok bool) {
+func (d Dialect) QuotingQuery() (query string, cols int, ok bool) {
 	info, found := d.Info()
-	if !found || info.QuotingSQL == "" {
+	if !found || info.QuotingQuery == "" {
 		return "", 0, false
 	}
-	return info.QuotingSQL, info.QuotingColumns, true
+	return info.QuotingQuery, info.QuotingColumns, true
 }
 
 // ParseQuoting turns the columns returned by [Dialect.QuotingQuery] into the
@@ -113,21 +113,21 @@ func (d Dialect) ParseQuoting(cols []string) (Quoting, error) {
 //
 // A product with no such state returns the zero value and no error.
 func (d Dialect) Quoting(ctx context.Context, db Querier) (Quoting, error) {
-	sqlstr, n, ok := d.QuotingQuery()
+	query, n, ok := d.QuotingQuery()
 	if !ok {
 		if _, built := d.Info(); !built {
 			return Quoting{}, ErrModelNotBuilt
 		}
 		return Quoting{}, nil
 	}
-	cols, err := readRow(ctx, db, d, sqlstr, n)
+	cols, err := readRow(ctx, db, d, query, n)
 	if err != nil {
 		return Quoting{}, err
 	}
 	return d.ParseQuoting(cols)
 }
 
-// ChangePasswordSQL returns the statement that sets the password, and does not
+// ChangePassword returns the statement that sets the password, and does not
 // run it.
 //
 // It takes no database on purpose. dbmeta executes reads and this is not one,
@@ -138,7 +138,7 @@ func (d Dialect) Quoting(ctx context.Context, db Querier) (Quoting, error) {
 // It returns [ErrNotSupported] when the product has no such statement or the
 // model is not built, and [ErrQuotingUnknown] when the product needs session
 // state that [Quoting] does not carry.
-func (d Dialect) ChangePasswordSQL(c PasswordChange, q Quoting) (string, error) {
+func (d Dialect) ChangePassword(c PasswordChange, q Quoting) (string, error) {
 	info, ok := d.Info()
 	if !ok {
 		return "", ErrModelNotBuilt

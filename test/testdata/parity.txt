@@ -45,6 +45,18 @@ current_user the same rows with different values
 settings fewer rows than the administrator
 tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
 
+[postgres@12/same/grantee]
+current_user the same rows with different values
+settings fewer rows than the administrator
+subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
+[postgres@12/same/owner]
+current_user the same rows with different values
+settings fewer rows than the administrator
+subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
 [sqlserver/contained/contained]
 current_user the same rows with different values
 

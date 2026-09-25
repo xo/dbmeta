@@ -20,7 +20,7 @@ func TestSyntaxVariesByDialect(t *testing.T) {
 		t.Helper()
 		for _, s := range f.Setup {
 			if s.Name == name {
-				return s.SQL
+				return s.Query
 			}
 		}
 		return ""
@@ -84,8 +84,8 @@ func TestEverythingIsInOneSchema(t *testing.T) {
 			t.Fatal("expected a schema name")
 		}
 		for _, s := range f.Setup {
-			if !strings.Contains(s.SQL, f.Schema) {
-				t.Errorf("%q does not name the fixture schema:\n%s", s.Name, s.SQL)
+			if !strings.Contains(s.Query, f.Schema) {
+				t.Errorf("%q does not name the fixture schema:\n%s", s.Name, s.Query)
 			}
 		}
 		if len(f.Teardown) == 0 {

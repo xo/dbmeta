@@ -7,7 +7,7 @@ and `dbtpl` consume it.
 `Reader` and `Writer` pair from `usql` is a `usql` concept and it does not
 come here.
 
-One statement is the exception and it is a narrow one. `Dialect.ChangePasswordSQL`
+One statement is the exception and it is a narrow one. `Dialect.ChangePassword`
 builds the statement that sets a password and returns it as text, because the
 statement and its escaping are per product knowledge and a password cannot be
 bound as a parameter. It takes no database and runs nothing, so everything

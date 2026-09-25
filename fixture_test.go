@@ -69,7 +69,7 @@ func newest(keys ...string) dbmeta.VersionSet {
 // sqlOf returns the SQL a step resolved to, and the empty string for a step
 // the server cannot run, which cannot happen here because the version is
 // unknown and an unknown version is newer than every known one.
-func sqlOf(t *testing.T, sqlstr string, err error) string {
+func sqlOf(t *testing.T, query string, err error) string {
 	t.Helper()
 	switch {
 	case errors.Is(err, dbmeta.ErrVersionTooOld), errors.Is(err, dbmeta.ErrNotSupported):
@@ -77,29 +77,29 @@ func sqlOf(t *testing.T, sqlstr string, err error) string {
 	case err != nil:
 		t.Fatalf("resolving a fixture step: %v", err)
 	}
-	return sqlstr + "\n"
+	return query + "\n"
 }
 
-// fixtureSQL returns everything one fixture would run, as one string.
-type fixtureSQL struct {
+// fixtureText returns everything one fixture would run, as one string.
+type fixtureText struct {
 	name  string
 	steps int
 	sql   string
 }
 
-func allFixtures(t *testing.T) []fixtureSQL {
+func allFixtures(t *testing.T) []fixtureText {
 	t.Helper()
 	// Every fixture package declares its own Step type, so this cannot be a
 	// loop over an interface without exporting one. Five literals are cheaper
 	// than an interface nobody else needs.
-	var out []fixtureSQL
+	var out []fixtureText
 	gather := func(name string, versions dbmeta.VersionSet, stmts []dbmeta.Stmt) {
 		var b strings.Builder
 		for _, stmt := range stmts {
-			sqlstr, err := stmt.SQL(versions)
-			b.WriteString(sqlOf(t, sqlstr, err))
+			query, err := stmt.Build(versions)
+			b.WriteString(sqlOf(t, query, err))
 		}
-		out = append(out, fixtureSQL{name, len(stmts), b.String()})
+		out = append(out, fixtureText{name, len(stmts), b.String()})
 	}
 	var pg, my, sq, dk, ms []dbmeta.Stmt
 	for _, s := range pgfixture.Everything.Setup {
@@ -173,10 +173,10 @@ func TestFixturesAgreeOnTheSchemaName(t *testing.T) {
 // first version of this looked for the name anywhere, and renaming the region
 // table did not fail the test: shipment's foreign key still said
 // REFERENCES region(country, area).
-func createsObject(sqlstr, object string) bool {
+func createsObject(query, object string) bool {
 	pattern := `(?is)\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:TEMP(?:ORARY)?\s+)?` +
 		`(?:UNIQUE\s+)?(?:MATERIALIZED\s+)?(?:AGGREGATE\s+)?` +
 		`(?:TABLE|VIEW|INDEX|SEQUENCE|TYPE|SCHEMA|MACRO|FUNCTION|PROCEDURE|TRIGGER|SERVER)\s+` +
 		`(?:IF\s+NOT\s+EXISTS\s+)?(?:[a-z_0-9]+\.)?` + regexp.QuoteMeta(object) + `\b`
-	return regexp.MustCompile(pattern).MatchString(sqlstr)
+	return regexp.MustCompile(pattern).MatchString(query)
 }

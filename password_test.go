@@ -31,7 +31,7 @@ func TestQuoteLiteral(t *testing.T) {
 		{"both", `a'b\`, known(true), `'a''b\\'`},
 		{"empty", "", known(false), `''`},
 		// An unknown state doubles nothing extra. A caller cannot reach this
-		// through ChangePasswordSQL, which refuses first, and the rule is
+		// through ChangePassword, which refuses first, and the rule is
 		// written down rather than left to chance.
 		{"unknown state does not guess", `x\`, Quoting{}, `'x\'`},
 	} {
@@ -73,7 +73,7 @@ func TestChangePasswordRefusesRatherThanGuesses(t *testing.T) {
 		{"a NUL in the user", PostgreSQL, PasswordChange{User: "a\x00b", Password: "p"},
 			known(false), ErrInvalidPassword},
 	} {
-		_, err := c.d.ChangePasswordSQL(c.in, c.q)
+		_, err := c.d.ChangePassword(c.in, c.q)
 		if !errors.Is(err, c.want) {
 			t.Errorf("%s: expected %v, got %v", c.name, c.want, err)
 		}
@@ -85,7 +85,7 @@ func TestChangePasswordRefusesRatherThanGuesses(t *testing.T) {
 func TestChangePasswordNeedsNoDatabase(t *testing.T) {
 	t.Parallel()
 	// A dialect with a statement but no server anywhere in sight.
-	got, err := PostgreSQL.ChangePasswordSQL(
+	got, err := PostgreSQL.ChangePassword(
 		PasswordChange{User: "bob", Password: "hunter2"}, known(false))
 	if err != nil {
 		t.Fatalf("expected a statement, got: %v", err)

@@ -198,9 +198,9 @@ type Profile struct {
 	Clauses map[Clause]string
 	// SystemSchemas are the schemas hidden unless a caller asks for them.
 	SystemSchemas []string
-	// VersionSQL reads the server version, and VersionColumns says how many
+	// VersionQuery reads the server version, and VersionColumns says how many
 	// columns it returns. Leave both zero when the database reports none.
-	VersionSQL     string
+	VersionQuery   string
 	VersionColumns int
 	// ParseVersion turns those columns into a version set.
 	ParseVersion func(cols []string) (dbmeta.VersionSet, error)
@@ -244,7 +244,7 @@ func (p Profile) systemSchemas() string {
 func Register(d dbmeta.Dialect, p Profile) {
 	dbmeta.RegisterDialect(d, &dbmeta.Info{
 		Placeholder:    p.Placeholder,
-		VersionSQL:     p.VersionSQL,
+		VersionQuery:   p.VersionQuery,
 		VersionColumns: p.VersionColumns,
 		ParseVersion:   p.ParseVersion,
 	})
@@ -282,15 +282,15 @@ func Register(d dbmeta.Dialect, p Profile) {
 func schemas(p Profile) *dbmeta.Binding[dbmeta.Schema] {
 	return &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT s.catalog_name AS "catalog"`}},
-			{{SQL: `, s.schema_name AS "name"`}},
-			{{SQL: `, s.schema_owner AS "owner"`}},
+			{{Query: `SELECT s.catalog_name AS "catalog"`}},
+			{{Query: `, s.schema_name AS "name"`}},
+			{{Query: `, s.schema_owner AS "owner"`}},
 			// the standard has no comment on a schema
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM information_schema.schemata s`}},
-			{{SQL: `WHERE (@with_system OR s.schema_name NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@name = '' OR s.schema_name LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM information_schema.schemata s`}},
+			{{Query: `WHERE (@with_system OR s.schema_name NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@name = '' OR s.schema_name LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: dbmeta.Fields("catalog", "name", "owner", "comment"),
 		Params: nameSystem("schema"),
@@ -310,16 +310,16 @@ func schemas(p Profile) *dbmeta.Binding[dbmeta.Schema] {
 func tables(p Profile) *dbmeta.Binding[dbmeta.Table] {
 	return &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT t.table_catalog AS "catalog"`}},
-			{{SQL: `, t.table_schema AS "schema"`}},
-			{{SQL: `, t.table_name AS "name"`}},
-			{{SQL: `, LOWER(t.table_type) AS "type"`}},
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM information_schema.tables t`}},
-			{{SQL: `WHERE (@with_system OR t.table_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR t.table_name LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3`}},
+			{{Query: `SELECT t.table_catalog AS "catalog"`}},
+			{{Query: `, t.table_schema AS "schema"`}},
+			{{Query: `, t.table_name AS "name"`}},
+			{{Query: `, LOWER(t.table_type) AS "type"`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM information_schema.tables t`}},
+			{{Query: `WHERE (@with_system OR t.table_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR t.table_name LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: dbmeta.Fields("catalog", "schema", "name", "type", "comment"),
 		Params: schemaNameSystem("table"),
@@ -336,26 +336,26 @@ func tables(p Profile) *dbmeta.Binding[dbmeta.Table] {
 func columns(p Profile) *dbmeta.Binding[dbmeta.Column] {
 	return &dbmeta.Binding[dbmeta.Column]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT c.table_catalog AS "catalog"`}},
-			{{SQL: `, c.table_schema AS "schema"`}},
-			{{SQL: `, c.table_name AS "table"`}},
-			{{SQL: `, c.column_name AS "name"`}},
-			{{SQL: `, c.ordinal_position AS "ordinal"`}},
-			{{SQL: `, ` + p.clause(ColumnDataType) + ` AS "data_type"`}},
-			{{SQL: `, CASE WHEN c.is_nullable = 'YES' THEN true ELSE false END AS "nullable"`}},
-			{{SQL: `, c.column_default AS "default"`}},
-			{{SQL: `, ` + p.clause(ColumnPrimaryKey) + ` AS "primary_key"`}},
-			// the standard has no identity kind before SQL:2003 and no
+			{{Query: `SELECT c.table_catalog AS "catalog"`}},
+			{{Query: `, c.table_schema AS "schema"`}},
+			{{Query: `, c.table_name AS "table"`}},
+			{{Query: `, c.column_name AS "name"`}},
+			{{Query: `, c.ordinal_position AS "ordinal"`}},
+			{{Query: `, ` + p.clause(ColumnDataType) + ` AS "data_type"`}},
+			{{Query: `, CASE WHEN c.is_nullable = 'YES' THEN true ELSE false END AS "nullable"`}},
+			{{Query: `, c.column_default AS "default"`}},
+			{{Query: `, ` + p.clause(ColumnPrimaryKey) + ` AS "primary_key"`}},
+			// the standard has no identity kind before Query:2003 and no
 			// generated kind that every database reports the same way
-			{{SQL: `, NULL AS "identity"`}},
-			{{SQL: `, NULL AS "generated"`}},
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM information_schema.columns c`}},
-			{{SQL: `WHERE (@with_system OR c.table_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR c.table_schema LIKE @schema)`}},
-			{{SQL: `AND (@parent = '' OR c.table_name LIKE @parent)`}},
-			{{SQL: `AND (@name = '' OR c.column_name LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3, 5`}},
+			{{Query: `, NULL AS "identity"`}},
+			{{Query: `, NULL AS "generated"`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM information_schema.columns c`}},
+			{{Query: `WHERE (@with_system OR c.table_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR c.table_schema LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR c.table_name LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR c.column_name LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3, 5`}},
 		},
 		Fields: dbmeta.Fields("catalog", "schema", "table", "name", "ordinal",
 			"data_type", "nullable", "default", "primary_key", "identity", "generated", "comment"),
@@ -384,21 +384,21 @@ func constraints(p Profile) *dbmeta.Binding[dbmeta.Constraint] {
 	}
 	return &dbmeta.Binding[dbmeta.Constraint]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT t.table_schema AS "schema"`}},
-			{{SQL: `, t.table_name AS "table"`}},
-			{{SQL: `, t.constraint_name AS "name"`}},
-			{{SQL: `, LOWER(t.constraint_type) AS "type"`}},
-			{{SQL: `, ` + definition + ` AS "definition"`}},
-			{{SQL: `, CASE WHEN ` + p.clause(ConstraintDeferrable) + ` = 'YES' THEN true ELSE false END AS "deferrable"`}},
-			{{SQL: `, CASE WHEN ` + p.clause(ConstraintDeferred) + ` = 'YES' THEN true ELSE false END AS "deferred"`}},
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM information_schema.table_constraints t`}},
-			{{SQL: join}},
-			{{SQL: `WHERE (@with_system OR t.table_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
-			{{SQL: `AND (@parent = '' OR t.table_name LIKE @parent)`}},
-			{{SQL: `AND (@name = '' OR t.constraint_name LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2, 3`}},
+			{{Query: `SELECT t.table_schema AS "schema"`}},
+			{{Query: `, t.table_name AS "table"`}},
+			{{Query: `, t.constraint_name AS "name"`}},
+			{{Query: `, LOWER(t.constraint_type) AS "type"`}},
+			{{Query: `, ` + definition + ` AS "definition"`}},
+			{{Query: `, CASE WHEN ` + p.clause(ConstraintDeferrable) + ` = 'YES' THEN true ELSE false END AS "deferrable"`}},
+			{{Query: `, CASE WHEN ` + p.clause(ConstraintDeferred) + ` = 'YES' THEN true ELSE false END AS "deferred"`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM information_schema.table_constraints t`}},
+			{{Query: join}},
+			{{Query: `WHERE (@with_system OR t.table_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR t.table_name LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR t.constraint_name LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2, 3`}},
 		},
 		Fields: dbmeta.Fields("schema", "table", "name", "type", "definition",
 			"deferrable", "deferred", "comment"),
@@ -416,22 +416,22 @@ func constraints(p Profile) *dbmeta.Binding[dbmeta.Constraint] {
 func sequences(p Profile) *dbmeta.Binding[dbmeta.Sequence] {
 	return &dbmeta.Binding[dbmeta.Sequence]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT s.sequence_schema AS "schema"`}},
-			{{SQL: `, s.sequence_name AS "name"`}},
-			{{SQL: `, s.data_type AS "data_type"`}},
-			{{SQL: `, CAST(s.start_value AS BIGINT) AS "start"`}},
-			{{SQL: `, CAST(s.minimum_value AS BIGINT) AS "minimum"`}},
-			{{SQL: `, CAST(s.maximum_value AS BIGINT) AS "maximum"`}},
-			{{SQL: `, CAST(s.increment AS BIGINT) AS "increment"`}},
-			{{SQL: `, CASE WHEN s.cycle_option = 'YES' THEN true ELSE false END AS "cycles"`}},
+			{{Query: `SELECT s.sequence_schema AS "schema"`}},
+			{{Query: `, s.sequence_name AS "name"`}},
+			{{Query: `, s.data_type AS "data_type"`}},
+			{{Query: `, CAST(s.start_value AS BIGINT) AS "start"`}},
+			{{Query: `, CAST(s.minimum_value AS BIGINT) AS "minimum"`}},
+			{{Query: `, CAST(s.maximum_value AS BIGINT) AS "maximum"`}},
+			{{Query: `, CAST(s.increment AS BIGINT) AS "increment"`}},
+			{{Query: `, CASE WHEN s.cycle_option = 'YES' THEN true ELSE false END AS "cycles"`}},
 			// the standard does not record what owns a sequence
-			{{SQL: `, '' AS "owned_by"`}},
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM information_schema.sequences s`}},
-			{{SQL: `WHERE (@with_system OR s.sequence_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR s.sequence_schema LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR s.sequence_name LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `, '' AS "owned_by"`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM information_schema.sequences s`}},
+			{{Query: `WHERE (@with_system OR s.sequence_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR s.sequence_schema LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR s.sequence_name LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: dbmeta.Fields("schema", "name", "data_type", "start", "minimum",
 			"maximum", "increment", "cycles", "owned_by", "comment"),
@@ -452,30 +452,30 @@ func sequences(p Profile) *dbmeta.Binding[dbmeta.Sequence] {
 func functions(p Profile) *dbmeta.Binding[dbmeta.Function] {
 	return &dbmeta.Binding[dbmeta.Function]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT r.specific_catalog AS "catalog"`}},
-			{{SQL: `, r.routine_schema AS "schema"`}},
-			{{SQL: `, r.routine_name AS "name"`}},
+			{{Query: `SELECT r.specific_catalog AS "catalog"`}},
+			{{Query: `, r.routine_schema AS "schema"`}},
+			{{Query: `, r.routine_name AS "name"`}},
 			// the specific name, which the standard defines precisely so that
 			// an overloaded routine can be identified
-			{{SQL: `, r.specific_name AS "id"`}},
-			{{SQL: `, LOWER(r.routine_type) AS "kind"`}},
-			{{SQL: `, r.data_type AS "result_type"`}},
+			{{Query: `, r.specific_name AS "id"`}},
+			{{Query: `, LOWER(r.routine_type) AS "kind"`}},
+			{{Query: `, r.data_type AS "result_type"`}},
 			// the standard keeps parameters in their own view, so a caller
 			// that wants them asks for the parameters of one routine
-			{{SQL: `, '' AS "arg_types"`}},
-			{{SQL: `, '' AS "volatility"`}},
-			{{SQL: `, '' AS "parallel"`}},
-			{{SQL: `, '' AS "owner"`}},
-			{{SQL: `, LOWER(r.security_type) AS "security"`}},
-			{{SQL: `, NULL AS "access"`}},
-			{{SQL: `, r.external_language AS "language"`}},
-			{{SQL: `, r.routine_definition AS "source"`}},
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM information_schema.routines r`}},
-			{{SQL: `WHERE (@with_system OR r.routine_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR r.routine_schema LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR r.routine_name LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3`}},
+			{{Query: `, '' AS "arg_types"`}},
+			{{Query: `, '' AS "volatility"`}},
+			{{Query: `, '' AS "parallel"`}},
+			{{Query: `, '' AS "owner"`}},
+			{{Query: `, LOWER(r.security_type) AS "security"`}},
+			{{Query: `, NULL AS "access"`}},
+			{{Query: `, r.external_language AS "language"`}},
+			{{Query: `, r.routine_definition AS "source"`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM information_schema.routines r`}},
+			{{Query: `WHERE (@with_system OR r.routine_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR r.routine_schema LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR r.routine_name LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: dbmeta.Fields("catalog", "schema", "name", "id", "kind", "result_type",
 			"arg_types", "volatility", "parallel", "owner", "security", "access",
@@ -500,17 +500,17 @@ func functions(p Profile) *dbmeta.Binding[dbmeta.Function] {
 func privileges(p Profile) *dbmeta.Binding[dbmeta.Privilege] {
 	return &dbmeta.Binding[dbmeta.Privilege]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT p.table_schema AS "schema"`}},
-			{{SQL: `, p.table_name AS "name"`}},
-			{{SQL: `, 'table' AS "type"`}},
-			{{SQL: `, p.grantee || '=' || p.privilege_type || '/' || ` + p.clause(PrivilegeGrantor) + ` AS "access"`}},
-			{{SQL: `, NULL AS "column_access"`}},
-			{{SQL: `, NULL AS "policies"`}},
-			{{SQL: `FROM information_schema.table_privileges p`}},
-			{{SQL: `WHERE (@with_system OR p.table_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR p.table_schema LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR p.table_name LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `SELECT p.table_schema AS "schema"`}},
+			{{Query: `, p.table_name AS "name"`}},
+			{{Query: `, 'table' AS "type"`}},
+			{{Query: `, p.grantee || '=' || p.privilege_type || '/' || ` + p.clause(PrivilegeGrantor) + ` AS "access"`}},
+			{{Query: `, NULL AS "column_access"`}},
+			{{Query: `, NULL AS "policies"`}},
+			{{Query: `FROM information_schema.table_privileges p`}},
+			{{Query: `WHERE (@with_system OR p.table_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR p.table_schema LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR p.table_name LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: dbmeta.Fields("schema", "name", "type", "access", "column_access", "policies"),
 		Params: schemaNameSystem("table"),
@@ -551,36 +551,36 @@ func schemaParentName(kind string) []dbmeta.Param {
 func constraintColumns(p Profile) *dbmeta.Binding[dbmeta.ConstraintColumn] {
 	return &dbmeta.Binding[dbmeta.ConstraintColumn]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT k.constraint_catalog AS "catalog"`}},
-			{{SQL: `, k.table_schema AS "schema"`}},
-			{{SQL: `, k.table_name AS "table"`}},
-			{{SQL: `, k.constraint_name AS "constraint"`}},
-			{{SQL: `, k.column_name AS "name"`}},
-			{{SQL: `, k.ordinal_position AS "ordinal"`}},
+			{{Query: `SELECT k.constraint_catalog AS "catalog"`}},
+			{{Query: `, k.table_schema AS "schema"`}},
+			{{Query: `, k.table_name AS "table"`}},
+			{{Query: `, k.constraint_name AS "constraint"`}},
+			{{Query: `, k.column_name AS "name"`}},
+			{{Query: `, k.ordinal_position AS "ordinal"`}},
 			// The standard reaches the referenced side through
 			// referential_constraints and the unique constraint it names,
 			// which is two more joins. Everything that has key_column_usage
 			// has referential_constraints, because the standard defines them
 			// together.
-			{{SQL: `, r.unique_constraint_catalog AS "foreign_catalog"`}},
-			{{SQL: `, r.unique_constraint_schema AS "foreign_schema"`}},
-			{{SQL: `, fk.table_name AS "foreign_table"`}},
-			{{SQL: `, fk.column_name AS "foreign_name"`}},
-			{{SQL: `FROM information_schema.key_column_usage k`}},
-			{{SQL: `LEFT JOIN information_schema.referential_constraints r` +
+			{{Query: `, r.unique_constraint_catalog AS "foreign_catalog"`}},
+			{{Query: `, r.unique_constraint_schema AS "foreign_schema"`}},
+			{{Query: `, fk.table_name AS "foreign_table"`}},
+			{{Query: `, fk.column_name AS "foreign_name"`}},
+			{{Query: `FROM information_schema.key_column_usage k`}},
+			{{Query: `LEFT JOIN information_schema.referential_constraints r` +
 				` ON r.constraint_catalog = k.constraint_catalog` +
 				` AND r.constraint_schema = k.constraint_schema` +
 				` AND r.constraint_name = k.constraint_name`}},
-			{{SQL: `LEFT JOIN information_schema.key_column_usage fk` +
+			{{Query: `LEFT JOIN information_schema.key_column_usage fk` +
 				` ON fk.constraint_catalog = r.unique_constraint_catalog` +
 				` AND fk.constraint_schema = r.unique_constraint_schema` +
 				` AND fk.constraint_name = r.unique_constraint_name` +
 				` AND fk.ordinal_position = k.position_in_unique_constraint`}},
-			{{SQL: `WHERE (@with_system OR k.table_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR k.table_schema LIKE @schema)`}},
-			{{SQL: `AND (@parent = '' OR k.table_name LIKE @parent)`}},
-			{{SQL: `AND (@name = '' OR k.constraint_name LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3, 4, 6`}},
+			{{Query: `WHERE (@with_system OR k.table_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR k.table_schema LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR k.table_name LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR k.constraint_name LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3, 4, 6`}},
 		},
 		Fields: dbmeta.Fields("catalog", "schema", "table", "constraint", "name",
 			"ordinal", "foreign_catalog", "foreign_schema", "foreign_table", "foreign_name"),
@@ -598,22 +598,22 @@ func constraintColumns(p Profile) *dbmeta.Binding[dbmeta.ConstraintColumn] {
 func routineParameters(p Profile) *dbmeta.Binding[dbmeta.RoutineParameter] {
 	return &dbmeta.Binding[dbmeta.RoutineParameter]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT p.specific_catalog AS "catalog"`}},
-			{{SQL: `, p.specific_schema AS "schema"`}},
-			{{SQL: `, p.specific_name AS "routine"`}},
-			{{SQL: `, p.specific_name AS "routine_id"`}},
-			{{SQL: `, p.parameter_name AS "name"`}},
-			{{SQL: `, p.ordinal_position AS "ordinal"`}},
-			{{SQL: `, CASE WHEN p.ordinal_position = 0 THEN 'return'` +
+			{{Query: `SELECT p.specific_catalog AS "catalog"`}},
+			{{Query: `, p.specific_schema AS "schema"`}},
+			{{Query: `, p.specific_name AS "routine"`}},
+			{{Query: `, p.specific_name AS "routine_id"`}},
+			{{Query: `, p.parameter_name AS "name"`}},
+			{{Query: `, p.ordinal_position AS "ordinal"`}},
+			{{Query: `, CASE WHEN p.ordinal_position = 0 THEN 'return'` +
 				` ELSE LOWER(COALESCE(p.parameter_mode, 'IN')) END AS "mode"`}},
-			{{SQL: `, p.dtd_identifier AS "data_type"`}},
-			{{SQL: `, NULL AS "default"`}},
-			{{SQL: `FROM information_schema.parameters p`}},
-			{{SQL: `WHERE (@with_system OR p.specific_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR p.specific_schema LIKE @schema)`}},
-			{{SQL: `AND (@parent = '' OR p.specific_name LIKE @parent)`}},
-			{{SQL: `AND (@name = '' OR COALESCE(p.parameter_name, '') LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3, 6`}},
+			{{Query: `, p.dtd_identifier AS "data_type"`}},
+			{{Query: `, NULL AS "default"`}},
+			{{Query: `FROM information_schema.parameters p`}},
+			{{Query: `WHERE (@with_system OR p.specific_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR p.specific_schema LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR p.specific_name LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR COALESCE(p.parameter_name, '') LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3, 6`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "routine"},
@@ -638,19 +638,19 @@ func routineParameters(p Profile) *dbmeta.Binding[dbmeta.RoutineParameter] {
 func views(p Profile) *dbmeta.Binding[dbmeta.View] {
 	return &dbmeta.Binding[dbmeta.View]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT v.table_catalog AS "catalog"`}},
-			{{SQL: `, v.table_schema AS "schema"`}},
-			{{SQL: `, v.table_name AS "name"`}},
-			{{SQL: `, v.view_definition AS "definition"`}},
-			{{SQL: `, LOWER(v.check_option) AS "check_option"`}},
-			{{SQL: `, v.is_updatable = 'YES' AS "updatable"`}},
-			{{SQL: `, NULL AS "insertable"`}},
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM information_schema.views v`}},
-			{{SQL: `WHERE (@with_system OR v.table_schema NOT IN (` + p.systemSchemas() + `))`}},
-			{{SQL: `AND (@schema = '' OR v.table_schema LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR v.table_name LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3`}},
+			{{Query: `SELECT v.table_catalog AS "catalog"`}},
+			{{Query: `, v.table_schema AS "schema"`}},
+			{{Query: `, v.table_name AS "name"`}},
+			{{Query: `, v.view_definition AS "definition"`}},
+			{{Query: `, LOWER(v.check_option) AS "check_option"`}},
+			{{Query: `, v.is_updatable = 'YES' AS "updatable"`}},
+			{{Query: `, NULL AS "insertable"`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM information_schema.views v`}},
+			{{Query: `WHERE (@with_system OR v.table_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{Query: `AND (@schema = '' OR v.table_schema LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR v.table_name LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
@@ -681,8 +681,8 @@ func views(p Profile) *dbmeta.Binding[dbmeta.View] {
 func currentUser(p Profile) *dbmeta.Binding[dbmeta.User] {
 	return &dbmeta.Binding[dbmeta.User]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT ` + p.clause(CurrentUser) + ` AS "name"`}},
-			{{SQL: `, ` + p.clause(SessionUser) + ` AS "session"`}},
+			{{Query: `SELECT ` + p.clause(CurrentUser) + ` AS "name"`}},
+			{{Query: `, ` + p.clause(SessionUser) + ` AS "session"`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: "the effective user"},
@@ -700,12 +700,12 @@ func currentUser(p Profile) *dbmeta.Binding[dbmeta.User] {
 func currentSchema(p Profile) *dbmeta.Binding[dbmeta.Schema] {
 	return &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT s.catalog_name AS "catalog"`}},
-			{{SQL: `, s.schema_name AS "name"`}},
-			{{SQL: `, s.schema_owner AS "owner"`}},
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM information_schema.schemata s`}},
-			{{SQL: `WHERE s.schema_name = ` + p.clause(CurrentSchema)}},
+			{{Query: `SELECT s.catalog_name AS "catalog"`}},
+			{{Query: `, s.schema_name AS "name"`}},
+			{{Query: `, s.schema_owner AS "owner"`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM information_schema.schemata s`}},
+			{{Query: `WHERE s.schema_name = ` + p.clause(CurrentSchema)}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"},

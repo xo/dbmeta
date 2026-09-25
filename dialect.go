@@ -35,20 +35,20 @@ type Info struct {
 	// Placeholder writes the bind parameter for position n, counting from 1.
 	// PostgreSQL writes $1, MySQL writes ?, Oracle writes :1.
 	Placeholder func(n int) string
-	// VersionSQL reads the server version. An empty string means the database
+	// VersionQuery reads the server version. An empty string means the database
 	// reports no version, and a caller uses an unknown version.
-	VersionSQL string
-	// VersionColumns is how many columns VersionSQL returns. SQL Server and
+	VersionQuery string
+	// VersionColumns is how many columns VersionQuery returns. SQL Server and
 	// Cassandra return three.
 	VersionColumns int
 	// ParseVersion turns the columns of the first row into a version set and a
 	// display line.
 	ParseVersion func(cols []string) (VersionSet, error)
 
-	// QuotingSQL reads the session state that decides how a string literal is
+	// QuotingQuery reads the session state that decides how a string literal is
 	// escaped. Empty when the product has no such state. See D56.
-	QuotingSQL string
-	// QuotingColumns is how many columns QuotingSQL returns.
+	QuotingQuery string
+	// QuotingColumns is how many columns QuotingQuery returns.
 	QuotingColumns int
 	// ParseQuoting turns those columns into the state.
 	ParseQuoting func(cols []string) (Quoting, error)
@@ -106,12 +106,12 @@ func (d Dialect) Info() (*Info, bool) {
 //
 // The second result is false when the model was not built or the database
 // reports no version.
-func (d Dialect) VersionQuery() (sql string, cols int, ok bool) {
+func (d Dialect) VersionQuery() (query string, cols int, ok bool) {
 	info, found := d.Info()
-	if !found || info.VersionSQL == "" {
+	if !found || info.VersionQuery == "" {
 		return "", 0, false
 	}
-	return info.VersionSQL, info.VersionColumns, true
+	return info.VersionQuery, info.VersionColumns, true
 }
 
 // ParseVersion turns the columns returned by [Dialect.VersionQuery] into a
@@ -145,14 +145,14 @@ func (d Dialect) ParseVersion(cols []string) (VersionSet, error) {
 // A database that reports no version returns an unknown version and no error.
 // An unknown version selects the newest fragment of every piece.
 func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
-	sqlstr, n, ok := d.VersionQuery()
+	query, n, ok := d.VersionQuery()
 	if !ok {
 		if _, built := d.Info(); !built {
 			return VersionSet{}, ErrModelNotBuilt
 		}
 		return VersionSet{Display: "unknown"}, nil
 	}
-	cols, err := readRow(ctx, db, d, sqlstr, n)
+	cols, err := readRow(ctx, db, d, query, n)
 	if err != nil {
 		return VersionSet{}, err
 	}
@@ -172,10 +172,10 @@ func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
 // facts a caller has to tell apart. Here the result is a version line shown to
 // a person or a session setting read as a word, and absent and empty mean the
 // same thing to both.
-func readRow(ctx context.Context, db Querier, d Dialect, sqlstr string, n int) ([]string, error) {
+func readRow(ctx context.Context, db Querier, d Dialect, query string, n int) ([]string, error) {
 	// QueryContext rather than QueryRowContext, so that Querier needs one
 	// method. The cost is closing the rows by hand, which is four lines.
-	rows, err := db.QueryContext(ctx, sqlstr)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("reading from %s: %w", d, err)
 	}

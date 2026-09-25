@@ -80,7 +80,7 @@ const Reference = "23.26.3.0.0"
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Oracle, &dbmeta.Info{
 		Placeholder:    func(n int) string { return ":" + itoa(n) },
-		VersionSQL:     versionSQL,
+		VersionQuery:   versionQuery,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
 	})
@@ -92,9 +92,9 @@ func init() {
 	registerCatalog()
 }
 
-// versionSQL reads the banner.
+// versionQuery reads the banner.
 //
-// One statement has to serve every release, because Info.VersionSQL is a
+// One statement has to serve every release, because Info.VersionQuery is a
 // string rather than a gated statement, and this is the only thing that works
 // on all of them. product_component_version has no version_full before 18c and
 // v$version has no banner_full before 18c, so both of those are a parse error
@@ -107,7 +107,7 @@ func init() {
 // It reads a V$ view, which needs a privilege an ordinary user does not have.
 // usql already requires that for Oracle, reading v$instance for the same
 // purpose, so this asks for nothing new.
-const versionSQL = `SELECT banner FROM v$version WHERE ROWNUM = 1`
+const versionQuery = `SELECT banner FROM v$version WHERE ROWNUM = 1`
 
 // parseVersion pulls the version and the product name out of the banner.
 //

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -214,8 +215,9 @@ func TestPrivilegeParity(t *testing.T) {
 							for name := range baseline {
 								asked[name] = true
 							}
-							section := parityName(target.name, m) +
+							base := parityName(target.name, m) +
 								"/" + scene.name + "/" + who.name
+							section := parityRelease(base, m, want)
 							ran++
 							if *update {
 								writeGoldenAt(t, parityGolden, parityHeader, section, got)
@@ -246,6 +248,36 @@ func TestPrivilegeParity(t *testing.T) {
 // under protocol, and neither is a product: reading any key here would file
 // its answers under cql.
 var parityFlavors = map[string][]string{"mysql": {"mariadb", "mysql"}}
+
+// parityRelease picks the section this server is recorded under.
+//
+// Most answers hold for every release of a product and share one section. Some
+// do not, and PostgreSQL 12 is why. It grants public SELECT on six columns of
+// pg_subscription and not on subsynccommit, which the subscriptions query
+// reads as "synchronous", so an ordinary role is refused the whole query. 13
+// widened the grant to every column except subconninfo, so the same role is
+// served there. A superuser reads it on both, so the query is right and the
+// file was wrong to claim one answer covers every release.
+//
+// So a section may be written as product@major, and that one wins for a server
+// reporting that major. Everything else falls back to the shared section. The
+// override exists only where a release really differs, which keeps the file
+// readable and puts the difference where a reader trips over it.
+//
+// The major alone is the key. A product whose answers differ between two
+// releases of one major would need more, and none here does.
+func parityRelease(base string, m *dbmeta.Meta, want map[string][]string) string {
+	main := m.Version().Main()
+	if main.Unknown || len(main.Parts) == 0 {
+		return base
+	}
+	product, rest, _ := strings.Cut(base, "/")
+	per := product + "@" + strconv.FormatUint(uint64(main.Parts[0]), 10) + "/" + rest
+	if _, ok := want[per]; ok {
+		return per
+	}
+	return base
+}
 
 // parityName is the database the section is recorded under.
 //
@@ -299,11 +331,11 @@ func parityRun(t *testing.T, db *sql.DB, m *dbmeta.Meta, schema string) map[stri
 		if err != nil {
 			continue
 		}
-		sqlstr, vals, err := q.SQL(m, args)
+		query, vals, err := q.Build(m, args)
 		if err != nil {
 			continue
 		}
-		out[q.Name()] = parityAsk(ctx, db, sqlstr, vals)
+		out[q.Name()] = parityAsk(ctx, db, query, vals)
 	}
 	return out
 }
@@ -330,8 +362,8 @@ func parityArgs(q dbmeta.AnyQuery, m *dbmeta.Meta, schema string) (map[string]an
 // It reads the result generically rather than through the typed iterator,
 // because the comparison is the same for every query and a scan per object
 // kind would be a second copy of every model.
-func parityAsk(ctx context.Context, db *sql.DB, sqlstr string, vals []any) parityAnswer {
-	rows, err := db.QueryContext(ctx, sqlstr, vals...)
+func parityAsk(ctx context.Context, db *sql.DB, query string, vals []any) parityAnswer {
+	rows, err := db.QueryContext(ctx, query, vals...)
 	if err != nil {
 		return parityAnswer{err: firstLine(err.Error())}
 	}

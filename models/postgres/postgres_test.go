@@ -37,7 +37,7 @@ func TestEveryReleaseResolves(t *testing.T) {
 	for _, ver := range releases {
 		m := meta(t, ver)
 		for _, q := range supported(t, m) {
-			s, _, err := q.SQL(m, nil)
+			s, _, err := q.Build(m, nil)
 			switch {
 			case errors.Is(err, dbmeta.ErrVersionTooOld):
 				continue
@@ -59,10 +59,10 @@ func TestObjectsAddedInTen(t *testing.T) {
 		dbmeta.Publications, dbmeta.PublicationTables,
 		dbmeta.Subscriptions, dbmeta.ExtendedStats,
 	} {
-		if _, _, err := q.SQL(meta(t, "9.6.24"), nil); !errors.Is(err, dbmeta.ErrVersionTooOld) {
+		if _, _, err := q.Build(meta(t, "9.6.24"), nil); !errors.Is(err, dbmeta.ErrVersionTooOld) {
 			t.Errorf("%s at 9.6: expected ErrVersionTooOld, got: %v", q.Name(), err)
 		}
-		if _, _, err := q.SQL(meta(t, "10.23"), nil); err != nil {
+		if _, _, err := q.Build(meta(t, "10.23"), nil); err != nil {
 			t.Errorf("%s at 10.23: expected no error, got: %v", q.Name(), err)
 		}
 	}
@@ -77,7 +77,7 @@ func TestColumnSetNeverChanges(t *testing.T) {
 		var want []string
 		for _, ver := range releases {
 			m := meta(t, ver)
-			s, _, err := q.SQL(m, nil)
+			s, _, err := q.Build(m, nil)
 			if errors.Is(err, dbmeta.ErrVersionTooOld) {
 				// the object did not exist at this release
 				continue
@@ -115,7 +115,7 @@ func TestFieldsMatchTheStatement(t *testing.T) {
 		for i, f := range fields {
 			names[i] = f.Name
 		}
-		s, _, err := q.SQL(m, nil)
+		s, _, err := q.Build(m, nil)
 		if err != nil {
 			t.Fatalf("%s: expected no error, got: %v", q.Name(), err)
 		}
@@ -143,7 +143,7 @@ func TestPaddingAtOldReleases(t *testing.T) {
 		{"18.6", `a.attgenerated`},
 	}
 	for _, test := range tests {
-		s, _, err := dbmeta.Columns.SQL(meta(t, test.ver), nil)
+		s, _, err := dbmeta.Columns.Build(meta(t, test.ver), nil)
 		if err != nil {
 			t.Fatalf("%s: expected no error, got: %v", test.ver, err)
 		}
@@ -175,7 +175,7 @@ func TestFieldMinMatchesTheGate(t *testing.T) {
 	// and the statement pads exactly when the field says it will
 	for name, minVer := range mins {
 		for _, ver := range releases {
-			s, _, err := dbmeta.Columns.SQL(meta(t, ver), nil)
+			s, _, err := dbmeta.Columns.Build(meta(t, ver), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -190,7 +190,7 @@ func TestFieldMinMatchesTheGate(t *testing.T) {
 
 func TestPlaceholders(t *testing.T) {
 	t.Parallel()
-	s, args, err := dbmeta.Tables.SQL(meta(t, "16.2"), dbmeta.Args{Schema: "public", Name: "book"}.Map())
+	s, args, err := dbmeta.Tables.Build(meta(t, "16.2"), dbmeta.Args{Schema: "public", Name: "book"}.Map())
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -214,10 +214,10 @@ func TestPlaceholders(t *testing.T) {
 func TestDefaultsMeanEveryOne(t *testing.T) {
 	t.Parallel()
 	m := meta(t, "16.2")
-	if _, _, err := dbmeta.Tables.SQL(m, nil); err != nil {
+	if _, _, err := dbmeta.Tables.Build(m, nil); err != nil {
 		t.Errorf("expected no error with no arguments, got: %v", err)
 	}
-	_, _, err := dbmeta.Tables.SQL(m, map[string]any{"schma": "public"})
+	_, _, err := dbmeta.Tables.Build(m, map[string]any{"schma": "public"})
 	if err == nil {
 		t.Error("expected a misspelled parameter to be an error")
 	}
@@ -323,7 +323,7 @@ func TestNoCoalesceOnCatalogColumns(t *testing.T) {
 	t.Parallel()
 	m := meta(t, "18.6")
 	for _, q := range supported(t, m) {
-		s, _, err := q.SQL(m, nil)
+		s, _, err := q.Build(m, nil)
 		if err != nil {
 			t.Fatalf("%s: expected no error, got: %v", q.Name(), err)
 		}

@@ -34,43 +34,43 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		` THEN 'trigger' ELSE 'func' END` +
 		` ELSE p.prokind::text END AS "kind"`
 	stmt := dbmeta.Stmt{
-		{{SQL: `SELECT current_database() AS "catalog"`}},
-		{{SQL: `, n.nspname AS "schema"`}},
-		{{SQL: `, p.proname AS "name"`}},
+		{{Query: `SELECT current_database() AS "catalog"`}},
+		{{Query: `, n.nspname AS "schema"`}},
+		{{Query: `, p.proname AS "name"`}},
 		// The oid, so that RoutineParameters can be joined back. PostgreSQL
 		// overloads a name, so the name alone does not identify a routine.
-		{{SQL: `, p.oid::text AS "id"`}},
+		{{Query: `, p.oid::text AS "id"`}},
 		{
-			{SQL: kindOld},
-			{Min: v11, SQL: kindNew},
+			{Query: kindOld},
+			{Min: v11, Query: kindNew},
 		},
-		{{SQL: `, pg_catalog.pg_get_function_result(p.oid) AS "result_type"`}},
-		{{SQL: `, pg_catalog.pg_get_function_arguments(p.oid) AS "arg_types"`}},
-		{{SQL: `, CASE p.provolatile WHEN 'i' THEN 'immutable' WHEN 's' THEN 'stable'` +
+		{{Query: `, pg_catalog.pg_get_function_result(p.oid) AS "result_type"`}},
+		{{Query: `, pg_catalog.pg_get_function_arguments(p.oid) AS "arg_types"`}},
+		{{Query: `, CASE p.provolatile WHEN 'i' THEN 'immutable' WHEN 's' THEN 'stable'` +
 			` WHEN 'v' THEN 'volatile' ELSE '' END AS "volatility"`}},
-		{{SQL: `, CASE p.proparallel WHEN 'r' THEN 'restricted' WHEN 's' THEN 'safe'` +
+		{{Query: `, CASE p.proparallel WHEN 'r' THEN 'restricted' WHEN 's' THEN 'safe'` +
 			` WHEN 'u' THEN 'unsafe' ELSE '' END AS "parallel"`}},
-		{{SQL: `, pg_catalog.pg_get_userbyid(p.proowner) AS "owner"`}},
-		{{SQL: `, CASE WHEN p.prosecdef THEN 'definer' ELSE 'invoker' END AS "security"`}},
-		{{SQL: `, pg_catalog.array_to_string(p.proacl, E'\n') AS "access"`}},
-		{{SQL: `, l.lanname AS "language"`}},
-		{{SQL: `, CASE WHEN l.lanname IN ('internal', 'c') THEN p.prosrc END AS "source"`}},
-		{{SQL: `, pg_catalog.obj_description(p.oid, 'pg_proc') AS "comment"`}},
-		{{SQL: `FROM pg_catalog.pg_proc p`}},
-		{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
-		{{SQL: `LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang`}},
-		{{SQL: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
+		{{Query: `, pg_catalog.pg_get_userbyid(p.proowner) AS "owner"`}},
+		{{Query: `, CASE WHEN p.prosecdef THEN 'definer' ELSE 'invoker' END AS "security"`}},
+		{{Query: `, pg_catalog.array_to_string(p.proacl, E'\n') AS "access"`}},
+		{{Query: `, l.lanname AS "language"`}},
+		{{Query: `, CASE WHEN l.lanname IN ('internal', 'c') THEN p.prosrc END AS "source"`}},
+		{{Query: `, pg_catalog.obj_description(p.oid, 'pg_proc') AS "comment"`}},
+		{{Query: `FROM pg_catalog.pg_proc p`}},
+		{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
+		{{Query: `LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang`}},
+		{{Query: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
 	}
 	if kindFilter != "" {
 		stmt = append(stmt, dbmeta.Choice{
-			{SQL: `AND p.proisagg`},
-			{Min: v11, SQL: `AND p.prokind = '` + kindFilter + `'`},
+			{Query: `AND p.proisagg`},
+			{Min: v11, Query: `AND p.prokind = '` + kindFilter + `'`},
 		})
 	}
 	return append(stmt,
-		dbmeta.Choice{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-		dbmeta.Choice{{SQL: `AND (@name = '' OR p.proname LIKE @name)`}},
-		dbmeta.Choice{{SQL: `ORDER BY 2, 3, 6`}},
+		dbmeta.Choice{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+		dbmeta.Choice{{Query: `AND (@name = '' OR p.proname LIKE @name)`}},
+		dbmeta.Choice{{Query: `ORDER BY 2, 3, 6`}},
 	)
 }
 
@@ -112,30 +112,30 @@ func registerAggregates() {
 func registerTypes() {
 	dbmeta.Types.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Type]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, pg_catalog.format_type(t.oid, NULL) AS "name"`}},
-			{{SQL: `, t.typname AS "internal"`}},
-			{{SQL: `, CASE t.typtype WHEN 'b' THEN 'base' WHEN 'c' THEN 'composite'` +
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, pg_catalog.format_type(t.oid, NULL) AS "name"`}},
+			{{Query: `, t.typname AS "internal"`}},
+			{{Query: `, CASE t.typtype WHEN 'b' THEN 'base' WHEN 'c' THEN 'composite'` +
 				` WHEN 'd' THEN 'domain' WHEN 'e' THEN 'enum' WHEN 'p' THEN 'pseudo'` +
 				` WHEN 'r' THEN 'range' WHEN 'm' THEN 'multirange'` +
 				` ELSE t.typtype::text END AS "kind"`}},
-			{{SQL: `, COALESCE((SELECT pg_catalog.string_agg(e.enumlabel, ', '` +
+			{{Query: `, COALESCE((SELECT pg_catalog.string_agg(e.enumlabel, ', '` +
 				` ORDER BY e.enumsortorder) FROM pg_catalog.pg_enum e` +
 				` WHERE e.enumtypid = t.oid), '') AS "elements"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(t.typowner) AS "owner"`}},
-			{{SQL: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
-			{{SQL: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_type t`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(t.typowner) AS "owner"`}},
+			{{Query: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
+			{{Query: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_type t`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
 			// leave out the composite types that back a table, and the array
 			// type that every scalar type creates
-			{{SQL: `WHERE (t.typrelid = 0 OR (SELECT c.relkind = 'c' FROM pg_catalog.pg_class c WHERE c.oid = t.typrelid))`}},
-			{{SQL: `AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_type el WHERE el.oid = t.typelem AND el.typarray = t.oid)`}},
-			{{SQL: `AND (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR t.typname LIKE @name OR pg_catalog.format_type(t.oid, NULL) LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3`}},
+			{{Query: `WHERE (t.typrelid = 0 OR (SELECT c.relkind = 'c' FROM pg_catalog.pg_class c WHERE c.oid = t.typrelid))`}},
+			{{Query: `AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_type el WHERE el.oid = t.typelem AND el.typarray = t.oid)`}},
+			{{Query: `AND (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR t.typname LIKE @name OR pg_catalog.format_type(t.oid, NULL) LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment"),
 		Params: schemaNameSystem("type"),
@@ -152,26 +152,26 @@ func registerTypes() {
 func registerDomains() {
 	dbmeta.Domains.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Domain]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, t.typname AS "name"`}},
-			{{SQL: `, pg_catalog.format_type(t.typbasetype, t.typtypmod) AS "data_type"`}},
-			{{SQL: `, COALESCE((SELECT c.collname FROM pg_catalog.pg_collation c, pg_catalog.pg_type bt` +
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, t.typname AS "name"`}},
+			{{Query: `, pg_catalog.format_type(t.typbasetype, t.typtypmod) AS "data_type"`}},
+			{{Query: `, COALESCE((SELECT c.collname FROM pg_catalog.pg_collation c, pg_catalog.pg_type bt` +
 				` WHERE c.oid = t.typcollation AND bt.oid = t.typbasetype` +
 				` AND t.typcollation <> bt.typcollation), '') AS "collation"`}},
-			{{SQL: `, NOT t.typnotnull AS "nullable"`}},
-			{{SQL: `, t.typdefault AS "default"`}},
-			{{SQL: `, COALESCE((SELECT pg_catalog.string_agg(pg_catalog.pg_get_constraintdef(r.oid, true), ' '` +
+			{{Query: `, NOT t.typnotnull AS "nullable"`}},
+			{{Query: `, t.typdefault AS "default"`}},
+			{{Query: `, COALESCE((SELECT pg_catalog.string_agg(pg_catalog.pg_get_constraintdef(r.oid, true), ' '` +
 				` ORDER BY r.conname) FROM pg_catalog.pg_constraint r WHERE t.oid = r.contypid), '') AS "constraints"`}},
-			{{SQL: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
-			{{SQL: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_type t`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
-			{{SQL: `WHERE t.typtype = 'd'`}},
-			{{SQL: `AND (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR t.typname LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3`}},
+			{{Query: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
+			{{Query: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_type t`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
+			{{Query: `WHERE t.typtype = 'd'`}},
+			{{Query: `AND (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR t.typname LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: fields("catalog", "schema", "name", "data_type", "collation", "nullable",
 			"default", "constraints", "access", "comment"),
@@ -192,20 +192,20 @@ func registerDomains() {
 func registerOperators() {
 	dbmeta.Operators.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Operator]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT n.nspname AS "schema"`}},
-			{{SQL: `, o.oprname AS "name"`}},
-			{{SQL: `, CASE WHEN o.oprkind = 'l' THEN '' ELSE pg_catalog.format_type(o.oprleft, NULL) END AS "left_type"`}},
-			{{SQL: `, CASE WHEN o.oprkind = 'r' THEN '' ELSE pg_catalog.format_type(o.oprright, NULL) END AS "right_type"`}},
-			{{SQL: `, pg_catalog.format_type(o.oprresult, NULL) AS "result_type"`}},
-			{{SQL: `, o.oprcode::text AS "function"`}},
-			{{SQL: `, COALESCE(pg_catalog.obj_description(o.oid, 'pg_operator'),` +
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, o.oprname AS "name"`}},
+			{{Query: `, CASE WHEN o.oprkind = 'l' THEN '' ELSE pg_catalog.format_type(o.oprleft, NULL) END AS "left_type"`}},
+			{{Query: `, CASE WHEN o.oprkind = 'r' THEN '' ELSE pg_catalog.format_type(o.oprright, NULL) END AS "right_type"`}},
+			{{Query: `, pg_catalog.format_type(o.oprresult, NULL) AS "result_type"`}},
+			{{Query: `, o.oprcode::text AS "function"`}},
+			{{Query: `, COALESCE(pg_catalog.obj_description(o.oid, 'pg_operator'),` +
 				` pg_catalog.obj_description(o.oprcode, 'pg_proc')) AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_operator o`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = o.oprnamespace`}},
-			{{SQL: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR o.oprname LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2, 3, 4`}},
+			{{Query: `FROM pg_catalog.pg_operator o`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = o.oprnamespace`}},
+			{{Query: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR o.oprname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2, 3, 4`}},
 		},
 		Fields: fields("schema", "name", "left_type", "right_type", "result_type", "function", "comment"),
 		Params: schemaNameSystem("operator"),

@@ -61,7 +61,7 @@ func TestFeaturesDecideRegistration(t *testing.T) {
 	if got := dbmeta.Sequences.Support(my); got != dbmeta.NotSupported {
 		t.Errorf("expected a database without sequences to say so, got %v", got)
 	}
-	if _, _, err := dbmeta.Sequences.SQL(my, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
+	if _, _, err := dbmeta.Sequences.Build(my, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
 		t.Errorf("expected ErrNotSupported, got: %v", err)
 	}
 	// an object information_schema knows nothing about is unsupported for both
@@ -76,16 +76,16 @@ func TestFeaturesDecideRegistration(t *testing.T) {
 // standard one otherwise.
 func TestClauseOverride(t *testing.T) {
 	t.Parallel()
-	stdSQL, _, err := dbmeta.Columns.SQL(meta(t, plain), nil)
+	stdQuery, _, err := dbmeta.Columns.Build(meta(t, plain), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mySQL, _, err := dbmeta.Columns.SQL(meta(t, mylike), nil)
+	mySQL, _, err := dbmeta.Columns.Build(meta(t, mylike), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdSQL, `c.data_type AS "data_type"`) {
-		t.Errorf("expected the standard spelling:\n%s", stdSQL)
+	if !strings.Contains(stdQuery, `c.data_type AS "data_type"`) {
+		t.Errorf("expected the standard spelling:\n%s", stdQuery)
 	}
 	if !strings.Contains(mySQL, `c.column_type AS "data_type"`) {
 		t.Errorf("expected the overridden spelling:\n%s", mySQL)
@@ -101,11 +101,11 @@ func TestColumnSetIsTheSameAcrossProfiles(t *testing.T) {
 		if q.Support(std) != dbmeta.Supported || q.Support(my) != dbmeta.Supported {
 			continue
 		}
-		a, _, err := q.SQL(std, nil)
+		a, _, err := q.Build(std, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", q.Name(), err)
 		}
-		b, _, err := q.SQL(my, nil)
+		b, _, err := q.Build(my, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", q.Name(), err)
 		}
@@ -132,7 +132,7 @@ func TestFieldsMatchTheStatement(t *testing.T) {
 		for i, f := range fields {
 			names[i] = f.Name
 		}
-		s, _, err := q.SQL(m, nil)
+		s, _, err := q.Build(m, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -147,7 +147,7 @@ func TestFieldsMatchTheStatement(t *testing.T) {
 // quoted literal and cannot end the string early.
 func TestSystemSchemasAreQuoted(t *testing.T) {
 	t.Parallel()
-	s, _, err := dbmeta.Tables.SQL(meta(t, odd), nil)
+	s, _, err := dbmeta.Tables.Build(meta(t, odd), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

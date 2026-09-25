@@ -133,8 +133,8 @@ func Everything(syn Syntax) Fixture {
 // because it varies by server version, which is not known until a connection
 // exists.
 type Step struct {
-	Name string
-	SQL  string
+	Name  string
+	Query string
 }
 
 // Fixture is a schema, with the statements that build it and drop it.

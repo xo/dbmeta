@@ -53,7 +53,7 @@ func TestChangePasswordPostgres(t *testing.T) {
 
 	for _, c := range hostilePasswords {
 		t.Run(c.name, func(t *testing.T) {
-			stmt, err := dbmeta.PostgreSQL.ChangePasswordSQL(
+			stmt, err := dbmeta.PostgreSQL.ChangePassword(
 				dbmeta.PasswordChange{User: user, Password: c.password}, q)
 			if err != nil {
 				t.Fatalf("building the statement: %v", err)
@@ -90,7 +90,7 @@ func TestChangePasswordMySQL(t *testing.T) {
 
 	for _, c := range hostilePasswords {
 		t.Run(c.name, func(t *testing.T) {
-			stmt, err := dbmeta.MySQL.ChangePasswordSQL(
+			stmt, err := dbmeta.MySQL.ChangePassword(
 				dbmeta.PasswordChange{User: account, Password: c.password}, q)
 			if err != nil {
 				t.Fatalf("building the statement: %v", err)
@@ -126,7 +126,7 @@ func TestChangePasswordSQLServer(t *testing.T) {
 
 	for _, c := range hostilePasswords {
 		t.Run(c.name, func(t *testing.T) {
-			stmt, err := dbmeta.SQLServer.ChangePasswordSQL(
+			stmt, err := dbmeta.SQLServer.ChangePassword(
 				dbmeta.PasswordChange{User: login2, Password: c.password}, q)
 			if err != nil {
 				t.Fatalf("building the statement: %v", err)

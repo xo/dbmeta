@@ -497,6 +497,27 @@ that varies is what kind of principal they are.
 file. They answer a question about the connection, so a run where they agreed
 would be the fault.
 
+### One release answers differently
+
+`test/testdata/parity.txt` has a section per product, and PostgreSQL 12 has one
+of its own, written `postgres@12`. A section named for a release wins over the
+shared one for a server reporting that major.
+
+PostgreSQL 12 grants public SELECT on six columns of `pg_subscription` and not
+on `subsynccommit`, which the `Subscriptions` query reads as `synchronous`, so
+an ordinary role is refused the whole query. PostgreSQL 13 widened the grant to
+every column except `subconninfo`, so the same role is served from 13 on. A
+superuser reads it on every release.
+
+The query is not gated for this. A superuser on 12 can read the column, and
+padding it would withhold a fact from the caller who is allowed it, which rule
+13 forbids. What was wrong was the file claiming one answer covers every
+release of a product.
+
+It was found by CI rather than by the cross-release check that was supposed to
+catch it. That check compared 9.6 against 18, and 9.6 has no `pg_subscription`
+at all, so the query was never asked and the difference never showed.
+
 ### What each one means for a consumer
 
 The MySQL dialect is the one to plan for. Queries are refused outright, not

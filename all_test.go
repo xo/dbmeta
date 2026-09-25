@@ -25,11 +25,11 @@ func init() {
 func TestAllStreamsRows(t *testing.T) {
 	// not parallel: these tests share the replay map, keyed by statement text
 	m := meta(t, "18")
-	sqlstr, _, err := Columns.SQL(m, nil)
+	query, _, err := Columns.Build(m, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	record(sqlstr, []string{"table", "name"}, [][]driver.Value{
+	record(query, []string{"table", "name"}, [][]driver.Value{
 		{"t", "id"},
 		{"t", "name"},
 	}, nil)
@@ -58,8 +58,8 @@ func TestAllStreamsRows(t *testing.T) {
 func TestAllStoppingEarlyReleases(t *testing.T) {
 	// not parallel: these tests share the replay map, keyed by statement text
 	m := meta(t, "18")
-	sqlstr, _, _ := Columns.SQL(m, nil)
-	record(sqlstr, []string{"table", "name"}, [][]driver.Value{
+	query, _, _ := Columns.Build(m, nil)
+	record(query, []string{"table", "name"}, [][]driver.Value{
 		{"t", "a"}, {"t", "b"}, {"t", "c"},
 	}, nil)
 	db, err := openFake()
@@ -85,8 +85,8 @@ func TestAllStoppingEarlyReleases(t *testing.T) {
 func TestAllReportsQueryFailure(t *testing.T) {
 	// not parallel: these tests share the replay map, keyed by statement text
 	m := meta(t, "18")
-	sqlstr, _, _ := Columns.SQL(m, nil)
-	record(sqlstr, nil, nil, io.ErrClosedPipe)
+	query, _, _ := Columns.Build(m, nil)
+	record(query, nil, nil, io.ErrClosedPipe)
 	db, err := openFake()
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)

@@ -20,7 +20,7 @@ for v, err := range dbmeta.Tables.All(ctx, m, db, args) {
 }
 ```
 
-A caller that wants the statement rather than the rows calls `SQL` on the same
+A caller that wants the statement rather than the rows calls `Build` on the same
 value, and `Fields`, `Params` and `Support` describe it. See the package
 documentation.
 

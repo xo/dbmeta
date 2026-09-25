@@ -77,9 +77,9 @@ var Everything = Fixture{
 		// above it, but writing the deprecated form everywhere would test
 		// syntax that nobody writes on a current server.
 		choose("trigger",
-			dbmeta.Fragment{SQL: `CREATE TRIGGER book_touch BEFORE UPDATE ON dbmeta_fixture.book
+			dbmeta.Fragment{Query: `CREATE TRIGGER book_touch BEFORE UPDATE ON dbmeta_fixture.book
 	FOR EACH ROW EXECUTE PROCEDURE dbmeta_fixture.touch()`},
-			dbmeta.Fragment{Min: v11, SQL: `CREATE TRIGGER book_touch BEFORE UPDATE ON dbmeta_fixture.book
+			dbmeta.Fragment{Min: v11, Query: `CREATE TRIGGER book_touch BEFORE UPDATE ON dbmeta_fixture.book
 	FOR EACH ROW EXECUTE FUNCTION dbmeta_fixture.touch()`},
 		),
 

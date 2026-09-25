@@ -139,7 +139,7 @@ func openCompare(t *testing.T, dsn string) (*sql.DB, *dbmeta.Meta) {
 			if s.Skipped {
 				continue
 			}
-			if _, err := db.ExecContext(ctx, s.SQL); err != nil && fatal {
+			if _, err := db.ExecContext(ctx, s.Query); err != nil && fatal {
 				t.Fatalf("%s on %s: %v", s.Name, m, err)
 			}
 		}
@@ -165,13 +165,13 @@ func takesSchema(t *testing.T, q dbmeta.AnyQuery, m *dbmeta.Meta) bool {
 // to compare what the server said rather than to use it.
 func readRows(t *testing.T, db *sql.DB, m *dbmeta.Meta, q dbmeta.AnyQuery, args map[string]any) []row {
 	t.Helper()
-	sqlstr, vals, err := q.SQL(m, args)
+	query, vals, err := q.Build(m, args)
 	if err != nil {
 		t.Fatalf("%s: rendering: %v", q.Name(), err)
 	}
-	cols, cells, err := nullableStrings(t, db, sqlstr, vals)
+	cols, cells, err := nullableStrings(t, db, query, vals)
 	if err != nil {
-		t.Fatalf("%s: executing: %v\n%s", q.Name(), err, sqlstr)
+		t.Fatalf("%s: executing: %v\n%s", q.Name(), err, query)
 	}
 	out := make([]row, 0, len(cells))
 	for _, cells := range cells {

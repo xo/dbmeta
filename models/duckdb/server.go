@@ -314,8 +314,8 @@ func registerSettings() {
 	// session user, so that column is NULL rather than a copy of the name.
 	dbmeta.CurrentUser.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.User]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_user AS "name"`}},
-			{{SQL: `, NULL AS "session"`}},
+			{{Query: `SELECT current_user AS "name"`}},
+			{{Query: `, NULL AS "session"`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: `always "duckdb": the product has no users`},

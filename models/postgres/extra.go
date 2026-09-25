@@ -32,36 +32,36 @@ func registerExtra() {
 func registerConstraintColumns() {
 	dbmeta.ConstraintColumns.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ConstraintColumn]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, t.relname AS "table"`}},
-			{{SQL: `, r.conname AS "constraint"`}},
-			{{SQL: `, a.attname AS "name"`}},
-			{{SQL: `, k.ordinality AS "ordinal"`}},
-			{{SQL: `, CASE WHEN r.confrelid <> 0 THEN current_database() ELSE NULL END AS "foreign_catalog"`}},
-			{{SQL: `, fn.nspname AS "foreign_schema"`}},
-			{{SQL: `, ft.relname AS "foreign_table"`}},
-			{{SQL: `, fa.attname AS "foreign_name"`}},
-			{{SQL: `FROM pg_catalog.pg_constraint r`}},
-			{{SQL: `JOIN pg_catalog.pg_class t ON t.oid = r.conrelid`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace`}},
-			{{SQL: `CROSS JOIN LATERAL pg_catalog.unnest(r.conkey) WITH ORDINALITY AS k(attnum, ordinality)`}},
-			{{SQL: `JOIN pg_catalog.pg_attribute a ON a.attrelid = r.conrelid AND a.attnum = k.attnum`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_class ft ON ft.oid = r.confrelid`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_namespace fn ON fn.oid = ft.relnamespace`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_attribute fa ON fa.attrelid = r.confrelid` +
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, t.relname AS "table"`}},
+			{{Query: `, r.conname AS "constraint"`}},
+			{{Query: `, a.attname AS "name"`}},
+			{{Query: `, k.ordinality AS "ordinal"`}},
+			{{Query: `, CASE WHEN r.confrelid <> 0 THEN current_database() ELSE NULL END AS "foreign_catalog"`}},
+			{{Query: `, fn.nspname AS "foreign_schema"`}},
+			{{Query: `, ft.relname AS "foreign_table"`}},
+			{{Query: `, fa.attname AS "foreign_name"`}},
+			{{Query: `FROM pg_catalog.pg_constraint r`}},
+			{{Query: `JOIN pg_catalog.pg_class t ON t.oid = r.conrelid`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace`}},
+			{{Query: `CROSS JOIN LATERAL pg_catalog.unnest(r.conkey) WITH ORDINALITY AS k(attnum, ordinality)`}},
+			{{Query: `JOIN pg_catalog.pg_attribute a ON a.attrelid = r.conrelid AND a.attnum = k.attnum`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_class ft ON ft.oid = r.confrelid`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace fn ON fn.oid = ft.relnamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_attribute fa ON fa.attrelid = r.confrelid` +
 				` AND fa.attnum = r.confkey[k.ordinality]`}},
-			{{SQL: `WHERE r.conrelid <> 0`}},
+			{{Query: `WHERE r.conrelid <> 0`}},
 			// Left out for the reason Constraints leaves it out: release 18
 			// records a NOT NULL here and no earlier release does, so
 			// reporting it would make the same schema answer differently on
 			// two servers. See D49.
-			{{SQL: `AND r.contype <> 'n'`}},
-			{{SQL: `AND ` + notSystemSchema}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@parent = '' OR t.relname LIKE @parent)`}},
-			{{SQL: `AND (@name = '' OR r.conname LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3, 4, 6`}},
+			{{Query: `AND r.contype <> 'n'`}},
+			{{Query: `AND ` + notSystemSchema}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR t.relname LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR r.conname LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3, 4, 6`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "table"},
@@ -95,32 +95,32 @@ func registerConstraintColumns() {
 func registerRoutineParameters() {
 	dbmeta.RoutineParameters.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.RoutineParameter]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, p.proname AS "routine"`}},
-			{{SQL: `, p.oid::text AS "routine_id"`}},
-			{{SQL: `, NULLIF(p.proargnames[k.ordinality], '') AS "name"`}},
-			{{SQL: `, k.ordinality AS "ordinal"`}},
-			{{SQL: `, CASE COALESCE(p.proargmodes[k.ordinality], 'i')` +
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, p.proname AS "routine"`}},
+			{{Query: `, p.oid::text AS "routine_id"`}},
+			{{Query: `, NULLIF(p.proargnames[k.ordinality], '') AS "name"`}},
+			{{Query: `, k.ordinality AS "ordinal"`}},
+			{{Query: `, CASE COALESCE(p.proargmodes[k.ordinality], 'i')` +
 				` WHEN 'i' THEN 'in' WHEN 'o' THEN 'out' WHEN 'b' THEN 'inout'` +
 				` WHEN 'v' THEN 'variadic' WHEN 't' THEN 'table'` +
 				` ELSE p.proargmodes[k.ordinality]::text END AS "mode"`}},
-			{{SQL: `, pg_catalog.format_type(k.typ, NULL) AS "data_type"`}},
+			{{Query: `, pg_catalog.format_type(k.typ, NULL) AS "data_type"`}},
 			// A default applies to the last parameters, so the position a
 			// default starts at is the count minus pronargdefaults.
-			{{SQL: `, CASE WHEN p.pronargdefaults > 0` +
+			{{Query: `, CASE WHEN p.pronargdefaults > 0` +
 				` AND k.ordinality > pg_catalog.array_length(p.proargtypes, 1) - p.pronargdefaults` +
 				` AND COALESCE(p.proargmodes[k.ordinality], 'i') IN ('i', 'b', 'v')` +
 				` THEN 'yes' ELSE NULL END AS "default"`}},
-			{{SQL: `FROM pg_catalog.pg_proc p`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
-			{{SQL: `CROSS JOIN LATERAL pg_catalog.unnest(` +
+			{{Query: `FROM pg_catalog.pg_proc p`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
+			{{Query: `CROSS JOIN LATERAL pg_catalog.unnest(` +
 				`COALESCE(p.proallargtypes, p.proargtypes::oid[])) WITH ORDINALITY AS k(typ, ordinality)`}},
-			{{SQL: `WHERE ` + notSystemSchema}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@parent = '' OR p.proname LIKE @parent)`}},
-			{{SQL: `AND (@name = '' OR COALESCE(p.proargnames[k.ordinality], '') LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3, 4, 6`}},
+			{{Query: `WHERE ` + notSystemSchema}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR p.proname LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR COALESCE(p.proargnames[k.ordinality], '') LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3, 4, 6`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"},
@@ -152,18 +152,18 @@ func registerRoutineParameters() {
 func registerEnumValues() {
 	dbmeta.EnumValues.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.EnumValue]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, t.typname AS "enum"`}},
-			{{SQL: `, e.enumlabel AS "label"`}},
-			{{SQL: `, ROW_NUMBER() OVER (PARTITION BY t.oid ORDER BY e.enumsortorder) AS "ordinal"`}},
-			{{SQL: `FROM pg_catalog.pg_type t`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
-			{{SQL: `JOIN pg_catalog.pg_enum e ON e.enumtypid = t.oid`}},
-			{{SQL: `WHERE ` + notSystemSchema}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR t.typname LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3, 5`}},
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, t.typname AS "enum"`}},
+			{{Query: `, e.enumlabel AS "label"`}},
+			{{Query: `, ROW_NUMBER() OVER (PARTITION BY t.oid ORDER BY e.enumsortorder) AS "ordinal"`}},
+			{{Query: `FROM pg_catalog.pg_type t`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
+			{{Query: `JOIN pg_catalog.pg_enum e ON e.enumtypid = t.oid`}},
+			{{Query: `WHERE ` + notSystemSchema}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR t.typname LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3, 5`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"},
@@ -190,24 +190,24 @@ func registerEnumValues() {
 func registerViews() {
 	dbmeta.Views.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.View]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, c.relname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_get_viewdef(c.oid, true) AS "definition"`}},
-			{{SQL: `, CASE WHEN 'check_option=cascaded' = ANY(c.reloptions) THEN 'cascaded'` +
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, c.relname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_viewdef(c.oid, true) AS "definition"`}},
+			{{Query: `, CASE WHEN 'check_option=cascaded' = ANY(c.reloptions) THEN 'cascaded'` +
 				` WHEN 'check_option=local' = ANY(c.reloptions) THEN 'local'` +
 				` ELSE 'none' END AS "check_option"`}},
-			{{SQL: `, pg_catalog.pg_relation_is_updatable(c.oid, false) & 8 = 8 AS "updatable"`}},
-			{{SQL: `, pg_catalog.pg_relation_is_updatable(c.oid, false) & 2 = 2 AS "insertable"`}},
-			{{SQL: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_class c`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `, pg_catalog.pg_relation_is_updatable(c.oid, false) & 8 = 8 AS "updatable"`}},
+			{{Query: `, pg_catalog.pg_relation_is_updatable(c.oid, false) & 2 = 2 AS "insertable"`}},
+			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_class c`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			// v is a view and m a materialized one, which psql lists together
-			{{SQL: `WHERE c.relkind IN ('v', 'm')`}},
-			{{SQL: `AND ` + notSystemSchema}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR c.relname LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3`}},
+			{{Query: `WHERE c.relkind IN ('v', 'm')`}},
+			{{Query: `AND ` + notSystemSchema}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
@@ -234,29 +234,29 @@ func registerViews() {
 func registerColumnStats() {
 	dbmeta.ColumnStats.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ColumnStat]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, s.schemaname AS "schema"`}},
-			{{SQL: `, s.tablename AS "table"`}},
-			{{SQL: `, s.attname AS "name"`}},
-			{{SQL: `, s.avg_width AS "avg_width"`}},
-			{{SQL: `, s.null_frac AS "null_frac"`}},
-			{{SQL: `, s.n_distinct AS "distinct"`}},
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, s.schemaname AS "schema"`}},
+			{{Query: `, s.tablename AS "table"`}},
+			{{Query: `, s.attname AS "name"`}},
+			{{Query: `, s.avg_width AS "avg_width"`}},
+			{{Query: `, s.null_frac AS "null_frac"`}},
+			{{Query: `, s.n_distinct AS "distinct"`}},
 			// The bounds come from the histogram, which is absent for a column
 			// with few enough distinct values to fit in the common list.
-			{{SQL: `, (s.histogram_bounds::text::text[])[1] AS "min"`}},
-			{{SQL: `, (s.histogram_bounds::text::text[])` +
+			{{Query: `, (s.histogram_bounds::text::text[])[1] AS "min"`}},
+			{{Query: `, (s.histogram_bounds::text::text[])` +
 				`[pg_catalog.array_length(s.histogram_bounds::text::text[], 1)] AS "max"`}},
 			// PostgreSQL keeps no mean. It is not padded with a literal,
 			// because absent and zero are different. See docs/NULLS.md.
-			{{SQL: `, NULL AS "mean"`}},
-			{{SQL: `, pg_catalog.array_to_string(s.most_common_vals::text::text[], E'\n') AS "top_n"`}},
-			{{SQL: `, pg_catalog.array_to_string(s.most_common_freqs, E'\n') AS "top_n_freqs"`}},
-			{{SQL: `FROM pg_catalog.pg_stats s`}},
-			{{SQL: `WHERE (@with_system OR (s.schemaname !~ '^pg_' AND s.schemaname <> 'information_schema'))`}},
-			{{SQL: `AND (@schema = '' OR s.schemaname LIKE @schema)`}},
-			{{SQL: `AND (@parent = '' OR s.tablename LIKE @parent)`}},
-			{{SQL: `AND (@name = '' OR s.attname LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3, 4`}},
+			{{Query: `, NULL AS "mean"`}},
+			{{Query: `, pg_catalog.array_to_string(s.most_common_vals::text::text[], E'\n') AS "top_n"`}},
+			{{Query: `, pg_catalog.array_to_string(s.most_common_freqs, E'\n') AS "top_n_freqs"`}},
+			{{Query: `FROM pg_catalog.pg_stats s`}},
+			{{Query: `WHERE (@with_system OR (s.schemaname !~ '^pg_' AND s.schemaname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR s.schemaname LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR s.tablename LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR s.attname LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3, 4`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "table"}, {Name: "name"},
@@ -291,8 +291,8 @@ func registerCurrentSchema() {
 	// ROLE. session_user is who the connection authenticated as and does not.
 	dbmeta.CurrentUser.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.User]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_user AS "name"`}},
-			{{SQL: `, session_user AS "session"`}},
+			{{Query: `SELECT current_user AS "name"`}},
+			{{Query: `, session_user AS "session"`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: "the effective user, which SET ROLE changes"},
@@ -307,12 +307,12 @@ func registerCurrentSchema() {
 
 	dbmeta.CurrentSchema.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"`}},
-			{{SQL: `, pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_namespace n`}},
-			{{SQL: `WHERE n.nspname = pg_catalog.current_schema()`}},
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"`}},
+			{{Query: `, pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_namespace n`}},
+			{{Query: `WHERE n.nspname = pg_catalog.current_schema()`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"},

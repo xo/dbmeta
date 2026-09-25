@@ -53,7 +53,7 @@ const Reference = "1.5.5"
 func init() {
 	dbmeta.RegisterDialect(dbmeta.DuckDB, &dbmeta.Info{
 		Placeholder:    func(int) string { return "?" },
-		VersionSQL:     `SELECT version()`,
+		VersionQuery:   `SELECT version()`,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
 	})
@@ -99,4 +99,4 @@ func schemaParentName(kind string) []dbmeta.Param {
 }
 
 // always wraps SQL that is the same on every release, which is all of it.
-func always(sqlstr string) dbmeta.Choice { return dbmeta.Choice{{SQL: sqlstr}} }
+func always(query string) dbmeta.Choice { return dbmeta.Choice{{Query: query}} }

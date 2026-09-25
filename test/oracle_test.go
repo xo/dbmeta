@@ -33,8 +33,8 @@ func setupOracle(t *testing.T, db *sql.DB) *dbmeta.Meta {
 				skipped++
 				continue
 			}
-			if _, err := db.ExecContext(ctx, step.SQL); err != nil {
-				t.Fatalf("%s %s: %v\n%s", what, step.Name, err, step.SQL)
+			if _, err := db.ExecContext(ctx, step.Query); err != nil {
+				t.Fatalf("%s %s: %v\n%s", what, step.Name, err, step.Query)
 			}
 			ran++
 		}
@@ -48,7 +48,7 @@ func setupOracle(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	for _, step := range down {
 		if !step.Skipped {
 			//nolint:errcheck // a teardown before setup is best effort
-			db.ExecContext(ctx, step.SQL)
+			db.ExecContext(ctx, step.Query)
 		}
 	}
 
@@ -61,7 +61,7 @@ func setupOracle(t *testing.T, db *sql.DB) *dbmeta.Meta {
 		for _, step := range down {
 			if !step.Skipped {
 				//nolint:errcheck // the test has already reported what matters
-				db.ExecContext(context.WithoutCancel(ctx), step.SQL)
+				db.ExecContext(context.WithoutCancel(ctx), step.Query)
 			}
 		}
 	})
@@ -197,7 +197,7 @@ func TestOracleSmoke(t *testing.T) {
 		// nil rather than a filter, so every query takes its own defaults.
 		// Passing a schema to a query that declares no schema parameter is
 		// ErrUnknownParam, which the framework refuses on purpose.
-		sqlstr, vals, err := q.SQL(m, nil)
+		query, vals, err := q.Build(m, nil)
 		if errors.Is(err, dbmeta.ErrVersionTooOld) {
 			tooOld++
 			continue
@@ -208,9 +208,9 @@ func TestOracleSmoke(t *testing.T) {
 		}
 		// columnsOf runs it and closes the rows, which is why this loop does
 		// not hold one open across an iteration.
-		cols, err := columnsOf(t, db, sqlstr, vals)
+		cols, err := columnsOf(t, db, query, vals)
 		if err != nil {
-			t.Errorf("%s: %v\n%s", q.Name(), err, sqlstr)
+			t.Errorf("%s: %v\n%s", q.Name(), err, query)
 			continue
 		}
 		fields, ferr := q.Fields(m)

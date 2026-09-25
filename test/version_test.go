@@ -146,7 +146,7 @@ func TestCurrentUserNamesTheConnection(t *testing.T) {
 				if c.dialect != dbmeta.SQLite3 {
 					t.Fatalf("expected %s to answer the current user", c.dialect)
 				}
-				if _, _, err := dbmeta.CurrentUser.SQL(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
+				if _, _, err := dbmeta.CurrentUser.Build(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
 					t.Errorf("expected ErrNotSupported, got %v", err)
 				}
 				return

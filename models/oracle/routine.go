@@ -207,26 +207,26 @@ func registerRoutines() {
 	// query reports that the server is too old rather than a wrong answer.
 	dbmeta.Domains.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Domain]{
 		Stmt: dbmeta.Stmt{
-			{{Min: v23, SQL: `SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS "catalog"`}},
-			{{Min: v23, SQL: `, d.owner AS "schema"`}},
-			{{Min: v23, SQL: `, d.name AS "name"`}},
-			{{Min: v23, SQL: `, NVL(c.data_type, '') AS "data_type"`}},
-			{{Min: v23, SQL: `, NVL(c.collation, '') AS "collation"`}},
-			{{Min: v23, SQL: `, CASE c.nullable WHEN 'N' THEN 0 ELSE 1 END AS "nullable"`}},
-			{{Min: v23, SQL: `, c.data_default AS "default"`}},
-			{{Min: v23, SQL: `, '' AS "constraints"`}},
-			{{Min: v23, SQL: `, NULL AS "access"`}},
-			{{Min: v23, SQL: `, NULL AS "comment"`}},
-			{{Min: v23, SQL: `FROM all_domains d`}},
+			{{Min: v23, Query: `SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS "catalog"`}},
+			{{Min: v23, Query: `, d.owner AS "schema"`}},
+			{{Min: v23, Query: `, d.name AS "name"`}},
+			{{Min: v23, Query: `, NVL(c.data_type, '') AS "data_type"`}},
+			{{Min: v23, Query: `, NVL(c.collation, '') AS "collation"`}},
+			{{Min: v23, Query: `, CASE c.nullable WHEN 'N' THEN 0 ELSE 1 END AS "nullable"`}},
+			{{Min: v23, Query: `, c.data_default AS "default"`}},
+			{{Min: v23, Query: `, '' AS "constraints"`}},
+			{{Min: v23, Query: `, NULL AS "access"`}},
+			{{Min: v23, Query: `, NULL AS "comment"`}},
+			{{Min: v23, Query: `FROM all_domains d`}},
 			// A domain over several columns has a row per column. The first
 			// is the one a single column domain has, which is every domain a
 			// consumer prints beside a column type.
-			{{Min: v23, SQL: `LEFT JOIN all_domain_cols c ON c.owner = d.owner` +
+			{{Min: v23, Query: `LEFT JOIN all_domain_cols c ON c.owner = d.owner` +
 				` AND c.domain_name = d.name AND c.column_id = 1`}},
 			notSystemAt(v23, "WHERE", "d.owner"),
-			{{Min: v23, SQL: `AND (@schema IS NULL OR d.owner LIKE @schema)`}},
-			{{Min: v23, SQL: `AND (@name IS NULL OR d.name LIKE @name)`}},
-			{{Min: v23, SQL: `ORDER BY d.owner, d.name`}},
+			{{Min: v23, Query: `AND (@schema IS NULL OR d.owner LIKE @schema)`}},
+			{{Min: v23, Query: `AND (@name IS NULL OR d.name LIKE @name)`}},
+			{{Min: v23, Query: `ORDER BY d.owner, d.name`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},

@@ -19,7 +19,7 @@ func init() {
 	})
 	RegisterDialect(testDialect, &Info{
 		Placeholder:    func(n int) string { return "$" + string(rune('0'+n)) },
-		VersionSQL:     `SHOW server_version`,
+		VersionQuery:   `SHOW server_version`,
 		VersionColumns: 1,
 		ParseVersion: func(cols []string) (VersionSet, error) {
 			var s VersionSet
@@ -30,19 +30,19 @@ func init() {
 	})
 	Tables.Register(testDialect, &Binding[Table]{
 		Stmt: Stmt{
-			{{SQL: `SELECT n.nspname AS "schema"`}},
-			{{SQL: `, c.relname AS "name"`}},
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, c.relname AS "name"`}},
 			// added in 15, so older releases pad
 			{
-				{SQL: `, NULL AS "access_privileges"`},
-				{Min: V(15), SQL: `, c.relacl AS "access_privileges"`},
+				{Query: `, NULL AS "access_privileges"`},
+				{Min: V(15), Query: `, c.relacl AS "access_privileges"`},
 			},
 			// removed in 12, so newer releases pad
 			{
-				{SQL: `, d.adsrc AS "default_source"`},
-				{Min: V(12), SQL: `, NULL AS "default_source"`},
+				{Query: `, d.adsrc AS "default_source"`},
+				{Min: V(12), Query: `, NULL AS "default_source"`},
 			},
-			{{SQL: `FROM pg_class c WHERE n.nspname = @schema`}},
+			{{Query: `FROM pg_class c WHERE n.nspname = @schema`}},
 		},
 		Fields: []Field{
 			{Name: "schema"},
@@ -82,7 +82,7 @@ func TestPaddingBothDirections(t *testing.T) {
 		"18": {`c.relacl AS "access_privileges"`, `NULL AS "default_source"`},
 	}
 	for ver, parts := range want {
-		s, _, err := Tables.SQL(meta(t, ver), map[string]any{"schema": "public"})
+		s, _, err := Tables.Build(meta(t, ver), map[string]any{"schema": "public"})
 		if err != nil {
 			t.Fatalf("%s: expected no error, got: %v", ver, err)
 		}
@@ -152,17 +152,17 @@ func TestSupportStates(t *testing.T) {
 func TestParamsAreCheckedNotIgnored(t *testing.T) {
 	t.Parallel()
 	m := meta(t, "18")
-	if _, _, err := Tables.SQL(m, map[string]any{"schma": "public"}); !errors.Is(err, ErrUnknownParam) {
+	if _, _, err := Tables.Build(m, map[string]any{"schma": "public"}); !errors.Is(err, ErrUnknownParam) {
 		t.Errorf("expected ErrUnknownParam for a typo, got: %v", err)
 	}
-	if _, _, err := Tables.SQL(m, nil); !errors.Is(err, ErrMissingParam) {
+	if _, _, err := Tables.Build(m, nil); !errors.Is(err, ErrMissingParam) {
 		t.Errorf("expected ErrMissingParam, got: %v", err)
 	}
 }
 
 func TestPlaceholdersAndArgs(t *testing.T) {
 	t.Parallel()
-	s, args, err := Tables.SQL(meta(t, "18"), map[string]any{"schema": "public"})
+	s, args, err := Tables.Build(meta(t, "18"), map[string]any{"schema": "public"})
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -179,8 +179,8 @@ func TestPlaceholdersAndArgs(t *testing.T) {
 
 func TestVersionTooOld(t *testing.T) {
 	t.Parallel()
-	st := Stmt{{{Min: V(12), SQL: "SELECT 1"}}}
-	if _, err := st.SQL(meta(t, "11").versions); !errors.Is(err, ErrVersionTooOld) {
+	st := Stmt{{{Min: V(12), Query: "SELECT 1"}}}
+	if _, err := st.Build(meta(t, "11").versions); !errors.Is(err, ErrVersionTooOld) {
 		t.Errorf("expected ErrVersionTooOld, got: %v", err)
 	}
 }
@@ -231,7 +231,7 @@ func TestArgsMapOmitsUnset(t *testing.T) {
 func TestAlwaysAndAccessors(t *testing.T) {
 	t.Parallel()
 	m := meta(t, "18")
-	if s, err := Always("SELECT 1").SQL(m.versions); err != nil || s != "SELECT 1" {
+	if s, err := Always("SELECT 1").Build(m.versions); err != nil || s != "SELECT 1" {
 		t.Errorf("expected SELECT 1, got %q err %v", s, err)
 	}
 	if Tables.Name() != "tables" {
@@ -302,7 +302,7 @@ func TestRepeatedParamBindsTwice(t *testing.T) {
 	t.Parallel()
 	q := repeatedQuery
 	m := &Meta{dialect: seqDialect}
-	s, args, err := q.SQL(m, map[string]any{"name": "x"})
+	s, args, err := q.Build(m, map[string]any{"name": "x"})
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -329,9 +329,9 @@ func init() {
 	twinQuery.Register(twinDialect, &Binding[Table]{
 		Stmt: Stmt{
 			{
-				{SQL: `SELECT 'neither' AS "name"`},
-				{Key: "alpha", Min: V(10, 2), SQL: `SELECT 'alpha' AS "name"`},
-				{Key: "beta", Min: V(8, 0, 16), SQL: `SELECT 'beta' AS "name"`},
+				{Query: `SELECT 'neither' AS "name"`},
+				{Key: "alpha", Min: V(10, 2), Query: `SELECT 'alpha' AS "name"`},
+				{Key: "beta", Min: V(8, 0, 16), Query: `SELECT 'beta' AS "name"`},
 			},
 		},
 		Fields: []Field{{
@@ -343,13 +343,13 @@ func init() {
 	// every alternative names a key, so a server reporting neither is the
 	// wrong product rather than an old one
 	twinOnlyQuery.Register(twinDialect, &Binding[Table]{
-		Stmt: Stmt{{{Key: "alpha", Min: V(11, 5), SQL: `SELECT 1`}}},
+		Stmt: Stmt{{{Key: "alpha", Min: V(11, 5), Query: `SELECT 1`}}},
 	})
 	// a model fault: two keys, both met, nothing to choose between them
 	twinMixedQuery.Register(twinDialect, &Binding[Table]{
 		Stmt: Stmt{{
-			{Key: "alpha", SQL: `SELECT 'a'`},
-			{Key: "beta", SQL: `SELECT 'b'`},
+			{Key: "alpha", Query: `SELECT 'a'`},
+			{Key: "beta", Query: `SELECT 'b'`},
 		}},
 	})
 }
@@ -383,7 +383,7 @@ func TestKeyedFragmentNeedsTheKey(t *testing.T) {
 		twin(t, "", "1.0"): "neither",
 	}
 	for m, expect := range want {
-		s, _, err := twinQuery.SQL(m, nil)
+		s, _, err := twinQuery.Build(m, nil)
 		if err != nil {
 			t.Fatalf("%s: expected no error, got: %v", m, err)
 		}
@@ -426,7 +426,7 @@ func TestWrongProductIsNotSupported(t *testing.T) {
 	if got := twinOnlyQuery.Support(other); got != NotSupported {
 		t.Errorf("expected not supported, got %v", got)
 	}
-	if _, _, err := twinOnlyQuery.SQL(other, nil); !errors.Is(err, ErrNotSupported) {
+	if _, _, err := twinOnlyQuery.Build(other, nil); !errors.Is(err, ErrNotSupported) {
 		t.Errorf("expected ErrNotSupported, got: %v", err)
 	}
 	// the same query on the right product, at too old a release, is a
@@ -438,7 +438,7 @@ func TestWrongProductIsNotSupported(t *testing.T) {
 	if got := twinOnlyQuery.Support(old); got != TooOld {
 		t.Errorf("expected version too old, got %v", got)
 	}
-	if _, _, err := twinOnlyQuery.SQL(old, nil); !errors.Is(err, ErrVersionTooOld) {
+	if _, _, err := twinOnlyQuery.Build(old, nil); !errors.Is(err, ErrVersionTooOld) {
 		t.Errorf("expected ErrVersionTooOld, got: %v", err)
 	}
 }
@@ -449,11 +449,11 @@ func TestWrongProductIsNotSupported(t *testing.T) {
 func TestTwoKeysBothMetIsAFault(t *testing.T) {
 	t.Parallel()
 	both := twin(t, "alpha", "11.8", "beta", "9.7")
-	if _, _, err := twinMixedQuery.SQL(both, nil); !errors.Is(err, ErrAmbiguousFragment) {
+	if _, _, err := twinMixedQuery.Build(both, nil); !errors.Is(err, ErrAmbiguousFragment) {
 		t.Errorf("expected ErrAmbiguousFragment, got: %v", err)
 	}
 	// one key alone resolves
-	if _, _, err := twinMixedQuery.SQL(twin(t, "alpha", "11.8"), nil); err != nil {
+	if _, _, err := twinMixedQuery.Build(twin(t, "alpha", "11.8"), nil); err != nil {
 		t.Errorf("expected no error, got: %v", err)
 	}
 }
@@ -463,8 +463,8 @@ func TestTwoKeysBothMetIsAFault(t *testing.T) {
 func TestKeyedBeatsUnkeyed(t *testing.T) {
 	t.Parallel()
 	c := Choice{
-		{Min: V(99), SQL: `family`},
-		{Key: "alpha", SQL: `product`},
+		{Min: V(99), Query: `family`},
+		{Key: "alpha", Query: `product`},
 	}
 	var s VersionSet
 	s.Set("", ParseVersion("100"))

@@ -72,11 +72,11 @@ func TestGatedQueriesResolveBelowTheFloor(t *testing.T) {
 		sql  func(*dbmeta.Meta, map[string]any) (string, []any, error)
 	}{
 		// sys.sequences arrived in 2012
-		{"Sequences", 11, "sys.sequences", dbmeta.Sequences.SQL},
+		{"Sequences", 11, "sys.sequences", dbmeta.Sequences.Build},
 		// sys.dm_db_stats_properties arrived in 2012
-		{"ColumnStats", 11, "sys.dm_db_stats_properties", dbmeta.ColumnStats.SQL},
+		{"ColumnStats", 11, "sys.dm_db_stats_properties", dbmeta.ColumnStats.Build},
 		// sys.external_tables arrived in 2016
-		{"ForeignTables", 13, "sys.external_tables", dbmeta.ForeignTables.SQL},
+		{"ForeignTables", 13, "sys.external_tables", dbmeta.ForeignTables.Build},
 	} {
 		for _, r := range releases {
 			sql, _, err := c.sql(at(t, r.major), dbmeta.Args{}.Map())
@@ -108,7 +108,7 @@ func TestTablesPadsBelowTheFloor(t *testing.T) {
 	var cols int
 	for _, r := range releases {
 		m := at(t, r.major)
-		sql, _, err := dbmeta.Tables.SQL(m, dbmeta.Args{}.Map())
+		sql, _, err := dbmeta.Tables.Build(m, dbmeta.Args{}.Map())
 		if err != nil {
 			t.Fatalf("resolving Tables on SQL Server %s: %v", r.name, err)
 		}
@@ -159,7 +159,7 @@ func TestOnlyTheGatedQueriesDependOnTheRelease(t *testing.T) {
 			if q.Support(m) != dbmeta.Supported {
 				continue
 			}
-			if _, _, err := q.SQL(m, dbmeta.Args{}.Map()); err == nil {
+			if _, _, err := q.Build(m, dbmeta.Args{}.Map()); err == nil {
 				out[q.Name()] = true
 			}
 		}
@@ -291,14 +291,14 @@ func TestParseVersionBuildsTheDisplayLine(t *testing.T) {
 // number scans into the wrong places.
 func TestVersionQueryReadsFiveColumns(t *testing.T) {
 	t.Parallel()
-	sqlstr, n, ok := dbmeta.SQLServer.VersionQuery()
+	query, n, ok := dbmeta.SQLServer.VersionQuery()
 	if !ok {
 		t.Fatal("expected a version query")
 	}
-	if got := strings.Count(sqlstr, "SERVERPROPERTY("); got != 4 {
-		t.Errorf("expected four server properties, got %d in:\n%s", got, sqlstr)
+	if got := strings.Count(query, "SERVERPROPERTY("); got != 4 {
+		t.Errorf("expected four server properties, got %d in:\n%s", got, query)
 	}
-	if !strings.Contains(sqlstr, "@@VERSION") {
+	if !strings.Contains(query, "@@VERSION") {
 		t.Error("expected the statement to read @@VERSION, which is the only source of the product name")
 	}
 	// one column per selected expression, and the properties are four of five

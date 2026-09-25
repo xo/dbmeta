@@ -961,8 +961,8 @@ alternatives:
 
 ```go
 Choice{
-	{SQL: `NULL AS "x"`},
-	{Min: v20, SQL: `real_expression AS "x"`},
+	{Query: `NULL AS "x"`},
+	{Min: v20, Query: `real_expression AS "x"`},
 }
 ```
 
@@ -3310,7 +3310,7 @@ so such a release is Archived and Archived means nothing is claimed.
 #### What this does not decide
 
 Whether `Query.Support` should answer no for a server too old to build the
-statement. Today it answers yes and `SQL` then returns `ErrVersionTooOld`, which
+statement. Today it answers yes and `Build` then returns `ErrVersionTooOld`, which
 `TestWrongProductIsNotSupported` fixes deliberately: Support answers a question
 about the product, and the release is the error's business. Writing the test
 above raised the question of whether a caller is well served by that, because a
@@ -3427,7 +3427,7 @@ D55 audited `usql` for database specific SQL and found `ChangePassword`, and
 refused to move it because `dbmeta` reads. That refusal is reversed. The
 knowledge moves here and the authority does not.
 
-[Dialect.ChangePasswordSQL] returns statement text. It takes a
+[Dialect.ChangePassword] returns statement text. It takes a
 [PasswordChange] and a [Quoting], and it takes no database, so there is no way
 for it to run anything. Everything `dbmeta` executes is still a read, and a
 consumer still hands it a read only connection.
@@ -3881,6 +3881,13 @@ is:
 file. They are supposed to differ, because they answer a question about the
 connection, and a run where they agreed would be the fault.
 
+One release needed a section of its own. PostgreSQL 12 grants public SELECT on
+six columns of `pg_subscription` and not on `subsynccommit`, so an ordinary
+role is refused `Subscriptions` there and served from 13 on. A section may
+therefore be written `product@major`, and that one wins for a server reporting
+that major. The query is not gated for it: a superuser on 12 reads the column,
+and padding it would withhold a fact from the caller who is allowed it.
+
 Cassandra behaves like the MySQL dialect and for the same reason: `roles`,
 `role_grants` and `privileges` read `system_auth`, and `settings` reads
 `system_views`, and a role with every permission on its own keyspace is
@@ -4054,7 +4061,7 @@ same query mean two things on two releases.
 ### D63. Support says when a release is too old. Amends D54.
 
 `Query.Support` has a fourth value, `TooOld`. It means the model is present,
-the product has the object, and this release of it does not. `Query.SQL` then
+the product has the object, and this release of it does not. `Query.Build` then
 returns `ErrVersionTooOld`, as it always did.
 
 #### What it replaces

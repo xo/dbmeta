@@ -28,8 +28,8 @@ var (
 // which is what rule 3 asks.
 func listagg(expr, order string) dbmeta.Choice {
 	return dbmeta.Choice{
-		{SQL: `LISTAGG(` + expr + `, ', ') WITHIN GROUP (ORDER BY ` + order + `)`},
-		{Min: v122, SQL: `LISTAGG(` + expr + `, ', ' ON OVERFLOW TRUNCATE)` +
+		{Query: `LISTAGG(` + expr + `, ', ') WITHIN GROUP (ORDER BY ` + order + `)`},
+		{Min: v122, Query: `LISTAGG(` + expr + `, ', ' ON OVERFLOW TRUNCATE)` +
 			` WITHIN GROUP (ORDER BY ` + order + `)`},
 	}
 }
@@ -70,7 +70,7 @@ const systemSchemas = `'SYS', 'SYSTEM', 'SYSAUX', 'OUTLN', 'DBSNMP', 'APPQOSSYS'
 // first term of one WHERE and a later term of another.
 func notSystem(prefix, col string) dbmeta.Choice {
 	named, flagged := systemTest(prefix, col)
-	return dbmeta.Choice{{SQL: named}, {Min: v18, SQL: flagged}}
+	return dbmeta.Choice{{Query: named}, {Min: v18, Query: flagged}}
 }
 
 // notSystemAt is notSystem for a query whose own floor is already 18c or
@@ -78,7 +78,7 @@ func notSystem(prefix, col string) dbmeta.Choice {
 // nothing to choose between and one fragment says so.
 func notSystemAt(floor dbmeta.Version, prefix, col string) dbmeta.Choice {
 	_, flagged := systemTest(prefix, col)
-	return dbmeta.Choice{{Min: floor, SQL: flagged}}
+	return dbmeta.Choice{{Min: floor, Query: flagged}}
 }
 
 // systemTest builds the two forms of the test, ungated. Both are written once
@@ -94,7 +94,7 @@ func systemTest(prefix, col string) (named, flagged string) {
 }
 
 // always is a fragment that every release takes.
-func always(sqlstr string) dbmeta.Choice { return dbmeta.Choice{{SQL: sqlstr}} }
+func always(query string) dbmeta.Choice { return dbmeta.Choice{{Query: query}} }
 
 // schemaNameSystem is the filter set most queries take.
 func schemaNameSystem(kind string) []dbmeta.Param {
@@ -195,8 +195,8 @@ func registerColumns() {
 			// thing, so the column is padded with NULL rather than a literal
 			// and Field.Min says the difference. See docs/NULLS.md.
 			dbmeta.Choice{
-				{SQL: `, NULL AS "identity"`},
-				{Min: v12, SQL: `, NULLIF(c.identity_column, 'NO') AS "identity"`},
+				{Query: `, NULL AS "identity"`},
+				{Min: v12, Query: `, NULLIF(c.identity_column, 'NO') AS "identity"`},
 			},
 			// A virtual column is Oracle's generated column, and it is
 			// reported from 11g on.

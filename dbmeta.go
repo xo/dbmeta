@@ -37,8 +37,8 @@
 //
 // A caller reads the version by asking for the query and running it:
 //
-//	sqlstr, _, ok := dbmeta.Postgres.VersionQuery()
-//	// caller runs sqlstr and scans the columns as strings
+//	query, _, ok := dbmeta.Postgres.VersionQuery()
+//	// caller runs query and scans the columns as strings
 //	versions, err := dbmeta.Postgres.ParseVersion(cols)
 //	m, err := dbmeta.New(dbmeta.Postgres, versions)
 //
@@ -62,7 +62,7 @@
 //
 // A caller that would rather run the statement itself asks for it instead:
 //
-//	sqlstr, args, err := dbmeta.Tables.SQL(m, map[string]any{"schema": "public"})
+//	query, args, err := dbmeta.Tables.Build(m, map[string]any{"schema": "public"})
 //
 // [Query.Fields] and [Query.Params] describe what a query returns and takes.
 // [Query.Support] says whether it can be asked at all, and tells a database

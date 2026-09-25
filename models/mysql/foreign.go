@@ -98,22 +98,22 @@ func registerForeignData() {
 	// because mysql.servers spreads the same settings over columns.
 	dbmeta.ForeignServers.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.ForeignServer]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT s.Server_name AS "name"`}},
-			{{SQL: `, s.Owner AS "owner"`}},
-			{{SQL: `, s.Wrapper AS "wrapper"`}},
-			{{SQL: `, NULL AS "type"`}},
-			{{SQL: `, NULL AS "version"`}},
-			{{SQL: `, NULL AS "access"`}},
-			{{SQL: `, CONCAT_WS(', '` +
+			{{Query: `SELECT s.Server_name AS "name"`}},
+			{{Query: `, s.Owner AS "owner"`}},
+			{{Query: `, s.Wrapper AS "wrapper"`}},
+			{{Query: `, NULL AS "type"`}},
+			{{Query: `, NULL AS "version"`}},
+			{{Query: `, NULL AS "access"`}},
+			{{Query: `, CONCAT_WS(', '` +
 				`, NULLIF(CONCAT('host ', s.Host), 'host ')` +
 				`, NULLIF(CONCAT('port ', s.Port), 'port 0')` +
 				`, NULLIF(CONCAT('dbname ', s.Db), 'dbname ')` +
 				`, NULLIF(CONCAT('socket ', s.Socket), 'socket ')` +
 				`) AS "options"`}},
-			{{SQL: `, NULL AS "comment"`}},
-			{{SQL: `FROM mysql.servers s`}},
-			{{SQL: `WHERE (@name = '' OR s.Server_name LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `, NULL AS "comment"`}},
+			{{Query: `FROM mysql.servers s`}},
+			{{Query: `WHERE (@name = '' OR s.Server_name LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"},
@@ -140,12 +140,12 @@ func registerForeignData() {
 	// everyone.
 	dbmeta.UserMappings.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.UserMapping]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT s.Server_name AS "server"`}},
-			{{SQL: `, NULLIF(s.Username, '') AS "name"`}},
-			{{SQL: `, NULL AS "options"`}},
-			{{SQL: `FROM mysql.servers s`}},
-			{{SQL: `WHERE (@name = '' OR s.Server_name LIKE @name)`}},
-			{{SQL: `ORDER BY 1`}},
+			{{Query: `SELECT s.Server_name AS "server"`}},
+			{{Query: `, NULLIF(s.Username, '') AS "name"`}},
+			{{Query: `, NULL AS "options"`}},
+			{{Query: `FROM mysql.servers s`}},
+			{{Query: `WHERE (@name = '' OR s.Server_name LIKE @name)`}},
+			{{Query: `ORDER BY 1`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "server"},
@@ -167,17 +167,17 @@ func registerForeignData() {
 	// reads data this server does not hold.
 	dbmeta.ForeignTables.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.ForeignTable]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT t.table_schema AS "schema"`}},
-			{{SQL: `, t.table_name AS "name"`}},
-			{{SQL: `, t.engine AS "server"`}},
-			{{SQL: `, NULLIF(t.create_options, '') AS "options"`}},
-			{{SQL: `, NULLIF(t.table_comment, '') AS "comment"`}},
-			{{SQL: `FROM information_schema.TABLES t`}},
-			{{SQL: `WHERE t.engine IN (` + foreignEngines + `)`}},
-			{{SQL: `AND (@with_system OR t.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{SQL: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR t.table_name LIKE @name)`}},
-			{{SQL: `ORDER BY 1, 2`}},
+			{{Query: `SELECT t.table_schema AS "schema"`}},
+			{{Query: `, t.table_name AS "name"`}},
+			{{Query: `, t.engine AS "server"`}},
+			{{Query: `, NULLIF(t.create_options, '') AS "options"`}},
+			{{Query: `, NULLIF(t.table_comment, '') AS "comment"`}},
+			{{Query: `FROM information_schema.TABLES t`}},
+			{{Query: `WHERE t.engine IN (` + foreignEngines + `)`}},
+			{{Query: `AND (@with_system OR t.table_schema NOT IN (` + systemSchemas + `))`}},
+			{{Query: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR t.table_name LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "schema"},

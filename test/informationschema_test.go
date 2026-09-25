@@ -24,7 +24,7 @@ const isDialect dbmeta.Dialect = "infoschema_over_postgres"
 func init() {
 	is.Register(isDialect, is.Profile{
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
-		VersionSQL:     `SHOW server_version`,
+		VersionQuery:   `SHOW server_version`,
 		VersionColumns: 1,
 		ParseVersion: func(cols []string) (dbmeta.VersionSet, error) {
 			var s dbmeta.VersionSet
@@ -51,8 +51,8 @@ func setupIS(t *testing.T, db *sql.DB) (*dbmeta.Meta, isfixture.Fixture) {
 
 	run := func(ctx context.Context, steps []isfixture.Step, fatal bool) {
 		for _, s := range steps {
-			if _, err := db.ExecContext(ctx, s.SQL); err != nil && fatal {
-				t.Fatalf("%s: %v\n%s", s.Name, err, s.SQL)
+			if _, err := db.ExecContext(ctx, s.Query); err != nil && fatal {
+				t.Fatalf("%s: %v\n%s", s.Name, err, s.Query)
 			}
 		}
 	}
@@ -75,14 +75,14 @@ func TestInformationSchemaQueriesRun(t *testing.T) {
 		if q.Support(m) != dbmeta.Supported {
 			continue
 		}
-		sqlstr, vals, err := q.SQL(m, nil)
+		query, vals, err := q.Build(m, nil)
 		if err != nil {
 			t.Errorf("%s: rendering: %v", q.Name(), err)
 			continue
 		}
-		cols, err := columnsOf(t, db, sqlstr, vals)
+		cols, err := columnsOf(t, db, query, vals)
 		if err != nil {
-			t.Errorf("%s: executing: %v\n%s", q.Name(), err, sqlstr)
+			t.Errorf("%s: executing: %v\n%s", q.Name(), err, query)
 			continue
 		}
 		fields, err := q.Fields(m)

@@ -40,9 +40,9 @@ func (g Gate) Met(versions VersionSet) bool {
 // Fragment is one alternative for one piece of a statement. It applies when
 // the server meets its gate.
 type Fragment struct {
-	Min Version
-	Key string
-	SQL string
+	Min   Version
+	Key   string
+	Query string
 }
 
 // Gate returns the version test this fragment applies.
@@ -112,7 +112,7 @@ func (c Choice) Resolve(versions VersionSet) (string, error) {
 	}
 	switch {
 	case found:
-		return best.SQL, nil
+		return best.Query, nil
 	case len(c) > 0 && reachable == 0:
 		return "", ErrNotSupported
 	}
@@ -123,10 +123,10 @@ func (c Choice) Resolve(versions VersionSet) (string, error) {
 // own, so a statement is assembled rather than chosen.
 type Stmt []Choice
 
-// SQL resolves every piece against versions and joins the results with a
+// Build resolves every piece against versions and joins the results with a
 // newline. Each piece carries its own punctuation, so a piece that adds a
 // column to a select list begins with a comma.
-func (st Stmt) SQL(versions VersionSet) (string, error) {
+func (st Stmt) Build(versions VersionSet) (string, error) {
 	if len(st) == 0 {
 		return "", ErrEmptyQuery
 	}
@@ -147,8 +147,8 @@ func (st Stmt) SQL(versions VersionSet) (string, error) {
 }
 
 // Always returns a Stmt of one piece that is the same for every version.
-func Always(sql string) Stmt {
-	return Stmt{Choice{{SQL: sql}}}
+func Always(query string) Stmt {
+	return Stmt{Choice{{Query: query}}}
 }
 
 // Field is a result column that a query declares.
@@ -250,8 +250,8 @@ type AnyQuery interface {
 	Fields(m *Meta) ([]Field, error)
 	// Params returns the parameters the query takes for m.
 	Params(m *Meta) ([]Param, error)
-	// SQL returns the statement for m and the arguments in order.
-	SQL(m *Meta, args map[string]any) (string, []any, error)
+	// Build returns the statement for m and the arguments in order.
+	Build(m *Meta, args map[string]any) (string, []any, error)
 }
 
 var (
@@ -312,7 +312,7 @@ const (
 	// Supported means the query can be asked.
 	Supported
 	// TooOld means the model is present and the product has the object, and
-	// this release of it does not. [Query.SQL] returns [ErrVersionTooOld].
+	// this release of it does not. [Query.Build] returns [ErrVersionTooOld].
 	//
 	// It is last rather than in order of how supported each one is, so that
 	// the three values that existed before it keep their numbers. A caller
@@ -353,7 +353,7 @@ func (q *Query[T]) Support(m *Meta) Support {
 	// binding alone does not say the product answers. A statement built only
 	// from fragments naming a key this server does not report is a statement
 	// for the other product. See D44.
-	_, err := b.Stmt.SQL(m.versions)
+	_, err := b.Stmt.Build(m.versions)
 	if errors.Is(err, ErrNotSupported) {
 		return NotSupported
 	}
@@ -389,19 +389,19 @@ func (q *Query[T]) Params(m *Meta) ([]Param, error) {
 	return b.Params, nil
 }
 
-// SQL returns the statement for m with its placeholders written the way the
+// Build returns the statement for m with its placeholders written the way the
 // dialect wants them, and the argument values in matching order.
 //
 // The caller can run it itself. An argument named in the statement and missing
 // from args is an error, and an argument in args that the statement does not
 // name is an error. Neither is ignored.
-func (q *Query[T]) SQL(m *Meta, args map[string]any) (string, []any, error) {
+func (q *Query[T]) Build(m *Meta, args map[string]any) (string, []any, error) {
 	b, err := q.lookup(m)
 	if err != nil {
 		return "", nil, err
 	}
 	info, _ := m.dialect.Info()
-	s, err := b.Stmt.SQL(m.versions)
+	s, err := b.Stmt.Build(m.versions)
 	if err != nil {
 		return "", nil, err
 	}
@@ -418,7 +418,7 @@ func (q *Query[T]) SQL(m *Meta, args map[string]any) (string, []any, error) {
 func (q *Query[T]) All(ctx context.Context, m *Meta, db Querier, args map[string]any) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var zero T
-		s, vals, err := q.SQL(m, args)
+		s, vals, err := q.Build(m, args)
 		if err != nil {
 			yield(zero, err)
 			return

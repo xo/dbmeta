@@ -59,8 +59,8 @@ func setup(t *testing.T, db *sql.DB) *dbmeta.Meta {
 			if s.Skipped {
 				continue
 			}
-			if _, err := db.ExecContext(ctx, s.SQL); err != nil {
-				t.Fatalf("%s: %v\n%s", s.Name, err, s.SQL)
+			if _, err := db.ExecContext(ctx, s.Query); err != nil {
+				t.Fatalf("%s: %v\n%s", s.Name, err, s.Query)
 			}
 		}
 	}
@@ -101,7 +101,7 @@ func TestEveryQueryRuns(t *testing.T) {
 		if q.Support(m) != dbmeta.Supported {
 			continue
 		}
-		sqlstr, vals, err := q.SQL(m, nil)
+		query, vals, err := q.Build(m, nil)
 		switch {
 		case errors.Is(err, dbmeta.ErrVersionTooOld):
 			tooOld++
@@ -110,9 +110,9 @@ func TestEveryQueryRuns(t *testing.T) {
 			t.Errorf("%s: rendering: %v", q.Name(), err)
 			continue
 		}
-		cols, err := columnsOf(t, db, sqlstr, vals)
+		cols, err := columnsOf(t, db, query, vals)
 		if err != nil {
-			t.Errorf("%s: executing: %v\n%s", q.Name(), err, sqlstr)
+			t.Errorf("%s: executing: %v\n%s", q.Name(), err, query)
 			continue
 		}
 		fields, err := q.Fields(m)
@@ -168,11 +168,11 @@ func TestPaddedFieldsAreNull(t *testing.T) {
 		if len(padded) == 0 {
 			continue
 		}
-		sqlstr, vals, err := q.SQL(m, nil)
+		query, vals, err := q.Build(m, nil)
 		if err != nil {
 			continue
 		}
-		err = eachRawRow(t, db, sqlstr, vals, len(fields), func(raw []sql.RawBytes) {
+		err = eachRawRow(t, db, query, vals, len(fields), func(raw []sql.RawBytes) {
 			for _, i := range padded {
 				if raw[i] != nil {
 					t.Errorf("%s: %q arrived in %s and the server is %s, so it must be NULL, got %q",

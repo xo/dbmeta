@@ -31,7 +31,7 @@ type Step struct {
 // Result is what a step resolved to for one server.
 type Result struct {
 	Name    string
-	SQL     string
+	Query   string
 	Skipped bool
 	Reason  string
 }
@@ -57,7 +57,7 @@ func (f Fixture) ResolveTeardown(versions dbmeta.VersionSet) ([]Result, error) {
 func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 	out := make([]Result, 0, len(steps))
 	for _, step := range steps {
-		sqlstr, err := step.Stmt.SQL(versions)
+		query, err := step.Stmt.Build(versions)
 		switch {
 		case errors.Is(err, dbmeta.ErrVersionTooOld):
 			out = append(out, Result{
@@ -68,14 +68,14 @@ func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 		case err != nil:
 			return nil, err
 		default:
-			out = append(out, Result{Name: step.Name, SQL: sqlstr})
+			out = append(out, Result{Name: step.Name, Query: query})
 		}
 	}
 	return out, nil
 }
 
-func at(name, sqlstr string) Step {
-	return Step{Name: name, Stmt: dbmeta.Always(sqlstr)}
+func at(name, query string) Step {
+	return Step{Name: name, Stmt: dbmeta.Always(query)}
 }
 
 // drop builds a teardown step that works on every release.
@@ -113,14 +113,14 @@ func dropFrom(name, kind, object string, since dbmeta.Version) Step {
 	}
 	older := "IF " + exists + " IS NOT NULL DROP " + kind + " " + object
 	return Step{Name: name, Stmt: dbmeta.Stmt{{
-		{Min: since, SQL: older},
-		{Min: v13, SQL: modern},
+		{Min: since, Query: older},
+		{Min: v13, Query: modern},
 	}}}
 }
 
 // from is a step the older releases cannot run at all.
-func from(name string, since dbmeta.Version, sqlstr string) Step {
-	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: since, SQL: sqlstr}}}}
+func from(name string, since dbmeta.Version, query string) Step {
+	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: since, Query: query}}}}
 }
 
 // Everything is a schema holding one of every object the SQL Server queries

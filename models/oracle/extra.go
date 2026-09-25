@@ -39,8 +39,8 @@ func registerExtra() {
 			// thing as a VARCHAR2 and arrived in 12c, so an older release
 			// reads the LONG and a newer one reads the string.
 			dbmeta.Choice{
-				{SQL: `, c.search_condition AS "definition"`},
-				{Min: v12, SQL: `, c.search_condition_vc AS "definition"`},
+				{Query: `, c.search_condition AS "definition"`},
+				{Min: v12, Query: `, c.search_condition_vc AS "definition"`},
 			},
 			always(`, CASE c.deferrable WHEN 'DEFERRABLE' THEN 1 ELSE 0 END AS "deferrable"`),
 			always(`, CASE c.deferred WHEN 'DEFERRED' THEN 1 ELSE 0 END AS "deferred"`),
@@ -240,8 +240,8 @@ func registerExtra() {
 			// text is a LONG. text_vc is the same as a VARCHAR2 and arrived
 			// in 18c, so an older release reads the LONG.
 			dbmeta.Choice{
-				{SQL: `, v.text AS "definition"`},
-				{Min: v18, SQL: `, v.text_vc AS "definition"`},
+				{Query: `, v.text AS "definition"`},
+				{Min: v18, Query: `, v.text_vc AS "definition"`},
 			},
 			always(`, NULL AS "check_option"`),
 			always(`, NULL AS "updatable"`),

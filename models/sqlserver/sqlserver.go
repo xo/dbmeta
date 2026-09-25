@@ -68,11 +68,11 @@ var (
 func init() {
 	dbmeta.RegisterDialect(dbmeta.SQLServer, &dbmeta.Info{
 		Placeholder:    func(n int) string { return "@p" + strconv.Itoa(n) },
-		VersionSQL:     versionSQL,
+		VersionQuery:   versionQuery,
 		VersionColumns: 5,
 		ParseVersion:   parseVersion,
 
-		// No QuotingSQL: T-SQL has no setting that changes how a literal is
+		// No QuotingQuery: T-SQL has no setting that changes how a literal is
 		// escaped, and a backslash is an ordinary character. Verified on
 		// 2022, where LEN('a\b') is 3.
 		ChangePassword: changePassword,
@@ -84,7 +84,7 @@ func init() {
 // parseVersion reads what SERVERPROPERTY('ProductVersion') returns, such as
 // "16.0.4295.3". @@VERSION is not used: it is a sentence rather than a
 // version, and it differs by language setting.
-// versionSQL reads the five things a person wants to see about a SQL Server,
+// versionQuery reads the five things a person wants to see about a SQL Server,
 // in one statement.
 //
 // Four of them are server properties and the fifth is not. No SERVERPROPERTY
@@ -102,14 +102,14 @@ func init() {
 // productupdatelevel is the CU number. SERVERPROPERTY returns NULL for a
 // property it does not know rather than failing, so this is safe on a release
 // older than the one that added it.
-const versionSQL = `SELECT LEFT(@@VERSION, NULLIF(CHARINDEX('(', @@VERSION), 0) - 1)
+const versionQuery = `SELECT LEFT(@@VERSION, NULLIF(CHARINDEX('(', @@VERSION), 0) - 1)
 , CAST(SERVERPROPERTY('productversion') AS nvarchar(128))
 , CAST(SERVERPROPERTY('productlevel') AS nvarchar(128))
 , CAST(SERVERPROPERTY('productupdatelevel') AS nvarchar(128))
 , CAST(SERVERPROPERTY('edition') AS nvarchar(128))`
 
 // productName cuts the name the product is sold under out of the @@VERSION
-// banner, which versionSQL has already trimmed at the first parenthesis.
+// banner, which versionQuery has already trimmed at the first parenthesis.
 //
 // That trim is enough when the banner names a service pack, because the first
 // parenthesis is then right after the year:
@@ -212,7 +212,7 @@ func schemaParentName(kind string) []dbmeta.Param {
 }
 
 // always wraps SQL that is the same on every release.
-func always(sqlstr string) dbmeta.Choice { return dbmeta.Choice{{SQL: sqlstr}} }
+func always(query string) dbmeta.Choice { return dbmeta.Choice{{Query: query}} }
 
 // comment reaches the MS_Description extended property of an object, which is
 // where SQL Server keeps what every other database calls a comment.

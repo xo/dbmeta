@@ -40,11 +40,11 @@ var (
 func init() {
 	dbmeta.RegisterDialect(dbmeta.PostgreSQL, &dbmeta.Info{
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
-		VersionSQL:     `SHOW server_version`,
+		VersionQuery:   `SHOW server_version`,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
 
-		QuotingSQL:     `SHOW standard_conforming_strings`,
+		QuotingQuery:   `SHOW standard_conforming_strings`,
 		QuotingColumns: 1,
 		ParseQuoting:   parseQuoting,
 		ChangePassword: changePassword,
@@ -83,14 +83,14 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 func registerSchemas() {
 	dbmeta.Schemas.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "name"`}},
-			{{SQL: `, pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"`}},
-			{{SQL: `, pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_namespace n`}},
-			{{SQL: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
-			{{SQL: `AND (@name = '' OR n.nspname LIKE @name)`}},
-			{{SQL: `ORDER BY 2`}},
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"`}},
+			{{Query: `, pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_namespace n`}},
+			{{Query: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@name = '' OR n.nspname LIKE @name)`}},
+			{{Query: `ORDER BY 2`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog", Desc: "database the schema belongs to"},
@@ -118,10 +118,10 @@ func registerSchemas() {
 func registerTables() {
 	dbmeta.Tables.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, c.relname AS "name"`}},
-			{{SQL: `, CASE c.relkind` +
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, c.relname AS "name"`}},
+			{{Query: `, CASE c.relkind` +
 				` WHEN 'r' THEN 'table'` +
 				` WHEN 'p' THEN 'table'` +
 				` WHEN 'v' THEN 'view'` +
@@ -129,14 +129,14 @@ func registerTables() {
 				` WHEN 'S' THEN 'sequence'` +
 				` WHEN 'f' THEN 'foreign table'` +
 				` ELSE c.relkind::text END AS "type"`}},
-			{{SQL: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_class c`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
-			{{SQL: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
-			{{SQL: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@name = '' OR c.relname LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3`}},
+			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_class c`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
+			{{Query: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog", Desc: "database the relation belongs to"},
@@ -171,39 +171,39 @@ func registerTables() {
 func registerColumns() {
 	dbmeta.Columns.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Column]{
 		Stmt: dbmeta.Stmt{
-			{{SQL: `SELECT current_database() AS "catalog"`}},
-			{{SQL: `, n.nspname AS "schema"`}},
-			{{SQL: `, c.relname AS "table"`}},
-			{{SQL: `, a.attname AS "name"`}},
-			{{SQL: `, a.attnum AS "ordinal"`}},
-			{{SQL: `, pg_catalog.format_type(a.atttypid, a.atttypmod) AS "data_type"`}},
-			{{SQL: `, NOT a.attnotnull AS "nullable"`}},
-			{{SQL: `, pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS "default"`}},
+			{{Query: `SELECT current_database() AS "catalog"`}},
+			{{Query: `, n.nspname AS "schema"`}},
+			{{Query: `, c.relname AS "table"`}},
+			{{Query: `, a.attname AS "name"`}},
+			{{Query: `, a.attnum AS "ordinal"`}},
+			{{Query: `, pg_catalog.format_type(a.atttypid, a.atttypmod) AS "data_type"`}},
+			{{Query: `, NOT a.attnotnull AS "nullable"`}},
+			{{Query: `, pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS "default"`}},
 			// One more join, to the primary key index of the table. It is an
 			// index lookup on the relation and it costs the same whether or
 			// not the caller reads the column. See D47.
-			{{SQL: `, COALESCE(a.attnum = ANY(pk.indkey), FALSE) AS "primary_key"`}},
+			{{Query: `, COALESCE(a.attnum = ANY(pk.indkey), FALSE) AS "primary_key"`}},
 			// attidentity arrived in release 11
 			{
-				{SQL: `, NULL AS "identity"`},
-				{Min: v11, SQL: `, a.attidentity AS "identity"`},
+				{Query: `, NULL AS "identity"`},
+				{Min: v11, Query: `, a.attidentity AS "identity"`},
 			},
 			// attgenerated arrived in release 12
 			{
-				{SQL: `, NULL AS "generated"`},
-				{Min: v12, SQL: `, a.attgenerated AS "generated"`},
+				{Query: `, NULL AS "generated"`},
+				{Min: v12, Query: `, a.attgenerated AS "generated"`},
 			},
-			{{SQL: `, pg_catalog.col_description(c.oid, a.attnum) AS "comment"`}},
-			{{SQL: `FROM pg_catalog.pg_attribute a`}},
-			{{SQL: `JOIN pg_catalog.pg_class c ON c.oid = a.attrelid`}},
-			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum`}},
-			{{SQL: `LEFT JOIN pg_catalog.pg_index pk ON pk.indrelid = a.attrelid AND pk.indisprimary`}},
-			{{SQL: `WHERE a.attnum > 0 AND NOT a.attisdropped`}},
-			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{SQL: `AND (@parent = '' OR c.relname LIKE @parent)`}},
-			{{SQL: `AND (@name = '' OR a.attname LIKE @name)`}},
-			{{SQL: `ORDER BY 2, 3, 5`}},
+			{{Query: `, pg_catalog.col_description(c.oid, a.attnum) AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_attribute a`}},
+			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = a.attrelid`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_index pk ON pk.indrelid = a.attrelid AND pk.indisprimary`}},
+			{{Query: `WHERE a.attnum > 0 AND NOT a.attisdropped`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR c.relname LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR a.attname LIKE @name)`}},
+			{{Query: `ORDER BY 2, 3, 5`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog", Desc: "database the column belongs to"},

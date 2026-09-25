@@ -57,7 +57,7 @@ const Reference = "3.50.4"
 func init() {
 	dbmeta.RegisterDialect(dbmeta.SQLite3, &dbmeta.Info{
 		Placeholder:    func(int) string { return "?" },
-		VersionSQL:     `SELECT sqlite_version()`,
+		VersionQuery:   `SELECT sqlite_version()`,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
 	})
@@ -113,4 +113,4 @@ func schemaParentName(kind string) []dbmeta.Param {
 
 // always wraps SQL that is the same on every SQLite release, which is all of
 // it. It reads better than a nested literal at 60 call sites.
-func always(sqlstr string) dbmeta.Choice { return dbmeta.Choice{{SQL: sqlstr}} }
+func always(query string) dbmeta.Choice { return dbmeta.Choice{{Query: query}} }

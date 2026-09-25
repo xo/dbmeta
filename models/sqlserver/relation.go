@@ -98,8 +98,8 @@ func registerRelations() {
 			// has neither kind of table, so the padded alternative is not
 			// missing anything it could have reported.
 			{
-				{SQL: `, 'table' AS "type"`},
-				{Min: v13, SQL: `, CASE WHEN t.temporal_type = 2 THEN 'system versioned table'` +
+				{Query: `, 'table' AS "type"`},
+				{Min: v13, Query: `, CASE WHEN t.temporal_type = 2 THEN 'system versioned table'` +
 					` WHEN t.is_external = 1 THEN 'external table' ELSE 'table' END AS "type"`},
 			},
 			always(`, ` + commentOn("t.object_id") + ` AS "comment"`),
@@ -291,23 +291,23 @@ func registerRelations() {
 	// gated rather than padded.
 	dbmeta.Sequences.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Sequence]{
 		Stmt: dbmeta.Stmt{
-			{{Min: v11, SQL: `SELECT s.name AS "schema"`}},
-			{{Min: v11, SQL: `, q.name AS "name"`}},
-			{{Min: v11, SQL: `, ty.name AS "data_type"`}},
-			{{Min: v11, SQL: `, CAST(q.start_value AS bigint) AS "start"`}},
-			{{Min: v11, SQL: `, CAST(q.minimum_value AS bigint) AS "minimum"`}},
-			{{Min: v11, SQL: `, CAST(q.maximum_value AS bigint) AS "maximum"`}},
-			{{Min: v11, SQL: `, CAST(q.increment AS bigint) AS "increment"`}},
-			{{Min: v11, SQL: `, q.is_cycling AS "cycles"`}},
-			{{Min: v11, SQL: `, '' AS "owned_by"`}},
-			{{Min: v11, SQL: `, ` + commentOn("q.object_id") + ` AS "comment"`}},
-			{{Min: v11, SQL: `FROM sys.sequences q`}},
-			{{Min: v11, SQL: `JOIN sys.schemas s ON s.schema_id = q.schema_id`}},
-			{{Min: v11, SQL: `JOIN sys.types ty ON ty.user_type_id = q.user_type_id`}},
-			{{Min: v11, SQL: `WHERE ` + notSystem}},
-			{{Min: v11, SQL: `AND (@schema = '' OR s.name LIKE @schema)`}},
-			{{Min: v11, SQL: `AND (@name = '' OR q.name LIKE @name)`}},
-			{{Min: v11, SQL: `ORDER BY 1, 2`}},
+			{{Min: v11, Query: `SELECT s.name AS "schema"`}},
+			{{Min: v11, Query: `, q.name AS "name"`}},
+			{{Min: v11, Query: `, ty.name AS "data_type"`}},
+			{{Min: v11, Query: `, CAST(q.start_value AS bigint) AS "start"`}},
+			{{Min: v11, Query: `, CAST(q.minimum_value AS bigint) AS "minimum"`}},
+			{{Min: v11, Query: `, CAST(q.maximum_value AS bigint) AS "maximum"`}},
+			{{Min: v11, Query: `, CAST(q.increment AS bigint) AS "increment"`}},
+			{{Min: v11, Query: `, q.is_cycling AS "cycles"`}},
+			{{Min: v11, Query: `, '' AS "owned_by"`}},
+			{{Min: v11, Query: `, ` + commentOn("q.object_id") + ` AS "comment"`}},
+			{{Min: v11, Query: `FROM sys.sequences q`}},
+			{{Min: v11, Query: `JOIN sys.schemas s ON s.schema_id = q.schema_id`}},
+			{{Min: v11, Query: `JOIN sys.types ty ON ty.user_type_id = q.user_type_id`}},
+			{{Min: v11, Query: `WHERE ` + notSystem}},
+			{{Min: v11, Query: `AND (@schema = '' OR s.name LIKE @schema)`}},
+			{{Min: v11, Query: `AND (@name = '' OR q.name LIKE @name)`}},
+			{{Min: v11, Query: `ORDER BY 1, 2`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "schema"}, {Name: "name"},

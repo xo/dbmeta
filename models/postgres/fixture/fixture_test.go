@@ -36,8 +36,8 @@ func TestTriggerSyntaxFollowsTheRelease(t *testing.T) {
 				continue
 			}
 			found = true
-			if !strings.Contains(s.SQL, want) {
-				t.Errorf("%s: expected %q, got:\n%s", ver, want, s.SQL)
+			if !strings.Contains(s.Query, want) {
+				t.Errorf("%s: expected %q, got:\n%s", ver, want, s.Query)
 			}
 		}
 		if !found {
@@ -59,7 +59,7 @@ func TestOldReleasesSkipRatherThanFail(t *testing.T) {
 	for _, s := range steps {
 		if s.Skipped {
 			skipped[s.Name] = true
-			if s.SQL != "" {
+			if s.Query != "" {
 				t.Errorf("%s: a skipped step must have no SQL", s.Name)
 			}
 			if s.Reason == "" {
@@ -107,7 +107,7 @@ func TestEveryStepResolvesOrSkips(t *testing.T) {
 				t.Errorf("%s %s: expected steps", ver, phase.name)
 			}
 			for _, s := range steps {
-				if s.Skipped == (s.SQL != "") {
+				if s.Skipped == (s.Query != "") {
 					t.Errorf("%s %s: %q is neither runnable nor skipped", ver, phase.name, s.Name)
 				}
 			}
@@ -130,8 +130,8 @@ func TestSchemaIsNamed(t *testing.T) {
 		if s.Name == "publication" {
 			continue
 		}
-		if !strings.Contains(s.SQL, fixture.Everything.Schema) {
-			t.Errorf("%q does not name the fixture schema:\n%s", s.Name, s.SQL)
+		if !strings.Contains(s.Query, fixture.Everything.Schema) {
+			t.Errorf("%q does not name the fixture schema:\n%s", s.Name, s.Query)
 		}
 	}
 }
