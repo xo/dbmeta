@@ -84,12 +84,14 @@ const parityPassword = "P4ssw0rd!x"
 
 // parityTarget is one database, its scenes, and the principals in each.
 type parityTarget struct {
-	name   string
+	// dialect is what the model is registered under, and it names the section
+	// in the golden file. There is no separate name field: the two were the
+	// same string in every target.
+	dialect dbmeta.Dialect
+	// driver is the database/sql driver, which is not the dialect. PostgreSQL
+	// is read through pgx and Cassandra through cql.
 	driver string
 	env    string
-	// dialect reads the server's version, which a scene with a floor needs
-	// before it prepares anything. It is only set where a scene has one.
-	dialect dbmeta.Dialect
 	// open returns the administrator connection, or skips.
 	open func(*testing.T) *sql.DB
 	// build runs the fixture on a connection and returns the meta.
@@ -127,7 +129,7 @@ type parityPrincipal struct {
 func parityTargets() []parityTarget {
 	return []parityTarget{
 		{
-			name: "postgres", driver: "pgx", env: "DBMETA_POSTGRES",
+			dialect: dbmeta.PostgreSQL, driver: "pgx", env: "DBMETA_POSTGRES",
 			open: open, build: setup, schema: pgfixture.Everything.Schema,
 			scenes: []parityScene{{
 				name: "same",
@@ -138,7 +140,7 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
-			name: "mysql", driver: "mysql", env: "DBMETA_MYSQL",
+			dialect: dbmeta.MySQL, driver: "mysql", env: "DBMETA_MYSQL",
 			open: openMySQL, build: setupMySQL, schema: myfixture.Everything.Schema,
 			scenes: []parityScene{{
 				name:       "same",
@@ -146,9 +148,8 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
-			name: "sqlserver", driver: "sqlserver", env: "DBMETA_SQLSERVER",
-			dialect: dbmeta.SQLServer,
-			open:    openSQLServer, build: setupSQLServer, schema: msfixture.Everything.Schema,
+			dialect: dbmeta.SQLServer, driver: "sqlserver", env: "DBMETA_SQLSERVER",
+			open: openSQLServer, build: setupSQLServer, schema: msfixture.Everything.Schema,
 			scenes: []parityScene{
 				{
 					name:       "same",
@@ -167,7 +168,7 @@ func parityTargets() []parityTarget {
 			},
 		},
 		{
-			name: "cassandra", driver: "cql", env: "DBMETA_CASSANDRA",
+			dialect: dbmeta.Cassandra, driver: "cql", env: "DBMETA_CASSANDRA",
 			open: openCassandra, build: setupCassandra,
 			schema: cafixture.Everything.Schema,
 			scenes: []parityScene{{
@@ -179,7 +180,7 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
-			name: "clickhouse", driver: "clickhouse", env: "DBMETA_CLICKHOUSE",
+			dialect: dbmeta.ClickHouse, driver: "clickhouse", env: "DBMETA_CLICKHOUSE",
 			open: openClickHouse, build: setupClickHouse,
 			schema: chfixture.Everything.Schema,
 			scenes: []parityScene{{
@@ -190,7 +191,7 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
-			name: "oracle", driver: "oracle", env: "DBMETA_ORACLE",
+			dialect: dbmeta.Oracle, driver: "oracle", env: "DBMETA_ORACLE",
 			open: openOracle, build: setupOracle, schema: orfixture.Everything.Schema,
 			scenes: []parityScene{{
 				// A common user cannot be made from inside a pluggable
@@ -228,16 +229,16 @@ var parityExempt = map[dbmeta.Dialect]string{
 // A dialect added without one would pass every test in the repository.
 func TestEveryDialectIsMeasuredForParity(t *testing.T) {
 	t.Parallel()
-	measured := make(map[string]bool)
+	measured := make(map[dbmeta.Dialect]bool)
 	for _, target := range parityTargets() {
-		measured[target.name] = true
+		measured[target.dialect] = true
 	}
 	for _, d := range dbmeta.Dialects() {
 		switch why, exempt := parityExempt[d]; {
-		case measured[string(d)] && exempt:
+		case measured[d] && exempt:
 			t.Errorf("%s has a parity target and is also listed as exempt."+
 				" Remove it from parityExempt.", d)
-		case measured[string(d)]:
+		case measured[d]:
 		case exempt:
 			t.Logf("%s has no parity target: %s", d, why)
 		default:
@@ -257,7 +258,7 @@ func TestPrivilegeParity(t *testing.T) {
 	want := readGoldenAt(t, parityGolden)
 	var ran int
 	for _, target := range parityTargets() {
-		t.Run(target.name, func(t *testing.T) {
+		t.Run(string(target.dialect), func(t *testing.T) {
 			admin := target.open(t)
 			adminDSN := dsnOf(t, target.env)
 			for _, scene := range target.scenes {
@@ -299,7 +300,7 @@ func TestPrivilegeParity(t *testing.T) {
 							for name := range baseline {
 								asked[name] = true
 							}
-							base := parityName(target.name, m) +
+							base := parityName(target.dialect, m) +
 								"/" + scene.name + "/" + who.name
 							section := parityRelease(base, m, want)
 							ran++
@@ -331,7 +332,7 @@ func TestPrivilegeParity(t *testing.T) {
 // Only these are looked up. Cassandra records a version under cql and another
 // under protocol, and neither is a product: reading any key here would file
 // its answers under cql.
-var parityFlavors = map[string][]string{"mysql": {"mariadb", "mysql"}}
+var parityFlavors = map[dbmeta.Dialect][]string{dbmeta.MySQL: {"mariadb", "mysql"}}
 
 // parityRelease picks the section this server is recorded under.
 //
@@ -377,13 +378,13 @@ func parityRelease(base string, m *dbmeta.Meta, want map[string][]string) string
 // dialect and do not share the tables these queries are refused on: mysql.proc
 // was removed in MySQL 8.0 and MariaDB still has it, so one file cannot hold
 // one answer for both.
-func parityName(dialect string, m *dbmeta.Meta) string {
+func parityName(dialect dbmeta.Dialect, m *dbmeta.Meta) string {
 	for _, key := range parityFlavors[dialect] {
 		if m.Version().Has(key) {
 			return key
 		}
 	}
-	return dialect
+	return string(dialect)
 }
 
 // openAt connects and closes at the end of the test.
