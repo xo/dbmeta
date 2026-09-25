@@ -187,3 +187,73 @@ the moment it lands.
 The three kinds that blocked this are done. What is left is `usql`'s own work:
 a reader per driver, and whatever filtering each command needs so that the
 output still matches `psql`.
+
+## The version line, measured
+
+`usql` prints one line on connecting, and `dbmeta` builds the same line in
+`VersionSet.Display`. Both were read from the same connection on 26 servers,
+which is every release in `container.All()` plus the two SQLite drivers and
+DuckDB. `usql`'s side is its own per driver `Version` function, or
+`SELECT version()` where a driver declares none.
+
+| Product | Releases | Result |
+| --- | --- | --- |
+| PostgreSQL | 9.6 to 18, all ten | identical, including the Debian build suffix |
+| DuckDB | 1.5.5 | identical |
+| MariaDB | 10.6 to 13.0, all six | `dbmeta` names the product, `usql` prints a bare number |
+| MySQL | 8.4, 9.7, 26.7 | the same |
+| SQL Server | 2017, 2019, 2022, 2025 | `dbmeta` adds the release year and the cumulative update |
+| SQLite | one build, two drivers | the two disagree about the name |
+
+Eleven lines match exactly. Thirteen are `dbmeta` reporting strictly more. Two
+are the SQLite naming, which is the only real disagreement.
+
+### MySQL and MariaDB, where usql prints no product at all
+
+The `mysql` driver declares no `Version` function, so `usql` falls through to
+the generic `SELECT version()` and prints what comes back. On MySQL that is the
+whole line:
+
+```
+usql     8.4.11
+dbmeta   MySQL 8.4.11
+```
+
+On MariaDB the suffix carries the product, so `usql` reads
+`11.8.9-MariaDB-ubu2404` and is at least identifiable, by accident rather than
+by design. `dbmeta` reads the same string and names the product from the same
+suffix its queries gate on, so the two cannot drift apart. See D44.
+
+This is the one place `usql` would gain from the move without a new query.
+
+### SQL Server, where usql is thinner than its own specification
+
+```
+usql     Microsoft SQL Server 16.0.4295.3, RTM, Developer Edition (64-bit)
+dbmeta   Microsoft SQL Server 2022 16.0.4295.3, RTM-CU27, Developer Edition (64-bit)
+```
+
+`usql` selects `productversion`, `productlevel` and `edition`. `dbmeta` selects
+those, plus `productupdatelevel` for the `CU27`, plus the release year cut from
+`@@VERSION`, which is the only place the server states the name the product is
+sold under. D38 always specified the longer form.
+
+### SQLite, which is a disagreement rather than a gap
+
+```
+usql     SQLite3 3.53.4          with mattn/go-sqlite3
+usql     ModernC SQLite 3.53.4   with modernc.org/sqlite
+dbmeta   SQLite 3.53.4           with either
+```
+
+`usql` names the driver, so one SQLite build reports two different products.
+`dbmeta` names the product, because it holds a dialect and never sees the
+driver, and under D47 the consumer decides what to show. A consumer that wants
+to name its driver prepends that itself.
+
+This is the one line a move would change, so it is written down rather than
+discovered later.
+
+`TestTheDisplayLineNamesTheProduct` in the `test` module pins the shape per
+product against a live server, so a model cannot quietly lose its product name
+and start printing the bare number `usql` prints today.
