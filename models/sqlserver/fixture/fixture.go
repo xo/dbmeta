@@ -15,7 +15,12 @@ import (
 )
 
 // Releases a step needs. SQL Server 2016 is 13.
-var v13 = dbmeta.V(13)
+var (
+	// CREATE SEQUENCE arrived in SQL Server 2012, and so did the catalog view
+	// that lists one, which is why the Sequences query gates here too.
+	v11 = dbmeta.V(11)
+	v13 = dbmeta.V(13)
+)
 
 // Step is one statement of a fixture, with its alternatives by version.
 type Step struct {
@@ -85,6 +90,16 @@ func at(name, sqlstr string) Step {
 // a routine, a trigger and a sequence, and a type and a schema have their own
 // functions.
 func drop(name, kind, object string) Step {
+	return dropFrom(name, kind, object, dbmeta.Version{})
+}
+
+// dropFrom is drop for an object the older releases do not have at all.
+//
+// Both alternatives carry the floor, so a server below it resolves to
+// ErrVersionTooOld and the step is skipped rather than run. Guarding the
+// statement is not enough for a sequence: "DROP SEQUENCE" is rejected by SQL
+// Server 2008 R2 when the batch is parsed, whatever the IF around it says.
+func dropFrom(name, kind, object string, since dbmeta.Version) Step {
 	// The modern form, and the one every tested release takes.
 	modern := "DROP " + kind + " IF EXISTS " + object
 	var exists string
@@ -98,9 +113,14 @@ func drop(name, kind, object string) Step {
 	}
 	older := "IF " + exists + " IS NOT NULL DROP " + kind + " " + object
 	return Step{Name: name, Stmt: dbmeta.Stmt{{
-		{SQL: older},
+		{Min: since, SQL: older},
 		{Min: v13, SQL: modern},
 	}}}
+}
+
+// from is a step the older releases cannot run at all.
+func from(name string, since dbmeta.Version, sqlstr string) Step {
+	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: since, SQL: sqlstr}}}}
 }
 
 // Everything is a schema holding one of every object the SQL Server queries
@@ -118,7 +138,7 @@ var Everything = Fixture{
 	Setup: []Step{
 		at("schema", `CREATE SCHEMA dbmeta_fixture`),
 
-		at("sequence", `CREATE SEQUENCE dbmeta_fixture.counter
+		from("sequence", v11, `CREATE SEQUENCE dbmeta_fixture.counter
 	AS bigint START WITH 10 INCREMENT BY 2`),
 
 		// An alias type, which is what SQL Server has instead of a domain.
@@ -229,7 +249,7 @@ END`),
 		drop("drop book", "TABLE", "dbmeta_fixture.book"),
 		drop("drop author", "TABLE", "dbmeta_fixture.author"),
 		drop("drop type", "TYPE", "dbmeta_fixture.shortname"),
-		drop("drop sequence", "SEQUENCE", "dbmeta_fixture.counter"),
+		dropFrom("drop sequence", "SEQUENCE", "dbmeta_fixture.counter", v11),
 		drop("drop schema", "SCHEMA", "dbmeta_fixture"),
 	},
 }

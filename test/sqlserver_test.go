@@ -333,11 +333,18 @@ func TestSQLServerCatalogExtras(t *testing.T) {
 		t.Error("expected the dbo principal")
 	}
 
+	// A sequence arrived in 2012, so 2008 R2 refuses the query and the
+	// fixture skips the step that would have made one. Both halves have to
+	// agree, and this checks that they do rather than skipping quietly.
 	seq, ok, err := dbmeta.First(dbmeta.Sequences.All(ctx, m, db, msArgs()))
-	if err != nil {
+	switch {
+	case errors.Is(err, dbmeta.ErrVersionTooOld):
+		if tooOld := m.Version().Main().Parts[0] < 11; !tooOld {
+			t.Errorf("the server is %s and still refuses a sequence as too old", m.Version())
+		}
+	case err != nil:
 		t.Fatalf("reading sequences: %v", err)
-	}
-	if !ok || seq.Name != "counter" || seq.Start.V != 10 || seq.Increment.V != 2 {
+	case !ok || seq.Name != "counter" || seq.Start.V != 10 || seq.Increment.V != 2:
 		t.Errorf("expected the fixture sequence, got %+v ok=%v", seq, ok)
 	}
 
@@ -367,8 +374,18 @@ func TestSQLServerStats(t *testing.T) {
 	m := setupSQLServer(t, db)
 	ctx := t.Context()
 
+	// sys.dm_db_stats_properties arrived in 2012, so 2008 R2 refuses this.
+	if err := dbmeta.ColumnStats.Support(m); err == dbmeta.Supported {
+		if _, _, e := dbmeta.ColumnStats.SQL(m, msArgs()); errors.Is(e, dbmeta.ErrVersionTooOld) {
+			t.Skipf("column statistics need release 11, and this server is %s", m.Version())
+		}
+	}
+
 	var stats int
 	for v, err := range dbmeta.ColumnStats.All(ctx, m, db, msArgs()) {
+		if errors.Is(err, dbmeta.ErrVersionTooOld) {
+			t.Skipf("column statistics need release 11, and this server is %s", m.Version())
+		}
 		if err != nil {
 			t.Fatalf("reading column stats: %v", err)
 		}

@@ -552,13 +552,21 @@ Tested. D54 says what a Linux release claims and D57 says what a machine does.
 | 2016 | Windows Server 2016 machine | 13.0.5026.0 SP2 Express, on 2026-09-25 |
 | 2014 | Windows Server 2012 R2 machine | 12.0.2000.8 RTM Express, on 2026-09-25 |
 | 2012 | Windows Server 2012 R2 machine | 11.0.7001.0 SP4 Express, on 2026-09-25 |
-| 2008 R2 | Windows machine, not yet run | nothing is claimed |
+| 2008 R2 | Windows Server 2008 R2 machine | 10.50.4000.0 SP2 Express, on 2026-09-25 |
 
-2016 answers 32 of the 55, which is what 2017 and later answer. 2012 and 2014
-answer 31, and the one they lack is `ForeignTables`, which reads
-`sys.external_tables` and is gated at 2016. It is refused with
-`ErrVersionTooOld` rather than returning nothing, which is the whole point of
-the gate.
+The gates show up as a clean progression, and every step of it was checked
+against a real server rather than a version set:
+
+| Release | Answers | Refused as too old |
+| --- | --- | --- |
+| 2016 and newer | 32 | none |
+| 2014, 2012 | 31 | `ForeignTables` |
+| 2008 R2 | 29 | `ForeignTables`, `Sequences`, `ColumnStats` |
+
+`ForeignTables` reads `sys.external_tables`, which arrived in 2016. `Sequences`
+and `ColumnStats` read `sys.sequences` and `sys.dm_db_stats_properties`, which
+arrived in 2012. Each is refused with `ErrVersionTooOld` rather than returning
+nothing, which is the whole point of the gate.
 
 The machines earned their cost immediately. Every gate in this model sits below
 2017, so until one ran, the old branch of each was checked only by resolving a
@@ -579,6 +587,16 @@ update and names it, so the shorter form never appeared.
 and the fixture step that creates the statistics was gated at 2016, following a
 comment that had the release wrong. The two gates disagreed, and only a server
 between them could show it.
+
+2008 R2 then found a fourth, of the same family. The fixture created a sequence
+unconditionally, and `CREATE SEQUENCE` arrived in 2012, so the whole fixture
+failed before any query ran. Both the create and the drop are gated at 2012
+now. Guarding the drop with `IF OBJECT_ID(...) IS NOT NULL` is not enough,
+because 2008 R2 rejects the word `SEQUENCE` when it parses the batch, whatever
+the condition around it says.
+
+The count is four faults from four machines, all of them in the part of the
+model that no container can reach.
 
 ### The sys schema, not information_schema
 
