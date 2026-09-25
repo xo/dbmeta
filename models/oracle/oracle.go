@@ -15,8 +15,12 @@
 //
 // The cost is the same one information_schema has. ALL_ silently drops a row
 // the caller cannot see, so an unprivileged connection gets a smaller answer
-// rather than an error. A consumer that needs the whole catalog connects as
-// somebody who can see it.
+// rather than an error, and no rows is also what an empty schema and a schema
+// that does not exist both return. A consumer that needs the whole catalog
+// connects as somebody who can see it.
+//
+// Whether a caller that knows it is a DBA can ask for the DBA_ twin instead is
+// open. D60 in docs/PLAN.md holds the measurements and the candidates.
 //
 // # A schema is a user
 //
@@ -25,9 +29,14 @@
 //
 // # What it answers
 //
-// Eleven of the 55, which is a start rather than a finish. Schemas, tables,
-// columns, indexes, index columns, constraints, constraint columns,
-// sequences, views, the current schema and the current user.
+// 25 of the 55. Schemas, tables, columns, indexes, index columns,
+// constraints, constraint columns, sequences, views, the current schema and
+// the current user. Then comments, triggers, event triggers, functions,
+// aggregates, routine parameters, types, domains, operators, privileges,
+// column statistics, partitioned tables, foreign servers and foreign tables.
+//
+// Domains needs 23ai, where the SQL domain and ALL_DOMAINS arrived. Every
+// other one answers on every release from 11g up.
 //
 // See docs/COVERAGE.md for what is not written yet and why.
 //
@@ -77,6 +86,9 @@ func init() {
 	registerRelations()
 	registerColumns()
 	registerExtra()
+	registerRoutines()
+	registerTables()
+	registerCatalog()
 }
 
 // versionSQL reads the banner.

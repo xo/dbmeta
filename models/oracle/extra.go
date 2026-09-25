@@ -6,6 +6,17 @@ import (
 	"github.com/xo/dbmeta"
 )
 
+// notGeneratedNotNull excludes the check constraint Oracle writes for a NOT
+// NULL.
+//
+// The dictionary records a NOT NULL as a check constraint with a generated
+// name, and D49 says that is not a constraint row. Both the constraint query
+// and the constraint column query need the rule, and writing it twice is how
+// they came apart: ConstraintColumns dropped every check rather than only
+// these, so a real check had a row in one query and no columns in the other.
+const notGeneratedNotNull = `NOT (c.constraint_type = 'C'` +
+	` AND c.generated = 'GENERATED NAME' AND c.constraint_name LIKE 'SYS_C%')`
+
 func registerExtra() {
 	// \d NAME, the constraint section.
 	//
@@ -36,10 +47,7 @@ func registerExtra() {
 			always(`, NULL AS "comment"`),
 			always(`FROM all_constraints c`),
 			always(`WHERE ` + notSystem("c.owner")),
-			// A NOT NULL is a check constraint in this dictionary and is not
-			// a constraint row here. See D49.
-			always(`AND NOT (c.constraint_type = 'C' AND c.generated = 'GENERATED NAME'`),
-			always(`  AND c.constraint_name LIKE 'SYS_C%')`),
+			always(`AND ` + notGeneratedNotNull),
 			always(`AND (@schema IS NULL OR c.owner LIKE @schema)`),
 			always(`AND (@name IS NULL OR c.table_name LIKE @name)`),
 			always(`ORDER BY c.owner, c.table_name, c.constraint_name`),
@@ -69,7 +77,9 @@ func registerExtra() {
 			always(`, cc.table_name AS "table"`),
 			always(`, cc.constraint_name AS "constraint"`),
 			always(`, cc.column_name AS "name"`),
-			always(`, cc.position AS "ordinal"`),
+			// A check constraint has no position, because its columns are
+			// the ones its condition names rather than an ordered list.
+			always(`, NVL(cc.position, 1) AS "ordinal"`),
 			always(`, CASE WHEN r.owner IS NULL THEN NULL`),
 			always(`    ELSE SYS_CONTEXT('USERENV', 'DB_NAME') END AS "foreign_catalog"`),
 			always(`, r.owner AS "foreign_schema"`),
@@ -86,7 +96,8 @@ func registerExtra() {
 			always(`  ON rc.owner = r.owner AND rc.constraint_name = r.constraint_name`),
 			always(`  AND rc.position = cc.position`),
 			always(`WHERE ` + notSystem("cc.owner")),
-			always(`AND c.constraint_type IN ('P', 'U', 'R')`),
+			always(`AND c.constraint_type IN ('P', 'U', 'R', 'C')`),
+			always(`AND ` + notGeneratedNotNull),
 			always(`AND (@schema IS NULL OR cc.owner LIKE @schema)`),
 			always(`AND (@name IS NULL OR cc.table_name LIKE @name)`),
 			always(`ORDER BY cc.owner, cc.table_name, cc.constraint_name, cc.position`),

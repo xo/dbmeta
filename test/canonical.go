@@ -116,11 +116,21 @@ func (c canonicalColumn) String() string {
 
 func (c canonicalColumn) key() string { return c.Table + "." + c.Name }
 
+// fold lowers an identifier.
+//
+// A product decides what case an unquoted identifier is stored in. Oracle
+// upper cases it and everything else here lower cases it, and the fixture
+// writes the same statement for both. That is a difference in spelling rather
+// than in structure, so the projection folds it. It cannot hide a fault: two
+// objects whose names differ only in case cannot both exist in one schema on
+// any database here.
+func fold(s string) string { return strings.ToLower(s) }
+
 // canonicalizeColumn returns a new value. It does not write to v.
 func canonicalizeColumn(v dbmeta.Column) canonicalColumn {
 	return canonicalColumn{
-		Table:      v.Table,
-		Name:       v.Name,
+		Table:      fold(v.Table),
+		Name:       fold(v.Name),
 		Ordinal:    v.Ordinal,
 		Nullable:   v.Nullable,
 		PrimaryKey: v.PrimaryKey,
@@ -167,17 +177,17 @@ func canonicalizeConstraints(cols []dbmeta.ConstraintColumn, kinds map[string]st
 	byKey := map[string]*group{}
 	var order []string
 	for _, c := range cols {
-		key := c.Table + "\x00" + c.Constraint
+		key := fold(c.Table) + "\x00" + fold(c.Constraint)
 		g, ok := byKey[key]
 		if !ok {
-			g = &group{table: c.Table}
+			g = &group{table: fold(c.Table)}
 			byKey[key] = g
 			order = append(order, key)
 		}
-		g.cols = append(g.cols, c.Name)
+		g.cols = append(g.cols, fold(c.Name))
 		if c.ForeignTable.Valid {
-			g.ftable = c.ForeignTable.V
-			g.fcols = append(g.fcols, c.ForeignName.V)
+			g.ftable = fold(c.ForeignTable.V)
+			g.fcols = append(g.fcols, fold(c.ForeignName.V))
 		}
 	}
 	out := make([]canonicalConstraint, 0, len(order))

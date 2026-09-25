@@ -10,9 +10,29 @@ import (
 var (
 	// v12 is where the identity column and search_condition_vc arrived.
 	v12 = dbmeta.V(12)
+	// v122 is where LISTAGG took an ON OVERFLOW clause.
+	v122 = dbmeta.V(12, 2)
 	// v18 is where all_views.text_vc arrived.
 	v18 = dbmeta.V(18)
+	// v23 is where the SQL domain arrived, with it all_domains.
+	v23 = dbmeta.V(23)
 )
+
+// listagg builds a LISTAGG over a correlated subquery.
+//
+// LISTAGG returns a VARCHAR2, and a VARCHAR2 holds 4000 bytes. Before 12.2
+// going past that raises ORA-01489 and the whole query fails, so a schema
+// nobody would call unusual can stop a metadata read. 12.2 added ON OVERFLOW
+// TRUNCATE, which cuts the string and appends a count instead. The fragment
+// takes it where the release has it. Both sides return one VARCHAR2 column,
+// which is what rule 3 asks.
+func listagg(expr, order string) dbmeta.Choice {
+	return dbmeta.Choice{
+		{SQL: `LISTAGG(` + expr + `, ', ') WITHIN GROUP (ORDER BY ` + order + `)`},
+		{Min: v122, SQL: `LISTAGG(` + expr + `, ', ' ON OVERFLOW TRUNCATE)` +
+			` WITHIN GROUP (ORDER BY ` + order + `)`},
+	}
+}
 
 // The schemas Oracle keeps for itself.
 //

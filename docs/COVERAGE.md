@@ -29,7 +29,7 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 | `models/sqlite3` | 14 | 55 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
 | `models/duckdb` | 20 | 55 | duckdb/duckdb-go, the driver usql uses |
 | `models/sqlserver` | 32 | 55 | SQL Server 2017, 2019, 2022 and 2025 |
-| `models/oracle` | 11 | 55 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
+| `models/oracle` | 25 | 55 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -710,9 +710,7 @@ there is no object with an identity and an owner of its own to list.
 
 ## Oracle
 
-Oracle answers 11 of the 55 so far. That is a start rather than a finish, and
-it is written down as one: the queries that exist are verified on six releases
-and the rest are not written yet.
+Oracle answers 25 of the 55. Every one is verified on six releases.
 
 It needs no Windows and no virtual machine, which is the opposite of SQL
 Server. The free Express images reach back to 11g Release 2 from 2010, so every
@@ -722,10 +720,42 @@ release runs in an ordinary container. See D57 for the SQL Server contrast and
 ### What it answers
 
 Schemas, tables, columns, indexes, index columns, constraints, constraint
-columns, sequences, views, the current schema and the current user.
+columns, sequences, views, the current schema and the current user. Then
+comments, triggers, event triggers, functions, aggregates, routine parameters,
+types, domains, operators, privileges, column statistics, partitioned tables,
+foreign servers and foreign tables.
 
-Verified on 11g, 18c, 19c, 21c, 23ai and 26ai. Every one of those runs all
-eleven, and each returns the number of columns it declares.
+Verified on 11g, 18c, 19c, 21c, 23ai and 26ai. Every release runs 24 of them
+and each returns the number of columns it declares. `Domains` is the
+twenty-fifth and needs 23ai, where the SQL domain and `ALL_DOMAINS` arrived,
+so 23ai and 26ai run all 25 and the four older releases report that the server
+is too old.
+
+### What the conformance test says
+
+Oracle is in `test/testdata/conformance.txt` under `[oracle]`, which D53
+requires. Its lines match SQL Server exactly apart from one, and the two
+differences from PostgreSQL are both product differences rather than faults:
+
+`recent.book_id` and `recent.title` are `nullable=false`. Oracle carries the
+NOT NULL of a base column into a view, and so does SQL Server. PostgreSQL and
+SQLite report a view column as nullable whatever it is selected from.
+
+`author_id`, `book_id` and `shipment_id` are `has_default=false`. The Oracle
+fixture gives them a plain `NUMBER(10)` primary key, because an identity
+column is 12c and later and the fixture has to build on 11g. PostgreSQL uses
+`serial`, which is a default.
+
+The canonical projection folds identifier case. Oracle stores an unquoted name
+in upper case and everything else here stores it in lower case, and that is a
+difference in spelling rather than in structure. See `fold` in
+`test/canonical.go`.
+
+Adding Oracle found one fault. `Constraints` returned the fixture's check
+constraint and `ConstraintColumns` returned no columns for it, because the
+second query dropped every check rather than only the generated NOT NULL ones
+that D49 excludes. The rule was written out twice and the two copies came
+apart. Both now read `notGeneratedNotNull`.
 
 ### ALL_ rather than DBA_ or USER_
 
@@ -792,32 +822,56 @@ marked `ForeignServers` and `ForeignTables` absent, and Gemini named
 `ALL_DB_LINKS` and `ALL_EXTERNAL_TABLES` for them. A database link is exactly
 what a foreign server is, and `usql`'s own Oracle reader already queries it.
 
-Nineteen more are answerable, which would take Oracle from 11 to 30:
+The pass produced nineteen leads. D43 says to run each against a real server
+before believing it, and running them removed six. Fourteen shipped, which
+took Oracle from 11 to 25.
 
 | Question | Reads | Note |
 | --- | --- | --- |
-| `Comments` | `ALL_TAB_COMMENTS`, `ALL_COL_COMMENTS` | Oracle keeps comments in views of their own |
+| `Comments` | `ALL_TAB_COMMENTS`, `ALL_COL_COMMENTS` | the two are unioned, and a column is named table.column |
 | `Triggers` | `ALL_TRIGGERS` | where `base_object_type` is a table or a view |
 | `EventTriggers` | `ALL_TRIGGERS` | where `base_object_type` is `SCHEMA` or `DATABASE` |
 | `Functions` | `ALL_PROCEDURES` | where `aggregate` is `NO` |
 | `Aggregates` | `ALL_PROCEDURES` | where `aggregate` is `YES` |
 | `RoutineParameters` | `ALL_ARGUMENTS` | |
-| `Types` | `ALL_TYPES` | |
-| `Domains` | `ALL_DOMAINS` | 23ai, so gated |
-| `Privileges` | `ALL_TAB_PRIVS` | |
-| `Tablespaces` | `ALL_TABLESPACES` | |
+| `Types` | `ALL_TYPES` | the element type comes from `ALL_COLL_TYPES` |
+| `Domains` | `ALL_DOMAINS`, `ALL_DOMAIN_COLS` | 23ai, so gated |
+| `Privileges` | `ALL_TAB_PRIVS` | one row per grant, folded into one list per object |
 | `ColumnStats` | `ALL_TAB_COL_STATISTICS` | |
-| `ExtendedStats` | `ALL_STAT_EXTENSIONS` | |
-| `PartitionedTables` | `ALL_PART_TABLES` | |
-| `LargeObjects` | `ALL_LOBS` | a LOB column rather than a standalone object |
-| `Operators` | `ALL_OPERATORS` | |
-| `Collations` | `ALL_COLLATIONS` | 12.2 and later, so gated |
+| `PartitionedTables` | `ALL_PART_TABLES`, `ALL_PART_KEY_COLUMNS` | |
+| `Operators` | `ALL_OPERATORS`, `ALL_OPBINDINGS`, `ALL_OPARGUMENTS` | one row per binding |
 | `ForeignServers` | `ALL_DB_LINKS` | a database link |
 | `ForeignTables` | `ALL_EXTERNAL_TABLES` | |
-| `Settings` | `V$PARAMETER` | the one that needs a V$ view, like the version query |
 
-Every one of those is a lead rather than a result. D43 says to run each against
-a real server before believing it, and that has not been done.
+### The five leads a real server disproved
+
+D43 exists for this. Three of the views the models named do not exist on any
+release here, and checking took one query:
+
+| Lead | 11g | 19c | 26ai |
+| --- | --- | --- | --- |
+| `ALL_TABLESPACES` | no | no | no |
+| `ALL_COLLATIONS` | no | no | no |
+| `ALL_PDBS` | no | no | no |
+
+`Tablespaces` is in `USER_TABLESPACES` and `DBA_TABLESPACES` only, so it waits
+on D60. `Collations` was said to have arrived in 12.2, and it did not: 26ai has
+no such view either. `Databases` has the same problem, and `ALL_PDBS` never
+existed under that name.
+
+Two more exist and were rejected on reading them:
+
+`LargeObjects` from `ALL_LOBS`. The view describes the storage of a LOB column
+of a table, not an object with an identity of its own. There is no id to
+return for `LargeObject.OID`, because Oracle has no standalone large object.
+A stretch, and D43 says leave a stretch unsupported.
+
+`ExtendedStats` from `ALL_STAT_EXTENSIONS`. The view has the extension
+expression and no list of statistic kinds. Putting the expression in a field
+named `Kinds` would be shaping the answer so it fills a column, which rule 13
+forbids.
+
+`Settings` from `V$PARAMETER` is a lead that still stands and is not written.
 
 ### Analogues the pass rejected
 
@@ -841,9 +895,10 @@ no text search objects of the shape `psql` names, and no extension.
 both, in `DBA_ROLES` and `DBA_ROLE_PRIVS`, and there is no `ALL_` equivalent:
 an ordinary user sees only its own, through `USER_ROLE_PRIVS` and
 `SESSION_ROLES`. Answering them means reading `DBA_`, which needs
-`SELECT_CATALOG_ROLE`. That is a decision about the `ALL_` rule rather than a
-question about the dictionary, and it has not been made.
+`SELECT_CATALOG_ROLE`. D60 sets the rule that allows it and neither query is
+written yet.
 
 `Databases` is the same shape of problem. Oracle has one database per
-instance, and the nearest list is the pluggable databases in `ALL_PDBS` from
-12c, or `V$DATABASE`, which is a dynamic view rather than dictionary.
+instance, and the nearest list is the pluggable databases, which no `ALL_`
+view carries: `ALL_PDBS` does not exist on any release here. `DBA_PDBS` and
+`V$DATABASE` do, and both are behind D60.

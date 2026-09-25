@@ -14,6 +14,7 @@ import (
 	"github.com/xo/dbmeta"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
+	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
@@ -90,6 +91,10 @@ func conformTargets() []conformTarget {
 			name: "sqlserver", dialect: dbmeta.SQLServer,
 			open: openSQLServer, schema: msfixture.Everything.Schema, build: setupSQLServer,
 		},
+		{
+			name: "oracle", dialect: dbmeta.Oracle,
+			open: openOracle, schema: orfixture.Everything.Schema, build: setupOracle,
+		},
 	}
 }
 
@@ -145,7 +150,7 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 		if err != nil {
 			t.Fatalf("reading tables: %v", err)
 		}
-		if !core[v.Name] {
+		if !core[fold(v.Name)] {
 			continue
 		}
 		// The kind is normalized to table or view. DuckDB says "temporary
@@ -156,7 +161,7 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 		if strings.Contains(v.Type, "view") {
 			kind = "view"
 		}
-		tables = append(tables, fmt.Sprintf("table %s %s", v.Name, kind))
+		tables = append(tables, fmt.Sprintf("table %s %s", fold(v.Name), kind))
 	}
 	sort.Strings(tables)
 	out = append(out, tables...)
@@ -167,7 +172,7 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 		if err != nil {
 			t.Fatalf("reading columns: %v", err)
 		}
-		if !core[v.Table] {
+		if !core[fold(v.Table)] {
 			continue
 		}
 		c := canonicalizeColumn(v)
@@ -182,14 +187,14 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 		if err != nil {
 			t.Fatalf("reading constraints: %v", err)
 		}
-		kinds[v.Table+"\x00"+v.Name] = v.Type
+		kinds[fold(v.Table)+"\x00"+fold(v.Name)] = v.Type
 	}
 	var ccols []dbmeta.ConstraintColumn
 	for v, err := range dbmeta.ConstraintColumns.All(ctx, m, db, args) {
 		if err != nil {
 			t.Fatalf("reading constraint columns: %v", err)
 		}
-		if core[v.Table] {
+		if core[fold(v.Table)] {
 			ccols = append(ccols, v)
 		}
 	}
