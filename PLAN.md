@@ -3358,9 +3358,10 @@ an ordinary user does not have.
 
 ## Open questions for Ken
 
-Both questions in `REVIEW.md` are answered. D49 records what was decided and
-`REVIEW.md` keeps the argument, because the reasoning is the part that stops
-either one being undone by accident.
+`REVIEW.md` holds the argument behind each decision that changed exported API,
+and the one question still open: where the documentation should live. The two
+reviews disagree sharply on splitting this file into one record per decision,
+and the evidence in `REVIEW.md` is from this repository.
 
 
 None. The floor question that the upstream change reopened has been answered:
