@@ -1,6 +1,7 @@
 package container_test
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -48,8 +49,18 @@ func TestEveryWindowsVMIsUsable(t *testing.T) {
 			}
 			ports[p] = v.Name()
 		}
-		if !strings.HasPrefix(v.Installer, "https://") {
-			t.Errorf("%s: the installer is not an https URL: %q", v.Name(), v.Installer)
+		// A URL, and one a downloader will accept. One installer path has a
+		// space in it, and curl refuses the raw character rather than
+		// encoding it, so the escape belongs in the list.
+		u, err := url.Parse(v.Installer)
+		switch {
+		case err != nil:
+			t.Errorf("%s: the installer is not a URL: %v", v.Name(), err)
+		case u.Scheme != "https":
+			t.Errorf("%s: the installer is not https: %q", v.Name(), v.Installer)
+		case strings.ContainsAny(v.Installer, " \t"):
+			t.Errorf("%s: the installer URL has a raw space, which curl refuses. "+
+				"Write it %%20: %q", v.Name(), v.Installer)
 		}
 		if f := v.InstallerFile(); !strings.HasSuffix(f, ".exe") || strings.Contains(f, "/") {
 			t.Errorf("%s: %q is not a file name", v.Name(), f)

@@ -120,9 +120,11 @@ var WindowsVMs = []WindowsVM{
 	{
 		Release: "2014", Tier: Verified,
 		Windows: "Windows Server 2012 R2", Image: "2012r2",
-		// SQL Server 2014 Express. The path has a space in it, which is why
-		// the provisioning script quotes every URL.
-		Installer:   "https://download.microsoft.com/download/e/a/e/eae6f7fc-767a-4038-a954-49b8b05d04eb/Express 64BIT/SQLEXPR_x64_ENU.exe",
+		// SQL Server 2014 Express. The path has a space in it, and it is
+		// written %20 here because it has to be: curl rejects the raw
+		// character outright with "malformed input to a URL function",
+		// whatever the shell does with the quoting.
+		Installer:   "https://download.microsoft.com/download/e/a/e/eae6f7fc-767a-4038-a954-49b8b05d04eb/Express%2064BIT/SQLEXPR_x64_ENU.exe",
 		RegistryKey: "MSSQL12.MSSQLSERVER",
 		LicenseFlag: true,
 		Port:        51435, Viewer: 8108,
