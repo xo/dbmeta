@@ -8,6 +8,8 @@ import (
 // flavor and it is in mysql.go. A fragment gates on the product key and
 // never on the number, which is D44.
 
+// mariadb is the official image. MariaDB is the reference product of this
+// dialect, so it is the one the queries are written against.
 var mariadb = product{
 	dialect: dbmeta.MySQL,
 	name:    "mariadb",

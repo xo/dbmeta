@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/xo/dbmeta"
 )
@@ -9,6 +10,8 @@ import (
 // MySQL is the flavor of the mysql dialect. MariaDB is the reference
 // product and it is in mariadb.go. See D44.
 
+// mysql is the official image. MySQL is the flavor, and it exists here to
+// catch a query that reads a MariaDB table MySQL dropped.
 var mysql = product{
 	dialect: dbmeta.MySQL,
 	name:    "mysql",
@@ -35,7 +38,7 @@ var MySQL = list{}.add(mysql, Tested, "8.4", "26.7").
 // mysqlURL is the dburl style URL for the same server. The go-sql-driver DSN
 // mysqlDSN returns is not a URL, so a person cannot paste it into usql.
 func mysqlURL(port int) string {
-	return fmt.Sprintf("mysql://root:%s@127.0.0.1:%d/", Password, port)
+	return fmt.Sprintf("mysql://root:%s@127.0.0.1:%d/", url.QueryEscape(Password), port)
 }
 
 func mysqlDSN(port int) string {

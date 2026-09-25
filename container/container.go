@@ -51,14 +51,27 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-const (
-	// Password is what every server here is started with. These containers
-	// hold fixture data and live for the length of a test run.
-	Password = "P4ssw0rd"
-	// SQLServerPassword is what a SQL Server container is started with. It is
-	// not [Password], because SQL Server refuses a password without a symbol.
-	SQLServerPassword = "P4ssw0rd!x"
-)
+// Password is what every server here is started with. These containers hold
+// fixture data and live for the length of a test run, so nothing in them is
+// worth protecting.
+//
+// It is shaped to clear the strictest policy any of these products enforces,
+// which is SQL Server's, so that one value works everywhere. It is ten
+// characters and it carries all four classes: an upper case letter, lower
+// case letters, digits and a symbol. SQL Server refuses a password that is
+// too short or that draws on too few classes, and it refuses to start at all
+// rather than starting without a usable sa, so getting this wrong looks like
+// a broken image.
+//
+// Anything with a password policy tends to ask for some subset of the same
+// four things, so a value that satisfies SQL Server satisfies the rest. Keep
+// all four classes and the length if this ever changes.
+//
+// There used to be a second constant for SQL Server alone, and the cost of it
+// was a reader having to know which product took which. The symbol is escaped
+// where a DSN is a URL, which is why each one builds through
+// [net/url.QueryEscape] rather than concatenating.
+const Password = "P4ssw0rd!x"
 
 // Tier is how thoroughly a release is tested. It is the support tier from D40,
 // attached to the thing that does the testing.

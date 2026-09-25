@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/xo/dbmeta"
 )
@@ -25,6 +26,7 @@ import (
 // 25.8 and 26.9 are the ends, and they span the one fragment the model has.
 // system.constraints does not exist on 25.3, 25.8 or 26.1, and does exist on
 // 26.8 and 26.9, so a pair either side of it exercises both.
+// clickhouse is the official server image.
 var clickhouse = product{
 	dialect: dbmeta.ClickHouse,
 	name:    "clickhouse",
@@ -50,7 +52,8 @@ var clickhouse = product{
 	// is already verified to run.
 	ready: []string{"clickhouse-client", "--password", Password, "-q", "SELECT 1"},
 	dsn: func(port int) string {
-		return fmt.Sprintf("clickhouse://default:%s@127.0.0.1:%d/default", Password, port)
+		return fmt.Sprintf("clickhouse://default:%s@127.0.0.1:%d/default",
+			url.QueryEscape(Password), port)
 	},
 }
 

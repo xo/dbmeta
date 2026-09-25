@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/xo/dbmeta"
 )
@@ -64,7 +65,8 @@ import (
 // oracleService builds a connection string for a service on a port.
 func oracleService(service string) func(port int) string {
 	return func(port int) string {
-		return fmt.Sprintf("oracle://system:%s@127.0.0.1:%d/%s", Password, port, service)
+		return fmt.Sprintf("oracle://system:%s@127.0.0.1:%d/%s",
+			url.QueryEscape(Password), port, service)
 	}
 }
 

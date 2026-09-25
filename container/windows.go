@@ -81,7 +81,7 @@ func (v WindowsVM) Name() string { return "sqlserver-" + v.Release }
 // DSN returns a connection string for this machine on the host.
 func (v WindowsVM) DSN() string {
 	return fmt.Sprintf("sqlserver://sa:%s@127.0.0.1:%d?database=master&encrypt=disable",
-		url.QueryEscape(SQLServerPassword), v.Port)
+		url.QueryEscape(Password), v.Port)
 }
 
 // InstallerFile returns the file name the installer is saved as.

@@ -172,7 +172,7 @@ func writeOEM(vm container.WindowsVM, oem string) error {
 	}
 	text = strings.NewReplacer(
 		"@@REGISTRY_KEY@@", vm.RegistryKey,
-		"@@SA_PASSWORD@@", container.SQLServerPassword,
+		"@@SA_PASSWORD@@", container.Password,
 		"@@INSTALLER_FILE@@", vm.InstallerFile(),
 		"@@LICENSE_FLAG@@", license,
 	).Replace(string(install))

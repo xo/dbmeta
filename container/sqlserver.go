@@ -10,6 +10,7 @@ import (
 // SQL Server on Linux, which begins at 2017. Every older release needs a
 // Windows machine and those are in windows.go. See D54 and D57.
 
+// sqlserver is Microsoft's own image, which is the only one there is.
 var sqlserver = product{
 	dialect: dbmeta.SQLServer,
 	name:    "sqlserver",
@@ -19,18 +20,16 @@ var sqlserver = product{
 	// Microsoft tags every release "-latest" and publishes no bare tag.
 	tagSuffix: "-latest",
 	port:      1433,
-	// The password has to satisfy the SQL Server policy, which wants a
-	// symbol, so it is not the shared one.
 	env: map[string]string{
 		"ACCEPT_EULA":       "Y",
-		"MSSQL_SA_PASSWORD": SQLServerPassword,
+		"MSSQL_SA_PASSWORD": Password,
 		"MSSQL_PID":         "Developer",
 	},
 	ready: sqlcmd("/opt/mssql-tools18/bin/sqlcmd"),
 	dsn: func(port int) string {
 		return fmt.Sprintf(
 			"sqlserver://sa:%s@127.0.0.1:%d?database=master&encrypt=disable",
-			url.QueryEscape(SQLServerPassword), port)
+			url.QueryEscape(Password), port)
 	},
 }
 
@@ -59,6 +58,6 @@ var SQLServer = list{}.add(sqlserver, Tested, "2017", "2019", "2022", "2025").
 func sqlcmd(path string) []string {
 	return []string{
 		path, "-S", "localhost",
-		"-U", "sa", "-P", SQLServerPassword, "-C", "-Q", "SELECT 1",
+		"-U", "sa", "-P", Password, "-C", "-Q", "SELECT 1",
 	}
 }
