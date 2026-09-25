@@ -271,6 +271,14 @@ var parityFlavors = map[string][]string{"mysql": {"mariadb", "mysql"}}
 // served there. A superuser reads it on both, so the query is right and the
 // file was wrong to claim one answer covers every release.
 //
+// MariaDB 10 is the second. information_schema.ROUTINES reports
+// routine_definition as NULL to a user that cannot read the routine's source,
+// and the functions query selects it as "source", so the grantee sees the
+// same rows with an absent definition. MariaDB 11.3 made SHOW CREATE ROUTINE
+// a grantable privilege that GRANT ALL PRIVILEGES on a database carries, so
+// 13.0 serves the definition to the same principal. 10.6 has no such
+// privilege to grant.
+//
 // So a section may be written as product@major, and that one wins for a server
 // reporting that major. Everything else falls back to the shared section. The
 // override exists only where a release really differs, which keeps the file

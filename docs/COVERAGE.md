@@ -575,6 +575,7 @@ that varies is what kind of principal they are.
 | ClickHouse 26.9 | granted user | `constraints`, `databases`, `foreign_servers`, `index_columns`, `indexes`, `privileges`, `role_grants`, `roles`, `tablespaces` |
 | MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
+| MariaDB 10.6 | grantee | the same, plus `functions` |
 
 `current_user` and `current_schema` are left out of the table and are in the
 file. They answer a question about the connection, so a run where they agreed
@@ -582,9 +583,9 @@ would be the fault.
 
 ### One release answers differently
 
-`test/testdata/parity.txt` has a section per product, and PostgreSQL 12 has one
-of its own, written `postgres@12`. A section named for a release wins over the
-shared one for a server reporting that major.
+`test/testdata/parity.txt` has a section per product, and two releases have one
+of their own, written `postgres@12` and `mariadb@10`. A section named for a
+release wins over the shared one for a server reporting that major.
 
 PostgreSQL 12 grants public SELECT on six columns of `pg_subscription` and not
 on `subsynccommit`, which the `Subscriptions` query reads as `synchronous`, so
@@ -600,6 +601,25 @@ release of a product.
 It was found by CI rather than by the cross-release check that was supposed to
 catch it. That check compared 9.6 against 18, and 9.6 has no `pg_subscription`
 at all, so the query was never asked and the difference never showed.
+
+MariaDB 10.6 is the second, and it is `Functions`.
+`information_schema.ROUTINES` reports `routine_definition` as NULL to a user
+that cannot read the routine's source, and the query selects that column as
+`source`, so a grantee gets the same rows with the definition absent. MariaDB
+11.3 made `SHOW CREATE ROUTINE` a grantable privilege, and
+`GRANT ALL PRIVILEGES` on a database carries it, so 13.0 serves the definition
+to the same principal. 10.6 has no such privilege to grant, and only the
+definer or a user that can read `mysql.proc` sees it there.
+
+Nothing is gated for this either, and for the same reason: an administrator on
+10.6 reads the column, so padding it would withhold a fact from a caller who is
+allowed it.
+
+This one was hidden rather than missed. The workflow ran MariaDB with
+`-run 'MySQL|InformationSchema|Conformance'`, which no parity test matches, so
+parity had never been asked of MariaDB at all. D69 replaced those twelve
+hand written jobs with one that runs the whole suite per release, and this was
+the first thing it found.
 
 ### What each one means for a consumer
 

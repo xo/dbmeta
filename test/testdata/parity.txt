@@ -35,6 +35,16 @@ role_grants refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_g
 roles refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`user`
 user_mappings refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`servers`
 
+[mariadb@10/same/grantee]
+aggregates refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`proc`
+column_stats refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`column_stats`
+current_user the same rows with different values
+foreign_servers refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`servers`
+functions the same rows with different values
+role_grants refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`roles_mapping`
+roles refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`user`
+user_mappings refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`servers`
+
 [mysql/same/grantee]
 current_user the same rows with different values
 foreign_servers refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table 'servers'
