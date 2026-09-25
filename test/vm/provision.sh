@@ -36,7 +36,11 @@ set -u
 
 RUNNER="${DBMETA_RUNNER:-podman}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-STATE="${DBMETA_VM_STATE:-$HERE/state}"
+# Where the machine disks live. Not in the repository: a Windows disk is tens
+# of gigabytes and a grep or an editor index over the working tree should not
+# have to walk it. The XDG data directory is the conventional home, and
+# DBMETA_VM_STATE overrides it.
+STATE="${DBMETA_VM_STATE:-${XDG_DATA_HOME:-$HOME/.local/share}/dbmeta/vm}"
 SAPWD='P4ssw0rd!x'
 
 if ! command -v "$RUNNER" >/dev/null 2>&1; then

@@ -56,10 +56,6 @@ const (
 	// Password is what every server here is started with. These containers
 	// hold fixture data and live for the length of a test run.
 	Password = "P4ssw0rd"
-	// Registry is where the images come from. podman needs a fully qualified
-	// name and docker does not, so [Server.Qualified] spells it out and
-	// [Server.Ref] does not.
-	Registry = "docker.io/library"
 	// SQLServerPassword is what a SQL Server container is started with. It is
 	// not [Password], because SQL Server refuses a password without a symbol.
 	SQLServerPassword = "P4ssw0rd!x"
@@ -89,10 +85,20 @@ type Server struct {
 	Product string
 	// Release is the version to run, written the way the image tags it.
 	Release string
+	// Major is the release as a person says it, and is what names a container
+	// and a CI job. It is the Release for every product but Oracle, whose
+	// images are tagged with a four part version: 11.2.0.2 is 11, 19.3.0 is
+	// 19. PostgreSQL is why this is not simply the part before the first dot,
+	// because 9.6 is a major and 9 is not a release at all.
+	Major string
 	// Tier is how often this release is tested.
 	Tier Tier
 
-	// Image is the container image, without the tag.
+	// Image is the container image, fully qualified and without the tag, as
+	// in "docker.io/library/postgres". The registry is always written out:
+	// podman refuses an unqualified name unless the machine is configured to
+	// guess, and a name that means one thing to docker and another to podman
+	// is not metadata.
 	Image string
 	// Tag is the tag to pull. It is usually Release and is not always,
 	// because an image can tag a release under a name of its own.
@@ -111,22 +117,10 @@ type Server struct {
 	dsn func(port int) string
 }
 
-// Ref returns the image and tag, such as "postgres:18". A CI workflow that
-// names an image wants this form.
+// Ref returns the image and tag, fully qualified, such as
+// "docker.io/library/postgres:18". It is what a command line and a CI workflow
+// both want.
 func (s Server) Ref() string { return s.Image + ":" + s.Tag }
-
-// Qualified returns the image with its registry, such as
-// "docker.io/library/postgres:18". podman refuses an unqualified name unless
-// the machine is configured to guess, so a command line uses this.
-//
-// An image that already names a registry, such as Microsoft's, is returned
-// unchanged.
-func (s Server) Qualified() string {
-	if strings.Contains(s.Image, "/") {
-		return s.Ref()
-	}
-	return Registry + "/" + s.Ref()
-}
 
 // RunArgs returns the arguments that start this server detached, under the
 // container name given, with its port published on hostPort. They go after
@@ -141,7 +135,7 @@ func (s Server) RunArgs(name string, hostPort int) []string {
 		args = append(args, "--env", e)
 	}
 	args = append(args, "--publish", fmt.Sprintf("%d:%d", hostPort, s.Port))
-	return append(args, s.Qualified())
+	return append(args, s.Ref())
 }
 
 // ReadyArgs returns the arguments that ask the named container whether it
@@ -178,10 +172,15 @@ func (s Server) HealthCmd() string {
 	return strings.Join(out, " ")
 }
 
-// Name returns a short name for this server, such as "mariadb-11.8". It is
-// safe to use as a container name and as a CI job name.
+// Name returns a short name for this server, such as "mariadb-11.8" or
+// "oracle-19". It is safe as a container name and as a CI job name.
+//
+// It uses the major rather than the full release, so that every name in a
+// podman listing reads the same way. Oracle is the reason: its images are
+// tagged 11.2.0.2 and 19.3.0, and a listing holding oracle-11.2.0.2 beside
+// oracle-23 tells a reader nothing the shorter name does not.
 func (s Server) Name() string {
-	return strings.ToLower(s.Product) + "-" + s.Release
+	return strings.ToLower(s.Product) + "-" + s.Major
 }
 
 // DSN returns a connection string for this server, reached on port at
@@ -248,7 +247,7 @@ var MySQL = list{}.add(mysql, Tested, "8.4", "26.7").
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle)
 }
 
 // AtTier returns the servers tested at t.
@@ -288,6 +287,9 @@ type product struct {
 	dialect dbmeta.Dialect
 	name    string
 	image   string
+	// major turns a release into the name a person uses for it. Nil means
+	// they are the same, which is true of every product but Oracle.
+	major func(release string) string
 	// tagSuffix is appended to the release to make the tag, and is usually
 	// empty. Microsoft publishes no bare release tag for SQL Server: the tag
 	// is 2017-latest and there is no 2017.
@@ -302,7 +304,7 @@ var (
 	postgres = product{
 		dialect: dbmeta.PostgreSQL,
 		name:    "postgres",
-		image:   "postgres",
+		image:   "docker.io/library/postgres",
 		port:    5432,
 		env:     map[string]string{"POSTGRES_PASSWORD": Password},
 		// -h forces TCP. On the local socket pg_isready reports ready during
@@ -316,7 +318,7 @@ var (
 	mariadb = product{
 		dialect: dbmeta.MySQL,
 		name:    "mariadb",
-		image:   "mariadb",
+		image:   "docker.io/library/mariadb",
 		port:    3306,
 		env:     map[string]string{"MARIADB_ROOT_PASSWORD": Password},
 		ready:   []string{"healthcheck.sh", "--connect", "--innodb_initialized"},
@@ -325,11 +327,52 @@ var (
 	mysql = product{
 		dialect: dbmeta.MySQL,
 		name:    "mysql",
-		image:   "mysql",
+		image:   "docker.io/library/mysql",
 		port:    3306,
 		env:     map[string]string{"MYSQL_ROOT_PASSWORD": Password},
 		ready:   []string{"mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p" + Password},
 		dsn:     mysqlDSN,
+	}
+	// The Express images, which carry 11g through 21c.
+	oraclexe = product{
+		dialect: dbmeta.Oracle,
+		name:    "oracle",
+		image:   "docker.io/gvenzl/oracle-xe",
+		major:   oracleMajor,
+		// slim leaves out the sample schemas, which nothing here reads and
+		// which cost a gigabyte and a minute of startup.
+		tagSuffix: "-slim",
+		port:      1521,
+		env:       map[string]string{"ORACLE_PASSWORD": Password},
+		ready:     oracleReady("XE"),
+		dsn:       oracleService("XE"),
+	}
+	// 23ai, which Oracle calls Free rather than Express.
+	oraclefree = product{
+		dialect:   dbmeta.Oracle,
+		name:      "oracle",
+		image:     "docker.io/gvenzl/oracle-free",
+		major:     oracleMajor,
+		tagSuffix: "-slim",
+		port:      1521,
+		env:       map[string]string{"ORACLE_PASSWORD": Password},
+		ready:     oracleReady("FREE"),
+		dsn:       oracleService("FREE"),
+	}
+	// 19c, built locally from Oracle's Dockerfiles because Oracle publishes no
+	// free image of it. test/oracle/build-19c.sh makes it, and this names what
+	// that script produces.
+	oracle19 = product{
+		dialect: dbmeta.Oracle,
+		name:    "oracle",
+		image:   "localhost/oracle/database",
+		major:   oracleMajor,
+		// buildContainerImage.sh tags an enterprise build this way.
+		tagSuffix: "-ee",
+		port:      1521,
+		env:       map[string]string{"ORACLE_PWD": Password},
+		ready:     oracleReady("ORCLCDB"),
+		dsn:       oracleService("ORCLCDB"),
 	}
 	sqlserver = product{
 		dialect: dbmeta.SQLServer,
@@ -366,6 +409,32 @@ func sqlcmd(path string) []string {
 	}
 }
 
+// oracleNames maps a release to the name Oracle sells it under.
+//
+// It is a table rather than a rule, because there is no rule. The suffix moved
+// from g to c to ai, and 26ai is version 23.26 while 23ai is version 23.9, so
+// two products share the major 23 and the number does not say which is which.
+// Anything derived from the digits gets that pair wrong.
+//
+// A release with no entry keeps its full version, which makes the name carry a
+// patch level and fails TestNamesCarryOnlyTheMajor. That is deliberate: adding
+// a release without saying what Oracle calls it should not pass quietly.
+var oracleNames = map[string]string{
+	"11.2.0.2": "11g",
+	"18.4.0":   "18c",
+	"19.3.0":   "19c",
+	"21.3.0":   "21c",
+	"23.9":     "23ai",
+	"23.26.3":  "26ai",
+}
+
+func oracleMajor(release string) string {
+	if name, ok := oracleNames[release]; ok {
+		return name
+	}
+	return release
+}
+
 func mysqlDSN(port int) string {
 	return fmt.Sprintf("root:%s@tcp(127.0.0.1:%d)/?parseTime=true", Password, port)
 }
@@ -378,10 +447,15 @@ type list []Server
 
 func (l list) add(p product, tier Tier, versions ...string) list {
 	for _, v := range versions {
+		major := v
+		if p.major != nil {
+			major = p.major(v)
+		}
 		l = append(l, Server{
 			Dialect: p.dialect,
 			Product: p.name,
 			Release: v,
+			Major:   major,
 			Tier:    tier,
 			Image:   p.image,
 			Tag:     v + p.tagSuffix,

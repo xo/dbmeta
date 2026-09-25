@@ -323,6 +323,55 @@ jobs:
           DBMETA_SQLSERVER: sqlserver://sa:P4ssw0rd%21x@localhost:1433?database=master&encrypt=disable
         run: go test -count=1 -v -run 'SQLServer|Conformance' ./...
 
+  oracle:
+    name: Oracle ${{ matrix.oracle }}
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # From container.Oracle at the Tested tier, and a test fails when the
+        # two disagree. Oracle needs no Windows and no virtual machine: the
+        # free images run on Linux and reach back to 11g, which is why there
+        # is no Oracle equivalent of the SQL Server machines.
+        oracle: ["21.3.0", "23.26.3"]
+        include:
+          - oracle: "21.3.0"
+            image: gvenzl/oracle-xe:21.3.0-slim
+            service: XE
+          - oracle: "23.26.3"
+            image: gvenzl/oracle-free:23.26.3-slim
+            service: FREE
+    services:
+      oracle:
+        image: ${{ matrix.image }}
+        env:
+          ORACLE_PASSWORD: P4ssw0rd
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd "bash -c 'echo exit | sqlplus -s -L system/P4ssw0rd@localhost/${{ matrix.service }}'"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 40
+          --health-start-period 30s
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against Oracle
+        working-directory: test
+        env:
+          DBMETA_ORACLE: oracle://system:P4ssw0rd@127.0.0.1:1521/${{ matrix.service }}
+        run: go test -count=1 -v ./...
+
   compare:
     name: MariaDB against MySQL
     if: github.event_name != 'schedule'
@@ -368,22 +417,112 @@ jobs:
           DBMETA_MYSQL_COMPARE: root:P4ssw0rd@tcp(localhost:3307)/?parseTime=true
         run: go test -count=1 -v -run MySQLAgainstMariaDB ./...
 
-  nightly-mysql:
-    name: ${{ matrix.image }} (nightly)
-    # The releases of the mysql dialect that a push does not carry. The list
-    # comes from container.MariaDB and container.MySQL at the Nightly tier,
-    # and a test fails when the two disagree.
+  nightly-oracle:
+    name: Oracle ${{ matrix.oracle }} (nightly)
+    # 11g Release 2 is the one release before multitenant, and it lacks the
+    # most: no identity column, no CDB_ views, no CON_ID, and identifiers are
+    # 30 bytes rather than 128. 23ai is here because 26ai is not a rename:
+    # 23.26.3 publishes 577 ALL_ views against 23.9's 565 and removes none, so
+    # a query can read a view 23ai has not got. From container.Oracle at the
+    # Nightly tier.
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        image: ["mariadb:10.11", "mariadb:11.4", "mariadb:11.8", "mariadb:12.3", "mysql:9.7"]
+        oracle: ["11.2.0.2", "23.9"]
+        include:
+          - oracle: "11.2.0.2"
+            image: gvenzl/oracle-xe:11.2.0.2-slim
+            service: XE
+          - oracle: "23.9"
+            image: gvenzl/oracle-free:23.9-slim
+            service: FREE
     services:
-      db:
+      oracle:
         image: ${{ matrix.image }}
         env:
+          ORACLE_PASSWORD: P4ssw0rd
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd "bash -c 'echo exit | sqlplus -s -L system/P4ssw0rd@localhost/${{ matrix.service }}'"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 40
+          --health-start-period 30s
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against Oracle
+        working-directory: test
+        env:
+          DBMETA_ORACLE: oracle://system:P4ssw0rd@127.0.0.1:1521/${{ matrix.service }}
+        run: go test -count=1 -v ./...
+
+  nightly-mariadb:
+    name: MariaDB ${{ matrix.mariadb }} (nightly)
+    # The releases a push does not carry. MariaDB and MySQL have their own
+    # nightly jobs rather than one shared one, because they no longer share a
+    # client: MariaDB dropped mysqladmin at 11.0, so a single mysqladmin health
+    # check reported 11.4, 11.8 and 12.3 as failing to start while the servers
+    # were up and ready. Each product uses its own check, the same one its push
+    # job uses.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mariadb: ["10.11", "11.4", "11.8", "12.3"]
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb }}
+        env:
           MARIADB_ROOT_PASSWORD: P4ssw0rd
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against MariaDB
+        working-directory: test
+        env:
+          DBMETA_MYSQL: root:P4ssw0rd@tcp(127.0.0.1:3306)/?parseTime=true
+        run: go test -count=1 -v ./...
+
+  nightly-mysql:
+    name: MySQL ${{ matrix.mysql }} (nightly)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ["9.7"]
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env:
           MYSQL_ROOT_PASSWORD: P4ssw0rd
         ports:
           - 3306:3306
@@ -403,11 +542,11 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
-      - name: Test
+      - name: Test against MySQL
         working-directory: test
         env:
-          DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
-        run: go test -count=1 -v -run 'MySQL|InformationSchema' ./...
+          DBMETA_MYSQL: root:P4ssw0rd@tcp(127.0.0.1:3306)/?parseTime=true
+        run: go test -count=1 -v ./...
 
   nightly:
     name: PostgreSQL ${{ matrix.postgres }} (nightly)

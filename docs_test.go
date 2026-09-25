@@ -232,6 +232,14 @@ func repoFiles(t *testing.T, exts ...string) []string {
 			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." && d.Name() != ".github" {
 				return filepath.SkipDir
 			}
+			// A state directory holds what a script fetched or built, such as
+			// the virtual machine disks and Oracle's Dockerfiles. It is not
+			// this repository's code and it is not checked in, so its
+			// documentation is not ours to hold together. Every .gitignore
+			// here names it.
+			if d.Name() == "state" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		for _, ext := range exts {

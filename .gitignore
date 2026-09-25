@@ -1,0 +1,19 @@
+# Everything this repository ignores, in one file.
+#
+# There is one .gitignore and it is this one. A second file in a subdirectory
+# is a rule nobody can audit: the question "what does this repository ignore"
+# has to have one answer, in one place. See D58.
+#
+# What used to be here was worse than scattered. test/vm/.gitignore was
+# committed and test/oracle/.gitignore was written and never committed, so the
+# Oracle checkout was unprotected and only an accident of timing kept 2.9 GB
+# of it out of a commit.
+
+# The disks, checkouts and installers that the test harness fetches or builds.
+#
+# These live outside the repository, under $XDG_DATA_HOME/dbmeta, because a
+# Windows disk is tens of gigabytes and a working tree holding one is a tree
+# where every grep and every editor index walks it. This entry is insurance
+# for the case where somebody points DBMETA_VM_STATE or DBMETA_ORACLE_STATE
+# back into the working tree. See test/vm/README.md.
+state/

@@ -37,8 +37,7 @@ func TestWorkflowMatchesTheList(t *testing.T) {
 		{key: "mariadb", servers: container.MariaDB, tier: container.Tested},
 		{key: "mysql", servers: container.MySQL, tier: container.Tested},
 		{key: "sqlserver", servers: container.SQLServer, tier: container.Tested},
-		{key: "image", servers: slices.Concat(container.MariaDB, container.MySQL),
-			tier: container.Nightly, tagged: true},
+		{key: "oracle", servers: container.Oracle, tier: container.Tested},
 	} {
 		want := make([]string, 0, len(c.servers))
 		for _, s := range c.servers {
@@ -62,6 +61,35 @@ func TestWorkflowMatchesTheList(t *testing.T) {
 		}
 	}
 
+	// The nightly jobs, which run the releases a push does not. There is one
+	// per product rather than one shared job, because MariaDB dropped
+	// mysqladmin at 11.0 and a single health check reported three live
+	// servers as failing to start. Each product uses its own check.
+	for _, c := range []struct {
+		key     string
+		servers []container.Server
+	}{
+		{"mariadb", container.MariaDB},
+		{"mysql", container.MySQL},
+		{"oracle", container.Oracle},
+	} {
+		var want []string
+		for _, s := range c.servers {
+			if s.Tier == container.Nightly {
+				want = append(want, s.Release)
+			}
+		}
+		got, ok := lastMatrixList(text, c.key)
+		if !ok {
+			t.Errorf("the workflow has no nightly %q matrix", c.key)
+			continue
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("the nightly %s matrix and container.go disagree\n workflow %v\n go       %v",
+				c.key, got, want)
+		}
+	}
+
 	// the nightly PostgreSQL job runs every release, tested and nightly alike
 	got, ok := matrixList(text, "postgres")
 	if !ok {
@@ -76,10 +104,29 @@ func TestWorkflowMatchesTheList(t *testing.T) {
 			all, container.Releases(container.PostgreSQL))
 	}
 
-	// every image the workflow names must be one this package knows
+	// Every image CI is supposed to run must appear in the workflow.
+	//
+	// The list is fully qualified and a workflow is not: it writes
+	// mariadb:11.4 where the list says docker.io/library/mariadb. The registry
+	// is dropped before looking, so the two can be compared.
+	//
+	// Only the tiers CI runs. A Verified release is by definition one CI does
+	// not touch, so requiring it here would force a job that contradicts its
+	// own tier. The registry prefix is dropped, because a workflow writes
+	// gvenzl/oracle-xe where the list says docker.io/gvenzl/oracle-xe and
+	// both name the same image.
 	for _, s := range container.All() {
-		if !strings.Contains(text, s.Image+":") {
-			t.Errorf("the workflow never names the %s image", s.Image)
+		if s.Tier == container.Verified {
+			continue
+		}
+		name := s.Image
+		if i := strings.Index(name, "/"); i >= 0 && strings.Contains(name[:i], ".") {
+			name = name[i+1:]
+		}
+		name = strings.TrimPrefix(name, "library/")
+		if !strings.Contains(text, name+":") {
+			t.Errorf("the workflow never names the %s image, and %s is %s",
+				name, s.Name(), s.Tier)
 		}
 	}
 }
@@ -139,7 +186,7 @@ func TestEveryServerIsUsable(t *testing.T) {
 			t.Errorf("%s: expected the port in the connection string, got %s", s.Name(), got)
 		}
 		args := s.RunArgs(s.Name(), 1234)
-		if !slices.Contains(args, s.Qualified()) {
+		if !slices.Contains(args, s.Ref()) {
 			t.Errorf("%s: expected the qualified image in %v", s.Name(), args)
 		}
 		if !slices.Contains(args, "1234:"+itoa(s.Port)) {
@@ -179,6 +226,38 @@ func TestHealthCmdSurvivesAnArgumentWithASpace(t *testing.T) {
 	if checked == 0 {
 		t.Error("no readiness command has an argument with a space any more. " +
 			"Drop this test or find the one that does, because it is guarding nothing.")
+	}
+}
+
+// TestNamesCarryOnlyTheMajor checks that a container name reads the same way
+// for every product.
+//
+// The names were written by hand for a while and drifted: a podman listing
+// held ora11 beside ora18.4.0 and ora21.3.0. A name carries the major and
+// never a patch level.
+//
+// It deliberately does not check that the major is the start of the release.
+// That held until Oracle, and Oracle is the counterexample: 26ai is version
+// 23.26.3, so the name and the number do not share a prefix at all. A release
+// that has no name falls back to its full version, which has two dots and
+// fails here, so adding one without naming it cannot pass quietly.
+func TestNamesCarryOnlyTheMajor(t *testing.T) {
+	t.Parallel()
+	for _, s := range container.All() {
+		name := s.Name()
+		if !strings.HasPrefix(name, strings.ToLower(s.Product)+"-") {
+			t.Errorf("%s does not begin with its product", name)
+		}
+		if s.Major == "" {
+			t.Errorf("%s has no major", s.Release)
+		}
+		// A major is at most two numbers, as in 9.6 or 10.6, or a name like
+		// 19c. A second dot means a patch level reached the name.
+		if n := strings.Count(s.Major, "."); n > 1 {
+			t.Errorf("%s carries a patch level. Release %s needs a name: "+
+				"add it to oracleNames, or wherever its product keeps them.",
+				name, s.Release)
+		}
 	}
 }
 

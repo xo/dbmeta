@@ -97,3 +97,19 @@ most of a day.
 dockur warns that BTRFS on `/storage` can upset Windows Setup. Set
 `DBMETA_VM_STATE` to a directory on another filesystem if an install fails
 oddly early.
+
+## Where the disks live
+
+Not in this repository. A Windows disk is tens of gigabytes, and a working
+tree that holds one is a working tree where every grep and every editor index
+walks it. They go under the XDG data directory instead:
+
+```
+${XDG_DATA_HOME:-$HOME/.local/share}/dbmeta/vm/<machine>/
+    storage/   the Windows disk
+    oem/       the payload copied to C:\OEM
+    shared/    what the install writes back, including provision.log
+```
+
+`DBMETA_VM_STATE` moves that elsewhere, which is also how to put a machine on
+another filesystem when BTRFS upsets Windows Setup.
