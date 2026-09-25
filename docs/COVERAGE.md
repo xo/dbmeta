@@ -569,6 +569,8 @@ that varies is what kind of principal they are.
 | Oracle 26ai | local user | none |
 | SQL Server 2022 | contained user | none |
 | SQL Server 2022 | server login | `roles` |
+| SQL Server 2012, 2014, 2016 | both | the same as 2022 |
+| SQL Server 2008 R2 | server login | the same as 2022. It has no contained user |
 | PostgreSQL 18 | schema owner | `settings`, `tablespaces` |
 | PostgreSQL 18 | grantee | `settings`, `tablespaces` |
 | Cassandra 5.0 | granted role | `privileges`, `role_grants`, `roles`, `settings` |
@@ -580,6 +582,15 @@ that varies is what kind of principal they are.
 `current_user` and `current_schema` are left out of the table and are in the
 file. They answer a question about the connection, so a run where they agreed
 would be the fault.
+
+The releases on Windows machines are measured too. They are Verified rather
+than Tested, so `dbrun test sqlserver-2008R2` and its siblings run it rather
+than CI. A contained database arrived in SQL Server 2012, so 2008 R2 skips that
+scene and says so instead of failing.
+
+Every dialect has a target or a recorded reason for having none, and
+`TestEveryDialectIsMeasuredForParity` fails when one has neither. SQLite and
+DuckDB are the products with no reason to have one: neither has a user.
 
 ### One release answers differently
 

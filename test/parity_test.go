@@ -87,6 +87,9 @@ type parityTarget struct {
 	name   string
 	driver string
 	env    string
+	// dialect reads the server's version, which a scene with a floor needs
+	// before it prepares anything. It is only set where a scene has one.
+	dialect dbmeta.Dialect
 	// open returns the administrator connection, or skips.
 	open func(*testing.T) *sql.DB
 	// build runs the fixture on a connection and returns the meta.
@@ -105,7 +108,12 @@ type parityScene struct {
 	name string
 	// prepare makes the database and returns the DSN to reach it. A nil
 	// prepare means the administrator's own DSN.
-	prepare    func(t *testing.T, admin *sql.DB, adminDSN string) string
+	prepare func(t *testing.T, admin *sql.DB, adminDSN string) string
+	// min is the release the scene needs, zero when every release has it.
+	// A server older than it is skipped rather than failed, the same way a
+	// fixture step the server is too old for is skipped. A kind of principal
+	// that a release does not have is not a gap in coverage.
+	min        dbmeta.Version
 	principals []parityPrincipal
 }
 
@@ -139,14 +147,20 @@ func parityTargets() []parityTarget {
 		},
 		{
 			name: "sqlserver", driver: "sqlserver", env: "DBMETA_SQLSERVER",
-			open: openSQLServer, build: setupSQLServer, schema: msfixture.Everything.Schema,
+			dialect: dbmeta.SQLServer,
+			open:    openSQLServer, build: setupSQLServer, schema: msfixture.Everything.Schema,
 			scenes: []parityScene{
 				{
 					name:       "same",
 					principals: []parityPrincipal{{name: "login", make: makeSQLServerLogin}},
 				},
 				{
+					// A contained database arrived in SQL Server 2012, which
+					// is 11.0. 2008 R2 has no such thing: sp_configure has no
+					// 'contained database authentication' option and refuses
+					// the name outright.
 					name:       "contained",
+					min:        dbmeta.V(11),
 					prepare:    prepareSQLServerContained,
 					principals: []parityPrincipal{{name: "contained", make: makeSQLServerContained}},
 				},
@@ -190,6 +204,50 @@ func parityTargets() []parityTarget {
 	}
 }
 
+// parityExempt names the dialects that have no parity target, with the reason
+// each one has none.
+//
+// A dialect belongs here only when the product has no second principal to be.
+// Anything else is a gap, and the point of this map is that closing it has to
+// be a deliberate line of code rather than an omission nobody sees.
+var parityExempt = map[dbmeta.Dialect]string{
+	dbmeta.SQLite3: "a file on disk. It has no user, so there is no second principal to be",
+	dbmeta.DuckDB:  "an embedded library. It has no user either",
+	// Registered by informationschema_test.go so the shared model can run
+	// against a PostgreSQL server. It is not a product and has no server of
+	// its own, and the PostgreSQL target measures the same host.
+	isDialect: "a test registration of the shared model over PostgreSQL, not a product",
+}
+
+// TestEveryDialectIsMeasuredForParity fails when a dialect has neither a
+// parity target nor a recorded reason for having none.
+//
+// D61 makes parity part of finishing a dialect, and this is what holds it to
+// that. TestPrivilegeParity cannot: it skips a target whose server is not
+// running, and it says nothing at all about a target that was never written.
+// A dialect added without one would pass every test in the repository.
+func TestEveryDialectIsMeasuredForParity(t *testing.T) {
+	t.Parallel()
+	measured := make(map[string]bool)
+	for _, target := range parityTargets() {
+		measured[target.name] = true
+	}
+	for _, d := range dbmeta.Dialects() {
+		switch why, exempt := parityExempt[d]; {
+		case measured[string(d)] && exempt:
+			t.Errorf("%s has a parity target and is also listed as exempt."+
+				" Remove it from parityExempt.", d)
+		case measured[string(d)]:
+		case exempt:
+			t.Logf("%s has no parity target: %s", d, why)
+		default:
+			t.Errorf("%s has no parity target and no reason for having none."+
+				" Add one to parityTargets, or add the reason to parityExempt."+
+				" See D61.", d)
+		}
+	}
+}
+
 // TestPrivilegeParity asks every query as the administrator and as each
 // principal, and records the queries that answer differently.
 //
@@ -204,6 +262,20 @@ func TestPrivilegeParity(t *testing.T) {
 			adminDSN := dsnOf(t, target.env)
 			for _, scene := range target.scenes {
 				t.Run(scene.name, func(t *testing.T) {
+					// The floor is read from the administrator connection
+					// rather than from the meta, because the meta comes from
+					// building the fixture in the scene and the scene is what
+					// the old server cannot make.
+					if !scene.min.IsZero() {
+						versions, err := target.dialect.Version(t.Context(), admin)
+						if err != nil {
+							t.Fatalf("reading the version: %v", err)
+						}
+						if got := versions.Main(); !got.AtLeast(scene.min) {
+							t.Skipf("%s needs %s and the server is %s",
+								scene.name, scene.min, got)
+						}
+					}
 					sceneDSN := adminDSN
 					sceneDB := admin
 					if scene.prepare != nil {

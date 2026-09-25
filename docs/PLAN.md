@@ -92,13 +92,13 @@ records the argument.
 | [D26](#d26-no-database-driver-in-the-dbmeta-module-amends-d11-amended-by-d48) | No database driver in the dbmeta module | Amends D11, amended by D48 |
 | [D27](#d27-split-the-work-in-two-a-nested-test-module-here-a-shared-harness-in-dbtest-decided) | Split the work in two: a nested test module here, a shared harness in dbtest | Decided |
 | [D28](#d28-root-tests-use-a-fake-driver-replaying-captured-data-decided) | Root tests use a fake driver replaying captured data | Decided |
-| [D29](#d29-pure-go-only-no-single-package-imports-every-driver-decided) | Pure Go only. No single package imports every driver | Decided |
+| [D29](#d29-pure-go-only-no-single-package-imports-every-driver-amended-by-d48) | Pure Go only. No single package imports every driver | Amended by D48 |
 | [D30](#d30-dbtpl-is-not-used-to-generate-dbmeta-decided-with-the-cost-recorded) | dbtpl is not used to generate dbmeta | Decided, with the cost recorded |
 | [D31](#d31-models-register-from-internal-one-file-each-gated-by-build-tags-decided) | Models register from internal, one file each, gated by build tags | Decided |
 | [D32](#d32-errors-are-constants-of-a-string-type-decided) | Errors are constants of a string type | Decided |
 | [D33](#d33-results-stream-the-package-does-not-materialize-them-decided) | Results stream. The package does not materialize them | Decided |
 | [D34](#d34-report-capabilities-and-return-a-typed-error-when-asked-anyway-decided) | Report capabilities, and return a typed error when asked anyway | Decided |
-| [D35](#d35-duckdb-is-out-of-the-initial-testing-set-decided) | DuckDB is out of the initial testing set | Decided |
+| [D35](#d35-duckdb-is-out-of-the-initial-testing-set-superseded-by-d48) | DuckDB is out of the initial testing set | Superseded by D48 |
 | [D36](#d36-the-client-drives-dbmeta-decides-nothing-about-the-connection-decided) | The client drives. dbmeta decides nothing about the connection | Decided |
 | [D37](#d37-a-version-is-a-list-of-numbers-with-a-name-and-there-can-be-several-decided) | A version is a list of numbers with a name, and there can be several | Decided |
 | [D38](#d38-dbmeta-holds-the-version-query-and-will-run-it-on-request-amended-in-place) | dbmeta holds the version query, and will run it on request | Amended in place |
@@ -111,7 +111,7 @@ records the argument.
 | [D45](#d45-a-query-may-answer-partially-once-and-must-say-so-decided) | A query may answer partially, once, and must say so | Decided |
 | [D46](#d46-five-object-kinds-are-missing-and-two-consumers-say-which-decided) | Five object kinds are missing, and two consumers say which | Decided |
 | [D47](#d47-dbmeta-supplies-the-data-the-consumer-decides-what-to-show-decided) | dbmeta supplies the data. The consumer decides what to show | Decided |
-| [D48](#d48-cgo-is-allowed-in-the-test-module-and-nowhere-else-amends-d26) | cgo is allowed in the test module, and nowhere else | Amends D26 |
+| [D48](#d48-cgo-is-allowed-in-the-test-module-and-nowhere-else-amends-d26-d29-and-d35) | cgo is allowed in the test module, and nowhere else | Amends D26, D29 and D35 |
 | [D49](#d49-one-method-on-the-interface-and-a-not-null-is-not-a-constraint-row-decided) | One method on the interface, and a NOT NULL is not a constraint row | Decided |
 | [D50](#d50-documentation-lives-in-docs-and-the-decision-log-stays-one-file-decided) | Documentation lives in docs, and the decision log stays one file | Decided |
 | [D51](#d51-there-is-no-alias-for-a-nullable-type-decided) | There is no alias for a nullable type | Decided |
@@ -124,7 +124,7 @@ records the argument.
 | [D58](#d58-one-gitignore-in-the-repository-root-decided) | One .gitignore, in the repository root | Decided |
 | [D59](#d59-oracle-is-tested-with-go-ora-v2-until-v3-tags-its-fix-amends-d52) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52 |
 | [D60](#d60-the-oracle-model-reads-all_-views-and-there-is-no-dba_-variant-decided) | The Oracle model reads ALL_ views, and there is no DBA_ variant | Decided |
-| [D61](#d61-every-dialect-is-measured-against-every-principal-the-product-has-decided) | Every dialect is measured against every principal the product has | Decided |
+| [D61](#d61-every-dialect-is-measured-against-every-principal-the-product-has-amended-in-place) | Every dialect is measured against every principal the product has | Amended in place |
 | [D62](#d62-cql-cannot-compute-so-the-cassandra-model-computes-in-scan-decided) | CQL cannot compute, so the Cassandra model computes in Scan | Decided |
 | [D63](#d63-support-says-when-a-release-is-too-old-amends-d54) | Support says when a release is too old | Amends D54 |
 | [D64](#d64-the-verified-tier-is-checked-against-the-document-decided) | The Verified tier is checked against the document | Decided |
@@ -1635,7 +1635,7 @@ normalized difference.
 Never hand edit a capture. A capture is a generated artifact. A corpus that
 someone has corrected by hand records a server that does not exist.
 
-### D29. Pure Go only. No single package imports every driver. Decided.
+### D29. Pure Go only. No single package imports every driver. Amended by D48.
 
 The proposal put all driver imports in one sub-package. Both reviews rejected
 that, and they were right, though the reason is narrower than Gemini stated.
@@ -1681,9 +1681,20 @@ Never import `mattn/go-sqlite3` or `godror`.
 Do not put every driver import in one package even though all of them are pure
 Go. A conflict over a shared transitive dependency does not care about cgo.
 
-#### DuckDB has no pure Go driver, and D24 puts it in CI
+#### DuckDB has no pure Go driver, and D24 puts it in CI. D48 answered this
 
-This is an unresolved conflict between two decisions and it needs Ken.
+Read D48 before anything below this heading. The conflict was real and it is
+closed: cgo is allowed in the `test` module and nowhere else, so DuckDB is
+reached through `duckdb/duckdb-go` like any other driver, and `models/duckdb`
+answers 20 of the 55. None of the three ways out below was taken and none is a
+live option.
+
+The rest of this subsection is the reasoning at the time, kept because the rule
+that survived it is narrower than it looks. The root module has no driver at
+all, so pure Go is not a constraint it has to be careful about. It is a
+property of holding nothing but the standard library. The `test` module is
+where the drivers live, and its own `go.mod` is what keeps them out of
+everything a consumer builds.
 
 D24 names DuckDB as one of the four databases CI tests. The table above shows
 DuckDB is the one primary database with no pure Go driver. `duckdb/duckdb-go`
@@ -1713,7 +1724,7 @@ empty string, and encoding all become parsing problems. A client also formats
 for people and changes that formatting between releases, which is a new source
 of version drift in a project already managing one.
 
-See question 7.
+That cost is why option 1 was not taken. D48 settled it the other way.
 
 ### D30. dbtpl is not used to generate dbmeta. Decided, with the cost recorded.
 
@@ -1960,7 +1971,16 @@ has no such field" look exactly like "this value is null". The capability
 report is where that is resolved, by recording which fields are valid at the
 detected version. These are one mechanism, not two.
 
-### D35. DuckDB is out of the initial testing set. Decided.
+### D35. DuckDB is out of the initial testing set. Superseded by D48.
+
+Nothing in this decision is still in force. DuckDB is tested, it is reached
+through `duckdb/duckdb-go` in the `test` module, and `models/duckdb` answers 20
+of the 55. It runs in CI in the job that starts no container, beside SQLite,
+because neither has a server. The design question this decision deferred was
+answered by allowing cgo in the `test` module, not by finding a way around a
+driver.
+
+The rest is the record of what was decided before that.
 
 DuckDB leaves the four databases that D24 puts in CI. It is not tested at the
 start.
@@ -2790,7 +2810,7 @@ model that cannot fill it selects `NULL AS "name"`, the field carries `Desc`
 saying why, and `Field.Present` tells a caller whether the NULL means absent or
 genuinely null. That is the padding rule and nothing here changes it.
 
-### D48. cgo is allowed in the test module, and nowhere else. Amends D26.
+### D48. cgo is allowed in the test module, and nowhere else. Amends D26, D29 and D35.
 
 The root module has no driver and no cgo, and that does not change. A consumer
 builds it with `CGO_ENABLED=0` and cross compiles it, because there is nothing
@@ -3856,7 +3876,7 @@ unsupported for the same reason, which `docs/COVERAGE.md` records.
 Reopen this if a consumer asks for the difference. The three mechanisms above
 are the candidates and the measurements are here.
 
-### D61. Every dialect is measured against every principal the product has. Decided.
+### D61. Every dialect is measured against every principal the product has. Amended in place.
 
 A dialect is not finished until every query has been asked as the
 administrator and as each lesser kind of principal the product has, and the
@@ -3944,6 +3964,22 @@ connection to make, so the rule does not reach them and cannot.
 
 #### The rule
 
+A dialect ships its queries, its fixture, its documentation and its parity
+targets. Those are one deliverable and not four, the same way rule 9 makes the
+fixture part of the queries. A dialect with queries and no parity target is not
+nearly finished. It is one whose answers have been measured for exactly one
+kind of user.
+
+`TestEveryDialectIsMeasuredForParity` holds it. Every dialect must have a
+target or an entry in `parityExempt` giving the reason it has none, and one
+with neither fails. `TestPrivilegeParity` cannot do this job: it skips a target
+whose server is not running, and it says nothing at all about a target that was
+never written, so a dialect added without one would pass every test here.
+
+Only three are exempt. SQLite and DuckDB have no user to be, and
+`infoschema_over_postgres` is a test registration of the shared model over a
+PostgreSQL server rather than a product.
+
 Add a dialect, add its principals to `parityTargets` in
 `test/parity_test.go`, run `go test -run TestPrivilegeParity -update`, and
 read the diff. A product with a kind of principal that no target covers is not
@@ -3964,6 +4000,17 @@ target worth having and which is not written.
 
 A SQL Server sysadmin that is not `sa` is not covered either. It would answer
 the same as `sa` and nothing suggests otherwise, so it is not worth a target.
+
+#### A scene can be newer than the server
+
+A contained database arrived in SQL Server 2012. On 2008 R2 `sp_configure` has
+no `contained database authentication` option and refuses the name, so the
+contained scene cannot be prepared there at all. A scene therefore carries a
+`min`, and a server older than it is skipped with the reason, the same way a
+fixture step the server is too old for is skipped rather than refused.
+
+A kind of principal that a release does not have is not a gap in coverage. It
+is the product, and recording it as a skip says so where a reader sees it.
 
 ### D62. CQL cannot compute, so the Cassandra model computes in Scan. Decided.
 
@@ -5084,16 +5131,19 @@ asked for in exchange.
 Everything else raised in this document has been answered, and every decision
 is marked Decided or Superseded.
 
-Two things are deferred rather than open, and both have an owner and a trigger.
+One thing is deferred rather than open, and it has an owner and a trigger.
 
 D4 and question 4 as it was: whether `dbmeta` exports interfaces at all, and
 under what names. Deferred until D13 delivers the PostgreSQL and MariaDB
 models, when the real shape is visible. Nothing depends on it until the root
 package is written.
 
-D35: how DuckDB is reached, given pure Go only. Deferred until before work
-starts on the models outside the base tier. DuckDB is a base model in `usql`,
-so this cannot be dropped, only scheduled.
+D35 was listed here and it is not deferred any more. D48 answered it: cgo is
+allowed in the `test` module, so DuckDB is reached through its driver like
+every other database. The question was worded as "how is DuckDB reached, given
+pure Go only", and the answer is that pure Go only was never a constraint on
+the `test` module. It is a property of the root module, which has no driver in
+it at all.
 
 D60 was the last one and it is answered. D61 measured what a principal
 actually gets, and an Oracle local user that owns the objects receives the

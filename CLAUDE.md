@@ -188,6 +188,12 @@ something is written down, it is not written down, and it is an open question.
    have no containment, so each has a superuser or root, an owner, and a
    grantee. SQLite and DuckDB have no user at all and the rule cannot reach
    them.
+   Parity ships with the queries, the fixture and the documentation. They are
+   one deliverable. `TestEveryDialectIsMeasuredForParity` fails when a dialect
+   has neither a target nor an entry in `parityExempt` saying why it has none,
+   because `TestPrivilegeParity` says nothing about a target nobody wrote.
+   A scene the server is too old for carries a `min` and is skipped with the
+   reason, the way a fixture step is.
    This is not a formality. It found six MariaDB queries that are refused
    outright for a user holding ALL PRIVILEGES on its own database, because
    they read tables in the `mysql` database rather than views that filter
