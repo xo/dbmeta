@@ -41,6 +41,13 @@ var productSpecific = map[string][]string{
 	// MariaDB records the check clause as written. MySQL rewrites it with the
 	// character set introducer, so `title` <> '' becomes (`title` <> _utf8mb4'').
 	"constraints": {"definition"},
+	// The same display width difference as columns, reaching a parameter
+	// through dtd_identifier.
+	"routine_parameters": {"data_type"},
+	// Both products rewrite a view rather than storing it as written, and
+	// they rewrite it differently: MySQL parenthesizes the WHERE clause and
+	// MariaDB does not.
+	"views": {"definition"},
 }
 
 // mariaOnly names the objects only MariaDB builds, by the value of the column
@@ -184,9 +191,15 @@ func readRows(t *testing.T, db *sql.DB, m *dbmeta.Meta, q dbmeta.AnyQuery, args 
 
 // isKeyColumn reports whether a column names the object rather than describing
 // it. Two rows with the same values here are the same object.
+//
+// The parent has to be in the key. A routine's return value is reported with
+// no name and ordinal zero, so without the routine two routines' return rows
+// look like one object, and the comparison reports that their names differ
+// rather than that they are different rows. CI found that.
 func isKeyColumn(name string) bool {
 	switch name {
-	case "schema", "table", "parent", "name", "ordinal", "column":
+	case "schema", "table", "parent", "name", "ordinal", "column",
+		"routine", "index", "constraint", "enum":
 		return true
 	}
 	return false

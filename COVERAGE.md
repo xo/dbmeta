@@ -112,9 +112,19 @@ default reads `'red'` and `red`.
 rewrites it with the character set introducer, so ``` `title` <> '' ``` becomes
 ``` (`title` <> _utf8mb4'') ```.
 
-Those two are named in the test. Any other difference fails it, so a query
+`RoutineParameters.DataType`. The same display width difference, reaching a
+parameter through `dtd_identifier` rather than a column.
+
+`Views.Definition`. Neither product stores a view as written. Both rewrite it,
+and they rewrite it differently: MySQL parenthesizes the `WHERE` clause and
+MariaDB does not.
+
+Those four are named in the test. Any other difference fails it, so a query
 written for one product and run against the other is caught here rather than by
-a user.
+a user. It has caught three faults so far, the most recent in CI: the
+comparison keyed a row by its name and ordinal without the routine it belongs
+to, so two routines' return values, both reported with no name at ordinal zero,
+looked like one row whose name kept changing.
 
 ### What it cannot answer, and why
 
