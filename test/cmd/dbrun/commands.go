@@ -144,6 +144,11 @@ func doStatus(ctx context.Context, r runner, t target, o options) error {
 	if !r.running(ctx, t.Name) {
 		return nil
 	}
+	if have, ok := r.hostPorts(ctx, t.Name); ok && !t.portsMatch(have) {
+		fmt.Printf("  %-20s running on %v, and the list now says %v."+
+			" Run: dbrun start %s\n", t.Name, have, t.wantPorts(), t.Name)
+		return nil
+	}
 	if t.Kind == kindMachine {
 		probe := statusProbe
 		if o.timeout > 0 {
@@ -178,6 +183,21 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 			return fmt.Errorf("not provisioned. Run: dbrun provision %s, which takes about an hour", t.Name)
 		}
 	case kindContainer:
+	}
+	// A container built before a release was added to container.All keeps the
+	// port it was given then, because a port is an index in that list. It
+	// stays running and answers nothing on the port everything now computes,
+	// which looks like a broken server rather than a stale one.
+	if have, ok := r.hostPorts(ctx, t.Name); ok && !t.portsMatch(have) {
+		if t.Kind == kindMachine {
+			return fmt.Errorf(
+				"it publishes %v and the list now says %v."+
+					" Remove it and provision again, which takes about an hour",
+				have, t.wantPorts())
+		}
+		fmt.Printf("  %-20s published %v and the list now says %v, rebuilding\n",
+			t.Name, have, t.wantPorts())
+		r.quiet(ctx, t.Remove...)
 	}
 	if r.running(ctx, t.Name) {
 		fmt.Printf("  %-20s already up: %s=%s\n", t.Name, t.Env, t.DSN)

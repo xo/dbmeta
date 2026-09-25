@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -106,6 +107,32 @@ func (r runner) running(ctx context.Context, name string) bool {
 
 func (r runner) exists(ctx context.Context, name string) bool {
 	return r.state(ctx, name) != ""
+}
+
+// hostPorts reads what an existing container actually publishes, as a map of
+// container port to host port. The second result is false when there is no
+// such container or the runner will not say.
+//
+// Both runners report the same shape: {"8080/tcp":[{"HostIp":"...",
+// "HostPort":"55038"}]}.
+func (r runner) hostPorts(ctx context.Context, name string) (map[string]string, bool) {
+	out, err := r.output(ctx, "inspect", "--format", "{{json .NetworkSettings.Ports}}", name)
+	if err != nil {
+		return nil, false
+	}
+	var raw map[string][]struct {
+		HostPort string `json:"HostPort"`
+	}
+	if err := json.Unmarshal([]byte(out), &raw); err != nil {
+		return nil, false
+	}
+	ports := make(map[string]string, len(raw))
+	for port, binds := range raw {
+		if len(binds) != 0 {
+			ports[strings.TrimSuffix(port, "/tcp")] = binds[0].HostPort
+		}
+	}
+	return ports, true
 }
 
 // create starts a container that does not exist yet.

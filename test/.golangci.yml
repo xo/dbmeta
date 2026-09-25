@@ -125,6 +125,12 @@ linters:
 
   exclusions:
     rules:
+      # The container runtime chooses the shape of its own JSON. podman and
+      # docker both write HostPort, and a tag that renamed it would simply
+      # stop matching. The struct is a reader for somebody else's output.
+      - path: cmd/dbrun/runner.go
+        linters:
+          - tagliatelle
       # A command prints. That is what it is for.
       - path: cmd/
         linters:

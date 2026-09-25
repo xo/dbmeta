@@ -257,6 +257,26 @@ saying so. The shell used `sed 's/^\[OPTIONS\]$/[SQLSERVER2008]/'`, anchored
 to a whole line. The first Go version used `strings.Replace` with a count of
 one, which rewrote the comment and left the header alone. See `WINDOWS.md`.
 
+## A port is an index, so adding a release moves one
+
+A host port is a server's place in `container.All`, which is what stops two
+releases colliding and what makes a URL a person learned keep working. It has
+one consequence that is not obvious: adding a release shifts every release
+after it in the list, so a container built before that keeps the port it was
+given then.
+
+It stays running. It answers nothing on the port everything now computes. Every
+test fails with `connection refused` against a server that `podman ps` shows as
+up, which reads as a broken database rather than a stale container.
+
+Adding Trino 476 did this to the already running Trino 483 and cost twenty
+minutes of looking in the wrong place.
+
+So `start` compares what a container publishes against what the list now asks
+for, and rebuilds a container that disagrees. `status` reports the mismatch and
+names the command rather than printing a URL nothing answers on. A machine is
+reported and not rebuilt, because that is an hour.
+
 ## What this does not change
 
 The list of releases stays in `container/container.go` and stays the only

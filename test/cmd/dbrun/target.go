@@ -144,6 +144,43 @@ func embeddedExt(d dbmeta.Dialect) string {
 	return "." + string(d)
 }
 
+// wantPorts is the mapping this target asks for, as container port to host
+// port, read back out of the arguments that would create it.
+func (t target) wantPorts() map[string]string {
+	ports := make(map[string]string, 2)
+	for i, arg := range t.Run {
+		if arg != "--publish" || i+1 >= len(t.Run) {
+			continue
+		}
+		// host:container, or ip:host:container.
+		parts := strings.Split(t.Run[i+1], ":")
+		if n := len(parts); n >= 2 {
+			ports[parts[n-1]] = parts[n-2]
+		}
+	}
+	return ports
+}
+
+// portsMatch reports whether an existing container publishes what this target
+// asks for.
+//
+// A host port is a server's index in container.All, so adding a release
+// shifts every release after it. A container created before that keeps the
+// old mapping, stays running, and answers nothing on the port everything now
+// computes. See D68.
+func (t target) portsMatch(have map[string]string) bool {
+	want := t.wantPorts()
+	if len(want) == 0 {
+		return true
+	}
+	for container, host := range want {
+		if have[container] != host {
+			return false
+		}
+	}
+	return true
+}
+
 // targets returns every target dbrun knows, in a stable order.
 func targets() []target {
 	servers := container.All()
