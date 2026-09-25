@@ -1,0 +1,268 @@
+package main
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+)
+
+// defaultTimeout is how long a container gets to answer, and a machine gets
+// far longer because it boots Windows first.
+const (
+	defaultTimeout = 90 * time.Second
+	machineTimeout = 15 * time.Minute
+)
+
+func (t target) timeout(o options) time.Duration {
+	if o.timeout > 0 {
+		return o.timeout
+	}
+	if t.Kind == kindMachine {
+		return machineTimeout
+	}
+	return defaultTimeout
+}
+
+// cmdList says what a selector expands to and touches nothing.
+func cmdList(picked []target, o options) error {
+	if o.asJSON {
+		return printJSON(picked, o)
+	}
+	for _, t := range picked {
+		fmt.Printf("%-20s %-10s %-9s %s\n", t.Name, t.Kind, t.Tier, t.Dialect)
+	}
+	return nil
+}
+
+// cmdDSN prints the URL a person pastes, running or not.
+func cmdDSN(picked []target, o options) error {
+	if o.asJSON {
+		return printJSON(picked, o)
+	}
+	for _, t := range picked {
+		fmt.Printf("%-20s %s\n", t.Name, t.URL)
+	}
+	return nil
+}
+
+func printJSON(picked []target, o options) error {
+	var (
+		out []byte
+		err error
+	)
+	if o.namesOnly {
+		// One line, which is what a GitHub Actions matrix expands with
+		// fromJSON. See D69.
+		names := make([]string, len(picked))
+		for i, t := range picked {
+			names[i] = t.Name
+		}
+		out, err = json.Marshal(names)
+	} else {
+		out, err = json.MarshalIndent(picked, "", "  ")
+	}
+	if err != nil {
+		return fmt.Errorf("encoding the targets: %w", err)
+	}
+	fmt.Println(string(out))
+	return nil
+}
+
+// withRunner does the commands that need the container runner.
+func withRunner(ctx context.Context, command string, picked []target, o options) error {
+	r, err := newRunner()
+	if err != nil {
+		return err
+	}
+	var failed []string
+	for _, t := range picked {
+		if err := one(ctx, r, command, t, o); err != nil {
+			fmt.Printf("  %s: %v\n", t.Name, err)
+			failed = append(failed, t.Name)
+		}
+	}
+	if len(failed) != 0 {
+		return fmt.Errorf("failed: %s", strings.Join(failed, " "))
+	}
+	return nil
+}
+
+func one(ctx context.Context, r runner, command string, t target, o options) error {
+	switch command {
+	case "status":
+		return doStatus(ctx, r, t)
+	case "start":
+		return doStart(ctx, r, t, o)
+	case "stop":
+		return doStop(ctx, r, t)
+	case "remove":
+		return doRemove(ctx, r, t, o)
+	case "logs":
+		return doLogs(ctx, r, t, o)
+	case "version":
+		return doVersion(ctx, r, t)
+	case "usql":
+		return doUsql(ctx, r, t, o)
+	case "test":
+		return doTest(ctx, r, t, o)
+	}
+	return fmt.Errorf("no command called %q", command)
+}
+
+func doStatus(ctx context.Context, r runner, t target) error {
+	if t.Kind == kindEmbedded {
+		fmt.Printf("  %-20s embedded, nothing to start\n", t.Name)
+		return nil
+	}
+	if !r.running(ctx, t.Name) {
+		return nil
+	}
+	if t.Kind == kindMachine {
+		fmt.Printf("  %-20s %s  screen http://127.0.0.1:%d\n", t.Name, t.URL, t.Viewer)
+		return nil
+	}
+	fmt.Printf("  %-20s %s\n", t.Name, t.URL)
+	return nil
+}
+
+// doStart brings a server up and leaves it there.
+//
+// A container that exists and is stopped is started rather than rebuilt, so
+// that whatever was created in it survives. A machine is only ever started,
+// because building one takes an hour and dbrun will not do that by accident.
+func doStart(ctx context.Context, r runner, t target, o options) error {
+	switch t.Kind {
+	case kindEmbedded:
+		fmt.Printf("  %-20s embedded, nothing to start\n", t.Name)
+		return nil
+	case kindMachine:
+		if !r.exists(ctx, t.Name) {
+			return fmt.Errorf("not provisioned. Run: dbrun provision %s, which takes about an hour", t.Name)
+		}
+	case kindContainer:
+	}
+	if r.running(ctx, t.Name) {
+		fmt.Printf("  %-20s already up: %s=%s\n", t.Name, t.Env, t.DSN)
+		return nil
+	}
+	// An image this repository builds is made here, so that start and test
+	// both get it and neither caller has to remember.
+	if err := ensureImage(ctx, r, t); err != nil {
+		return err
+	}
+	if r.exists(ctx, t.Name) {
+		if !r.quiet(ctx, "start", t.Name) {
+			if t.Kind == kindMachine {
+				return errors.New("the machine would not start")
+			}
+			// A container that will not start is rebuilt, because it is a
+			// minute. A machine is not, because it is an hour.
+			r.quiet(ctx, t.Remove...)
+		}
+	}
+	if !r.running(ctx, t.Name) && t.Kind == kindContainer {
+		if err := r.create(ctx, t); err != nil {
+			return err
+		}
+	}
+	if err := r.waitReady(ctx, t, t.timeout(o)); err != nil {
+		if t.Kind == kindMachine {
+			return fmt.Errorf("%w. Watch it at http://127.0.0.1:%d", err, t.Viewer)
+		}
+		return err
+	}
+	fmt.Printf("  %-20s up: %s=%s\n", t.Name, t.Env, t.DSN)
+	return nil
+}
+
+func doStop(ctx context.Context, r runner, t target) error {
+	if t.Kind == kindEmbedded {
+		return nil
+	}
+	if !r.running(ctx, t.Name) {
+		return nil
+	}
+	if !r.quiet(ctx, "stop", t.Name) {
+		return errors.New("it would not stop")
+	}
+	fmt.Printf("  stopped %s\n", t.Name)
+	return nil
+}
+
+// doRemove deletes a server. A machine is confirmed first, because rebuilding
+// one is an hour and the command that deletes it is one letter from the one
+// that stops it.
+func doRemove(ctx context.Context, r runner, t target, o options) error {
+	if t.Kind == kindEmbedded {
+		return nil
+	}
+	if t.Kind == kindMachine && !o.yes {
+		if !r.exists(ctx, t.Name) {
+			return nil
+		}
+		ok, err := confirm(t.Name +
+			" is a Windows machine and rebuilding it takes about an hour. Remove it?")
+		if err != nil {
+			return err
+		}
+		if !ok {
+			fmt.Printf("  kept %s\n", t.Name)
+			return nil
+		}
+	}
+	if t.Kind == kindMachine {
+		r.quiet(ctx, "rm", "--force", t.Name)
+	} else {
+		r.quiet(ctx, t.Remove...)
+	}
+	fmt.Printf("  removed %s\n", t.Name)
+	return nil
+}
+
+func confirm(question string) (bool, error) {
+	fmt.Printf("%s [y/N] ", question)
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		return false, fmt.Errorf("reading the answer: %w", err)
+	}
+	answer := strings.ToLower(strings.TrimSpace(line))
+	return answer == "y" || answer == "yes", nil
+}
+
+// doLogs shows what the server said, which is the first thing somebody wants
+// when one will not come up.
+func doLogs(ctx context.Context, r runner, t target, o options) error {
+	if t.Kind == kindEmbedded {
+		fmt.Printf("  %-20s embedded, there is no log\n", t.Name)
+		return nil
+	}
+	if !r.exists(ctx, t.Name) {
+		return errors.New("there is no such container")
+	}
+	args := []string{"logs"}
+	if o.follow {
+		args = append(args, "--follow")
+	}
+	cmd := exec.CommandContext(ctx, r.name, append(args, t.Name)...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	return cmd.Run()
+}
+
+// doUsql opens a shell on the server.
+func doUsql(ctx context.Context, r runner, t target, _ options) error {
+	if t.Kind != kindEmbedded && !r.running(ctx, t.Name) {
+		return fmt.Errorf("it is not running. Start it with: dbrun start %s", t.Name)
+	}
+	if _, err := exec.LookPath("usql"); err != nil {
+		return errors.New("usql is not on the path")
+	}
+	cmd := exec.CommandContext(ctx, "usql", t.URL)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return cmd.Run()
+}

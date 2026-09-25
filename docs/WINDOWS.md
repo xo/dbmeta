@@ -2,8 +2,8 @@
 
 SQL Server on Linux begins at 2017. Everything older has no container, cannot
 run in CI, and is Archived under D54, which means nothing is claimed for it.
-These scripts are how those releases get tested at all. D57 says what may be
-claimed once a machine has run.
+`dbrun provision` is how those releases get tested at all. D57 says what may
+be claimed once a machine has run.
 
 | SQL Server | Windows host | dockur `VERSION` | host port |
 | --- | --- | --- | --- |
@@ -12,14 +12,13 @@ claimed once a machine has run.
 | 2014 Express | Windows Server 2012 R2 | `2012r2` | 51435 |
 | 2016 SP2 Express | Windows Server 2016 | `2016` | 51436 |
 
-The list itself is Go data in `container/windows.go`, and this script reads it
-through `test/tool/vms`. Add a release there and not here.
+The list itself is Go data in `container/windows.go`, and `dbrun` reads it
+from there. Add a release there and not here.
 
 ## Running one
 
 ```bash
-cd test
-./vm/provision.sh 2012
+cd test && go run ./cmd/dbrun provision sqlserver-2012
 ```
 
 The first run installs Windows and then SQL Server and takes 30 to 60 minutes.
@@ -28,13 +27,16 @@ web console and leaves the machine running without waiting. `--render` writes
 the OEM folder and stops, which is how the templating is checked without
 waiting an hour to find a typo.
 
+A machine is a target like any other, so `dbrun start`, `stop`, `status`,
+`version`, `dsn`, `usql` and `test` all take one. Only the first build is a
+separate command, because an hour is not something to start by accident.
+
 Watch an install at `http://127.0.0.1:8106` and up, one port per machine.
 
-Then point the tests at it:
+Then run the tests against it:
 
 ```bash
-DBMETA_SQLSERVER='sqlserver://sa:P4ssw0rd%21x@127.0.0.1:51434?database=master&encrypt=disable' \
-  go test -run SQLServer ./...
+cd test && go run ./cmd/dbrun test sqlserver-2012 --keep
 ```
 
 ## Licensing
@@ -45,12 +47,12 @@ need no product key and no activation, which is why nothing here activates
 Windows. When the 180 days runs out, `slmgr /rearm` extends it, and that is
 Microsoft's own mechanism rather than a way around one.
 
-The rearm is automatic. `oem/rearm.bat` runs at every startup as a scheduled
-task, reads the grace period, and spends a rearm only when fewer than ten days
+The rearm is automatic. `cmd/dbrun/oem/rearm.bat` runs at every startup as a
+scheduled task, reads the grace period, and spends a rearm only when fewer than ten days
 are left. It does not rearm on every boot, because the count is finite, three
 on most of these editions, and a machine that is started often would spend the
 whole budget in a week. A rearm applies at the next start, and the script does
-not restart the machine, because `run.sh` starts one and waits for SQL Server
+not restart the machine, because `dbrun` starts one and waits for SQL Server,
 and a reboot underneath that looks exactly like a failed boot.
 
 When the rearms are spent, `C:\OEM\rearm.log` says so. At that point the
@@ -67,9 +69,11 @@ evaluation ISO, writes an unattended answer file, copies the directory mounted
 at `/oem` to `C:\OEM`, and runs `C:\OEM\install.bat` at the end of setup as
 SYSTEM. That hook is the whole mechanism.
 
-`provision.sh` writes that directory per release: the SQL Server installer, a
-`ConfigurationFile.ini`, and `install.bat` with four values filled in. Then it
-starts the machine and waits.
+`dbrun provision` writes that directory per release: the SQL Server installer,
+a `ConfigurationFile.ini`, and `install.bat` with four values filled in. Then
+it starts the machine and waits. The payload is built into the binary with
+`//go:embed`, so the command works from any directory and has nothing to find.
+The sources are in `test/cmd/dbrun/oem/`.
 
 ## Four things that are not obvious
 
@@ -90,12 +94,18 @@ and the machine is unreachable with no error anywhere.
 when the container is created, so a connection to it succeeds seconds later and
 keeps succeeding for the forty minutes Windows takes to install. The first
 version of this script tested the port and declared every machine ready almost
-immediately. `./tool/vms -wait` opens a connection and runs a statement.
+immediately. `dbrun` opens a connection and runs the version query, so a
+machine that answers but has not finished configuring is not called ready.
 
-**2008 R2 is different twice.** Its configuration file wants the section header
-`[SQLSERVER2008]` rather than `[OPTIONS]`, and its setup refuses
-`/IACCEPTSQLSERVERLICENSETERMS`, which arrived in 2012. `provision.sh` handles
-both, and `container/windows_test.go` fails if the flag is set for it.
+**2008 R2 wants its own section header.** Its configuration file wants
+`[SQLSERVER2008]` rather than `[OPTIONS]`. The file carries a comment saying
+so, and the comment names the header, so a replacement that is not anchored to
+a whole line rewrites the comment and leaves the header alone. That is what the
+first Go version did.
+
+It takes `/IACCEPTSQLSERVERLICENSETERMS` like every other release here, which
+is the opposite of what was first recorded. `TestEveryReleaseTakesTheLicenseFlag`
+pins it.
 
 ## If it goes wrong
 

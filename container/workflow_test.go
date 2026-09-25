@@ -13,7 +13,7 @@ import (
 // the Go list here, and a test compared the two so they could not drift.
 //
 // They cannot drift now, because there is only one copy. The workflow asks
-// tool/servers for the list as JSON and expands it into a matrix, so it names
+// dbrun for the list as JSON and expands it into a matrix, so it names
 // no release and no image of its own. These tests hold that property in
 // place, which is a smaller thing to check than two lists agreeing and a
 // stronger one to have. See D69.
@@ -40,7 +40,7 @@ func TestWorkflowReadsTheList(t *testing.T) {
 	t.Parallel()
 	text := workflowText(t)
 	for _, tier := range []container.Tier{container.Tested, container.Nightly} {
-		want := "./tool/servers --json " + string(tier)
+		want := "./cmd/dbrun list --json --names " + string(tier)
 		if !strings.Contains(text, want) {
 			t.Errorf("the workflow never runs %q, so the %s tier is not read from"+
 				" container.All and can drift from it", want, tier)
@@ -87,7 +87,7 @@ func TestWorkflowImagesAreQualified(t *testing.T) {
 // is one this package knows about.
 //
 // Only the comparison job names any, because it needs two servers at once and
-// run.sh starts one. Those two are pinned in YAML and this is what stops them
+// dbrun starts one. Those two are pinned in YAML and this is what stops them
 // drifting from the releases everything else tests.
 func TestWorkflowImagesAreInTheList(t *testing.T) {
 	t.Parallel()

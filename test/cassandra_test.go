@@ -98,7 +98,7 @@ func setupCassandra(t *testing.T, db *sql.DB) *dbmeta.Meta {
 // imageHint says what to do about a setup that was refused.
 const imageHint = "The Apache image refuses a user defined function, a" +
 	" materialized view and a role. Build the image this repository makes:" +
-	" cd test && ./cassandra/build.sh"
+	" cd test && go run ./cmd/dbrun build cassandra"
 
 // caArgs is the filter the fixture's objects sit behind.
 //

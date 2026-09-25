@@ -30,9 +30,9 @@ import (
 //
 // The Apache image refuses three things dbmeta has queries for, and its
 // entrypoint maps only eight yaml keys to environment variables, none of them
-// these. So every release is rebuilt from test/cassandra/Containerfile with
+// these. So every release is rebuilt from the Containerfile dbrun embeds, with
 // user defined functions, materialized views, PasswordAuthenticator and
-// CassandraAuthorizer turned on. Run test/cassandra/build.sh before the
+// CassandraAuthorizer turned on. dbrun builds it when it is missing, before
 // tests. usql does the same thing and publishes the result as
 // docker.io/usql/cassandra.
 //

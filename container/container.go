@@ -72,7 +72,7 @@ const (
 	// Nightly means CI runs this release once a night.
 	Nightly Tier = "nightly"
 	// Verified means a person runs this release before a release, with
-	// test/run.sh, and CI does not.
+	// dbrun, and CI does not.
 	Verified Tier = "verified"
 )
 
@@ -385,7 +385,7 @@ var (
 		dsn:       oracleService("FREEPDB1"),
 	}
 	// 19c, built locally from Oracle's Dockerfiles because Oracle publishes no
-	// free image of it. test/oracle/build-19c.sh makes it, and this names what
+	// free image of it. `dbrun build oracle-19c` makes it, and this names what
 	// that script produces.
 	oracle19 = product{
 		dialect: dbmeta.Oracle,

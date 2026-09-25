@@ -15,5 +15,8 @@
 # Windows disk is tens of gigabytes and a working tree holding one is a tree
 # where every grep and every editor index walks it. This entry is insurance
 # for the case where somebody points DBMETA_VM_STATE or DBMETA_ORACLE_STATE
-# back into the working tree. See test/vm/README.md.
+# back into the working tree. See docs/WINDOWS.md.
 state/
+
+# dbrun, if somebody builds it rather than running it with go run.
+/test/dbrun

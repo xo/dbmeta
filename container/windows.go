@@ -16,8 +16,8 @@ import (
 //
 // This holds data and nothing else, the same way the rest of this package
 // does. It starts no virtual machine and knows nothing about podman. The
-// provisioning lives in test/vm, which reads this list through
-// test/tool/vms so that the list has one copy.
+// provisioning lives in test/cmd/dbrun, which reads this list from here so
+// that the list has one copy.
 //
 // # Why one machine per release
 //

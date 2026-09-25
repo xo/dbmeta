@@ -16,8 +16,8 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 69
-at the top; read the status, because six of them amend or replace an earlier
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 70
+at the top. Read the status, because 10 of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
 
@@ -38,11 +38,12 @@ Then by what you are doing:
 | wiring up a client | `docs/COMMANDS.md`, then `docs/USQL.md` or `docs/DBTPL.md` |
 | designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
 | adding a release to CI | `container/container.go`, which is the only copy of that list |
-| adding an old SQL Server that needs a Windows VM | `container/windows.go`, then `test/vm/README.md` and D57 |
-| starting a database for any reason | `test/run.sh`, and nothing else. `./test/run.sh --help`. See D68 |
+| adding an old SQL Server that needs a Windows VM | `container/windows.go`, then `docs/WINDOWS.md` and D57 |
+| starting a database for any reason | `dbrun`, and nothing else. `cd test && go run ./cmd/dbrun help`. See D68 and `docs/RUNNER.md` |
 | changing how a database is started | `docs/RUNNER.md`, the design of that command |
-| testing against Cassandra | `test/cassandra/Containerfile`. `run.sh` builds it when it is missing |
-| changing the CI workflow | D69. It reads the release list from `tool/servers --json` and names no image of its own |
+| provisioning a Windows machine | `docs/WINDOWS.md`, then `container/windows.go` and D57 |
+| testing against Cassandra | `test/cmd/dbrun/image/cassandra.Containerfile`. `dbrun` embeds it and builds it when the image is missing |
+| changing the CI workflow | D69. It reads the release list from `dbrun list --json` and names no image of its own |
 | answering a lint finding | the rule below, under Linting |
 | ignoring a build artifact | the root `.gitignore`, which is the only one. See D58 |
 
@@ -164,13 +165,14 @@ something is written down, it is not written down, and it is an open question.
    as a lead and run it against a real server. Leave an analogue that is a
    stretch unsupported, and record it in `docs/COVERAGE.md` with the reason. See
    D43.
-15. Never start a container by hand. `test/run.sh` starts every database this
-   project uses, and every container is named `<product>-<release>`, such as
-   `postgres-18` or `clickhouse-26.9`. Run `./test/run.sh --help`: it has
-   `start`, `stop`, `remove`, `status`, `version`, `dsn` and `usql`, and
-   `--all` for every server.
+15. Never start a container by hand. `test/cmd/dbrun` starts every database
+   this project uses, and every container is named `<product>-<release>`, such
+   as `postgres-18` or `clickhouse-26.9`. Run
+   `cd test && go run ./cmd/dbrun help`: it has `start`, `stop`, `remove`,
+   `status`, `version`, `dsn`, `usql` and `test`, and it takes `all` or a tier
+   name where it takes a server.
    This is not tidiness. A container started by hand gets a port somebody
-   typed rather than the one `container.All` assigns, so `run.sh version`
+   typed rather than the one `container.All` assigns, so `dbrun version`
    cannot reach a server that is plainly running, and two copies of the same
    release end up on the machine with nothing to tell them apart. See D68.
 16. A dialect is not finished until every query has been asked as the
@@ -205,15 +207,16 @@ something is written down, it is not written down, and it is an open question.
   `gen.go` generates those files and the model table in `README.md`. Say model,
   not driver: `dbmeta` never opens a connection.
 - `container/` names every database release the tests run against, as Go data.
-  It starts no container and imports no container client. `test/run.sh` and the
-  CI workflow both read it, and a test fails when they drift.
-- `test/vm/` provisions the Windows machines that host the SQL Server releases
-  with no Linux container. `container/windows.go` holds the list and
-  `test/tool/vms` bridges it to the shell, the same way `test/tool/servers`
-  does for containers. Read `test/vm/README.md`. See D57.
-- `test/cassandra/` builds the Cassandra images. The Apache image cannot be
-  configured from the outside for what the queries read, so the settings are
-  baked in. Run `test/cassandra/build.sh` before testing against Cassandra.
+  It starts no container and imports no container client. `test/cmd/dbrun` and
+  the CI workflow both read it, and a test fails when they drift.
+- `test/cmd/dbrun` is the only thing that starts a database, container or
+  Windows machine alike. `container/windows.go` holds the machine list, and
+  `dbrun provision` builds one from the payload it embeds in
+  `test/cmd/dbrun/oem/`. Read `docs/WINDOWS.md`. See D57 and D68.
+- `test/cmd/dbrun/image/` holds the Containerfiles this repository builds.
+  The Apache Cassandra image cannot be configured from the outside for what
+  the queries read, so the settings are baked in. `dbrun` embeds the file and
+  builds the image when it is missing.
 - `test/` is a separate module with its own `go.mod`. It holds the integration
   tests, the database drivers, and the `tool` directive pinning `dbtpl`. None
   of that may appear in the root module. It is the only place cgo is allowed,
@@ -235,14 +238,15 @@ go tool dbtpl query <url> -T <Type> -F <Func> --go-pkg <driver> -o models/<drive
 your statement, reads the column types, and drops the view. There is no offline
 mode, so the database must be running before you generate.
 
-Start the database from the container configuration in `usql/contrib`:
+Start the database with `dbrun`, which is the only thing that starts one, and
+ask it for the URL to pass to `dbtpl`:
 
 ```bash
-/home/ken/src/go/src/github.com/xo/usql/contrib/podman-run.sh postgres
+cd test && go run ./cmd/dbrun start postgres && go run ./cmd/dbrun dsn postgres
 ```
 
-`usql/contrib/config.yaml` holds the connection URL for each container. Phase 2
-uses MariaDB, and its directory is named `mysql`, not `mariadb`.
+`dbrun start` leaves the server running, which is what generating a model
+needs. Remove it with `dbrun remove postgres` when you are done. See D68.
 
 Read `dbtpl/gen.sh` for the full pattern. It runs 60 such commands and shows
 how to hold each SQL statement in a shell heredoc.
@@ -387,8 +391,8 @@ An embedded database is not in there and must not be. SQLite and DuckDB have no
 server and no container, and the release is whichever one the pinned Go driver
 ships, so both are tested in a CI job that starts nothing. See D42.
 
-That list is the only copy. `test/run.sh` reads it through
-`test/tool/servers`, the CI workflow repeats it in YAML, and
+That list is the only copy. `test/cmd/dbrun` reads it, the CI workflow builds
+its matrix from `dbrun list --json --names`, and
 `container/workflow_test.go` fails when the workflow and the Go list disagree.
 Change `container/container.go` first and the workflow second.
 
@@ -433,7 +437,7 @@ job that starts no container. The remaining releases run nightly.
 
 The Cassandra job builds its image first rather than naming a service, because
 the published one refuses what the queries read. See D62 and
-`test/cassandra/Containerfile`.
+`test/cmd/dbrun/image/cassandra.Containerfile`.
 
 Do not write that list in the workflow from memory. It lives in
 `container/container.go`, `container.AtTier` selects a tier, and

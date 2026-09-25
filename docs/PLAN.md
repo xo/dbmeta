@@ -75,7 +75,7 @@ records the argument.
 | [D9](#d9-there-are-two-platonic-models-postgresql-is-the-primary-one-decided) | There are two platonic models. PostgreSQL is the primary one | Decided |
 | [D10](#d10-take-the-initial-design-from-dbtpl-and-its-models-directory-decided) | Take the initial design from dbtpl and its models directory | Decided |
 | [D11](#d11-dbtpl-is-pinned-as-a-tool-in-the-generation-module-decided-amended-by-d26) | dbtpl is pinned as a tool, in the generation module | Decided, amended by D26 |
-| [D12](#d12-generate-against-live-databases-running-in-containers-decided) | Generate against live databases running in containers | Decided |
+| [D12](#d12-generate-against-live-databases-running-in-containers-amended-by-d70) | Generate against live databases running in containers | Amended by D70 |
 | [D13](#d13-build-the-models-before-the-root-package-decided) | Build the models before the root package | Decided |
 | [D14](#d14-a-driver-is-a-family-not-a-product-decided) | A driver is a family, not a product | Decided |
 | [D15](#d15-ci-runs-on-github-actions-on-ubuntu-latest-only-decided) | CI runs on GitHub Actions, on ubuntu-latest only | Decided |
@@ -131,8 +131,9 @@ records the argument.
 | [D65](#d65-a-windows-machine-rearms-its-evaluation-before-it-expires-decided) | A Windows machine rearms its evaluation before it expires | Decided |
 | [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67) | The order the remaining dialects are written in | Amended by D67 |
 | [D67](#d67-impala-cannot-be-a-dbmeta-model-and-clickhouse-goes-first-amends-d66) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
-| [D68](#d68-every-container-is-started-by-runsh-and-named-product-release-decided) | Every container is started by run.sh and named product-release | Decided |
+| [D68](#d68-every-container-is-started-by-the-runner-and-named-product-release-amended-by-d70) | Every container is started by the runner and named product-release | Amended by D70 |
 | [D69](#d69-the-workflow-builds-its-matrix-from-the-go-list-amends-d42) | The workflow builds its matrix from the Go list | Amends D42 |
+| [D70](#d70-the-runner-is-a-go-command-called-dbrun-amends-d68-and-d12) | The runner is a Go command called dbrun | Amends D68 and D12 |
 
 ## Decisions
 
@@ -542,11 +543,16 @@ This pin is a build dependency, not a runtime dependency. It does not weaken
 D7. The generated code and the root package still import the standard library
 only.
 
-### D12. Generate against live databases running in containers. Decided.
+### D12. Generate against live databases running in containers. Amended by D70.
 
 `dbtpl query` introspects a real connection. It creates a temporary view from
 the statement, reads the column types, and drops the view. There is no offline
 mode. Every driver therefore needs a running database at generation time.
+
+D70 replaced the harness this decision chose. Read it first: the databases are
+started by `dbrun` and by nothing else, and the rest of this section is the
+record of what was decided in 2025 and why. What stands is the first paragraph.
+What does not is `usql/contrib`.
 
 `usql/contrib` already solves this and `dbmeta` must reuse the pattern rather
 than invent one. It holds a directory per database, each with a `podman-config`
@@ -1287,7 +1293,7 @@ CI runs two jobs, not one. The first opens no connection and covers every
 release through a fake driver replaying recorded data. The second starts a real
 PostgreSQL 18 as a service container and runs the integration tests against it.
 Only the newest release runs there, which is what this decision requires. The
-other nine run with `test/run.sh` before a release.
+other nine run with `dbrun` before a release.
 
 One detail the container needs. Its health check must force TCP, with
 `pg_isready -U postgres -h 127.0.0.1`. Checking the socket reports ready during
@@ -3573,9 +3579,8 @@ They run one at a time rather than together.
 #### Where it lives
 
 The same shape as the Linux side, because it is the same problem. The list is
-Go data in `container/windows.go`, `test/tool/vms` prints it for a shell, and
-`test/vm/provision.sh` reads it from there. One copy, and a test that fails
-when the scripts and the list disagree.
+Go data in `container/windows.go` and `dbrun provision` reads it from there.
+One copy, and a test that fails when the payload and the list disagree.
 
 #### Licensing, and what this deliberately does not do
 
@@ -4129,7 +4134,7 @@ catch is not the one that has happened.
 
 ### D65. A Windows machine rearms its evaluation before it expires. Decided.
 
-`test/vm/oem/rearm.bat` runs at every startup as a scheduled task, reads the
+`test/cmd/dbrun/oem/rearm.bat` runs at every startup as a scheduled task, reads the
 grace period, and spends a rearm only when fewer than ten days are left.
 
 #### Why not on every boot
@@ -4141,7 +4146,7 @@ rearm every 170 days.
 
 #### Why it does not reboot
 
-A rearm applies at the next start. `test/run.sh` starts a machine and waits for
+A rearm applies at the next start. `dbrun` starts a machine and waits for
 SQL Server, and a reboot underneath that looks exactly like a machine that
 failed to come up. There is more than a week of grace left when the rearm runs,
 so the next ordinary start is soon enough.
@@ -4331,9 +4336,9 @@ statement can read. A product whose metadata is a protocol operation or a
 well it runs in a container. D66 ordered by whether a product could be started
 and that was one question short.
 
-### D68. Every container is started by run.sh and named product-release. Decided.
+### D68. Every container is started by the runner and named product-release. Amended by D70.
 
-Nobody reaches for podman or docker by hand. `test/run.sh` starts every
+Nobody reaches for podman or docker by hand. One command starts every
 container this project uses, and every container is named
 `<product>-<release>`, which is what `container.Server.Name` returns:
 `postgres-18`, `clickhouse-26.9`, `oracle-26ai`.
@@ -4342,20 +4347,20 @@ container this project uses, and every container is named
 
 Because the machine filled up with containers nobody could place. A session
 debugging one thing left `ch268`, `pg12`, `pg96` and `chplain` behind, on ports
-chosen by whoever typed the command, while `run.sh` used its own names and its
-own ports for the same releases. Two sets of the same servers, and the only
+chosen by whoever typed the command, while the runner used its own names and
+its own ports for the same releases. Two sets of the same servers, and the only
 way to tell which was which was to read the image tag.
 
-It is worse than untidy. `run.sh version` could not reach two servers that were
+It is worse than untidy. `version` could not reach two servers that were
 plainly running, because the port it computes is not the port somebody typed.
 A container named for the release but started by hand is the confusing case,
 not the obviously wrong one.
 
-#### What run.sh had to grow to make the rule keepable
+#### What the runner had to grow to make the rule keepable
 
 A rule that cannot be followed is a rule that gets broken, and the reason
-people went around `run.sh` is that it only knew how to start a server, test
-it and throw it away. It now does the things a person actually wants:
+people went around it is that it only knew how to start a server, test it and
+throw it away. It now does the things a person actually wants:
 
 | | |
 | --- | --- |
@@ -4366,10 +4371,11 @@ it and throw it away. It now does the things a person actually wants:
 | `version` | connect and print what dbmeta reads, per server |
 | `dsn` | the dburl style URL, running or not |
 | `usql` | connect to it with usql |
-| `--all` | every server, spelled the way a person says it |
+| `all` | every server, spelled the way a person says it |
 
-`--help` lists them. It runs from anywhere, because it changes to its own
-directory first, and `./test/run.sh --help` used to fail with a path error.
+`help` lists them. It runs from anywhere, which the shell version did not:
+it had to find its own directory to find anything, and `./test/run.sh --help`
+failed with a path error. D70 is why that is no longer possible.
 
 #### Two faults the rule exposed
 
@@ -4380,15 +4386,15 @@ collided, and the loser sat in Created state holding a name that
 `container.All`, so a release always gets the same one and a URL a person
 learned keeps working.
 
-`run.sh` also hid the runner's error behind "could not start", which is what
-made that take an afternoon. It prints what the runner said, and for a name
-held in storage it prints the one command that clears it.
+It also hid the runner's error behind "could not start", which is what made
+that take an afternoon. It prints what the runner said, and for a name held in
+storage it prints the one command that clears it.
 
 ### D69. The workflow builds its matrix from the Go list. Amends D42.
 
-The CI workflow names no release, no image and no port. It asks
-`tool/servers --json` for the list and expands it with `fromJSON`, and each job
-runs `run.sh` against one server.
+The CI workflow names no release, no image and no port. It asks the runner
+for the list as JSON and expands it with `fromJSON`, and each job runs the
+runner against one server.
 
 #### What it replaces
 
@@ -4408,25 +4414,118 @@ written every image in full for exactly that reason since it was created.
 Six jobs and 276 lines. A `releases` job reads the list and hands it on, a
 `server` job runs the Tested tier, a `nightly` job runs the rest, and `unit`,
 `embedded` and `compare` are unchanged. Each server job is three steps and the
-last one is `./test/run.sh "${{ matrix.server }}"`, which is the same entry
-point a person uses, which is what D68 asks for.
+last one is `go run ./cmd/dbrun test "${{ matrix.server }}"`, which is
+the same entry point a person uses, which is what D68 asks for.
 
 #### What the drift test became
 
 There is nothing left to drift, so the test that compared two lists is gone.
 Three take its place and they hold the property rather than the agreement: the
-workflow must read both tiers from `tool/servers --json`, every image it still
-names must carry its registry, and every image it still names must be one
+workflow must read both tiers from `dbrun list --json --names`, every image it
+still names must carry its registry, and every image it still names must be one
 `container.All` knows.
 
 Only the comparison job names any, because it needs MariaDB and MySQL running
-at once and `run.sh` starts one server at a time.
+at once and the runner starts one server at a time.
 
 #### What this does not change
 
 The list is still `container/container.go` and it is still the only copy. D42
 decided that and it stands. What changed is that the workflow reads it instead
 of repeating it.
+
+### D70. The runner is a Go command called dbrun. Amends D68 and D12.
+
+`test/cmd/dbrun` starts every database this project tests against. It replaced
+`test/run.sh`, and no shim was left behind: a shim that only execs the Go is
+one more name for the same thing, and the workflow and the documents were the
+only callers. `tool/servers`, `tool/vms` and `tool/version` are gone with it,
+and so is `test/vm/provision.sh`.
+
+`docs/RUNNER.md` is the design and this records what the design decided.
+
+#### Why a language
+
+The list of servers was already Go, in `container`. `tool/servers` printed it
+with fields separated by U+001F, because an argument can contain a space, and
+the shell read them back into arrays. That whole layer existed to carry a
+`[]string` across a language boundary. `version` already ran a second Go
+program because it needs a driver, and `test` ran `go test`. The shell was a
+launcher for Go written in the one language where quoting a command is
+something you can get wrong.
+
+It is in the `test` module, because `version` opens a connection, which means
+a driver, which hard rule 1 keeps out of the root module.
+
+#### The command line, not a Go client
+
+`DBMETA_RUNNER` names podman or docker outright. Otherwise podman is preferred
+and docker is used when podman is absent, so the command works on a machine
+with either and nobody has to say which.
+
+A Go client library was considered and rejected. It would be a dependency for
+something the two commands already do identically, it would have to speak two
+socket protocols to cover both, and the places they differ are one line each:
+`image exists` against `image inspect`, and `rm --storage`, which podman needs
+and docker has no state for.
+
+#### What folded in
+
+Two images are built rather than pulled, and both were shell scripts.
+Cassandra's published image refuses a user defined function, a materialized
+view and a role, which three queries read. Oracle publishes no free 19c image
+at all, only Dockerfiles and a three gigabyte installer archive that no command
+can fetch from them, because their download needs an account and a browser
+session. It is fetched from a mirror when it is not already on the machine,
+and the SHA-256 Oracle publishes is what says the file is theirs. A copy that
+fails the check is deleted, so a bad download is not kept. `start` and `test` build a missing image so that neither caller has to
+remember, and `build` rebuilds one on demand. The Cassandra Containerfile is
+embedded with `//go:embed`, so the command carries its own build input. What
+stays shell is Oracle's own build script, which is theirs and which rewriting
+here would mean owning a build we do not control.
+
+`provision` folded in too, and that reverses the design's own recommendation.
+It said to leave provisioning a script and exec it, because the interface is
+what D68 is about and because changing the implementation costs an hour per
+attempt. The second half was wrong. `--render` writes the OEM directory and
+stops, so the templating is checked in a second, and the port was verified by
+rendering all four releases both ways and diffing: twelve files, identical to
+the byte. Then a machine was built from the Go and answered
+`dbmeta.SQLServer.Version`. The hour is the Windows install, and the port does
+not touch the Windows install.
+
+The OEM payload is embedded. The script had to locate its own directory to
+find it, which is the same fault that made `./test/run.sh --help` fail with a
+path error. A binary that carries its payload has nothing to find.
+
+#### The one bug the diff caught
+
+2008 R2 wants the section header `[SQLSERVER2008]` rather than `[OPTIONS]`,
+and `ConfigurationFile.ini` carries a comment above the header saying so. The
+shell wrote `sed 's/^\[OPTIONS\]$/[SQLSERVER2008]/'`, anchored to a whole
+line. The Go wrote `strings.Replace` with a count of one, which rewrote the
+comment and left the header alone. It renders, it installs for forty minutes,
+and it fails at the end.
+
+A translation is not finished because it compiles. It is finished when its
+output has been compared to the output of the thing it replaced.
+
+#### One selector changed
+
+The draft wrote `--all` for both "every release of this product" and "every
+product". Two model reviews said the same thing about it, which is that one
+word doing two jobs reads as one job until it does not. Widening a product is
+now `--releases` and everything is the selector `all`. A selector is a noun
+and a flag modifies it.
+
+#### What this does not change
+
+The release list is still `container/container.go` and still the only copy.
+D42 decided that, D69 kept it, and this is a different program reading the
+same list.
+
+Nothing about what the tests do. This is how a database gets started, not what
+is asked of it once it is up.
 
 ## What exists today
 
@@ -4652,9 +4751,9 @@ decide which questions a database must be able to answer.
 Gemini said to allow `testcontainers-go` and `google/go-cmp` in tests. DeepSeek
 called stdlib only testing dogmatic.
 
-Half of this objection is already answered. D12 starts containers with the
-`podman-run.sh` script from `usql/contrib`, so no Go container library is
-needed. The `usql` tests use `ory/dockertest` only because they predate that
+Half of this objection is already answered. Containers are started by `dbrun`,
+which drives the podman or docker command line, so no Go container library is
+needed. See D70. The `usql` tests use `ory/dockertest` only because they predate that
 choice.
 
 The other half is real but small. Comparing a large metadata struct without
@@ -4833,9 +4932,8 @@ Write the local matrix so that one command runs it, or it will not be run.
 
 One warning about dependencies. The `usql` metadata tests import
 `github.com/ory/dockertest/v4` and `github.com/google/go-cmp/cmp`. D7 forbids
-both here. Start the databases with the `podman-run.sh` script from
-`usql/contrib`, and compare with `reflect.DeepEqual` or with a written
-comparison. Do not copy the `usql` test harness.
+both here. Start the databases with `dbrun`, which D68 requires, and compare
+with `reflect.DeepEqual` or with a written comparison. Do not copy the `usql` test harness.
 
 ### Phase 5. Integrate into usql
 

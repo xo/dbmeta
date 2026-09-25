@@ -217,11 +217,11 @@ integration tests on every change. They are the floor, the ceiling and one on
 each side of the middle, which is the smallest set that catches every fault
 found so far. Testing only the newest would have caught two of six.
 
-The other six are Verified. All ten run nightly in CI, and `test/run.sh` runs
-them on a development machine before a release.
+The other six are Verified. All ten run nightly in CI, and `dbrun` runs them
+on a development machine before a release.
 
-Every query is executed against a real server at all ten releases by
-`test/run.sh`, which also checks that the columns returned match the fields
+Every query is executed against a real server at all ten releases by `dbrun`,
+which also checks that the columns returned match the fields
 declared and that a field the server is too old for arrives as NULL. The
 objects PostgreSQL did not have before release 10 are refused there rather than
 returning an empty result:
@@ -267,7 +267,7 @@ Everything else is in [`docs/`](docs/):
 
 | Document | What it holds |
 | --- | --- |
-| [`PLAN.md`](docs/PLAN.md) | Every decision, 69 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because six amend or replace an earlier one. |
+| [`PLAN.md`](docs/PLAN.md) | Every decision, 70 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because 10 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -276,6 +276,7 @@ Everything else is in [`docs/`](docs/):
 | [`USQL.md`](docs/USQL.md) | What `usql` answers today for each of its 47 drivers, and what changes if it reads `dbmeta`. |
 | [`DBTPL.md`](docs/DBTPL.md) | The same measurement for `dbtpl`. |
 | [`RUNNER.md`](docs/RUNNER.md) | The design of `dbrun`, the command that starts the databases the tests run against. |
+| [`WINDOWS.md`](docs/WINDOWS.md) | The Windows machines that host the SQL Server releases with no Linux container, and why each of them is awkward. |
 
 [`CLAUDE.md`](CLAUDE.md) holds the rules for writing code here, with a table
 saying which document to read for which task.
@@ -297,13 +298,14 @@ for _, s := range container.All() {
 Run the tests against a release, or a product, or a tier:
 
 ```bash
-cd test && ./run.sh mariadb-13.0
+cd test && go run ./cmd/dbrun test mariadb-13.0
 ```
 
-`./run.sh` with no argument runs every release. It reads the list from
-`container`, starts each server, waits for it to accept a connection, runs the
-tests and removes the container. CI repeats the same list in YAML, and
-`container/workflow_test.go` fails when the two disagree.
+`dbrun test all` runs every release. It reads the list from `container`, starts
+each server, waits for it to accept a connection, runs the tests and removes
+the container. CI builds its matrix from the same list, and
+`container/workflow_test.go` fails when the two disagree. Nothing else starts a
+container, which is D68, and `docs/RUNNER.md` is the design.
 
 Every database also answers one checked in expectation. `TestConformance`
 builds the same core schema on PostgreSQL, MariaDB, MySQL, SQLite and DuckDB
@@ -345,11 +347,11 @@ gofmt -l . && go vet ./... && go build ./... && go test -race -count=2 ./...
 To run the integration tests, start a server and point the test module at it:
 
 ```sh
-cd test && ./run.sh postgres-18
+cd test && go run ./cmd/dbrun test postgres-18
 ```
 
-`./run.sh` with no argument runs every supported release of every product, which is what has to
-pass before a release.
+`dbrun test all` runs every supported release of every product, which is what
+has to pass before a release.
 
 Tests in this module never open a database connection. They render statements,
 resolve versions, and read rows from a fake driver replaying recorded data, so

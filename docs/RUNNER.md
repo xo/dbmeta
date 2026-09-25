@@ -1,37 +1,38 @@
 # The Test Runner
 
-This is the design for the command that starts the databases dbmeta is tested
-against. It is `test/run.sh` today and it is becoming a Go program.
+This is the design of `dbrun`, the command that starts the databases dbmeta is
+tested against. It lives in `test/cmd/dbrun` and it replaced a shell script.
 
 Read it before changing how a database is started. The decisions themselves
 live in `PLAN.md`: D68 says every container is started by this command and
 named `<product>-<release>`, and D69 says the CI workflow builds its matrix
 from the same list.
 
-## What is wrong with it today
+## What the shell got wrong
 
-`run.sh` grew a subcommand at a time and it shows.
+`run.sh` grew a subcommand at a time and it showed. Each of these is why a
+line in the Go is the way it is.
 
-Run it bare and it starts every release of every database and runs the whole
+Run it bare and it started every release of every database and ran the whole
 test suite against each, which is half an hour of containers and is almost
-never what somebody wanted. That is a destructive default for a command people
-now type to look at one thing.
+never what somebody wanted. That was a destructive default for a command
+people had started typing to look at one thing.
 
-`vms` is a separate mode with its own loop, its own readiness wait and its own
-output, so a Windows machine is not a server you can `start`, `stop` or ask
-the `version` of. It is a different noun reached a different way, and the only
-reason is that it was added later.
+`vms` was a separate mode with its own loop, its own readiness wait and its
+own output, so a Windows machine was not a server you could `start`, `stop` or
+ask the `version` of. It was a different noun reached a different way, and the
+only reason was that it was added later.
 
-A selector is a tier, a product or an exact name. There is no way to say "the
-newest PostgreSQL", which is what somebody debugging wants nine times in ten,
-so they type `postgres-18` and it goes stale the month 19 ships.
+A selector was a tier, a product or an exact name. There was no way to say
+"the newest PostgreSQL", which is what somebody debugging wants nine times in
+ten, so they typed `postgres-18` and it went stale the month 19 shipped.
 
-SQLite and DuckDB are not in it at all. They have no server, so they fall out
-of a command organised around starting one, and `./run.sh test sqlite3` does
+SQLite and DuckDB were not in it at all. They have no server, so they fell out
+of a command organised around starting one, and `./run.sh test sqlite3` did
 nothing.
 
-And it is 300 lines of bash doing arrays, string splitting on a unit
-separator, and a JSON encoder by hand. The unit separator is there because an
+And it was 300 lines of bash doing arrays, string splitting on a unit
+separator, and a JSON encoder by hand. The unit separator was there because an
 argument can contain a space, which is the kind of thing a shell makes hard
 and a language makes free.
 
@@ -74,22 +75,27 @@ There is one string and no translation table.
 | --- | --- |
 | `postgres-18` | that release |
 | `postgres` | the newest PostgreSQL, and only that one |
-| `postgres --all` | every PostgreSQL release |
-| `--all` | every release of every product |
+| `postgres --releases` | every PostgreSQL release |
+| `all` | every release of every product |
 | `tested` | the tier CI runs on every push |
 | `nightly` | the tier CI runs at night |
+| `verified` | the tier a person runs before a release |
 | nothing | the help |
 
 A bare product meaning the newest release is the change that matters. It is
 what somebody wants when they are looking at something, it does not go stale,
-and it keeps one server on the machine instead of six.
+and it keeps one server on the machine instead of six. The command says which
+release it picked before it acts, because the answer changes the month a
+release ships and a silent default is the part that would bite.
 
-`--all` after a product widens it to every release of that product. `--all`
-alone widens to everything. The word means the same thing in both, which is
-"do not narrow this for me".
+The draft of this wrote `--all` for both "every release of this product" and
+"every product", and two reviews said the same thing about it: one word doing
+two jobs reads as one job until it does not. So widening a product is
+`--releases`, and everything is the selector `all`. A selector is a noun and a
+flag modifies it, which is also why `all` is not a flag.
 
 Bare is the help. A command that starts twenty containers and runs for half an
-hour should be asked for in as many words.
+hour must be asked for in as many words.
 
 ## Subcommands
 
@@ -103,11 +109,14 @@ hour should be asked for in as many words.
 | `dsn` | print the URL, running or not |
 | `usql` | connect to it with usql |
 | `test` | run the integration tests against it |
+| `logs` | show what the server said |
+| `list` | show what a selector expands to, touching nothing |
+| `build` | build the images this repository makes, for Cassandra and Oracle 19c |
 | `provision` | build a Windows machine, which takes an hour |
 | `help` | this |
 
-`test` is what bare used to do and now has to be asked for. `test --all` is
-the old bare behaviour and is what a person runs before a release.
+`test` is what bare used to do and now has to be asked for. `test all` is the
+old bare behaviour and is what a person runs before a release.
 
 `test sqlite3` and `test duckdb` run the tests with no server, because those
 two need none. Every other subcommand answers for them too: `status` says they
@@ -133,62 +142,96 @@ Windows boots long before SQL Server listens.
 
 ## Why Go
 
-The list of servers is already Go, in `container`. The shell reads it through
-`tool/servers`, which encodes each command as fields separated by U+001F
-because an argument can contain a space, and `run.sh` reads them back into
-arrays. That whole layer exists to carry a `[]string` across a language
-boundary, and it disappears when there is no boundary.
+The list of servers was already Go, in `container`. The shell read it through
+`tool/servers`, which encoded each command as fields separated by U+001F
+because an argument can contain a space, and `run.sh` read them back into
+arrays. That whole layer existed to carry a `[]string` across a language
+boundary, and it disappeared when there was no boundary.
 
-`version` already shells out to a second Go program, `tool/version`, because
-it needs a driver. `test` shells out to `go test`. So the shell is already a
+`version` already shelled out to a second Go program, `tool/version`, because
+it needs a driver. `test` shelled out to `go test`. So the shell was already a
 launcher for Go, in a language where quoting a command is a thing you can get
 wrong.
 
-It also gets a real `--help`, real flags, and one place to put the readiness
-loop that each of the three kinds currently writes for itself.
+It also gets a real `--help`, real flags, and one place for the readiness loop
+that each of the three kinds used to write for itself.
 
-It stays in the `test` module, because `version` opens a connection, which
-means a driver, which hard rule 1 keeps out of the root module.
+It is in the `test` module, because `version` opens a connection, which means
+a driver, which hard rule 1 keeps out of the root module.
 
 ## Where it lives
 
-`test/tool/db`, run as `go run ./tool/db` from `test`, with a thin
-`test/run.sh` that execs it so the name people and CI already type keeps
-working. `tool/servers` and `tool/vms` fold into it, because their only
-consumer is the shell that is going away. `tool/version` folds in too.
+`test/cmd/dbrun`, run as `go run ./cmd/dbrun` from `test`, or built once with
+`go build -o ~/bin/dbrun ./cmd/dbrun`. `tool/servers`, `tool/vms` and
+`tool/version` folded into it and are gone, and so is `run.sh`. No shim was
+kept: a shim that only execs the Go is one more name for the same thing, and
+the workflow and the documents were the only callers.
 
-## The open question: provisioning
+## Podman or docker
 
-`test/vm/provision.sh` builds a Windows machine. It downloads a SQL Server
-installer of a few hundred megabytes, checks it, writes an OEM directory with
-an unattended answer file, starts `dockurr/windows` with that directory
-mounted, and waits up to an hour while Windows installs itself and then SQL
-Server. It is 200 lines of shell and it works.
+Either, by the command line rather than a Go client. `DBMETA_RUNNER` names
+one, and otherwise podman is preferred and docker is used when podman is
+absent, so the command works on a machine with either and nobody has to say
+which. CI sets `DBMETA_RUNNER=docker`.
 
-Three ways to go.
+A Go client library was considered and rejected. It would be a dependency in
+the `test` module for something the two commands already do identically, it
+would have to speak two socket protocols to cover both, and the few places
+they differ are one line each: `image exists` against `image inspect`, and
+`rm --storage`, which podman has and docker has no need of.
 
-**Leave it a script and call it.** `db provision sqlserver-2016` execs
-`vm/provision.sh 2016`. The surface is uniform and the implementation stays
-where it is known to work. Two languages for one job, and a reader has to
-follow a hop to see what happens.
+## Building an image
 
-**Port it to Go.** One language. It is a download, a digest check, a template
-and a container run, none of which Go is bad at, and the digest check and the
-retry logic are better in Go than in bash. It is also a rewrite of the one
-part of this that is hard to test, because trying it costs an hour per
-attempt.
+Two images are built here rather than pulled. Cassandra's published image
+refuses a user defined function, a materialized view and a role, which three
+queries read, so `cmd/dbrun/image/cassandra.Containerfile` turns them on. And
+Oracle publishes no free 19c image at all, only Dockerfiles and an installer
+archive of three gigabytes.
 
-**Leave it entirely separate.** `provision` is not a subcommand at all and
-people run `vm/provision.sh`. Honest about it being a different job, and it
-leaves the gap D68 was written to close: a thing you do to a server that is
-not done through the one command.
+The archive is looked for in the current directory, in `~/Downloads` and in
+the home directory, and fetched to `~/Downloads` when it is not in any of
+them. Not from Oracle: their download needs an account, an accepted licence
+and a browser session, so no command can fetch it. It comes from a mirror, and
+the SHA-256 that Oracle publishes is what says the file is theirs and arrived
+whole. A mirrored copy that fails that check is deleted rather than kept, so
+the next run fetches it again instead of failing the same way forever. The
+licence still governs what the file is used for and is still the caller's to
+accept.
 
-The recommendation is the first. Fold the interface now and leave the
-implementation alone, because the interface is what D68 is about and the
-implementation is an hour per test cycle to change. Revisit if the Go tool
-ends up needing the same download and verify logic for something else, which
-it might: the Oracle 19c image is built from a downloaded archive by
-`test/oracle/build-19c.sh` and has the same shape.
+Both were shell scripts and both are folded in. `start` and `test` build the
+image when it is missing, so neither caller has to remember, and `build` makes
+it whether or not it is there, which is what somebody wants after changing a
+Containerfile. The Containerfile is embedded with `//go:embed`, so the command
+carries its own build input. What stays shell is Oracle's own build script,
+which is theirs, which changes with their layout, and which rewriting here
+would mean owning a build we do not control.
+
+## Provisioning
+
+`provision` builds a Windows machine: it downloads a SQL Server installer of a
+few hundred megabytes, writes an OEM directory with an unattended answer file,
+starts `dockurr/windows` with that directory mounted, and waits up to an hour
+while Windows installs itself and then SQL Server.
+
+The draft of this recommended leaving it a 200 line shell script and having
+`provision` exec it, on the grounds that the interface is what D68 is about
+and that changing the implementation costs an hour per attempt. That was
+wrong on the second point. `--render` writes the OEM directory and stops, so
+the templating is checked in a second rather than an hour, and the port was
+verified by rendering every release both ways and diffing: twelve files, all
+identical to the byte. The hour is the install, and the port does not touch
+the install.
+
+So it is Go, and the payload is embedded with `//go:embed`. The script had to
+locate its own directory to find the payload, which is why `./test/run.sh
+--help` once failed with a path error. A binary that carries the payload has
+nothing to find.
+
+One bug was worth the diff. 2008 R2 wants the section header `[SQLSERVER2008]`
+rather than `[OPTIONS]`, and the file carries a comment above the header
+saying so. The shell used `sed 's/^\[OPTIONS\]$/[SQLSERVER2008]/'`, anchored
+to a whole line. The first Go version used `strings.Replace` with a count of
+one, which rewrote the comment and left the header alone. See `WINDOWS.md`.
 
 ## What this does not change
 

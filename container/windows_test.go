@@ -115,41 +115,37 @@ func TestEveryReleaseTakesTheLicenseFlag(t *testing.T) {
 	}
 }
 
-// TestTheProvisioningScriptsMatchTheList checks that the scripts fill in every
+// TestProvisionFillsEveryPlaceholder checks that dbrun fills in every
 // placeholder the template has, and no more.
-func TestTheProvisioningScriptsMatchTheList(t *testing.T) {
+//
+// dbrun refuses at runtime when one is left behind, which is 40 minutes into
+// an install. This is the same question asked at build time.
+func TestProvisionFillsEveryPlaceholder(t *testing.T) {
 	t.Parallel()
-	read := func(path string) string {
+	read := func(path ...string) string {
 		t.Helper()
-		body, err := os.ReadFile(filepath.Join("..", "test", "vm", path))
+		body, err := os.ReadFile(filepath.Join(append([]string{"..", "test", "cmd", "dbrun"}, path...)...))
 		if err != nil {
-			t.Fatalf("reading %s: %v", path, err)
+			t.Fatalf("reading %s: %v", filepath.Join(path...), err)
 		}
 		return string(body)
 	}
-	tmpl, script := read(filepath.Join("oem", "install.bat")), read("provision.sh")
+	tmpl, source := read("oem", "install.bat"), read("provision.go")
 
 	placeholder := regexp.MustCompile(`@@[A-Z_]+@@`)
 	found := map[string]bool{}
 	for _, m := range placeholder.FindAllString(tmpl, -1) {
 		found[m] = true
-		if !strings.Contains(script, m) {
-			t.Errorf("oem/install.bat has %s and provision.sh never fills it in", m)
+		if !strings.Contains(source, m) {
+			t.Errorf("oem/install.bat has %s and provision.go never fills it in", m)
 		}
 	}
 	if len(found) == 0 {
 		t.Error("oem/install.bat has no placeholders, so this test guards nothing")
 	}
-	for _, m := range placeholder.FindAllString(script, -1) {
+	for _, m := range placeholder.FindAllString(source, -1) {
 		if !found[m] {
-			t.Errorf("provision.sh fills in %s and oem/install.bat does not have it", m)
+			t.Errorf("provision.go fills in %s and oem/install.bat does not have it", m)
 		}
-	}
-
-	// The reader and the writer have to agree on the separator, and a tab
-	// here would silently shift every field after the empty one.
-	if !strings.Contains(script, `IFS=$'\x1f'`) {
-		t.Error("provision.sh must split on the unit separator, not on a tab. " +
-			"2008R2 has an empty field and bash collapses a run of tabs.")
 	}
 }

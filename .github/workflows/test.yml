@@ -106,46 +106,6 @@ jobs:
             go build -tags "$tag" ./...
           done
 
-  embedded:
-    name: SQLite and DuckDB
-    # No service container. SQLite is a library, so the release under test is
-    # whichever one modernc.org/sqlite ships, and there is nothing to start.
-    # The test still lives in the test module, because it needs that driver
-    # and the root module holds no driver at all.
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against SQLite
-        # Two drivers, as subtests: mattn/go-sqlite3 compiles the upstream
-        # SQLite source and needs cgo, and modernc.org/sqlite is a pure Go
-        # translation. ubuntu-latest has the C compiler the first one needs.
-        working-directory: test
-        run: go test -count=1 -v -run SQLite ./...
-
-      - name: Conformance, for the two embedded databases
-        # Every database answers the checked in expectation for the core
-        # fixture schema, canonically. A database that is not running skips
-        # its section, so this job covers SQLite and DuckDB and the database
-        # jobs cover theirs.
-        working-directory: test
-        run: go test -count=1 -v -run 'Conformance|CanonicalFields' ./...
-
-      - name: Test against DuckDB
-        # The other embedded database, and the other one needing cgo. Its
-        # driver ships a prebuilt static library per platform, so there is
-        # nothing to install beyond the compiler. See D48.
-        working-directory: test
-        run: go test -count=1 -v -run DuckDB ./...
-
   releases:
     name: The release list
     runs-on: ubuntu-latest
@@ -171,8 +131,8 @@ jobs:
         working-directory: test
         run: |
           {
-            echo "tested=$(go run ./tool/servers --json tested)"
-            echo "nightly=$(go run ./tool/servers --json nightly)"
+            echo "tested=$(go run ./cmd/dbrun list --json --names tested)"
+            echo "nightly=$(go run ./cmd/dbrun list --json --names nightly)"
           } >> "$GITHUB_OUTPUT"
 
   server:
@@ -195,15 +155,20 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
-      # run.sh starts the server, waits for a real connection, runs the tests
+      # SQLite and DuckDB are in this matrix too. They are a library rather
+      # than a server, so dbrun starts nothing for them and runs the tests,
+      # which is why there is no separate job for them any more.
+      #
+      # dbrun starts the server, waits for a real connection, runs the tests
       # against it and removes it. It is the same entry point a person uses,
       # which D68 requires, so CI cannot start a container a different way
       # from everybody else. It builds the Cassandra image when that is the
       # one being asked for.
       - name: Test against ${{ matrix.server }}
+        working-directory: test
         env:
           DBMETA_RUNNER: docker
-        run: ./test/run.sh "${{ matrix.server }}"
+        run: go run ./cmd/dbrun test "${{ matrix.server }}"
 
   nightly:
     name: ${{ matrix.server }} (nightly)
@@ -226,9 +191,10 @@ jobs:
           check-latest: true
 
       - name: Test against ${{ matrix.server }}
+        working-directory: test
         env:
           DBMETA_RUNNER: docker
-        run: ./test/run.sh "${{ matrix.server }}"
+        run: go run ./cmd/dbrun test "${{ matrix.server }}"
 
   compare:
     name: MariaDB against MySQL

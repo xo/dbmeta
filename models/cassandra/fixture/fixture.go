@@ -8,8 +8,8 @@
 // # It needs the image this repository builds
 //
 // A user defined function, a materialized view and a role are all refused by
-// the Apache image as it ships. test/cassandra/Containerfile turns them on and
-// test/cassandra/build.sh makes the image. Against the published image the
+// the Apache image as it ships. The Containerfile dbrun embeds turns them on and
+// `dbrun build cassandra-5.0` makes the image. Against the published one the
 // fixture fails rather than quietly building less, which is the answer hard
 // rule 9 wants: a query that has never run against a real object is not
 // finished.

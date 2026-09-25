@@ -107,13 +107,18 @@ func TestTheDecisionIndexIsComplete(t *testing.T) {
 // docs/PLAN.md holds, and how many hard rules CLAUDE.md holds.
 func TestTheCountsInProseAreRight(t *testing.T) {
 	t.Parallel()
-	decisions := len(regexp.MustCompile(`(?m)^### D(\d+)\.`).
-		FindAllString(read(t, filepath.Join("docs", "PLAN.md")), -1))
+	plan := read(t, filepath.Join("docs", "PLAN.md"))
+	decisions := len(regexp.MustCompile(`(?m)^### D(\d+)\.`).FindAllString(plan, -1))
+	// A decision that amends or replaces an earlier one says so in its own
+	// heading, in the active voice. The one it names says it back, which
+	// TestAnAmendmentPointsBothWays checks, so counting one side counts both.
+	amending := len(regexp.MustCompile(`(?mi)^### D\d+\..*\b(?:amends|supersedes) D\d+`).
+		FindAllString(plan, -1))
 	rules := len(regexp.MustCompile(`(?m)^(\d+)\. `).
 		FindAllString(hardRules(t), -1))
-	if decisions == 0 || rules == 0 {
-		t.Fatalf("found %d decisions and %d hard rules, expected some of each",
-			decisions, rules)
+	if decisions == 0 || rules == 0 || amending == 0 {
+		t.Fatalf("found %d decisions, %d of them amending, and %d hard rules,"+
+			" expected some of each", decisions, amending, rules)
 	}
 	for _, c := range []struct {
 		what string
@@ -127,6 +132,8 @@ func TestTheCountsInProseAreRight(t *testing.T) {
 		{"decisions", decisions, regexp.MustCompile(`[Ee]very decision, (\d+) of them`)},
 		{"decisions", decisions, regexp.MustCompile(`table at the top lists all (\d+)`)},
 		{"hard rules", rules, regexp.MustCompile(`holds the rules: (\d+) of them`)},
+		{"amending decisions", amending,
+			regexp.MustCompile(`(\d+) (?:of them )?amend or replace`)},
 	} {
 		var found bool
 		for _, name := range []string{"README.md", "CLAUDE.md", "CONTRIBUTING.md"} {

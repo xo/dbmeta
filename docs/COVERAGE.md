@@ -332,8 +332,8 @@ name suggests. D62 holds the four consequences and this is the short version.
 The Apache image refuses three things this model has queries for, and its
 entrypoint maps only eight `cassandra.yaml` keys to environment variables,
 none of them these. So every release is rebuilt from
-`test/cassandra/Containerfile`. Run `test/cassandra/build.sh` before the tests,
-and CI builds its own from the same file.
+`test/cmd/dbrun/image/cassandra.Containerfile`, which `dbrun` embeds and builds when the image is missing, so
+nothing has to be done first, and CI builds its own from the same file.
 
 It turns on user defined functions, so `Functions` and `Aggregates` have
 something to read and the fixture can create one. It turns on materialized

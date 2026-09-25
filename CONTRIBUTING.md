@@ -11,8 +11,8 @@ the lint policy and how to run the tests. It is written for an AI coding agent
 and everything in it applies to a person.
 
 [`docs/PLAN.md`](docs/PLAN.md) holds every decision this project has made, with
-the reasoning and what was rejected. The table at the top lists all 69 with
-their status. Read the status: six of them amend or replace an earlier one.
+the reasoning and what was rejected. The table at the top lists all 70 with
+their status. Read the status: 10 of them amend or replace an earlier one.
 
 Do not decide an open question on your own. The open questions are at the end
 of `docs/PLAN.md`. Ask Ken.
@@ -32,12 +32,24 @@ holds the database drivers, and it is the only place in this repository that
 may use cgo.
 
 ```bash
-cd test && ./run.sh tested
+cd test && go run ./cmd/dbrun test tested
 ```
 
 That starts a container per database release, runs the integration tests
-against each, and removes it. `./run.sh` with no argument runs every supported
-release of every product, which is what has to pass before a release.
+against each, and removes it. `dbrun test all` runs every supported release of
+every product, which is what has to pass before a release.
+
+`dbrun` does everything to a database: `start` one and leave it up, `stop` it,
+`status` to see what is running, `dsn` for a URL to paste, `usql` for a shell
+on it, `version` to see what dbmeta reads. Run `go run ./cmd/dbrun help`.
+Install it once if you use it often:
+
+```bash
+cd test && go build -o ~/bin/dbrun ./cmd/dbrun
+```
+
+Nothing else starts a container, which is D68, and `docs/RUNNER.md` is the
+design.
 
 ## What the reviewer will ask
 

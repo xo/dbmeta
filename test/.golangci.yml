@@ -102,6 +102,18 @@ linters:
         - (*database/sql.Rows).Close
         - (*database/sql.DB).Close
         - (*database/sql.Stmt).Close
+        # A deferred Close on a file being read returns an error nothing can
+        # act on, and the read already reported what mattered.
+        - (*os.File).Close
+        # Writing the help to a terminal. There is nowhere to report a
+        # failure to write the report.
+        - fmt.Fprint
+        # A deferred Close on a response body being read. The read already
+        # reported what mattered, and the connection is returned either way.
+        - (io.ReadCloser).Close
+        # A deferred RemoveAll on a temporary directory. There is nothing to
+        # do about a failure and the operating system clears it regardless.
+        - os.RemoveAll
     errorlint:
       errorf: true
       asserts: true
@@ -113,7 +125,7 @@ linters:
   exclusions:
     rules:
       # A command prints. That is what it is for.
-      - path: tool/
+      - path: cmd/
         linters:
           - forbidigo
 

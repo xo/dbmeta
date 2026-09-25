@@ -10,17 +10,18 @@
 // A third, DBMETA_MYSQL_COMPARE, names a second server of the other product
 // and turns on the comparison between MariaDB and MySQL.
 //
-// The simplest way to run them is the script beside this file, which starts
-// what it needs and removes it afterwards:
+// The simplest way to run them is dbrun, which starts what they need and
+// removes it afterwards:
 //
-//	./run.sh                 every release of every product
-//	./run.sh tested          the releases CI runs on every push
-//	./run.sh mariadb-13.0    one release
+//	go run ./cmd/dbrun test all           every release of every product
+//	go run ./cmd/dbrun test tested        the releases CI runs on every push
+//	go run ./cmd/dbrun test mariadb-13.0  one release
+//	go run ./cmd/dbrun start postgres     the newest PostgreSQL, left running
+//	go run ./cmd/dbrun help               everything it does
 //
 // It takes the list from github.com/xo/dbmeta/container, which is where a
-// release is added. To start a server by hand instead, read the same list:
-//
-//	go run ./tool/servers postgres-18
+// release is added. Nothing else starts a container, which is D68, and
+// docs/RUNNER.md is the design.
 //
 // `go test ./...` in the root module does not reach here, because the go
 // command does not descend into a directory that has its own go.mod.
