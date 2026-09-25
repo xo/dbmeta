@@ -16,7 +16,7 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 56
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 57
 at the top; read the status, because six of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -36,6 +36,7 @@ Then by what you are doing:
 | wiring up a client | `docs/COMMANDS.md`, then `docs/USQL.md` or `docs/DBTPL.md` |
 | designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
 | adding a release to CI | `container/container.go`, which is the only copy of that list |
+| adding an old SQL Server that needs a Windows VM | `container/windows.go`, then `test/vm/README.md` and D57 |
 | answering a lint finding | the rule below, under Linting |
 
 `CONTRIBUTING.md` is the same thing for a person, and shorter.
@@ -170,6 +171,10 @@ something is written down, it is not written down, and it is an open question.
 - `container/` names every database release the tests run against, as Go data.
   It starts no container and imports no container client. `test/run.sh` and the
   CI workflow both read it, and a test fails when they drift.
+- `test/vm/` provisions the Windows machines that host the SQL Server releases
+  with no Linux container. `container/windows.go` holds the list and
+  `test/tool/vms` bridges it to the shell, the same way `test/tool/servers`
+  does for containers. Read `test/vm/README.md`. See D57.
 - `test/` is a separate module with its own `go.mod`. It holds the integration
   tests, the database drivers, and the `tool` directive pinning `dbtpl`. None
   of that may appear in the root module. It is the only place cgo is allowed,
