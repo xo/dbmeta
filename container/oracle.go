@@ -24,12 +24,38 @@ import "fmt"
 // it is built locally from Oracle's own Dockerfiles and the installer archive.
 // See test/oracle/README.md.
 //
-// # Service names, which differ per release
+// # Service names, and why every one of them is a pluggable database
 //
-// A connection names a service rather than a database. Express calls it XE,
-// Free calls it FREE, and the image built from Oracle's Dockerfiles calls it
-// ORCLCDB. That is why each release sets its own connection string instead of
-// sharing one from the product.
+// A connection names a service rather than a database, and from 12c a service
+// reaches either the container database or one pluggable database inside it.
+// Which one it reaches decides what the tests test, and it is not a detail.
+//
+// A user created in the container root is a common user: it exists in the
+// root and in every pluggable database at once, and it is the Oracle
+// equivalent of a SQL Server server login. A user created in a pluggable
+// database is a local user, which authenticates against that database and
+// has nothing at the container level, and it is the equivalent of a SQL
+// Server contained database user.
+//
+// Every service here names a pluggable database, so the fixture user is
+// local on every release that has the concept. That is what a consumer
+// connects to: an application names a service and that service is a
+// pluggable database on any multitenant install.
+//
+// It was not always so. XE answered as CDB$ROOT and FREE likewise, so 18c,
+// 21c, 23ai and 26ai built the fixture as a common user while 19c built it as
+// a local one, and nobody had chosen that. The gvenzl images set
+// common_user_prefix to empty, which is why creating a plainly named user in
+// the root succeeded there and raised ORA-65096 on the 19c image, whose
+// Dockerfile does not.
+//
+// 11g is the exception and needs none of this. It is older than multitenant,
+// so it has no container database, no pluggable database and no COMMON
+// column, and XE is the whole instance.
+//
+// Nothing now tests a connection to CDB$ROOT. That is a real thing a DBA does
+// and it is worth a target of its own, named so that a failure reads root
+// rather than a release. It is not written yet.
 
 // oracleService builds a connection string for a service on a port.
 func oracleService(service string) func(port int) string {
@@ -80,6 +106,12 @@ var Oracle = list{}.add(oraclexe, Tested, "21.3.0").
 	add(oraclefree, Nightly, "23.9").
 	add(oraclexe, Verified, "18.4.0").
 	add(oracle19, Verified, "19.3.0").
+	on("11.2.0.2", func(s *Server) {
+		// 11g predates multitenant. There is no pluggable database to name,
+		// and XE is the instance itself.
+		s.dsn = oracleService("XE")
+		s.Ready = oracleReady("XE")
+	}).
 	on("19.3.0", func(s *Server) {
 		// The pluggable database, not the container database.
 		//

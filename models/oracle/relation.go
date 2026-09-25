@@ -48,10 +48,49 @@ const systemSchemas = `'SYS', 'SYSTEM', 'SYSAUX', 'OUTLN', 'DBSNMP', 'APPQOSSYS'
 	'DVSYS', 'DVF', 'GGSYS', 'PDBADMIN', 'XS$NULL', 'DBSFWUSER', 'MDDATA'`
 
 // notSystem filters the system schemas out unless the caller asks for them.
+//
+// Oracle has two sources for this and neither answers alone.
+//
+// all_users.oracle_maintained arrived in 18c and says whether Oracle created
+// the user. It is the authority, because it finds what no written list can:
+// 19c adds OJVMSYS, 21c adds DGPDB_INT, and 23ai adds BAASSYS, GGSHAREDCAP
+// and VECSYS. A list written today goes stale at the next release, and this
+// one had: VECSYS objects were reported as somebody's schema.
+//
+// The written list stays for two reasons. 11g has no such column. And from
+// 19c the flag calls PDBADMIN a person's account, which by Oracle's own
+// definition it is, because the script that creates the pluggable database
+// creates it rather than the catalog scripts. It is the image's administrator
+// rather than anybody's schema, so it is excluded by name on every release.
+//
+// So the test is the list on 11g, and the list and the flag on 18c and later.
+//
 // The column is named by the caller, because the dictionary spells the owner
-// differently from view to view.
-func notSystem(col string) string {
-	return `(@with_system = 1 OR ` + col + ` NOT IN (` + systemSchemas + `))`
+// differently from view to view. So is the prefix, because the test is the
+// first term of one WHERE and a later term of another.
+func notSystem(prefix, col string) dbmeta.Choice {
+	named, flagged := systemTest(prefix, col)
+	return dbmeta.Choice{{SQL: named}, {Min: v18, SQL: flagged}}
+}
+
+// notSystemAt is notSystem for a query whose own floor is already 18c or
+// later. The flag is there on every release such a query runs on, so there is
+// nothing to choose between and one fragment says so.
+func notSystemAt(floor dbmeta.Version, prefix, col string) dbmeta.Choice {
+	_, flagged := systemTest(prefix, col)
+	return dbmeta.Choice{{Min: floor, SQL: flagged}}
+}
+
+// systemTest builds the two forms of the test, ungated. Both are written once
+// here, because the same rule written out twice is how two copies come apart.
+func systemTest(prefix, col string) (named, flagged string) {
+	named = prefix + ` (@with_system = 1 OR ` + col + ` NOT IN (` + systemSchemas + `))`
+	// all_users.username is NOT NULL, so this NOT IN cannot go unknown and
+	// swallow every row the way a NOT IN over a nullable column can.
+	flagged = named + ` AND (@with_system = 1 OR ` + col +
+		` NOT IN (SELECT au.username FROM all_users au` +
+		` WHERE au.oracle_maintained = 'Y'))`
+	return named, flagged
 }
 
 // always is a fragment that every release takes.
@@ -77,7 +116,7 @@ func registerRelations() {
 			always(`, u.username AS "owner"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM all_users u`),
-			always(`WHERE ` + notSystem("u.username")),
+			notSystem("WHERE", "u.username"),
 			always(`AND (@name IS NULL OR u.username LIKE @name)`),
 			always(`ORDER BY u.username`),
 		},
@@ -114,7 +153,7 @@ func registerRelations() {
 			// A nested table or an overflow segment is a table to the
 			// dictionary and not a table to a person.
 			always(`AND o.secondary = 'N'`),
-			always(`AND ` + notSystem("o.owner")),
+			notSystem("AND", "o.owner"),
 			always(`AND (@schema IS NULL OR o.owner LIKE @schema)`),
 			always(`AND (@name IS NULL OR o.object_name LIKE @name)`),
 			always(`ORDER BY o.owner, o.object_name`),
@@ -179,7 +218,7 @@ func registerColumns() {
 			// a function based index. Nobody asked for it and psql shows no
 			// equivalent.
 			always(`WHERE c.hidden_column = 'NO'`),
-			always(`AND ` + notSystem("c.owner")),
+			notSystem("AND", "c.owner"),
 			always(`AND (@schema IS NULL OR c.owner LIKE @schema)`),
 			always(`AND (@name IS NULL OR c.table_name LIKE @name)`),
 			always(`ORDER BY c.owner, c.table_name, c.column_id`),

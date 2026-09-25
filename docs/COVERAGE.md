@@ -731,6 +731,30 @@ twenty-fifth and needs 23ai, where the SQL domain and `ALL_DOMAINS` arrived,
 so 23ai and 26ai run all 25 and the four older releases report that the server
 is too old.
 
+### Which user the tests run as
+
+Every Oracle service here names a pluggable database, so the fixture user is a
+local user on every release that has the concept. A local user authenticates
+against one pluggable database and has nothing at the container level, and it
+is the Oracle equivalent of a SQL Server contained database user. A user
+created in the container root is a common user instead, which exists in the
+root and in every pluggable database at once, and that is the equivalent of a
+SQL Server server login.
+
+This was wrong until it was measured. XE answered as `CDB$ROOT` and FREE
+likewise, so 18c, 21c, 23ai and 26ai built the fixture as a common user while
+only 19c built it as a local one. Nobody had chosen that, and the queries were
+being validated mostly against a principal a consumer does not use. The
+gvenzl images set `common_user_prefix` to empty, which is why a plainly named
+user in the root was accepted there and raised `ORA-65096` on the 19c image.
+
+11g needs none of this. It predates multitenant, so it has no container
+database and no `COMMON` column, and `XE` is the instance itself.
+
+Nothing tests a connection to `CDB$ROOT` now. That is a real thing a DBA does
+and it is worth a target of its own, named so that a failure reads root rather
+than a release. It is not written yet.
+
 ### What the conformance test says
 
 Oracle is in `test/testdata/conformance.txt` under `[oracle]`, which D53
@@ -793,9 +817,13 @@ because Oracle calls it referential. `C` covers a check and a `NOT NULL`
 together, and D49 says a `NOT NULL` is not a constraint row, so the generated
 ones are filtered out.
 
-No system schema flag. There is no column saying whether a user is Oracle's
-own, so the list is written out, which is what every tool reading this
-dictionary does.
+A system schema flag, from 18c. `all_users.oracle_maintained` says whether
+Oracle created the user, and it is the authority where it exists: it finds
+OJVMSYS on 19c, DGPDB_INT on 21c, and BAASSYS, GGSHAREDCAP and VECSYS on 23ai,
+none of which a written list had. The written list stays for 11g, which has no
+such column, and for PDBADMIN, which the flag calls a person's account from
+19c because the script that creates the pluggable database creates it. So the
+test is the list on 11g and the list and the flag from 18c.
 
 ### Releases, and what separates them
 

@@ -51,7 +51,7 @@ func procedureStmt(aggregate string) dbmeta.Stmt {
 		always(`WHERE p.procedure_name IS NULL`),
 		always(`AND p.object_type IN ('FUNCTION', 'PROCEDURE')`),
 		always(`AND p.aggregate = '` + aggregate + `'`),
-		always(`AND ` + notSystem("p.owner")),
+		notSystem("AND", "p.owner"),
 		always(`AND (@schema IS NULL OR p.owner LIKE @schema)`),
 		always(`AND (@name IS NULL OR p.object_name LIKE @name)`),
 		always(`ORDER BY p.owner, p.object_name`),
@@ -135,7 +135,7 @@ func registerRoutines() {
 				// data_level above zero is a field of a record argument, and
 				// position zero is the return value rather than an argument.
 				always(`WHERE a.package_name IS NULL AND a.data_level = 0 AND a.position > 0`),
-				always(`AND ` + notSystem("a.owner")),
+				notSystem("AND", "a.owner"),
 				always(`AND (@schema IS NULL OR a.owner LIKE @schema)`),
 				always(`AND (@name IS NULL OR a.object_name LIKE @name)`),
 				always(`ORDER BY a.owner, a.object_name, a.position`),
@@ -172,7 +172,7 @@ func registerRoutines() {
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM all_types t`),
-			always(`WHERE ` + notSystem("t.owner")),
+			notSystem("WHERE", "t.owner"),
 			always(`AND (@schema IS NULL OR t.owner LIKE @schema)`),
 			always(`AND (@name IS NULL OR t.type_name LIKE @name)`),
 			always(`ORDER BY t.owner, t.type_name`),
@@ -223,7 +223,7 @@ func registerRoutines() {
 			// consumer prints beside a column type.
 			{{Min: v23, SQL: `LEFT JOIN all_domain_cols c ON c.owner = d.owner` +
 				` AND c.domain_name = d.name AND c.column_id = 1`}},
-			{{Min: v23, SQL: `WHERE ` + notSystem("d.owner")}},
+			notSystemAt(v23, "WHERE", "d.owner"),
 			{{Min: v23, SQL: `AND (@schema IS NULL OR d.owner LIKE @schema)`}},
 			{{Min: v23, SQL: `AND (@name IS NULL OR d.name LIKE @name)`}},
 			{{Min: v23, SQL: `ORDER BY d.owner, d.name`}},
@@ -272,7 +272,7 @@ func registerRoutines() {
 			always(`FROM all_operators o`),
 			always(`JOIN all_opbindings b ON b.owner = o.owner` +
 				` AND b.operator_name = o.operator_name`),
-			always(`WHERE ` + notSystem("o.owner")),
+			notSystem("WHERE", "o.owner"),
 			always(`AND (@schema IS NULL OR o.owner LIKE @schema)`),
 			always(`AND (@name IS NULL OR o.operator_name LIKE @name)`),
 			always(`ORDER BY o.owner, o.operator_name, b.binding#`),

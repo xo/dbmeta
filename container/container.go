@@ -344,8 +344,8 @@ var (
 		tagSuffix: "-slim",
 		port:      1521,
 		env:       map[string]string{"ORACLE_PASSWORD": Password},
-		ready:     oracleReady("XE"),
-		dsn:       oracleService("XE"),
+		ready:     oracleReady("XEPDB1"),
+		dsn:       oracleService("XEPDB1"),
 	}
 	// 23ai, which Oracle calls Free rather than Express.
 	oraclefree = product{
@@ -356,8 +356,8 @@ var (
 		tagSuffix: "-slim",
 		port:      1521,
 		env:       map[string]string{"ORACLE_PASSWORD": Password},
-		ready:     oracleReady("FREE"),
-		dsn:       oracleService("FREE"),
+		ready:     oracleReady("FREEPDB1"),
+		dsn:       oracleService("FREEPDB1"),
 	}
 	// 19c, built locally from Oracle's Dockerfiles because Oracle publishes no
 	// free image of it. test/oracle/build-19c.sh makes it, and this names what
