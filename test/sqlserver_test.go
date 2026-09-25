@@ -448,9 +448,11 @@ func TestSQLServerVersion(t *testing.T) {
 	if versions.Main().Unknown {
 		t.Fatal("expected a version")
 	}
-	// 14 is 2017, which is the oldest release with a Linux container
-	if got := versions.Main().Parts[0]; got < 14 {
-		t.Errorf("expected release 14 or newer, got %d", got)
+	// 10 is 2008 R2, which is the oldest release this project provisions at
+	// all. It was 14 when a Linux container was the only way to run one, and
+	// a virtual machine reaches further back now. See D57.
+	if got := versions.Main().Parts[0]; got < 10 {
+		t.Errorf("expected release 10 or newer, got %d", got)
 	}
 	// The line a person reads, which usql prints on connecting. It names the
 	// product, the build, the patch level and the edition, and every part

@@ -542,8 +542,20 @@ tablespaces and DDL triggers, and the only one that keeps comments in a catalog
 of their own rather than on the object.
 
 It is tested on every major release that runs on Linux: 2017, 2019, 2022 and
-2025, all four on every push. 2016 and older have no container and are
-Archived. D54 says what that means and what may be claimed for them.
+2025, all four on every push. 2016 and older have no container, so they are
+provisioned in a Windows virtual machine instead and are Verified rather than
+Tested. D54 says what a Linux release claims and D57 says what a machine does.
+
+| Release | How | Verified against |
+| --- | --- | --- |
+| 2017, 2019, 2022, 2025 | Linux container, every push | 14.0.3550.4, 15.0.4490.9, 16.0.4295.3, 17.0.5005.3 |
+| 2016 | Windows Server 2016 machine | 13.0.5026.0 SP2 Express, on 2026-09-25 |
+| 2014, 2012, 2008 R2 | Windows machine, not yet run | nothing is claimed |
+
+2016 answers 32 of the 55, which is what 2017 and later answer. The run also
+exercised the one thing no container could: a server that reports a service
+pack and no cumulative update, where the display line has to read `SP2` and not
+`SP2-`.
 
 ### The sys schema, not information_schema
 
