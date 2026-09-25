@@ -4186,8 +4186,37 @@ In this order, and the order is what the native catalog adds over
 | 9 | Hive | `apache/hive` | metastore, and it is the shape Impala already teaches |
 
 Below those and worth a model only if somebody asks: Couchbase, Ignite,
-VoltDB, YDB, Databend and Avatica. Each has an image and none of them is
-shaped much like the 55.
+VoltDB, YDB and Databend. Each runs the real engine in an image and none of
+them is shaped much like the 55.
+
+Avatica is not on the list at all. It is a wire protocol in front of whatever
+database somebody put behind it, so it has no catalog of its own to read.
+
+#### An emulator is not the same thing as a container
+
+The first pass at this conflated two things and the distinction turned out to
+be the whole answer.
+
+Most of what looks cloud-only here is not a cloud service. Vertica CE, Exasol,
+SAP HANA Express, YDB, Databend, ClickHouse, Trino, Presto, Hive, Impala,
+Firebird, Couchbase, Ignite and VoltDB all ship the real engine in an image.
+The catalog in the container is the catalog in production, and a query written
+against one is a query that works against the other. Those are containers and
+the ordinary rules apply.
+
+The genuine cloud services are different, and their emulators do not carry a
+catalog worth testing against. The Spanner emulator implements a basic
+`INFORMATION_SCHEMA` with tables and columns and no roles, no privileges and
+no change streams, so a metadata query passes there and fails in production.
+The DynamoDB and Cosmos DB emulators have no SQL catalog at all, because
+neither product has one: metadata is a control plane API call rather than a
+table.
+
+So an emulator never counts as a container for D40's purposes. A product whose
+only local option is an emulator is in the same position as one with no local
+option: it is last, and it is Archived on arrival. That this agrees with
+excluding DynamoDB, Cosmos DB and Tablestore as non relational is a
+coincidence worth noticing rather than the reason.
 
 #### Last, the ones that need an account
 
