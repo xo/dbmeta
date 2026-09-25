@@ -42,12 +42,12 @@ var answers = []struct {
 		},
 	}},
 	{"FROM pg_catalog.pg_attribute a", answer{
-		[]string{"catalog", "schema", "table", "name", "ordinal", "data_type", "nullable", "default", "identity", "generated", "comment"},
+		[]string{"catalog", "schema", "table", "name", "ordinal", "data_type", "nullable", "default", "primary_key", "identity", "generated", "comment"},
 		[][]driver.Value{
-			{"example", "public", "book", "book_id", int64(1), "integer", false, nil, "a", nil, "surrogate key"},
-			{"example", "public", "book", "title", int64(2), "text", false, nil, nil, nil, nil},
-			{"example", "public", "book", "published", int64(3), "date", true, nil, nil, nil, nil},
-			{"example", "public", "book", "slug", int64(4), "text", true, nil, nil, "s", "derived from the title"},
+			{"example", "public", "book", "book_id", int64(1), "integer", false, nil, true, "a", nil, "surrogate key"},
+			{"example", "public", "book", "title", int64(2), "text", false, nil, false, nil, nil, nil},
+			{"example", "public", "book", "published", int64(3), "date", true, nil, false, nil, nil, nil},
+			{"example", "public", "book", "slug", int64(4), "text", true, nil, false, nil, "s", "derived from the title"},
 		},
 	}},
 }

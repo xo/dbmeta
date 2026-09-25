@@ -109,6 +109,9 @@ func registerRelations() {
 			{{SQL: `, c.column_type AS "data_type"`}},
 			{{SQL: `, c.is_nullable = 'YES' AS "nullable"`}},
 			{{SQL: `, c.column_default AS "default"`}},
+			// Free: information_schema.COLUMNS already says which columns are
+			// in the primary key, so this costs nothing. See D47.
+			{{SQL: `, c.column_key = 'PRI' AS "primary_key"`}},
 			// auto_increment is the closest thing to an identity column
 			{{SQL: `, CASE WHEN c.extra LIKE '%auto_increment%' THEN 'a' ELSE NULL END AS "identity"`}},
 			{{SQL: `, CASE WHEN c.extra LIKE '%GENERATED%' THEN 's' ELSE NULL END AS "generated"`}},
@@ -121,12 +124,13 @@ func registerRelations() {
 			{{SQL: `ORDER BY 2, 3, 5`}},
 		},
 		Fields: fields("catalog", "schema", "table", "name", "ordinal",
-			"data_type", "nullable", "default", "identity", "generated", "comment"),
+			"data_type", "nullable", "default", "primary_key", "identity", "generated", "comment"),
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
-				&v.DataType, &v.Nullable, &v.Default, &v.Identity, &v.Generated, &v.Comment)
+				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated,
+				&v.Comment)
 			return v, err
 		},
 	})

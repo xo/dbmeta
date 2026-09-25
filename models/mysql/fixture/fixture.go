@@ -169,6 +169,20 @@ var Everything = Fixture{
 
 		// CREATE AGGREGATE FUNCTION arrived in MariaDB 10.3. MySQL has no form
 		// of it at any release, which the key says and the number cannot.
+		// Rows, and engine independent statistics over them. Both steps are
+		// MariaDB only: seq_1_to_200 is MariaDB's sequence engine, and
+		// ANALYZE ... PERSISTENT is the only thing that fills
+		// mysql.column_stats, which is where ColumnStats reads. MySQL reports
+		// ColumnStats unsupported, so it needs neither step.
+		when("author rows",
+			"INSERT INTO dbmeta_fixture.author (name, rating)\n"+
+				"	SELECT CONCAT('author ', seq), (seq % 5) + 1\n"+
+				"	FROM dbmeta_fixture.seq_1_to_200",
+			maria10_2),
+		when("analyze",
+			"ANALYZE TABLE dbmeta_fixture.author PERSISTENT FOR ALL",
+			maria10_2),
+
 		when("aggregate",
 			"CREATE AGGREGATE FUNCTION dbmeta_fixture.total(x INT) RETURNS INT\n"+
 				"BEGIN\n"+
@@ -180,6 +194,29 @@ var Everything = Fixture{
 				"	END LOOP;\n"+
 				"END",
 			maria10_3),
+
+		// A composite primary key and a composite foreign key, so that
+		// ConstraintColumns has more than one column per constraint to order.
+		at("region table", "CREATE TABLE dbmeta_fixture.region (\n"+
+			"	country varchar(64) NOT NULL,\n"+
+			"	area varchar(64) NOT NULL,\n"+
+			"	PRIMARY KEY (country, area)\n"+
+			")"),
+		at("shipment table", "CREATE TABLE dbmeta_fixture.shipment (\n"+
+			"	shipment_id integer AUTO_INCREMENT PRIMARY KEY,\n"+
+			"	country varchar(64) NOT NULL,\n"+
+			"	area varchar(64) NOT NULL,\n"+
+			"	amount integer NOT NULL,\n"+
+			"	CONSTRAINT shipment_region_fk FOREIGN KEY (country, area)\n"+
+			"		REFERENCES dbmeta_fixture.region(country, area)\n"+
+			")"),
+
+		// A routine with parameters, so that RoutineParameters has rows. A
+		// procedure takes an OUT parameter and a function records a return
+		// value, so the two cover every mode either product reports.
+		at("procedure with parameters", "CREATE PROCEDURE dbmeta_fixture.addup(\n"+
+			"	IN a integer, IN b integer, OUT total integer\n"+
+			") BEGIN SET total = a + b; END"),
 
 		// A server is global rather than part of a schema, so dropping the
 		// schema does not remove it and the teardown drops it by name. Nothing

@@ -155,27 +155,56 @@ triggers and window functions. They are the same query narrowed by
 
 ## What has no mapping
 
-Two gaps, in opposite directions.
+Two gaps, in opposite directions. One is now closed.
 
-`\ss` is a `usql` command with nothing behind it here. It shows column
-statistics values, and `psql` has never had such a command: no `"ss"` has ever
-appeared in `command.c` and `describe.c` has never read `pg_stats`. Jan Was
-added it to `usql` in 2021, implementing it for PostgreSQL from `pg_stats` and
-for Trino from `SHOW STATS FOR`, and DuckDB gained it later with the same
-Trino syntax. `dbmeta` has no `ColumnStats` object kind.
+`\ss` is a `usql` command with no `psql` equivalent. It shows column statistics
+values, and `psql` has never had such a command: no `"ss"` has ever appeared in
+`command.c` and `describe.c` has never read `pg_stats`. Jan Was added it to
+`usql` in 2021, implementing it for PostgreSQL from `pg_stats` and for Trino
+from `SHOW STATS FOR`, and DuckDB gained it later with the same Trino syntax.
 
-Adding one is a decision rather than a translation, because the databases that
-have column statistics disagree about their shape. PostgreSQL reports
-`null_frac`, `n_distinct` and `most_common_vals`. Trino and DuckDB return the
-result of `SHOW STATS FOR`. MariaDB has `information_schema.COLUMN_STATISTICS`
-with its own columns, and MySQL 8 has a histogram under the same view name with
-different contents again. Four shapes for one idea, and D9 does not settle it,
-because PostgreSQL's shape is not obviously the right one for a histogram.
+`dbmeta.ColumnStats` now answers it. The decision it needed was which shape to
+take, because the databases disagree: PostgreSQL reports `null_frac`,
+`n_distinct` and `most_common_vals`, Trino and DuckDB return the result of
+`SHOW STATS FOR`, MariaDB keeps `mysql.column_stats` with its own columns, and
+MySQL 8 keeps a JSON histogram under a view named like MariaDB's and holding
+something else. D9 does not settle it, because PostgreSQL's shape is not
+obviously right for a histogram.
+
+The shape taken is PostgreSQL's, with every field nullable. A database that
+computes something reports it and a database that does not reports absent,
+which is the padding rule applied to a kind rather than to a release.
+PostgreSQL and MariaDB answer. MySQL and SQLite report `ErrNotSupported`,
+because neither has a width, a null fraction or a distinct count to give, and a
+row of absences would be worse than no row. See COVERAGE.md.
 
 `\sf` and `\sv` show the source of a function or a view. They live outside
-`describe.c` and are not part of the 49, so they are not in this table. The
-text they print is available as `Function.Source` and through the view
-definition.
+`describe.c` and are not part of the 49, so they are not in this table.
+`Function.Source` answers the first and `dbmeta.Views` answers the second.
+
+## The kinds with no psql command
+
+Six object kinds here answer no `psql` command. They exist because `usql` and
+`dbtpl` were measured and needed them, and D47 allows them: `psql` sets the
+object model and does not set the column set.
+
+| Go value | Yields | Why psql has no command |
+| --- | --- | --- |
+| `dbmeta.ConstraintColumns` | `ConstraintColumn` | `psql` prints a constraint as one line of text, which `Constraint.Definition` still holds |
+| `dbmeta.RoutineParameters` | `RoutineParameter` | `psql` prints a signature as one line, which `Function.ArgTypes` still holds |
+| `dbmeta.EnumValues` | `EnumValue` | `\dT+` prints the labels joined into one string, which `Type.Elements` still holds |
+| `dbmeta.Views` | `View` | `\d name` on a view prints the definition, and `\sv` shows it outside `describe.c` |
+| `dbmeta.ColumnStats` | `ColumnStat` | `psql` has no such command. `usql` added `\ss` |
+| `dbmeta.CurrentSchema` | `Schema` | session state rather than an object. `dbtpl` reads it in every loader |
+
+In each of the first three the prose and the parts are both available. The
+parts are authoritative and the prose is what `psql` prints, so a client
+matching `psql` output does not have to rebuild the string for every dialect.
+
+Two fields follow the same rule. `Column.PrimaryKey` is in the row MySQL and
+SQLite already select and costs PostgreSQL one join. `Function.ID` identifies a
+routine where the name does not, and `RoutineParameters` carries the same value
+so that the join is one expression everywhere.
 
 ## Wiring usql up
 

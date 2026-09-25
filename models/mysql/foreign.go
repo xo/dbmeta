@@ -33,6 +33,7 @@ func registerAggregates() {
 			{frag(mariaAgg, `SELECT 'def' AS "catalog"`)},
 			{frag(mariaAgg, `, p.db AS "schema"`)},
 			{frag(mariaAgg, `, p.name AS "name"`)},
+			{frag(mariaAgg, `, p.name AS "id"`)},
 			{frag(mariaAgg, `, 'agg' AS "kind"`)},
 			{frag(mariaAgg, `, CONVERT(p.returns USING utf8mb4) AS "result_type"`)},
 			{frag(mariaAgg, `, CONVERT(p.param_list USING utf8mb4) AS "arg_types"`)},
@@ -52,7 +53,7 @@ func registerAggregates() {
 			// a compiled aggregate is global, so it has no schema to filter on
 			// and it appears whatever @schema asks for
 			{frag(mariaAgg, `UNION ALL`)},
-			{frag(mariaAgg, `SELECT 'def', '', f.name, 'agg'`)},
+			{frag(mariaAgg, `SELECT 'def', '', f.name, f.name, 'agg'`)},
 			{frag(mariaAgg, `, CASE f.ret WHEN 0 THEN 'string' WHEN 1 THEN 'real' WHEN 2 THEN 'int'`+
 				` WHEN 3 THEN 'row' WHEN 4 THEN 'decimal' ELSE CAST(f.ret AS CHAR) END`)},
 			{frag(mariaAgg, `, NULL, '', '', '', '', NULL, 'c', f.dl, NULL`)},
@@ -65,6 +66,7 @@ func registerAggregates() {
 			{Name: "catalog", Desc: "always def: MariaDB has one catalog"},
 			{Name: "schema", Desc: "empty for a compiled aggregate, which is global"},
 			{Name: "name"},
+			{Name: "id", Desc: "the name: neither product overloads a routine"},
 			{Name: "kind", Desc: "always agg"},
 			{Name: "result_type"},
 			{Name: "arg_types", Desc: "absent for a compiled aggregate, which declares none"},
@@ -80,7 +82,7 @@ func registerAggregates() {
 		Params: schemaNameSystem("aggregate"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Kind, &v.ResultType,
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
 				&v.Access, &v.Language, &v.Source, &v.Comment)
 			return v, err

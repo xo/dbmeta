@@ -96,9 +96,12 @@ func registerConstraints() {
 			{{SQL: `SELECT n.nspname AS "schema"`}},
 			{{SQL: `, t.relname AS "table"`}},
 			{{SQL: `, r.conname AS "name"`}},
+			// n is a NOT NULL constraint, which release 18 records here and
+			// earlier releases record on the column instead.
 			{{SQL: `, CASE r.contype WHEN 'c' THEN 'check' WHEN 'f' THEN 'foreign key'` +
 				` WHEN 'p' THEN 'primary key' WHEN 'u' THEN 'unique' WHEN 't' THEN 'trigger'` +
-				` WHEN 'x' THEN 'exclusion' ELSE r.contype::text END AS "type"`}},
+				` WHEN 'x' THEN 'exclusion' WHEN 'n' THEN 'not null'` +
+				` ELSE r.contype::text END AS "type"`}},
 			{{SQL: `, pg_catalog.pg_get_constraintdef(r.oid, true) AS "definition"`}},
 			{{SQL: `, r.condeferrable AS "deferrable"`}},
 			{{SQL: `, r.condeferred AS "deferred"`}},

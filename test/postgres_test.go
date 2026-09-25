@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"os"
+	"slices"
+	"strings"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -263,5 +265,272 @@ func TestNullAccessDiffersFromEmpty(t *testing.T) {
 	}
 	if !rev.Valid {
 		t.Error("expected revoked privileges to report a present, empty access list")
+	}
+}
+
+// TestConstraintColumnsKeepOrder covers the kind that exists because a rendered
+// constraint definition cannot be parsed. A composite foreign key is the case
+// that proves it: two rows, in order, each naming the column it points at.
+func TestConstraintColumnsKeepOrder(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+	ctx := t.Context()
+
+	// Keyed by table and constraint, not by constraint alone. A constraint
+	// name is unique within a table and not within a schema, and release 18
+	// makes that visible: it records a NOT NULL constraint in pg_constraint,
+	// and a partition carries its parent's constraint names.
+	type ref struct{ col, ftable, fcol string }
+	got := make(map[string][]ref)
+	for v, err := range dbmeta.ConstraintColumns.All(ctx, m, db, args()) {
+		if err != nil {
+			t.Fatalf("reading constraint columns: %v", err)
+		}
+		key := v.Table + "." + v.Constraint
+		if int64(len(got[key]))+1 != v.Ordinal {
+			t.Errorf("%s: expected ordinal %d, got %d", key, len(got[key])+1, v.Ordinal)
+		}
+		got[key] = append(got[key], ref{v.Name, v.ForeignTable.V, v.ForeignName.V})
+	}
+
+	// the composite foreign key, in declaration order, each column paired
+	// with the one it points at
+	want := []ref{{"country", "region", "country"}, {"area", "region", "area"}}
+	if fk := got["shipment.shipment_region_fk"]; !slices.Equal(fk, want) {
+		t.Errorf("expected %v, got %v", want, fk)
+	}
+	// the composite primary key, with no foreign side
+	pk := got["region.region_pkey"]
+	if len(pk) != 2 || pk[0].col != "country" || pk[1].col != "area" {
+		t.Errorf("expected the two key columns in order, got %v", pk)
+	}
+	for _, r := range pk {
+		if r.ftable != "" {
+			t.Errorf("expected no foreign side on a primary key, got %v", r)
+		}
+	}
+}
+
+// TestRoutineParametersCoverEveryMode covers the other kind that replaces
+// rendered text. The fixture declares an input, an input with a default and an
+// output parameter, so every mode the model reports has a row.
+func TestRoutineParametersCoverEveryMode(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+	ctx := t.Context()
+
+	var params []dbmeta.RoutineParameter
+	a := dbmeta.Args{Schema: fixture.Everything.Schema, Parent: "addup"}.Map()
+	for v, err := range dbmeta.RoutineParameters.All(ctx, m, db, a) {
+		if err != nil {
+			t.Fatalf("reading routine parameters: %v", err)
+		}
+		params = append(params, v)
+	}
+	if len(params) != 3 {
+		t.Fatalf("expected three parameters, got %d: %+v", len(params), params)
+	}
+	for i, want := range []struct {
+		name, mode string
+		hasDefault bool
+	}{
+		{"a", "in", false},
+		{"b", "in", true},
+		{"total", "out", false},
+	} {
+		got := params[i]
+		if got.Name.V != want.name || got.Mode != want.mode {
+			t.Errorf("parameter %d: expected %s %s, got %s %s",
+				i+1, want.name, want.mode, got.Name.V, got.Mode)
+		}
+		if got.Default.Valid != want.hasDefault {
+			t.Errorf("parameter %d: expected default=%v, got %v", i+1, want.hasDefault, got.Default)
+		}
+		if got.Ordinal != int64(i+1) {
+			t.Errorf("parameter %d: expected ordinal %d, got %d", i+1, i+1, got.Ordinal)
+		}
+		if got.DataType != "integer" {
+			t.Errorf("parameter %d: expected integer, got %q", i+1, got.DataType)
+		}
+	}
+	// The routine id is what a caller groups by, because PostgreSQL overloads
+	// a name. It must match what Functions reports for the same routine.
+	var funcID string
+	for v, err := range dbmeta.Functions.All(ctx, m, db, dbmeta.Args{
+		Schema: fixture.Everything.Schema, Name: "addup",
+	}.Map()) {
+		if err != nil {
+			t.Fatalf("reading functions: %v", err)
+		}
+		funcID = v.ID.V
+	}
+	if funcID == "" {
+		t.Fatal("expected Functions to report an id")
+	}
+	if params[0].RoutineID.V != funcID {
+		t.Errorf("expected the ids to match, got %q and %q", params[0].RoutineID.V, funcID)
+	}
+}
+
+// TestEnumValuesAreRows covers the kind that exists because a label can
+// contain a comma, which makes splitting Type.Elements wrong.
+func TestEnumValuesAreRows(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+	ctx := t.Context()
+
+	var labels []string
+	for v, err := range dbmeta.EnumValues.All(ctx, m, db, args()) {
+		if err != nil {
+			t.Fatalf("reading enum values: %v", err)
+		}
+		if v.Enum != "colour" {
+			continue
+		}
+		labels = append(labels, v.Label)
+		if v.Ordinal != int64(len(labels)) {
+			t.Errorf("%s: expected ordinal %d, got %d", v.Label, len(labels), v.Ordinal)
+		}
+	}
+	if want := []string{"red", "green", "blue"}; !slices.Equal(labels, want) {
+		t.Errorf("expected %v in declaration order, got %v", want, labels)
+	}
+}
+
+// TestViewsCarryTheirDefinition covers the kind dbtpl needs. A materialized
+// view is listed with a plain one, which is what psql does.
+func TestViewsCarryTheirDefinition(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+	ctx := t.Context()
+
+	found := make(map[string]dbmeta.View)
+	for v, err := range dbmeta.Views.All(ctx, m, db, args()) {
+		if err != nil {
+			t.Fatalf("reading views: %v", err)
+		}
+		found[v.Name] = v
+	}
+	for _, name := range []string{"recent", "author_count"} {
+		v, ok := found[name]
+		if !ok {
+			t.Errorf("expected the view %q", name)
+			continue
+		}
+		if !strings.Contains(v.Definition, "SELECT") {
+			t.Errorf("%s: expected the defining statement, got %q", name, v.Definition)
+		}
+	}
+	if got := found["recent"]; got.CheckOption.V != "none" {
+		t.Errorf("expected no check option, got %q", got.CheckOption.V)
+	}
+}
+
+// TestColumnStatsNeedAnalyze covers the runtime kind. The fixture inserts rows
+// and analyzes one table, so that table has statistics and the others do not,
+// which is the distinction a caller has to be able to see.
+func TestColumnStatsNeedAnalyze(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+	ctx := t.Context()
+
+	byTable := make(map[string]int)
+	var rating dbmeta.ColumnStat
+	for v, err := range dbmeta.ColumnStats.All(ctx, m, db, args()) {
+		if err != nil {
+			t.Fatalf("reading column stats: %v", err)
+		}
+		byTable[v.Table]++
+		if v.Table == "author" && v.Name == "rating" {
+			rating = v
+		}
+	}
+	if byTable["author"] == 0 {
+		t.Fatal("expected statistics for the analyzed table")
+	}
+	if byTable["book"] != 0 {
+		t.Errorf("expected no statistics for a table never analyzed, got %d", byTable["book"])
+	}
+	if !rating.AvgWidth.Valid || rating.AvgWidth.V <= 0 {
+		t.Errorf("expected a width, got %v", rating.AvgWidth)
+	}
+	if !rating.Distinct.Valid || rating.Distinct.V != 5 {
+		t.Errorf("expected five distinct ratings, got %v", rating.Distinct)
+	}
+	// rating has five values over 200 rows, so every one is a common value
+	if !rating.TopN.Valid || len(strings.Split(rating.TopN.V, "\n")) != 5 {
+		t.Errorf("expected five common values, got %q", rating.TopN.V)
+	}
+	// PostgreSQL computes no mean, and absent is not zero
+	if rating.Mean.Valid {
+		t.Errorf("expected no mean, got %v", rating.Mean)
+	}
+}
+
+// TestCurrentSchemaIsSessionState covers the one kind that describes the
+// connection rather than the database.
+func TestCurrentSchemaIsSessionState(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+	ctx := t.Context()
+
+	v, ok, err := dbmeta.First(dbmeta.CurrentSchema.All(ctx, m, db, nil))
+	if err != nil {
+		t.Fatalf("reading the current schema: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected one row")
+	}
+	if v.Name != "public" {
+		t.Errorf("expected public, got %q", v.Name)
+	}
+	// it follows the session, which is what makes it session state
+	if _, err := db.ExecContext(ctx, `SET search_path TO `+fixture.Everything.Schema); err != nil {
+		t.Fatalf("setting the search path: %v", err)
+	}
+	t.Cleanup(func() {
+		if _, err := db.ExecContext(context.Background(), `SET search_path TO public`); err != nil {
+			t.Logf("resetting the search path: %v", err)
+		}
+	})
+	v, _, err = dbmeta.First(dbmeta.CurrentSchema.All(ctx, m, db, nil))
+	if err != nil {
+		t.Fatalf("reading the current schema: %v", err)
+	}
+	if v.Name != fixture.Everything.Schema {
+		t.Errorf("expected the schema to follow the session, got %q", v.Name)
+	}
+}
+
+// TestPrimaryKeyOnColumn covers the field added under D47: psql does not print
+// it and two consumers read it per column, and it costs one join.
+func TestPrimaryKeyOnColumn(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+	ctx := t.Context()
+
+	keyed := make(map[string]bool)
+	for v, err := range dbmeta.Columns.All(ctx, m, db, args()) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		keyed[v.Table+"."+v.Name] = v.PrimaryKey
+	}
+	for key, want := range map[string]bool{
+		"author.author_id": true,
+		"author.name":      false,
+		"region.country":   true,
+		"region.area":      true,
+		"region.__none":    false,
+		"shipment.country": false,
+	} {
+		if key == "region.__none" {
+			continue
+		}
+		if got, ok := keyed[key]; !ok {
+			t.Errorf("expected a column %s", key)
+		} else if got != want {
+			t.Errorf("%s: expected primary_key=%v, got %v", key, want, got)
+		}
 	}
 }

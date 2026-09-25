@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -345,5 +346,133 @@ func checkUnsupported(t *testing.T, m *dbmeta.Meta, q dbmeta.AnyQuery) {
 		if _, _, err := q.SQL(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
 			t.Errorf("%s: expected ErrNotSupported, got: %v", q.Name(), err)
 		}
+	}
+}
+
+// TestMySQLNewKinds covers the kinds added under D47. Most of them come from
+// standard information_schema views that both products have, which is why the
+// counts rise for both.
+func TestMySQLNewKinds(t *testing.T) {
+	db := openMySQL(t)
+	m := setupMySQL(t, db)
+	ctx := t.Context()
+	maria := mysql.IsMariaDB(m.Version())
+
+	// A composite foreign key is what proves the ordinals line up, because
+	// key_column_usage carries the referenced side in the same row.
+	cols := make(map[string][]string)
+	refs := make(map[string]string)
+	for v, err := range dbmeta.ConstraintColumns.All(ctx, m, db, myArgs()) {
+		if err != nil {
+			t.Fatalf("reading constraint columns: %v", err)
+		}
+		key := v.Table + "." + v.Constraint
+		if int64(len(cols[key]))+1 != v.Ordinal {
+			t.Errorf("%s: expected ordinal %d, got %d", key, len(cols[key])+1, v.Ordinal)
+		}
+		cols[key] = append(cols[key], v.Name)
+		if v.ForeignTable.Valid {
+			refs[key] += v.ForeignTable.V + "." + v.ForeignName.V + " "
+		}
+	}
+	if want := []string{"country", "area"}; !slices.Equal(cols["shipment.shipment_region_fk"], want) {
+		t.Errorf("expected %v, got %v", want, cols["shipment.shipment_region_fk"])
+	}
+	if got := refs["shipment.shipment_region_fk"]; got != "region.country region.area " {
+		t.Errorf("expected both referenced columns in order, got %q", got)
+	}
+	if want := []string{"country", "area"}; !slices.Equal(cols["region.PRIMARY"], want) {
+		t.Errorf("expected the composite primary key, got %v", cols["region.PRIMARY"])
+	}
+
+	// Every mode the products report. A procedure has IN and OUT parameters
+	// and a function records its return value at ordinal zero.
+	modes := make(map[string]string)
+	for v, err := range dbmeta.RoutineParameters.All(ctx, m, db, myArgs()) {
+		if err != nil {
+			t.Fatalf("reading routine parameters: %v", err)
+		}
+		modes[v.Routine+"."+v.Name.V] = v.Mode
+		if v.Ordinal == 0 && v.Mode != "return" {
+			t.Errorf("%s: expected ordinal zero to be the return value, got mode %q", v.Routine, v.Mode)
+		}
+	}
+	for key, want := range map[string]string{
+		"addup.a": "in", "addup.b": "in", "addup.total": "out",
+	} {
+		if got := modes[key]; got != want {
+			t.Errorf("%s: expected mode %q, got %q", key, want, got)
+		}
+	}
+	// shout is a function, so it has a row with no name for its return value
+	if got := modes["shout."]; got != "return" {
+		t.Errorf("expected a return row for the function, got %q", got)
+	}
+
+	// The view carries the statement it selects.
+	v, ok, err := dbmeta.First(dbmeta.Views.All(ctx, m, db, myArgs()))
+	if err != nil {
+		t.Fatalf("reading views: %v", err)
+	}
+	if !ok || v.Name != "recent" {
+		t.Fatalf("expected the fixture view, got %q ok=%v", v.Name, ok)
+	}
+	if !strings.Contains(strings.ToLower(v.Definition), "select") {
+		t.Errorf("expected a select, got %q", v.Definition)
+	}
+
+	// The current schema follows the connection, and the fixture connects
+	// without naming a database, so there is no row until one is chosen.
+	if _, ok, err := dbmeta.First(dbmeta.CurrentSchema.All(ctx, m, db, nil)); err != nil {
+		t.Fatalf("reading the current schema: %v", err)
+	} else if ok {
+		t.Log("a database was already selected, which is fine")
+	}
+
+	// The primary key flag is free here: information_schema.COLUMNS carries it.
+	keyed := make(map[string]bool)
+	for c, err := range dbmeta.Columns.All(ctx, m, db, myArgs()) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		keyed[c.Table+"."+c.Name] = c.PrimaryKey
+	}
+	for key, want := range map[string]bool{
+		"author.author_id": true, "author.name": false,
+		"region.country": true, "region.area": true, "shipment.amount": false,
+	} {
+		if got, ok := keyed[key]; !ok {
+			t.Errorf("expected a column %s", key)
+		} else if got != want {
+			t.Errorf("%s: expected primary_key=%v, got %v", key, want, got)
+		}
+	}
+
+	// Statistics are MariaDB only, and MySQL must say so rather than answer
+	// with nothing. MySQL keeps a JSON histogram and no width, no null
+	// fraction and no distinct count. See COVERAGE.md.
+	if !maria {
+		if got := dbmeta.ColumnStats.Support(m); got != dbmeta.NotSupported {
+			t.Errorf("expected MySQL to report column stats unsupported, got %v", got)
+		}
+		return
+	}
+	var stats int
+	for s, err := range dbmeta.ColumnStats.All(ctx, m, db, myArgs()) {
+		if err != nil {
+			t.Fatalf("reading column stats: %v", err)
+		}
+		stats++
+		if s.Table == "author" && s.Name == "rating" {
+			if !s.Distinct.Valid || s.Distinct.V < 4 || s.Distinct.V > 6 {
+				t.Errorf("expected about five distinct ratings, got %v", s.Distinct)
+			}
+			if !s.Min.Valid || !s.Max.Valid {
+				t.Errorf("expected bounds, got %v and %v", s.Min, s.Max)
+			}
+		}
+	}
+	if stats == 0 {
+		t.Error("expected statistics after the fixture analyzed the table")
 	}
 }

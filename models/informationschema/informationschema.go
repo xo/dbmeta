@@ -17,7 +17,7 @@
 //	}
 //
 // D9 makes this the secondary model. Prefer a native model where one exists,
-// because information_schema answers about 9 of the 48 object kinds that psql
+// because information_schema answers 11 of the 54 object kinds that psql
 // describes and answers none of them completely. It has no size, owner or
 // access method for a table, no storage or index detail for a column, no
 // exclusion constraint, and no aggregate or window function. It is what a
@@ -63,6 +63,12 @@ const (
 	ColumnPrivileges Feature = "column_privileges"
 	// UsagePrivileges is the usage_privileges view.
 	UsagePrivileges Feature = "usage_privileges"
+	// Views is the views view, which holds the statement a view selects.
+	Views Feature = "views"
+	// Parameters is the parameters view, which holds the parameters of a
+	// routine. The standard defines it beside routines, and a database that
+	// has one usually has the other.
+	Parameters Feature = "parameters"
 )
 
 // Features is the set a database has.
@@ -79,6 +85,8 @@ func Standard() Features {
 		TablePrivileges:  true,
 		ColumnPrivileges: true,
 		UsagePrivileges:  true,
+		Views:            true,
+		Parameters:       true,
 		Indexes:          false,
 	}
 }
@@ -136,6 +144,11 @@ const (
 	// CurrentSchema is the expression giving the schema in use. MySQL has no
 	// schema separate from the database, so it uses DATABASE().
 	CurrentSchema Clause = "current_schema"
+	// ColumnPrimaryKey is whether a column is part of the primary key. The
+	// standard has no such column, so the default reaches key_column_usage,
+	// which is one more subquery. MySQL has column_key and overrides it with
+	// a free expression, which is the case D47 describes.
+	ColumnPrimaryKey Clause = "columns.primary_key"
 )
 
 // standardClauses is what a database gets when it overrides nothing.
@@ -149,6 +162,14 @@ func standardClauses() map[Clause]string {
 		ConstraintDeferred:   "t.initially_deferred",
 		PrivilegeGrantor:     "p.grantor",
 		CurrentSchema:        "CURRENT_SCHEMA",
+		ColumnPrimaryKey: `EXISTS (SELECT 1 FROM information_schema.key_column_usage k` +
+			` JOIN information_schema.table_constraints tc` +
+			` ON tc.constraint_catalog = k.constraint_catalog` +
+			` AND tc.constraint_schema = k.constraint_schema` +
+			` AND tc.constraint_name = k.constraint_name` +
+			` WHERE tc.constraint_type = 'PRIMARY KEY'` +
+			` AND k.table_schema = c.table_schema AND k.table_name = c.table_name` +
+			` AND k.column_name = c.column_name)`,
 	}
 }
 
@@ -233,6 +254,18 @@ func Register(d dbmeta.Dialect, p Profile) {
 	if p.has(TablePrivileges) {
 		dbmeta.Privileges.Register(d, privileges(p))
 	}
+	// The kinds added under D47. The standard defines every one of these
+	// views, so a database close to the standard answers them all.
+	if p.has(Constraints) {
+		dbmeta.ConstraintColumns.Register(d, constraintColumns(p))
+	}
+	if p.has(Parameters) {
+		dbmeta.RoutineParameters.Register(d, routineParameters(p))
+	}
+	if p.has(Views) {
+		dbmeta.Views.Register(d, views(p))
+	}
+	dbmeta.CurrentSchema.Register(d, currentSchema(p))
 }
 
 // schemas reads information_schema.schemata.
@@ -301,6 +334,7 @@ func columns(p Profile) *dbmeta.Binding[dbmeta.Column] {
 			{{SQL: `, ` + p.clause(ColumnDataType) + ` AS "data_type"`}},
 			{{SQL: `, CASE WHEN c.is_nullable = 'YES' THEN true ELSE false END AS "nullable"`}},
 			{{SQL: `, c.column_default AS "default"`}},
+			{{SQL: `, ` + p.clause(ColumnPrimaryKey) + ` AS "primary_key"`}},
 			// the standard has no identity kind before SQL:2003 and no
 			// generated kind that every database reports the same way
 			{{SQL: `, NULL AS "identity"`}},
@@ -314,12 +348,13 @@ func columns(p Profile) *dbmeta.Binding[dbmeta.Column] {
 			{{SQL: `ORDER BY 2, 3, 5`}},
 		},
 		Fields: dbmeta.Fields("catalog", "schema", "table", "name", "ordinal",
-			"data_type", "nullable", "default", "identity", "generated", "comment"),
+			"data_type", "nullable", "default", "primary_key", "identity", "generated", "comment"),
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
-				&v.DataType, &v.Nullable, &v.Default, &v.Identity, &v.Generated, &v.Comment)
+				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
+				&v.Generated, &v.Comment)
 			return v, err
 		},
 	}
@@ -410,6 +445,9 @@ func functions(p Profile) *dbmeta.Binding[dbmeta.Function] {
 			{{SQL: `SELECT r.specific_catalog AS "catalog"`}},
 			{{SQL: `, r.routine_schema AS "schema"`}},
 			{{SQL: `, r.routine_name AS "name"`}},
+			// the specific name, which the standard defines precisely so that
+			// an overloaded routine can be identified
+			{{SQL: `, r.specific_name AS "id"`}},
 			{{SQL: `, LOWER(r.routine_type) AS "kind"`}},
 			{{SQL: `, r.data_type AS "result_type"`}},
 			// the standard keeps parameters in their own view, so a caller
@@ -429,13 +467,13 @@ func functions(p Profile) *dbmeta.Binding[dbmeta.Function] {
 			{{SQL: `AND (@name = '' OR r.routine_name LIKE @name)`}},
 			{{SQL: `ORDER BY 2, 3`}},
 		},
-		Fields: dbmeta.Fields("catalog", "schema", "name", "kind", "result_type",
+		Fields: dbmeta.Fields("catalog", "schema", "name", "id", "kind", "result_type",
 			"arg_types", "volatility", "parallel", "owner", "security", "access",
 			"language", "source", "comment"),
 		Params: schemaNameSystem("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Kind, &v.ResultType,
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
 				&v.Access, &v.Language, &v.Source, &v.Comment)
 			return v, err
@@ -492,4 +530,159 @@ func schemaParentName(kind string) []dbmeta.Param {
 		{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
 		{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
 	}, nameSystem(kind)...)
+}
+
+// The kinds added under D47. Every view below is in the SQL standard, which is
+// why the shared model can answer them at all: psql renders these as text and
+// the standard keeps them in tables.
+
+// constraintColumns reads information_schema.key_column_usage, which carries
+// both the column of a constraint and the column it points at.
+func constraintColumns(p Profile) *dbmeta.Binding[dbmeta.ConstraintColumn] {
+	return &dbmeta.Binding[dbmeta.ConstraintColumn]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT k.constraint_catalog AS "catalog"`}},
+			{{SQL: `, k.table_schema AS "schema"`}},
+			{{SQL: `, k.table_name AS "table"`}},
+			{{SQL: `, k.constraint_name AS "constraint"`}},
+			{{SQL: `, k.column_name AS "name"`}},
+			{{SQL: `, k.ordinal_position AS "ordinal"`}},
+			// The standard reaches the referenced side through
+			// referential_constraints and the unique constraint it names,
+			// which is two more joins. Everything that has key_column_usage
+			// has referential_constraints, because the standard defines them
+			// together.
+			{{SQL: `, r.unique_constraint_catalog AS "foreign_catalog"`}},
+			{{SQL: `, r.unique_constraint_schema AS "foreign_schema"`}},
+			{{SQL: `, fk.table_name AS "foreign_table"`}},
+			{{SQL: `, fk.column_name AS "foreign_name"`}},
+			{{SQL: `FROM information_schema.key_column_usage k`}},
+			{{SQL: `LEFT JOIN information_schema.referential_constraints r` +
+				` ON r.constraint_catalog = k.constraint_catalog` +
+				` AND r.constraint_schema = k.constraint_schema` +
+				` AND r.constraint_name = k.constraint_name`}},
+			{{SQL: `LEFT JOIN information_schema.key_column_usage fk` +
+				` ON fk.constraint_catalog = r.unique_constraint_catalog` +
+				` AND fk.constraint_schema = r.unique_constraint_schema` +
+				` AND fk.constraint_name = r.unique_constraint_name` +
+				` AND fk.ordinal_position = k.position_in_unique_constraint`}},
+			{{SQL: `WHERE (@with_system OR k.table_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{SQL: `AND (@schema = '' OR k.table_schema LIKE @schema)`}},
+			{{SQL: `AND (@parent = '' OR k.table_name LIKE @parent)`}},
+			{{SQL: `AND (@name = '' OR k.constraint_name LIKE @name)`}},
+			{{SQL: `ORDER BY 2, 3, 4, 6`}},
+		},
+		Fields: dbmeta.Fields("catalog", "schema", "table", "constraint", "name",
+			"ordinal", "foreign_catalog", "foreign_schema", "foreign_table", "foreign_name"),
+		Params: schemaParentName("constraint"),
+		Scan: func(rows *sql.Rows) (dbmeta.ConstraintColumn, error) {
+			var v dbmeta.ConstraintColumn
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Constraint, &v.Name,
+				&v.Ordinal, &v.ForeignCatalog, &v.ForeignSchema, &v.ForeignTable, &v.ForeignName)
+			return v, err
+		},
+	}
+}
+
+// routineParameters reads information_schema.parameters.
+func routineParameters(p Profile) *dbmeta.Binding[dbmeta.RoutineParameter] {
+	return &dbmeta.Binding[dbmeta.RoutineParameter]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT p.specific_catalog AS "catalog"`}},
+			{{SQL: `, p.specific_schema AS "schema"`}},
+			{{SQL: `, p.specific_name AS "routine"`}},
+			{{SQL: `, p.specific_name AS "routine_id"`}},
+			{{SQL: `, p.parameter_name AS "name"`}},
+			{{SQL: `, p.ordinal_position AS "ordinal"`}},
+			{{SQL: `, CASE WHEN p.ordinal_position = 0 THEN 'return'` +
+				` ELSE LOWER(COALESCE(p.parameter_mode, 'IN')) END AS "mode"`}},
+			{{SQL: `, p.dtd_identifier AS "data_type"`}},
+			{{SQL: `, NULL AS "default"`}},
+			{{SQL: `FROM information_schema.parameters p`}},
+			{{SQL: `WHERE (@with_system OR p.specific_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{SQL: `AND (@schema = '' OR p.specific_schema LIKE @schema)`}},
+			{{SQL: `AND (@parent = '' OR p.specific_name LIKE @parent)`}},
+			{{SQL: `AND (@name = '' OR COALESCE(p.parameter_name, '') LIKE @name)`}},
+			{{SQL: `ORDER BY 2, 3, 6`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "catalog"}, {Name: "schema"}, {Name: "routine"},
+			{
+				Name: "routine_id",
+				Desc: "the specific name, which the standard defines so that an overloaded routine can be told apart",
+			},
+			{Name: "name"}, {Name: "ordinal"}, {Name: "mode"}, {Name: "data_type"},
+			{Name: "default", Desc: "always absent: the standard records no parameter default"},
+		},
+		Params: schemaParentName("parameter"),
+		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
+			var v dbmeta.RoutineParameter
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Routine, &v.RoutineID, &v.Name,
+				&v.Ordinal, &v.Mode, &v.DataType, &v.Default)
+			return v, err
+		},
+	}
+}
+
+// views reads information_schema.views.
+func views(p Profile) *dbmeta.Binding[dbmeta.View] {
+	return &dbmeta.Binding[dbmeta.View]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT v.table_catalog AS "catalog"`}},
+			{{SQL: `, v.table_schema AS "schema"`}},
+			{{SQL: `, v.table_name AS "name"`}},
+			{{SQL: `, v.view_definition AS "definition"`}},
+			{{SQL: `, LOWER(v.check_option) AS "check_option"`}},
+			{{SQL: `, v.is_updatable = 'YES' AS "updatable"`}},
+			{{SQL: `, NULL AS "insertable"`}},
+			{{SQL: `, NULL AS "comment"`}},
+			{{SQL: `FROM information_schema.views v`}},
+			{{SQL: `WHERE (@with_system OR v.table_schema NOT IN (` + p.systemSchemas() + `))`}},
+			{{SQL: `AND (@schema = '' OR v.table_schema LIKE @schema)`}},
+			{{SQL: `AND (@name = '' OR v.table_name LIKE @name)`}},
+			{{SQL: `ORDER BY 2, 3`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
+			{
+				Name: "definition",
+				Desc: "the statement the view selects. The standard allows a server to return an empty string where the caller may not read it",
+			},
+			{Name: "check_option"}, {Name: "updatable"},
+			{Name: "insertable", Desc: "always absent: the standard has no such column"},
+			{Name: "comment", Desc: "always absent: the standard has no comment on a view"},
+		},
+		Params: schemaNameSystem("view"),
+		Scan: func(rows *sql.Rows) (dbmeta.View, error) {
+			var v dbmeta.View
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Definition,
+				&v.CheckOption, &v.Updatable, &v.Insertable, &v.Comment)
+			return v, err
+		},
+	}
+}
+
+// currentSchema reads the one row of schemata that the session resolves in.
+func currentSchema(p Profile) *dbmeta.Binding[dbmeta.Schema] {
+	return &dbmeta.Binding[dbmeta.Schema]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT s.catalog_name AS "catalog"`}},
+			{{SQL: `, s.schema_name AS "name"`}},
+			{{SQL: `, s.schema_owner AS "owner"`}},
+			{{SQL: `, NULL AS "comment"`}},
+			{{SQL: `FROM information_schema.schemata s`}},
+			{{SQL: `WHERE s.schema_name = ` + p.clause(CurrentSchema)}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "catalog"},
+			{Name: "name", Desc: "the schema an unqualified name resolves in"},
+			{Name: "owner"},
+			{Name: "comment", Desc: "always absent: the standard has no comment on a schema"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
+			var v dbmeta.Schema
+			err := rows.Scan(&v.Catalog, &v.Name, &v.Owner, &v.Comment)
+			return v, err
+		},
+	}
 }

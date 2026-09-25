@@ -14,6 +14,10 @@ func registerRoutines() {
 			{{SQL: `SELECT r.routine_catalog AS "catalog"`}},
 			{{SQL: `, r.routine_schema AS "schema"`}},
 			{{SQL: `, r.routine_name AS "name"`}},
+			// Neither product overloads a routine, so the specific name is
+			// the name. RoutineParameters joins on it all the same, because a
+			// caller writes one join for every database.
+			{{SQL: `, r.specific_name AS "id"`}},
 			{{SQL: `, CASE r.routine_type WHEN 'PROCEDURE' THEN 'proc' ELSE 'func' END AS "kind"`}},
 			{{SQL: `, r.dtd_identifier AS "result_type"`}},
 			{{SQL: `, NULL AS "arg_types"`}},
@@ -36,7 +40,9 @@ func registerRoutines() {
 			{{SQL: `ORDER BY 2, 3`}},
 		},
 		Fields: []dbmeta.Field{
-			{Name: "catalog"}, {Name: "schema"}, {Name: "name"}, {Name: "kind"},
+			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
+			{Name: "id", Desc: "the specific name, which is the name here because neither product overloads"},
+			{Name: "kind"},
 			{Name: "result_type"},
 			{Name: "arg_types", Desc: "always absent: MariaDB keeps parameters in their own view"},
 			{Name: "volatility", Desc: "yes or no, from is_deterministic"},
@@ -48,7 +54,7 @@ func registerRoutines() {
 		Params: schemaNameSystem("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Kind, &v.ResultType,
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
 				&v.Access, &v.Language, &v.Source, &v.Comment)
 			return v, err

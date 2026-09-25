@@ -133,6 +133,9 @@ func registerRelations() {
 			always(`, c."type" AS "data_type"`),
 			always(`, c."notnull" = 0 AS "nullable"`),
 			always(`, c.dflt_value AS "default"`),
+			// Free: pragma_table_xinfo already reports the position of the
+			// column within the primary key, and zero means it is not in one.
+			always(`, c.pk > 0 AS "primary_key"`),
 			// INTEGER PRIMARY KEY is the rowid, and it is the only column
 			// SQLite fills by itself.
 			always(`, CASE WHEN c.pk = 1 AND UPPER(c."type") = 'INTEGER'` +
@@ -160,6 +163,7 @@ func registerRelations() {
 			},
 			{Name: "nullable"},
 			{Name: "default", Desc: "the default as written, so a string default keeps its quotes"},
+			{Name: "primary_key", Desc: "whether the column is part of the primary key"},
 			{
 				Name: "identity",
 				Desc: "rowid for an INTEGER PRIMARY KEY, which SQLite fills by itself, and absent otherwise",
@@ -171,7 +175,8 @@ func registerRelations() {
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
-				&v.DataType, &v.Nullable, &v.Default, &v.Identity, &v.Generated, &v.Comment)
+				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
+				&v.Generated, &v.Comment)
 			return v, err
 		},
 	})

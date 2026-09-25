@@ -37,6 +37,9 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		{{SQL: `SELECT current_database() AS "catalog"`}},
 		{{SQL: `, n.nspname AS "schema"`}},
 		{{SQL: `, p.proname AS "name"`}},
+		// The oid, so that RoutineParameters can be joined back. PostgreSQL
+		// overloads a name, so the name alone does not identify a routine.
+		{{SQL: `, p.oid::text AS "id"`}},
 		{
 			{SQL: kindOld},
 			{Min: v11, SQL: kindNew},
@@ -72,13 +75,13 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 }
 
 func functionFields() []dbmeta.Field {
-	return fields("catalog", "schema", "name", "kind", "result_type", "arg_types",
+	return fields("catalog", "schema", "name", "id", "kind", "result_type", "arg_types",
 		"volatility", "parallel", "owner", "security", "access", "language", "source", "comment")
 }
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
-	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Kind, &v.ResultType, &v.ArgTypes,
+	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType, &v.ArgTypes,
 		&v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access, &v.Language,
 		&v.Source, &v.Comment)
 	return v, err

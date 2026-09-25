@@ -21,7 +21,8 @@
 #
 # SQLite has no job of its own with a service container, because it has no
 # server: it is a library, and the version is whichever one the pinned driver
-# ships. Its tests run in the sqlite job, which starts nothing. See D42.
+# ships. Its tests run in the sqlite job, which starts nothing, and they run
+# against both drivers. See D42 and D48.
 #
 # MariaDB and MySQL are two products sharing one dialect and one model, so each
 # has its own job and a third compares them. The compare job builds the same
@@ -89,6 +90,12 @@ jobs:
 
       - name: Test
         run: go test -race -count=2 ./...
+
+      - name: Build without cgo
+        # The root module has no driver and no cgo, and a consumer builds it
+        # with CGO_ENABLED=0. That promise is checked rather than assumed.
+        # The test module may use cgo and is built separately. See D48.
+        run: CGO_ENABLED=0 go build ./...
 
       - name: Build the model tiers
         # a consumer chooses how many models to compile in, so each tier must
@@ -164,6 +171,9 @@ jobs:
           check-latest: true
 
       - name: Test against SQLite
+        # Two drivers, as subtests: mattn/go-sqlite3 compiles the upstream
+        # SQLite source and needs cgo, and modernc.org/sqlite is a pure Go
+        # translation. ubuntu-latest has the C compiler the first one needs.
         working-directory: test
         run: go test -count=1 -v -run SQLite ./...
 

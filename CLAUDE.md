@@ -41,6 +41,11 @@ both consumers need.
 2. PostgreSQL is the primary model, and `psql` defines it. When two databases
    describe the same object differently, follow `psql`. This decides the shape
    of an answer. It does not require every database to answer every question.
+   `psql` sets the object model. It does not set the column set, and it never
+   did: `psql` prints what a person reads at a terminal, and a consumer needs
+   the parts. Return a fact `psql` does not print when one statement can
+   produce it, and never return prose as the only form of anything. D47 holds
+   the cost test, and rule 13 is the short version.
 3. A query that must differ between releases is one query with version
    fragments, held as generated data in the one model package. There is no
    package per release. A fragment must never change the set of columns a
@@ -75,10 +80,20 @@ both consumers need.
    versioned like the queries, because syntax and objects arrive in different
    releases, and a step the server is too old for is skipped rather than
    refused. A query that has never run against a real server is not finished.
-10. This project is pure Go. No cgo, anywhere, including in the `test` module.
-   Use the pure Go driver for every database: `jackc/pgx` or `lib/pq`,
+10. The root module is pure Go and has no cgo, ever. It has no driver at all,
+   so there is nothing to argue about: a consumer builds it with
+   `CGO_ENABLED=0` and cross compiles it.
+   The `test` module may use cgo, because its own `go.mod` keeps it out of
+   everything a consumer builds. Where a database has a canonical cgo driver
+   and a pure Go one, test both: the canonical driver is what users run, and
+   the pure Go one is what a consumer who cannot use cgo runs, and the two
+   ship different library versions. Two drivers need cgo today, and only two:
+   `mattn/go-sqlite3`, which builds the real SQLite source and is the primary
+   SQLite driver, and the coming DuckDB driver.
+   Use the pure Go driver where one is enough: `jackc/pgx` or `lib/pq`,
    `go-sql-driver/mysql`, `modernc.org/sqlite`, `microsoft/go-mssqldb`,
-   `sijms/go-ora`, `gocql/gocql`. Never `mattn/go-sqlite3` and never `godror`.
+   `sijms/go-ora`, `gocql/gocql`. Never `godror`, which needs Oracle client
+   libraries rather than only a C compiler. See D48.
 11. Never write a `//go:build` constraint on an operating system or an
    architecture, and never branch on either. Testing is `linux/amd64` only.
    The same database version is assumed to answer the same way everywhere.
@@ -86,7 +101,20 @@ both consumers need.
 12. Write idiomatic Go. This code is a move of an older package, so a pattern
    being present in the source is not a reason to keep it. See D18 in
    `PLAN.md` for the two patterns that must not carry over.
-13. A new dialect is not finished until several AI models have been asked
+13. `dbmeta` supplies the data and the consumer decides what to show. Never
+   withhold a fact, reorder one, or shape a result so that somebody's output
+   looks right. `usql` filters to match `psql` and `dbtpl` shows none of it,
+   and one set of queries serves both because no presentation is baked in.
+   A field may be added when one statement can produce it: a column already in
+   the row, a column reached by a join, or a correlated subquery whose plan
+   stays bounded as the catalog grows. It may not when it needs a second
+   statement, a per row round trip, or a scan that grows with the whole
+   catalog. Check a new one with `EXPLAIN` against a catalog with thousands of
+   tables, not against a fixture with five.
+   A child of an object is its own kind with flat rows, never a slice on the
+   parent, because filling a slice needs a second statement or a dialect
+   specific aggregate. See D47.
+14. A new dialect is not finished until several AI models have been asked
    about the queries it cannot answer. Consult at least two of Gemini,
    DeepSeek and Astra, and ask each one to sort the unanswered queries into
    three groups: absent from the product, present under another name, and
@@ -116,7 +144,8 @@ both consumers need.
   CI workflow both read it, and a test fails when they drift.
 - `test/` is a separate module with its own `go.mod`. It holds the integration
   tests, the database drivers, and the `tool` directive pinning `dbtpl`. None
-  of that may appear in the root module.
+  of that may appear in the root module. It is the only place cgo is allowed,
+  and the separate `go.mod` is what makes that safe.
 
 Read `dbtpl/models` before you design anything. It shows what a working
 generated metadata model looks like.

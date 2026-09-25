@@ -96,6 +96,37 @@ var Everything = Fixture{
 		from("publication", v10, `CREATE PUBLICATION dbmeta_fixture_pub FOR TABLE dbmeta_fixture.book`),
 		from("extended statistics", v10,
 			`CREATE STATISTICS dbmeta_fixture.book_stats ON author_id, published FROM dbmeta_fixture.book`),
+
+		// A composite primary key and a composite foreign key, so that
+		// ConstraintColumns has more than one column per constraint to order.
+		// A single column key cannot show that the ordinals line up.
+		at("region table", `CREATE TABLE dbmeta_fixture.region (
+	country text NOT NULL,
+	area text NOT NULL,
+	PRIMARY KEY (country, area)
+)`),
+		at("shipment table", `CREATE TABLE dbmeta_fixture.shipment (
+	shipment_id serial PRIMARY KEY,
+	country text NOT NULL,
+	area text NOT NULL,
+	amount integer NOT NULL,
+	CONSTRAINT shipment_region_fk FOREIGN KEY (country, area)
+		REFERENCES dbmeta_fixture.region(country, area)
+)`),
+
+		// A routine with named parameters, a default and an output parameter,
+		// so that RoutineParameters has every mode to report. touch() above
+		// takes none.
+		at("routine with parameters", `CREATE FUNCTION dbmeta_fixture.addup(
+	a integer, b integer DEFAULT 1, OUT total integer
+) AS $$ SELECT a + b $$ LANGUAGE sql`),
+
+		// Rows, and statistics over them. ColumnStats returns nothing for a
+		// column that was never analyzed, so without this the query runs and
+		// proves nothing.
+		at("author rows", `INSERT INTO dbmeta_fixture.author (name, rating)
+	SELECT 'author ' || g, (g % 5) + 1 FROM generate_series(1, 200) g`),
+		at("analyze", `ANALYZE dbmeta_fixture.author`),
 	},
 	Teardown: []Step{
 		from("drop publication", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub`),

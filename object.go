@@ -61,6 +61,13 @@ type Column struct {
 	DataType string
 	Nullable bool
 	Default  Text
+	// PrimaryKey reports whether the column is part of the primary key.
+	//
+	// psql does not print this and it is here under D47, because two
+	// consumers read it per column and every database can answer it without a
+	// second statement: MySQL has COLUMN_KEY, SQLite has the pk column of
+	// pragma_table_xinfo, and PostgreSQL reaches it with one more join.
+	PrimaryKey bool
 	// Identity is the identity kind, empty when the column is not an identity.
 	// PostgreSQL gained it in release 11, so an older server reports empty
 	// under the padding rule and [Field.Min] says which is which.
@@ -227,9 +234,13 @@ var (
 // Function is a function, procedure, aggregate or window function. psql lists
 // them with \df and aggregates alone with \da.
 type Function struct {
-	Catalog    string
-	Schema     string
-	Name       string
+	Catalog string
+	Schema  string
+	Name    string
+	// ID identifies the routine where a name does not. PostgreSQL overloads a
+	// name, so [RoutineParameters] joins on this rather than on Name. A
+	// database that does not overload reports it absent.
+	ID         Text
 	Kind       string
 	ResultType string
 	ArgTypes   string
@@ -666,4 +677,146 @@ var (
 	Sequences = NewQuery[Sequence]("sequences")
 	// PartitionedTables lists the tables split into partitions.
 	PartitionedTables = NewQuery[PartitionedTable]("partitioned_tables")
+)
+
+// The kinds below are not in psql. They exist because a consumer measured in
+// D46 needs them and no psql command shows them, which D47 allows: psql sets
+// the object model and does not set the column set.
+//
+// Each one says whether it is durable, session dependent or runtime, because a
+// caller holding the value has to know how long it stays true.
+
+// ConstraintColumn is one column of a constraint, in constraint order.
+//
+// It is durable. psql prints a constraint as one line of text, which
+// [Constraint.Definition] still holds, and this is the same fact in parts. A
+// code generator reads a foreign key from here, because parsing a rendered
+// definition is not something to rely on.
+//
+// A composite key is several rows sharing Constraint, told apart by Ordinal.
+// The Foreign fields are set only for a foreign key and name what the column
+// points at.
+type ConstraintColumn struct {
+	Catalog    string
+	Schema     string
+	Table      string
+	Constraint string
+	Name       string
+	Ordinal    int64
+
+	ForeignCatalog Text
+	ForeignSchema  Text
+	ForeignTable   Text
+	ForeignName    Text
+}
+
+// RoutineParameter is one parameter of a function or a procedure, in
+// declaration order.
+//
+// It is durable. [Function.ArgTypes] still holds the signature psql prints,
+// and this is the same fact in parts.
+//
+// Group by Routine and, where the database overloads a name, by RoutineID.
+// PostgreSQL allows two functions with one name and different parameters, so
+// the name alone does not identify one.
+type RoutineParameter struct {
+	Catalog   string
+	Schema    string
+	Routine   string
+	RoutineID Text
+	Name      Text
+	Ordinal   int64
+	// Mode is in, out, inout, variadic or table for a column of a returned
+	// table. A return value reports mode return and ordinal zero where the
+	// database records one.
+	Mode     string
+	DataType string
+	Default  Text
+}
+
+// EnumValue is one label of an enumerated type, in sort order.
+//
+// It is durable. [Type.Elements] holds the labels joined into one string,
+// which is what psql prints, and this is the same fact in rows. A label can
+// contain a comma, so splitting that string is not a substitute.
+//
+// MySQL has no enum type, only an enum column, so a model there reports the
+// column as the enum and its name is the column name.
+type EnumValue struct {
+	Catalog string
+	Schema  string
+	Enum    string
+	Label   string
+	Ordinal int64
+}
+
+// View is a view and the statement that defines it.
+//
+// It is durable. The definition is what the catalog stores rather than a
+// rendering of it, so it is text and that is the structured answer.
+//
+// It is a separate kind rather than a field on [Table] on purpose. Reaching
+// the definition costs a join or a function call per row, and a caller listing
+// tables does not want to pay it.
+type View struct {
+	Catalog    string
+	Schema     string
+	Name       string
+	Definition string
+	// CheckOption is none, local or cascaded.
+	CheckOption Text
+	Updatable   sql.Null[bool]
+	Insertable  sql.Null[bool]
+	Comment     Text
+}
+
+// ColumnStat is what the planner knows about the values in a column.
+//
+// It is runtime and it can be stale. Every database here computes it when
+// asked, by ANALYZE or its equivalent, and not when the data changes. A column
+// never analyzed has no row.
+//
+// usql shows this with \ss, which psql does not have.
+type ColumnStat struct {
+	Catalog string
+	Schema  string
+	Table   string
+	Name    string
+
+	// AvgWidth is the average size of a value in bytes.
+	AvgWidth Int
+	// NullFrac is the fraction of values that are null, from zero to one.
+	NullFrac sql.Null[float64]
+	// Distinct is the number of distinct values. A negative number is a
+	// fraction of the row count, which is how PostgreSQL records a column
+	// whose distinct count grows with the table.
+	Distinct sql.Null[float64]
+
+	Min  Text
+	Max  Text
+	Mean Text
+	// TopN holds the most common values and TopNFreqs their frequencies, both
+	// as text, one entry per line. They are the same length.
+	TopN      Text
+	TopNFreqs Text
+}
+
+// Queries for the kinds psql has no command for.
+var (
+	// ConstraintColumns lists the columns of each constraint, in order.
+	ConstraintColumns = NewQuery[ConstraintColumn]("constraint_columns")
+	// RoutineParameters lists the parameters of each function and procedure.
+	RoutineParameters = NewQuery[RoutineParameter]("routine_parameters")
+	// EnumValues lists the labels of each enumerated type, in sort order.
+	EnumValues = NewQuery[EnumValue]("enum_values")
+	// Views lists views and the statements that define them.
+	Views = NewQuery[View]("views")
+	// ColumnStats lists what the planner knows about a column's values.
+	ColumnStats = NewQuery[ColumnStat]("column_stats")
+	// CurrentSchema returns the schema an unqualified name resolves in.
+	//
+	// It is session dependent. It answers one row and it is the one kind here
+	// that describes the connection rather than the database. A caller reads
+	// it with [First].
+	CurrentSchema = NewQuery[Schema]("current_schema")
 )

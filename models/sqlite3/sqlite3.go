@@ -33,7 +33,7 @@
 //
 // # What it answers, and the one thing it half answers
 //
-// Eleven of the 48 object kinds, which is four more than the shared
+// Fourteen of the 54 object kinds, which is three more than the shared
 // information_schema model. SQLite has no users, no roles and no grants at
 // all, and it has no type catalog, because a declared type is an unenforced
 // affinity hint rather than an object.
@@ -63,6 +63,7 @@ func init() {
 	})
 	registerRelations()
 	registerServer()
+	registerExtra()
 }
 
 // parseVersion reads what sqlite_version() returns, such as "3.50.4".

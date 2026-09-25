@@ -34,71 +34,79 @@ which is D5 and does not change.
 
 ## What dbmeta already answers
 
-Six of the eleven map onto a `dbmeta` query with no work.
+Nine of the eleven now map onto a `dbmeta` query. Six always did, and three
+arrived with the kinds D47 added.
 
 | dbtpl | dbmeta | Note |
 | --- | --- | --- |
-| `Tables` | `dbmeta.Tables` | except the view definition, below |
-| `TableColumns` | `dbmeta.Columns` | except `IsPrimaryKey`, below |
+| `Tables` | `dbmeta.Tables` | the view definition is `dbmeta.Views`, a kind of its own |
+| `TableColumns` | `dbmeta.Columns` | exact: `Column.PrimaryKey` is in the same row |
 | `TableSequences` | `dbmeta.Columns` | `Column.Identity` says which column the database fills, which is what this asks |
 | `TableIndexes` | `dbmeta.Indexes` | exact: name, unique and primary are all there |
 | `IndexColumns` | `dbmeta.IndexColumns` | exact, and `dbmeta` adds the collation and the direction |
-| `Procs` | `dbmeta.Functions` | except the id, below |
+| `Procs` | `dbmeta.Functions` | exact: `Function.ID` is the oid `dbtpl` joins on |
+| `ProcParams` | `dbmeta.RoutineParameters` | exact, except on SQLite, which has no named parameters |
+| `TableForeignKeys` | `dbmeta.ConstraintColumns` | exact, including the referenced column and the position in a composite key |
+| `Schema` | `dbmeta.CurrentSchema` | one row, read with `dbmeta.First` |
 
 `dbmeta` also answers these for MariaDB and SQLite, which `dbtpl` supports, and
 `dbtpl` would gain nothing new there because it already has them. What it would
 gain is not having to maintain five dialects of the same query.
 
-## What dbmeta would have to add
+## What dbmeta added
 
-Five things. Three of them are the same three `usql` needs, which is the
-argument for adding them: two independent consumers want them, and neither can
-migrate without them.
+Five things, three of them shared with `usql`. All five now exist, under D47.
+What follows is what each one became and what it still cannot do.
 
-**Routine parameters.** `dbtpl` calls them `ProcParams` and `usql` calls them
-`FunctionColumns`. `dbmeta` has `Function.ArgTypes`, one string, which a person
-can read and a code generator cannot use. `dbtpl` needs a name and a type per
-parameter, and `usql` needs a direction, a position and a size as well. One new
-kind answers both.
+**Routine parameters** became `dbmeta.RoutineParameters`, with a name,
+position, mode and type per parameter. PostgreSQL, MariaDB, MySQL and the
+shared model answer it. SQLite cannot: a function there is compiled C with no
+named parameters.
 
-**Constraint columns.** `dbtpl` calls them `TableForeignKeys` and needs the
-column, the referenced table, the referenced column and a key id so that a
-composite key stays together. `usql` calls them `ConstraintColumns`. `dbmeta`
-has `Constraint.Definition`, one string. Again one new kind answers both.
+Group by `Routine` and, where the database overloads a name, by `RoutineID`.
+`Function.ID` carries the same value, so the join is one expression for every
+database. On PostgreSQL it is the oid, which is what `dbtpl` uses today.
 
-This is the largest gap for `dbtpl`. A code generator cannot parse
-`author_id -> author(author_id)` out of a string and be right about every
-database.
+**Constraint columns** became `dbmeta.ConstraintColumns`, with the column, its
+one based position within the constraint, and for a foreign key the catalog,
+schema, table and column it points at. Every model answers it, SQLite included.
 
-**Enum values as rows.** `dbmeta.Types` reports `Kind` as `enum` and puts the
-labels in `Type.Elements`, joined with commas. `dbtpl` needs a row per label
-with its sort order, because it generates a Go constant per label. Splitting a
-string is not good enough: a label can contain a comma.
+This was the largest gap, and it is closed exactly the way `dbtpl` needs: a
+composite key is several rows sharing a constraint name, ordered by `Ordinal`,
+each paired with the column it references.
 
-MySQL is the awkward one and `dbtpl` already handles it. MySQL has no enum
-type, only an enum column, so `dbtpl` reads
-`information_schema.columns WHERE data_type = 'enum'` and takes the column name
-as the enum name. Any `dbmeta` answer has to allow that shape.
+**Enum values as rows** became `dbmeta.EnumValues`, and only PostgreSQL answers
+it. A label there is a row with a one based ordinal, which is what a generated
+Go constant needs.
 
-**The definition of a view.** `dbtpl.Table.ViewDef` holds the SQL of a view, and
-`dbmeta.Table` has no such field. `dbtpl` uses it to know what a view selects.
+MariaDB and MySQL cannot, and this is the one place `dbtpl` gains nothing. They
+have an enum column rather than an enum type, and the labels exist only inside
+the `enum('red','green','blue')` text of `COLUMN_TYPE`. Splitting that
+correctly means tracking quoting, because a label may hold a comma or an
+escaped quote, and no portable SQL does that. `dbtpl` splits it in Go today and
+has the same limitation, so nothing is lost by keeping that where it is.
+`Columns.DataType` returns the text verbatim.
 
-**The current schema.** One value, and every `dbtpl` loader reads it:
-`CURRENT_SCHEMA()` on PostgreSQL, `DATABASE()` on MySQL, and so on. `dbmeta`
-has the expression already, as `informationschema.CurrentSchema`, and no query
-that returns it.
+**The definition of a view** became `dbmeta.Views`, a kind of its own rather
+than a field on `Table`. Reaching the definition costs a join or a function
+call per row, and a caller listing tables should not pay it. Every model
+answers it.
 
-### Two smaller ones
+**The current schema** became `dbmeta.CurrentSchema`, which answers one row and
+is read with `dbmeta.First`. It is session dependent and says so. Every model
+answers it.
 
-`Column.IsPrimaryKey`. `dbtpl` reads it per column. `dbmeta` answers it through
-`Constraints` or `Indexes`, which means a second query and a join in Go. A
-caller can do that, and it is worth asking whether the column should carry it.
+### The two smaller ones
 
-A stable identity for a routine. `dbtpl` reads `Procs` and then `ProcParams`
-per routine, joined by `Proc.ProcID`, which is the PostgreSQL oid. `dbmeta` has
-no identifier on `Function`, so a parameters query needs something to join on.
-Overloading makes the name insufficient: PostgreSQL allows two functions with
-one name and different arguments.
+`Column.PrimaryKey` is now a field on `Column`. It was the example the whole
+policy was written around, and the answer is that it is free on MySQL and
+SQLite, which already select it, and one join on PostgreSQL. `dbtpl` reads it
+per column and no longer needs a second query.
+
+`Function.ID` is now a field on `Function`, and `RoutineParameters` carries the
+same value. PostgreSQL returns the oid, which is what `dbtpl` joins on today.
+Everything else returns the name or the specific name, because nothing else
+here overloads a routine.
 
 ## How dbtpl would use dbmeta
 
@@ -149,7 +157,15 @@ has to build by hand.
 
 ### The order that loses nothing
 
-Add the five kinds. Move `TableIndexes` and `IndexColumns` first, because they
-map exactly and a mistake shows immediately in generated code. Then `Tables`
-and `TableColumns`. Leave `TableForeignKeys` until constraint columns exist,
-because that is the one that cannot be approximated.
+The five kinds exist, so the order is about risk rather than blocking.
+
+Move `TableIndexes` and `IndexColumns` first: they map exactly and a mistake
+shows immediately in generated code. Then `Tables` and `TableColumns`, which
+gains `PrimaryKey` in the same row. Then `TableForeignKeys` onto
+`ConstraintColumns`, which is the one that could not be approximated and now
+can be read directly. Then `Procs` and `ProcParams` together, joined on
+`Function.ID`.
+
+Leave `Enums` and `EnumValues` where they are for MariaDB and MySQL. `dbmeta`
+answers them only for PostgreSQL, so moving them would mean two code paths
+rather than one.

@@ -1,9 +1,15 @@
 # What Each Database Can Answer
 
-`dbmeta` asks every database the same 48 questions. PostgreSQL answers all of
+`dbmeta` asks every database the same 54 questions. PostgreSQL answers all of
 them, because PostgreSQL is the model. No other database answers all of them,
 and this document says which ones each database answers, which ones it cannot,
 and why.
+
+Forty eight of the questions come from `psql`. The other six exist because a
+consumer needs them and `psql` has no command for them: the columns of a
+constraint, the parameters of a routine, the labels of an enumerated type, the
+statement a view selects, the statistics over a column, and the schema an
+unqualified name resolves in. D47 sets the rule for adding one.
 
 A question that a database cannot answer returns `dbmeta.ErrNotSupported`. It
 never returns an empty result. Those are different facts and a caller has to be
@@ -17,14 +23,19 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 
 | Model | Answers | Of | Tested against |
 | --- | --- | --- | --- |
-| `models/postgres` | 48 | 48 | PostgreSQL 9.6 through 18 |
-| `models/mysql` | 23 on MariaDB, 21 on MySQL | 48 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
-| `models/sqlite3` | 11 | 48 | whichever release the pinned driver ships |
-| `models/informationschema` | 7 | 48 | any database with a standard `information_schema` |
+| `models/postgres` | 54 | 54 | PostgreSQL 9.6 through 18 |
+| `models/mysql` | 28 on MariaDB, 25 on MySQL | 54 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
+| `models/sqlite3` | 14 | 54 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
+| `models/informationschema` | 11 | 54 | any database with a standard `information_schema` |
 
-The shared `information_schema` model answers seven: tables, schemas, columns,
-functions, privileges, constraints and sequences. It is the floor. A native
-model exists to beat it, and `models/mysql` beats it by sixteen.
+The shared `information_schema` model answers eleven: tables, schemas, columns,
+functions, privileges, constraints, sequences, constraint columns, routine
+parameters, views and the current schema. It is the floor. A native model
+exists to beat it, and `models/mysql` beats it by seventeen.
+
+Four of those eleven arrived with the kinds D47 added, and they arrived for
+free: the standard defines `key_column_usage`, `parameters`, `views` and
+`schemata`, so every database close to the standard answers them.
 
 ## MariaDB and MySQL
 
@@ -33,9 +44,9 @@ is true of both. Where they differ, the model gates on the product rather than
 on the release number, because MariaDB is at 11.8 and MySQL at 9 and neither
 number says anything about the other. See D44.
 
-MariaDB answers 23 of the 48 and MySQL answers 21. The two MySQL cannot answer
-are sequences, which it has never had, and aggregates, which it has no form of
-and whose catalog table it dropped in 8.0.
+MariaDB answers 28 of the 54 and MySQL answers 25. The three MySQL cannot
+answer are sequences, which it has never had, aggregates, which it has no form
+of and whose catalog table it dropped in 8.0, and column statistics, below.
 
 ### What it answers with the same thing PostgreSQL has
 
@@ -79,6 +90,7 @@ server. The field says so.
 | `Extensions` | `information_schema.ALL_PLUGINS` | `information_schema.PLUGINS`, which MySQL has instead |
 | `Sequences` | `information_schema.SEQUENCES` from 11.5 | nothing: MySQL has no sequences at any release |
 | `Aggregates` | `mysql.proc` and `mysql.func` | nothing: MySQL dropped `mysql.proc` in 8.0 and has no aggregate of its own |
+| `ColumnStats` | `mysql.column_stats` joined to `mysql.table_stats` | nothing: `information_schema.COLUMN_STATISTICS` holds one JSON histogram and no width, null fraction or distinct count |
 
 `Functions` reads `routine_body` for the language and never
 `external_language`. MariaDB leaves `external_language` NULL for a SQL routine
@@ -173,7 +185,7 @@ them into one string.
 
 ## SQLite
 
-SQLite answers 11 of the 48. It is the smallest native model here and it still
+SQLite answers 14 of the 54. It is the smallest native model here and it still
 beats the shared `information_schema` one, which SQLite does not have at all.
 
 It is also the only database here with no server. SQLite is a library, so the
@@ -182,7 +194,18 @@ nothing to upgrade separately, nothing to run in a container, and no version
 gate in the model: every pragma it reads arrived by SQLite 3.37 in 2021, and
 the only way to reach an older one is to pin an old driver on purpose.
 
+Two drivers are tested, as subtests named for each. `mattn/go-sqlite3` compiles
+the upstream SQLite source and needs cgo, which is why it is the primary one:
+it is the real database. `modernc.org/sqlite` is a pure Go translation and is
+what a consumer who cannot use cgo runs. They ship different library versions
+in general, and they happen to agree today. See D48.
+
 ### What it answers
+
+Eleven from `psql` and three of the six D47 added: the columns of a constraint,
+the statement a view selects, and the schema an unqualified name resolves in.
+It cannot answer routine parameters, enum values or column statistics, and the
+reasons are in the table above.
 
 | Question | What SQLite reads |
 | --- | --- |
@@ -280,3 +303,79 @@ SQLite has no users, no roles and no grants of any kind, so `Roles`,
 than empty. It records no comment on any object. It has no type catalog, no
 operators that can be created, no casts, no procedural languages, no
 replication, no tablespaces and no partitioning.
+
+## The six kinds psql has no command for
+
+These exist because a consumer measured in D46 needs them. D47 allows them:
+`psql` sets the object model and does not set the column set, and `psql`
+renders a constraint and a routine signature as text because a person is
+reading them.
+
+| Question | PostgreSQL | MariaDB | MySQL | SQLite | information_schema |
+| --- | --- | --- | --- | --- | --- |
+| `ConstraintColumns` | yes | yes | yes | yes | yes |
+| `RoutineParameters` | yes | yes | yes | no | yes |
+| `Views` | yes | yes | yes | yes | yes |
+| `CurrentSchema` | yes | yes | yes | yes | yes |
+| `EnumValues` | yes | no | no | no | no |
+| `ColumnStats` | yes | yes | no | no | no |
+
+Four of the six are answered by every model, because the SQL standard defines
+`key_column_usage`, `parameters`, `views` and `schemata` and every database
+here has them. That was not the expectation: the two the consumers wanted most
+turned out to be the two the standard already had.
+
+### Where each one comes from
+
+`ConstraintColumns`. PostgreSQL unnests `conkey` with ordinality and indexes
+`confkey` by the same ordinal, which is what keeps a composite key together.
+MariaDB, MySQL and the shared model read `key_column_usage`. SQLite unions
+three pragmas, matching the three kinds its `Constraints` reports.
+
+`RoutineParameters`. PostgreSQL unnests `proallargtypes`, falling back to
+`proargtypes` where a routine has no output parameter. The others read
+`parameters`. SQLite has none: a function there is compiled C and SQLite
+publishes only how many arguments it takes.
+
+`Views`. PostgreSQL calls `pg_get_viewdef` and lists a materialized view
+alongside a plain one, as `psql` does. The others read `views`, except SQLite,
+which returns the whole `CREATE VIEW` statement because that is all it stores.
+
+`CurrentSchema`. It is session dependent and it says so. PostgreSQL returns the
+first entry of `search_path` that exists. MariaDB and MySQL return the database
+in use, and no row at all when the connection named none, which is honest: an
+unqualified name resolves nowhere until a `USE` runs. SQLite returns `main`,
+which is a constant, because SQLite looks in `temp` first and reports nothing
+about that.
+
+`EnumValues`. Only PostgreSQL has an enumerated type. MariaDB and MySQL have an
+enum column rather than an enum type, and the labels exist only inside the
+`enum('red','green','blue')` text of `COLUMN_TYPE`. Splitting that correctly
+needs to track quoting, because a label may contain a comma or an escaped
+quote, and no portable SQL does that. `Columns.DataType` returns the text
+verbatim, so a caller that knows the product's quoting rules can parse it.
+`dbtpl` splits it in Go today and has the same limitation.
+
+`ColumnStats`. It is runtime and it can be stale, and a column never analyzed
+has no row. PostgreSQL reads `pg_stats`. MariaDB reads `mysql.column_stats`,
+which `ANALYZE TABLE ... PERSISTENT` fills, and derives the distinct count from
+the average frequency and the row count. MySQL keeps only a JSON histogram in
+`information_schema.COLUMN_STATISTICS`, with no width, no null fraction and no
+distinct count, and only where somebody ran `ANALYZE TABLE ... UPDATE
+HISTOGRAM`, so it reports the kind unsupported rather than returning rows that
+are almost all absent. SQLite's `sqlite_stat1` holds one text string per index
+and says nothing about a column's values.
+
+### Two fields rather than kinds
+
+`Column.PrimaryKey` is the case the policy was written around. MySQL has
+`COLUMN_KEY` and SQLite has the `pk` column of `pragma_table_xinfo`, so it is
+already in the row both select. PostgreSQL needs one more join, to the primary
+key index of the relation. Free on two, one join on the third, and it saves
+every consumer a second query and a join in Go.
+
+`Function.ID` identifies a routine where the name does not. PostgreSQL returns
+the oid, because it allows two functions with one name and different
+parameters. Everything else returns the name or the specific name, because
+nothing else here overloads. `RoutineParameters` carries the same value, so a
+caller writes one join for every database.

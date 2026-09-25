@@ -24,6 +24,7 @@ func registerServer() {
 			always(`SELECT '' AS "catalog"`),
 			always(`, '' AS "schema"`),
 			always(`, f.name AS "name"`),
+			always(`, f.name AS "id"`),
 			always(`, CASE f.type WHEN 's' THEN 'func' WHEN 'a' THEN 'agg'` +
 				` WHEN 'w' THEN 'window' ELSE f.type END AS "kind"`),
 			always(`, '' AS "result_type"`),
@@ -49,6 +50,7 @@ func registerServer() {
 			{Name: "catalog", Desc: "always empty: a function belongs to the library, not a database"},
 			{Name: "schema", Desc: "always empty, for the same reason"},
 			{Name: "name"},
+			{Name: "id", Desc: "the name: SQLite has no other identifier for a function"},
 			{
 				Name: "kind",
 				Desc: "func, agg, or window for one usable over a window. SQLite reports most of its aggregates as window, so this cannot separate sum from row_number",
@@ -78,7 +80,7 @@ func registerServer() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Kind, &v.ResultType,
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
 				&v.Access, &v.Language, &v.Source, &v.Comment)
 			return v, err

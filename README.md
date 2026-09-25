@@ -124,11 +124,11 @@ call and filter in the loop.
 
 | Database   | Model              | Queries | Status      |
 | ---------- | ------------------ | ------- | ----------- |
-| PostgreSQL | native             | 48      | Complete    |
-| any with an information_schema | shared | 7 | Ready to build on |
-| MariaDB    | native             | 23      | Complete    |
-| MySQL      | native             | 21      | Complete    |
-| SQLite3    | native             | 11      | Complete    |
+| PostgreSQL | native             | 54      | Complete    |
+| any with an information_schema | shared | 11 | Ready to build on |
+| MariaDB    | native             | 28      | Complete    |
+| MySQL      | native             | 25      | Complete    |
+| SQLite3    | native             | 14      | Complete    |
 | SQL Server | shared, planned    | 0       | Not started |
 | DuckDB     | shared, planned    | 0       | Not started |
 | Oracle     | native, planned    | 0       | Not started |
@@ -136,7 +136,7 @@ call and filter in the loop.
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
-It answers 7 object kinds where the native PostgreSQL model answers 48, and
+It answers 11 object kinds where the native PostgreSQL model answers 54, and
 answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
@@ -146,8 +146,8 @@ Server, Snowflake, Trino, Databend and Netezza, which is the evidence for who
 the shared model serves.
 
 [`COVERAGE.md`](COVERAGE.md) says what each database answers, what it cannot,
-and which analogues were found and rejected. MariaDB answers 23 of the 48 and
-MySQL answers 21, because a native model beats the shared one by sixteen.
+and which analogues were found and rejected. MariaDB answers 28 of the 54 and
+MySQL answers 25, because a native model beats the shared one by seventeen.
 
 MariaDB and MySQL share one model. A query written for one of them gates on the
 product rather than on the release number, because MariaDB is at 13.0 and MySQL
@@ -210,8 +210,12 @@ that answers it, which is what wiring up a client needs.
 
 [`USQL.md`](USQL.md) measures what `usql` answers today for each of its 47
 drivers, and what changes if it reads `dbmeta`. [`DBTPL.md`](DBTPL.md) does the
-same for `dbtpl`. Both name what `dbmeta` would have to add first, and the two
-lists overlap.
+same for `dbtpl`.
+
+`dbmeta` supplies the data and the consumer decides what to show. `psql` sets
+the object model and it does not set the column set, so a query here returns
+facts `psql` does not print where the database can produce them in the same
+statement. D47 in [`PLAN.md`](PLAN.md) holds the rule and the cost test.
 
 Read [`NULLS.md`](NULLS.md) before writing a query for any database. It is the
 shortest document here and the one that cost the most to learn.
@@ -288,9 +292,9 @@ a client can take the parts it needs.
 # Contributing
 
 Read [`CLAUDE.md`](CLAUDE.md) first. It holds the rules, including the ones
-that are not obvious: the standard library only, pure Go with no cgo, no build
-constraint on an operating system or an architecture, and a context on every
-function that reads from a database.
+that are not obvious: the standard library only, no cgo in anything a consumer
+builds, no build constraint on an operating system or an architecture, and a
+context on every function that reads from a database.
 
 Run the checks before you send a change, with the same flags CI uses:
 

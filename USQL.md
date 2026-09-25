@@ -64,7 +64,7 @@ are wire compatible with it and reuse its reader.
 ### It does not raise the command count for PostgreSQL
 
 PostgreSQL already answers 8 of 8. What changes there is the number of object
-kinds: 14 against 48. `COMMANDS.md` maps every `psql` metadata command to the
+kinds: 14 against 54. `COMMANDS.md` maps every `psql` metadata command to the
 Go value that answers it, and 37 of them have no reader interface in `usql`
 today. Tablespaces, types, domains, operators, text search, publications,
 extensions, roles, access methods and the rest are all readable from `dbmeta`
@@ -73,16 +73,22 @@ and have nowhere to go in `usql` yet.
 So for PostgreSQL the gain is not a command that starts working. It is that
 `usql` could implement four times as many commands without writing SQL.
 
+It also gains facts `psql` does not print. `Column.PrimaryKey` is the example
+the policy was written around: `usql` reads it per column today and `dbmeta`
+now returns it in the same row. D47 says when that is allowed, and the short
+version is that the fact must come out of one statement.
+
 ### It raises the count for MariaDB, MySQL and SQLite
 
 | Database | usql today | with dbmeta | What it gains |
 | --- | --- | --- | --- |
-| MariaDB | 6/8, 3/4 sections | 7/8, 4/4 | `\l` from Databases, and the trigger section |
-| MySQL | 6/8, 3/4 sections | 7/8, 4/4 | the same |
+| MariaDB | 6/8, 3/4 sections | 8/8, 4/4 | `\l` from Databases, `\ss` from ColumnStats, and the trigger section |
+| MySQL | 6/8, 3/4 sections | 7/8, 4/4 | `\l` and the trigger section. MySQL cannot answer `\ss` |
 | SQLite | 5/8, 1/4 sections | 6/8, 3/4 | `\l`, the constraint section and the trigger section |
 
-Neither reaches 8 of 8, and the reason is the same in both: `\ss` needs
-ColumnStats and `dbmeta` has no such kind. See the gap below.
+MariaDB now reaches 8 of 8, because `ColumnStats` exists and MariaDB answers
+it. MySQL and SQLite stay at 7 and 6, because neither can answer it and both
+say so, which is a true answer rather than a missing one.
 
 ### It offers something to the 27 with nothing
 
@@ -95,27 +101,37 @@ Which of the 27 have a usable `information_schema` is not measured here and
 must not be guessed. Each one needs the D43 treatment: ask two models, then run
 the queries against a real server.
 
-## The gap: three kinds dbmeta does not have
+## The gap, and what closed it
 
-`usql` reads three kinds that `dbmeta` cannot answer for any database. A
-migration today would lose them, so they are not optional.
+`usql` read three kinds that `dbmeta` could not answer for any database:
+ColumnStats, ConstraintColumns and FunctionColumns. A migration would have lost
+all three. D46 named them, D47 set the policy for adding them, and all three
+now exist.
 
-**ColumnStats.** Backs `\ss`, which `psql` does not have and `usql` added.
-`usql` implements it for PostgreSQL, DuckDB, Trino, CockroachDB, Redshift and
-SQL Server. It carries the average width, the null fraction, the distinct
-count, the minimum, maximum and mean, and the most common values with their
-frequencies.
+`dbmeta.ConstraintColumns` is the column level detail of a constraint: which
+column, in what position, and for a foreign key which column of which table it
+points at. Every model answers it, including SQLite.
 
-**ConstraintColumns.** The column level detail of a constraint: which column,
-in what position, and for a foreign key which column of which table it points
-at. `dbmeta` has `Constraint.Definition`, which is a string a person reads and
-a program cannot use.
+`dbmeta.RoutineParameters` is `usql`'s FunctionColumns: the name, position,
+direction and type of each parameter. Every model except SQLite answers it,
+and SQLite cannot, because a function there is compiled C with no named
+parameters.
 
-**FunctionColumns.** The parameters of a routine: name, position, direction,
-type and size. `dbmeta` has `Function.ArgTypes`, which is again one string.
+`dbmeta.ColumnStats` backs `\ss`. PostgreSQL and MariaDB answer it. MySQL and
+SQLite cannot, and say so rather than returning rows that are almost all
+absent. `usql` implements `\ss` today for PostgreSQL, DuckDB, Trino,
+CockroachDB, Redshift and SQL Server, and the first of those is covered.
 
-The second and third are the same shape of gap, and `dbtpl` needs both as well.
-See `DBTPL.md` and D46.
+### What is still missing for a lossless migration
+
+Nothing, for the databases `dbmeta` models. `usql` implements `\ss` for six
+drivers and `dbmeta` models two of them, so a migration of the other four waits
+on models for DuckDB, Trino and SQL Server rather than on a missing kind.
+
+Two `usql` reader kinds have no `dbmeta` equivalent by design.
+ConstraintColumns replaces both ConstraintColumns and the column part of
+Constraints, and FunctionColumns became RoutineParameters. The names differ and
+the facts do not.
 
 ## How usql would use dbmeta
 
@@ -159,7 +175,11 @@ column, which `usql` has no way to express.
 Do not move the writer. `dbmeta` only reads, and `tblfmt` renders. That
 division is D5 and it does not change.
 
-The order that loses nothing: add the three missing kinds to `dbmeta` first,
-then move one driver, then the rest. PostgreSQL is the wrong one to move first
-because it already works; MariaDB or SQLite is the right one, because the move
-adds commands there and the difference is visible.
+The order that loses nothing: move one driver, then the rest. PostgreSQL is the
+wrong one to move first because it already works. MariaDB is the right one,
+because it goes from 6 commands of 8 to all 8, and the difference is visible
+the moment it lands.
+
+The three kinds that blocked this are done. What is left is `usql`'s own work:
+a reader per driver, and whatever filtering each command needs so that the
+output still matches `psql`.

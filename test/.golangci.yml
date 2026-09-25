@@ -62,10 +62,18 @@ linters:
     # A switch that handles two of three enum values and answers the third
     # after the switch says more than an empty case with no body.
     - exhaustive
+    # thelper reads a test body passed as a closure as a helper, and wants
+    # t.Helper() at the top of it. That would make a failure report the line
+    # of the runner rather than the line of the assertion, which is backwards.
+    # The real helpers here call t.Helper() already.
+    - thelper
   settings:
     # The drivers live here and nowhere else. Adding one to the root module is
     # the mistake this is here to stop, and the root configuration refuses it
     # from the other side.
+    #
+    # mattn/go-sqlite3 needs cgo, which this module may use and the root
+    # module may not. The separate go.mod is what makes that safe. See D48.
     depguard:
       rules:
         main:
@@ -74,6 +82,7 @@ linters:
             - $gostd
             - github.com/xo/dbmeta
             - github.com/go-sql-driver/mysql
+            - github.com/mattn/go-sqlite3
             - modernc.org/sqlite
             - github.com/jackc/pgx
             - github.com/lib/pq

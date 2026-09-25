@@ -29,7 +29,7 @@
 //     credential every local user reaches it with
 //   - a foreign table is a table on an engine that reads remote data
 //
-// This model answers 23 of the 48 questions on MariaDB and 21 on MySQL. The
+// This model answers 28 of the 54 questions on MariaDB and 25 on MySQL. The
 // four that read the mysql schema need SELECT on it, because neither product
 // publishes those tables through information_schema.
 //
@@ -106,6 +106,7 @@ func init() {
 	registerRoutines()
 	registerServer()
 	registerForeign()
+	registerExtra()
 }
 
 // parseVersion reads what SELECT VERSION() returns, such as "11.8.9-MariaDB"

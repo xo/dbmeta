@@ -47,6 +47,7 @@ func init() {
 	registerSchemas()
 	registerTables()
 	registerColumns()
+	registerExtra()
 }
 
 // parseVersion reads what SHOW server_version returns, such as "16.2" or
@@ -173,6 +174,10 @@ func registerColumns() {
 			{{SQL: `, pg_catalog.format_type(a.atttypid, a.atttypmod) AS "data_type"`}},
 			{{SQL: `, NOT a.attnotnull AS "nullable"`}},
 			{{SQL: `, pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS "default"`}},
+			// One more join, to the primary key index of the table. It is an
+			// index lookup on the relation and it costs the same whether or
+			// not the caller reads the column. See D47.
+			{{SQL: `, COALESCE(a.attnum = ANY(pk.indkey), FALSE) AS "primary_key"`}},
 			// attidentity arrived in release 11
 			{
 				{SQL: `, NULL AS "identity"`},
@@ -188,6 +193,7 @@ func registerColumns() {
 			{{SQL: `JOIN pg_catalog.pg_class c ON c.oid = a.attrelid`}},
 			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{SQL: `LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum`}},
+			{{SQL: `LEFT JOIN pg_catalog.pg_index pk ON pk.indrelid = a.attrelid AND pk.indisprimary`}},
 			{{SQL: `WHERE a.attnum > 0 AND NOT a.attisdropped`}},
 			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{SQL: `AND (@parent = '' OR c.relname LIKE @parent)`}},
@@ -203,6 +209,7 @@ func registerColumns() {
 			{Name: "data_type", Desc: "type of the column, as PostgreSQL writes it"},
 			{Name: "nullable", Desc: "whether the column accepts NULL"},
 			{Name: "default", Desc: "default expression, empty when there is none"},
+			{Name: "primary_key", Desc: "whether the column is part of the primary key"},
 			{Name: "identity", Desc: "identity kind, empty when the column is not an identity", Min: v11},
 			{Name: "generated", Desc: "generated kind, empty when the column is not generated", Min: v12},
 			{Name: "comment", Desc: "comment on the column"},
@@ -216,7 +223,7 @@ func registerColumns() {
 			var c dbmeta.Column
 			err := rows.Scan(
 				&c.Catalog, &c.Schema, &c.Table, &c.Name, &c.Ordinal,
-				&c.DataType, &c.Nullable, &c.Default,
+				&c.DataType, &c.Nullable, &c.Default, &c.PrimaryKey,
 				&c.Identity, &c.Generated, &c.Comment,
 			)
 			return c, err
