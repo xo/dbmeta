@@ -28,7 +28,9 @@ Then by what you are doing:
 | writing or changing any query | `docs/NULLS.md`, then `docs/COVERAGE.md` |
 | asking why something is the way it is | the table at the top of `docs/PLAN.md` |
 | adding an object kind | D46 and D47 in `docs/PLAN.md`, then `docs/COMMANDS.md` |
-| adding a database | `docs/EVALUATION.md` for the version range, D43 for the rule about asking other models, D52 for which driver to test with |
+| adding a database | D66 for which one is next, `docs/EVALUATION.md` for the version range, D43 for the rule about asking other models, D52 for which driver to test with, D61 for the principals to measure it against |
+| wondering which database comes next | D66, which holds the order and why a product with no container is last |
+| a parity failure | D61. Decide whether the query began depending on who is asking, or whether one release genuinely differs, and record it |
 | changing what a database answers | `docs/COVERAGE.md`, which is the record of what each one can do |
 | changing a fixture | D53, then run the fixture test in the root module. A core object belongs in every fixture |
 | a conformance failure | D53. Decide whether it is a fault or a product difference, then fix it or rewrite the expectation and say why |
@@ -414,8 +416,12 @@ code is pure Go, so `dbmeta` does not need the runner matrix that the other
 CI runs a release matrix, which D42 decided and which replaced the single
 latest version D24 first called for. Every push runs PostgreSQL 9.6, 12, 15 and
 18, MariaDB 10.6 and 13.0, MySQL 8.4 and 26.7, SQL Server 2017, 2019, 2022 and
-2025, and SQLite3 and DuckDB in a job that starts no container. The remaining
-releases run nightly.
+2025, Oracle 21c and 26ai, Cassandra 3.11 and 5.0, and SQLite3 and DuckDB in a
+job that starts no container. The remaining releases run nightly.
+
+The Cassandra job builds its image first rather than naming a service, because
+the published one refuses what the queries read. See D62 and
+`test/cassandra/Containerfile`.
 
 Do not write that list in the workflow from memory. It lives in
 `container/container.go`, `container.AtTier` selects a tier, and

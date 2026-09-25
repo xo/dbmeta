@@ -30,6 +30,10 @@
 #
 # It needs podman on the path. Set DBMETA_RUNNER=docker to use docker instead.
 #
+# Cassandra needs its image built first, because the published one refuses
+# what the queries read: run ./cassandra/build.sh. Every other product uses a
+# published image and needs nothing.
+#
 # It also needs the machine mostly to itself. Each server wants a gigabyte or
 # two, and a run with other heavy containers already up reports "not ready" for
 # whichever servers lost the race, which looks exactly like a broken query and
@@ -111,6 +115,13 @@ while IFS=$'\t' read -r name dsn envvar runargs readyargs removeargs; do
 
   if ! "$RUNNER" "${RUN[@]}" >/dev/null 2>&1; then
     echo "  could not start ${name}, skipping"
+    # Cassandra is the one product whose image this repository builds. The
+    # published one refuses a user defined function, a materialized view and
+    # a role, so the fixture cannot build and the failure reads as a missing
+    # image. Say what to do rather than leave it at that.
+    case "$name" in
+      cassandra-*) echo "  build it first: ./cassandra/build.sh" ;;
+    esac
     FAILED+=("$name: no image")
     continue
   fi

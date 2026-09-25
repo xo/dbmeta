@@ -87,7 +87,7 @@ records the argument.
 | [D21](#d21-drop-a-server-version-on-a-rule-not-on-a-judgment-decided) | Drop a server version on a rule, not on a judgment | Decided |
 | [D22](#d22-test-every-supported-major-not-a-sample-of-them-superseded-by-d24) | Test every supported major, not a sample of them | Superseded by D24 |
 | [D23](#d23-do-not-build-dbtest-first-let-dbmeta-pull-it-into-existence-decided) | Do not build dbtest first. Let dbmeta pull it into existence | Decided |
-| [D24](#d24-ci-tests-the-latest-version-only-the-matrix-runs-locally-supersedes-d22) | CI tests the latest version only. The matrix runs locally | Supersedes D22 |
+| [D24](#d24-ci-tests-the-latest-version-only-the-matrix-runs-locally-supersedes-d22-superseded-by-d42) | CI tests the latest version only. The matrix runs locally | Supersedes D22, superseded by D42 |
 | [D25](#d25-test-on-amd64-only-no-build-tags-and-no-platform-gates-decided) | Test on amd64 only. No build tags and no platform gates | Decided |
 | [D26](#d26-no-database-driver-in-the-dbmeta-module-amends-d11-amended-by-d48) | No database driver in the dbmeta module | Amends D11, amended by D48 |
 | [D27](#d27-split-the-work-in-two-a-nested-test-module-here-a-shared-harness-in-dbtest-decided) | Split the work in two: a nested test module here, a shared harness in dbtest | Decided |
@@ -105,7 +105,7 @@ records the argument.
 | [D39](#d39-queries-are-listed-described-and-rendered-for-the-client-to-run-decided) | Queries are listed, described, and rendered for the client to run | Decided |
 | [D40](#d40-three-support-tiers-and-a-trigger-that-can-remove-a-version-decided) | Three support tiers, and a trigger that can remove a version | Decided |
 | [D41](#d41-every-model-ships-its-fixtures-beside-its-queries-decided) | Every model ships its fixtures beside its queries | Decided |
-| [D42](#d42-four-releases-per-push-every-release-nightly-decided) | Four releases per push, every release nightly | Decided |
+| [D42](#d42-four-releases-per-push-every-release-nightly-supersedes-d24) | Four releases per push, every release nightly | Supersedes D24 |
 | [D43](#d43-ask-several-models-before-a-dialect-is-declared-finished-decided) | Ask several models before a dialect is declared finished | Decided |
 | [D44](#d44-a-version-key-names-the-product-a-number-alone-never-does-decided) | A version key names the product. A number alone never does | Decided |
 | [D45](#d45-a-query-may-answer-partially-once-and-must-say-so-decided) | A query may answer partially, once, and must say so | Decided |
@@ -1266,7 +1266,7 @@ also observed that `testcontainers-go` reaches Podman through a Docker
 compatibility socket, which is an extra moving part for a project that has
 already chosen Podman.
 
-### D24. CI tests the latest version only. The matrix runs locally. Supersedes D22.
+### D24. CI tests the latest version only. The matrix runs locally. Supersedes D22, superseded by D42.
 
 CI tests the major databases at their latest version and nothing else. Every
 other version, and every flavor, is tested on a development machine.
@@ -2342,7 +2342,7 @@ every row. Ten releases times forty eight queries is four hundred and eighty
 combinations that nobody would maintain, and one assertion covers them.
 
 
-### D42. Four releases per push, every release nightly. Decided.
+### D42. Four releases per push, every release nightly. Supersedes D24.
 
 CI runs the integration tests against PostgreSQL 9.6, 12, 15 and 18 on every
 push, and against all ten releases on a nightly schedule.

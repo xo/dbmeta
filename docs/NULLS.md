@@ -111,9 +111,29 @@ NULL at all, which means a query there cannot report the difference and the
 model must say so rather than pretend. SQL Server and the rest each have their
 own corners.
 
+Cassandra is the worst of them and the driver is why. CQL has a null, and
+gocql decodes one as the zero value of its type, so `go-cql-driver` hands
+`database/sql` an empty string rather than a null. Scanning into
+[`sql.Null[string]`] gives `Valid` with `""`. Verified directly:
+`SELECT (text)NULL` comes back valid and empty.
+
+That defeats the whole mechanism, so the Cassandra model does not rely on it.
+A column the statement pads is scanned into a target that discards the value,
+and the field keeps its zero value, which is the invalid Null this document
+asks for. It cost a real fault before it was found: every padded column looked
+present and empty, and the conformance projection reported `has_default=true`
+on a database that has no defaults. A real catalog column that is null is not
+rescued by this and cannot be with that driver, and `docs/COVERAGE.md` says so
+rather than pretending otherwise. See D62.
+
+The lesson generalises. Before trusting a padded NULL, check what the driver
+does with one, not only what the database does. The two are different
+questions and only the second is in the manual.
+
 So the rule for a new model is: find out what the database means by NULL in
-each column before choosing a Go type, write the fixture so that both the
-absent and the empty case exist, and let `TestPaddedFieldsAreNull` and its
-equivalents run against a real server before believing any of it.
+each column before choosing a Go type, find out what the driver does with one,
+write the fixture so that both the absent and the empty case exist, and let
+`TestPaddedFieldsAreNull` and its equivalents run against a real server before
+believing any of it.
 
 [`sql.Null[string]`]: https://pkg.go.dev/database/sql#Null

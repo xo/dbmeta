@@ -163,7 +163,7 @@ func Example_oldServer() {
 	// identity present at 10.23: false
 }
 
-// Example_support shows the three states a client must tell apart before it
+// Example_support shows the four states a client must tell apart before it
 // offers a command to a person.
 func Example_support() {
 	m, err := dbmeta.New(dbmeta.PostgreSQL, versionSet("16.2"))
@@ -172,10 +172,14 @@ func Example_support() {
 	}
 	fmt.Println("tables: ", dbmeta.Tables.Support(m))
 	fmt.Println("indexes:", dbmeta.Indexes.Support(m))
-	// an object a release does not have is a different answer again: the query
-	// exists, and the server is too old for it
-	if _, _, err := dbmeta.Publications.Build(versionMeta("9.6.24"), nil); err != nil {
-		fmt.Println("publications on 9.6:", err)
+
+	// an object this release does not have is a different answer: the product
+	// has it and the server is too old, which an upgrade fixes. Support says
+	// so on its own, and Build then returns ErrVersionTooOld. See D63.
+	old := versionMeta("9.6.24")
+	fmt.Println("publications on 9.6:", dbmeta.Publications.Support(old))
+	if _, _, err := dbmeta.Publications.Build(old, nil); err != nil {
+		fmt.Println("and building it:", err)
 	}
 
 	// a dialect no model was built for is a different answer entirely.
@@ -188,6 +192,7 @@ func Example_support() {
 	// tables:  supported
 	// indexes: supported
 	// publications on 9.6: version too old
+	// and building it: version too old
 	// clickhouse: model not built
 }
 
