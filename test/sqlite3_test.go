@@ -202,7 +202,7 @@ func TestSQLiteColumns(t *testing.T) {
 			{key: "author.author_id", ordinal: 1, dataType: "INTEGER", nullable: true, identity: "rowid"},
 			{key: "author.name", ordinal: 2, dataType: "TEXT"},
 			{key: "author.rating", ordinal: 3, dataType: "INTEGER", nullable: true},
-			{key: "book.title_length", ordinal: 5, dataType: "INTEGER", nullable: true, generated: "stored"},
+			{key: "sales.title_length", ordinal: 5, dataType: "INTEGER", nullable: true, generated: "stored"},
 			{key: "sales.doubled", ordinal: 4, dataType: "INTEGER", nullable: true, generated: "virtual"},
 		} {
 			got, ok := cols[c.key]
@@ -276,14 +276,32 @@ func TestSQLiteConstraints(t *testing.T) {
 		if !composite {
 			t.Error("expected the composite primary key on sales")
 		}
-		// the foreign key names what it points at
+		// The foreign key names what it points at. There are two, so each is
+		// checked by the table it is on: book references author with
+		// ON DELETE CASCADE, and shipment references region with no action.
+		var toAuthor, toRegion bool
 		for _, v := range byType["foreign key"] {
-			if !v.Definition.Valid || !strings.Contains(v.Definition.V, "author") {
-				t.Errorf("expected the foreign key to name author, got %v", v.Definition)
+			switch v.Table {
+			case "book":
+				toAuthor = true
+				if !v.Definition.Valid || !strings.Contains(v.Definition.V, "author") {
+					t.Errorf("expected the book key to name author, got %v", v.Definition)
+				}
+				if !v.Deferred {
+					t.Error("expected ON DELETE CASCADE to report as acting")
+				}
+			case "shipment":
+				toRegion = true
+				if !v.Definition.Valid || !strings.Contains(v.Definition.V, "region") {
+					t.Errorf("expected the shipment key to name region, got %v", v.Definition)
+				}
+				if v.Deferred {
+					t.Error("expected a key with no referential action to report as not acting")
+				}
 			}
-			if !v.Deferred {
-				t.Error("expected ON DELETE CASCADE to report as acting")
-			}
+		}
+		if !toAuthor || !toRegion {
+			t.Errorf("expected both foreign keys, got author=%v region=%v", toAuthor, toRegion)
 		}
 	})
 }

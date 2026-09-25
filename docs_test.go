@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -95,6 +96,65 @@ func TestTheDecisionIndexIsComplete(t *testing.T) {
 			t.Errorf("D%s is written and is not in the index at the top of docs/PLAN.md", m[1])
 		}
 	}
+}
+
+// TestTheCountsInProseAreRight checks every number the root documents quote
+// for how many of something there is.
+//
+// A number written in prose goes stale the next time somebody adds one, and
+// the decision count had gone stale in two documents at once. It is cheaper to
+// check than to remember. There are two such numbers: how many decisions
+// docs/PLAN.md holds, and how many hard rules CLAUDE.md holds.
+func TestTheCountsInProseAreRight(t *testing.T) {
+	t.Parallel()
+	decisions := len(regexp.MustCompile(`(?m)^### D(\d+)\.`).
+		FindAllString(read(t, filepath.Join("docs", "PLAN.md")), -1))
+	rules := len(regexp.MustCompile(`(?m)^(\d+)\. `).
+		FindAllString(hardRules(t), -1))
+	if decisions == 0 || rules == 0 {
+		t.Fatalf("found %d decisions and %d hard rules, expected some of each",
+			decisions, rules)
+	}
+	for _, c := range []struct {
+		what string
+		want int
+		// phrase captures the number as the documents write it. Each is
+		// anchored on its own wording, because the two counts are a sentence
+		// apart in CONTRIBUTING.md and a loose pattern reads one as the other.
+		phrase *regexp.Regexp
+	}{
+		{"decisions", decisions, regexp.MustCompile(`a table of all (\d+)`)},
+		{"decisions", decisions, regexp.MustCompile(`[Ee]very decision, (\d+) of them`)},
+		{"decisions", decisions, regexp.MustCompile(`table at the top lists all (\d+)`)},
+		{"hard rules", rules, regexp.MustCompile(`holds the rules: (\d+) of them`)},
+	} {
+		var found bool
+		for _, name := range []string{"README.md", "CLAUDE.md", "CONTRIBUTING.md"} {
+			for _, m := range c.phrase.FindAllStringSubmatch(read(t, name), -1) {
+				found = true
+				if m[1] != strconv.Itoa(c.want) {
+					t.Errorf("%s says there are %s %s and there are %d: %q",
+						name, m[1], c.what, c.want, strings.TrimSpace(m[0]))
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no document matches %v any more. Fix the pattern or drop it, "+
+				"because a guard that matches nothing guards nothing.", c.phrase)
+		}
+	}
+}
+
+// hardRules returns the numbered list of hard rules from CLAUDE.md.
+func hardRules(t *testing.T) string {
+	t.Helper()
+	_, rest, ok := strings.Cut(read(t, "CLAUDE.md"), "\n## Hard rules\n")
+	if !ok {
+		t.Fatal("CLAUDE.md has no Hard rules section")
+	}
+	// Everything up to the next heading, or the rest of the file.
+	rules, _, _ := strings.Cut(rest, "\n## ")
+	return rules
 }
 
 // TestTheRootHoldsThreeDocuments holds the layout D50 decided. A document that

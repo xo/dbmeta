@@ -45,6 +45,7 @@ package container
 import (
 	"fmt"
 	"maps"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -59,6 +60,9 @@ const (
 	// name and docker does not, so [Server.Qualified] spells it out and
 	// [Server.Ref] does not.
 	Registry = "docker.io/library"
+	// SQLServerPassword is what a SQL Server container is started with. It is
+	// not [Password], because SQL Server refuses a password without a symbol.
+	SQLServerPassword = "P4ssw0rd!x"
 )
 
 // Tier is how thoroughly a release is tested. It is the support tier from D40,
@@ -114,7 +118,15 @@ func (s Server) Ref() string { return s.Image + ":" + s.Tag }
 // Qualified returns the image with its registry, such as
 // "docker.io/library/postgres:18". podman refuses an unqualified name unless
 // the machine is configured to guess, so a command line uses this.
-func (s Server) Qualified() string { return Registry + "/" + s.Ref() }
+//
+// An image that already names a registry, such as Microsoft's, is returned
+// unchanged.
+func (s Server) Qualified() string {
+	if strings.Contains(s.Image, "/") {
+		return s.Ref()
+	}
+	return Registry + "/" + s.Ref()
+}
 
 // RunArgs returns the arguments that start this server detached, under the
 // container name given, with its port published on hostPort. They go after
@@ -150,7 +162,21 @@ func (s Server) RemoveArgs(name string) []string {
 
 // HealthCmd returns the readiness command as one string, which is the form a
 // GitHub Actions service container wants for its --health-cmd option.
-func (s Server) HealthCmd() string { return strings.Join(s.Ready, " ") }
+//
+// An argument containing a space is quoted, because the receiving end is a
+// shell. Joining on a space without quoting turned the SQL Server query
+// "SELECT 1" into two arguments and produced a command that always failed.
+func (s Server) HealthCmd() string {
+	out := make([]string, 0, len(s.Ready))
+	for _, arg := range s.Ready {
+		if strings.ContainsAny(arg, " \t\"'") {
+			out = append(out, "'"+strings.ReplaceAll(arg, "'", `'\''`)+"'")
+			continue
+		}
+		out = append(out, arg)
+	}
+	return strings.Join(out, " ")
+}
 
 // Name returns a short name for this server, such as "mariadb-11.8". It is
 // safe to use as a container name and as a CI job name.
@@ -177,7 +203,7 @@ func (s Server) Environ() []string {
 // All ten majors from 9.6, which is further back than psql itself goes: psql
 // dropped 9.6 in release 20, so the queries for it are translated from an
 // older checkout. See D20 and hard rule 5.
-var PostgreSQL = releases(postgres, Tested, "9.6", "12", "15", "18").
+var PostgreSQL = list{}.add(postgres, Tested, "9.6", "12", "15", "18").
 	add(postgres, Nightly, "10", "11", "13", "14", "16", "17")
 
 // MariaDB is the MariaDB releases dbmeta is tested against.
@@ -186,8 +212,27 @@ var PostgreSQL = releases(postgres, Tested, "9.6", "12", "15", "18").
 // ceiling is 13.0, the current stable. 11.8 is the long term release most
 // installations run, and it sits above the 11.5 gate where the view that
 // lists sequences arrived.
-var MariaDB = releases(mariadb, Tested, "10.6", "13.0").
+var MariaDB = list{}.add(mariadb, Tested, "10.6", "13.0").
 	add(mariadb, Nightly, "10.11", "11.4", "11.8", "12.3")
+
+// SQLServer is the Microsoft SQL Server releases dbmeta is tested against.
+//
+// Every major release that ships a Linux container, and all of them at the
+// Tested tier. That is four jobs rather than two, and it buys the whole claim:
+// dbmeta is tested on every SQL Server a person can run on Linux.
+//
+// 2017 is the floor and it is a hard one. Microsoft shipped SQL Server on
+// Linux from 2017, so 2016 and earlier have no container and cannot be tested
+// at all. D54 says what is claimed for them, which is less than support.
+//
+// Splitting these across tiers would have saved little. Every version gate the
+// model has sits below 2017, so the releases here differ by what they added
+// rather than by what they lack, and the newest is the one most likely to
+// break. See D54.
+var SQLServer = list{}.add(sqlserver, Tested, "2017", "2019", "2022", "2025").
+	// 2017 is the one image built on Ubuntu 16.04. It ships the older sqlcmd,
+	// at /opt/mssql-tools rather than /opt/mssql-tools18.
+	on("2017", func(s *Server) { s.Ready = sqlcmd("/opt/mssql-tools/bin/sqlcmd") })
 
 // MySQL is the MySQL releases dbmeta is tested against.
 //
@@ -198,12 +243,12 @@ var MariaDB = releases(mariadb, Tested, "10.6", "13.0").
 //
 // 8.4 and 26.7 sit on either side of the only gate this model has for MySQL,
 // which is where a system variable moved in release 9.
-var MySQL = releases(mysql, Tested, "8.4", "26.7").
+var MySQL = list{}.add(mysql, Tested, "8.4", "26.7").
 	add(mysql, Nightly, "9.7")
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer)
 }
 
 // AtTier returns the servers tested at t.
@@ -243,10 +288,14 @@ type product struct {
 	dialect dbmeta.Dialect
 	name    string
 	image   string
-	port    int
-	env     map[string]string
-	ready   []string
-	dsn     func(port int) string
+	// tagSuffix is appended to the release to make the tag, and is usually
+	// empty. Microsoft publishes no bare release tag for SQL Server: the tag
+	// is 2017-latest and there is no 2017.
+	tagSuffix string
+	port      int
+	env       map[string]string
+	ready     []string
+	dsn       func(port int) string
 }
 
 var (
@@ -282,19 +331,49 @@ var (
 		ready:   []string{"mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p" + Password},
 		dsn:     mysqlDSN,
 	}
+	sqlserver = product{
+		dialect: dbmeta.SQLServer,
+		name:    "sqlserver",
+		// Microsoft's own registry rather than Docker Hub, and the image is
+		// the only one there is: there is no community SQL Server.
+		image: "mcr.microsoft.com/mssql/server",
+		// Microsoft tags every release "-latest" and publishes no bare tag.
+		tagSuffix: "-latest",
+		port:      1433,
+		// The password has to satisfy the SQL Server policy, which wants a
+		// symbol, so it is not the shared one.
+		env: map[string]string{
+			"ACCEPT_EULA":       "Y",
+			"MSSQL_SA_PASSWORD": SQLServerPassword,
+			"MSSQL_PID":         "Developer",
+		},
+		ready: sqlcmd("/opt/mssql-tools18/bin/sqlcmd"),
+		dsn: func(port int) string {
+			return fmt.Sprintf(
+				"sqlserver://sa:%s@127.0.0.1:%d?database=master&encrypt=disable",
+				url.QueryEscape(SQLServerPassword), port)
+		},
+	}
 )
+
+// sqlcmd is the readiness command for a SQL Server image, at the path that
+// image installs sqlcmd to. -C trusts the server certificate, which both the
+// old client and the new one accept.
+func sqlcmd(path string) []string {
+	return []string{
+		path, "-S", "localhost",
+		"-U", "sa", "-P", SQLServerPassword, "-C", "-Q", "SELECT 1",
+	}
+}
 
 func mysqlDSN(port int) string {
 	return fmt.Sprintf("root:%s@tcp(127.0.0.1:%d)/?parseTime=true", Password, port)
 }
 
-// releases builds the list for one product.
-func releases(p product, tier Tier, versions ...string) list {
-	return list(nil).add(p, tier, versions...)
-}
-
 // list is a slice of servers under construction, so that the declarations
-// above read as one product with its releases grouped by tier.
+// above read as one product with its releases grouped by tier. Every group
+// names its tier, including the first, because which release sits in which
+// tier is the one thing this package exists to state.
 type list []Server
 
 func (l list) add(p product, tier Tier, versions ...string) list {
@@ -305,7 +384,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			Release: v,
 			Tier:    tier,
 			Image:   p.image,
-			Tag:     v,
+			Tag:     v + p.tagSuffix,
 			Port:    p.port,
 			Env:     p.env,
 			Ready:   p.ready,
@@ -313,6 +392,18 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 		})
 	}
 	slices.SortStableFunc(l, func(a, b Server) int { return compareRelease(a.Release, b.Release) })
+	return l
+}
+
+// on returns l with fn applied to the one release named. It exists because a
+// product is usually uniform and is not always: the SQL Server 2017 image is
+// built on an older base and ships sqlcmd at another path.
+func (l list) on(release string, fn func(*Server)) list {
+	for i := range l {
+		if l[i].Release == release {
+			fn(&l[i])
+		}
+	}
 	return l
 }
 

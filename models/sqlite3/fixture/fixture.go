@@ -86,10 +86,6 @@ var Everything = Fixture{
 			"	author_id INTEGER NOT NULL REFERENCES author(author_id) ON DELETE CASCADE,\n"+
 			"	title TEXT NOT NULL UNIQUE,\n"+
 			"	published DATE,\n"+
-			// a generated column, so that the query for one has something to
-			// find. STORED rather than VIRTUAL, so that both forms are
-			// covered when the sales table below adds the other.
-			"	title_length INTEGER GENERATED ALWAYS AS (LENGTH(title)) STORED,\n"+
 			"	CONSTRAINT title_not_empty CHECK (title <> '')\n"+
 			")"),
 		at("book index", "CREATE INDEX book_published ON book (published)"),
@@ -103,18 +99,40 @@ var Everything = Fixture{
 			"	UPDATE author SET rating = rating WHERE author_id = NEW.author_id;\n"+
 			"END"),
 
-		// a second table with a virtual generated column and a composite
-		// primary key, which the constraint query reports as one row
+		// A composite primary key and a composite foreign key, named the way
+		// every other fixture names them, so that the cross family
+		// conformance test has the same objects to compare everywhere.
+		at("region table", "CREATE TABLE region (\n"+
+			"	country TEXT NOT NULL,\n"+
+			"	area TEXT NOT NULL,\n"+
+			"	PRIMARY KEY (country, area)\n"+
+			")"),
+		at("shipment table", "CREATE TABLE shipment (\n"+
+			"	shipment_id INTEGER PRIMARY KEY,\n"+
+			"	country TEXT NOT NULL,\n"+
+			"	area TEXT NOT NULL,\n"+
+			"	amount INTEGER NOT NULL,\n"+
+			"	CONSTRAINT shipment_region_fk FOREIGN KEY (country, area)\n"+
+			"		REFERENCES region(country, area)\n"+
+			")"),
+
+		// A generated column in both of its forms, on a table of its own. It
+		// is not on book, because book is one of the core tables the cross
+		// family conformance test compares and those hold the same columns on
+		// every database. See the fixture test in the root module.
 		at("sales table", "CREATE TABLE sales (\n"+
 			"	sold_on DATE NOT NULL,\n"+
 			"	region TEXT NOT NULL,\n"+
 			"	amount INTEGER NOT NULL,\n"+
 			"	doubled INTEGER GENERATED ALWAYS AS (amount * 2) VIRTUAL,\n"+
+			"	title_length INTEGER GENERATED ALWAYS AS (LENGTH(region)) STORED,\n"+
 			"	PRIMARY KEY (sold_on, region)\n"+
 			")"),
 	},
 	Teardown: []Step{
 		at("drop trigger", "DROP TRIGGER IF EXISTS book_touch"),
+		at("drop shipment", "DROP TABLE IF EXISTS shipment"),
+		at("drop region", "DROP TABLE IF EXISTS region"),
 		at("drop view", "DROP VIEW IF EXISTS recent"),
 		at("drop sales", "DROP TABLE IF EXISTS sales"),
 		at("drop book", "DROP TABLE IF EXISTS book"),

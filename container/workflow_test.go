@@ -36,6 +36,7 @@ func TestWorkflowMatchesTheList(t *testing.T) {
 		{key: "postgres", servers: container.PostgreSQL, tier: container.Tested},
 		{key: "mariadb", servers: container.MariaDB, tier: container.Tested},
 		{key: "mysql", servers: container.MySQL, tier: container.Tested},
+		{key: "sqlserver", servers: container.SQLServer, tier: container.Tested},
 		{key: "image", servers: slices.Concat(container.MariaDB, container.MySQL),
 			tier: container.Nightly, tagged: true},
 	} {
@@ -144,6 +145,40 @@ func TestEveryServerIsUsable(t *testing.T) {
 		if !slices.Contains(args, "1234:"+itoa(s.Port)) {
 			t.Errorf("%s: expected the published port in %v", s.Name(), args)
 		}
+	}
+}
+
+// TestHealthCmdSurvivesAnArgumentWithASpace is the guard for a fault that cost
+// a whole matrix run.
+//
+// Every readiness command joined its arguments with a space, and every
+// argument happened to have none, until SQL Server arrived with the query
+// "SELECT 1". The receiving shell split it, sqlcmd got a command it could not
+// run, and all four SQL Server releases reported "never became ready" while
+// the servers were up and answering.
+//
+// A command is a list of arguments and a string is not, so anything that
+// flattens one into the other has to say what it does with a space.
+func TestHealthCmdSurvivesAnArgumentWithASpace(t *testing.T) {
+	t.Parallel()
+	var checked int
+	for _, s := range container.All() {
+		got := s.HealthCmd()
+		for _, arg := range s.Ready {
+			if !strings.Contains(arg, " ") {
+				continue
+			}
+			checked++
+			if !strings.Contains(got, "'"+arg+"'") {
+				t.Errorf("%s: the argument %q has a space and is not quoted in %q",
+					s.Name(), arg, got)
+			}
+		}
+	}
+	// The guard is worth nothing if no server exercises it, and one does.
+	if checked == 0 {
+		t.Error("no readiness command has an argument with a space any more. " +
+			"Drop this test or find the one that does, because it is guarding nothing.")
 	}
 }
 

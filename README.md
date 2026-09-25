@@ -141,7 +141,7 @@ call and filter in the loop.
 | MySQL      | native             | 25      | Complete    |
 | SQLite3    | native             | 14      | Complete    |
 | DuckDB     | native             | 19      | Complete    |
-| SQL Server | shared, planned    | 0       | Not started |
+| SQL Server | native             | 31      | Complete    |
 | Oracle     | native, planned    | 0       | Not started |
 | Cassandra  | native, planned    | 0       | Not started |
 
@@ -152,9 +152,14 @@ answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
 Oracle and Cassandra have no `information_schema` at all and need a native
-model, as SQLite and DuckDB did. `usql` builds on the same shared reader today
-for SQL Server, Snowflake, Trino, Databend and Netezza, which is the evidence
-for who the shared model serves.
+model, as SQLite and DuckDB did. `usql` builds on the shared reader today for
+Snowflake, Trino, Databend and Netezza, which is the evidence for who the
+shared model serves.
+
+SQL Server was on that list too. `usql` reads it through the shared reader with
+sequences and constraints switched off and a small plugin for catalogs and
+indexes, and the native model here answers 31 kinds instead, including the
+sequences and constraints that reader turns off.
 
 [`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
 and which analogues were found and rejected. MariaDB answers 28 of the 54 and
@@ -218,6 +223,27 @@ Note that `psql` itself dropped support for servers below release 10 in
 PostgreSQL 20. `dbmeta` supports 9.6 deliberately, and its queries for that
 release are translated from an older checkout.
 
+## SQL Server
+
+Supported on every major release that runs on Linux: 2017, 2019, 2022 and 2025.
+
+| Releases                     | Tier     |
+| ---------------------------- | -------- |
+| 2017, 2019, 2022, 2025       | Tested   |
+| 2016 and older               | Archived |
+
+All four are Tested, and CI starts a real server for each on every change.
+There are only four, and every version gate the model carries sits below all of
+them, so there is no older branch that a smaller matrix would leave uncovered.
+
+2017 is a hard floor rather than a choice. Microsoft shipped SQL Server on
+Linux from 2017, so no container exists for 2016 or earlier and no test can run
+against one. The queries carry gates for `sys.sequences` and
+`sys.dm_db_stats_properties` at 2012 and for `sys.external_tables` at 2016, and
+those gates resolve correctly without a server, which
+`models/sqlserver/version_test.go` checks. That is all that is claimed for an
+older release. It is not a claim that the query ran. See D54.
+
 # Design
 
 `dbmeta` supplies the data and the consumer decides what to show. `psql` sets
@@ -232,7 +258,7 @@ Everything else is in [`docs/`](docs/):
 
 | Document | What it holds |
 | --- | --- |
-| [`PLAN.md`](docs/PLAN.md) | Every decision, 51 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because six amend or replace an earlier one. |
+| [`PLAN.md`](docs/PLAN.md) | Every decision, 54 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because six amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -268,6 +294,12 @@ cd test && ./run.sh mariadb-13.0
 `container`, starts each server, waits for it to accept a connection, runs the
 tests and removes the container. CI repeats the same list in YAML, and
 `container/workflow_test.go` fails when the two disagree.
+
+Every database also answers one checked in expectation. `TestConformance`
+builds the same core schema on PostgreSQL, MariaDB, MySQL, SQLite and DuckDB
+and compares the portable facts, so a difference between two families is either
+fixed or written down. 23 of the canonical lines are identical across all five,
+and [`COVERAGE.md`](docs/COVERAGE.md) records every difference that is not.
 
 # Related Projects
 

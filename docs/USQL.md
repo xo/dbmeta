@@ -38,7 +38,7 @@ useful.
 | postgres, pgx | 8/8 | 4/4 | none |
 | cockroachdb | 8/8 | 4/4 | none |
 | redshift | 8/8 | 4/4 | none |
-| sqlserver | 8/8 | 4/4 | none |
+| sqlserver | 8/8 | 4/4 | none, and it reads `information_schema` with sequences and constraints off |
 | duckdb | 8/8 | 4/4 | none |
 | trino | 8/8 | 4/4 | none |
 | mysql, mymysql | 6/8 | 3/4 | Catalogs, ColumnStats, Triggers |
@@ -117,16 +117,19 @@ direction and type of each parameter. Every model except SQLite answers it,
 and SQLite cannot, because a function there is compiled C with no named
 parameters.
 
-`dbmeta.ColumnStats` backs `\ss`. PostgreSQL and MariaDB answer it. MySQL and
-SQLite cannot, and say so rather than returning rows that are almost all
-absent. `usql` implements `\ss` today for PostgreSQL, DuckDB, Trino,
-CockroachDB, Redshift and SQL Server, and the first of those is covered.
+`dbmeta.ColumnStats` backs `\ss`. PostgreSQL, MariaDB and SQL Server answer it.
+MySQL, SQLite and DuckDB cannot, and say so rather than returning rows that are
+almost all absent. `usql` implements `\ss` today for PostgreSQL, DuckDB, Trino,
+CockroachDB, Redshift and SQL Server. Two of those six are covered, and DuckDB
+is not: `usql` prints statistics there that `dbmeta` refuses, because DuckDB
+has no catalog of them.
 
 ### What is still missing for a lossless migration
 
 Nothing, for the databases `dbmeta` models. `usql` implements `\ss` for six
-drivers and `dbmeta` models two of them, so a migration of the other four waits
-on models for DuckDB, Trino and SQL Server rather than on a missing kind.
+drivers and `dbmeta` answers it for two of them, so a migration of the other
+four waits on a model for Trino and on what CockroachDB and Redshift answer
+through the PostgreSQL model, rather than on a missing kind.
 
 Two `usql` reader kinds have no `dbmeta` equivalent by design.
 ConstraintColumns replaces both ConstraintColumns and the column part of

@@ -476,3 +476,45 @@ func TestMySQLNewKinds(t *testing.T) {
 		t.Error("expected statistics after the fixture analyzed the table")
 	}
 }
+
+// TestMySQLNullDefault pins what each product says is the default of a
+// nullable column that was declared without one, because the two products
+// disagree and the cross family conformance test maps the difference away.
+//
+// MariaDB records the four character string NULL. It is saying that the column
+// defaults to NULL, which is true, and which nothing else here says. MySQL
+// records SQL NULL, meaning there is no default, which is what PostgreSQL,
+// SQLite and DuckDB say.
+//
+// dbmeta reports what the database said, and this is the record of that.
+// canonical.go maps both to "no explicit default" for comparison only, and
+// canonicalFields names the mapping.
+func TestMySQLNullDefault(t *testing.T) {
+	db := openMySQL(t)
+	m := setupMySQL(t, db)
+
+	defaults := make(map[string]sql.Null[string])
+	for v, err := range dbmeta.Columns.All(t.Context(), m, db, myArgs()) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		defaults[v.Table+"."+v.Name] = v.Default
+	}
+	// nullable, no default: the two products differ
+	got := defaults["author.rating"]
+	if mysql.IsMariaDB(m.Version()) {
+		if !got.Valid || got.V != "NULL" {
+			t.Errorf("expected MariaDB to report the literal NULL, got %v", got)
+		}
+	} else if got.Valid {
+		t.Errorf("expected MySQL to report no default, got %v", got)
+	}
+	// not null, no default: absent on both
+	if got := defaults["author.name"]; got.Valid {
+		t.Errorf("expected no default on a NOT NULL column with none, got %v", got)
+	}
+	// a real default is the value, not the literal NULL, on both
+	if got := defaults["author.shade"]; !got.Valid || got.V == "NULL" {
+		t.Errorf("expected the declared default, got %v", got)
+	}
+}

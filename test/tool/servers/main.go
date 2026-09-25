@@ -16,9 +16,20 @@
 //
 // It prints one server per line, tab separated: the name, the connection
 // string, the environment variable the test reads it from, the arguments that
-// start it, and the arguments that ask whether it is ready. Every field after
-// the first two is a command line with its arguments separated by spaces, and
-// no value here contains a space.
+// start it, the arguments that ask whether it is ready, and the arguments that
+// remove it.
+//
+// The three command fields hold their arguments separated by a unit separator,
+// U+001F, and not by a space. A space was used until an argument needed one:
+// the SQL Server readiness command runs the query "SELECT 1", and a shell
+// splitting the field on whitespace turned it into two arguments and passed a
+// command that could never succeed. The failure looked like a server that
+// never started.
+//
+// A reader splits a command field on U+001F. In bash:
+//
+//	IFS=$'\x1f' read -r -a cmd <<< "$readyargs"
+//	"$RUNNER" "${cmd[@]}"
 package main
 
 import (
@@ -29,6 +40,11 @@ import (
 	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
 )
+
+// sep separates the arguments of a command within one field. It is a unit
+// separator, U+001F, because an argument can contain a space and cannot
+// sensibly contain this.
+const sep = "\x1f"
 
 // basePort is where the published ports start. Each server gets the next one,
 // so that several can run at the same time.
@@ -56,17 +72,28 @@ func run(args []string) error {
 	}
 	for i, s := range servers {
 		port := basePort + i
-		fields := []string{
-			s.Name(),
-			s.DSN(port),
-			envFor(s.Dialect),
-			strings.Join(s.RunArgs(s.Name(), port), " "),
-			strings.Join(s.ReadyArgs(s.Name()), " "),
-			strings.Join(s.RemoveArgs(s.Name()), " "),
+		commands := [][]string{
+			s.RunArgs(s.Name(), port),
+			s.ReadyArgs(s.Name()),
+			s.RemoveArgs(s.Name()),
 		}
-		for _, f := range fields {
-			if strings.ContainsAny(f, "\t\n") {
-				return fmt.Errorf("%s: a field contains a tab or a newline: %q", s.Name(), f)
+		fields := []string{s.Name(), s.DSN(port), envFor(s.Dialect)}
+		for _, cmd := range commands {
+			for _, arg := range cmd {
+				// A separator inside an argument would split it, which is the
+				// fault this format exists to avoid. Nothing produces one, and
+				// this says so rather than trusting it.
+				if strings.ContainsAny(arg, "\t\n"+sep) {
+					return fmt.Errorf("%s: an argument contains a tab, a newline or a separator: %q",
+						s.Name(), arg)
+				}
+			}
+			fields = append(fields, strings.Join(cmd, sep))
+		}
+		for _, f := range fields[:3] {
+			if strings.ContainsAny(f, "\t\n"+sep) {
+				return fmt.Errorf("%s: a field contains a tab, a newline or a separator: %q",
+					s.Name(), f)
 			}
 		}
 		fmt.Println(strings.Join(fields, "\t"))

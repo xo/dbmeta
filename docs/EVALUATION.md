@@ -337,9 +337,52 @@ makes that distinction, and the table must not claim more than is true.
 | Database | Floor | Ceiling | Decided by |
 | --- | --- | --- | --- |
 | PostgreSQL | 9.6 | 18 | Criterion 1, it is the model |
+| MariaDB | 10.6 | 13.0 | Criterion 3, the oldest long term release still maintained |
+| MySQL | 8.4 | 26.7 | Criterion 3, 8.4 is the long term release |
+| SQL Server | 2017 | 2025 | Criterion 2, and nothing else had to be asked |
+| SQLite3 | none | none | No server. The release is whichever the driver embeds |
+| DuckDB | none | none | No server. The release is whichever the driver embeds |
 
 PostgreSQL covers ten major versions: 9.6, 10, 11, 12, 13, 14, 15, 16, 17 and
 18. See the section above for the unit and the evidence.
 
-Every other database is unevaluated. Do not assume a floor for one until it has
-been through the procedure above.
+## Worked example: SQL Server, where criterion 2 ended it
+
+SQL Server is the clearest case the procedure has produced, and it is worth
+recording because it took one step.
+
+Criterion 2 asks whether a maintained image exists. Microsoft publishes one
+image, `mcr.microsoft.com/mssql/server`, and its tag list answers the whole
+question:
+
+```bash
+curl -s 'https://mcr.microsoft.com/v2/mssql/server/tags/list' | python3 -m json.tool
+```
+
+There are 284 tags. Every one of them names 2017, 2019, 2022 or 2025. There is
+no 2016, no 2014 and no 2012, because Microsoft shipped SQL Server on Linux
+from 2017 and never published a Linux image for an earlier release.
+
+So the floor is 2017 and no further criterion applies. Criterion 3 would have
+argued for 2019, because 2017 passed its end of extended support in October
+2027 under the usual ten year term, and it does not get to: criterion 2 already
+fixed the set at four, and testing all four costs four parallel jobs. D54
+records the tier decision and what may honestly be said about 2016 and older.
+
+Two facts about the images are worth writing down, because both cost time.
+Microsoft publishes no bare release tag, so the tag is `2017-latest` and there
+is no `2017`. The 2017 image is built on an older base and installs sqlcmd at
+`/opt/mssql-tools` where the other three use `/opt/mssql-tools18`, so a
+readiness command written for one of them fails on the other. Both are
+recorded in `container/container.go` rather than in a script.
+
+## What is still unevaluated
+
+Oracle and Cassandra. The Oracle container facts are gathered and recorded in
+D54, and the floor follows from them the same way SQL Server's did: the images
+are `gvenzl/oracle-xe` at 18.4 and 21.3 and `gvenzl/oracle-free` at 23, and
+there is none for 11g or 12c. The privilege question is the open one there, not
+the version question.
+
+Do not assume a floor for a database until it has been through the procedure
+above.

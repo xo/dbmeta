@@ -147,6 +147,11 @@ jobs:
       - name: Test against PostgreSQL
         # test/ is a separate module, because it imports a database driver and
         # the root module must not. `./...` in the root does not reach it.
+        #
+        # This runs the conformance test too, which checks PostgreSQL against
+        # the checked in expectation on every supported release. The canonical
+        # projection is release independent, so one expectation covers 9.6 and
+        # 18 alike, which is the reason it is canonical.
         working-directory: test
         env:
           DBMETA_POSTGRES: postgres://postgres:P4ssw0rd@localhost:5432/postgres?sslmode=disable
@@ -176,6 +181,14 @@ jobs:
         # translation. ubuntu-latest has the C compiler the first one needs.
         working-directory: test
         run: go test -count=1 -v -run SQLite ./...
+
+      - name: Conformance, for the two embedded databases
+        # Every database answers the checked in expectation for the core
+        # fixture schema, canonically. A database that is not running skips
+        # its section, so this job covers SQLite and DuckDB and the database
+        # jobs cover theirs.
+        working-directory: test
+        run: go test -count=1 -v -run 'Conformance|CanonicalFields' ./...
 
       - name: Test against DuckDB
         # The other embedded database, and the other one needing cgo. Its
@@ -222,7 +235,7 @@ jobs:
         working-directory: test
         env:
           DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
-        run: go test -count=1 -v -run 'MySQL|InformationSchema' ./...
+        run: go test -count=1 -v -run 'MySQL|InformationSchema|Conformance' ./...
 
   mysql:
     name: MySQL ${{ matrix.mysql }}
@@ -264,7 +277,51 @@ jobs:
         working-directory: test
         env:
           DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
-        run: go test -count=1 -v -run 'MySQL|InformationSchema' ./...
+        run: go test -count=1 -v -run 'MySQL|InformationSchema|Conformance' ./...
+
+  sqlserver:
+    name: SQL Server ${{ matrix.sqlserver }}
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every major release that ships a Linux container. These come from
+        # container.SQLServer and a test fails when the two disagree. 2017 is a
+        # hard floor: Microsoft shipped SQL Server on Linux from 2017, so there
+        # is no container for 2016 or earlier. See D54.
+        sqlserver: ["2017", "2019", "2022", "2025"]
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:${{ matrix.sqlserver }}-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: P4ssw0rd!x
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "for f in /opt/mssql-tools18/bin/sqlcmd /opt/mssql-tools/bin/sqlcmd; do [ -x $f ] && exec $f -S localhost -U sa -P 'P4ssw0rd!x' -C -Q 'SELECT 1'; done; exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 30s
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against SQL Server
+        working-directory: test
+        env:
+          DBMETA_SQLSERVER: sqlserver://sa:P4ssw0rd%21x@localhost:1433?database=master&encrypt=disable
+        run: go test -count=1 -v -run 'SQLServer|Conformance' ./...
 
   compare:
     name: MariaDB against MySQL

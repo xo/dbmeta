@@ -42,10 +42,19 @@ FAILED=()
 while IFS=$'\t' read -r name dsn envvar runargs readyargs removeargs; do
   printf '=== %s ===\n' "$name"
 
-  # remove a container left behind by a run that was interrupted
-  $RUNNER $removeargs >/dev/null 2>&1
+  # Each command field holds its arguments separated by a unit separator
+  # rather than by a space, because an argument can contain a space: the SQL
+  # Server readiness command runs the query "SELECT 1". Splitting these on
+  # whitespace passed a broken command and looked like a server that never
+  # started. Read them into arrays and expand with "${name[@]}".
+  IFS=$'\x1f' read -r -a RUN <<< "$runargs"
+  IFS=$'\x1f' read -r -a READY <<< "$readyargs"
+  IFS=$'\x1f' read -r -a REMOVE <<< "$removeargs"
 
-  if ! $RUNNER $runargs >/dev/null 2>&1; then
+  # remove a container left behind by a run that was interrupted
+  "$RUNNER" "${REMOVE[@]}" >/dev/null 2>&1
+
+  if ! "$RUNNER" "${RUN[@]}" >/dev/null 2>&1; then
     echo "  could not start ${name}, skipping"
     FAILED+=("$name: no image")
     continue
@@ -57,7 +66,7 @@ while IFS=$'\t' read -r name dsn envvar runargs readyargs removeargs; do
   # on a local socket.
   ready=no
   for _ in $(seq 1 90); do
-    if $RUNNER $readyargs >/dev/null 2>&1; then
+    if "$RUNNER" "${READY[@]}" >/dev/null 2>&1; then
       ready=yes
       break
     fi
@@ -66,7 +75,7 @@ while IFS=$'\t' read -r name dsn envvar runargs readyargs removeargs; do
   if [ "$ready" = no ]; then
     echo "  ${name} never became ready"
     FAILED+=("$name: not ready")
-    $RUNNER $removeargs >/dev/null 2>&1
+    "$RUNNER" "${REMOVE[@]}" >/dev/null 2>&1
     continue
   fi
 
@@ -77,7 +86,7 @@ while IFS=$'\t' read -r name dsn envvar runargs readyargs removeargs; do
     FAILED+=("$name")
   fi
 
-  $RUNNER $removeargs >/dev/null 2>&1
+  "$RUNNER" "${REMOVE[@]}" >/dev/null 2>&1
 done <<< "$SERVERS"
 
 echo

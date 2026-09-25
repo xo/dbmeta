@@ -27,6 +27,7 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 | `models/mysql` | 28 on MariaDB, 25 on MySQL | 54 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
 | `models/sqlite3` | 14 | 54 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
 | `models/duckdb` | 19 | 54 | duckdb/duckdb-go, the driver usql uses |
+| `models/sqlserver` | 31 | 54 | SQL Server 2017, 2019, 2022 and 2025 |
 | `models/informationschema` | 11 | 54 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -315,6 +316,28 @@ than empty. It records no comment on any object. It has no type catalog, no
 operators that can be created, no casts, no procedural languages, no
 replication, no tablespaces and no partitioning.
 
+## What every database agrees on
+
+`TestConformance` builds the same core schema everywhere and compares the
+canonical answer against `test/testdata/conformance.txt`, which is checked in.
+23 of the canonical lines are identical across PostgreSQL, MariaDB, MySQL,
+SQLite and DuckDB. Every difference below is real and none is a fault.
+
+| Difference | Why |
+| --- | --- |
+| SQLite reports a primary key column as nullable | An `INTEGER PRIMARY KEY` in SQLite genuinely accepts NULL unless the column is declared NOT NULL. It is the oldest surprise in SQLite and it is not a fault. |
+| PostgreSQL reports a default on a primary key | `serial` is implemented as a `nextval` default. `AUTO_INCREMENT` and DuckDB's plain key are not defaults. |
+| MariaDB reports the literal `NULL` as the default of a nullable column with no default | MariaDB is saying the column defaults to NULL, which is true. MySQL reports no default, as PostgreSQL, SQLite and DuckDB do. `TestMySQLNullDefault` pins both. |
+| MariaDB reports a view's columns as not nullable | The others say nullable. Each is inferring from the view body differently. |
+| Only PostgreSQL and DuckDB report the columns of a check constraint | `KEY_COLUMN_USAGE` does not cover a check, and SQLite publishes nothing about one. |
+
+The comparison is over the portable facts only: whether a column accepts NULL,
+where it sits, whether it is in the primary key, whether it has an explicit
+default, and which columns a constraint covers in what order with what it
+references. A type spelling, a rendered default and a rendered definition are
+per product and are dropped, and `test/canonical.go` records every one with the
+reason.
+
 ## The six kinds psql has no command for
 
 These exist because a consumer measured in D46 needs them. D47 allows them:
@@ -502,3 +525,124 @@ Everything that needs more than one user or more than one process. No roles, no
 privileges, no triggers, no tablespaces. No casts, domains, operators,
 procedural languages, large objects, event triggers, text search objects or
 replication.
+
+## Microsoft SQL Server
+
+SQL Server answers 31 of the 54, which is more than any database here except
+PostgreSQL. It is the only one besides PostgreSQL with roles, privileges,
+tablespaces and DDL triggers, and the only one that keeps comments in a catalog
+of their own rather than on the object.
+
+It is tested on every major release that runs on Linux: 2017, 2019, 2022 and
+2025, all four on every push. 2016 and older have no container and are
+Archived. D54 says what that means and what may be claimed for them.
+
+### The sys schema, not information_schema
+
+SQL Server ships both, and the `sys` views carry what `information_schema`
+cannot: whether an index is unique, what a foreign key points at, where a table
+lives, and the identity of every object. Microsoft's own documentation says to
+prefer them, and D9 says to prefer a native catalog anyway.
+
+### What it answers
+
+Schemas, databases, tables, columns, indexes, index columns, constraints,
+constraint columns, sequences, views, triggers, event triggers, comments,
+types, domains, collations, functions, aggregates, routine parameters, roles,
+role grants, privileges, tablespaces, partitioned tables, foreign servers, user
+mappings, foreign tables, column statistics, extended statistics, settings and
+the current schema.
+
+Four are worth naming. `Comments` reads `sys.extended_properties` for the
+`MS_Description` property, which is the convention every SQL Server tool uses
+and the closest thing the product has to `COMMENT ON`. `ForeignServers` and
+`UserMappings` read `sys.servers` and `sys.linked_logins`, because a linked
+server is what SQL Server has instead of a foreign server. `Tablespaces` reads
+the filegroups, which is a genuine match rather than an analogue: a filegroup
+is where a table's pages live and that is what the question asks.
+
+### Visibility rather than refusal
+
+A SQL Server catalog view shows the caller what the caller may see and returns
+fewer rows otherwise. It does not refuse.
+
+Three queries here depend on a privilege. `ColumnStats` reads
+`sys.dm_db_stats_properties` and needs `VIEW STATISTICS`. `UserMappings` reads
+`sys.linked_logins` and needs a server level permission. `ForeignTables` reads
+`sys.external_tables`, which exists in every install and holds nothing until
+PolyBase is configured. All three were run as a user holding `VIEW DEFINITION`
+alone, and all three returned an empty result rather than an error.
+
+That is worth knowing because it is a third behaviour. PostgreSQL shows a
+caller everything, MariaDB refuses outright, and SQL Server quietly narrows the
+answer. A consumer that treats an empty result as "there are none" is wrong on
+SQL Server in a way it is not wrong on PostgreSQL.
+
+### The gates, all of which sit below the oldest testable release
+
+`sys.sequences` and `sys.dm_db_stats_properties` arrived in 2012.
+`sys.external_tables`, `sys.tables.is_external` and `sys.tables.temporal_type`
+arrived in 2016. Every one of those is below the 2017 floor, so CI reaches the
+new branch of each gate and never the old one.
+
+`models/sqlserver/version_test.go` holds the old branch instead. It resolves
+each statement against a version set without a server and checks that a gated
+query refuses below the release that added its view, that the padded
+alternative never names a column an older release has not got, and that no
+other query quietly depends on a release. See D54.
+
+One thing the model avoids on purpose. `STRING_AGG` arrived in 2017 and would
+be safe at this floor, and the model uses `STUFF(... FOR XML PATH(''))`
+instead, which works from 2005. The floor is a container fact and the queries
+do not have to inherit it.
+
+### What it has none of
+
+No enumerated type, so nothing for `EnumValues` to list. No operator catalog
+and nothing a user can create, which rules out `Operators`,
+`OperatorClasses`, `OperatorFamilies`, `Casts` and `Conversions`. No procedural
+language catalog: T-SQL is the language and a CLR assembly is not one, which
+rules out `Languages`. No text search objects of the shape `psql` names and no
+logical replication, which rules out `TextSearchConfigs`,
+`TextSearchParsers` and their relatives, `Publications` and `Subscriptions`.
+
+### Analogues that were found and rejected
+
+Hard rule 13 says to ask several models and then run the answer against a real
+server. These were named, checked on SQL Server 2022, and left unsupported.
+
+`Extensions` and `ExtensionObjects` from `sys.assemblies`,
+`sys.assembly_modules` and `sys.assembly_types`. A PostgreSQL extension is a
+versioned bundle of catalog objects that one statement installs and one removes.
+A CLR assembly is compiled .NET code that a later `CREATE FUNCTION` can point
+at, which is not the same thing. On a stock 2022 the view holds exactly one
+row, `Microsoft.SqlServer.Types`, and `clr enabled` is 0, so the feature is off
+by default and Azure SQL Database forbids it outright. Reporting one disabled
+system assembly as the extensions of the database is worse than saying there
+are none.
+
+`DefaultACLs` from `sys.database_permissions` where `class = 3`. A default ACL
+says what will be granted on objects created later. A schema scoped permission
+is a grant that is already in effect and that new objects inherit at runtime.
+The two produce a similar result and they are different facts, and the rows are
+already reported by `Privileges`. On a stock 2022 the count is 0.
+
+`RoleSettings` from `sys.server_principals` and `sys.database_principals`.
+Those carry `default_database_name` and `default_language_name` and nothing
+else. A role setting in PostgreSQL is an arbitrary configuration parameter
+attached to a role, and two fixed columns are not that.
+
+`ForeignDataWrappers`. A linked server names an OLE DB provider, and the
+providers are COM components registered with the operating system. They are
+enumerated by an extended stored procedure and not by any catalog view, so
+there is nothing to read. `ForeignServers` already answers the question the
+linked server itself asks.
+
+`AccessMethods`. SQL Server's index kinds are engine features rather than
+catalog rows. They appear as a `type_desc` on `sys.indexes` and there is no
+catalog of the methods themselves, and nothing can add one.
+
+`LargeObjects`. Every binary value in SQL Server is a column value. FILESTREAM
+and FileTable put the bytes on disk and keep them addressed by the row, so
+there is no object with an identity and an owner of its own to list.
+

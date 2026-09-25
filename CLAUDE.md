@@ -10,7 +10,7 @@ come here.
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 51
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 54
 at the top; read the status, because six of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -24,6 +24,8 @@ Then by what you are doing:
 | adding an object kind | D46 and D47 in `docs/PLAN.md`, then `docs/COMMANDS.md` |
 | adding a database | `docs/EVALUATION.md` for the version range, D43 for the rule about asking other models, D52 for which driver to test with |
 | changing what a database answers | `docs/COVERAGE.md`, which is the record of what each one can do |
+| changing a fixture | D53, then run the fixture test in the root module. A core object belongs in every fixture |
+| a conformance failure | D53. Decide whether it is a fault or a product difference, then fix it or rewrite the expectation and say why |
 | deciding whether a field belongs here | D47 in `docs/PLAN.md`, which holds the cost test |
 | wiring up a client | `docs/COMMANDS.md`, then `docs/USQL.md` or `docs/DBTPL.md` |
 | designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
@@ -106,7 +108,7 @@ something is written down, it is not written down, and it is an open question.
    the pure Go one is what a consumer who cannot use cgo runs, and the two
    ship different library versions. Two drivers need cgo today, and only two:
    `mattn/go-sqlite3`, which builds the real SQLite source and is the primary
-   SQLite driver, and the coming DuckDB driver.
+   SQLite driver, and `duckdb/duckdb-go`.
    Never `godror`, which needs Oracle client libraries rather than only a C
    compiler. See D48.
    Every driver in the `test` module is the one `usql` uses for that database.
@@ -331,10 +333,9 @@ against, as Go data. It starts nothing and imports no container client, and it
 must not: a consumer brings its own podman, docker or Go client and picks its
 own version of it, the same way it brings its own driver.
 
-An embedded database is not in there and must not be. SQLite has no server and
-no container, and its release is whichever one the pinned Go driver ships, so
-it is tested in a CI job that starts nothing. The same will be true of DuckDB.
-See D42.
+An embedded database is not in there and must not be. SQLite and DuckDB have no
+server and no container, and the release is whichever one the pinned Go driver
+ships, so both are tested in a CI job that starts nothing. See D42.
 
 That list is the only copy. `test/run.sh` reads it through
 `test/tool/servers`, the CI workflow repeats it in YAML, and
@@ -374,10 +375,16 @@ CI runs on GitHub Actions, on `ubuntu-latest` only. The queries are SQL and the
 code is pure Go, so `dbmeta` does not need the runner matrix that the other
 `xo` projects use. Keep the workflow small.
 
-CI tests four databases at their latest version: PostgreSQL, MySQL, SQLite3 and
-DuckDB. It does not test older versions and it does not test flavors. Those run
-on a development machine, and they must run before a release. Do not add a
-version matrix to the workflow. See D24 in `docs/PLAN.md`.
+CI runs a release matrix, which D42 decided and which replaced the single
+latest version D24 first called for. Every push runs PostgreSQL 9.6, 12, 15 and
+18, MariaDB 10.6 and 13.0, MySQL 8.4 and 26.7, SQL Server 2017, 2019, 2022 and
+2025, and SQLite3 and DuckDB in a job that starts no container. The remaining
+releases run nightly.
+
+Do not write that list in the workflow from memory. It lives in
+`container/container.go`, `container.AtTier` selects a tier, and
+`TestWorkflowMatchesTheList` fails when the YAML and the Go disagree. Change the
+Go first and then the YAML. See D42 and D54.
 
 Two facts about the runner. The preinstalled PostgreSQL is 16, not the latest
 release, so testing the newest PostgreSQL needs a service container. The

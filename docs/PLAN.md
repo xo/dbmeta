@@ -116,6 +116,8 @@ records the argument.
 | [D50](#d50-documentation-lives-in-docs-and-the-decision-log-stays-one-file-decided) | Documentation lives in docs, and the decision log stays one file | Decided |
 | [D51](#d51-there-is-no-alias-for-a-nullable-type-decided) | There is no alias for a nullable type | Decided |
 | [D52](#d52-a-test-driver-is-the-one-usql-uses-or-it-is-the-wrong-driver-decided) | A test driver is the one usql uses, or it is the wrong driver | Decided |
+| [D53](#d53-one-canonical-expectation-checked-in-that-every-database-must-meet-decided) | One canonical expectation, checked in, that every database must meet | Decided |
+| [D54](#d54-sql-server-covers-every-release-that-ships-a-linux-container-decided) | SQL Server covers every release that ships a Linux container | Decided |
 
 ## Decisions
 
@@ -3089,6 +3091,218 @@ A database `usql` does not support has no driver to match, and the choice is
 open. Say so in the commit, and prefer the driver `usql` would most likely
 adopt, which is usually the one the database's own organisation publishes.
 
+### D53. One canonical expectation, checked in, that every database must meet. Decided.
+
+`TestConformance` builds the same core schema on every database, projects each
+answer onto the facts that are portable, and compares the result against one
+checked in file. `testdata/conformance.txt` has a section per database.
+
+It does not replace `TestMySQLAgainstMariaDB`, which compares raw values within
+one family and catches what this cannot. Goldens catch a regression and
+pairwise catches a divergence, and they are different faults.
+
+#### The fixtures came first, and that was the largest part
+
+Nothing had ever checked the fixtures against each other and they had drifted:
+32 steps on PostgreSQL, 19 on MariaDB, 14 on SQLite, 12 on DuckDB, and three of
+the four built a region and a shipment table where SQLite did not.
+
+A comparison built on drifted fixtures reports the fixtures. So the fixtures
+were aligned first: SQLite gained region and shipment, PostgreSQL's identity
+and generated columns moved off author and book onto a table of their own, and
+every view selects the same two columns.
+
+`TestEveryFixtureBuildsTheCoreObjects` holds it, in the root module, needing no
+database. It matches a `CREATE` rather than the name anywhere, which the first
+version did not: renaming the region table did not fail the test, because
+shipment's foreign key still said `REFERENCES region(country, area)`.
+
+#### Values are compared, not only names
+
+Gemini said no value can be compared across families and DeepSeek said a subset
+can. DeepSeek is right and the evidence is local: the fault that justified the
+MariaDB comparison was a NULL that would not scan, which is a value fault that
+names and row counts would have missed.
+
+The portable subset is what the standard makes every database record the same
+way: whether a column accepts NULL, where it sits, whether it is in the primary
+key, whether it has an explicit default, and which columns a constraint covers
+in what order with what it references.
+
+#### Why one file rather than ten pairwise comparisons
+
+Five databases pairwise is ten comparisons and a failure does not say which
+side is wrong. One expectation is five comparisons and every failure names the
+database.
+
+It works only because the canonical projection is release independent. A raw
+golden would need one file per product per release, because PostgreSQL 9.6 and
+18 disagree about raw values. Nullability and ordinal position do not change
+between releases, so one file covers every release of every database, and the
+PostgreSQL job checks it on all ten.
+
+#### The mechanism that stops a model being made to lie
+
+This is the part that matters, and Gemini's answer to it was a principle where
+DeepSeek's was a mechanism. The mechanism is taken.
+
+Every function in `canonical.go` takes a value and returns a new one. None
+takes a pointer to a model struct and none writes to a field.
+
+`canonicalFields` names every field the projection drops, folds or maps, with
+the reason, and `TestCanonicalFieldsAreRecorded` checks it by reflection. A
+field on the model that is not on the canonical struct and not in the list
+fails the build. It found eight undocumented drops the first time it ran.
+
+The raw values stay asserted by each database's own tests, which this cannot
+weaken. Where the projection maps a difference away, the raw behaviour is
+pinned by a test named in the entry.
+
+#### What it found
+
+Eleven differences, all real, none of them faults:
+
+SQLite reports a primary key column as nullable, because an `INTEGER PRIMARY
+KEY` there genuinely accepts NULL unless declared otherwise.
+
+PostgreSQL reports a default on a primary key because `serial` is a `nextval`
+default, where `AUTO_INCREMENT` is not a default at all.
+
+MariaDB records the four character string `NULL` as the default of a nullable
+column declared without one, where MySQL and everything else report no default.
+`TestMySQLNullDefault` pins both, and it is the entry that justifies the one
+mapping in `canonicalFields`.
+
+MariaDB reports a view's columns as not nullable where the others say nullable.
+
+Only PostgreSQL and DuckDB report the columns of a check constraint.
+
+23 of the canonical lines are identical across all four.
+`TestConformanceAgreementHolds` fails if that number falls, so something that
+was uniform becoming non uniform is a decision somebody makes rather than a
+thing that happens.
+
+#### Rejected: a step carrying every dialect's DDL
+
+Gemini proposed `Exec map[Dialect]string` on a fixture step. DeepSeek's
+objection is the one that decided it: a missing dialect key skips the step
+silently, the expectation is regenerated, the test passes, and that database is
+never exercised.
+
+Silence is the failure mode this project has been bitten by most. Separate
+fixtures fail loudly, and the core object test now catches what they miss.
+
+#### What productSpecific keeps doing
+
+`TestMySQLAgainstMariaDB` keeps its hand written list of columns that
+legitimately differ, and the list keeps its second job, which neither review
+noticed: it is where `int(11)` against `int`, and MySQL parenthesizing a view
+definition, got written down at all. A difference absorbed silently into a
+file stops being knowledge. `canonicalFields` is the same idea for the
+canonical comparison, which is why every entry carries a reason rather than a
+flag.
+
+### D54. SQL Server covers every release that ships a Linux container. Decided.
+
+Four releases, 2017, 2019, 2022 and 2025, and every one of them at the Tested
+tier. CI runs all four on every push. 2016 and older are Archived.
+
+#### The floor is a container fact, not a query fact
+
+Microsoft shipped SQL Server on Linux from 2017. `mcr.microsoft.com/mssql/server`
+carries 284 tags and not one of them names 2016, 2014 or 2012. So the floor is
+not a judgement about which releases deserve support. It is the oldest release
+anybody can run in CI, and there is nothing below it to argue about.
+
+Two facts about the images. Microsoft publishes no bare release tag, so the tag
+is `2017-latest` and never `2017`, which is why `product` carries a
+`tagSuffix`. The 2017 image is built on an older base and installs sqlcmd at
+`/opt/mssql-tools` where the other three use `/opt/mssql-tools18`, which is why
+`container.SQLServer` overrides the readiness command for that one release.
+
+#### Why all four are Tested rather than two Tested and two Nightly
+
+Gemini proposed 2019 and 2022 on every push with 2017 and 2025 nightly, on
+installed base. That reasoning fits a product with ten releases. This one has
+four.
+
+Every version gate the model has sits below 2017, so these four releases differ
+by what they added and not by what they lack. There is no old branch for a
+nightly job to protect. Four service containers cost four parallel jobs, and
+the claim they buy is the whole one: dbmeta is tested on every SQL Server that
+runs on Linux.
+
+#### The gates below the floor, which is the part that needed deciding
+
+The model carries two gates and both sit below 2017. `sys.sequences` and
+`sys.dm_db_stats_properties` arrived in 2012, and `sys.external_tables`,
+`sys.tables.is_external` and `sys.tables.temporal_type` arrived in 2016. CI
+reaches the new branch of each and can never reach the old one.
+
+The two reviews split on this, and the split is the useful part.
+
+Gemini said keep them. The `sys` views are additive and backward compatible, so
+a gate written from Microsoft's documentation will not surprise anybody, and
+2008 R2 through 2016 go in an Archived tier with wording that says CI never
+touched them.
+
+DeepSeek said delete them and raise the floor, because the old branch of a gate
+no test reaches is dead code. If they are kept, it said, fake the version in a
+test and say plainly that the old path is not integration tested.
+
+DeepSeek's objection is the right one and its remedy is the one this project
+already has. A statement resolves against a version set, and a version set is a
+value, so resolution below the floor is testable with no server at all. That is
+`models/sqlserver/version_test.go`, and it holds three things: each gated query
+refuses with `ErrVersionTooOld` below the release that added its catalog view
+and reads that view at or above it, the one gate that pads rather than refuses
+never names `temporal_type` or `is_external` on a release that has not got
+them, and the set of statements that build on 2008 R2 is the set that builds on
+2025 less exactly the three a gate names.
+
+So the gates stay, and they are no longer a claim nobody checks.
+
+#### What may honestly be said about 2014 and 2016
+
+This much: the statement resolves, it names only catalog views that release
+documents, and a reviewer read it. Not that it ran, because it cannot.
+
+Write it that way. Do not write supported, do not write compatible, and do not
+put an old release in a table beside one that CI runs without saying which is
+which. D40 gives three tiers and none of them fits a release with no container,
+so such a release is Archived and Archived means nothing is claimed.
+
+#### What this does not decide
+
+Whether `Query.Support` should answer no for a server too old to build the
+statement. Today it answers yes and `SQL` then returns `ErrVersionTooOld`, which
+`TestWrongProductIsNotSupported` fixes deliberately: Support answers a question
+about the product, and the release is the error's business. Writing the test
+above raised the question of whether a caller is well served by that, because a
+caller that trusts Support walks into a query it cannot build. It is left as it
+is, and it is for Ken.
+
+#### Oracle, recorded and not decided
+
+The same question is coming for Oracle and the container facts are these.
+`gvenzl/oracle-xe` has 18.4 and 21.3, `gvenzl/oracle-free` has 23, and there is
+nothing for 11g or 12c. So Oracle gets the same hard floor for the same reason.
+
+Both reviews agree that Express Edition answers the core catalog and that it is
+not a stand-in for Enterprise Edition everywhere, and they name the same gaps.
+`DBA_HIST_*` needs the Diagnostics Pack and is absent. The partitioning views,
+`ALL_PART_TABLES` and `ALL_TAB_PARTITIONS` among them, exist and stay empty
+because XE cannot partition. `ALL_POLICIES`, the Database Vault and Label
+Security views, and the encryption columns are absent or empty. `ALL_TABLES`
+has in-memory columns that report nothing.
+
+Two things matter more than the feature list. `ALL_*` shows the caller only what
+the caller may see, which is the `information_schema` problem this project
+already knows, and `DBA_*` needs `SELECT_CATALOG_ROLE` that an ordinary user
+does not have. So the Oracle model must choose between the two deliberately and
+the test user must be a named one with fixed grants. See the requirements on the
+container harness above.
+
 ## What exists today
 
 An agent that starts work must read these sources first.
@@ -3639,98 +3853,6 @@ an ordinary user does not have.
 An open question lives here until it is answered, and then it becomes a
 decision above. The argument behind a decision belongs with the decision, which
 is why there is no separate document for it. See D50.
-
-### Open: comparing the answers across database families
-
-Nothing is built. Both reviews answered and they disagree on almost everything,
-which is itself the finding.
-
-#### What prompted it
-
-`TestMySQLAgainstMariaDB` builds one fixture on a MariaDB server and a MySQL
-server, runs every query that narrows to one schema, and compares the answers
-row by row and column by column. A list named `productSpecific` records the
-columns whose values legitimately differ and anything unlisted fails.
-
-It has found four faults, including a NULL that would not scan and a row keyed
-without its parent. The goal is the same thing across families: PostgreSQL
-against SQLite against DuckDB against MySQL, on a common schema.
-
-#### The obstacle
-
-The fixtures have drifted. PostgreSQL's has 32 steps, MariaDB's 19, DuckDB's 12
-and SQLite's 7. The table names mostly match and the columns do not. And
-PostgreSQL has enums, materialized views, exclusion constraints and
-publications that SQLite has none of, so a shared fixture is either the
-intersection, which tests almost nothing, or the union, which most databases
-cannot build.
-
-#### Where they agree
-
-A layered fixture: an ANSI baseline every database can build, plus layers gated
-on a capability rather than on a version. A capability gate is a second axis
-and the existing version gate does not serve.
-
-Native per object suites stay. Publications and virtual tables do not belong in
-a shared fixture.
-
-#### Where they disagree, and it matters
-
-**Whether values can be compared at all.** Gemini says never across families:
-assert object names, column sets and row counts, and stop, because PostgreSQL
-says `integer`, MariaDB `int(11)` and SQLite `INTEGER` and all are correct.
-DeepSeek says that throws away most of what made the MariaDB test valuable, and
-names a portable subset that can be compared: nullability, ordinal position,
-precision and scale, whether a default is absent, uniqueness, foreign key
-actions, row counts, and a comment the fixture set itself. The NULL scan fault
-was a value fault and neither names nor counts would have caught it.
-
-**Golden files against pairwise.** Gemini says replace the pairwise matrix with
-a recorded expectation per database, because pairwise is ten comparisons for
-five databases and a failure does not say which side is wrong. DeepSeek agrees
-those are the tradeoffs and says a golden file records what the database said,
-so it catches a regression and can never catch two databases that were both
-wrong from the start, which is exactly what the pairwise test catches. Its
-answer is both: goldens for regression, a canonical comparison over the
-portable subset for divergence, and raw pairwise kept for close pairs.
-
-**How the fixture carries five dialects.** Gemini proposes
-`Exec map[Dialect]string` on a step. DeepSeek calls that worse than five
-fixtures, with a concrete failure: a missing dialect key skips the step
-silently, the golden is regenerated, and the test passes while that database is
-never exercised. Five separate fixtures at least fail loudly.
-
-#### The risk both were asked about
-
-That a conformance test pushes a model to normalize an answer so that two
-databases agree, which is the one thing this library must never do.
-
-Gemini's answer is a principle: assert on topology, not on strings. DeepSeek's
-is a mechanism, which is what is wanted: raw per dialect goldens assert exact
-values before any normalization; a test only `canonicalize` function returns a
-new value and never touches a model field; and a checked in list names every
-field the canonical comparison maps or drops, so widening it is a reviewed
-change rather than a quiet one.
-
-#### What I think
-
-DeepSeek is right about values, and the evidence is local: the fault that
-justified the existing test was a value fault. Comparing a portable subset is
-worth more than comparing names.
-
-It is also right that goldens and pairwise catch different things. A golden
-freezes whatever the database said, including a wrong answer, and this project
-has shipped wrong answers that only a second database exposed.
-
-The `Exec map[Dialect]string` objection is the strongest point either made,
-because the failure is silent, and silence is the failure mode this project has
-been bitten by most.
-
-What neither addressed: the fixtures have drifted because nothing checks them
-against each other. A test asserting that every fixture builds the same core
-object names would have caught the drift as it happened and costs almost
-nothing. That is worth doing before any of the above.
-
 
 None of the older questions are open. The floor question that the upstream change reopened has been answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
