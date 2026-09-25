@@ -129,6 +129,7 @@ records the argument.
 | [D63](#d63-support-says-when-a-release-is-too-old-amends-d54) | Support says when a release is too old | Amends D54 |
 | [D64](#d64-the-verified-tier-is-checked-against-the-document-decided) | The Verified tier is checked against the document | Decided |
 | [D65](#d65-a-windows-machine-rearms-its-evaluation-before-it-expires-decided) | A Windows machine rearms its evaluation before it expires | Decided |
+| [D66](#d66-the-order-the-remaining-dialects-are-written-in-decided) | The order the remaining dialects are written in | Decided |
 
 ## Decisions
 
@@ -4140,6 +4141,92 @@ so the next ordinary start is soon enough.
 is rebuilt, which is about an hour, or the release drops to Archived under D40
 and nothing is claimed for it. Neither is automatic, because both are a
 person's decision about how much a pre-2017 SQL Server is worth.
+
+### D66. The order the remaining dialects are written in. Decided.
+
+Impala first, then ClickHouse, then the products that run in a container,
+then the ones that need an account. A product that cannot be started cannot be
+supported, and that decides the order more than anything about the product.
+
+#### Impala first, because usql is waiting on it
+
+`usql` has five hand written metadata readers: postgres, mysql, oracle,
+impala and informationschema. Four of them are reimplemented here. Impala is
+the last, and until it exists `usql` cannot retire its own metadata package,
+which is the point of this project. Nothing else on this list blocks anybody.
+
+It runs in a container, `apache/impala`, so the usual rules apply to it.
+
+#### Then ClickHouse, the one gap in the default build
+
+`usql` builds clickhouse, csvq, duckdb, mysql, oracle, postgres, sqlite3 and
+sqlserver by default. Every one of those has a model except ClickHouse and
+csvq, and csvq reads files rather than a catalog.
+
+ClickHouse has a real one. `system.tables`, `system.columns`,
+`system.databases`, `system.functions`, `system.settings`,
+`system.data_skipping_indices` and `system.dictionaries` carry the engine, the
+partition key, the sorting key, the TTL and the column codecs, none of which
+its `information_schema` emulation exposes. `clickhouse/clickhouse-server`
+starts in seconds.
+
+#### Then the products that run in a container
+
+In this order, and the order is what the native catalog adds over
+`information_schema`, not the size of the user base:
+
+| | Product | Image | Why here |
+| --- | --- | --- | --- |
+| 3 | Trino | `trinodb/trino` | federated engine, wide use, connector and session metadata |
+| 4 | Presto | `prestodb/presto` | probably a flavor key on the Trino model rather than a model |
+| 5 | Vertica | `vertica/vertica-ce` | `v_catalog` is rich and nothing else reaches it |
+| 6 | SAP HANA | `saplabs/hanaexpress` | enterprise install base, deep `SYS` catalog |
+| 7 | Firebird | `firebirdsql/firebird` | the `RDB$` catalog answers more than most of this list |
+| 8 | Exasol | `exasol/docker-db` | `EXA_` catalog, analytic install base |
+| 9 | Hive | `apache/hive` | metastore, and it is the shape Impala already teaches |
+
+Below those and worth a model only if somebody asks: Couchbase, Ignite,
+VoltDB, YDB, Databend and Avatica. Each has an image and none of them is
+shaped much like the 55.
+
+#### Last, the ones that need an account
+
+Snowflake, BigQuery, Databricks, Athena, MaxCompute and Alibaba Tablestore
+have no local emulator that both reviews agreed on. Both were asked whether
+credits make them testable and both said the same thing: a free tier exists
+for each, and using it from CI means pre-created credentials.
+
+That is a different kind of dependency from a container and a worse one. A
+secret in CI, an account that expires, a bill that can arrive, and a test that
+fails for everybody when somebody else's trial ends. D40's tiers assume a
+release can be started on demand, and none of these can.
+
+So they are last, and a model for one of them is Archived on arrival unless
+the account question is answered first. The two reviews disagreed about
+MaxCompute and Tablestore, one calling them trial only and the other naming an
+official emulator, which is a lead to run before either is scheduled.
+
+#### What gets no model at all
+
+Four are another driver for a product already here, and want a flavor key or
+nothing: `pgx` is PostgreSQL, `mymysql` is MySQL, `moderncsqlite` is SQLite
+and `godror` is Oracle. `netezza` is PostgreSQL derived and may be a flavor
+key, which is a lead rather than a fact.
+
+Three are not relational and the 55 do not apply: DynamoDB, Cosmos DB and
+Tablestore are key value stores with no SQL catalog to read.
+
+Five are not products: `adodb` and `odbc` are bridges to whatever sits behind
+them, and `csvq`, `chai` and `ql` read files or embed, with no catalog beyond
+what `information_schema` already covers.
+
+#### The rule this follows
+
+Order by whether it can be started, then by whether anybody is blocked, then
+by what the native catalog adds. Not by popularity: Snowflake and BigQuery
+would be near the top on user count and are last here, because a query that
+has never run against a real server is not finished and neither of them can be
+run on demand.
 
 ## What exists today
 
