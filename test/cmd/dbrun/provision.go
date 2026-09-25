@@ -258,7 +258,7 @@ func startMachine(ctx context.Context, r runner, t target, vm container.WindowsV
 func waitForSQLServer(ctx context.Context, dsn string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
-		if answered(ctx, dsn) {
+		if answered(ctx, dsn, 20*time.Second) {
 			return nil
 		}
 		if time.Now().After(deadline) {
@@ -272,13 +272,15 @@ func waitForSQLServer(ctx context.Context, dsn string, timeout time.Duration) er
 	}
 }
 
-func answered(ctx context.Context, dsn string) bool {
+// answered reports whether SQL Server on the other end of a DSN answers a
+// query within the timeout.
+func answered(ctx context.Context, dsn string, timeout time.Duration) bool {
 	db, err := sql.Open("sqlserver", dsn)
 	if err != nil {
 		return false
 	}
 	defer db.Close()
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	// The version query rather than SELECT 1, so that a machine which
 	// answers but has not finished configuring is not called ready.

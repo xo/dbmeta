@@ -130,15 +130,24 @@ is nothing to start rather than failing.
 | `start` | create or start | start the provisioned machine | nothing to do, says so |
 | `stop` | stop | stop | nothing to do |
 | `remove` | delete | delete, and warn that it is an hour to rebuild | nothing to do |
-| `status` | running, with URL | running, with URL and the viewer port | says embedded |
+| `status` | running, with URL | answering, with URL and the viewer port, or starting | says embedded |
 | `version` | connect and read | connect and read | read what the driver links |
 | `test` | start, wait, test, remove | start, wait, test, keep | test |
 | `provision` | not applicable | build it | not applicable |
 
-Two differences are real and stay. A machine is kept after `test`, because
+Three differences are real and stay. A machine is kept after `test`, because
 rebuilding it is an hour, where a container is removed because rebuilding it
-is a minute. And a machine waits on a query rather than on a port, because
-Windows boots long before SQL Server listens.
+is a minute. A machine waits on a query rather than on a port, because Windows
+boots long before SQL Server listens.
+
+And `status` opens a connection to a machine before it prints a URL, where for
+a container it prints one on the strength of the container running. A running
+container means the server answers, because `start` does not return until it
+does. A running machine means nothing of the sort: `dockurr/windows` is up for
+the whole hour Windows takes to install itself and for every reboot after it,
+and the first version of this printed a URL that refused connections
+throughout. A machine that does not answer within five seconds is reported as
+starting.
 
 ## Why Go
 

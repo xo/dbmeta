@@ -17,6 +17,9 @@ import (
 const (
 	defaultTimeout = 90 * time.Second
 	machineTimeout = 15 * time.Minute
+	// How long status waits for a machine to answer. It is short because
+	// status is a question about what is there, not a wait for it to arrive.
+	statusProbe = 5 * time.Second
 )
 
 func (t target) timeout(o options) time.Duration {
@@ -96,7 +99,7 @@ func withRunner(ctx context.Context, command string, picked []target, o options)
 func one(ctx context.Context, r runner, command string, t target, o options) error {
 	switch command {
 	case "status":
-		return doStatus(ctx, r, t)
+		return doStatus(ctx, r, t, o)
 	case "start":
 		return doStart(ctx, r, t, o)
 	case "stop":
@@ -115,7 +118,14 @@ func one(ctx context.Context, r runner, command string, t target, o options) err
 	return fmt.Errorf("no command called %q", command)
 }
 
-func doStatus(ctx context.Context, r runner, t target) error {
+// doStatus says what is up, and for a machine says whether it answers.
+//
+// A running machine is not a machine that answers. The container is up for the
+// whole hour Windows takes to install itself, and for every reboot after that,
+// so printing a URL on the strength of the container prints one that refuses
+// connections. A container needs no such probe, because start does not return
+// until the server has answered.
+func doStatus(ctx context.Context, r runner, t target, o options) error {
 	if t.Kind == kindEmbedded {
 		fmt.Printf("  %-20s embedded, nothing to start\n", t.Name)
 		return nil
@@ -124,6 +134,15 @@ func doStatus(ctx context.Context, r runner, t target) error {
 		return nil
 	}
 	if t.Kind == kindMachine {
+		probe := statusProbe
+		if o.timeout > 0 {
+			probe = o.timeout
+		}
+		if !answered(ctx, t.DSN, probe) {
+			fmt.Printf("  %-20s %-*s  screen http://127.0.0.1:%d\n",
+				t.Name, len(t.URL), "starting, not answering yet", t.Viewer)
+			return nil
+		}
 		fmt.Printf("  %-20s %s  screen http://127.0.0.1:%d\n", t.Name, t.URL, t.Viewer)
 		return nil
 	}
