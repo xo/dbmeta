@@ -6,12 +6,12 @@ Read three things before you change anything.
 cost the most to learn. Never collapse a NULL. It is a hard requirement and it
 is not negotiable.
 
-[`CLAUDE.md`](CLAUDE.md) holds the rules: 15 of them, plus the Go conventions,
+[`CLAUDE.md`](CLAUDE.md) holds the rules: 16 of them, plus the Go conventions,
 the lint policy and how to run the tests. It is written for an AI coding agent
 and everything in it applies to a person.
 
 [`docs/PLAN.md`](docs/PLAN.md) holds every decision this project has made, with
-the reasoning and what was rejected. The table at the top lists all 67 with
+the reasoning and what was rejected. The table at the top lists all 69 with
 their status. Read the status: six of them amend or replace an earlier one.
 
 Do not decide an open question on your own. The open questions are at the end

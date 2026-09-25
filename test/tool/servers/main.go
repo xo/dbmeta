@@ -33,6 +33,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -46,8 +47,15 @@ import (
 // sensibly contain this.
 const sep = "\x1f"
 
-// basePort is where the published ports start. Each server gets the next one,
-// so that several can run at the same time.
+// basePort is where the published ports start.
+//
+// A server's port is its position in container.All plus this, so a release
+// always gets the same one however it was selected. Numbering the filtered
+// list instead gave every single server run.sh started the first port, so two
+// of them collided and the second was left in Created state holding a name
+// that podman rm --force does not free. It also means a port a person learned
+// once keeps working, which matters because run.sh up prints a DSN somebody
+// then pastes into usql.
 const basePort = 55000
 
 func main() {
@@ -58,7 +66,22 @@ func main() {
 }
 
 func run(args []string) error {
-	servers := container.All()
+	// --json prints just the names, as a JSON array, for a GitHub Actions
+	// matrix. The workflow expands it with fromJSON and names no image, no
+	// port and no release of its own, so there is nothing for it to disagree
+	// with container.All about. See D69.
+	asJSON := false
+	if len(args) > 0 && args[0] == "--json" {
+		asJSON, args = true, args[1:]
+	}
+	all := container.All()
+	// The port every server gets, by its place in the whole list rather than
+	// in whatever subset was asked for.
+	ports := make(map[string]int, len(all))
+	for i, s := range all {
+		ports[s.Name()] = basePort + i
+	}
+	servers := all
 	if len(args) > 0 {
 		var picked []container.Server
 		for _, arg := range args {
@@ -70,14 +93,26 @@ func run(args []string) error {
 		}
 		servers = picked
 	}
-	for i, s := range servers {
-		port := basePort + i
+	if asJSON {
+		names := make([]string, len(servers))
+		for i, s := range servers {
+			names[i] = s.Name()
+		}
+		out, err := json.Marshal(names)
+		if err != nil {
+			return fmt.Errorf("encoding the names: %w", err)
+		}
+		fmt.Println(string(out))
+		return nil
+	}
+	for _, s := range servers {
+		port := ports[s.Name()]
 		commands := [][]string{
 			s.RunArgs(s.Name(), port),
 			s.ReadyArgs(s.Name()),
 			s.RemoveArgs(s.Name()),
 		}
-		fields := []string{s.Name(), s.DSN(port), envFor(s.Dialect)}
+		fields := []string{s.Name(), s.DSN(port), envFor(s.Dialect), s.URL(port)}
 		for _, cmd := range commands {
 			for _, arg := range cmd {
 				// A separator inside an argument would split it, which is the
@@ -90,7 +125,7 @@ func run(args []string) error {
 			}
 			fields = append(fields, strings.Join(cmd, sep))
 		}
-		for _, f := range fields[:3] {
+		for _, f := range fields[:4] {
 			if strings.ContainsAny(f, "\t\n"+sep) {
 				return fmt.Errorf("%s: a field contains a tab, a newline or a separator: %q",
 					s.Name(), f)

@@ -22,6 +22,7 @@ type Dialect string
 // and its driver is postgres.
 const (
 	Cassandra  Dialect = "cassandra"
+	ClickHouse Dialect = "clickhouse"
 	DuckDB     Dialect = "duckdb"
 	MySQL      Dialect = "mysql"
 	Oracle     Dialect = "oracle"

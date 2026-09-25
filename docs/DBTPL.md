@@ -53,6 +53,33 @@ arrived with the kinds D47 added.
 `dbtpl` would gain nothing new there because it already has them. What it would
 gain is not having to maintain five dialects of the same query.
 
+### Which databases answer everything dbtpl needs
+
+The nine above are what `dbtpl` reads to generate code. This is how many of
+them each model answers, counted from the queries the models register rather
+than from memory.
+
+| Database | Of the nine | What is missing, and why |
+| --- | --- | --- |
+| PostgreSQL | 9 | nothing |
+| MariaDB and MySQL | 9 | nothing |
+| SQL Server | 9 | nothing |
+| Oracle | 9 | nothing |
+| DuckDB | 8 | `IndexColumns`: DuckDB names an index and does not list the columns of it |
+| SQLite | 8 | `RoutineParameters`: a SQLite function has no named parameters |
+| ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
+| Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
+| any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
+
+Four answer all nine: PostgreSQL, the MySQL dialect, SQL Server and Oracle.
+Those are the four a `dbtpl` built on `dbmeta` could generate from with nothing
+missing.
+
+Every gap above is the product rather than the model. `dbtpl` supports
+PostgreSQL, MySQL, SQL Server, Oracle and SQLite today, so the only one of its
+own databases that is short is SQLite, by one query, for a reason `dbtpl`
+already knows: it writes no parameter names for SQLite either.
+
 ## What dbmeta added
 
 Five things, three of them shared with `usql`. All five now exist, under D47.

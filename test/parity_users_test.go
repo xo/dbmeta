@@ -223,3 +223,21 @@ func cqlUser(t *testing.T, dsn, user, password string) string {
 	q.Set("password", password)
 	return host + "?" + q.Encode()
 }
+
+// makeClickHouseGrantee makes a user with every privilege on the fixture
+// database and none anywhere else.
+//
+// It needs the server started with CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT, which
+// container/clickhouse.go sets. Without it CREATE USER is refused and there is
+// no second principal to be.
+func makeClickHouseGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	cleanup(t, db, `DROP USER IF EXISTS dbmeta_parity`)
+	exec(t, db, `CREATE USER dbmeta_parity IDENTIFIED BY '`+parityPassword+`'`)
+	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS dbmeta_parity`) })
+	// The star here is the grant's object list, every table in the database,
+	// and not a select list. unqueryvet reads the two the same way.
+	//nolint:unqueryvet // GRANT ... ON db.* is the CREATE GRANT syntax
+	exec(t, db, `GRANT SELECT ON `+schema+`.* TO dbmeta_parity`)
+	return replaceUser(t, dsn, "dbmeta_parity", parityPassword)
+}

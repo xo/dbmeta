@@ -2,286 +2,108 @@ package container_test
 
 import (
 	"os"
-	"slices"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/xo/dbmeta/container"
 )
 
-// The CI workflow names its releases in YAML and this package names them in
-// Go. Two copies drift, and the copy that drifts quietly is the one that
-// decides what a release was tested against. This fails when they disagree.
+// The CI workflow used to name every release and every image in YAML, beside
+// the Go list here, and a test compared the two so they could not drift.
 //
-// It reads the YAML with a line scan rather than a parser, because the root
-// module depends on the standard library and dburl and on nothing else, and
-// the lines it reads are one flat list each.
+// They cannot drift now, because there is only one copy. The workflow asks
+// tool/servers for the list as JSON and expands it into a matrix, so it names
+// no release and no image of its own. These tests hold that property in
+// place, which is a smaller thing to check than two lists agreeing and a
+// stronger one to have. See D69.
+//
+// They read the YAML with a line scan rather than a parser, because the root
+// module depends on the standard library and on nothing else.
 const workflow = "../.github/workflows/test.yml"
 
-func TestWorkflowMatchesTheList(t *testing.T) {
-	t.Parallel()
+// imageLine matches an image a service block names.
+var imageLine = regexp.MustCompile(`(?m)^\s*image:\s*(\S+)\s*$`)
+
+func workflowText(t *testing.T) string {
+	t.Helper()
 	body, err := os.ReadFile(workflow)
 	if err != nil {
 		t.Fatalf("reading the workflow: %v", err)
 	}
-	text := string(body)
-
-	for _, c := range []struct {
-		key     string
-		servers []container.Server
-		tier    container.Tier
-		// tagged says the list holds image:tag rather than a bare release.
-		tagged bool
-	}{
-		{key: "postgres", servers: container.PostgreSQL, tier: container.Tested},
-		{key: "mariadb", servers: container.MariaDB, tier: container.Tested},
-		{key: "mysql", servers: container.MySQL, tier: container.Tested},
-		{key: "sqlserver", servers: container.SQLServer, tier: container.Tested},
-		{key: "oracle", servers: container.Oracle, tier: container.Tested},
-	} {
-		want := make([]string, 0, len(c.servers))
-		for _, s := range c.servers {
-			if s.Tier != c.tier {
-				continue
-			}
-			if c.tagged {
-				want = append(want, s.Ref())
-			} else {
-				want = append(want, s.Release)
-			}
-		}
-		got, ok := matrixList(text, c.key)
-		if !ok {
-			t.Errorf("the workflow has no %q matrix", c.key)
-			continue
-		}
-		if strings.Join(got, ",") != strings.Join(want, ",") {
-			t.Errorf("the %s matrix and container.go disagree\n workflow %v\n go       %v\n"+
-				"change container.go and then the workflow, in that order", c.key, got, want)
-		}
-	}
-
-	// The nightly jobs, which run the releases a push does not. There is one
-	// per product rather than one shared job, because MariaDB dropped
-	// mysqladmin at 11.0 and a single health check reported three live
-	// servers as failing to start. Each product uses its own check.
-	for _, c := range []struct {
-		key     string
-		servers []container.Server
-	}{
-		{"mariadb", container.MariaDB},
-		{"mysql", container.MySQL},
-		{"oracle", container.Oracle},
-	} {
-		var want []string
-		for _, s := range c.servers {
-			if s.Tier == container.Nightly {
-				want = append(want, s.Release)
-			}
-		}
-		got, ok := lastMatrixList(text, c.key)
-		if !ok {
-			t.Errorf("the workflow has no nightly %q matrix", c.key)
-			continue
-		}
-		if strings.Join(got, ",") != strings.Join(want, ",") {
-			t.Errorf("the nightly %s matrix and container.go disagree\n workflow %v\n go       %v",
-				c.key, got, want)
-		}
-	}
-
-	// the nightly PostgreSQL job runs every release, tested and nightly alike
-	got, ok := matrixList(text, "postgres")
-	if !ok {
-		t.Fatal("expected a postgres matrix")
-	}
-	all, ok := lastMatrixList(text, "postgres")
-	if !ok || len(all) <= len(got) {
-		t.Fatal("expected the nightly job to list more releases than the push job")
-	}
-	if strings.Join(all, ",") != strings.Join(container.Releases(container.PostgreSQL), ",") {
-		t.Errorf("the nightly postgres matrix and container.go disagree\n workflow %v\n go       %v",
-			all, container.Releases(container.PostgreSQL))
-	}
-
-	// Every image CI is supposed to run must appear in the workflow.
-	//
-	// The list is fully qualified and a workflow is not: it writes
-	// mariadb:11.4 where the list says docker.io/library/mariadb. The registry
-	// is dropped before looking, so the two can be compared.
-	//
-	// Only the tiers CI runs. A Verified release is by definition one CI does
-	// not touch, so requiring it here would force a job that contradicts its
-	// own tier. The registry prefix is dropped, because a workflow writes
-	// gvenzl/oracle-xe where the list says docker.io/gvenzl/oracle-xe and
-	// both name the same image.
-	for _, s := range container.All() {
-		if s.Tier == container.Verified {
-			continue
-		}
-		name := s.Image
-		if i := strings.Index(name, "/"); i >= 0 && strings.Contains(name[:i], ".") {
-			name = name[i+1:]
-		}
-		name = strings.TrimPrefix(name, "library/")
-		if !strings.Contains(text, name+":") {
-			t.Errorf("the workflow never names the %s image, and %s is %s",
-				name, s.Name(), s.Tier)
-		}
-	}
+	return string(body)
 }
 
-// matrixList returns the first `key: ["a", "b"]` list in the workflow.
-func matrixList(text, key string) ([]string, bool) {
-	lists := allMatrixLists(text, key)
-	if len(lists) == 0 {
-		return nil, false
-	}
-	return lists[0], true
-}
-
-// lastMatrixList returns the last such list, which is the nightly one.
-func lastMatrixList(text, key string) ([]string, bool) {
-	lists := allMatrixLists(text, key)
-	if len(lists) == 0 {
-		return nil, false
-	}
-	return lists[len(lists)-1], true
-}
-
-func allMatrixLists(text, key string) [][]string {
-	var out [][]string
-	for line := range strings.SplitSeq(text, "\n") {
-		line = strings.TrimSpace(line)
-		rest, found := strings.CutPrefix(line, key+": [")
-		if !found {
-			continue
-		}
-		rest, found = strings.CutSuffix(rest, "]")
-		if !found {
-			continue
-		}
-		var items []string
-		for item := range strings.SplitSeq(rest, ",") {
-			items = append(items, strings.Trim(strings.TrimSpace(item), `"`))
-		}
-		out = append(out, items)
-	}
-	return out
-}
-
-// TestEveryServerIsUsable checks the parts a caller needs to start one.
-func TestEveryServerIsUsable(t *testing.T) {
+// TestWorkflowReadsTheList checks that the workflow builds its matrix from
+// this package rather than from a list of its own.
+func TestWorkflowReadsTheList(t *testing.T) {
 	t.Parallel()
-	seen := make(map[string]bool)
-	for _, s := range container.All() {
-		if seen[s.Name()] {
-			t.Errorf("%s is listed twice", s.Name())
+	text := workflowText(t)
+	for _, tier := range []container.Tier{container.Tested, container.Nightly} {
+		want := "./tool/servers --json " + string(tier)
+		if !strings.Contains(text, want) {
+			t.Errorf("the workflow never runs %q, so the %s tier is not read from"+
+				" container.All and can drift from it", want, tier)
 		}
-		seen[s.Name()] = true
-		if s.Image == "" || s.Tag == "" || s.Port == 0 || len(s.Env) == 0 || len(s.Ready) == 0 {
-			t.Errorf("%s is missing something it needs to start: %+v", s.Name(), s)
-		}
-		if got := s.DSN(1234); !strings.Contains(got, "1234") {
-			t.Errorf("%s: expected the port in the connection string, got %s", s.Name(), got)
-		}
-		args := s.RunArgs(s.Name(), 1234)
-		if !slices.Contains(args, s.Ref()) {
-			t.Errorf("%s: expected the qualified image in %v", s.Name(), args)
-		}
-		if !slices.Contains(args, "1234:"+itoa(s.Port)) {
-			t.Errorf("%s: expected the published port in %v", s.Name(), args)
-		}
+	}
+	if !strings.Contains(text, "fromJSON(needs.releases.outputs.tested)") {
+		t.Error("the workflow does not expand the tested list into a matrix")
+	}
+	if !strings.Contains(text, "fromJSON(needs.releases.outputs.nightly)") {
+		t.Error("the workflow does not expand the nightly list into a matrix")
 	}
 }
 
-// TestHealthCmdSurvivesAnArgumentWithASpace is the guard for a fault that cost
-// a whole matrix run.
+// TestWorkflowImagesAreQualified checks that every image the workflow does
+// name carries its registry.
 //
-// Every readiness command joined its arguments with a space, and every
-// argument happened to have none, until SQL Server arrived with the query
-// "SELECT 1". The receiving shell split it, sqlcmd got a command it could not
-// run, and all four SQL Server releases reported "never became ready" while
-// the servers were up and answering.
-//
-// A command is a list of arguments and a string is not, so anything that
-// flattens one into the other has to say what it does with a space.
-func TestHealthCmdSurvivesAnArgumentWithASpace(t *testing.T) {
+// An unqualified name resolves against whatever the runner's search list
+// happens to be, which is podman's unqualified-search-registries locally and
+// Docker Hub on the runner. The same YAML then means two things. Every image
+// in container.All is written out in full and the few left in the workflow
+// have to match.
+func TestWorkflowImagesAreQualified(t *testing.T) {
 	t.Parallel()
-	var checked int
-	for _, s := range container.All() {
-		got := s.HealthCmd()
-		for _, arg := range s.Ready {
-			if !strings.Contains(arg, " ") {
-				continue
-			}
-			checked++
-			if !strings.Contains(got, "'"+arg+"'") {
-				t.Errorf("%s: the argument %q has a space and is not quoted in %q",
-					s.Name(), arg, got)
-			}
-		}
+	text := workflowText(t)
+	found := imageLine.FindAllStringSubmatch(text, -1)
+	if len(found) == 0 {
+		t.Skip("the workflow names no image, which is the direction of travel")
 	}
-	// The guard is worth nothing if no server exercises it, and one does.
-	if checked == 0 {
-		t.Error("no readiness command has an argument with a space any more. " +
-			"Drop this test or find the one that does, because it is guarding nothing.")
+	for _, m := range found {
+		image := m[1]
+		if strings.Contains(image, "${{") {
+			continue
+		}
+		host, _, ok := strings.Cut(image, "/")
+		if !ok || !strings.Contains(host, ".") {
+			t.Errorf("%s is not fully qualified: an image here needs its registry,"+
+				" because an unqualified name resolves against the runner's search"+
+				" list and means one thing locally and another in CI", image)
+		}
 	}
 }
 
-// TestNamesCarryOnlyTheMajor checks that a container name reads the same way
-// for every product.
+// TestWorkflowImagesAreInTheList checks that an image the workflow still names
+// is one this package knows about.
 //
-// The names were written by hand for a while and drifted: a podman listing
-// held ora11 beside ora18.4.0 and ora21.3.0. A name carries the major and
-// never a patch level.
-//
-// It deliberately does not check that the major is the start of the release.
-// That held until Oracle, and Oracle is the counterexample: 26ai is version
-// 23.26.3, so the name and the number do not share a prefix at all. A release
-// that has no name falls back to its full version, which has two dots and
-// fails here, so adding one without naming it cannot pass quietly.
-func TestNamesCarryOnlyTheMajor(t *testing.T) {
+// Only the comparison job names any, because it needs two servers at once and
+// run.sh starts one. Those two are pinned in YAML and this is what stops them
+// drifting from the releases everything else tests.
+func TestWorkflowImagesAreInTheList(t *testing.T) {
 	t.Parallel()
+	text := workflowText(t)
+	known := map[string]bool{}
 	for _, s := range container.All() {
-		name := s.Name()
-		if !strings.HasPrefix(name, strings.ToLower(s.Product)+"-") {
-			t.Errorf("%s does not begin with its product", name)
+		known[s.Image+":"+s.Tag] = true
+	}
+	for _, m := range imageLine.FindAllStringSubmatch(text, -1) {
+		image := m[1]
+		if strings.Contains(image, "${{") {
+			continue
 		}
-		if s.Major == "" {
-			t.Errorf("%s has no major", s.Release)
-		}
-		// A major is at most two numbers, as in 9.6 or 10.6, or a name like
-		// 19c. A second dot means a patch level reached the name.
-		if n := strings.Count(s.Major, "."); n > 1 {
-			t.Errorf("%s carries a patch level. Release %s needs a name: "+
-				"add it to oracleNames, or wherever its product keeps them.",
-				name, s.Release)
+		if !known[image] {
+			t.Errorf("the workflow names %s and container.All does not have it,"+
+				" so the two disagree about what is tested", image)
 		}
 	}
-}
-
-// TestReleasesAreOrdered checks that the numbers sort by value, which is the
-// thing MySQL's move to a year based release broke for anything sorting text.
-func TestReleasesAreOrdered(t *testing.T) {
-	t.Parallel()
-	if got := container.Releases(container.PostgreSQL); got[0] != "9.6" || got[len(got)-1] != "18" {
-		t.Errorf("expected 9.6 first and 18 last, got %v", got)
-	}
-	// 9.7 sorts below 26.7, which a text sort gets backwards
-	got := container.Releases(container.MySQL)
-	if slices.Index(got, "9.7") > slices.Index(got, "26.7") {
-		t.Errorf("expected 9.7 before 26.7, got %v", got)
-	}
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var b []byte
-	for ; n > 0; n /= 10 {
-		b = append([]byte{byte('0' + n%10)}, b...)
-	}
-	return string(b)
 }

@@ -144,12 +144,18 @@ call and filter in the loop.
 | SQL Server | native             | 32      | Complete    |
 | Oracle     | native             | 25      | In progress |
 | Cassandra  | native             | 17      | In progress |
+| ClickHouse | native             | 23      | In progress |
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
 It answers 12 object kinds where the native PostgreSQL model answers 55, and
 answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
+
+ClickHouse ships an `information_schema` and the model does not read it. It is
+an emulation that reports what the standard names and drops what makes a
+ClickHouse table what it is: the engine, the partition key, the sorting key,
+the codec per column and the skipping indices. `system` has all of it.
 
 Cassandra has no `information_schema` at all and has a native model for the
 same reason SQLite, DuckDB and Oracle do. It is the only one here that is not
@@ -261,7 +267,7 @@ Everything else is in [`docs/`](docs/):
 
 | Document | What it holds |
 | --- | --- |
-| [`PLAN.md`](docs/PLAN.md) | Every decision, 67 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because six amend or replace an earlier one. |
+| [`PLAN.md`](docs/PLAN.md) | Every decision, 69 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because six amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -269,6 +275,7 @@ Everything else is in [`docs/`](docs/):
 | [`EVALUATION.md`](docs/EVALUATION.md) | How the supported version range is chosen, and how to choose one for a database not covered yet. |
 | [`USQL.md`](docs/USQL.md) | What `usql` answers today for each of its 47 drivers, and what changes if it reads `dbmeta`. |
 | [`DBTPL.md`](docs/DBTPL.md) | The same measurement for `dbtpl`. |
+| [`RUNNER.md`](docs/RUNNER.md) | The design of `dbrun`, the command that starts the databases the tests run against. |
 
 [`CLAUDE.md`](CLAUDE.md) holds the rules for writing code here, with a table
 saying which document to read for which task.

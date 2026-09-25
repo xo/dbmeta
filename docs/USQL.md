@@ -78,17 +78,40 @@ the policy was written around: `usql` reads it per column today and `dbmeta`
 now returns it in the same row. D47 says when that is allowed, and the short
 version is that the fact must come out of one statement.
 
-### It raises the count for MariaDB, MySQL and SQLite
+### Which databases answer everything usql asks
 
-| Database | usql today | with dbmeta | What it gains |
+`usql` has eight metadata commands and `\d NAME` has four sections. This is
+what each `dbmeta` model answers of them, counted from the queries the models
+actually register rather than from memory.
+
+| Database | usql today | with dbmeta | What it still cannot answer |
 | --- | --- | --- | --- |
-| MariaDB | 6/8, 3/4 sections | 8/8, 4/4 | `\l` from Databases, `\ss` from ColumnStats, and the trigger section |
-| MySQL | 6/8, 3/4 sections | 7/8, 4/4 | `\l` and the trigger section. MySQL cannot answer `\ss` |
-| SQLite | 5/8, 1/4 sections | 6/8, 3/4 | `\l`, the constraint section and the trigger section |
+| PostgreSQL | 8/8, 4/4 | 8/8, 4/4 | nothing |
+| MariaDB | 6/8, 3/4 | 8/8, 4/4 | nothing |
+| SQL Server | 8/8, 4/4 | 8/8, 4/4 | nothing |
+| MySQL | 6/8, 3/4 | 7/8, 4/4 | `\ss`: the model registers ColumnStats for the shared dialect and MySQL the product has no such view |
+| Oracle | 6/8, 1/4 | 7/8, 4/4 | `\l`: Oracle has one database per instance and no list to read |
+| ClickHouse | 4/8, 0/4 | 6/8, 3/4 | `\ds` and `\ss`: no sequence and no column distribution. No trigger section |
+| DuckDB | 8/8, 4/4 | 6/8, 3/4 | `\dp` and `\ss`. No trigger section |
+| SQLite | 5/8, 1/4 | 5/8, 4/4 | `\ds`, `\dp` and `\ss`. It gains all four sections |
+| Cassandra | none | 5/8, 4/4 | `\l`, `\ds` and `\ss`. It had no reader at all |
 
-MariaDB now reaches 8 of 8, because `ColumnStats` exists and MariaDB answers
-it. MySQL and SQLite stay at 7 and 6, because neither can answer it and both
-say so, which is a true answer rather than a missing one.
+Three answer everything `usql` asks: PostgreSQL, MariaDB and SQL Server. Every
+one of the others is short because the product has no such object rather than
+because the model is unfinished, and each says so rather than returning
+nothing.
+
+Two rows need a note. DuckDB reads 8 of 8 through `usql`'s shared
+`information_schema` reader today and 6 through `dbmeta`, and which of those
+is right has not been measured: the shared reader answers `\dp` and `\ss` from
+`information_schema` views, and whether what they report is true of DuckDB is
+the D43 question and nobody has asked it. Cassandra had no reader in `usql` at
+all, so every one of its five is new.
+
+The count is per dialect, and MySQL and MariaDB share one. A query the model
+registers for both is counted for both, so MySQL's `\ss` is listed as
+answerable and returns nothing on the product. `docs/COVERAGE.md` keeps the
+two apart, at 29 kinds for MariaDB and 26 for MySQL.
 
 ### It offers something to the 27 with nothing
 

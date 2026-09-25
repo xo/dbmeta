@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Builds the Oracle 19c image, which Oracle publishes no free copy of.
 #
 # Every other Oracle release dbmeta tests against is a public image. 19c is the

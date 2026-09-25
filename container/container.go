@@ -115,6 +115,15 @@ type Server struct {
 
 	// dsn builds a connection string for a port on the host.
 	dsn func(port int) string
+	// url is the dburl style URL a person types, where that differs from the
+	// DSN the driver takes. Nil means they are the same string.
+	//
+	// This is not the scheme list hard rule 1 forbids. That rule is about
+	// repeating dburl's taxonomy of schemes and aliases, which decides what a
+	// URL somebody typed means. This is one connection string per server this
+	// package already starts, in the second form a person needs, beside the
+	// one the driver needs.
+	url func(port int) string
 }
 
 // Ref returns the image and tag, fully qualified, such as
@@ -188,6 +197,17 @@ func (s Server) Name() string {
 // inside the container when more than one server runs at a time.
 func (s Server) DSN(port int) string { return s.dsn(port) }
 
+// URL returns the dburl style URL for the server on this port, which is what
+// usql takes. For most products it is the DSN, because the driver takes a URL
+// too. MySQL and Cassandra are the exceptions: their drivers take a form that
+// is not a URL at all.
+func (s Server) URL(port int) string {
+	if s.url != nil {
+		return s.url(port)
+	}
+	return s.dsn(port)
+}
+
 // Environ returns the environment as NAME=value, sorted, for a command line.
 func (s Server) Environ() []string {
 	out := make([]string, 0, len(s.Env))
@@ -247,7 +267,7 @@ var MySQL = list{}.add(mysql, Tested, "8.4", "26.7").
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse)
 }
 
 // AtTier returns the servers tested at t.
@@ -298,6 +318,9 @@ type product struct {
 	env       map[string]string
 	ready     []string
 	dsn       func(port int) string
+	// url is the dburl style URL, where it differs from the DSN. See
+	// [Server.URL].
+	url func(port int) string
 }
 
 var (
@@ -323,6 +346,7 @@ var (
 		env:     map[string]string{"MARIADB_ROOT_PASSWORD": Password},
 		ready:   []string{"healthcheck.sh", "--connect", "--innodb_initialized"},
 		dsn:     mysqlDSN,
+		url:     mysqlURL,
 	}
 	mysql = product{
 		dialect: dbmeta.MySQL,
@@ -332,6 +356,7 @@ var (
 		env:     map[string]string{"MYSQL_ROOT_PASSWORD": Password},
 		ready:   []string{"mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p" + Password},
 		dsn:     mysqlDSN,
+		url:     mysqlURL,
 	}
 	// The Express images, which carry 11g through 21c.
 	oraclexe = product{
@@ -435,6 +460,12 @@ func oracleMajor(release string) string {
 	return release
 }
 
+// mysqlURL is the dburl style URL for the same server. The go-sql-driver DSN
+// mysqlDSN returns is not a URL, so a person cannot paste it into usql.
+func mysqlURL(port int) string {
+	return fmt.Sprintf("mysql://root:%s@127.0.0.1:%d/", Password, port)
+}
+
 func mysqlDSN(port int) string {
 	return fmt.Sprintf("root:%s@tcp(127.0.0.1:%d)/?parseTime=true", Password, port)
 }
@@ -463,6 +494,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			Env:     p.env,
 			Ready:   p.ready,
 			dsn:     p.dsn,
+			url:     p.url,
 		})
 	}
 	slices.SortStableFunc(l, func(a, b Server) int { return compareRelease(a.Release, b.Release) })

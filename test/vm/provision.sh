@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Provisions a Windows virtual machine that hosts an old SQL Server.
 #
 # SQL Server on Linux begins at 2017, so 2016 and earlier have no container and

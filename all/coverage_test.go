@@ -50,6 +50,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "sqlserver", dialect: dbmeta.SQLServer},
 		{name: "oracle", dialect: dbmeta.Oracle},
 		{name: "cassandra", dialect: dbmeta.Cassandra},
+		{name: "clickhouse", dialect: dbmeta.ClickHouse},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -138,7 +139,7 @@ func TestTheReadmeTableIsRight(t *testing.T) {
 	names := map[string]string{
 		"PostgreSQL": "postgres", "MariaDB": "mariadb", "MySQL": "mysql",
 		"SQLite3": "sqlite3", "DuckDB": "duckdb", "SQL Server": "sqlserver",
-		"Oracle": "oracle", "Cassandra": "cassandra",
+		"Oracle": "oracle", "Cassandra": "cassandra", "ClickHouse": "clickhouse",
 	}
 	var checked int
 	for _, m := range row.FindAllStringSubmatch(body, -1) {

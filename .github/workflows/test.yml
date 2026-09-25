@@ -106,57 +106,6 @@ jobs:
             go build -tags "$tag" ./...
           done
 
-  integration:
-    name: PostgreSQL ${{ matrix.postgres }}
-    # the nightly job covers these four and six more, so skip them there
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    strategy:
-      # one release failing must not hide another, because the interesting
-      # faults are version specific
-      fail-fast: false
-      matrix:
-        # the floor, one on each side of the middle, and the ceiling. See D42.
-        postgres: ["9.6", "12", "15", "18"]
-    services:
-      # health checks force TCP with -h, because pg_isready on the socket
-      # reports ready during the bootstrap phase, before the server restarts
-      # to accept connections.
-      postgres:
-        image: postgres:${{ matrix.postgres }}
-        env:
-          POSTGRES_PASSWORD: P4ssw0rd
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -h 127.0.0.1"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against PostgreSQL
-        # test/ is a separate module, because it imports a database driver and
-        # the root module must not. `./...` in the root does not reach it.
-        #
-        # This runs the conformance test too, which checks PostgreSQL against
-        # the checked in expectation on every supported release. The canonical
-        # projection is release independent, so one expectation covers 9.6 and
-        # 18 alike, which is the reason it is canonical.
-        working-directory: test
-        env:
-          DBMETA_POSTGRES: postgres://postgres:P4ssw0rd@localhost:5432/postgres?sslmode=disable
-        run: go test -count=1 -v ./...
-
   embedded:
     name: SQLite and DuckDB
     # No service container. SQLite is a library, so the release under test is
@@ -197,30 +146,12 @@ jobs:
         working-directory: test
         run: go test -count=1 -v -run DuckDB ./...
 
-  mariadb:
-    name: MariaDB ${{ matrix.mariadb }}
-    if: github.event_name != 'schedule'
+  releases:
+    name: The release list
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # These come from container.MariaDB in the Go package, and a test
-        # fails when the two disagree. 10.6 is the oldest maintained long term
-        # release and 13.0 is the current stable.
-        mariadb: ["10.6", "13.0"]
-    services:
-      mariadb:
-        image: mariadb:${{ matrix.mariadb }}
-        env:
-          MARIADB_ROOT_PASSWORD: P4ssw0rd
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "healthcheck.sh --connect --innodb_initialized"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
+    outputs:
+      tested: ${{ steps.list.outputs.tested }}
+      nightly: ${{ steps.list.outputs.nightly }}
     steps:
       - name: Check out
         uses: actions/checkout@v5
@@ -231,205 +162,73 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
-      - name: Test against MariaDB
+      # The list lives in container/container.go and nowhere else. This job
+      # reads it and hands it to the matrix below, so the workflow names no
+      # image, no port and no release of its own and cannot drift from the Go
+      # list. See D69.
+      - name: Read the list
+        id: list
         working-directory: test
-        env:
-          DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
-        run: go test -count=1 -v -run 'MySQL|InformationSchema|Conformance' ./...
-
-  mysql:
-    name: MySQL ${{ matrix.mysql }}
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # These come from container.MySQL in the Go package, and a test fails
-        # when the two disagree. 8.4 is the long term release and 26.7 is the
-        # current innovation release, where MySQL's year based numbering
-        # starts. They sit on either side of the one gate this model has for
-        # MySQL, which is where a system variable moved in release 9.
-        mysql: ["8.4", "26.7"]
-    services:
-      mysql:
-        image: mysql:${{ matrix.mysql }}
-        env:
-          MYSQL_ROOT_PASSWORD: P4ssw0rd
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pP4ssw0rd"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against MySQL
-        working-directory: test
-        env:
-          DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
-        run: go test -count=1 -v -run 'MySQL|InformationSchema|Conformance' ./...
-
-  sqlserver:
-    name: SQL Server ${{ matrix.sqlserver }}
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Every major release that ships a Linux container. These come from
-        # container.SQLServer and a test fails when the two disagree. 2017 is a
-        # hard floor: Microsoft shipped SQL Server on Linux from 2017, so there
-        # is no container for 2016 or earlier. See D54.
-        sqlserver: ["2017", "2019", "2022", "2025"]
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:${{ matrix.sqlserver }}-latest
-        env:
-          ACCEPT_EULA: Y
-          MSSQL_SA_PASSWORD: P4ssw0rd!x
-          MSSQL_PID: Developer
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "for f in /opt/mssql-tools18/bin/sqlcmd /opt/mssql-tools/bin/sqlcmd; do [ -x $f ] && exec $f -S localhost -U sa -P 'P4ssw0rd!x' -C -Q 'SELECT 1'; done; exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-          --health-start-period 30s
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against SQL Server
-        working-directory: test
-        env:
-          DBMETA_SQLSERVER: sqlserver://sa:P4ssw0rd%21x@localhost:1433?database=master&encrypt=disable
-        run: go test -count=1 -v -run 'SQLServer|Conformance' ./...
-
-  oracle:
-    name: Oracle ${{ matrix.oracle }}
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # From container.Oracle at the Tested tier, and a test fails when the
-        # two disagree. Oracle needs no Windows and no virtual machine: the
-        # free images run on Linux and reach back to 11g, which is why there
-        # is no Oracle equivalent of the SQL Server machines.
-        oracle: ["21.3.0", "23.26.3"]
-        include:
-          - oracle: "21.3.0"
-            image: gvenzl/oracle-xe:21.3.0-slim
-            service: XEPDB1
-          - oracle: "23.26.3"
-            image: gvenzl/oracle-free:23.26.3-slim
-            service: FREEPDB1
-    services:
-      oracle:
-        image: ${{ matrix.image }}
-        env:
-          ORACLE_PASSWORD: P4ssw0rd
-        ports:
-          - 1521:1521
-        options: >-
-          --health-cmd "bash -c 'echo exit | sqlplus -s -L system/P4ssw0rd@localhost/${{ matrix.service }}'"
-          --health-interval 10s
-          --health-timeout 10s
-          --health-retries 40
-          --health-start-period 30s
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against Oracle
-        working-directory: test
-        env:
-          DBMETA_ORACLE: oracle://system:P4ssw0rd@127.0.0.1:1521/${{ matrix.service }}
-        run: go test -count=1 -v ./...
-
-  cassandra:
-    name: Cassandra ${{ matrix.cassandra }}
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # From container.Cassandra at the Tested tier, and a test fails when
-        # the two disagree. The pair spans 4.0, which is where system_views
-        # arrived and where the one version fragment gates.
-        cassandra: ["3.11", "5.0"]
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      # There is no services block here, because a service needs a published
-      # image and this one is built. The Apache image refuses user defined
-      # functions and, from 5.0, materialized views, and its entrypoint maps
-      # only eight yaml keys to environment variables. See
-      # test/cassandra/Containerfile.
-      - name: Build the image
         run: |
-          docker build \
-            --build-arg RELEASE=${{ matrix.cassandra }} \
-            --tag localhost/dbmeta/cassandra:${{ matrix.cassandra }} \
-            --file test/cassandra/Containerfile \
-            test/cassandra
+          {
+            echo "tested=$(go run ./tool/servers --json tested)"
+            echo "nightly=$(go run ./tool/servers --json nightly)"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Start Cassandra
-        run: |
-          docker run --detach --name cassandra \
-            --env MAX_HEAP_SIZE=1G \
-            --env HEAP_NEWSIZE=256M \
-            --publish 9042:9042 \
-            localhost/dbmeta/cassandra:${{ matrix.cassandra }}
-          for i in $(seq 1 60); do
-            if docker exec cassandra bash -c 'echo exit | cqlsh -u cassandra -p cassandra' >/dev/null 2>&1; then
-              echo "ready after $((i * 5))s"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "never became ready"
-          docker logs cassandra 2>&1 | tail -50
-          exit 1
+  server:
+    name: ${{ matrix.server }}
+    needs: releases
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        server: ${{ fromJSON(needs.releases.outputs.tested) }}
 
-      - name: Test against Cassandra
-        working-directory: test
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      # run.sh starts the server, waits for a real connection, runs the tests
+      # against it and removes it. It is the same entry point a person uses,
+      # which D68 requires, so CI cannot start a container a different way
+      # from everybody else. It builds the Cassandra image when that is the
+      # one being asked for.
+      - name: Test against ${{ matrix.server }}
         env:
-          DBMETA_CASSANDRA: 127.0.0.1:9042?username=cassandra&password=cassandra&timeout=30s&connectTimeout=30s
-        run: go test -count=1 -v -run 'Cassandra|Conformance|Parity' ./...
+          DBMETA_RUNNER: docker
+        run: ./test/run.sh "${{ matrix.server }}"
+
+  nightly:
+    name: ${{ matrix.server }} (nightly)
+    needs: releases
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        server: ${{ fromJSON(needs.releases.outputs.nightly) }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test against ${{ matrix.server }}
+        env:
+          DBMETA_RUNNER: docker
+        run: ./test/run.sh "${{ matrix.server }}"
 
   compare:
     name: MariaDB against MySQL
@@ -437,7 +236,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:13.0
+        image: docker.io/library/mariadb:13.0
         env:
           MARIADB_ROOT_PASSWORD: P4ssw0rd
         ports:
@@ -448,7 +247,7 @@ jobs:
           --health-timeout 5s
           --health-retries 20
       mysql:
-        image: mysql:26.7
+        image: docker.io/library/mysql:26.7
         env:
           MYSQL_ROOT_PASSWORD: P4ssw0rd
         ports:
@@ -475,176 +274,3 @@ jobs:
           DBMETA_MYSQL: root:P4ssw0rd@tcp(localhost:3306)/?parseTime=true
           DBMETA_MYSQL_COMPARE: root:P4ssw0rd@tcp(localhost:3307)/?parseTime=true
         run: go test -count=1 -v -run MySQLAgainstMariaDB ./...
-
-  nightly-oracle:
-    name: Oracle ${{ matrix.oracle }} (nightly)
-    # 11g Release 2 is the one release before multitenant, and it lacks the
-    # most: no identity column, no CDB_ views, no CON_ID, and identifiers are
-    # 30 bytes rather than 128. 23ai is here because 26ai is not a rename:
-    # 23.26.3 publishes 577 ALL_ views against 23.9's 565 and removes none, so
-    # a query can read a view 23ai has not got. From container.Oracle at the
-    # Nightly tier.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        oracle: ["11.2.0.2", "23.9"]
-        include:
-          - oracle: "11.2.0.2"
-            image: gvenzl/oracle-xe:11.2.0.2-slim
-            service: XE
-          - oracle: "23.9"
-            image: gvenzl/oracle-free:23.9-slim
-            service: FREE
-    services:
-      oracle:
-        image: ${{ matrix.image }}
-        env:
-          ORACLE_PASSWORD: P4ssw0rd
-        ports:
-          - 1521:1521
-        options: >-
-          --health-cmd "bash -c 'echo exit | sqlplus -s -L system/P4ssw0rd@localhost/${{ matrix.service }}'"
-          --health-interval 10s
-          --health-timeout 10s
-          --health-retries 40
-          --health-start-period 30s
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against Oracle
-        working-directory: test
-        env:
-          DBMETA_ORACLE: oracle://system:P4ssw0rd@127.0.0.1:1521/${{ matrix.service }}
-        run: go test -count=1 -v ./...
-
-  nightly-mariadb:
-    name: MariaDB ${{ matrix.mariadb }} (nightly)
-    # The releases a push does not carry. MariaDB and MySQL have their own
-    # nightly jobs rather than one shared one, because they no longer share a
-    # client: MariaDB dropped mysqladmin at 11.0, so a single mysqladmin health
-    # check reported 11.4, 11.8 and 12.3 as failing to start while the servers
-    # were up and ready. Each product uses its own check, the same one its push
-    # job uses.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        mariadb: ["10.11", "11.4", "11.8", "12.3"]
-    services:
-      mariadb:
-        image: mariadb:${{ matrix.mariadb }}
-        env:
-          MARIADB_ROOT_PASSWORD: P4ssw0rd
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "healthcheck.sh --connect --innodb_initialized"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against MariaDB
-        working-directory: test
-        env:
-          DBMETA_MYSQL: root:P4ssw0rd@tcp(127.0.0.1:3306)/?parseTime=true
-        run: go test -count=1 -v ./...
-
-  nightly-mysql:
-    name: MySQL ${{ matrix.mysql }} (nightly)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        mysql: ["9.7"]
-    services:
-      mysql:
-        image: mysql:${{ matrix.mysql }}
-        env:
-          MYSQL_ROOT_PASSWORD: P4ssw0rd
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pP4ssw0rd"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 30
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against MySQL
-        working-directory: test
-        env:
-          DBMETA_MYSQL: root:P4ssw0rd@tcp(127.0.0.1:3306)/?parseTime=true
-        run: go test -count=1 -v ./...
-
-  nightly:
-    name: PostgreSQL ${{ matrix.postgres }} (nightly)
-    # every supported release, on a schedule rather than on a push. A wrong
-    # version gate is only visible between the release it claims and the
-    # release that is true, and nothing predicts that window, so the only
-    # complete answer is to run them all. It is too slow for a push and cheap
-    # enough for a night.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        postgres: ["9.6", "10", "11", "12", "13", "14", "15", "16", "17", "18"]
-    services:
-      postgres:
-        image: postgres:${{ matrix.postgres }}
-        env:
-          POSTGRES_PASSWORD: P4ssw0rd
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -h 127.0.0.1"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Test against PostgreSQL
-        working-directory: test
-        env:
-          DBMETA_POSTGRES: postgres://postgres:P4ssw0rd@localhost:5432/postgres?sslmode=disable
-        run: go test -count=1 ./...

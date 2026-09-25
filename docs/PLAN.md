@@ -105,7 +105,7 @@ records the argument.
 | [D39](#d39-queries-are-listed-described-and-rendered-for-the-client-to-run-decided) | Queries are listed, described, and rendered for the client to run | Decided |
 | [D40](#d40-three-support-tiers-and-a-trigger-that-can-remove-a-version-decided) | Three support tiers, and a trigger that can remove a version | Decided |
 | [D41](#d41-every-model-ships-its-fixtures-beside-its-queries-decided) | Every model ships its fixtures beside its queries | Decided |
-| [D42](#d42-four-releases-per-push-every-release-nightly-supersedes-d24) | Four releases per push, every release nightly | Supersedes D24 |
+| [D42](#d42-four-releases-per-push-every-release-nightly-supersedes-d24-amended-by-d69) | Four releases per push, every release nightly | Supersedes D24, amended by D69 |
 | [D43](#d43-ask-several-models-before-a-dialect-is-declared-finished-decided) | Ask several models before a dialect is declared finished | Decided |
 | [D44](#d44-a-version-key-names-the-product-a-number-alone-never-does-decided) | A version key names the product. A number alone never does | Decided |
 | [D45](#d45-a-query-may-answer-partially-once-and-must-say-so-decided) | A query may answer partially, once, and must say so | Decided |
@@ -131,6 +131,8 @@ records the argument.
 | [D65](#d65-a-windows-machine-rearms-its-evaluation-before-it-expires-decided) | A Windows machine rearms its evaluation before it expires | Decided |
 | [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67) | The order the remaining dialects are written in | Amended by D67 |
 | [D67](#d67-impala-cannot-be-a-dbmeta-model-and-clickhouse-goes-first-amends-d66) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
+| [D68](#d68-every-container-is-started-by-runsh-and-named-product-release-decided) | Every container is started by run.sh and named product-release | Decided |
+| [D69](#d69-the-workflow-builds-its-matrix-from-the-go-list-amends-d42) | The workflow builds its matrix from the Go list | Amends D42 |
 
 ## Decisions
 
@@ -2343,7 +2345,7 @@ every row. Ten releases times forty eight queries is four hundred and eighty
 combinations that nobody would maintain, and one assertion covers them.
 
 
-### D42. Four releases per push, every release nightly. Supersedes D24.
+### D42. Four releases per push, every release nightly. Supersedes D24, amended by D69.
 
 CI runs the integration tests against PostgreSQL 9.6, 12, 15 and 18 on every
 push, and against all ten releases on a nightly schedule.
@@ -3875,6 +3877,7 @@ is:
 | PostgreSQL 18 | schema owner | `settings`, `tablespaces` |
 | PostgreSQL 18 | grantee | `settings`, `tablespaces` |
 | Cassandra 5.0 | granted role | `privileges`, `role_grants`, `roles`, `settings` |
+| ClickHouse 26.9 | granted user | `constraints`, `databases`, `foreign_servers`, `index_columns`, `indexes`, `privileges`, `role_grants`, `roles`, `tablespaces` |
 | MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
 
@@ -4327,6 +4330,103 @@ statement can read. A product whose metadata is a protocol operation or a
 `SHOW` per object cannot be a model here, however popular it is and however
 well it runs in a container. D66 ordered by whether a product could be started
 and that was one question short.
+
+### D68. Every container is started by run.sh and named product-release. Decided.
+
+Nobody reaches for podman or docker by hand. `test/run.sh` starts every
+container this project uses, and every container is named
+`<product>-<release>`, which is what `container.Server.Name` returns:
+`postgres-18`, `clickhouse-26.9`, `oracle-26ai`.
+
+#### Why it needed saying
+
+Because the machine filled up with containers nobody could place. A session
+debugging one thing left `ch268`, `pg12`, `pg96` and `chplain` behind, on ports
+chosen by whoever typed the command, while `run.sh` used its own names and its
+own ports for the same releases. Two sets of the same servers, and the only
+way to tell which was which was to read the image tag.
+
+It is worse than untidy. `run.sh version` could not reach two servers that were
+plainly running, because the port it computes is not the port somebody typed.
+A container named for the release but started by hand is the confusing case,
+not the obviously wrong one.
+
+#### What run.sh had to grow to make the rule keepable
+
+A rule that cannot be followed is a rule that gets broken, and the reason
+people went around `run.sh` is that it only knew how to start a server, test
+it and throw it away. It now does the things a person actually wants:
+
+| | |
+| --- | --- |
+| `start` | start it and leave it running, then print its DSN |
+| `stop` | stop it, keeping it so `start` resumes it |
+| `remove` | stop and delete it |
+| `status` | what is running, with a URL for each |
+| `version` | connect and print what dbmeta reads, per server |
+| `dsn` | the dburl style URL, running or not |
+| `usql` | connect to it with usql |
+| `--all` | every server, spelled the way a person says it |
+
+`--help` lists them. It runs from anywhere, because it changes to its own
+directory first, and `./test/run.sh --help` used to fail with a path error.
+
+#### Two faults the rule exposed
+
+The port a server gets was its index in the filtered list rather than in the
+whole one, so every server started on its own got the first port. Two of them
+collided, and the loser sat in Created state holding a name that
+`podman rm --force` does not free. A port is now a server's place in
+`container.All`, so a release always gets the same one and a URL a person
+learned keeps working.
+
+`run.sh` also hid the runner's error behind "could not start", which is what
+made that take an afternoon. It prints what the runner said, and for a name
+held in storage it prints the one command that clears it.
+
+### D69. The workflow builds its matrix from the Go list. Amends D42.
+
+The CI workflow names no release, no image and no port. It asks
+`tool/servers --json` for the list and expands it with `fromJSON`, and each job
+runs `run.sh` against one server.
+
+#### What it replaces
+
+D42 put the release matrix in `container/container.go` and had the workflow
+repeat it in YAML, with `TestWorkflowMatchesTheList` failing when the two
+disagreed. That worked and it was a second copy: twelve jobs, one per product,
+each with its own service block, its own image, its own health command and its
+own environment. 690 lines.
+
+Every one of those images was unqualified, which is its own fault. `mariadb:13.0`
+resolves against whatever the runner's search list holds, so the same YAML
+means one thing locally and another in CI, and `container/container.go` has
+written every image in full for exactly that reason since it was created.
+
+#### What it is now
+
+Six jobs and 276 lines. A `releases` job reads the list and hands it on, a
+`server` job runs the Tested tier, a `nightly` job runs the rest, and `unit`,
+`embedded` and `compare` are unchanged. Each server job is three steps and the
+last one is `./test/run.sh "${{ matrix.server }}"`, which is the same entry
+point a person uses, which is what D68 asks for.
+
+#### What the drift test became
+
+There is nothing left to drift, so the test that compared two lists is gone.
+Three take its place and they hold the property rather than the agreement: the
+workflow must read both tiers from `tool/servers --json`, every image it still
+names must carry its registry, and every image it still names must be one
+`container.All` knows.
+
+Only the comparison job names any, because it needs MariaDB and MySQL running
+at once and `run.sh` starts one server at a time.
+
+#### What this does not change
+
+The list is still `container/container.go` and it is still the only copy. D42
+decided that and it stands. What changed is that the workflow reads it instead
+of repeating it.
 
 ## What exists today
 

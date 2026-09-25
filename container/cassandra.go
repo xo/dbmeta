@@ -76,6 +76,11 @@ var cassandra = product{
 			"127.0.0.1:%d?username=cassandra&password=cassandra"+
 				"&timeout=30s&connectTimeout=30s", port)
 	},
+	// The go-cql-driver DSN above is a host list rather than a URL, so a
+	// person needs the other form to paste into usql.
+	url: func(port int) string {
+		return fmt.Sprintf("cassandra://cassandra:cassandra@127.0.0.1:%d/", port)
+	},
 }
 
 // Cassandra is every Cassandra release dbmeta is tested against.

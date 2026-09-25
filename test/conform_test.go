@@ -13,6 +13,7 @@ import (
 
 	"github.com/xo/dbmeta"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
+	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
@@ -101,6 +102,11 @@ func conformTargets() []conformTarget {
 			open: openCassandra, schema: cafixture.Everything.Schema,
 			build: setupCassandra,
 		},
+		{
+			name: "clickhouse", dialect: dbmeta.ClickHouse,
+			open: openClickHouse, schema: chfixture.Everything.Schema,
+			build: setupClickHouse,
+		},
 	}
 }
 
@@ -187,7 +193,20 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 	sort.Strings(cols)
 	out = append(out, cols...)
 
-	// constraints, by table, kind and columns rather than by name
+	// constraints, by table, kind and columns rather than by name.
+	//
+	// A database that answers neither query contributes no constraint lines.
+	// ClickHouse is the case: system.constraints holds the expression a CHECK
+	// asserts and there is no list of columns behind it, so it registers
+	// Constraints and not ConstraintColumns. Skipping is safe, because a
+	// database that used to report them would lose its recorded lines and
+	// fail on the diff rather than here.
+	if dbmeta.Constraints.Support(m) != dbmeta.Supported ||
+		dbmeta.ConstraintColumns.Support(m) != dbmeta.Supported {
+		t.Logf("no constraint lines: constraints is %v and constraint columns is %v",
+			dbmeta.Constraints.Support(m), dbmeta.ConstraintColumns.Support(m))
+		return out
+	}
 	kinds := map[string]string{}
 	for v, err := range dbmeta.Constraints.All(ctx, m, db, args) {
 		if err != nil {
@@ -409,7 +428,7 @@ func TestConformanceAgreementHolds(t *testing.T) {
 	relational := make([]string, 0, len(sections))
 	for n := range sections {
 		all = append(all, n)
-		if !nonRelational[n] {
+		if _, out := agreementExcluded[n]; !out {
 			relational = append(relational, n)
 		}
 	}
@@ -429,8 +448,10 @@ func TestConformanceAgreementHolds(t *testing.T) {
 	t.Logf("%d of the canonical lines are identical across %v", len(got), relational)
 
 	// And the same question with every database, which is a smaller number
-	// and a different fact. See nonRelational.
-	const everyFloor = 6
+	// and a different fact. See agreementExcluded.
+	// 6 with Cassandra and 4 once ClickHouse joined, which is what a database
+	// with no constraint catalog costs. Lower it only with a reason.
+	const everyFloor = 4
 	every := agreedLines(sections, all)
 	if len(every) < everyFloor {
 		t.Errorf("every database agrees on %d lines and used to agree on %d",
@@ -439,20 +460,28 @@ func TestConformanceAgreementHolds(t *testing.T) {
 	t.Logf("%d are identical across %v", len(every), all)
 }
 
-// nonRelational names the databases left out of the main agreement count.
+// agreementExcluded names the databases left out of the main agreement count,
+// with the reason each is out.
 //
-// Cassandra is not relational and the canonical projection says so out loud.
-// Its Tables query returns no view, because a materialized view is in another
-// catalog table and CQL has no UNION to put them together. Its column ordinal
-// is a position within the primary key rather than within the table, because
-// the catalog keeps no declaration order at all. Neither is a fault and both
-// are recorded in docs/COVERAGE.md.
+// The number exists to notice a database that stops agreeing with the others.
+// A database that was never going to agree, because the product has no such
+// object, only drags the floor down until it notices nothing. Counting these
+// two takes the relational agreement from 23 lines to 14 and the whole set
+// from 6 to 4.
 //
-// Counting it with the rest drops the agreement from 23 lines to 6, which
-// would leave the floor too low to notice a real regression in any of the
-// others. So it is measured twice: the relational databases against the
-// number they have always held, and every database against the smaller one.
-var nonRelational = map[string]bool{"cassandra": true}
+// Neither is a fault and both are in docs/COVERAGE.md. They are still checked
+// against their own recorded sections, which is where a real regression in
+// either would show.
+var agreementExcluded = map[string]string{
+	"cassandra": "not relational: its Tables query returns no view, because a" +
+		" materialized view is in another catalog table and CQL has no UNION," +
+		" and its column ordinal is a position within the primary key because" +
+		" the catalog keeps no declaration order",
+	"clickhouse": "no constraint catalog: there is no primary key constraint," +
+		" no foreign key and no unique constraint, and system.constraints holds" +
+		" the expression a CHECK asserts rather than the columns behind it, so" +
+		" the section has no constraint lines at all",
+}
 
 // agreedLines returns the lines every named section has.
 func agreedLines(sections map[string][]string, names []string) map[string]bool {

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Builds the Cassandra images the tests run against.
 #
 # The Apache image cannot be configured from the outside for what dbmeta needs

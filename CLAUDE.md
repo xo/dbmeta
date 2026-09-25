@@ -16,7 +16,7 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 67
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 69
 at the top; read the status, because six of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -39,7 +39,10 @@ Then by what you are doing:
 | designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
 | adding a release to CI | `container/container.go`, which is the only copy of that list |
 | adding an old SQL Server that needs a Windows VM | `container/windows.go`, then `test/vm/README.md` and D57 |
-| testing against Cassandra | `test/cassandra/Containerfile`, then run `test/cassandra/build.sh`. The published image will not do |
+| starting a database for any reason | `test/run.sh`, and nothing else. `./test/run.sh --help`. See D68 |
+| changing how a database is started | `docs/RUNNER.md`, the design of that command |
+| testing against Cassandra | `test/cassandra/Containerfile`. `run.sh` builds it when it is missing |
+| changing the CI workflow | D69. It reads the release list from `tool/servers --json` and names no image of its own |
 | answering a lint finding | the rule below, under Linting |
 | ignoring a build artifact | the root `.gitignore`, which is the only one. See D58 |
 
@@ -161,7 +164,16 @@ something is written down, it is not written down, and it is an open question.
    as a lead and run it against a real server. Leave an analogue that is a
    stretch unsupported, and record it in `docs/COVERAGE.md` with the reason. See
    D43.
-15. A dialect is not finished until every query has been asked as the
+15. Never start a container by hand. `test/run.sh` starts every database this
+   project uses, and every container is named `<product>-<release>`, such as
+   `postgres-18` or `clickhouse-26.9`. Run `./test/run.sh --help`: it has
+   `start`, `stop`, `remove`, `status`, `version`, `dsn` and `usql`, and
+   `--all` for every server.
+   This is not tidiness. A container started by hand gets a port somebody
+   typed rather than the one `container.All` assigns, so `run.sh version`
+   cannot reach a server that is plainly running, and two copies of the same
+   release end up on the machine with nothing to tell them apart. See D68.
+16. A dialect is not finished until every query has been asked as the
    administrator and as every lesser kind of principal the product has, and
    the differences are written down. Add the principals to `parityTargets` in
    `test/parity_test.go`, run `go test -run TestPrivilegeParity -update`, and

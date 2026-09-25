@@ -31,6 +31,7 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 | `models/sqlserver` | 32 | 55 | SQL Server 2017, 2019, 2022 and 2025 |
 | `models/oracle` | 25 | 55 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/cassandra` | 17 | 55 | Cassandra 3.11, 4.0, 4.1 and 5.0 |
+| `models/clickhouse` | 23 | 55 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -473,6 +474,87 @@ thing from the per column distribution `psql` prints.
 Every Cassandra table is partitioned, so a list of the partitioned ones is a
 list of all of them and says nothing.
 
+## ClickHouse
+
+ClickHouse answers 23 of the 55, verified against 26.9.2.8 and 25.8.33.6.
+
+### system, not information_schema
+
+ClickHouse ships both. `information_schema` is an emulation that reports what
+the standard names and drops everything that makes a ClickHouse table what it
+is: the engine, the partition key, the sorting key, the compression codec per
+column, and the data skipping indices. Every query here reads `system`, which
+is about 150 tables and the richest native catalog in this project after
+PostgreSQL's.
+
+### A database is a schema
+
+ClickHouse has one level of namespace and calls it a database, so `Schemas`
+and `Databases` read the same table under both names. `models/mysql` does the
+same thing with `information_schema.SCHEMATA` for the same reason.
+
+### What it answers
+
+Schemas and databases, tables, columns, views, indexes, index columns,
+constraints, comments, partitioned tables, types, collations, settings, roles,
+role grants, privileges, functions, aggregates, tablespaces, foreign servers,
+foreign tables, the current schema and the current user.
+
+Two of those are an analogue rather than the same object, and both reviews
+agreed they are real rather than a stretch. A storage policy names the volumes
+and disks a table's parts live on, which is what a tablespace is for. A table
+whose engine is MySQL, PostgreSQL, S3 or one of the others reads rows another
+system holds, which is what a foreign table is, and a named collection is the
+stored connection it uses.
+
+### Two columns arrived in the same release
+
+`system.constraints` and `system.functions.deterministic` are both absent on
+25.3, 25.8 and 26.1, and both present on 26.8 and 26.9. They gate at 26.8,
+which is the release they were first seen in rather than the release they
+arrived in: somewhere in 26.2 to 26.8 is as precise as a check against running
+servers can be, and gating late under reports rather than breaking.
+
+`Constraints` is the whole query, so an older server is told it is too old.
+Volatility is one column of `Functions`, so an older server gets it padded and
+`Field.Min` says which is which.
+
+### What Cassandra taught us to check here too
+
+The conformance projection contributes no constraint lines for ClickHouse.
+There is no primary key constraint, no foreign key and no unique constraint,
+and `system.constraints` holds the expression a CHECK asserts rather than the
+columns behind it, so the model registers `Constraints` and not
+`ConstraintColumns`. Counting ClickHouse in the cross family agreement number
+would take it from 23 lines to 14, so it is measured separately for a stated
+reason, the way Cassandra is.
+
+### What the fixture cannot build
+
+A named collection. Creating one needs
+`access_control_improvements.named_collection_control` in the server
+configuration, and the official image exposes no variable for it. The
+`ForeignServers` query is verified to run and returns no rows, which is the
+same position Cassandra's triggers are in.
+
+Everything else the fixture builds, including a user, a role and a grant,
+which need `CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT` and `container/clickhouse.go`
+sets it.
+
+### What ClickHouse has none of
+
+No sequence, no domain, no trigger, no operator catalog, no extension, no
+large object, no text search object of the shape psql names, and no user
+defined type: Enum, Array and Tuple are spelled inside a column's type rather
+than declared.
+
+`EnumValues` would mean parsing the enum out of a type string, which is not a
+catalog read. `RoutineParameters` is absent because a ClickHouse function is
+overloaded across types and `system.functions` records no signature.
+`ColumnStats` is absent: `system.columns` carries compressed and uncompressed
+sizes and nothing about distribution, and what `system.parts` holds is per
+part rather than per column.
+
 ## Which answers depend on who is asking
 
 Every query has been asked as the administrator and as each lesser kind of
@@ -490,6 +572,7 @@ that varies is what kind of principal they are.
 | PostgreSQL 18 | schema owner | `settings`, `tablespaces` |
 | PostgreSQL 18 | grantee | `settings`, `tablespaces` |
 | Cassandra 5.0 | granted role | `privileges`, `role_grants`, `roles`, `settings` |
+| ClickHouse 26.9 | granted user | `constraints`, `databases`, `foreign_servers`, `index_columns`, `indexes`, `privileges`, `role_grants`, `roles`, `tablespaces` |
 | MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
 

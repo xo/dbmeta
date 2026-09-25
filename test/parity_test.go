@@ -12,6 +12,7 @@ import (
 
 	"github.com/xo/dbmeta"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
+	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
@@ -161,6 +162,17 @@ func parityTargets() []parityTarget {
 				// the superuser and there is everybody else.
 				name:       "same",
 				principals: []parityPrincipal{{name: "grantee", make: makeCassandraGrantee}},
+			}},
+		},
+		{
+			name: "clickhouse", driver: "clickhouse", env: "DBMETA_CLICKHOUSE",
+			open: openClickHouse, build: setupClickHouse,
+			schema: chfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// ClickHouse has no containment. A user belongs to the server
+				// and a database is only a grant scope.
+				name:       "same",
+				principals: []parityPrincipal{{name: "grantee", make: makeClickHouseGrantee}},
 			}},
 		},
 		{
@@ -411,11 +423,21 @@ func firstLine(s string) string {
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
 		s = s[:i]
 	}
-	return clientHost.ReplaceAllString(s, "@'client'")
+	s = clientHost.ReplaceAllString(s, "@'client'")
+	return grantColumns.ReplaceAllString(s, "$1 ON")
 }
 
 // clientHost matches the host half of a MySQL user name.
 var clientHost = regexp.MustCompile(`@'[^']*'`)
+
+// grantColumns matches the column list ClickHouse puts in a refusal.
+//
+// 25.8 says "the grant SELECT(database, table, name) ON system.x" and 26.9
+// says "the grant SELECT ON system.x" for the same query and the same user.
+// The columns are the ones the statement happened to read, so the list moves
+// whenever a query changes and differs between releases for no reason a
+// reader cares about. The fact is that the query was refused on that table.
+var grantColumns = regexp.MustCompile(`\b([A-Z]+)\([^)]*\) ON\b`)
 
 // compareParity is compareReport, ignoring the expectation's lines for a query
 // this server never answered.
