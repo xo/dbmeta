@@ -16,8 +16,8 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 70
-at the top. Read the status, because 10 of them amend or replace an earlier
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 71
+at the top. Read the status, because 11 of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
 
@@ -208,14 +208,15 @@ something is written down, it is not written down, and it is an open question.
 - `/` is the root package `dbmeta`. It holds the driver agnostic API: the
   object types, the `Query` values, the one method `Querier` interface, the
   `Args` filter, and the error values. External projects use this package.
-- `models/<driver>` holds the code that `dbtpl` generates for one driver. One
-  package covers every supported version of that database. For example,
-  `models/sqlite3`. Do not edit generated files. Change the SQL and generate
-  again.
-- `internal/` holds one file per model, such as `internal/postgres.go`, gated
-  by the build tags `none`, `base`, `most` and `all`, following `usql`. A
-  `gen.go` generates those files and the model table in `README.md`. Say model,
-  not driver: `dbmeta` never opens a connection.
+- `models/<driver>` holds one model, written by hand. One package covers every
+  supported version of that database. For example, `models/sqlite3`. A model
+  registers its queries from `init` and nothing generates it, so edit it
+  directly. See D71.
+- `all/` holds one file per model, such as `all/postgres.go`, each a blank
+  import gated by a build tag. Importing `all` registers the base set, and
+  `no_base`, a model's own name and `no_<model>` change which. A model can be
+  imported from `models/<driver>` instead. Say model, not driver: `dbmeta`
+  never opens a connection. See D31.
 - `container/` names every database release the tests run against, as Go data.
   It starts no container and imports no container client. `test/cmd/dbrun` and
   the CI workflow both read it, and a test fails when they drift.
@@ -228,47 +229,44 @@ something is written down, it is not written down, and it is an open question.
   the queries read, so the settings are baked in. `dbrun` embeds the file and
   builds the image when it is missing.
 - `test/` is a separate module with its own `go.mod`. It holds the integration
-  tests, the database drivers, and the `tool` directive pinning `dbtpl`. None
-  of that may appear in the root module. It is the only place cgo is allowed,
-  and the separate `go.mod` is what makes that safe.
+  tests and the database drivers. Neither may appear in the root module. It is
+  the only place cgo is allowed, and the separate `go.mod` is what makes that
+  safe.
 
-Read `dbtpl/models` before you design anything. It shows what a working
-generated metadata model looks like.
+Read an existing model before you write one. `models/postgres` is the primary
+one and `models/sqlite3` is the smallest.
 
-## Generating a model
+## Writing a model
 
-`dbtpl` generates every file under `models/`. `dbmeta` pins `dbtpl` with the
-`tool` directive in `go.mod`, so run it as a tool and not from the path:
+Nothing generates the code here. Every model is written, and no tool produces
+or reproduces it, so a file under `models/` is edited in place. See D71.
 
-```bash
-go tool dbtpl query <url> -T <Type> -F <Func> --go-pkg <driver> -o models/<driver>
-```
+A model is one package that registers a `Binding` per object kind from `init`.
+The `Binding` carries the statement as `Stmt`, the `Fields` it returns, the
+`Params` it takes and a `Scan` function. A query that must differ between
+releases is one statement with version fragments, which is rule 3.
 
-`dbtpl query` introspects a live connection. It creates a temporary view from
-your statement, reads the column types, and drops the view. There is no offline
-mode, so the database must be running before you generate.
-
-Start the database with `dbrun`, which is the only thing that starts one, and
-ask it for the URL to pass to `dbtpl`:
+Write the statement against a running server rather than from the
+documentation. `dbrun` is the only thing that starts one:
 
 ```bash
-cd test && go run ./cmd/dbrun start postgres && go run ./cmd/dbrun dsn postgres
+cd test && go run ./cmd/dbrun start postgres && go run ./cmd/dbrun usql postgres
 ```
 
-`dbrun start` leaves the server running, which is what generating a model
-needs. Remove it with `dbrun remove postgres` when you are done. See D68.
+`dbrun start` leaves the server up, which is what writing a query needs.
+Remove it with `dbrun remove postgres` when you are done. See D68.
 
-Read `dbtpl/gen.sh` for the full pattern. It runs 60 such commands and shows
-how to hold each SQL statement in a shell heredoc.
+Two rules catch the recurring NULL scan fault. Give a field `sql.Null[T]`
+whenever the catalog column can be NULL, and select `NULL AS "name"` rather
+than a literal where a release has no source for a column. A column that the
+catalog declares NOT NULL can still arrive NULL through an outer join, so read
+`docs/NULLS.md` before deciding.
 
-Two flags prevent the recurring NULL scan fault. Pass `-U` to make a field
-nullable when the column allows NULL. Pass `-Z` to force the field type by hand
-when introspection reports NOT NULL and the database still returns NULL.
+A model is not finished until it has run against every release in its tier,
+its fixture builds one of every object its queries read, and its parity
+targets exist. Those are one deliverable. See rule 9, rule 16 and D61.
 
 ## Go conventions
-
-These apply to hand written code. Generated code follows the `dbtpl`
-templates instead. See question 4 in `docs/PLAN.md`.
 
 Wrap every error with `%w`, never `%s` or `%v`:
 

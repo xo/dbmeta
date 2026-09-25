@@ -11,8 +11,8 @@ the lint policy and how to run the tests. It is written for an AI coding agent
 and everything in it applies to a person.
 
 [`docs/PLAN.md`](docs/PLAN.md) holds every decision this project has made, with
-the reasoning and what was rejected. The table at the top lists all 70 with
-their status. Read the status: 10 of them amend or replace an earlier one.
+the reasoning and what was rejected. The table at the top lists all 71 with
+their status. Read the status: 11 of them amend or replace an earlier one.
 
 Do not decide an open question on your own. The open questions are at the end
 of `docs/PLAN.md`. Ask Ken.

@@ -177,10 +177,11 @@ has to build by hand.
 
 ### The dependency runs one way
 
-`dbmeta` must not import `dbtpl`, which is hard rule 7. Today `dbmeta` pins
-`dbtpl` as a tool for generating models, and that is the only relationship. If
-`dbtpl` starts reading `dbmeta`, that stays true: `dbtpl` imports `dbmeta`, and
-`dbmeta` keeps its zero dependencies.
+`dbmeta` must not import `dbtpl`, which is hard rule 7. There is no dependency
+in either direction today: `dbmeta` does not use `dbtpl` for anything, and
+nothing here is generated, which is D71. If `dbtpl` starts reading `dbmeta`,
+the rule still holds with one arrow: `dbtpl` imports `dbmeta`, and `dbmeta`
+keeps its zero dependencies.
 
 ### The order that loses nothing
 

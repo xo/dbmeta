@@ -35,10 +35,9 @@ agnostic means the caller asks for tables without knowing which database
 answers. This layer holds the common types, the reader interfaces, and the
 error values.
 
-The package `dbmeta/models/<driver>` holds the generated code for one driver.
-For example, `dbmeta/models/sqlite3` holds the SQLite3 queries and the structs
-that receive their rows. `dbtpl` generates these packages from SQL that this
-repository stores. Each driver gets its own Go package, so the types in
+The package `dbmeta/models/<driver>` holds the code for one driver. For
+example, `dbmeta/models/sqlite3` holds the SQLite3 queries and the structs that
+receive their rows. Each driver gets its own Go package, so the types in
 `dbmeta/models/postgres` and the types in `dbmeta/models/sqlite3` are different
 types.
 
@@ -48,8 +47,10 @@ one driver package rather than as a package per release.
 
 A third layer joins the two. Something must convert the per driver model rows
 into the common types of the root package. It also merges the version fragments
-for the connected server. The location of that code is an open question. See
-question 2 below.
+for the connected server. That code is in the root package, and it is written:
+D3 puts the driver agnostic API there, D8 holds the fragments as data, and
+`Stmt.Build` merges them for a detected version. Each model converts its own
+rows in the `Scan` function it registers.
 
 ## The decisions, in one table
 
@@ -65,17 +66,17 @@ records the argument.
 | # | Decision | Status |
 | --- | --- | --- |
 | [D1](#d1-the-module-centralizes-database-metadata-decided) | The module centralizes database metadata | Decided |
-| [D2](#d2-models-are-generated-per-driver-under-modelsdriver-decided) | Models are generated per driver under `models/<driver>` | Decided |
+| [D2](#d2-models-are-one-package-per-driver-under-modelsdriver-amended-by-d71) | Models are one package per driver under `models/<driver>` | Amended by D71 |
 | [D3](#d3-the-root-package-is-the-driver-agnostic-api-decided) | The root package is the driver agnostic API | Decided |
-| [D4](#d4-keep-the-object-coverage-drop-the-reader-naming-decided-in-part) | Keep the object coverage, drop the Reader naming | Decided in part |
+| [D4](#d4-keep-the-object-coverage-drop-the-reader-naming-decided) | Keep the object coverage, drop the Reader naming | Decided |
 | [D5](#d5-dbmeta-only-reads-amended-by-d56) | dbmeta only reads | Amended by D56 |
 | [D6](#d6-fix-the-null-scan-defect-once-and-never-hide-a-null-decided-amended-in-place) | Fix the NULL scan defect once, and never hide a NULL | Decided, amended in place |
 | [D7](#d7-use-the-standard-library-third-party-packages-are-a-last-resort-decided) | Use the standard library. Third party packages are a last resort | Decided |
 | [D8](#d8-version-differences-are-generated-data-not-packages-decided) | Version differences are generated data, not packages | Decided |
 | [D9](#d9-there-are-two-platonic-models-postgresql-is-the-primary-one-decided) | There are two platonic models. PostgreSQL is the primary one | Decided |
 | [D10](#d10-take-the-initial-design-from-dbtpl-and-its-models-directory-decided) | Take the initial design from dbtpl and its models directory | Decided |
-| [D11](#d11-dbtpl-is-pinned-as-a-tool-in-the-generation-module-decided-amended-by-d26) | dbtpl is pinned as a tool, in the generation module | Decided, amended by D26 |
-| [D12](#d12-generate-against-live-databases-running-in-containers-amended-by-d70) | Generate against live databases running in containers | Amended by D70 |
+| [D11](#d11-dbtpl-is-pinned-as-a-tool-in-the-generation-module-amended-by-d26-superseded-by-d71) | dbtpl is pinned as a tool, in the generation module | Amended by D26, superseded by D71 |
+| [D12](#d12-work-against-live-databases-running-in-containers-amended-by-d70-and-d71) | Work against live databases running in containers | Amended by D70 and D71 |
 | [D13](#d13-build-the-models-before-the-root-package-decided) | Build the models before the root package | Decided |
 | [D14](#d14-a-driver-is-a-family-not-a-product-decided) | A driver is a family, not a product | Decided |
 | [D15](#d15-ci-runs-on-github-actions-on-ubuntu-latest-only-decided) | CI runs on GitHub Actions, on ubuntu-latest only | Decided |
@@ -93,7 +94,7 @@ records the argument.
 | [D27](#d27-split-the-work-in-two-a-nested-test-module-here-a-shared-harness-in-dbtest-decided) | Split the work in two: a nested test module here, a shared harness in dbtest | Decided |
 | [D28](#d28-root-tests-use-a-fake-driver-replaying-captured-data-decided) | Root tests use a fake driver replaying captured data | Decided |
 | [D29](#d29-pure-go-only-no-single-package-imports-every-driver-amended-by-d48) | Pure Go only. No single package imports every driver | Amended by D48 |
-| [D30](#d30-dbtpl-is-not-used-to-generate-dbmeta-decided-with-the-cost-recorded) | dbtpl is not used to generate dbmeta | Decided, with the cost recorded |
+| [D30](#d30-dbtpl-is-not-used-to-generate-dbmeta-amended-by-d71) | dbtpl is not used to generate dbmeta | Amended by D71 |
 | [D31](#d31-models-register-from-internal-one-file-each-gated-by-build-tags-decided) | Models register from internal, one file each, gated by build tags | Decided |
 | [D32](#d32-errors-are-constants-of-a-string-type-decided) | Errors are constants of a string type | Decided |
 | [D33](#d33-results-stream-the-package-does-not-materialize-them-decided) | Results stream. The package does not materialize them | Decided |
@@ -134,6 +135,7 @@ records the argument.
 | [D68](#d68-every-container-is-started-by-the-runner-and-named-product-release-amended-by-d70) | Every container is started by the runner and named product-release | Amended by D70 |
 | [D69](#d69-the-workflow-builds-its-matrix-from-the-go-list-amends-d42) | The workflow builds its matrix from the Go list | Amends D42 |
 | [D70](#d70-the-runner-is-a-go-command-called-dbrun-amends-d68-and-d12) | The runner is a Go command called dbrun | Amends D68 and D12 |
+| [D71](#d71-nothing-here-is-generated-the-models-are-written-amends-d2-d12-and-d30-supersedes-d11) | Nothing here is generated. The models are written | Amends D2, D12 and D30, supersedes D11 |
 
 ## Decisions
 
@@ -146,18 +148,21 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 `dbmeta` is the single home for database metadata queries. `usql` and `dbtpl`
 consume it instead of each keeping their own copy.
 
-### D2. Models are generated per driver under `models/<driver>`. Decided.
+### D2. Models are one package per driver under `models/<driver>`. Amended by D71.
 
-`dbtpl` generates the model code. Each driver gets one package, named after the
-driver, under `models/`. One package covers every supported version of that
-database, because D8 holds the version differences as data inside it.
+Each driver gets one package, named after the driver, under `models/`. One
+package covers every supported version of that database, because D8 holds the
+version differences as data inside it.
+
+D71 amends the part that said a generator produces the code. Nothing does. The
+package layout this decision chose is what stands.
 
 ### D3. The root package is the driver agnostic API. Decided.
 
 External projects use the root package. They do not import
 `dbmeta/models/<driver>` to do ordinary work.
 
-### D4. Keep the object coverage, drop the Reader naming. Decided in part.
+### D4. Keep the object coverage, drop the Reader naming. Decided.
 
 The 15 one method interfaces in `usql/drivers/metadata/metadata.go` are useful
 for what they cover, which is one interface per kind of object. They are not
@@ -171,16 +176,37 @@ it. In `dbmeta` everything reads, so `Reader` says nothing and repeats the
 package. `dbmeta.TableReader` with a `Tables` method is three words for one
 idea.
 
-There is a further question about whether `dbmeta` exports these as interfaces
-at all. `CLAUDE.md` already carries the Go rule that an interface belongs where
-it is consumed, not where it is implemented. Under that rule `dbmeta` returns a
-concrete type per driver with methods on it, and `usql` and `dbtpl` each
-declare the narrow interface each one needs. That removes the naming problem
-rather than solving it, and it removes the type assertion composition that D18
-rejects.
+#### The further question is answered: there are no per object interfaces
 
-Do not settle this before D13 delivers the models. The right shape will be
-clearer when several databases have answered the same questions. See question 5.
+This decision once asked whether `dbmeta` should export those fifteen as
+interfaces at all, and said not to settle it before D13 delivered the models.
+D13 delivered eight. The shape they produced is the one this decision hoped
+for, and the code is now the record of it.
+
+The root package exports two interfaces and neither is per object.
+`Querier` declares `QueryContext` and nothing else, which is D49.
+`AnyQuery` is what lets a caller hold queries of different row types in one
+list. There is no `TableReader`, no `ColumnReader` and no composition by type
+assertion, which is what D18 rejected.
+
+An object kind is a `Query` value rather than an interface. A caller writes
+`dbmeta.Tables.All(ctx, m, db, args)` and gets an iterator, and the same four
+arguments read every other kind. The interface a consumer wants is the one it
+declares for itself, which is the rule in `CLAUDE.md` and the reason nothing
+here declares it for them.
+
+#### Read on rather than designing from here
+
+The design is settled and it is recorded further down, not here. This decision
+is the earliest one and it predates every model. A reader who takes it as the
+current shape of the API will be several years of decisions out of date.
+
+D39 has how a query is listed, described and rendered. D33 has why a result
+streams as an iterator rather than arriving as a slice. D34 has what happens
+when a database cannot answer. D47 has the cost test for whether a field
+belongs here at all, and why a child of an object is its own kind with flat
+rows rather than a slice on the parent. D49 has `Querier` and why the
+interface is documentation rather than a seam for a mock.
 
 ### D5. dbmeta only reads. Amended by D56.
 
@@ -247,10 +273,15 @@ default is the empty string.
 
 `TestNoCoalesceOnCatalogColumns` in the model package guards the rule.
 
-### D6a. The original decision: fix the defect at generation time. Decided.
+### D6a. The original decision: fix the defect at generation time. Superseded by D71.
 
-See "Known defects" below for the evidence. The fix belongs in the generator
-flags, not in hand written patches.
+It said the NULL scan fix belonged in a generator's flags rather than in hand
+written patches. There is no generator, which D71 records, so there is nowhere
+for it to go but the code. The rule that replaced it is in D6 above and in
+`docs/NULLS.md`: a field that can be absent is declared `sql.Null[T]`, and a
+`TestNoCoalesceOnCatalogColumns` in the model package guards it.
+
+See "Known defects" below for the evidence that produced it.
 
 ### D7. Use the standard library. Third party packages are a last resort. Decided.
 
@@ -284,10 +315,9 @@ The mysql reader imports `github.com/gohxs/readline` and
 `usql/drivers/completer`. Both belong to the completion feature, not to
 metadata. Leave them in `usql`.
 
-Check the generated code too. `dbtpl` has a `--go-uuid` flag that defaults to
-`github.com/google/uuid`. No metadata query needs a UUID column, so the default
-must never take effect. Make sure that the generated packages import nothing
-outside the standard library.
+Check the models too. No metadata query needs a UUID column or anything else
+that would pull in a package, so make sure that every model imports nothing
+outside the standard library and the root package.
 
 ### D8. Version differences are generated data, not packages. Decided.
 
@@ -383,15 +413,15 @@ columns rather than only rewriting expressions. Release 11 adds `pubtruncate`
 as "Truncates". Release 13 adds `pubviaroot` as "Via root". Another gate adds
 `am.amname` as "Access method". Each one changes the column count.
 
-#### What dbtpl generates
+#### What a model holds
 
-`dbtpl` introspects one concrete statement against one live server. With the
-padding rule, the newest supported version is that statement. It produces the
+A model is written against one concrete statement run on one live server. With
+the padding rule, the newest supported version is that statement. It gives the
 row struct and the scan code once per query, and both fit every version,
 because every version returns the same columns in the same order.
 
-The fragments are data beside the generated code, not something `dbtpl`
-introspects.
+The fragments are data beside the query, not something a server is asked
+about.
 
 #### The subtlety to resolve
 
@@ -402,8 +432,8 @@ feature as missing data.
 
 Do not solve this with a sentinel value. Record, next to each query, which
 fields are valid at the detected version, and let a caller ask. This is the
-same mechanism that question 6 raises for a database that cannot answer at all,
-and the two must be one mechanism rather than two.
+same mechanism D34 settles for a database that cannot answer at all, and the
+two must be one mechanism rather than two.
 
 #### What this decision settles
 
@@ -437,7 +467,7 @@ It is not a requirement that every database answer all 48 PostgreSQL objects.
 Both external reviews read it that way and warned that most drivers would then
 return "not supported" for most calls. That reading is wrong, and the wording
 above is narrowed to prevent it. A database answers for the objects it has, and
-the capability mechanism in question 6 reports the rest. PostgreSQL sets the
+the capability mechanism D34 describes reports the rest. PostgreSQL sets the
 shape of the answer, not the list of questions every database must answer.
 
 #### The PostgreSQL model and pgdesc
@@ -471,9 +501,9 @@ fragments on an integer server version. The generated Go shows the pattern as
 `if d.version < 90600`, where 90600 means release 9.6.0. When the server is too
 old for a feature, `psql` returns an error that names the version.
 
-`dbmeta` takes the other path. D8 sets discrete models per version, because
-`dbtpl` generates each model from a concrete SQL statement run against a
-concrete server. An inline conditional has no single statement to introspect.
+`dbmeta` takes the other path. D8 sets discrete fragments per version, because
+each is a concrete SQL statement that has been run against a concrete server.
+An inline conditional has no single statement to check.
 
 Two consequences follow. An agent that ports a query from `describe.c` or from
 `pgdesc` must read the version conditionals and split them into one statement
@@ -513,20 +543,25 @@ a package level variable that another driver can borrow.
 
 ### D10. Take the initial design from dbtpl and its models directory. Decided.
 
-Do not design the model shape from nothing. Read `dbtpl` first, and read
-`dbtpl/models` most closely. It shows what a generated metadata model looks
-like when it works: the struct per object, the query function per lookup, and
-the shared package file that holds the `DB` interface and the logging hooks.
+Do not design the model shape from nothing. Read `dbtpl/models` first, as a
+worked example of the shape: the struct per object, the query function per
+lookup, and the shared package file. It is another project's code and it is
+read for its shape rather than run.
 
-`dbtpl/gen.sh` shows the other half, which is how those files are produced. It
-runs 60 `dbtpl query` commands across five databases, each with the SQL in a
-shell heredoc.
+D71 records that nothing here is produced by a tool. The shape above is worth
+reading. The way that project builds its own files is not, because this one
+does not build files.
 
 Skim, then adapt. `dbtpl/models` is one flat package with the driver in the
 function name, as in `PostgresTables` and `MysqlTables`. D2 sets a package per
 driver instead, so the names lose the prefix and become `postgres.Tables`.
 
-### D11. dbtpl is pinned as a tool, in the generation module. Decided, amended by D26.
+### D11. dbtpl is pinned as a tool, in the generation module. Amended by D26, superseded by D71.
+
+Nothing in this decision is in force. No `go.mod` here has a `tool` directive,
+no generator is run, and D71 records why. It is kept because the reasoning
+about where a build dependency belongs is still the reasoning that keeps
+drivers out of the root module, which is D26.
 
 `dbtpl` is pinned with the `tool` directive. Go 1.24 added the directive and
 these modules target Go 1.27.1, so it is available.
@@ -543,16 +578,22 @@ This pin is a build dependency, not a runtime dependency. It does not weaken
 D7. The generated code and the root package still import the standard library
 only.
 
-### D12. Generate against live databases running in containers. Amended by D70.
+### D12. Work against live databases running in containers. Amended by D70 and D71.
+
+What this decision got right is that the work needs a running server, and that
+is still true for a different reason than it gave. D71 has it: nothing is
+generated, so there is no generation step needing a connection. A query is
+written against a live server and checked there, and a fixture is built there,
+so every model still needs one.
+
+D70 replaced the harness this decision chose. Read it first: the databases are
+started by `dbrun` and by nothing else, and the rest of this section is the
+record of what was decided in 2025 and why. What does not stand is
+`usql/contrib`, and neither does the paragraph below about generation time.
 
 `dbtpl query` introspects a real connection. It creates a temporary view from
 the statement, reads the column types, and drops the view. There is no offline
 mode. Every driver therefore needs a running database at generation time.
-
-D70 replaced the harness this decision chose. Read it first: the databases are
-started by `dbrun` and by nothing else, and the rest of this section is the
-record of what was decided in 2025 and why. What stands is the first paragraph.
-What does not is `usql/contrib`.
 
 `usql/contrib` already solves this and `dbmeta` must reuse the pattern rather
 than invent one. It holds a directory per database, each with a `podman-config`
@@ -1462,10 +1503,9 @@ separate module delivers that without relying on a pruning rule to hide it.
 Everything that needs a driver lives outside the root module, in a module of
 its own with its own `go.mod`. That module holds:
 
-1. The `tool` directive pinning `dbtpl`, moved out of the root.
-2. Every database driver used for generation or for testing.
-3. The container harness from D23.
-4. The integration tests that connect to a real server.
+1. Every database driver used for testing.
+2. The container harness from D23.
+3. The integration tests that connect to a real server.
 
 This gives `dbtest` a second and stronger reason to exist. D23 justified it as
 a container harness. It is also the boundary that keeps drivers out of
@@ -1497,8 +1537,9 @@ Both reviews were asked and both gave the same answer, which was neither of the
 two options as posed. Split by what is reusable.
 
 **A nested module in this repository** holds what belongs to `dbmeta` alone:
-the integration tests, the database drivers they need, and the `tool` directive
-pinning `dbtpl` that D11 moved out of the root.
+the integration tests and the database drivers they need. It once also held the
+`tool` directive that D11 moved out of the root, and D71 removed the last of
+that.
 
 **The sibling repository `xo/dbtest`** holds what three projects share: the
 podman container harness. `usql` backlog item 6 already asks for it, and
@@ -1726,11 +1767,14 @@ of version drift in a project already managing one.
 
 That cost is why option 1 was not taken. D48 settled it the other way.
 
-### D30. dbtpl is not used to generate dbmeta. Decided, with the cost recorded.
+### D30. dbtpl is not used to generate dbmeta. Amended by D71.
 
-Generation is driven by ordinary Go code in the sub-package. `dbtpl` is not
-used, and `dbmeta` does not pin it. The sub-package is pure Go, like everything
-else here. See D29.
+`dbtpl` is not used and `dbmeta` does not pin it. That half is right and it
+holds.
+
+The other half said generation would be driven by ordinary Go code in a
+sub-package. There is no such sub-package and there is no generation at all.
+D71 records what actually happened, which is that the models were written.
 
 Ken decided this. Both reviews questioned the stated reason and their objection
 is recorded here, because a later reader will ask.
@@ -4645,6 +4689,59 @@ same list.
 Nothing about what the tests do. This is how a database gets started, not what
 is asked of it once it is up.
 
+### D71. Nothing here is generated. The models are written. Amends D2, D12 and D30, supersedes D11.
+
+No generator runs in this repository. There is no `tool` directive in either
+`go.mod`, no `go:generate` anywhere, and no file carries a generated header.
+Every line under `models/` was written, and the queries in it were written by
+an agent working against a running server, checking each statement as it went.
+
+`dbtpl` generates nothing here and never did. It is a consumer of `dbmeta`,
+the same as `usql`, and that is the only relationship between the two projects.
+
+#### Why this needed a decision of its own
+
+Because the plan said otherwise in three places and the instructions repeated
+it. D2 said `dbtpl` generates the model code. D11 pinned `dbtpl` with the
+`tool` directive so that two agents on two machines would produce the same Go
+from the same SQL. D30 corrected half of it, saying `dbtpl` is not used, and
+then put generation in a sub-package that was never built.
+
+`CLAUDE.md` carried the consequence. It told a reader that `models/<driver>`
+holds generated files, that they must not be edited, and that a change goes
+into the SQL and is generated again through `go tool dbtpl`. All three are
+wrong, and the first two are worse than wrong: they tell somebody not to touch
+the only files there are to touch.
+
+`docs/EVALUATION.md` carried it too, requiring a pinned image digest beside
+each model so that generation would be reproducible. Nothing is reproduced,
+so nothing needs the digest.
+
+#### What replaces it
+
+A model is written, read and edited like any other Go. A query is written
+against a live server, `dbrun` starts that server, and rule 9 makes the fixture
+part of the model rather than something a generator would emit.
+
+What D2 decided about layout stands. One package per driver under `models/`,
+one package covering every supported release, with the version differences held
+as data inside it, which is D8. Only the claim that a tool produced it is gone.
+
+What D11 reasoned about build dependencies stands too, and it is D26 that
+carries it: a driver does not belong in the root module. There is simply no
+build dependency left to place.
+
+D6a went the same way and is marked superseded by this. It put the NULL scan
+fix in a generator's flags. The fix is in the code, the rule is D6 and
+`docs/NULLS.md`, and `TestNoCoalesceOnCatalogColumns` guards it.
+
+#### What this does not mean
+
+It is not a rule against generating code here later. If a generator is written,
+it will be ordinary Go in this repository, it will mark what it emits, and it
+will get a decision of its own. Until then, a file under `models/` is a file
+somebody wrote, and the honest thing is to say so.
+
 ## What exists today
 
 An agent that starts work must read these sources first.
@@ -4713,30 +4810,18 @@ The 14 supported drivers are also split across two places. Five live under
 `usql/drivers/sqlite3/sqshared/reader.go` at 331 lines and
 `usql/drivers/sqlserver/reader.go` at 239 lines. The move must collect both.
 
-## How dbtpl generates a model
+## How a model is written
 
-`dbtpl query` takes a database URL and a SQL statement on standard input. It
-creates a temporary view from the statement, reads the column types of that
-view, drops the view, and writes a Go struct and a query function. The file
-`dbtpl/gen.sh` shows the pattern. It runs 60 such commands across five
-databases.
+Nothing generates one. D71 has the whole of it: no `tool` directive, no
+`go:generate`, no generated header, and no `dbtpl` in the loop. This section
+once described `dbtpl query` and its flags, and following it produced nothing
+because none of it was ever wired up.
 
-Generation connects to a live database. You cannot generate a model for a
-driver without a running instance of that database.
-
-These flags matter for this project:
-
-- `--go-pkg` sets the package name. `dbmeta/models/<driver>` needs it.
-- `-2`, or `--go-not-first`, suppresses the shared package file. The first
-  command for a package writes that file. Every later command for the same
-  package must pass `-2`.
-- `-U`, or `--allow-nulls`, makes a result field nullable when the introspected
-  column allows NULL.
-- `-Z`, or `--fields`, overrides the field names and Go types by hand. This is
-  the escape hatch when introspection reports the wrong type.
-- `-T` sets the struct name and `-F` sets the function name.
-- `-X`, or `--exec`, turns off introspection for a statement that returns no
-  rows.
+A model is written against a running server. Start one with `dbrun`, write the
+statement, run it, read the columns back, and declare the fields to match. The
+NULL rules in `docs/NULLS.md` are the part that takes the care: a field gets
+`sql.Null[T]` whenever the column can be absent, and a release with no source
+for a column selects `NULL AS "name"` rather than a literal.
 
 ## Known defects to fix once
 
@@ -4819,7 +4904,7 @@ shared instance hazard.
 
 Distinguish "not supported" from "found nothing". An empty list must mean that
 the database has no such object. It must not mean that the driver cannot ask.
-This answers question 6 in favor of a capability report.
+D34 settled this in favor of a capability report.
 
 Use nullable field types for every optional column. This confirms D6.
 
@@ -5172,9 +5257,9 @@ needed before the matrix above can run.
 
 1. Most configs name an image without a tag, as in
    `IMAGE=docker.io/usql/postgres`. A version axis needs a tag per version.
-2. Pin the image digest, not only the tag. A tag moves. Record which digest
-   produced which model, so that a generated model can be traced to the server
-   that produced it.
+2. Pin the image digest, not only the tag. A tag moves, and a test that means
+   to meet one release must not quietly meet another. Nothing here needs a
+   digest to reproduce a file, because nothing here is produced. See D71.
 3. Add configs for the flavors in tier 3. `contrib` has `cockroach` already. It
    has no MySQL config, because its `mysql` directory runs the MariaDB image.
 
@@ -5202,12 +5287,15 @@ asked for in exchange.
 Everything else raised in this document has been answered, and every decision
 is marked Decided or Superseded.
 
-One thing is deferred rather than open, and it has an owner and a trigger.
+Nothing is deferred either. Both of the items that were are closed, and each
+is worth a line here because both were read as live design space after they had
+stopped being it.
 
 D4 and question 4 as it was: whether `dbmeta` exports interfaces at all, and
-under what names. Deferred until D13 delivers the PostgreSQL and MariaDB
-models, when the real shape is visible. Nothing depends on it until the root
-package is written.
+under what names. It waited for D13 to deliver the models, and D13 delivered
+eight. The root package exports `Querier` and `AnyQuery` and no per object
+interface, an object kind is a `Query` value, and D49 settled the one that
+remained. D4 says so and points at the decisions that hold the current shape.
 
 D35 was listed here and it is not deferred any more. D48 answered it: cgo is
 allowed in the `test` module, so DuckDB is reached through its driver like

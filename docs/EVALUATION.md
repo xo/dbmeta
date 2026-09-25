@@ -267,23 +267,18 @@ the fragment.
 
 ### Which image tag to pin
 
-Generation and testing want different answers, because they protect different
-things.
+Pin the bare major tag, such as `postgres:14`. A test must meet the newest
+patch of that major, because that is what people run.
 
-For generation, pin a digest. Generated code must be reproducible, so the
-server that produced a model must be exactly recoverable. A tag moves when the
-image is rebuilt, and a rebuilt base image can change a default that shows up
-in generated output. Record the digest next to the generated model. D12 already
-requires this.
-
-For testing, pin the bare major tag, such as `postgres:14`. Testing should meet
-the newest patch of that major, because that is what people run.
+There is no second answer for generation, because nothing here is generated. A
+model is written and checked against a server rather than produced by one, so
+no image has to be exactly recoverable to reproduce a file. See D71.
 
 ### Which versions get tested where
 
-D24 governs and it overrides any split by version. CI runs the latest release
-only. Every other major runs on a development machine, and D40 names the tier
-each one sits in.
+D42 governs and it overrides any split by version. Four releases of each
+product run on every push and the rest run nightly, and D40 names the tier each
+one sits in.
 
 ### Recorded dissent: both reviews argued for a higher floor
 
@@ -329,8 +324,8 @@ Record each database here as it is evaluated. Answer all five.
 5. The floor chosen, the ceiling chosen, and which criterion decided it.
 
 Add a row to the support table in `README.md` at the same time, and say which
-versions CI covers and which are covered only on a development machine. D24
-makes that distinction, and the table must not claim more than is true.
+versions CI covers and which are covered only on a development machine. D42
+and D40 make that distinction, and the table must not claim more than is true.
 
 ## Databases evaluated so far
 
