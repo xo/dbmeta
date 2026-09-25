@@ -1,6 +1,10 @@
 package container
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/xo/dbmeta"
+)
 
 // The Oracle releases dbmeta is tested against.
 //
@@ -78,6 +82,76 @@ func oracleService(service string) func(port int) string {
 func oracleReady(service string) []string {
 	return []string{"bash", "-c",
 		"echo exit | sqlplus -s -L system/" + Password + "@localhost/" + service}
+}
+
+var (
+	// The Express images, which carry 11g through 21c.
+	oraclexe = product{
+		dialect: dbmeta.Oracle,
+		name:    "oracle",
+		image:   "docker.io/gvenzl/oracle-xe",
+		major:   oracleMajor,
+		// slim leaves out the sample schemas, which nothing here reads and
+		// which cost a gigabyte and a minute of startup.
+		tagSuffix: "-slim",
+		port:      1521,
+		env:       map[string]string{"ORACLE_PASSWORD": Password},
+		ready:     oracleReady("XEPDB1"),
+		dsn:       oracleService("XEPDB1"),
+	}
+	// 23ai, which Oracle calls Free rather than Express.
+	oraclefree = product{
+		dialect:   dbmeta.Oracle,
+		name:      "oracle",
+		image:     "docker.io/gvenzl/oracle-free",
+		major:     oracleMajor,
+		tagSuffix: "-slim",
+		port:      1521,
+		env:       map[string]string{"ORACLE_PASSWORD": Password},
+		ready:     oracleReady("FREEPDB1"),
+		dsn:       oracleService("FREEPDB1"),
+	}
+	// 19c, built locally from Oracle's Dockerfiles because Oracle publishes no
+	// free image of it. `dbrun build oracle-19c` makes it, and this names what
+	// that script produces.
+	oracle19 = product{
+		dialect: dbmeta.Oracle,
+		name:    "oracle",
+		image:   "localhost/oracle/database",
+		major:   oracleMajor,
+		// buildContainerImage.sh tags an enterprise build this way.
+		tagSuffix: "-ee",
+		port:      1521,
+		env:       map[string]string{"ORACLE_PWD": Password},
+		ready:     oracleReady("ORCLCDB"),
+		dsn:       oracleService("ORCLCDB"),
+	}
+)
+
+// oracleNames maps a release to the name Oracle sells it under.
+//
+// It is a table rather than a rule, because there is no rule. The suffix moved
+// from g to c to ai, and 26ai is version 23.26 while 23ai is version 23.9, so
+// two products share the major 23 and the number does not say which is which.
+// Anything derived from the digits gets that pair wrong.
+//
+// A release with no entry keeps its full version, which makes the name carry a
+// patch level and fails TestNamesCarryOnlyTheMajor. That is deliberate: adding
+// a release without saying what Oracle calls it should not pass quietly.
+var oracleNames = map[string]string{
+	"11.2.0.2": "11g",
+	"18.4.0":   "18c",
+	"19.3.0":   "19c",
+	"21.3.0":   "21c",
+	"23.9":     "23ai",
+	"23.26.3":  "26ai",
+}
+
+func oracleMajor(release string) string {
+	if name, ok := oracleNames[release]; ok {
+		return name
+	}
+	return release
 }
 
 // Oracle is every Oracle release dbmeta is tested against.
