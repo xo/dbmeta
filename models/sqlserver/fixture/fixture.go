@@ -73,8 +73,34 @@ func at(name, sqlstr string) Step {
 	return Step{Name: name, Stmt: dbmeta.Always(sqlstr)}
 }
 
-func from(name string, since dbmeta.Version, sqlstr string) Step {
-	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: since, SQL: sqlstr}}}}
+// drop builds a teardown step that works on every release.
+//
+// DROP ... IF EXISTS arrived in SQL Server 2016. On 2014 and older it is a
+// syntax error, so every drop failed, nothing was removed, and the next test
+// hit "There is already an object named 'dbmeta_fixture'". That is the shape
+// of fault a version gate exists to prevent, and it was invisible until a
+// machine ran 2012 and 2014, because every Linux container is 2017 or newer.
+//
+// The older form tests for the object first. OBJECT_ID covers a table, a view,
+// a routine, a trigger and a sequence, and a type and a schema have their own
+// functions.
+func drop(name, kind, object string) Step {
+	// The modern form, and the one every tested release takes.
+	modern := "DROP " + kind + " IF EXISTS " + object
+	var exists string
+	switch kind {
+	case "TYPE":
+		exists = "TYPE_ID('" + object + "')"
+	case "SCHEMA":
+		exists = "SCHEMA_ID('" + object + "')"
+	default:
+		exists = "OBJECT_ID('" + object + "')"
+	}
+	older := "IF " + exists + " IS NOT NULL DROP " + kind + " " + object
+	return Step{Name: name, Stmt: dbmeta.Stmt{{
+		{SQL: older},
+		{Min: v13, SQL: modern},
+	}}}
 }
 
 // Everything is a schema holding one of every object the SQL Server queries
@@ -173,28 +199,37 @@ END`),
 	@level2type = N'COLUMN', @level2name = N'author_id'`),
 
 		// Rows and statistics over them, so that ColumnStats has something to
-		// report. sys.dm_db_stats_properties arrived in release 13.
+		// report.
+		//
+		// The statistics step is not gated, and was until a 2012 machine ran.
+		// It had v13 on it, matching a comment saying
+		// sys.dm_db_stats_properties arrived in release 13, and that was
+		// wrong twice: the view arrived in 2012 SP1, which is why the query
+		// gates at v11, and CREATE STATISTICS has been there since long
+		// before any release here. The two gates disagreeing meant 2012 and
+		// 2014 reported the query supported and then had nothing to report,
+		// which no container could show because they are all 13 or newer.
 		at("author rows", `INSERT INTO dbmeta_fixture.author (author_id, name, rating)
 	SELECT TOP 200 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)),
 		'author ' + CAST(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS nvarchar(8)),
 		ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) % 5
 	FROM sys.all_objects`),
-		from("statistics", v13,
+		at("statistics",
 			`CREATE STATISTICS author_name_rating ON dbmeta_fixture.author (name, rating)`),
 		at("analyze", `UPDATE STATISTICS dbmeta_fixture.author`),
 	},
 	Teardown: []Step{
-		at("drop trigger", `DROP TRIGGER IF EXISTS dbmeta_fixture.book_touch`),
-		at("drop function", `DROP FUNCTION IF EXISTS dbmeta_fixture.shout`),
-		at("drop procedure", `DROP PROCEDURE IF EXISTS dbmeta_fixture.addup`),
-		at("drop view", `DROP VIEW IF EXISTS dbmeta_fixture.recent`),
-		at("drop extras", `DROP TABLE IF EXISTS dbmeta_fixture.extras`),
-		at("drop shipment", `DROP TABLE IF EXISTS dbmeta_fixture.shipment`),
-		at("drop region", `DROP TABLE IF EXISTS dbmeta_fixture.region`),
-		at("drop book", `DROP TABLE IF EXISTS dbmeta_fixture.book`),
-		at("drop author", `DROP TABLE IF EXISTS dbmeta_fixture.author`),
-		at("drop type", `DROP TYPE IF EXISTS dbmeta_fixture.shortname`),
-		at("drop sequence", `DROP SEQUENCE IF EXISTS dbmeta_fixture.counter`),
-		at("drop schema", `DROP SCHEMA IF EXISTS dbmeta_fixture`),
+		drop("drop trigger", "TRIGGER", "dbmeta_fixture.book_touch"),
+		drop("drop function", "FUNCTION", "dbmeta_fixture.shout"),
+		drop("drop procedure", "PROCEDURE", "dbmeta_fixture.addup"),
+		drop("drop view", "VIEW", "dbmeta_fixture.recent"),
+		drop("drop extras", "TABLE", "dbmeta_fixture.extras"),
+		drop("drop shipment", "TABLE", "dbmeta_fixture.shipment"),
+		drop("drop region", "TABLE", "dbmeta_fixture.region"),
+		drop("drop book", "TABLE", "dbmeta_fixture.book"),
+		drop("drop author", "TABLE", "dbmeta_fixture.author"),
+		drop("drop type", "TYPE", "dbmeta_fixture.shortname"),
+		drop("drop sequence", "SEQUENCE", "dbmeta_fixture.counter"),
+		drop("drop schema", "SCHEMA", "dbmeta_fixture"),
 	},
 }

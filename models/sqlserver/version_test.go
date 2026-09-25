@@ -230,6 +230,19 @@ func TestParseVersionBuildsTheDisplayLine(t *testing.T) {
 			parts: 10,
 		},
 		{
+			// A release with no service pack. The first parenthesis in the
+			// banner is (X64) rather than (SP2), so the SQL side keeps the
+			// build and the name has to be cut again at " - ". A real
+			// SQL Server 2014 produced exactly this.
+			name: "no service pack, so the banner carries the build",
+			cols: []string{
+				"Microsoft SQL Server 2014 - 12.0.2000.8 ", "12.0.2000.8", "RTM", "",
+				"Express Edition (64-bit)",
+			},
+			want:  "Microsoft SQL Server 2014 12.0.2000.8, RTM, Express Edition (64-bit)",
+			parts: 12,
+		},
+		{
 			// the banner had no parenthesis, so the cut produced NULL
 			name:  "no product name",
 			cols:  []string{"", "16.0.4295.3", "RTM", "", "Developer Edition (64-bit)"},

@@ -550,12 +550,35 @@ Tested. D54 says what a Linux release claims and D57 says what a machine does.
 | --- | --- | --- |
 | 2017, 2019, 2022, 2025 | Linux container, every push | 14.0.3550.4, 15.0.4490.9, 16.0.4295.3, 17.0.5005.3 |
 | 2016 | Windows Server 2016 machine | 13.0.5026.0 SP2 Express, on 2026-09-25 |
-| 2014, 2012, 2008 R2 | Windows machine, not yet run | nothing is claimed |
+| 2014 | Windows Server 2012 R2 machine | 12.0.2000.8 RTM Express, on 2026-09-25 |
+| 2012 | Windows Server 2012 R2 machine | 11.0.7001.0 SP4 Express, on 2026-09-25 |
+| 2008 R2 | Windows machine, not yet run | nothing is claimed |
 
-2016 answers 32 of the 55, which is what 2017 and later answer. The run also
-exercised the one thing no container could: a server that reports a service
-pack and no cumulative update, where the display line has to read `SP2` and not
-`SP2-`.
+2016 answers 32 of the 55, which is what 2017 and later answer. 2012 and 2014
+answer 31, and the one they lack is `ForeignTables`, which reads
+`sys.external_tables` and is gated at 2016. It is refused with
+`ErrVersionTooOld` rather than returning nothing, which is the whole point of
+the gate.
+
+The machines earned their cost immediately. Every gate in this model sits below
+2017, so until one ran, the old branch of each was checked only by resolving a
+statement against a version set with no server. Running 2012 and 2014 found
+three faults that no container could have.
+
+The fixture tore nothing down. Every teardown statement used `DROP ... IF
+EXISTS`, which arrived in 2016, so on 2014 and older every drop was a syntax
+error and the next test met a schema that was already there.
+
+The display line printed the build twice on a release with no service pack.
+`@@VERSION` reads `Microsoft SQL Server 2014 - 12.0.2000.8 (X64)`, where the
+first parenthesis comes after the build rather than after the year, so cutting
+there kept too much. Every release with a Linux container ships a cumulative
+update and names it, so the shorter form never appeared.
+
+`ColumnStats` was supported and had nothing to report. The query gates at 2012
+and the fixture step that creates the statistics was gated at 2016, following a
+comment that had the release wrong. The two gates disagreed, and only a server
+between them could show it.
 
 ### The sys schema, not information_schema
 

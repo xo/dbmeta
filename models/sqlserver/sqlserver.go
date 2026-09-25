@@ -108,6 +108,31 @@ const versionSQL = `SELECT LEFT(@@VERSION, NULLIF(CHARINDEX('(', @@VERSION), 0) 
 , CAST(SERVERPROPERTY('productupdatelevel') AS nvarchar(128))
 , CAST(SERVERPROPERTY('edition') AS nvarchar(128))`
 
+// productName cuts the name the product is sold under out of the @@VERSION
+// banner, which versionSQL has already trimmed at the first parenthesis.
+//
+// That trim is enough when the banner names a service pack, because the first
+// parenthesis is then right after the year:
+//
+//	Microsoft SQL Server 2016 (SP2) (KB4052908) - 13.0.5026.0 (X64)
+//
+// It is not enough on a release with no service pack, where the first
+// parenthesis is (X64) and comes after the build:
+//
+//	Microsoft SQL Server 2014 - 12.0.2000.8 (X64)
+//
+// so the trim keeps the build and the display then prints it twice. Stopping
+// at " - " as well fixes that and changes nothing for the other form. A real
+// 2014 found this, and no container could have: every SQL Server with a Linux
+// container ships a cumulative update and names it.
+func productName(banner string) string {
+	name := strings.TrimSpace(banner)
+	if i := strings.Index(name, " - "); i >= 0 {
+		name = name[:i]
+	}
+	return strings.TrimSpace(name)
+}
+
 // parseVersion builds the version to gate on and the line to show a person.
 //
 // Only the second column gates anything. The rest are for the display line,
@@ -123,7 +148,7 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 		return dbmeta.VersionSet{}, dbmeta.ErrInvalidVersion
 	}
 	var (
-		name    = strings.TrimSpace(cols[0])
+		name    = productName(cols[0])
 		raw     = strings.TrimSpace(cols[1])
 		level   = strings.TrimSpace(cols[2])
 		update  = strings.TrimSpace(cols[3])
