@@ -81,7 +81,14 @@ var Oracle = list{}.add(oraclexe, Tested, "21.3.0").
 	add(oraclexe, Verified, "18.4.0").
 	add(oracle19, Verified, "19.3.0").
 	on("19.3.0", func(s *Server) {
-		// Oracle's own Dockerfiles name the container database ORCLCDB.
-		s.dsn = oracleService("ORCLCDB")
-		s.Ready = oracleReady("ORCLCDB")
+		// The pluggable database, not the container database.
+		//
+		// Oracle's Dockerfiles build a CDB called ORCLCDB holding a PDB
+		// called ORCLPDB1. Connecting to the root refuses to create an
+		// ordinary user at all: CREATE USER dbmeta_fixture there is
+		// ORA-65096, "invalid common user or role name", because a user in
+		// the root has to be a common user named C##something. A fixture
+		// belongs in the PDB, which is where an application's schema lives.
+		s.dsn = oracleService("ORCLPDB1")
+		s.Ready = oracleReady("ORCLPDB1")
 	})

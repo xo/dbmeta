@@ -29,6 +29,11 @@
 # building them.
 #
 # It needs podman on the path. Set DBMETA_RUNNER=docker to use docker instead.
+#
+# It also needs the machine mostly to itself. Each server wants a gigabyte or
+# two, and a run with other heavy containers already up reports "not ready" for
+# whichever servers lost the race, which looks exactly like a broken query and
+# is not one. Stop the Oracle containers and the Windows machines first.
 # Neither is a dependency of dbmeta: this script runs a command, and the Go
 # package it reads the list from starts nothing.
 

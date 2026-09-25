@@ -93,6 +93,7 @@ linters:
             - github.com/jackc/pgx
             - github.com/lib/pq
             - github.com/microsoft/go-mssqldb
+            - github.com/sijms/go-ora
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

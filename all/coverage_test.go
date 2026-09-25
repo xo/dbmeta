@@ -48,6 +48,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "sqlite3", dialect: dbmeta.SQLite3},
 		{name: "duckdb", dialect: dbmeta.DuckDB},
 		{name: "sqlserver", dialect: dbmeta.SQLServer},
+		{name: "oracle", dialect: dbmeta.Oracle},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -136,6 +137,7 @@ func TestTheReadmeTableIsRight(t *testing.T) {
 	names := map[string]string{
 		"PostgreSQL": "postgres", "MariaDB": "mariadb", "MySQL": "mysql",
 		"SQLite3": "sqlite3", "DuckDB": "duckdb", "SQL Server": "sqlserver",
+		"Oracle": "oracle",
 	}
 	var checked int
 	for _, m := range row.FindAllStringSubmatch(body, -1) {
@@ -164,7 +166,7 @@ func TestTheReadmeTableIsRight(t *testing.T) {
 func TestEveryPackageCommentStatesItsCount(t *testing.T) {
 	t.Parallel()
 	got, total := answers(t), len(dbmeta.Queries())
-	for _, pkg := range []string{"mysql", "sqlite3", "duckdb", "sqlserver"} {
+	for _, pkg := range []string{"mysql", "sqlite3", "duckdb", "sqlserver", "oracle"} {
 		doc, _, _ := strings.Cut(read(t, filepath.Join("models", pkg, pkg+".go")), "\npackage ")
 		doc = spellOut(doc)
 		if !strings.Contains(doc, "of the "+strconv.Itoa(total)) {

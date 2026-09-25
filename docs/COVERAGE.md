@@ -29,6 +29,7 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 | `models/sqlite3` | 14 | 55 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
 | `models/duckdb` | 20 | 55 | duckdb/duckdb-go, the driver usql uses |
 | `models/sqlserver` | 32 | 55 | SQL Server 2017, 2019, 2022 and 2025 |
+| `models/oracle` | 11 | 55 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -707,3 +708,142 @@ catalog of the methods themselves, and nothing can add one.
 and FileTable put the bytes on disk and keep them addressed by the row, so
 there is no object with an identity and an owner of its own to list.
 
+## Oracle
+
+Oracle answers 11 of the 55 so far. That is a start rather than a finish, and
+it is written down as one: the queries that exist are verified on six releases
+and the rest are not written yet.
+
+It needs no Windows and no virtual machine, which is the opposite of SQL
+Server. The free Express images reach back to 11g Release 2 from 2010, so every
+release runs in an ordinary container. See D57 for the SQL Server contrast and
+`container/oracle.go` for the list.
+
+### What it answers
+
+Schemas, tables, columns, indexes, index columns, constraints, constraint
+columns, sequences, views, the current schema and the current user.
+
+Verified on 11g, 18c, 19c, 21c, 23ai and 26ai. Every one of those runs all
+eleven, and each returns the number of columns it declares.
+
+### ALL_ rather than DBA_ or USER_
+
+Every query reads the `ALL_` views. Both reviews agreed, and the reasoning is
+the one this project already knows from `information_schema`: `ALL_` shows the
+connected user what it may see and needs no special role, `DBA_` needs
+`SELECT_CATALOG_ROLE` that an ordinary application user does not have, and
+`USER_` shows only the caller's own schema and has no `OWNER` column at all.
+
+The cost is the same one `information_schema` has. `ALL_` silently drops a row
+the caller cannot see, so an unprivileged connection gets a smaller answer
+rather than an error.
+
+### A schema is a user
+
+Oracle has no schema object separate from the user that owns it. `Schemas`
+reads `ALL_USERS`, the owner of a schema is its own name, and the fixture
+creates a user rather than a schema. That also makes the teardown one
+statement, because dropping the user cascades to everything it owns.
+
+### Four things the dictionary does that nothing else here does
+
+`LONG` columns. `ALL_TAB_COLUMNS.DATA_DEFAULT`, `ALL_CONSTRAINTS.SEARCH_CONDITION`
+and `ALL_VIEWS.TEXT` are all `LONG`, which cannot be joined, compared or
+wrapped in a function. They are selected bare. Oracle added `VARCHAR2` twins
+for two of them later, `SEARCH_CONDITION_VC` in 12c and `TEXT_VC` in 18c, and
+those are gated so an older release reads the `LONG`.
+
+No boolean before 23ai. Nullability is a `Y` or an `N`, uniqueness is the word
+`UNIQUE`, and a cycling sequence is a `Y`. Every one is translated with a
+`CASE`.
+
+One letter constraint kinds. `P`, `U`, `R` and `C`, where `R` is a foreign key
+because Oracle calls it referential. `C` covers a check and a `NOT NULL`
+together, and D49 says a `NOT NULL` is not a constraint row, so the generated
+ones are filtered out.
+
+No system schema flag. There is no column saying whether a user is Oracle's
+own, so the list is written out, which is what every tool reading this
+dictionary does.
+
+### Releases, and what separates them
+
+| Release | Version it reports | Why it is here |
+| --- | --- | --- |
+| 11g | 11.2.0.2.0 | the one release before multitenant: no identity column, no `CDB_` views, no `CON_ID`, 30 byte identifiers |
+| 18c | 18.0.0.0.0 | where `version_full` and `TEXT_VC` arrived |
+| 19c | 19.0.0.0.0 | the long term release most installations run |
+| 21c | 21.0.0.0.0 | native JSON as a column type |
+| 23ai | 23.0.0.0.0 | domains, and the vector and boolean types |
+| 26ai | 23.26.3.0.0 | 23.26, not 26: a dozen more `ALL_` views than 23ai |
+
+The version comes from the banner, which is the one source every release has.
+`product_component_version.version_full` is more precise and does not exist
+before 18c, and `v$version.banner_full` likewise, so both are a parse error on
+11g. The banner also carries the name Oracle sells the release under, which
+nothing else does, and its number separates 23ai from 26ai.
+
+### The D43 pass, and what it found
+
+Eleven of 55 was too few for a dictionary this rich, so both models were asked
+to sort the other 44. They disagreed in a way that proves the rule: DeepSeek
+marked `ForeignServers` and `ForeignTables` absent, and Gemini named
+`ALL_DB_LINKS` and `ALL_EXTERNAL_TABLES` for them. A database link is exactly
+what a foreign server is, and `usql`'s own Oracle reader already queries it.
+
+Nineteen more are answerable, which would take Oracle from 11 to 30:
+
+| Question | Reads | Note |
+| --- | --- | --- |
+| `Comments` | `ALL_TAB_COMMENTS`, `ALL_COL_COMMENTS` | Oracle keeps comments in views of their own |
+| `Triggers` | `ALL_TRIGGERS` | where `base_object_type` is a table or a view |
+| `EventTriggers` | `ALL_TRIGGERS` | where `base_object_type` is `SCHEMA` or `DATABASE` |
+| `Functions` | `ALL_PROCEDURES` | where `aggregate` is `NO` |
+| `Aggregates` | `ALL_PROCEDURES` | where `aggregate` is `YES` |
+| `RoutineParameters` | `ALL_ARGUMENTS` | |
+| `Types` | `ALL_TYPES` | |
+| `Domains` | `ALL_DOMAINS` | 23ai, so gated |
+| `Privileges` | `ALL_TAB_PRIVS` | |
+| `Tablespaces` | `ALL_TABLESPACES` | |
+| `ColumnStats` | `ALL_TAB_COL_STATISTICS` | |
+| `ExtendedStats` | `ALL_STAT_EXTENSIONS` | |
+| `PartitionedTables` | `ALL_PART_TABLES` | |
+| `LargeObjects` | `ALL_LOBS` | a LOB column rather than a standalone object |
+| `Operators` | `ALL_OPERATORS` | |
+| `Collations` | `ALL_COLLATIONS` | 12.2 and later, so gated |
+| `ForeignServers` | `ALL_DB_LINKS` | a database link |
+| `ForeignTables` | `ALL_EXTERNAL_TABLES` | |
+| `Settings` | `V$PARAMETER` | the one that needs a V$ view, like the version query |
+
+Every one of those is a lead rather than a result. D43 says to run each against
+a real server before believing it, and that has not been done.
+
+### Analogues the pass rejected
+
+`AccessMethods` from `ALL_INDEXTYPES` and `OperatorClasses` from
+`ALL_INDEXTYPE_OPERATORS`. An Oracle indextype is a user written access method
+for a domain index, which is a narrower thing than a PostgreSQL access method,
+and neither view describes the built in ones. A stretch, and D43 says leave a
+stretch unsupported.
+
+`Publications` and `Subscriptions` from `ALL_PUBLISHED_COLUMNS` and
+`ALL_SUBSCRIPTIONS`. Those belong to Change Data Capture, which Oracle
+deprecated, and they describe something other than logical replication.
+
+### What Oracle has none of
+
+No enumerated type, so nothing for `EnumValues`. No procedural language
+catalog, no cast catalog, no conversion catalog, no operator class or family,
+no text search objects of the shape `psql` names, and no extension.
+
+`Roles` and `RoleGrants` are a different case and are not absent. Oracle has
+both, in `DBA_ROLES` and `DBA_ROLE_PRIVS`, and there is no `ALL_` equivalent:
+an ordinary user sees only its own, through `USER_ROLE_PRIVS` and
+`SESSION_ROLES`. Answering them means reading `DBA_`, which needs
+`SELECT_CATALOG_ROLE`. That is a decision about the `ALL_` rule rather than a
+question about the dictionary, and it has not been made.
+
+`Databases` is the same shape of problem. Oracle has one database per
+instance, and the nearest list is the pluggable databases in `ALL_PDBS` from
+12c, or `V$DATABASE`, which is a dynamic view rather than dictionary.
