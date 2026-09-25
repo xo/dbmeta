@@ -68,8 +68,8 @@ var (
 func init() {
 	dbmeta.RegisterDialect(dbmeta.SQLServer, &dbmeta.Info{
 		Placeholder:    func(n int) string { return "@p" + strconv.Itoa(n) },
-		VersionSQL:     `SELECT CAST(SERVERPROPERTY('ProductVersion') AS nvarchar(128))`,
-		VersionColumns: 1,
+		VersionSQL:     versionSQL,
+		VersionColumns: 5,
 		ParseVersion:   parseVersion,
 	})
 	registerRelations()
@@ -79,16 +79,74 @@ func init() {
 // parseVersion reads what SERVERPROPERTY('ProductVersion') returns, such as
 // "16.0.4295.3". @@VERSION is not used: it is a sentence rather than a
 // version, and it differs by language setting.
+// versionSQL reads the five things a person wants to see about a SQL Server,
+// in one statement.
+//
+// Four of them are server properties and the fifth is not. No SERVERPROPERTY
+// returns the name the product is sold under: ProductMajorVersion says 16 and
+// nothing says 2022. Only @@VERSION carries it, in its first words, so the
+// name is cut from there rather than kept in a table of major numbers to
+// years. A table would need an edit for every release Microsoft ships, and
+// this does not.
+//
+// The cut is guarded. @@VERSION reads "Microsoft SQL Server 2022 (RTM-CU27)
+// ..." and the name is everything before the parenthesis, so a banner without
+// one would ask LEFT for -1 characters and raise an error. NULLIF turns that
+// into a NULL instead, which arrives as empty and is left out of the line.
+//
+// productupdatelevel is the CU number. SERVERPROPERTY returns NULL for a
+// property it does not know rather than failing, so this is safe on a release
+// older than the one that added it.
+const versionSQL = `SELECT LEFT(@@VERSION, NULLIF(CHARINDEX('(', @@VERSION), 0) - 1)
+, CAST(SERVERPROPERTY('productversion') AS nvarchar(128))
+, CAST(SERVERPROPERTY('productlevel') AS nvarchar(128))
+, CAST(SERVERPROPERTY('productupdatelevel') AS nvarchar(128))
+, CAST(SERVERPROPERTY('edition') AS nvarchar(128))`
+
+// parseVersion builds the version to gate on and the line to show a person.
+//
+// Only the second column gates anything. The rest are for the display line,
+// which reads
+//
+//	Microsoft SQL Server 2022 16.0.4295.3, RTM-CU27, Developer Edition (64-bit)
+//
+// Every part after the version is left out when the server did not report it,
+// so an older release that has no update level reads "RTM" rather than
+// "RTM-".
 func parseVersion(cols []string) (dbmeta.VersionSet, error) {
-	if len(cols) == 0 {
+	if len(cols) < 5 {
 		return dbmeta.VersionSet{}, dbmeta.ErrInvalidVersion
 	}
-	raw := strings.TrimSpace(cols[0])
+	var (
+		name    = strings.TrimSpace(cols[0])
+		raw     = strings.TrimSpace(cols[1])
+		level   = strings.TrimSpace(cols[2])
+		update  = strings.TrimSpace(cols[3])
+		edition = strings.TrimSpace(cols[4])
+	)
+	if raw == "" {
+		return dbmeta.VersionSet{}, dbmeta.ErrInvalidVersion
+	}
 	ver := dbmeta.ParseVersion(raw)
 	ver.Raw = raw
 	var set dbmeta.VersionSet
 	set.Set("", ver)
-	set.Display = "Microsoft SQL Server " + raw
+
+	// The product name already begins "Microsoft SQL Server", so it replaces
+	// the prefix rather than following it.
+	if name == "" {
+		name = "Microsoft SQL Server"
+	}
+	if update != "" {
+		level += "-" + update
+	}
+	parts := []string{name + " " + raw}
+	for _, p := range []string{level, edition} {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	set.Display = strings.Join(parts, ", ")
 	return set, nil
 }
 

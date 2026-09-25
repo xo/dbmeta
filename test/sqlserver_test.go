@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -434,6 +435,10 @@ func TestSQLServerUnsupported(t *testing.T) {
 
 // TestSQLServerVersion checks the version comes from SERVERPROPERTY rather
 // than from @@VERSION, which is a sentence and changes with the language.
+// productName matches the name SQL Server is sold under, which @@VERSION
+// gives as "Microsoft SQL Server 2022" or "Microsoft SQL Server 2008 R2".
+var productName = regexp.MustCompile(`^Microsoft SQL Server (19|20)[0-9]{2}( R[0-9])?$`)
+
 func TestSQLServerVersion(t *testing.T) {
 	db := openSQLServer(t)
 	versions, err := dbmeta.SQLServer.Version(t.Context(), db)
@@ -447,8 +452,28 @@ func TestSQLServerVersion(t *testing.T) {
 	if got := versions.Main().Parts[0]; got < 14 {
 		t.Errorf("expected release 14 or newer, got %d", got)
 	}
-	if !strings.HasPrefix(versions.String(), "Microsoft SQL Server ") {
-		t.Errorf("unexpected display line %q", versions.String())
+	// The line a person reads, which usql prints on connecting. It names the
+	// product, the build, the patch level and the edition, and every part
+	// comes from the server rather than from a table here.
+	display := versions.String()
+	if !strings.HasPrefix(display, "Microsoft SQL Server ") {
+		t.Errorf("unexpected display line %q", display)
+	}
+	for _, want := range []string{versions.Main().Raw, "Edition"} {
+		if !strings.Contains(display, want) {
+			t.Errorf("expected %q in the display line, got %q", want, display)
+		}
+	}
+	// "Microsoft SQL Server 2022 16.0.4295.3, RTM-CU27, Developer Edition"
+	name, rest, ok := strings.Cut(display, " "+versions.Main().Raw+", ")
+	if !ok {
+		t.Fatalf("expected the product name then the build, got %q", display)
+	}
+	if !productName.MatchString(name) {
+		t.Errorf("expected the display to name a release year, got %q", name)
+	}
+	if rest == "" {
+		t.Errorf("expected a level and an edition after the build, got %q", display)
 	}
 	if !strings.HasPrefix(sqlserver.Reference, "1") {
 		t.Errorf("unexpected reference %q", sqlserver.Reference)

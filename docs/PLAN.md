@@ -2013,7 +2013,7 @@ The real shapes, taken from the version queries `usql` runs today:
 | MariaDB | `11.4.2-MariaDB` | three, with a suffix |
 | DuckDB | `v1.1.3` | three, with a leading letter |
 | ClickHouse | `24.3.1.2672` | four |
-| SQL Server | `16.0.4115.5` | four, in one of three columns |
+| SQL Server | `16.0.4295.3` | four, in one of five columns |
 | Oracle | `19.3.0.0.0` | five |
 | Cassandra | `4.1.3`, `3.4.6`, `5` | three independent versions |
 | YDB | `<unknown>` | none |
@@ -2122,15 +2122,34 @@ type VersionQuery struct {
 ```
 
 The column count is part of the two step form and the client must be told it,
-because two databases return more than one column. SQL Server returns the product
-version, the product level and the edition. Cassandra returns three independent
-versions.
+because two databases return more than one column. SQL Server returns five: the
+product name, the version, the level, the update level and the edition.
+Cassandra returns three independent versions.
 
 Parsing produces both things the client needs from one call. `VersionSet` gates
 the queries. `Display` is the line `usql` prints, and it is built where the
 shape is known rather than by the client guessing. For SQL Server that is
-`Microsoft SQL Server 16.0.4115.5, RTM-CU12, Developer Edition`, which is what
-`usql` prints today.
+
+	Microsoft SQL Server 2022 16.0.4295.3, RTM-CU27, Developer Edition (64-bit)
+
+Only the version gates anything. The rest is for the person reading it, and
+each part is left out when the server did not report it, so a release with no
+update level reads `RTM` rather than `RTM-`.
+
+Four of the five are server properties and the product name is not. No
+`SERVERPROPERTY` returns the name the product is sold under: `ProductMajorVersion`
+says 16 and nothing says 2022. Only `@@VERSION` carries it, in its first words,
+so the name is cut from there. The alternative is a table mapping a major
+number to a year, which needs an edit for every release Microsoft ships, and
+reading it from the server does not.
+
+A column can arrive NULL, and `productupdatelevel` does on a release older than
+the one that added it. `Dialect.Version` scans every version column as nullable
+for that reason, and hands the parser empty text. That is the one place
+flattening a NULL is right, because a version line is a single string shown to
+a person, and a property that is absent and a property that is empty both mean
+there is nothing to print. `docs/NULLS.md` governs a catalog column, where the
+two are different facts.
 
 A database with no version returns false, and the client uses an unknown
 version, which D36 treats as newest.

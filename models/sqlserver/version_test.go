@@ -188,3 +188,108 @@ func TestOnlyTheGatedQueriesDependOnTheRelease(t *testing.T) {
 		t.Errorf("expected %d queries on SQL Server 2025, got %d", want, len(newest))
 	}
 }
+
+// TestParseVersionBuildsTheDisplayLine covers what a server reports and what a
+// person then reads.
+//
+// It runs through the exported dbmeta.SQLServer.ParseVersion, which is the
+// path Dialect.Version takes, so this tests the registration as well as the
+// parsing. No server is needed, which is the point: the interesting cases are
+// the ones a container cannot produce, because every release that has a Linux
+// container reports all five columns.
+func TestParseVersionBuildsTheDisplayLine(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name string
+		cols []string
+		want string
+		// parts is the version the queries gate on, which only ever comes
+		// from the second column.
+		parts uint32
+		err   bool
+	}{
+		{
+			name: "everything a current server reports",
+			cols: []string{
+				"Microsoft SQL Server 2022 ", "16.0.4295.3", "RTM", "CU27",
+				"Developer Edition (64-bit)",
+			},
+			want:  "Microsoft SQL Server 2022 16.0.4295.3, RTM-CU27, Developer Edition (64-bit)",
+			parts: 16,
+		},
+		{
+			// productupdatelevel arrived after several of the releases the VM
+			// work will reach, and SERVERPROPERTY answers NULL rather than
+			// failing. The line must read RTM and not RTM-.
+			name: "no update level, which is an older server",
+			cols: []string{
+				"Microsoft SQL Server 2008 R2 ", "10.50.6000.34", "SP3", "",
+				"Express Edition (64-bit)",
+			},
+			want:  "Microsoft SQL Server 2008 R2 10.50.6000.34, SP3, Express Edition (64-bit)",
+			parts: 10,
+		},
+		{
+			// the banner had no parenthesis, so the cut produced NULL
+			name:  "no product name",
+			cols:  []string{"", "16.0.4295.3", "RTM", "", "Developer Edition (64-bit)"},
+			want:  "Microsoft SQL Server 16.0.4295.3, RTM, Developer Edition (64-bit)",
+			parts: 16,
+		},
+		{
+			name:  "nothing but the version",
+			cols:  []string{"", "16.0.4295.3", "", "", ""},
+			want:  "Microsoft SQL Server 16.0.4295.3",
+			parts: 16,
+		},
+		{
+			name: "no version at all",
+			cols: []string{"Microsoft SQL Server 2022 ", "", "RTM", "", "Developer"},
+			err:  true,
+		},
+		{
+			name: "too few columns",
+			cols: []string{"16.0.4295.3"},
+			err:  true,
+		},
+	} {
+		got, err := dbmeta.SQLServer.ParseVersion(c.cols)
+		switch {
+		case c.err && err == nil:
+			t.Errorf("%s: expected an error, got %q", c.name, got.Display)
+			continue
+		case c.err:
+			continue
+		case err != nil:
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if got.Display != c.want {
+			t.Errorf("%s:\n got  %q\n want %q", c.name, got.Display, c.want)
+		}
+		if p := got.Main().Parts; len(p) == 0 || p[0] != c.parts {
+			t.Errorf("%s: expected the queries to gate on %d, got %v", c.name, c.parts, p)
+		}
+	}
+}
+
+// TestVersionQueryReadsFiveColumns pins the count against the statement, since
+// Dialect.Version allocates from it and a statement that returns a different
+// number scans into the wrong places.
+func TestVersionQueryReadsFiveColumns(t *testing.T) {
+	t.Parallel()
+	sqlstr, n, ok := dbmeta.SQLServer.VersionQuery()
+	if !ok {
+		t.Fatal("expected a version query")
+	}
+	if got := strings.Count(sqlstr, "SERVERPROPERTY("); got != 4 {
+		t.Errorf("expected four server properties, got %d in:\n%s", got, sqlstr)
+	}
+	if !strings.Contains(sqlstr, "@@VERSION") {
+		t.Error("expected the statement to read @@VERSION, which is the only source of the product name")
+	}
+	// one column per selected expression, and the properties are four of five
+	if n != 5 {
+		t.Errorf("expected five columns, got %d", n)
+	}
+}

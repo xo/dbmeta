@@ -147,10 +147,20 @@ func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
 		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
 	}
 	defer rows.Close()
-	cols := make([]string, n)
+	// Scanned as nullable and handed over as text. A property the server does
+	// not have comes back NULL, and scanning that straight into a string is a
+	// hard error naming neither the column nor the dialect. SQL Server has
+	// one: productupdatelevel arrived after the oldest release this supports.
+	//
+	// Flattening NULL to empty is right here and only here. docs/NULLS.md
+	// forbids it for a catalog column, where NULL and empty are two facts a
+	// caller has to tell apart. A version line is one string shown to a
+	// person, and a property that is absent and a property that is empty both
+	// mean there is nothing to print.
+	scanned := make([]sql.Null[string], n)
 	dest := make([]any, n)
-	for i := range cols {
-		dest[i] = &cols[i]
+	for i := range scanned {
+		dest[i] = &scanned[i]
 	}
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -166,6 +176,10 @@ func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
 	}
 	if err := rows.Close(); err != nil {
 		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+	}
+	cols := make([]string, n)
+	for i, v := range scanned {
+		cols[i] = v.V
 	}
 	return d.ParseVersion(cols)
 }
