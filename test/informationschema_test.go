@@ -36,6 +36,16 @@ func init() {
 	})
 }
 
+// eachPostgresDB runs fn once per PostgreSQL driver, as a subtest named for
+// it. The shared model's queries take the same scan path as the native ones,
+// so they are worth running on both for the same reason. See D48 and D52.
+func eachPostgresDB(t *testing.T, fn func(t *testing.T, db *sql.DB)) {
+	t.Helper()
+	for _, driver := range postgresDrivers {
+		t.Run(driver, func(t *testing.T) { fn(t, openPostgresWith(t, driver)) })
+	}
+}
+
 // setupIS builds the shared fixture and returns the meta for it.
 func setupIS(t *testing.T, db *sql.DB) (*dbmeta.Meta, isfixture.Fixture) {
 	t.Helper()
@@ -67,96 +77,98 @@ func setupIS(t *testing.T, db *sql.DB) (*dbmeta.Meta, isfixture.Fixture) {
 // fields. These are the queries every database without a native model will
 // use, so a fault here is a fault for all of them.
 func TestInformationSchemaQueriesRun(t *testing.T) {
-	db := open(t)
-	m, f := setupIS(t, db)
+	eachPostgresDB(t, func(t *testing.T, db *sql.DB) {
+		m, f := setupIS(t, db)
 
-	var ran int
-	for _, q := range dbmeta.Queries() {
-		if q.Support(m) != dbmeta.Supported {
-			continue
-		}
-		query, vals, err := q.Build(m, nil)
-		if err != nil {
-			t.Errorf("%s: rendering: %v", q.Name(), err)
-			continue
-		}
-		cols, err := columnsOf(t, db, query, vals)
-		if err != nil {
-			t.Errorf("%s: executing: %v\n%s", q.Name(), err, query)
-			continue
-		}
-		fields, err := q.Fields(m)
-		if err != nil {
-			t.Errorf("%s: reading fields: %v", q.Name(), err)
-			continue
-		}
-		if len(cols) != len(fields) {
-			t.Errorf("%s: declares %d fields and returns %d columns", q.Name(), len(fields), len(cols))
-			continue
-		}
-		for i := range cols {
-			if cols[i] != fields[i].Name {
-				t.Errorf("%s: column %d is %q and the field is %q", q.Name(), i, cols[i], fields[i].Name)
+		var ran int
+		for _, q := range dbmeta.Queries() {
+			if q.Support(m) != dbmeta.Supported {
+				continue
 			}
+			query, vals, err := q.Build(m, nil)
+			if err != nil {
+				t.Errorf("%s: rendering: %v", q.Name(), err)
+				continue
+			}
+			cols, err := columnsOf(t, db, query, vals)
+			if err != nil {
+				t.Errorf("%s: executing: %v\n%s", q.Name(), err, query)
+				continue
+			}
+			fields, err := q.Fields(m)
+			if err != nil {
+				t.Errorf("%s: reading fields: %v", q.Name(), err)
+				continue
+			}
+			if len(cols) != len(fields) {
+				t.Errorf("%s: declares %d fields and returns %d columns", q.Name(), len(fields), len(cols))
+				continue
+			}
+			for i := range cols {
+				if cols[i] != fields[i].Name {
+					t.Errorf("%s: column %d is %q and the field is %q", q.Name(), i, cols[i], fields[i].Name)
+				}
+			}
+			ran++
 		}
-		ran++
-	}
-	t.Logf("the shared model answered %d queries against %s, fixture schema %s", ran, m, f.Schema)
-	if ran == 0 {
-		t.Fatal("expected the shared model to answer something")
-	}
+		t.Logf("the shared model answered %d queries against %s, fixture schema %s", ran, m, f.Schema)
+		if ran == 0 {
+			t.Fatal("expected the shared model to answer something")
+		}
+	})
 }
 
 // TestInformationSchemaFindsTheFixture checks the queries return the objects
 // the fixture built, rather than running cleanly and finding nothing.
 func TestInformationSchemaFindsTheFixture(t *testing.T) {
-	db := open(t)
-	m, f := setupIS(t, db)
-	ctx := t.Context()
-	a := dbmeta.Args{Schema: f.Schema}.Map()
+	eachPostgresDB(t, func(t *testing.T, db *sql.DB) {
+		m, f := setupIS(t, db)
+		ctx := t.Context()
+		a := dbmeta.Args{Schema: f.Schema}.Map()
 
-	want := map[string]bool{"author": false, "book": false, "recent": false}
-	for v, err := range dbmeta.Tables.All(ctx, m, db, a) {
-		if err != nil {
-			t.Fatalf("reading tables: %v", err)
+		want := map[string]bool{"author": false, "book": false, "recent": false}
+		for v, err := range dbmeta.Tables.All(ctx, m, db, a) {
+			if err != nil {
+				t.Fatalf("reading tables: %v", err)
+			}
+			if _, ok := want[v.Name]; ok {
+				want[v.Name] = true
+			}
 		}
-		if _, ok := want[v.Name]; ok {
-			want[v.Name] = true
+		for name, found := range want {
+			if !found {
+				t.Errorf("expected the shared model to find %q", name)
+			}
 		}
-	}
-	for name, found := range want {
-		if !found {
-			t.Errorf("expected the shared model to find %q", name)
-		}
-	}
 
-	var cols int
-	for v, err := range dbmeta.Columns.All(ctx, m, db, a) {
-		if err != nil {
-			t.Fatalf("reading columns: %v", err)
+		var cols int
+		for v, err := range dbmeta.Columns.All(ctx, m, db, a) {
+			if err != nil {
+				t.Fatalf("reading columns: %v", err)
+			}
+			cols++
+			if v.Schema != f.Schema {
+				t.Errorf("expected a column of %s, got one of %s", f.Schema, v.Schema)
+			}
 		}
-		cols++
-		if v.Schema != f.Schema {
-			t.Errorf("expected a column of %s, got one of %s", f.Schema, v.Schema)
+		if cols == 0 {
+			t.Error("expected the shared model to find columns")
 		}
-	}
-	if cols == 0 {
-		t.Error("expected the shared model to find columns")
-	}
 
-	var constraints int
-	for v, err := range dbmeta.Constraints.All(ctx, m, db, a) {
-		if err != nil {
-			t.Fatalf("reading constraints: %v", err)
+		var constraints int
+		for v, err := range dbmeta.Constraints.All(ctx, m, db, a) {
+			if err != nil {
+				t.Fatalf("reading constraints: %v", err)
+			}
+			constraints++
+			if v.Type == "" {
+				t.Errorf("expected a constraint type for %s", v.Name)
+			}
 		}
-		constraints++
-		if v.Type == "" {
-			t.Errorf("expected a constraint type for %s", v.Name)
+		if constraints == 0 {
+			t.Error("expected the fixture's primary, unique, foreign key and check constraints")
 		}
-	}
-	if constraints == 0 {
-		t.Error("expected the fixture's primary, unique, foreign key and check constraints")
-	}
+	})
 }
 
 // TestSharedAndNativeAgree compares the two models on the same server and the
@@ -164,38 +176,39 @@ func TestInformationSchemaFindsTheFixture(t *testing.T) {
 // reads more, but they must agree on the object names, which is the part both
 // claim to answer.
 func TestSharedAndNativeAgree(t *testing.T) {
-	db := open(t)
-	shared, f := setupIS(t, db)
-	native := setup(t, db)
+	eachPostgresDB(t, func(t *testing.T, db *sql.DB) {
+		shared, f := setupIS(t, db)
+		native := setup(t, db)
 
-	names := func(m *dbmeta.Meta, schema string) map[string]bool {
-		out := map[string]bool{}
-		for v, err := range dbmeta.Tables.All(t.Context(), m, db, dbmeta.Args{Schema: schema}.Map()) {
-			if err != nil {
-				t.Fatalf("reading tables: %v", err)
+		names := func(m *dbmeta.Meta, schema string) map[string]bool {
+			out := map[string]bool{}
+			for v, err := range dbmeta.Tables.All(t.Context(), m, db, dbmeta.Args{Schema: schema}.Map()) {
+				if err != nil {
+					t.Fatalf("reading tables: %v", err)
+				}
+				out[v.Name] = true
 			}
-			out[v.Name] = true
+			return out
 		}
-		return out
-	}
-	// The comparison runs one way only. Everything the shared model finds,
-	// the native model must find too, because the native one reads the
-	// catalog directly. The reverse does not hold and must not be asserted:
-	// information_schema.tables has no row for a sequence or a materialized
-	// view, so the native model legitimately finds more. That is the gap
-	// docs/QUERIES.md describes, not a fault.
-	a, b := names(shared, f.Schema), names(native, f.Schema)
-	for name := range a {
-		if !b[name] {
-			t.Errorf("the shared model found %q and the native model did not", name)
+		// The comparison runs one way only. Everything the shared model finds,
+		// the native model must find too, because the native one reads the
+		// catalog directly. The reverse does not hold and must not be asserted:
+		// information_schema.tables has no row for a sequence or a materialized
+		// view, so the native model legitimately finds more. That is the gap
+		// docs/QUERIES.md describes, not a fault.
+		a, b := names(shared, f.Schema), names(native, f.Schema)
+		for name := range a {
+			if !b[name] {
+				t.Errorf("the shared model found %q and the native model did not", name)
+			}
 		}
-	}
-	var onlyNative []string
-	for name := range b {
-		if !a[name] {
-			onlyNative = append(onlyNative, name)
+		var onlyNative []string
+		for name := range b {
+			if !a[name] {
+				onlyNative = append(onlyNative, name)
+			}
 		}
-	}
-	t.Logf("both models found %d relations, and the native model found %d more that information_schema does not list: %v",
-		len(a), len(onlyNative), onlyNative)
+		t.Logf("both models found %d relations, and the native model found %d more that information_schema does not list: %v",
+			len(a), len(onlyNative), onlyNative)
+	})
 }

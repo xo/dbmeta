@@ -61,7 +61,12 @@ func TestChangePasswordPostgres(t *testing.T) {
 			exec(t, db, stmt)
 			// The statement ran. Now prove it set what was asked, by using it.
 			dsn := replaceUser(t, dsnOf(t, "DBMETA_POSTGRES"), user, c.password)
-			login(t, "pgx", dsn, `SELECT current_user`, user)
+			// Both drivers, because a password is escaped into a statement
+			// here and then parsed out of a DSN by the driver, and the two
+			// parse a DSN differently.
+			for _, driver := range postgresDrivers {
+				login(t, driver, dsn, `SELECT current_user`, user)
+			}
 		})
 	}
 }

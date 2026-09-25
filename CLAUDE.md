@@ -127,7 +127,11 @@ something is written down, it is not written down, and it is an open question.
    Never `godror`, which needs Oracle client libraries rather than only a C
    compiler. See D48.
    Every driver in the `test` module is the one `usql` uses for that database.
-   The version may differ and the package may not. Oracle is the one exception
+   The version may differ and the package may not. Where `usql` ships two for
+   one database, test both as subtests named for the driver: SQLite runs on
+   `mattn/go-sqlite3` and `modernc.org/sqlite`, and PostgreSQL on
+   `jackc/pgx/v5/stdlib` and `lib/pq`. Parity is the one exception and D52
+   says why. Oracle is the one exception
    and D59 says why: the `go-ora/v3` that `usql` pins panics rather than
    connecting on 11g and 18c. It is fixed upstream and untagged, so Oracle uses
    v2 until v3 tags the fix, and then goes back. `usql` marks them, so
