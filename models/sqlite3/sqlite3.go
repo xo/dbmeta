@@ -42,7 +42,7 @@
 // read from pragmas and are exact. A check constraint exists only as text
 // inside sqlite_schema.sql, and dbmeta does not parse DDL, so a check
 // constraint is missing from the result rather than wrong in it. That is
-// stated on the query and in COVERAGE.md.
+// stated on the query and in docs/COVERAGE.md.
 package sqlite3
 
 import (

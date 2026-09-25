@@ -8,7 +8,7 @@
 // Every query here is translated from src/bin/psql/describe.c in the
 // PostgreSQL source. Each one records which command it backs and which tree it
 // was translated from, because a query for a release below 10 comes from an
-// older checkout. See QUERIES.md.
+// older checkout. See docs/QUERIES.md.
 package postgres
 
 import (

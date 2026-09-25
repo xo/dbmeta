@@ -18,7 +18,7 @@ func registerServer() {
 	// The kind comes from the type column: s is scalar, a is an aggregate,
 	// and w is a function usable over a window. A caller wanting only
 	// aggregates cannot have them, and \da is unsupported for the reason
-	// recorded in COVERAGE.md.
+	// recorded in docs/COVERAGE.md.
 	dbmeta.Functions.Register(dbmeta.SQLite3, &dbmeta.Binding[dbmeta.Function]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT '' AS "catalog"`),

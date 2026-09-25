@@ -320,7 +320,7 @@ func TestMySQLUnsupported(t *testing.T) {
 		dbmeta.Publications, dbmeta.Subscriptions, dbmeta.TextSearchConfigs,
 		dbmeta.OperatorClasses, dbmeta.LargeObjects, dbmeta.DefaultACLs,
 		// Both Gemini and DeepSeek named an analogue for each of these three.
-		// Each one was run against a server and rejected. See COVERAGE.md.
+		// Each one was run against a server and rejected. See docs/COVERAGE.md.
 		dbmeta.Tablespaces, dbmeta.ForeignDataWrappers, dbmeta.ExtendedStats,
 	} {
 		checkUnsupported(t, m, q)
@@ -450,7 +450,7 @@ func TestMySQLNewKinds(t *testing.T) {
 
 	// Statistics are MariaDB only, and MySQL must say so rather than answer
 	// with nothing. MySQL keeps a JSON histogram and no width, no null
-	// fraction and no distinct count. See COVERAGE.md.
+	// fraction and no distinct count. See docs/COVERAGE.md.
 	if !maria {
 		if got := dbmeta.ColumnStats.Support(m); got != dbmeta.NotSupported {
 			t.Errorf("expected MySQL to report column stats unsupported, got %v", got)

@@ -173,7 +173,7 @@ func registerViews() {
 // width, no null fraction and no distinct count to report, and a histogram
 // exists only where somebody ran ANALYZE TABLE ... UPDATE HISTOGRAM. Reporting
 // a row with everything absent would be worse than reporting none, so MySQL
-// answers ErrNotSupported. See COVERAGE.md.
+// answers ErrNotSupported. See docs/COVERAGE.md.
 //
 // Reading mysql.column_stats needs SELECT on the mysql schema, like the other
 // queries in this model that read it.

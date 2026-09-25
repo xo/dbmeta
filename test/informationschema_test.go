@@ -183,7 +183,7 @@ func TestSharedAndNativeAgree(t *testing.T) {
 	// catalog directly. The reverse does not hold and must not be asserted:
 	// information_schema.tables has no row for a sequence or a materialized
 	// view, so the native model legitimately finds more. That is the gap
-	// QUERIES.md describes, not a fault.
+	// docs/QUERIES.md describes, not a fault.
 	a, b := names(shared, f.Schema), names(native, f.Schema)
 	for name := range a {
 		if !b[name] {

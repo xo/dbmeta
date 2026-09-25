@@ -247,7 +247,7 @@ func registerColumnStats() {
 			{{SQL: `, (s.histogram_bounds::text::text[])` +
 				`[pg_catalog.array_length(s.histogram_bounds::text::text[], 1)] AS "max"`}},
 			// PostgreSQL keeps no mean. It is not padded with a literal,
-			// because absent and zero are different. See NULLS.md.
+			// because absent and zero are different. See docs/NULLS.md.
 			{{SQL: `, NULL AS "mean"`}},
 			{{SQL: `, pg_catalog.array_to_string(s.most_common_vals::text::text[], E'\n') AS "top_n"`}},
 			{{SQL: `, pg_catalog.array_to_string(s.most_common_freqs, E'\n') AS "top_n_freqs"`}},

@@ -51,6 +51,70 @@ into the common types of the root package. It also merges the version fragments
 for the connected server. The location of that code is an open question. See
 question 2 below.
 
+## The decisions, in one table
+
+Every decision is in this file and this file is append only. The index is
+here so that reading one decision does not mean loading all of them: find the
+number, then jump to it.
+
+Read the status before the decision. Six of these amend or replace an earlier
+one, and a decision read without its amendment is worse than no decision. That
+is the reason this is one file rather than one file per decision, and D50
+records the argument.
+
+| # | Decision | Status |
+| --- | --- | --- |
+| [D1](#d1-the-module-centralizes-database-metadata-decided) | The module centralizes database metadata | Decided |
+| [D2](#d2-models-are-generated-per-driver-under-modelsdriver-decided) | Models are generated per driver under `models/<driver>` | Decided |
+| [D3](#d3-the-root-package-is-the-driver-agnostic-api-decided) | The root package is the driver agnostic API | Decided |
+| [D4](#d4-keep-the-object-coverage-drop-the-reader-naming-decided-in-part) | Keep the object coverage, drop the Reader naming | Decided in part |
+| [D5](#d5-dbmeta-only-reads-decided) | dbmeta only reads | Decided |
+| [D6](#d6-fix-the-null-scan-defect-once-and-never-hide-a-null-decided-amended-in-place) | Fix the NULL scan defect once, and never hide a NULL | Decided, amended in place |
+| [D7](#d7-use-the-standard-library-third-party-packages-are-a-last-resort-decided) | Use the standard library. Third party packages are a last resort | Decided |
+| [D8](#d8-version-differences-are-generated-data-not-packages-decided) | Version differences are generated data, not packages | Decided |
+| [D9](#d9-there-are-two-platonic-models-postgresql-is-the-primary-one-decided) | There are two platonic models. PostgreSQL is the primary one | Decided |
+| [D10](#d10-take-the-initial-design-from-dbtpl-and-its-models-directory-decided) | Take the initial design from dbtpl and its models directory | Decided |
+| [D11](#d11-dbtpl-is-pinned-as-a-tool-in-the-generation-module-decided-amended-by-d26) | dbtpl is pinned as a tool, in the generation module | Decided, amended by D26 |
+| [D12](#d12-generate-against-live-databases-running-in-containers-decided) | Generate against live databases running in containers | Decided |
+| [D13](#d13-build-the-models-before-the-root-package-decided) | Build the models before the root package | Decided |
+| [D14](#d14-a-driver-is-a-family-not-a-product-decided) | A driver is a family, not a product | Decided |
+| [D15](#d15-ci-runs-on-github-actions-on-ubuntu-latest-only-decided) | CI runs on GitHub Actions, on ubuntu-latest only | Decided |
+| [D16](#d16-user-facing-text-follows-the-simple-english-rules-decided) | User facing text follows the simple English rules | Decided |
+| [D17](#d17-every-metadata-read-takes-a-context-decided) | Every metadata read takes a context | Decided |
+| [D18](#d18-the-whole-package-is-idiomatic-go-decided) | The whole package is idiomatic Go | Decided |
+| [D19](#d19-do-not-repeat-dburl-half-decided-half-overtaken-by-the-code) | Do not repeat dburl | Half decided, half overtaken by the code |
+| [D20](#d20-postgresql-goes-back-to-96-every-other-database-starts-at-the-maintained-floor-decided) | PostgreSQL goes back to 9.6. Every other database starts at the maintained floor | Decided |
+| [D21](#d21-drop-a-server-version-on-a-rule-not-on-a-judgment-decided) | Drop a server version on a rule, not on a judgment | Decided |
+| [D22](#d22-test-every-supported-major-not-a-sample-of-them-superseded-by-d24) | Test every supported major, not a sample of them | Superseded by D24 |
+| [D23](#d23-do-not-build-dbtest-first-let-dbmeta-pull-it-into-existence-decided) | Do not build dbtest first. Let dbmeta pull it into existence | Decided |
+| [D24](#d24-ci-tests-the-latest-version-only-the-matrix-runs-locally-supersedes-d22) | CI tests the latest version only. The matrix runs locally | Supersedes D22 |
+| [D25](#d25-test-on-amd64-only-no-build-tags-and-no-platform-gates-decided) | Test on amd64 only. No build tags and no platform gates | Decided |
+| [D26](#d26-no-database-driver-in-the-dbmeta-module-amends-d11-amended-by-d48) | No database driver in the dbmeta module | Amends D11, amended by D48 |
+| [D27](#d27-split-the-work-in-two-a-nested-test-module-here-a-shared-harness-in-dbtest-decided) | Split the work in two: a nested test module here, a shared harness in dbtest | Decided |
+| [D28](#d28-root-tests-use-a-fake-driver-replaying-captured-data-decided) | Root tests use a fake driver replaying captured data | Decided |
+| [D29](#d29-pure-go-only-no-single-package-imports-every-driver-decided) | Pure Go only. No single package imports every driver | Decided |
+| [D30](#d30-dbtpl-is-not-used-to-generate-dbmeta-decided-with-the-cost-recorded) | dbtpl is not used to generate dbmeta | Decided, with the cost recorded |
+| [D31](#d31-models-register-from-internal-one-file-each-gated-by-build-tags-decided) | Models register from internal, one file each, gated by build tags | Decided |
+| [D32](#d32-errors-are-constants-of-a-string-type-decided) | Errors are constants of a string type | Decided |
+| [D33](#d33-results-stream-the-package-does-not-materialize-them-decided) | Results stream. The package does not materialize them | Decided |
+| [D34](#d34-report-capabilities-and-return-a-typed-error-when-asked-anyway-decided) | Report capabilities, and return a typed error when asked anyway | Decided |
+| [D35](#d35-duckdb-is-out-of-the-initial-testing-set-decided) | DuckDB is out of the initial testing set | Decided |
+| [D36](#d36-the-client-drives-dbmeta-decides-nothing-about-the-connection-decided) | The client drives. dbmeta decides nothing about the connection | Decided |
+| [D37](#d37-a-version-is-a-list-of-numbers-with-a-name-and-there-can-be-several-decided) | A version is a list of numbers with a name, and there can be several | Decided |
+| [D38](#d38-dbmeta-holds-the-version-query-and-will-run-it-on-request-amended-in-place) | dbmeta holds the version query, and will run it on request | Amended in place |
+| [D39](#d39-queries-are-listed-described-and-rendered-for-the-client-to-run-decided) | Queries are listed, described, and rendered for the client to run | Decided |
+| [D40](#d40-three-support-tiers-and-a-trigger-that-can-remove-a-version-decided) | Three support tiers, and a trigger that can remove a version | Decided |
+| [D41](#d41-every-model-ships-its-fixtures-beside-its-queries-decided) | Every model ships its fixtures beside its queries | Decided |
+| [D42](#d42-four-releases-per-push-every-release-nightly-decided) | Four releases per push, every release nightly | Decided |
+| [D43](#d43-ask-several-models-before-a-dialect-is-declared-finished-decided) | Ask several models before a dialect is declared finished | Decided |
+| [D44](#d44-a-version-key-names-the-product-a-number-alone-never-does-decided) | A version key names the product. A number alone never does | Decided |
+| [D45](#d45-a-query-may-answer-partially-once-and-must-say-so-decided) | A query may answer partially, once, and must say so | Decided |
+| [D46](#d46-five-object-kinds-are-missing-and-two-consumers-say-which-decided) | Five object kinds are missing, and two consumers say which | Decided |
+| [D47](#d47-dbmeta-supplies-the-data-the-consumer-decides-what-to-show-decided) | dbmeta supplies the data. The consumer decides what to show | Decided |
+| [D48](#d48-cgo-is-allowed-in-the-test-module-and-nowhere-else-amends-d26) | cgo is allowed in the test module, and nowhere else | Amends D26 |
+| [D49](#d49-one-method-on-the-interface-and-a-not-null-is-not-a-constraint-row-decided) | One method on the interface, and a NOT NULL is not a constraint row | Decided |
+| [D50](#d50-documentation-lives-in-docs-and-the-decision-log-stays-one-file-decided) | Documentation lives in docs, and the decision log stays one file | Decided |
+
 ## Decisions
 
 Each decision below carries a status. "Decided" means Ken chose it. "Proposed"
@@ -117,7 +181,7 @@ One consequence belongs to phase 5. The `usql` writer consumes the cursor types
 that D18 removes, so adapting it is part of integrating, not a reason to keep
 the old shape.
 
-### D6. Fix the NULL scan defect once, and never hide a NULL. Decided, amended.
+### D6. Fix the NULL scan defect once, and never hide a NULL. Decided, amended in place.
 
 #### The amendment, and the bug that forced it
 
@@ -1182,7 +1246,7 @@ also observed that `testcontainers-go` reaches Podman through a Docker
 compatibility socket, which is an extra moving part for a project that has
 already chosen Podman.
 
-### D24. CI tests the latest version only. The matrix runs locally. Decided.
+### D24. CI tests the latest version only. The matrix runs locally. Supersedes D22.
 
 CI tests the major databases at their latest version and nothing else. Every
 other version, and every flavor, is tested on a development machine.
@@ -1328,7 +1392,7 @@ That is the driver's business. `dbmeta` writes none of those tags. Do not be
 surprised when `go mod tidy` adds five platform modules, and do not try to trim
 them.
 
-### D26. No database driver in the dbmeta module. Decided.
+### D26. No database driver in the dbmeta module. Amends D11, amended by D48.
 
 The `dbmeta` module depends on the standard library alone. It does not
 depend on a database driver, and its `go.mod` does not name one.
@@ -1984,7 +2048,7 @@ its CQL version and its protocol version move independently. A fragment names
 which one it gates on. When a reported set lacks the name a minimum asks for,
 the gate fails rather than passing by accident.
 
-### D38. dbmeta holds the version query, and will run it on request. Amended.
+### D38. dbmeta holds the version query, and will run it on request. Amended in place.
 
 `dbmeta` holds the version query for every database, because that knowledge
 belongs with the metadata queries.
@@ -2728,7 +2792,7 @@ so that the promise about the root module is checked rather than assumed.
 ### D49. One method on the interface, and a NOT NULL is not a constraint row. Decided.
 
 Two answers, both unanimous between Gemini and DeepSeek, both recorded in full
-in `REVIEW.md` before they were taken.
+in this file, under each decision, before they were taken.
 
 #### Querier has one method
 
@@ -2810,6 +2874,98 @@ If it is wanted later, the shape that does not leak is a field on `Column`
 holding the constraint name where the release has one and absent where it does
 not, with `Field.Min` saying which. That is the padding rule doing its job, and
 it is a decision rather than a translation.
+
+### D50. Documentation lives in docs, and the decision log stays one file. Decided.
+
+Three files in the repository root: `README.md`, because GitHub renders it,
+`CLAUDE.md`, because an agent reads it first, and `CONTRIBUTING.md`, because
+GitHub gives it its own behaviour. Everything else is in `docs/`.
+
+Both reviews agreed on that much and on nothing else, and the measurement that
+prompted it was 6116 lines of Markdown in 11 root files against 8261 lines of
+Go.
+
+#### The decision log is one file with an index
+
+Gemini wanted this file split into one record per decision, the ADR
+convention, on the grounds that 3384 lines is about 25,000 tokens and an agent
+loads all of it to answer one question.
+
+That is not taken, and the evidence is in this repository.
+
+Six of the 49 decisions amend, supersede or withdraw an earlier one. D48 amends
+D26. D24 supersedes D22. D11 is amended by D26. D19 is half overtaken. D6 and
+D38 are amended. One in eight, and the rate rises rather than falls, because a
+project that runs long enough learns things.
+
+Split, an amendment lives in a different file from the decision it amends. An
+agent greps a topic, lands on the older record, reads a rule that was
+overturned, and gets no signal that it was. A slow answer becomes a wrong
+answer, which is worse than a slow one.
+
+There are 217 references to a decision by bare number in this file and 336 more
+in the other documents and in the Go source. Split, every one of those is a
+filename to guess, because `D8` does not say whether the file is
+`0008-metadata.md` or `0008-abandon-the-subpackages.md`.
+
+Gemini's cost is real and the index is the answer to it. The table at the top
+of this file gives the number, the title and the status of every decision in 55
+lines. An agent reads the table, jumps to one decision, and loads that. Nobody
+had tried it before deciding to split.
+
+#### The status column is the part that matters
+
+A decision is read through its status. `Decided` means it stands.
+`Amended by D26` means read both. `Superseded by D24` means read the other one.
+Put the status in the heading when you add a decision, and the index picks it
+up.
+
+#### One rule per file where the rule is expensive
+
+`NULLS.md` stays its own file. Gemini wanted it deleted and merged into
+both `CLAUDE.md` and `CONTRIBUTING.md`, which would put the most expensive rule
+this project has learned in two places and guarantee they drift. It is linked
+as a requirement from both instead.
+
+#### Two indexes, because there are two readers
+
+`README.md` lists the documents for a person arriving from pkg.go.dev.
+`CLAUDE.md` holds a routing table for an agent: what to read before touching a
+given thing. They answer different questions and neither replaces the other.
+
+#### What was not archived, and a correction
+
+Both reviews were told `QUERIES.md` and `EVALUATION.md` were written once and
+never updated, and both suggested archiving or renumbering them on that basis.
+The description was wrong and the advice followed from it.
+
+`QUERIES.md` is cited from `object.go`, `models/postgres/postgres.go` and the
+information_schema test. It is the survey that justifies the object set, and a
+reference document that is still correct does not need updating to be live.
+`EVALUATION.md` is the procedure for choosing the supported versions of a
+database that is not covered yet, which is a thing the project will do dozens
+more times.
+
+Both stay in `docs/` as reference. Nothing is archived, because nothing here is
+stale.
+
+#### REVIEW.md is gone
+
+It held the argument behind decisions already taken, which is what this file
+holds. Two places for the same reasoning is the failure this decision is about,
+so its contents were folded into the decisions they argue for and the file was
+removed.
+
+An open question goes in the open questions section at the end of this file. A
+decided one becomes a decision. There is no third state that needs a document.
+
+#### The thing neither review raised
+
+`COVERAGE.md`, `USQL.md` and `DBTPL.md` are generated from measurement and go
+stale silently. Filing them better does not fix that. A test that fails when
+the counts drift would, and `container/workflow_test.go` already does exactly
+that for the CI matrix. That is worth more than any amount of organizing and it
+is not done yet.
 
 ## What exists today
 
@@ -3358,10 +3514,9 @@ an ordinary user does not have.
 
 ## Open questions for Ken
 
-`REVIEW.md` holds the argument behind each decision that changed exported API,
-and the one question still open: where the documentation should live. The two
-reviews disagree sharply on splitting this file into one record per decision,
-and the evidence in `REVIEW.md` is from this repository.
+An open question lives here until it is answered, and then it becomes a
+decision above. The argument behind a decision belongs with the decision, which
+is why there is no separate document for it. See D50.
 
 
 None. The floor question that the upstream change reopened has been answered:

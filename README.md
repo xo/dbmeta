@@ -156,7 +156,7 @@ model, as SQLite did. `usql` builds on the same shared reader today for DuckDB, 
 Server, Snowflake, Trino, Databend and Netezza, which is the evidence for who
 the shared model serves.
 
-[`COVERAGE.md`](COVERAGE.md) says what each database answers, what it cannot,
+[`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
 and which analogues were found and rejected. MariaDB answers 28 of the 54 and
 MySQL answers 25, because a native model beats the shared one by seventeen.
 
@@ -216,23 +216,30 @@ release are translated from an older checkout.
 
 # Design
 
-[`COMMANDS.md`](COMMANDS.md) maps every `psql` metadata command to the Go value
-that answers it, which is what wiring up a client needs.
-
-[`USQL.md`](USQL.md) measures what `usql` answers today for each of its 47
-drivers, and what changes if it reads `dbmeta`. [`DBTPL.md`](DBTPL.md) does the
-same for `dbtpl`.
-
 `dbmeta` supplies the data and the consumer decides what to show. `psql` sets
 the object model and it does not set the column set, so a query here returns
 facts `psql` does not print where the database can produce them in the same
-statement. D47 in [`PLAN.md`](PLAN.md) holds the rule and the cost test.
+statement. D47 holds the rule and the cost test.
 
-Read [`NULLS.md`](NULLS.md) before writing a query for any database. It is the
-shortest document here and the one that cost the most to learn.
+Read [`NULLS.md`](docs/NULLS.md) before writing a query for any database. It is
+the shortest document here and the one that cost the most to learn.
 
-[`COVERAGE.md`](COVERAGE.md) records what each database answers and why, and
-names the analogues that looked right and were rejected.
+Everything else is in [`docs/`](docs/):
+
+| Document | What it holds |
+| --- | --- |
+| [`PLAN.md`](docs/PLAN.md) | Every decision, 50 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because six amend or replace an earlier one. |
+| [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
+| [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
+| [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
+| [`QUERIES.md`](docs/QUERIES.md) | What `psql` describes, what `information_schema` describes, and where the two meet. |
+| [`EVALUATION.md`](docs/EVALUATION.md) | How the supported version range is chosen, and how to choose one for a database not covered yet. |
+| [`USQL.md`](docs/USQL.md) | What `usql` answers today for each of its 47 drivers, and what changes if it reads `dbmeta`. |
+| [`DBTPL.md`](docs/DBTPL.md) | The same measurement for `dbtpl`. |
+
+[`CLAUDE.md`](CLAUDE.md) holds the rules for writing code here, with a table
+saying which document to read for which task.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) is the same for a person, and shorter.
 
 # Testing
 
@@ -258,44 +265,16 @@ cd test && ./run.sh mariadb-13.0
 tests and removes the container. CI repeats the same list in YAML, and
 `container/workflow_test.go` fails when the two disagree.
 
-[`REVIEW.md`](REVIEW.md) holds the argument behind two decisions that changed
-exported API before the first tag: why the database interface has one method,
-and why a NOT NULL constraint is never reported as a constraint row.
-
-The full record is in [`PLAN.md`](PLAN.md), which holds every decision and the
-evidence behind it. [`QUERIES.md`](QUERIES.md) surveys what `psql` and
-`information_schema` each describe. [`EVALUATION.md`](EVALUATION.md) records
-how the supported versions were chosen. [`CLAUDE.md`](CLAUDE.md) holds the
-rules for writing code here.
-
-Four points are worth knowing before reading the source.
-
-**The caller drives.** `dbmeta` does not open a connection, import a driver,
-detect a dialect or detect a version. The caller supplies all four.
-
-**Version differences are data, not packages.** Each piece of a statement
-carries alternatives with a minimum server version, and the applicable ones are
-merged at run time. There is one package per database, not one per release.
-
-**A query returns the same columns on every version.** Where a server has no
-source for a column, the statement selects a literal NULL under the same name.
-That rule is what lets one Go type read the result of every supported version.
-Each column declares the version it arrived in, so a caller can tell a value
-that is null from a field the server is too old to have.
-
-**Results stream.** A query returns an iterator rather than a slice, so
-`dbmeta` holds no state, caches nothing and never loads a catalog into memory.
-
 # Related Projects
 
 `dbmeta` is one of a set of packages that each do one part of the job, so that
 a client can take the parts it needs.
 
 - [`usql`][usql] is a command line client for many databases. It is the reason
-  the object model follows `psql`. [`USQL.md`](USQL.md) measures what it
+  the object model follows `psql`. [`USQL.md`](docs/USQL.md) measures what it
   answers today and what `dbmeta` would change.
 - [`dbtpl`][dbtpl] generates Go code from a database schema. It reads the same
-  metadata and it can build against the fixtures here. [`DBTPL.md`](DBTPL.md)
+  metadata and it can build against the fixtures here. [`DBTPL.md`](docs/DBTPL.md)
   measures the same thing for it.
 - [`dburl`][dburl] parses a database URL and opens a connection. `dbmeta` never
   parses one, and it never repeats the scheme and flavor taxonomy that `dburl`

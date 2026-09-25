@@ -32,7 +32,7 @@ type Int = sql.Null[int64]
 //
 // The object set comes from psql, which describes 49 kinds. Only the first few
 // are declared here, because D13 builds the models before the API and the
-// shape of the rest follows from them. See QUERIES.md.
+// shape of the rest follows from them. See docs/QUERIES.md.
 
 // Table is a table, a view, a materialized view or a sequence.
 type Table struct {

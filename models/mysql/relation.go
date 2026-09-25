@@ -69,7 +69,7 @@ func registerRelations() {
 	// A comment lives on the object here, in TABLE_COMMENT, rather than in a
 	// catalog of comments. MariaDB writes an empty string for no comment, not
 	// NULL, so the query turns that back into NULL: an absent comment and an
-	// empty one are different answers and NULLS.md forbids collapsing them.
+	// empty one are different answers and docs/NULLS.md forbids collapsing them.
 	dbmeta.Tables.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
 			{{SQL: `SELECT t.table_catalog AS "catalog"`}},

@@ -13,7 +13,7 @@ import (
 // information_schema, and it does not grant it to an ordinary user, so these
 // queries need SELECT on the mysql schema and fail without it. PostgreSQL
 // makes the same information readable by everyone, so this is a difference a
-// caller has to handle rather than a fault. See COVERAGE.md.
+// caller has to handle rather than a fault. See docs/COVERAGE.md.
 
 func registerForeign() {
 	registerAggregates()

@@ -314,7 +314,7 @@ func registerRelations() {
 // TABLE text in sqlite_schema.sql, and dbmeta does not parse DDL. Returning
 // the three kinds it can read exactly is worth more than refusing all four,
 // and this is the one place a dbmeta query answers incompletely on purpose.
-// See COVERAGE.md.
+// See docs/COVERAGE.md.
 func registerConstraints() {
 	dbmeta.Constraints.Register(dbmeta.SQLite3, &dbmeta.Binding[dbmeta.Constraint]{
 		Stmt: dbmeta.Stmt{

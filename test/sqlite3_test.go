@@ -228,7 +228,7 @@ func TestSQLiteColumns(t *testing.T) {
 		}
 		// A default is reported as SQLite stores it, with the quotes, and a
 		// column with no default is absent rather than an empty string. That is
-		// the NULLS.md rule.
+		// the docs/NULLS.md rule.
 		if got := cols["author.shade"]; !got.Default.Valid || got.Default.V != "'red'" {
 			t.Errorf("expected the default to keep its quotes, got %v", got.Default)
 		}
@@ -470,7 +470,7 @@ func TestSQLiteUnsupported(t *testing.T) {
 			// SQLite records no comment on anything
 			dbmeta.Comments,
 			// an internal counter is not a sequence, and a module is not an
-			// extension. Both were suggested and rejected. See COVERAGE.md.
+			// extension. Both were suggested and rejected. See docs/COVERAGE.md.
 			dbmeta.Sequences, dbmeta.Extensions, dbmeta.AccessMethods,
 			dbmeta.ExtendedStats, dbmeta.ForeignTables, dbmeta.Tablespaces,
 			// SQLite reports an aggregate as a window function and cannot tell

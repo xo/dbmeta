@@ -14,7 +14,7 @@ import (
 // parameters, because a function is compiled C and SQLite publishes only its
 // argument count. It has no enumerated type. And sqlite_stat1 holds one text
 // string per index rather than anything about a column's values, so there is
-// nothing to report for column statistics. See COVERAGE.md.
+// nothing to report for column statistics. See docs/COVERAGE.md.
 
 func registerExtra() {
 	registerConstraintColumns()

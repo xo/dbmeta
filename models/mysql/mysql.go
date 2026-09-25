@@ -41,7 +41,7 @@
 // 10.2 quietly means "MariaDB only" and answers wrongly for MySQL. See D44.
 //
 // A schema and a database are the same thing here, which is the one place the
-// object model does not fit. See COVERAGE.md for what it cannot answer.
+// object model does not fit. See docs/COVERAGE.md for what it cannot answer.
 package mysql
 
 import (

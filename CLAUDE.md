@@ -7,20 +7,33 @@ and `dbtpl` consume it.
 `Reader` and `Writer` pair from `usql` is a `usql` concept and it does not
 come here.
 
-Read `NULLS.md` and `PLAN.md` before you change anything. `PLAN.md` records the
-architecture, the decisions, the known defects, and the questions that nobody
-has answered yet. Do not decide an open question on your own. Ask Ken.
+## Which document to read
 
-`REVIEW.md` holds the argument behind two decisions that changed exported API,
-both taken in D49. Read it before undoing either: the reasoning is the part
-that is easy to lose.
+Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 50
+at the top; read the status, because six of them amend or replace an earlier
+one. Do not decide an open question on your own. They are at the end of
+`docs/PLAN.md`. Ask Ken.
 
-The other documents: `COMMANDS.md` maps every `psql` metadata command to the Go
-value that answers it. `COVERAGE.md` says what each database can and cannot
-answer, and which analogues were rejected. `USQL.md` and `DBTPL.md` measure
-what the two consumers read today and what `dbmeta` would have to add before
-either can move onto it. D46 holds that list: five object kinds, three of which
-both consumers need.
+Then by what you are doing:
+
+| If you are | Read |
+| --- | --- |
+| writing or changing any query | `docs/NULLS.md`, then `docs/COVERAGE.md` |
+| asking why something is the way it is | the table at the top of `docs/PLAN.md` |
+| adding an object kind | D46 and D47 in `docs/PLAN.md`, then `docs/COMMANDS.md` |
+| adding a database | `docs/EVALUATION.md` for the version range, D43 for the rule about asking other models |
+| changing what a database answers | `docs/COVERAGE.md`, which is the record of what each one can do |
+| deciding whether a field belongs here | D47 in `docs/PLAN.md`, which holds the cost test |
+| wiring up a client | `docs/COMMANDS.md`, then `docs/USQL.md` or `docs/DBTPL.md` |
+| designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
+| adding a release to CI | `container/container.go`, which is the only copy of that list |
+| answering a lint finding | the rule below, under Linting |
+
+`CONTRIBUTING.md` is the same thing for a person, and shorter.
+
+A document that is not in that table does not exist. If you cannot find where
+something is written down, it is not written down, and it is an open question.
 
 ## Hard rules
 
@@ -104,7 +117,7 @@ both consumers need.
    A driver may carry its own platform builds, which is the driver's business.
 12. Write idiomatic Go. This code is a move of an older package, so a pattern
    being present in the source is not a reason to keep it. See D18 in
-   `PLAN.md` for the two patterns that must not carry over.
+   `docs/PLAN.md` for the two patterns that must not carry over.
 13. `dbmeta` supplies the data and the consumer decides what to show. Never
    withhold a fact, reorder one, or shape a result so that somebody's output
    looks right. `usql` filters to match `psql` and `dbtpl` shows none of it,
@@ -127,7 +140,7 @@ both consumers need.
    them, and MariaDB proved the cost: 29 queries looked unanswerable until a
    second opinion named the tables that hold four of them. Treat every answer
    as a lead and run it against a real server. Leave an analogue that is a
-   stretch unsupported, and record it in `COVERAGE.md` with the reason. See
+   stretch unsupported, and record it in `docs/COVERAGE.md` with the reason. See
    D43.
 
 ## Layout
@@ -186,7 +199,7 @@ when introspection reports NOT NULL and the database still returns NULL.
 ## Go conventions
 
 These apply to hand written code. Generated code follows the `dbtpl`
-templates instead. See question 4 in `PLAN.md`.
+templates instead. See question 4 in `docs/PLAN.md`.
 
 Wrap every error with `%w`, never `%s` or `%v`:
 
@@ -199,7 +212,7 @@ if err != nil {
 Write error messages in lower case, starting with a gerund. Do not write
 "failed to" or "error". Name the object that failed.
 
-Never hide a NULL. Read `NULLS.md` before writing a query for any database. It
+Never hide a NULL. Read `docs/NULLS.md` before writing a query for any database. It
 is the shortest document here and it is the one that has cost the most to
 learn.
 
@@ -358,7 +371,7 @@ code is pure Go, so `dbmeta` does not need the runner matrix that the other
 CI tests four databases at their latest version: PostgreSQL, MySQL, SQLite3 and
 DuckDB. It does not test older versions and it does not test flavors. Those run
 on a development machine, and they must run before a release. Do not add a
-version matrix to the workflow. See D24 in `PLAN.md`.
+version matrix to the workflow. See D24 in `docs/PLAN.md`.
 
 Two facts about the runner. The preinstalled PostgreSQL is 16, not the latest
 release, so testing the newest PostgreSQL needs a service container. The
@@ -367,6 +380,17 @@ is the reference product and MySQL is the flavor, so CI covers the flavor for
 free. Do not replace it with MariaDB.
 
 ## Writing documentation
+
+A new document goes in `docs/`. Only `README.md`, `CLAUDE.md` and
+`CONTRIBUTING.md` belong in the repository root, and a test enforces that. Add
+it to the table at the top of this file and to the one in `README.md`, because
+a document nobody can find is a document nobody reads. See D50.
+
+A decision goes in `docs/PLAN.md` and nowhere else. Put its status in the
+heading, after the title: `Decided`, or `Amends D26`, or `Superseded by D24`.
+The index at the top is generated from those headings and a test checks it. If
+your decision changes an earlier one, say so in both headings, because a reader
+who finds the older one has to be told.
 
 Write plain English. Use short sentences and the active voice. Use `can`,
 `will`, and `must`, and do not use `should`, `may`, or `might`. Do not use
