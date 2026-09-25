@@ -11,6 +11,9 @@ Read `NULLS.md` and `PLAN.md` before you change anything. `PLAN.md` records the
 architecture, the decisions, the known defects, and the questions that nobody
 has answered yet. Do not decide an open question on your own. Ask Ken.
 
+`REVIEW.md` holds two open questions that change exported API. Do not decide
+either one. Both are waiting on Ken.
+
 The other documents: `COMMANDS.md` maps every `psql` metadata command to the Go
 value that answers it. `COVERAGE.md` says what each database can and cannot
 answer, and which analogues were rejected. `USQL.md` and `DBTPL.md` measure

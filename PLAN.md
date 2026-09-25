@@ -3272,6 +3272,13 @@ an ordinary user does not have.
 
 ## Open questions for Ken
 
+Two of them are written up in full, with the reviews, in `REVIEW.md`: whether
+to narrow the `DB` interface to one method and rename it, and whether
+`Constraints` should report a NOT NULL constraint on PostgreSQL 18. Both change
+exported API, both are cheap before a tag and expensive after one, and Gemini
+and DeepSeek agreed on every point of both.
+
+
 None. The floor question that the upstream change reopened has been answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
 asked for in exchange.

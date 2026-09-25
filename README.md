@@ -247,6 +247,10 @@ cd test && ./run.sh mariadb-13.0
 tests and removes the container. CI repeats the same list in YAML, and
 `container/workflow_test.go` fails when the two disagree.
 
+[`REVIEW.md`](REVIEW.md) holds the questions that are settled in argument and
+not in code. Both change exported API and both are cheap to decide before the
+first tag.
+
 The full record is in [`PLAN.md`](PLAN.md), which holds every decision and the
 evidence behind it. [`QUERIES.md`](QUERIES.md) surveys what `psql` and
 `information_schema` each describe. [`EVALUATION.md`](EVALUATION.md) records
