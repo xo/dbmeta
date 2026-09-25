@@ -338,10 +338,10 @@ jobs:
         include:
           - oracle: "21.3.0"
             image: gvenzl/oracle-xe:21.3.0-slim
-            service: XE
+            service: XEPDB1
           - oracle: "23.26.3"
             image: gvenzl/oracle-free:23.26.3-slim
-            service: FREE
+            service: FREEPDB1
     services:
       oracle:
         image: ${{ matrix.image }}
@@ -371,6 +371,65 @@ jobs:
         env:
           DBMETA_ORACLE: oracle://system:P4ssw0rd@127.0.0.1:1521/${{ matrix.service }}
         run: go test -count=1 -v ./...
+
+  cassandra:
+    name: Cassandra ${{ matrix.cassandra }}
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # From container.Cassandra at the Tested tier, and a test fails when
+        # the two disagree. The pair spans 4.0, which is where system_views
+        # arrived and where the one version fragment gates.
+        cassandra: ["3.11", "5.0"]
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      # There is no services block here, because a service needs a published
+      # image and this one is built. The Apache image refuses user defined
+      # functions and, from 5.0, materialized views, and its entrypoint maps
+      # only eight yaml keys to environment variables. See
+      # test/cassandra/Containerfile.
+      - name: Build the image
+        run: |
+          docker build \
+            --build-arg RELEASE=${{ matrix.cassandra }} \
+            --tag localhost/dbmeta/cassandra:${{ matrix.cassandra }} \
+            --file test/cassandra/Containerfile \
+            test/cassandra
+
+      - name: Start Cassandra
+        run: |
+          docker run --detach --name cassandra \
+            --env MAX_HEAP_SIZE=1G \
+            --env HEAP_NEWSIZE=256M \
+            --publish 9042:9042 \
+            localhost/dbmeta/cassandra:${{ matrix.cassandra }}
+          for i in $(seq 1 60); do
+            if docker exec cassandra bash -c 'echo exit | cqlsh -u cassandra -p cassandra' >/dev/null 2>&1; then
+              echo "ready after $((i * 5))s"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "never became ready"
+          docker logs cassandra 2>&1 | tail -50
+          exit 1
+
+      - name: Test against Cassandra
+        working-directory: test
+        env:
+          DBMETA_CASSANDRA: 127.0.0.1:9042?username=cassandra&password=cassandra&timeout=30s&connectTimeout=30s
+        run: go test -count=1 -v -run 'Cassandra|Conformance|Parity' ./...
 
   compare:
     name: MariaDB against MySQL

@@ -247,7 +247,7 @@ var MySQL = list{}.add(mysql, Tested, "8.4", "26.7").
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra)
 }
 
 // AtTier returns the servers tested at t.

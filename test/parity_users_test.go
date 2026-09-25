@@ -190,3 +190,36 @@ func replaceDatabase(t *testing.T, dsn, name string) string {
 	u.RawQuery = q.Encode()
 	return u.String()
 }
+
+// makeCassandraGrantee makes a role with every permission on the fixture
+// keyspace and none anywhere else.
+//
+// It needs the image this repository builds. The published one runs
+// AllowAllAuthenticator, where CREATE ROLE is accepted and means nothing and
+// there is no second principal to be.
+func makeCassandraGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	cleanup(t, db, `DROP ROLE IF EXISTS dbmeta_grantee`)
+	exec(t, db, `CREATE ROLE dbmeta_grantee WITH PASSWORD = '`+parityPassword+
+		`' AND LOGIN = true`)
+	t.Cleanup(func() { cleanup(t, db, `DROP ROLE IF EXISTS dbmeta_grantee`) })
+	exec(t, db, `GRANT ALL PERMISSIONS ON KEYSPACE `+schema+` TO dbmeta_grantee`)
+	return cqlUser(t, dsn, "dbmeta_grantee", parityPassword)
+}
+
+// cqlUser rewrites the credentials of a go-cql-driver DSN.
+//
+// The DSN is a host list and then query options, which is neither a URL nor
+// the MySQL shape, so it gets its own helper. The user and the password are
+// options rather than a userinfo part.
+func cqlUser(t *testing.T, dsn, user, password string) string {
+	t.Helper()
+	host, rawQuery, _ := strings.Cut(dsn, "?")
+	q, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		t.Fatalf("parsing the options of %s: %v", dsn, err)
+	}
+	q.Set("username", user)
+	q.Set("password", password)
+	return host + "?" + q.Encode()
+}

@@ -30,6 +30,7 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 | `models/duckdb` | 20 | 55 | duckdb/duckdb-go, the driver usql uses |
 | `models/sqlserver` | 32 | 55 | SQL Server 2017, 2019, 2022 and 2025 |
 | `models/oracle` | 25 | 55 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
+| `models/cassandra` | 17 | 55 | Cassandra 3.11, 4.0, 4.1 and 5.0 |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -318,6 +319,160 @@ than empty. It records no comment on any object. It has no type catalog, no
 operators that can be created, no casts, no procedural languages, no
 replication, no tablespaces and no partitioning.
 
+## Cassandra
+
+Cassandra answers 17 of the 55, verified against 5.0.9 and 3.11.19.
+
+It is the first database here that is not SQL, and CQL is narrower than the
+name suggests. D62 holds the four consequences and this is the short version.
+
+### The image is built here
+
+The Apache image refuses three things this model has queries for, and its
+entrypoint maps only eight `cassandra.yaml` keys to environment variables,
+none of them these. So every release is rebuilt from
+`test/cassandra/Containerfile`. Run `test/cassandra/build.sh` before the tests,
+and CI builds its own from the same file.
+
+It turns on user defined functions, so `Functions` and `Aggregates` have
+something to read and the fixture can create one. It turns on materialized
+views, which 5.0 ships off and 3.11 ships on, so `Views` behaves the same on
+every release. And it sets `PasswordAuthenticator` and `CassandraAuthorizer`,
+without which `system_auth` holds one role and no grant, and D61 has no second
+principal to compare against.
+
+The key names changed and the build handles both. 3.11 and 4.0 write
+`enable_user_defined_functions` and `enable_materialized_views`, and 4.1 and
+later write `user_defined_functions_enabled` and `materialized_views_enabled`.
+usql publishes an image that does the same thing, as
+`docker.io/usql/cassandra`, and its Dockerfile edits only the older spelling,
+so it has no effect on 5.0. The build here checks the result rather than
+trusting sed, because a sed that matches nothing changes nothing and says so
+to nobody.
+
+The superuser is `cassandra` and so is its password. It is the one product
+here that does not use the shared test password, because Cassandra creates
+that pair and it is the only one that works until somebody changes it.
+
+### What it answers
+
+Keyspaces as schemas, tables, columns, materialized views as views, user
+defined types, indexes, index columns, the primary key as a constraint and its
+columns, triggers, comments, functions, aggregates, roles, role grants,
+privileges and settings.
+
+`Settings` needs 4.0, where the `system_views` keyspace arrived. Everything
+else answers on every release from 3.11 up. That is the only version fragment
+the model has, which is why the tested pair spans it.
+
+### No query filters, and every query returns the system keyspaces
+
+CQL has no `OR`, no `IS NULL` outside a materialized view definition, and a
+partition key takes only `=` or `IN`. The form every other model uses,
+`(@schema IS NULL OR col LIKE @schema)`, cannot be written. There is no
+`NOT IN` either, so the keyspaces Cassandra keeps for itself cannot be
+excluded.
+
+So every query returns every row, including `system`, `system_schema`,
+`system_auth`, `system_distributed` and `system_traces`. The filter parameters
+are still declared and every description says Cassandra ignores it. A consumer
+narrows the result, which `usql` already does to match `psql`.
+
+### A derived field is derived in Go
+
+There is no `CASE` and no expression. `Column.Nullable` and
+`Column.PrimaryKey` are both read from `system_schema.columns.kind`, which the
+statement selects twice, and `Scan` turns each into its boolean. A column of
+kind `partition_key` or `clustering` is in the primary key, and the primary key
+is the only thing in Cassandra that cannot be null.
+
+### No order
+
+CQL orders rows within one partition and by a clustering column. A result that
+spans partitions arrives in token order, so the same query can return the same
+rows in another order on another cluster. No query writes `ORDER BY`, because
+one would not make the answer ordered.
+
+### What the fixture builds, and what it needs
+
+`models/cassandra/fixture` creates the keyspace `dbmeta_fixture` with the core
+objects D53 asks every fixture for, plus one of every Cassandra object the
+queries read: a user defined type, a secondary index, a materialized view, a
+function, an aggregate built on a second function, two roles, a grant between
+them and a permission on the keyspace. Nineteen steps, none of them skipped on
+either 3.11 or 5.0.
+
+It needs the image this repository builds. Against the published one the
+function, the view and the roles are all refused, and the test says so rather
+than quietly building less.
+
+Three tables show three shapes of primary key, because that is the one
+constraint Cassandra has and the queries report it: `author` has a partition
+key alone, `book` has a partition key and a clustering column, and `region`
+has a two column partition key.
+
+No trigger. A Cassandra trigger names a Java class that has to be on the
+server's classpath already, so the fixture creates none and `Triggers` returns
+no rows anywhere. It is the one registered query with no fixture object.
+
+### A null arrives as an empty string
+
+The driver cannot report a null. gocql decodes a null of any type as the zero
+value of that type, so scanning one into `sql.Null[string]` gives a valid
+empty string rather than an absent one.
+
+For a column the model pads, this is handled: the value is discarded and the
+field keeps the invalid Null that `docs/NULLS.md` asks for. See D62.
+
+For a real catalog column that is null, it is not handled and cannot be. A
+comment that was never set and a comment set to the empty string are the same
+value to a caller. In practice Cassandra stores the empty string rather than a
+null for a table with no comment, so the two agree, but a consumer should not
+rely on `Valid` meaning anything on this dialect.
+
+### What the conformance test says
+
+Cassandra is in `test/testdata/conformance.txt` under `[cassandra]`, and it
+agrees with the relational databases on less than they agree with each other.
+That is why `TestConformanceAgreementHolds` now measures twice: the relational
+databases against the floor they have always held, and every database against
+a smaller one. Counting Cassandra with the rest would drop the floor from 23
+lines to 6 and leave it too low to notice a regression anywhere.
+
+Two differences and neither is a fault. There is no `table recent view` line,
+because `Tables` returns no view: a materialized view is in
+`system_schema.views` and CQL has no UNION to put the two together. And the
+column ordinal is a position within the primary key rather than within the
+table, because the catalog keeps no declaration order and holds a table's
+columns alphabetically.
+
+### What Cassandra has none of
+
+No sequence, no domain, no enumerated type, no cast, no collation catalog, no
+operator, no text search object, no extension, no foreign data wrapper, no
+tablespace and no large object. No `Databases` either: a keyspace is the top
+of the tree and the cluster above it is in `system.local`, which no single
+statement can reach from `system_schema` because CQL has no join.
+
+`CurrentSchema` and `CurrentUser` are absent and both models agreed. There is
+no CQL expression for either. `system_views.clients` from 4.0 lists every
+connection with the user on it and cannot say which one is asking, so it is
+not the same fact.
+
+`RoutineParameters` is the one that is present and not returned.
+`system_schema.functions` holds `argument_names` and `argument_types` as two
+parallel lists on the function's own row, and turning them into one row per
+parameter needs an unnest that CQL does not have. The types are in
+`Functions.ArgTypes` as one text.
+
+`ColumnStats` is absent from the catalog. The statistics Cassandra keeps are
+per SSTable and per node, in `system_views` from 4.0, which is a different
+thing from the per column distribution `psql` prints.
+
+`PartitionedTables` is a stretch and is left unsupported under the D43 rule.
+Every Cassandra table is partitioned, so a list of the partitioned ones is a
+list of all of them and says nothing.
+
 ## Which answers depend on who is asking
 
 Every query has been asked as the administrator and as each lesser kind of
@@ -334,6 +489,7 @@ that varies is what kind of principal they are.
 | SQL Server 2022 | server login | `roles` |
 | PostgreSQL 18 | schema owner | `settings`, `tablespaces` |
 | PostgreSQL 18 | grantee | `settings`, `tablespaces` |
+| Cassandra 5.0 | granted role | `privileges`, `role_grants`, `roles`, `settings` |
 | MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
 

@@ -15,6 +15,34 @@
 #
 # and read the diff.
 
+[cassandra]
+table author table
+table book table
+table region table
+table shipment table
+column author.author_id ordinal=0 nullable=false primary_key=true has_default=false
+column author.home ordinal=-1 nullable=true primary_key=false has_default=false
+column author.name ordinal=-1 nullable=true primary_key=false has_default=false
+column author.rating ordinal=-1 nullable=true primary_key=false has_default=false
+column author.shade ordinal=-1 nullable=true primary_key=false has_default=false
+column book.author_id ordinal=-1 nullable=true primary_key=false has_default=false
+column book.book_id ordinal=0 nullable=false primary_key=true has_default=false
+column book.published ordinal=-1 nullable=true primary_key=false has_default=false
+column book.title ordinal=0 nullable=false primary_key=true has_default=false
+column recent.book_id ordinal=0 nullable=false primary_key=true has_default=false
+column recent.title ordinal=0 nullable=false primary_key=true has_default=false
+column region.area ordinal=1 nullable=false primary_key=true has_default=false
+column region.country ordinal=0 nullable=false primary_key=true has_default=false
+column shipment.amount ordinal=-1 nullable=true primary_key=false has_default=false
+column shipment.area ordinal=-1 nullable=true primary_key=false has_default=false
+column shipment.country ordinal=-1 nullable=true primary_key=false has_default=false
+column shipment.shipment_id ordinal=0 nullable=false primary_key=true has_default=false
+constraint author primary key (author_id)
+constraint book primary key (book_id, title)
+constraint recent primary key (book_id, title)
+constraint region primary key (area, country)
+constraint shipment primary key (shipment_id)
+
 [duckdb]
 table author table
 table book table

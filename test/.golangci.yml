@@ -94,6 +94,7 @@ linters:
             - github.com/lib/pq
             - github.com/microsoft/go-mssqldb
             - github.com/sijms/go-ora
+            - github.com/MichaelS11/go-cql-driver
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

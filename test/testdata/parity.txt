@@ -8,6 +8,12 @@
 # A section is <database>/<scene>/<principal>. The scene is the database the
 # comparison ran in, because a contained user needs one of its own.
 
+[cassandra/same/grantee]
+privileges refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
+role_grants refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
+roles refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
+settings refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
+
 [mariadb/same/grantee]
 aggregates refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`proc`
 column_stats refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`column_stats`

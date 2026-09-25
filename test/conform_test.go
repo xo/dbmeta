@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/xo/dbmeta"
+	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
@@ -94,6 +95,11 @@ func conformTargets() []conformTarget {
 		{
 			name: "oracle", dialect: dbmeta.Oracle,
 			open: openOracle, schema: orfixture.Everything.Schema, build: setupOracle,
+		},
+		{
+			name: "cassandra", dialect: dbmeta.Cassandra,
+			open: openCassandra, schema: cafixture.Everything.Schema,
+			build: setupCassandra,
 		},
 	}
 }
@@ -399,12 +405,60 @@ func TestConformanceAgreementHolds(t *testing.T) {
 	if len(sections) < 2 {
 		t.Skip("fewer than two databases recorded")
 	}
-	names := make([]string, 0, len(sections))
+	all := make([]string, 0, len(sections))
+	relational := make([]string, 0, len(sections))
 	for n := range sections {
-		names = append(names, n)
+		all = append(all, n)
+		if !nonRelational[n] {
+			relational = append(relational, n)
+		}
 	}
-	sort.Strings(names)
+	sort.Strings(all)
+	sort.Strings(relational)
 
+	// Measured when this was written, with four relational databases. Raise
+	// it when they agree on more. Lower it only with a reason.
+	const relationalFloor = 23
+	got := agreedLines(sections, relational)
+	if len(got) < relationalFloor {
+		t.Errorf("the relational databases agree on %d lines and used to agree on %d.\n"+
+			"Something that was uniform is not any more. Find out whether it is a "+
+			"fault or a fact, and either fix it or lower the floor and say why.",
+			len(got), relationalFloor)
+	}
+	t.Logf("%d of the canonical lines are identical across %v", len(got), relational)
+
+	// And the same question with every database, which is a smaller number
+	// and a different fact. See nonRelational.
+	const everyFloor = 6
+	every := agreedLines(sections, all)
+	if len(every) < everyFloor {
+		t.Errorf("every database agrees on %d lines and used to agree on %d",
+			len(every), everyFloor)
+	}
+	t.Logf("%d are identical across %v", len(every), all)
+}
+
+// nonRelational names the databases left out of the main agreement count.
+//
+// Cassandra is not relational and the canonical projection says so out loud.
+// Its Tables query returns no view, because a materialized view is in another
+// catalog table and CQL has no UNION to put them together. Its column ordinal
+// is a position within the primary key rather than within the table, because
+// the catalog keeps no declaration order at all. Neither is a fault and both
+// are recorded in docs/COVERAGE.md.
+//
+// Counting it with the rest drops the agreement from 23 lines to 6, which
+// would leave the floor too low to notice a real regression in any of the
+// others. So it is measured twice: the relational databases against the
+// number they have always held, and every database against the smaller one.
+var nonRelational = map[string]bool{"cassandra": true}
+
+// agreedLines returns the lines every named section has.
+func agreedLines(sections map[string][]string, names []string) map[string]bool {
+	if len(names) == 0 {
+		return map[string]bool{}
+	}
 	common := map[string]bool{}
 	for _, l := range sections[names[0]] {
 		common[l] = true
@@ -420,14 +474,5 @@ func TestConformanceAgreementHolds(t *testing.T) {
 			}
 		}
 	}
-	// Measured when this was written, with four databases. Raise it when the
-	// databases agree on more. Lower it only with a reason.
-	const floor = 23
-	if len(common) < floor {
-		t.Errorf("the databases agree on %d lines and used to agree on %d.\n"+
-			"Something that was uniform is not any more. Find out whether it is a "+
-			"fault or a fact, and either fix it or lower the floor and say why.",
-			len(common), floor)
-	}
-	t.Logf("%d of the canonical lines are identical across %v", len(common), names)
+	return common
 }

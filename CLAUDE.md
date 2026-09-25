@@ -16,7 +16,7 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 61
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 62
 at the top; read the status, because six of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -37,6 +37,7 @@ Then by what you are doing:
 | designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
 | adding a release to CI | `container/container.go`, which is the only copy of that list |
 | adding an old SQL Server that needs a Windows VM | `container/windows.go`, then `test/vm/README.md` and D57 |
+| testing against Cassandra | `test/cassandra/Containerfile`, then run `test/cassandra/build.sh`. The published image will not do |
 | answering a lint finding | the rule below, under Linting |
 | ignoring a build artifact | the root `.gitignore`, which is the only one. See D58 |
 
@@ -196,6 +197,9 @@ something is written down, it is not written down, and it is an open question.
   with no Linux container. `container/windows.go` holds the list and
   `test/tool/vms` bridges it to the shell, the same way `test/tool/servers`
   does for containers. Read `test/vm/README.md`. See D57.
+- `test/cassandra/` builds the Cassandra images. The Apache image cannot be
+  configured from the outside for what the queries read, so the settings are
+  baked in. Run `test/cassandra/build.sh` before testing against Cassandra.
 - `test/` is a separate module with its own `go.mod`. It holds the integration
   tests, the database drivers, and the `tool` directive pinning `dbtpl`. None
   of that may appear in the root module. It is the only place cgo is allowed,

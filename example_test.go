@@ -178,16 +178,17 @@ func Example_support() {
 		fmt.Println("publications on 9.6:", err)
 	}
 
-	// a dialect no model was built for is a different answer entirely
-	if _, err := dbmeta.New("cassandra", dbmeta.VersionSet{}); err != nil {
-		fmt.Println("cassandra:", err)
+	// a dialect no model was built for is a different answer entirely.
+	// ClickHouse is one usql speaks and dbmeta has no model for.
+	if _, err := dbmeta.New("clickhouse", dbmeta.VersionSet{}); err != nil {
+		fmt.Println("clickhouse:", err)
 	}
 
 	// Output:
 	// tables:  supported
 	// indexes: supported
 	// publications on 9.6: version too old
-	// cassandra: model not built
+	// clickhouse: model not built
 }
 
 func versionMeta(ver string) *dbmeta.Meta {

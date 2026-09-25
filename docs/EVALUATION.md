@@ -378,11 +378,20 @@ recorded in `container/container.go` rather than in a script.
 
 ## What is still unevaluated
 
-Oracle and Cassandra. The Oracle container facts are gathered and recorded in
-D54, and the floor follows from them the same way SQL Server's did: the images
-are `gvenzl/oracle-xe` at 18.4 and 21.3 and `gvenzl/oracle-free` at 23, and
-there is none for 11g or 12c. The privilege question is the open one there, not
-the version question.
+Nothing. Oracle and Cassandra were the last two and both have been through it.
+
+Oracle's container facts are in D54, and the floor followed from them the same
+way SQL Server's did. The privilege question was the open one there rather than
+the version question, and D60 and D61 answer it.
+
+Cassandra went through step 2 and stopped there. On
+`docker.io/library/cassandra`, 2.2 was last rebuilt in August 2021 and is dead,
+3.0 and 3.11 were rebuilt in November 2025, and 4.0, 4.1 and 5.0 a week before
+this was written, all with a linux/amd64 build. So the floor could be 3.0 and
+it is 3.11, because 3.0 and 3.11 carry the same `system_schema` catalog and
+3.11 is the release people ran. Below 3.0 the catalog is a different shape
+entirely, in `system.schema_columnfamilies` and its siblings, and no image that
+still runs has it. See `container/cassandra.go`.
 
 Do not assume a floor for a database until it has been through the procedure
 above.

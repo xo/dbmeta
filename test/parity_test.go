@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/xo/dbmeta"
+	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
@@ -47,6 +48,9 @@ import (
 //
 // MySQL and MariaDB have no containment either. A user is a name and a host
 // at server level and a database is only a grant scope, so there are two.
+//
+// Cassandra has no containment either, and for the same reason as MySQL: a
+// role belongs to the cluster and a keyspace is only a grant scope.
 //
 // SQLite and DuckDB have no user, no role and no grant, so there is nothing
 // to compare and this test cannot cover them.
@@ -147,6 +151,18 @@ func parityTargets() []parityTarget {
 			},
 		},
 		{
+			name: "cassandra", driver: "cql", env: "DBMETA_CASSANDRA",
+			open: openCassandra, build: setupCassandra,
+			schema: cafixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Cassandra has no containment. A role belongs to the
+				// cluster and a keyspace is only a grant scope, so there is
+				// the superuser and there is everybody else.
+				name:       "same",
+				principals: []parityPrincipal{{name: "grantee", make: makeCassandraGrantee}},
+			}},
+		},
+		{
 			name: "oracle", driver: "oracle", env: "DBMETA_ORACLE",
 			open: openOracle, build: setupOracle, schema: orfixture.Everything.Schema,
 			scenes: []parityScene{{
@@ -194,6 +210,10 @@ func TestPrivilegeParity(t *testing.T) {
 							// in privilege, which it is not.
 							baseline := parityRun(t, sceneDB, m, target.schema)
 							got := parityReport(baseline, parityRun(t, db, m, target.schema))
+							asked := make(map[string]bool, len(baseline))
+							for name := range baseline {
+								asked[name] = true
+							}
 							section := parityName(target.name, m) +
 								"/" + scene.name + "/" + who.name
 							ran++
@@ -207,7 +227,7 @@ func TestPrivilegeParity(t *testing.T) {
 									" Run go test -update and read the diff.",
 									section, parityGolden)
 							}
-							compareReport(t, section, expected, got)
+							compareParity(t, section, expected, got, asked)
 						})
 					}
 				})
@@ -219,6 +239,14 @@ func TestPrivilegeParity(t *testing.T) {
 	}
 }
 
+// parityFlavors names the dialects that more than one product speaks, and
+// the product keys to look for.
+//
+// Only these are looked up. Cassandra records a version under cql and another
+// under protocol, and neither is a product: reading any key here would file
+// its answers under cql.
+var parityFlavors = map[string][]string{"mysql": {"mariadb", "mysql"}}
+
 // parityName is the database the section is recorded under.
 //
 // It is the product rather than the dialect. MariaDB and MySQL share a
@@ -226,8 +254,8 @@ func TestPrivilegeParity(t *testing.T) {
 // was removed in MySQL 8.0 and MariaDB still has it, so one file cannot hold
 // one answer for both.
 func parityName(dialect string, m *dbmeta.Meta) string {
-	for _, key := range m.Version().Keys() {
-		if key != "" && key != dialect {
+	for _, key := range parityFlavors[dialect] {
+		if m.Version().Has(key) {
 			return key
 		}
 	}
@@ -356,6 +384,36 @@ func firstLine(s string) string {
 
 // clientHost matches the host half of a MySQL user name.
 var clientHost = regexp.MustCompile(`@'[^']*'`)
+
+// compareParity is compareReport, ignoring the expectation's lines for a query
+// this server never answered.
+//
+// A query can be gated on a release. Cassandra's settings reads system_views,
+// which arrived in 4.0, and PostgreSQL's publications arrived in 10. On an
+// older server the query is not asked at all, so it can neither agree nor
+// differ, and an expectation written from a newer one names it. Holding that
+// against the older server would make the file release specific, which is the
+// thing the format is built to avoid.
+//
+// A line for a query that was asked is compared as usual, in both directions.
+func compareParity(t *testing.T, name string, want, got []string, asked map[string]bool) {
+	t.Helper()
+	kept := make([]string, 0, len(want))
+	var skipped []string
+	for _, l := range want {
+		q, _, _ := strings.Cut(l, " ")
+		if !asked[q] {
+			skipped = append(skipped, q)
+			continue
+		}
+		kept = append(kept, l)
+	}
+	if len(skipped) != 0 {
+		t.Logf("%s: not asked on this release, so not compared: %s",
+			name, strings.Join(skipped, ", "))
+	}
+	compareReport(t, name, kept, got)
+}
 
 // parityReport returns one line per query that answered differently.
 func parityReport(admin, other map[string]parityAnswer) []string {

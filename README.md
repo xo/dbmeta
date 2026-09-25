@@ -143,7 +143,7 @@ call and filter in the loop.
 | DuckDB     | native             | 20      | Complete    |
 | SQL Server | native             | 32      | Complete    |
 | Oracle     | native             | 25      | In progress |
-| Cassandra  | native, planned    | 0       | Not started |
+| Cassandra  | native             | 17      | In progress |
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
@@ -151,8 +151,11 @@ It answers 12 object kinds where the native PostgreSQL model answers 55, and
 answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
-Cassandra has no `information_schema` at all and needs a native model, as
-SQLite, DuckDB and Oracle did. `usql` builds on the shared reader today for
+Cassandra has no `information_schema` at all and has a native model for the
+same reason SQLite, DuckDB and Oracle do. It is the only one here that is not
+SQL, and CQL is narrower than the name suggests: it cannot compute, it cannot
+express an optional filter, and it cannot order across partitions. D62 holds
+what follows from that. `usql` builds on the shared reader today for
 Snowflake, Trino, Databend and Netezza, which is the evidence for who the
 shared model serves.
 
@@ -258,7 +261,7 @@ Everything else is in [`docs/`](docs/):
 
 | Document | What it holds |
 | --- | --- |
-| [`PLAN.md`](docs/PLAN.md) | Every decision, 61 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because six amend or replace an earlier one. |
+| [`PLAN.md`](docs/PLAN.md) | Every decision, 62 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because six amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
