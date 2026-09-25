@@ -237,6 +237,26 @@ func registerColumnStats() {
 // A connection that named no database reports nothing, which is a fact: an
 // unqualified name resolves nowhere until a USE statement runs.
 func registerCurrentSchema() {
+	// CURRENT_USER() is the account the grant tables matched, which is what
+	// privileges are decided by. USER() is what the client supplied. They
+	// differ when a connection matches a wildcard host or the anonymous
+	// account, and both are reported as user@host.
+	dbmeta.CurrentUser.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.User]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: "SELECT CURRENT_USER() AS `name`"}},
+			{{SQL: ", USER() AS `session`"}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the account the grant tables matched, as user@host"},
+			{Name: "session", Desc: "the account the client supplied, as user@host"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
+			var v dbmeta.User
+			err := rows.Scan(&v.Name, &v.Session)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			{{SQL: `SELECT s.catalog_name AS "catalog"`}},

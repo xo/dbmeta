@@ -615,6 +615,26 @@ func registerStorage() {
 	registerForeign()
 	registerStats()
 
+	// The one product here where the two names always differ. A connection
+	// authenticates as a server login and acts as a database user, so sa acts
+	// as dbo. usql reads neither: it shows the login it connected with,
+	// because ALTER LOGIN is what it changes.
+	dbmeta.CurrentUser.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.User]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT CAST(CURRENT_USER AS nvarchar(128)) AS "name"`),
+			always(`, CAST(SUSER_NAME() AS nvarchar(128)) AS "session"`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the database user the session acts as"},
+			{Name: "session", Desc: "the server login the connection authenticated as"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
+			var v dbmeta.User
+			err := rows.Scan(&v.Name, &v.Session)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT DB_NAME() AS "catalog"`),

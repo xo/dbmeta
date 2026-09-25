@@ -30,7 +30,7 @@
 //
 // # What it answers
 //
-// Thirty one of the 54, which is second only to PostgreSQL. SQL Server is the
+// Thirty two of the 55, which is second only to PostgreSQL. SQL Server is the
 // only database here besides PostgreSQL with roles, privileges, tablespaces
 // and DDL triggers, and the only one with a catalog of comments rather than a
 // comment on each object.

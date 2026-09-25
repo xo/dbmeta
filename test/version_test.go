@@ -2,6 +2,7 @@ package test
 
 import (
 	"database/sql"
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
@@ -123,5 +124,57 @@ func TestMySQLAndMariaDBAreNamedApart(t *testing.T) {
 	}
 	if !strings.HasPrefix(got, want) {
 		t.Errorf("the server reported %q, so the line must begin %q, got %q", raw, want, got)
+	}
+}
+
+// TestCurrentUserNamesTheConnection checks the kind D55 moved here from usql.
+//
+// It is the one query besides CurrentSchema that describes the connection
+// rather than the database, and the one whose answer differs by who connected
+// rather than by what the server holds.
+func TestCurrentUserNamesTheConnection(t *testing.T) {
+	var ran int
+	for _, c := range displayShapes {
+		t.Run(c.name, func(t *testing.T) {
+			db := c.open(t)
+			m, err := dbmeta.New(c.dialect, dbmeta.VersionSet{})
+			if err != nil {
+				t.Fatalf("building the metadata: %v", err)
+			}
+			if dbmeta.CurrentUser.Support(m) != dbmeta.Supported {
+				// SQLite has no users and says so rather than inventing one.
+				if c.dialect != dbmeta.SQLite3 {
+					t.Fatalf("expected %s to answer the current user", c.dialect)
+				}
+				if _, _, err := dbmeta.CurrentUser.SQL(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
+					t.Errorf("expected ErrNotSupported, got %v", err)
+				}
+				return
+			}
+			ran++
+			user, ok, err := dbmeta.First(dbmeta.CurrentUser.All(t.Context(), m, db, nil))
+			if err != nil {
+				t.Fatalf("reading the current user: %v", err)
+			}
+			if !ok {
+				t.Fatal("expected one row: a connection always has a user")
+			}
+			if user.Name == "" {
+				t.Error("expected a user name, got an empty string")
+			}
+			// Absent is a fact here and empty is not. DuckDB has no session
+			// user and reports NULL, and every other product reports one.
+			if c.dialect == dbmeta.DuckDB {
+				if user.Session.Valid {
+					t.Errorf("DuckDB has no session user, got %q", user.Session.V)
+				}
+			} else if !user.Session.Valid || user.Session.V == "" {
+				t.Errorf("expected a session user, got %#v", user.Session)
+			}
+			t.Logf("name=%q session=%v", user.Name, user.Session)
+		})
+	}
+	if ran == 0 {
+		t.Skip("no database was reachable")
 	}
 }

@@ -287,6 +287,24 @@ func registerColumnStats() {
 // It is session dependent, which is why it is its own kind and not a field on
 // anything. current_schema is the first entry of search_path that exists.
 func registerCurrentSchema() {
+	// \conninfo. current_user is the effective user and changes with SET
+	// ROLE. session_user is who the connection authenticated as and does not.
+	dbmeta.CurrentUser.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.User]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT current_user AS "name"`}},
+			{{SQL: `, session_user AS "session"`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the effective user, which SET ROLE changes"},
+			{Name: "session", Desc: "the user the connection authenticated as"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
+			var v dbmeta.User
+			err := rows.Scan(&v.Name, &v.Session)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			{{SQL: `SELECT current_database() AS "catalog"`}},

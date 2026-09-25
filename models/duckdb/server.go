@@ -308,6 +308,26 @@ func registerSettings() {
 		},
 	})
 
+	// DuckDB has no users and answers the fixed name "duckdb". It is
+	// reported rather than refused, because the question is about the
+	// connection and the connection has an answer. There is no separate
+	// session user, so that column is NULL rather than a copy of the name.
+	dbmeta.CurrentUser.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.User]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT current_user AS "name"`}},
+			{{SQL: `, NULL AS "session"`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: `always "duckdb": the product has no users`},
+			{Name: "session", Desc: "always null: DuckDB has no separate session user"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
+			var v dbmeta.User
+			err := rows.Scan(&v.Name, &v.Session)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT current_database() AS "catalog"`),

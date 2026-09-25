@@ -182,9 +182,9 @@ func TestOnlyTheGatedQueriesDependOnTheRelease(t *testing.T) {
 			t.Errorf("%s builds on SQL Server 2008 R2 and not on 2025", name)
 		}
 	}
-	// 31 of the 54, which is the number docs/COVERAGE.md and the package
+	// 32 of the 55, which is the number docs/COVERAGE.md and the package
 	// comment both quote. It is here so that changing it is deliberate.
-	if want := 31; len(newest) != want {
+	if want := 32; len(newest) != want {
 		t.Errorf("expected %d queries on SQL Server 2025, got %d", want, len(newest))
 	}
 }

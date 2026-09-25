@@ -1,15 +1,16 @@
 # What Each Database Can Answer
 
-`dbmeta` asks every database the same 54 questions. PostgreSQL answers all of
+`dbmeta` asks every database the same 55 questions. PostgreSQL answers all of
 them, because PostgreSQL is the model. No other database answers all of them,
 and this document says which ones each database answers, which ones it cannot,
 and why.
 
-Forty eight of the questions come from `psql`. The other six exist because a
+Forty eight of the questions come from `psql`. The other seven exist because a
 consumer needs them and `psql` has no command for them: the columns of a
 constraint, the parameters of a routine, the labels of an enumerated type, the
-statement a view selects, the statistics over a column, and the schema an
-unqualified name resolves in. D47 sets the rule for adding one.
+statement a view selects, the statistics over a column, the schema an
+unqualified name resolves in, and the user the connection is authenticated as.
+D47 sets the rule for adding one, and D55 added the last.
 
 A question that a database cannot answer returns `dbmeta.ErrNotSupported`. It
 never returns an empty result. Those are different facts and a caller has to be
@@ -23,12 +24,12 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 
 | Model | Answers | Of | Tested against |
 | --- | --- | --- | --- |
-| `models/postgres` | 54 | 54 | PostgreSQL 9.6 through 18 |
-| `models/mysql` | 28 on MariaDB, 25 on MySQL | 54 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
-| `models/sqlite3` | 14 | 54 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
-| `models/duckdb` | 19 | 54 | duckdb/duckdb-go, the driver usql uses |
-| `models/sqlserver` | 31 | 54 | SQL Server 2017, 2019, 2022 and 2025 |
-| `models/informationschema` | 11 | 54 | any database with a standard `information_schema` |
+| `models/postgres` | 55 | 55 | PostgreSQL 9.6 through 18 |
+| `models/mysql` | 29 on MariaDB, 26 on MySQL | 55 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
+| `models/sqlite3` | 14 | 55 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
+| `models/duckdb` | 20 | 55 | duckdb/duckdb-go, the driver usql uses |
+| `models/sqlserver` | 32 | 55 | SQL Server 2017, 2019, 2022 and 2025 |
+| `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
 functions, privileges, constraints, sequences, constraint columns, routine
@@ -46,7 +47,7 @@ is true of both. Where they differ, the model gates on the product rather than
 on the release number, because MariaDB is at 11.8 and MySQL at 9 and neither
 number says anything about the other. See D44.
 
-MariaDB answers 28 of the 54 and MySQL answers 25. The three MySQL cannot
+MariaDB answers 29 of the 55 and MySQL answers 26. The three MySQL cannot
 answer are sequences, which it has never had, aggregates, which it has no form
 of and whose catalog table it dropped in 8.0, and column statistics, below.
 
@@ -197,7 +198,7 @@ them into one string.
 
 ## SQLite
 
-SQLite answers 14 of the 54. It is the smallest native model here and it still
+SQLite answers 14 of the 55. It is the smallest native model here and it still
 beats the shared `information_schema` one, which SQLite does not have at all.
 
 It is also the only database here with no server. SQLite is a library, so the
@@ -338,26 +339,33 @@ references. A type spelling, a rendered default and a rendered definition are
 per product and are dropped, and `test/canonical.go` records every one with the
 reason.
 
-## The six kinds psql has no command for
+## The seven kinds psql has no command for
 
 These exist because a consumer measured in D46 needs them. D47 allows them:
 `psql` sets the object model and does not set the column set, and `psql`
 renders a constraint and a routine signature as text because a person is
 reading them.
 
-| Question | PostgreSQL | MariaDB | MySQL | SQLite | information_schema |
-| --- | --- | --- | --- | --- | --- |
-| `ConstraintColumns` | yes | yes | yes | yes | yes |
-| `RoutineParameters` | yes | yes | yes | no | yes |
-| `Views` | yes | yes | yes | yes | yes |
-| `CurrentSchema` | yes | yes | yes | yes | yes |
-| `EnumValues` | yes | no | no | no | no |
-| `ColumnStats` | yes | yes | no | no | no |
+| Question | PostgreSQL | MariaDB | MySQL | SQLite | DuckDB | SQL Server | information_schema |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `ConstraintColumns` | yes | yes | yes | yes | yes | yes | yes |
+| `RoutineParameters` | yes | yes | yes | no | yes | yes | yes |
+| `Views` | yes | yes | yes | yes | yes | yes | yes |
+| `CurrentSchema` | yes | yes | yes | yes | yes | yes | yes |
+| `CurrentUser` | yes | yes | yes | no | yes | yes | yes |
+| `EnumValues` | yes | no | no | no | yes | no | no |
+| `ColumnStats` | yes | yes | no | no | no | yes | no |
 
-Four of the six are answered by every model, because the SQL standard defines
+Four of the seven are answered by every model, because the SQL standard defines
 `key_column_usage`, `parameters`, `views` and `schemata` and every database
 here has them. That was not the expectation: the two the consumers wanted most
 turned out to be the two the standard already had.
+
+`CurrentUser` is answered by every model but SQLite, which has no users. It is
+the one question here that reads no catalog at all on the shared model, because
+`CURRENT_USER` is a standard SQL expression rather than a view. It came from
+auditing `usql` for database specific SQL outside its metadata readers, which
+found it and found exactly one other thing. See D55.
 
 ### Where each one comes from
 
@@ -416,7 +424,7 @@ caller writes one join for every database.
 
 ## DuckDB
 
-DuckDB answers 19 of the 54, which is second only to PostgreSQL. Its catalog is
+DuckDB answers 20 of the 55, which is second only to PostgreSQL. Its catalog is
 unusually complete for an embedded database: comments on most objects, real
 enumerated types, sequences with their bounds, and a constraint catalog that
 names both the columns of a key and the columns they reference.
@@ -528,7 +536,7 @@ replication.
 
 ## Microsoft SQL Server
 
-SQL Server answers 31 of the 54, which is more than any database here except
+SQL Server answers 32 of the 55, which is more than any database here except
 PostgreSQL. It is the only one besides PostgreSQL with roles, privileges,
 tablespaces and DDL triggers, and the only one that keeps comments in a catalog
 of their own rather than on the object.

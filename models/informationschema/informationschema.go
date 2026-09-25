@@ -17,7 +17,7 @@
 //	}
 //
 // D9 makes this the secondary model. Prefer a native model where one exists,
-// because information_schema answers 11 of the 54 object kinds that psql
+// because information_schema answers 12 of the 55 object kinds that psql
 // describes and answers none of them completely. It has no size, owner or
 // access method for a table, no storage or index detail for a column, no
 // exclusion constraint, and no aggregate or window function. It is what a
@@ -144,6 +144,13 @@ const (
 	// CurrentSchema is the expression giving the schema in use. MySQL has no
 	// schema separate from the database, so it uses DATABASE().
 	CurrentSchema Clause = "current_schema"
+	// CurrentUser is the expression giving the effective user. The standard
+	// spells it CURRENT_USER and every database here accepts that.
+	CurrentUser Clause = "current_user"
+	// SessionUser is the expression giving the user the connection
+	// authenticated as. A database that does not separate the two overrides
+	// it with NULL.
+	SessionUser Clause = "session_user"
 	// ColumnPrimaryKey is whether a column is part of the primary key. The
 	// standard has no such column, so the default reaches key_column_usage,
 	// which is one more subquery. MySQL has column_key and overrides it with
@@ -162,6 +169,8 @@ func standardClauses() map[Clause]string {
 		ConstraintDeferred:   "t.initially_deferred",
 		PrivilegeGrantor:     "p.grantor",
 		CurrentSchema:        "CURRENT_SCHEMA",
+		CurrentUser:          "CURRENT_USER",
+		SessionUser:          "SESSION_USER",
 		ColumnPrimaryKey: `EXISTS (SELECT 1 FROM information_schema.key_column_usage k` +
 			` JOIN information_schema.table_constraints tc` +
 			` ON tc.constraint_catalog = k.constraint_catalog` +
@@ -266,6 +275,7 @@ func Register(d dbmeta.Dialect, p Profile) {
 		dbmeta.Views.Register(d, views(p))
 	}
 	dbmeta.CurrentSchema.Register(d, currentSchema(p))
+	dbmeta.CurrentUser.Register(d, currentUser(p))
 }
 
 // schemas reads information_schema.schemata.
@@ -657,6 +667,30 @@ func views(p Profile) *dbmeta.Binding[dbmeta.View] {
 			var v dbmeta.View
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Definition,
 				&v.CheckOption, &v.Updatable, &v.Insertable, &v.Comment)
+			return v, err
+		},
+	}
+}
+
+// currentUser reads who the connection is authenticated as.
+//
+// There is no information_schema view for this and there does not need to be:
+// CURRENT_USER and SESSION_USER are standard SQL expressions, so this is the
+// one binding here that reads no view at all. It raises the shared model by
+// one kind for two lines of standard SQL. See D55.
+func currentUser(p Profile) *dbmeta.Binding[dbmeta.User] {
+	return &dbmeta.Binding[dbmeta.User]{
+		Stmt: dbmeta.Stmt{
+			{{SQL: `SELECT ` + p.clause(CurrentUser) + ` AS "name"`}},
+			{{SQL: `, ` + p.clause(SessionUser) + ` AS "session"`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the effective user"},
+			{Name: "session", Desc: "the user the connection authenticated as"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
+			var v dbmeta.User
+			err := rows.Scan(&v.Name, &v.Session)
 			return v, err
 		},
 	}

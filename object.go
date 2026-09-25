@@ -373,6 +373,24 @@ type ForeignServer struct {
 	Comment sql.Null[string]
 }
 
+// User is who a connection is authenticated as.
+//
+// Most products answer two names rather than one. The effective user is who
+// the session acts as now, and the session user is who it authenticated as.
+// They differ after SET ROLE on PostgreSQL, and on SQL Server they are always
+// two different things: a connection authenticates as a server login and acts
+// as a database user, so sa acts as dbo.
+//
+// Both come from one statement on every product that has them, so both are
+// reported. See D47.
+type User struct {
+	// Name is the effective user, which is what a client shows.
+	Name string
+	// Session is who the connection authenticated as, and is absent on a
+	// product that does not separate the two.
+	Session sql.Null[string]
+}
+
 // UserMapping maps a local role onto a foreign server. psql lists them with
 // \deu.
 type UserMapping struct {
@@ -808,4 +826,14 @@ var (
 	// that describes the connection rather than the database. A caller reads
 	// it with [First].
 	CurrentSchema = NewQuery[Schema]("current_schema")
+	// CurrentUser returns who the connection is authenticated as.
+	//
+	// Like [CurrentSchema] it is session dependent, answers one row and
+	// describes the connection rather than the database. A caller reads it
+	// with [First].
+	//
+	// It is here because it is database specific SQL that a client otherwise
+	// carries itself: usql writes SELECT current_user for most products and
+	// SELECT user FROM dual for Oracle. See D55.
+	CurrentUser = NewQuery[User]("current_user")
 )

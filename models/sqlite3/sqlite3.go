@@ -33,7 +33,7 @@
 //
 // # What it answers, and the one thing it half answers
 //
-// Fourteen of the 54 object kinds, which is three more than the shared
+// Fourteen of the 55 object kinds, which is two more than the shared
 // information_schema model. SQLite has no users, no roles and no grants at
 // all, and it has no type catalog, because a declared type is an unenforced
 // affinity hint rather than an object.
