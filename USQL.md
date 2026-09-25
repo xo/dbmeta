@@ -164,7 +164,8 @@ func (r *reader) Tables(f metadata.Filter) (*metadata.TableSet, error) {
 }
 ```
 
-`dbmeta.Args` is already the same four filters `metadata.Filter` carries.
+`dbmeta.Args` is already the same four filters `metadata.Filter` carries, and
+`dbmeta.Querier` is one method, so whatever `usql` already holds satisfies it.
 
 Two things the writer gets for free. `Query.Support(m)` says whether a database
 can answer at all, so `usql` can tell "this database has no such object" from

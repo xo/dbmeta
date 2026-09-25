@@ -277,9 +277,8 @@ func TestConstraintColumnsKeepOrder(t *testing.T) {
 	ctx := t.Context()
 
 	// Keyed by table and constraint, not by constraint alone. A constraint
-	// name is unique within a table and not within a schema, and release 18
-	// makes that visible: it records a NOT NULL constraint in pg_constraint,
-	// and a partition carries its parent's constraint names.
+	// name is unique within a table and not within a schema, and a partition
+	// carries its parent's constraint names.
 	type ref struct{ col, ftable, fcol string }
 	got := make(map[string][]ref)
 	for v, err := range dbmeta.ConstraintColumns.All(ctx, m, db, args()) {
@@ -533,4 +532,97 @@ func TestPrimaryKeyOnColumn(t *testing.T) {
 			t.Errorf("%s: expected primary_key=%v, got %v", key, want, got)
 		}
 	}
+}
+
+// TestNotNullIsNotAConstraintRow holds the decision in D49. PostgreSQL 18
+// records a NOT NULL constraint in pg_constraint and every earlier release
+// records it only on the column, so reporting it would make the same schema
+// answer differently on two servers for a reason that has nothing to do with
+// what either can do.
+//
+// The padding rule does not catch this. It governs the column set and says
+// nothing about rows, and this is the case that found the gap.
+func TestNotNullIsNotAConstraintRow(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+	ctx := t.Context()
+
+	// the fixture declares NOT NULL on author.name and on several others, so
+	// release 18 has rows here to leave out
+	for v, err := range dbmeta.Constraints.All(ctx, m, db, args()) {
+		if err != nil {
+			t.Fatalf("reading constraints: %v", err)
+		}
+		if v.Type == "not null" || v.Type == "n" {
+			t.Errorf("expected no NOT NULL constraint row, got %s.%s", v.Table, v.Name)
+		}
+		if strings.HasSuffix(v.Name, "_not_null") {
+			t.Errorf("expected no NOT NULL constraint row, got %s.%s", v.Table, v.Name)
+		}
+	}
+	for v, err := range dbmeta.ConstraintColumns.All(ctx, m, db, args()) {
+		if err != nil {
+			t.Fatalf("reading constraint columns: %v", err)
+		}
+		if strings.HasSuffix(v.Constraint, "_not_null") {
+			t.Errorf("expected no NOT NULL constraint column, got %s.%s", v.Table, v.Constraint)
+		}
+	}
+
+	// the fact is still reported, on the column, where it is filled on every
+	// release
+	nullable := make(map[string]bool)
+	for v, err := range dbmeta.Columns.All(ctx, m, db, args()) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		nullable[v.Table+"."+v.Name] = v.Nullable
+	}
+	if got, ok := nullable["author.name"]; !ok {
+		t.Error("expected the author.name column")
+	} else if got {
+		t.Error("expected author.name to be NOT NULL")
+	}
+	if got, ok := nullable["author.rating"]; !ok {
+		t.Error("expected the author.rating column")
+	} else if !got {
+		t.Error("expected author.rating to be nullable")
+	}
+}
+
+// TestQuerierIsOneMethod holds the other half of D49. The interface is the
+// whole of what dbmeta asks a database to do, and a type with only
+// QueryContext has to be enough.
+func TestQuerierIsOneMethod(t *testing.T) {
+	db := open(t)
+	m := setup(t, db)
+
+	// onlyQuery has one method and nothing else, so this fails to compile if
+	// anything in dbmeta reaches for Exec, Prepare or QueryRow.
+	var q dbmeta.Querier = onlyQuery{db}
+
+	versions, err := dbmeta.PostgreSQL.Version(t.Context(), q)
+	if err != nil {
+		t.Fatalf("reading the version through one method: %v", err)
+	}
+	if versions.Main().IsZero() {
+		t.Error("expected a version")
+	}
+	var n int
+	for _, err := range dbmeta.Tables.All(t.Context(), m, q, args()) {
+		if err != nil {
+			t.Fatalf("reading tables through one method: %v", err)
+		}
+		n++
+	}
+	if n == 0 {
+		t.Error("expected the fixture relations")
+	}
+}
+
+// onlyQuery exposes QueryContext and nothing else.
+type onlyQuery struct{ db *sql.DB }
+
+func (o onlyQuery) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return o.db.QueryContext(ctx, query, args...)
 }

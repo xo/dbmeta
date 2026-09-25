@@ -60,6 +60,17 @@ import (
 )
 ```
 
+`dbmeta` asks a database to do one thing, and says so in the type system:
+
+```go
+type Querier interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+```
+
+`sql.DB`, `sql.Tx` and `sql.Conn` all satisfy it. Pass a `sql.Tx` to read
+several catalogs in one snapshot.
+
 Open a connection, read the version, then ask:
 
 ```go
@@ -247,9 +258,9 @@ cd test && ./run.sh mariadb-13.0
 tests and removes the container. CI repeats the same list in YAML, and
 `container/workflow_test.go` fails when the two disagree.
 
-[`REVIEW.md`](REVIEW.md) holds the questions that are settled in argument and
-not in code. Both change exported API and both are cheap to decide before the
-first tag.
+[`REVIEW.md`](REVIEW.md) holds the argument behind two decisions that changed
+exported API before the first tag: why the database interface has one method,
+and why a NOT NULL constraint is never reported as a constraint row.
 
 The full record is in [`PLAN.md`](PLAN.md), which holds every decision and the
 evidence behind it. [`QUERIES.md`](QUERIES.md) surveys what `psql` and

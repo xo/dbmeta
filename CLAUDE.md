@@ -11,8 +11,9 @@ Read `NULLS.md` and `PLAN.md` before you change anything. `PLAN.md` records the
 architecture, the decisions, the known defects, and the questions that nobody
 has answered yet. Do not decide an open question on your own. Ask Ken.
 
-`REVIEW.md` holds two open questions that change exported API. Do not decide
-either one. Both are waiting on Ken.
+`REVIEW.md` holds the argument behind two decisions that changed exported API,
+both taken in D49. Read it before undoing either: the reasoning is the part
+that is easy to lose.
 
 The other documents: `COMMANDS.md` maps every `psql` metadata command to the Go
 value that answers it. `COVERAGE.md` says what each database can and cannot
@@ -132,8 +133,8 @@ both consumers need.
 ## Layout
 
 - `/` is the root package `dbmeta`. It holds the driver agnostic API: the
-  common types, the reader interfaces, the `Filter` type, and the error values.
-  External projects use this package.
+  object types, the `Query` values, the one method `Querier` interface, the
+  `Args` filter, and the error values. External projects use this package.
 - `models/<driver>` holds the code that `dbtpl` generates for one driver. One
   package covers every supported version of that database. For example,
   `models/sqlite3`. Do not edit generated files. Change the SQL and generate

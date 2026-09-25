@@ -2,6 +2,7 @@ package dbmeta
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync"
 )
@@ -131,7 +132,7 @@ func (d Dialect) ParseVersion(cols []string) (VersionSet, error) {
 //
 // A database that reports no version returns an unknown version and no error.
 // An unknown version selects the newest fragment of every piece.
-func (d Dialect) Version(ctx context.Context, db DB) (VersionSet, error) {
+func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
 	sqlstr, n, ok := d.VersionQuery()
 	if !ok {
 		if _, built := d.Info(); !built {
@@ -139,12 +140,31 @@ func (d Dialect) Version(ctx context.Context, db DB) (VersionSet, error) {
 		}
 		return VersionSet{Display: "unknown"}, nil
 	}
+	// QueryContext rather than QueryRowContext, so that Querier needs one
+	// method. The cost is closing the rows by hand, which is four lines.
+	rows, err := db.QueryContext(ctx, sqlstr)
+	if err != nil {
+		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+	}
+	defer rows.Close()
 	cols := make([]string, n)
 	dest := make([]any, n)
 	for i := range cols {
 		dest[i] = &cols[i]
 	}
-	if err := db.QueryRowContext(ctx, sqlstr).Scan(dest...); err != nil {
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+		}
+		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, sql.ErrNoRows)
+	}
+	if err := rows.Scan(dest...); err != nil {
+		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+	}
+	if err := rows.Err(); err != nil {
+		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+	}
+	if err := rows.Close(); err != nil {
 		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
 	}
 	return d.ParseVersion(cols)

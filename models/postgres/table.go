@@ -96,12 +96,9 @@ func registerConstraints() {
 			{{SQL: `SELECT n.nspname AS "schema"`}},
 			{{SQL: `, t.relname AS "table"`}},
 			{{SQL: `, r.conname AS "name"`}},
-			// n is a NOT NULL constraint, which release 18 records here and
-			// earlier releases record on the column instead.
 			{{SQL: `, CASE r.contype WHEN 'c' THEN 'check' WHEN 'f' THEN 'foreign key'` +
 				` WHEN 'p' THEN 'primary key' WHEN 'u' THEN 'unique' WHEN 't' THEN 'trigger'` +
-				` WHEN 'x' THEN 'exclusion' WHEN 'n' THEN 'not null'` +
-				` ELSE r.contype::text END AS "type"`}},
+				` WHEN 'x' THEN 'exclusion' ELSE r.contype::text END AS "type"`}},
 			{{SQL: `, pg_catalog.pg_get_constraintdef(r.oid, true) AS "definition"`}},
 			{{SQL: `, r.condeferrable AS "deferrable"`}},
 			{{SQL: `, r.condeferred AS "deferred"`}},
@@ -110,6 +107,12 @@ func registerConstraints() {
 			{{SQL: `JOIN pg_catalog.pg_class t ON t.oid = r.conrelid`}},
 			{{SQL: `JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace`}},
 			{{SQL: `WHERE r.conrelid <> 0`}},
+			// contype n is a NOT NULL constraint, which release 18 records
+			// here and every earlier release records only on the column. It
+			// is left out on every release, so that the same schema answers
+			// the same way whatever the server is. Column.Nullable is where a
+			// caller reads it, and it is filled everywhere. See D49.
+			{{SQL: `AND r.contype <> 'n'`}},
 			{{SQL: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{SQL: `AND (@parent = '' OR t.relname LIKE @parent)`}},

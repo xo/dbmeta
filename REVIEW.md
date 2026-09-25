@@ -1,8 +1,10 @@
-# Open Questions, With the Reviews
+# Two Questions, and the Reviews Behind Them
 
-Two questions are settled in argument and not in code. Both would change the
-API, both are cheap now and expensive after a tagged release, and neither is
-decided until Ken decides it.
+Both are decided and both are implemented. D49 records what was taken. This
+keeps the argument, because the reasoning is what stops either decision being
+undone by someone who sees only the result.
+
+Status: accepted in full, both of them, exactly as the reviews recommended.
 
 Gemini and DeepSeek were asked both, independently, and agreed on every point.
 Where the answers here are unanimous that is said, because unanimity between
@@ -10,7 +12,7 @@ two models that disagree freely elsewhere is worth something.
 
 ## 1. The DB interface: narrow it, and give up on mocking without a driver
 
-### What is there now
+### What was there
 
 ```go
 type DB interface {
@@ -88,10 +90,18 @@ interface. One method says, in the type system, that this library reads and
 does nothing else. A reader does not have to grep for `ExecContext` to find out
 whether it writes.
 
-### The cost of deciding late
+### What shipped
 
-Small now and unbounded later. `DB` is exported and named in the signature of
-`Query.All`, so renaming it after a tag is a breaking change for every caller.
+```go
+type Querier interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+```
+
+`Dialect.Version` reads its one row through `QueryContext`, so the interface
+needs no second method. `TestQuerierIsOneMethod` passes a type that has only
+that method, so the whole library is checked against the contract rather than
+trusted to it.
 
 ## 2. NOT NULL as a constraint row: filter it out
 
@@ -147,9 +157,13 @@ field on `Column` holding the constraint name where the release has one and
 absent where it does not. That is the padding rule doing its job, and it is a
 decision rather than a translation.
 
-### What to change
+### What shipped
 
-One line in `models/postgres/table.go`: remove the `WHEN 'n' THEN 'not null'`
-branch added in the same commit that found this, and add `AND r.contype <> 'n'`
-to the WHERE clause. Then a test asserting no `not null` row on 18, so the
-choice stays a decision.
+`AND r.contype <> 'n'` in `Constraints` and in `ConstraintColumns`, which had
+the same leak. `TestNotNullIsNotAConstraintRow` asserts no such row appears and
+that `Column.Nullable` still carries the fact, and it runs on all ten releases,
+so it fails on 18 alone if the filter is removed.
+
+D49 also records the rule this found: the padding rule governs the column set
+and said nothing about rows, and a release that starts recording an existing
+fact as a catalog row leaks past it.

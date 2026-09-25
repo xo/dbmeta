@@ -52,6 +52,11 @@ func registerConstraintColumns() {
 			{{SQL: `LEFT JOIN pg_catalog.pg_attribute fa ON fa.attrelid = r.confrelid` +
 				` AND fa.attnum = r.confkey[k.ordinality]`}},
 			{{SQL: `WHERE r.conrelid <> 0`}},
+			// Left out for the reason Constraints leaves it out: release 18
+			// records a NOT NULL here and no earlier release does, so
+			// reporting it would make the same schema answer differently on
+			// two servers. See D49.
+			{{SQL: `AND r.contype <> 'n'`}},
 			{{SQL: `AND ` + notSystemSchema}},
 			{{SQL: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{SQL: `AND (@parent = '' OR t.relname LIKE @parent)`}},

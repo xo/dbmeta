@@ -29,7 +29,7 @@
 //
 // dbmeta does not open a connection, does not import a database driver, and
 // does not detect anything. The caller opens the connection, names the
-// dialect, and supplies the version. Any type that satisfies [DB] works, which
+// dialect, and supplies the version. Any type that satisfies [Querier] works, which
 // includes [database/sql.DB] and [database/sql.Tx]. Pass a transaction to read
 // more than one catalog in one snapshot.
 //

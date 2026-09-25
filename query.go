@@ -396,7 +396,7 @@ func (q *Query[T]) SQL(m *Meta, args map[string]any) (string, []any, error) {
 // cancelling ctx. Do not open a second iterator inside the body of the first:
 // that needs a second connection and deadlocks on a pool of one. Ask for every
 // row you want in one call and filter in the loop.
-func (q *Query[T]) All(ctx context.Context, m *Meta, db DB, args map[string]any) iter.Seq2[T, error] {
+func (q *Query[T]) All(ctx context.Context, m *Meta, db Querier, args map[string]any) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var zero T
 		s, vals, err := q.SQL(m, args)
