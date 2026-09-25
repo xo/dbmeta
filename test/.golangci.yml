@@ -72,8 +72,13 @@ linters:
     # the mistake this is here to stop, and the root configuration refuses it
     # from the other side.
     #
-    # mattn/go-sqlite3 needs cgo, which this module may use and the root
-    # module may not. The separate go.mod is what makes that safe. See D48.
+    # mattn/go-sqlite3 and duckdb/duckdb-go need cgo, which this module may
+    # use and the root module may not. The separate go.mod is what makes that
+    # safe. See D48.
+    #
+    # Every driver here is the one usql uses for the same database, which D52
+    # requires. Check usql before adding one: its drivers are marked with a
+    # // DRIVER comment on the import.
     depguard:
       rules:
         main:
@@ -82,6 +87,7 @@ linters:
             - $gostd
             - github.com/xo/dbmeta
             - github.com/go-sql-driver/mysql
+            - github.com/duckdb/duckdb-go
             - github.com/mattn/go-sqlite3
             - modernc.org/sqlite
             - github.com/jackc/pgx

@@ -22,7 +22,7 @@ Then by what you are doing:
 | writing or changing any query | `docs/NULLS.md`, then `docs/COVERAGE.md` |
 | asking why something is the way it is | the table at the top of `docs/PLAN.md` |
 | adding an object kind | D46 and D47 in `docs/PLAN.md`, then `docs/COMMANDS.md` |
-| adding a database | `docs/EVALUATION.md` for the version range, D43 for the rule about asking other models |
+| adding a database | `docs/EVALUATION.md` for the version range, D43 for the rule about asking other models, D52 for which driver to test with |
 | changing what a database answers | `docs/COVERAGE.md`, which is the record of what each one can do |
 | deciding whether a field belongs here | D47 in `docs/PLAN.md`, which holds the cost test |
 | wiring up a client | `docs/COMMANDS.md`, then `docs/USQL.md` or `docs/DBTPL.md` |
@@ -107,10 +107,13 @@ something is written down, it is not written down, and it is an open question.
    ship different library versions. Two drivers need cgo today, and only two:
    `mattn/go-sqlite3`, which builds the real SQLite source and is the primary
    SQLite driver, and the coming DuckDB driver.
-   Use the pure Go driver where one is enough: `jackc/pgx` or `lib/pq`,
-   `go-sql-driver/mysql`, `modernc.org/sqlite`, `microsoft/go-mssqldb`,
-   `sijms/go-ora`, `gocql/gocql`. Never `godror`, which needs Oracle client
-   libraries rather than only a C compiler. See D48.
+   Never `godror`, which needs Oracle client libraries rather than only a C
+   compiler. See D48.
+   Every driver in the `test` module is the one `usql` uses for that database.
+   The version may differ and the package may not. `usql` marks them, so
+   `grep -rn "// DRIVER" usql` is the list, and it is the first thing to check
+   before adding a driver or a dialect. A query that works here and fails on
+   the driver `usql` ships is a query that does not work. See D52.
 11. Never write a `//go:build` constraint on an operating system or an
    architecture, and never branch on either. Testing is `linux/amd64` only.
    The same database version is assumed to answer the same way everywhere.

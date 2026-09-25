@@ -19,10 +19,10 @@
 # the window between the release it claims and the release that is true, and
 # that window cannot be predicted.
 #
-# SQLite has no job of its own with a service container, because it has no
-# server: it is a library, and the version is whichever one the pinned driver
-# ships. Its tests run in the sqlite job, which starts nothing, and they run
-# against both drivers. See D42 and D48.
+# SQLite and DuckDB have no service container, because neither has a server:
+# both are libraries, and the version is whichever one the pinned driver ships.
+# They run in the embedded job, which starts nothing. SQLite runs against both
+# of its drivers. See D42 and D48.
 #
 # MariaDB and MySQL are two products sharing one dialect and one model, so each
 # has its own job and a third compares them. The compare job builds the same
@@ -152,8 +152,8 @@ jobs:
           DBMETA_POSTGRES: postgres://postgres:P4ssw0rd@localhost:5432/postgres?sslmode=disable
         run: go test -count=1 -v ./...
 
-  sqlite:
-    name: SQLite
+  embedded:
+    name: SQLite and DuckDB
     # No service container. SQLite is a library, so the release under test is
     # whichever one modernc.org/sqlite ships, and there is nothing to start.
     # The test still lives in the test module, because it needs that driver
@@ -176,6 +176,13 @@ jobs:
         # translation. ubuntu-latest has the C compiler the first one needs.
         working-directory: test
         run: go test -count=1 -v -run SQLite ./...
+
+      - name: Test against DuckDB
+        # The other embedded database, and the other one needing cgo. Its
+        # driver ships a prebuilt static library per platform, so there is
+        # nothing to install beyond the compiler. See D48.
+        working-directory: test
+        run: go test -count=1 -v -run DuckDB ./...
 
   mariadb:
     name: MariaDB ${{ matrix.mariadb }}

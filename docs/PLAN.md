@@ -115,6 +115,7 @@ records the argument.
 | [D49](#d49-one-method-on-the-interface-and-a-not-null-is-not-a-constraint-row-decided) | One method on the interface, and a NOT NULL is not a constraint row | Decided |
 | [D50](#d50-documentation-lives-in-docs-and-the-decision-log-stays-one-file-decided) | Documentation lives in docs, and the decision log stays one file | Decided |
 | [D51](#d51-there-is-no-alias-for-a-nullable-type-decided) | There is no alias for a nullable type | Decided |
+| [D52](#d52-a-test-driver-is-the-one-usql-uses-or-it-is-the-wrong-driver-decided) | A test driver is the one usql uses, or it is the wrong driver | Decided |
 
 ## Decisions
 
@@ -3024,6 +3025,70 @@ type alias. Deleting the alias fixed that as a side effect.
 binding names the struct field rather than the type. It was mechanical, and it
 was cheap only because no release is tagged: `Text` was exported.
 
+### D52. A test driver is the one usql uses, or it is the wrong driver. Decided.
+
+The `test` module imports, for each database, the same driver package `usql`
+imports for that database. Not the same version, which each module pins for
+itself, but the same package.
+
+`usql` marks them: every driver import carries a `// DRIVER` comment, and
+`grep -rn "// DRIVER" usql` is the list. Consult it before adding a driver, and
+again before adding a dialect.
+
+#### Why the package and not the version
+
+`dbmeta` exists to be read through `usql`. A query that works on the driver
+this repository tests and fails on the one `usql` ships is a query that does
+not work, and the failure surfaces in someone else's project.
+
+Drivers are not interchangeable. They differ in how they present a type, in
+what they do with a NULL, and in which protocol extensions they use, and those
+are exactly the things a metadata query touches. The NULL scan fault this
+project has hit twice is driver visible behaviour.
+
+The version is a different matter. Each module pins what it needs, and a
+consumer picks its own, which is hard rule 1 and does not change.
+
+#### What was wrong, and how it was found
+
+The DuckDB work was written against `github.com/marcboeker/go-duckdb/v2`,
+which is the widely known driver and is not the one `usql` uses. `usql` uses
+`github.com/duckdb/duckdb-go/v2`, the successor under the DuckDB organisation.
+Ken caught it before it was committed.
+
+The other four were already right, and that was luck rather than method:
+`go-sql-driver/mysql`, `jackc/pgx/v5/stdlib`, `mattn/go-sqlite3` and
+`modernc.org/sqlite` all match `usql`. This decision makes it method.
+
+#### The list, as it stands
+
+| Database | Driver | usql driver directory |
+| --- | --- | --- |
+| PostgreSQL | `github.com/jackc/pgx/v5/stdlib` | `pgx` |
+| MariaDB and MySQL | `github.com/go-sql-driver/mysql` | `mysql` |
+| SQLite | `github.com/mattn/go-sqlite3` | `sqlite3` |
+| SQLite, pure Go | `modernc.org/sqlite` | `moderncsqlite` |
+| DuckDB | `github.com/duckdb/duckdb-go/v2` | `duckdb` |
+
+`usql` has two drivers for PostgreSQL and two for SQLite, and testing both of a
+pair is right where they differ in kind. SQLite is tested on both because one
+compiles the upstream source and the other is a translation of it. PostgreSQL
+is tested on `pgx` alone, because `lib/pq` speaks the same protocol and is in
+maintenance.
+
+#### Correcting hard rule 10
+
+Hard rule 10 named `gocql/gocql` for Cassandra. `usql` uses
+`github.com/MichaelS11/go-cql-driver`, which is the `database/sql` driver that
+wraps `gocql`. `dbmeta` needs a `database/sql` driver, so the rule named a
+package that cannot be used. Corrected.
+
+#### When usql does not have one
+
+A database `usql` does not support has no driver to match, and the choice is
+open. Say so in the commit, and prefer the driver `usql` would most likely
+adopt, which is usually the one the database's own organisation publishes.
+
 ## What exists today
 
 An agent that starts work must read these sources first.
@@ -3574,6 +3639,98 @@ an ordinary user does not have.
 An open question lives here until it is answered, and then it becomes a
 decision above. The argument behind a decision belongs with the decision, which
 is why there is no separate document for it. See D50.
+
+### Open: comparing the answers across database families
+
+Nothing is built. Both reviews answered and they disagree on almost everything,
+which is itself the finding.
+
+#### What prompted it
+
+`TestMySQLAgainstMariaDB` builds one fixture on a MariaDB server and a MySQL
+server, runs every query that narrows to one schema, and compares the answers
+row by row and column by column. A list named `productSpecific` records the
+columns whose values legitimately differ and anything unlisted fails.
+
+It has found four faults, including a NULL that would not scan and a row keyed
+without its parent. The goal is the same thing across families: PostgreSQL
+against SQLite against DuckDB against MySQL, on a common schema.
+
+#### The obstacle
+
+The fixtures have drifted. PostgreSQL's has 32 steps, MariaDB's 19, DuckDB's 12
+and SQLite's 7. The table names mostly match and the columns do not. And
+PostgreSQL has enums, materialized views, exclusion constraints and
+publications that SQLite has none of, so a shared fixture is either the
+intersection, which tests almost nothing, or the union, which most databases
+cannot build.
+
+#### Where they agree
+
+A layered fixture: an ANSI baseline every database can build, plus layers gated
+on a capability rather than on a version. A capability gate is a second axis
+and the existing version gate does not serve.
+
+Native per object suites stay. Publications and virtual tables do not belong in
+a shared fixture.
+
+#### Where they disagree, and it matters
+
+**Whether values can be compared at all.** Gemini says never across families:
+assert object names, column sets and row counts, and stop, because PostgreSQL
+says `integer`, MariaDB `int(11)` and SQLite `INTEGER` and all are correct.
+DeepSeek says that throws away most of what made the MariaDB test valuable, and
+names a portable subset that can be compared: nullability, ordinal position,
+precision and scale, whether a default is absent, uniqueness, foreign key
+actions, row counts, and a comment the fixture set itself. The NULL scan fault
+was a value fault and neither names nor counts would have caught it.
+
+**Golden files against pairwise.** Gemini says replace the pairwise matrix with
+a recorded expectation per database, because pairwise is ten comparisons for
+five databases and a failure does not say which side is wrong. DeepSeek agrees
+those are the tradeoffs and says a golden file records what the database said,
+so it catches a regression and can never catch two databases that were both
+wrong from the start, which is exactly what the pairwise test catches. Its
+answer is both: goldens for regression, a canonical comparison over the
+portable subset for divergence, and raw pairwise kept for close pairs.
+
+**How the fixture carries five dialects.** Gemini proposes
+`Exec map[Dialect]string` on a step. DeepSeek calls that worse than five
+fixtures, with a concrete failure: a missing dialect key skips the step
+silently, the golden is regenerated, and the test passes while that database is
+never exercised. Five separate fixtures at least fail loudly.
+
+#### The risk both were asked about
+
+That a conformance test pushes a model to normalize an answer so that two
+databases agree, which is the one thing this library must never do.
+
+Gemini's answer is a principle: assert on topology, not on strings. DeepSeek's
+is a mechanism, which is what is wanted: raw per dialect goldens assert exact
+values before any normalization; a test only `canonicalize` function returns a
+new value and never touches a model field; and a checked in list names every
+field the canonical comparison maps or drops, so widening it is a reviewed
+change rather than a quiet one.
+
+#### What I think
+
+DeepSeek is right about values, and the evidence is local: the fault that
+justified the existing test was a value fault. Comparing a portable subset is
+worth more than comparing names.
+
+It is also right that goldens and pairwise catch different things. A golden
+freezes whatever the database said, including a wrong answer, and this project
+has shipped wrong answers that only a second database exposed.
+
+The `Exec map[Dialect]string` objection is the strongest point either made,
+because the failure is silent, and silence is the failure mode this project has
+been bitten by most.
+
+What neither addressed: the fixtures have drifted because nothing checks them
+against each other. A test asserting that every fixture builds the same core
+object names would have caught the drift as it happened and costs almost
+nothing. That is worth doing before any of the above.
+
 
 None of the older questions are open. The floor question that the upstream change reopened has been answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review

@@ -140,8 +140,8 @@ call and filter in the loop.
 | MariaDB    | native             | 28      | Complete    |
 | MySQL      | native             | 25      | Complete    |
 | SQLite3    | native             | 14      | Complete    |
+| DuckDB     | native             | 19      | Complete    |
 | SQL Server | shared, planned    | 0       | Not started |
-| DuckDB     | shared, planned    | 0       | Not started |
 | Oracle     | native, planned    | 0       | Not started |
 | Cassandra  | native, planned    | 0       | Not started |
 
@@ -152,9 +152,9 @@ answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
 Oracle and Cassandra have no `information_schema` at all and need a native
-model, as SQLite did. `usql` builds on the same shared reader today for DuckDB, SQL
-Server, Snowflake, Trino, Databend and Netezza, which is the evidence for who
-the shared model serves.
+model, as SQLite and DuckDB did. `usql` builds on the same shared reader today
+for SQL Server, Snowflake, Trino, Databend and Netezza, which is the evidence
+for who the shared model serves.
 
 [`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
 and which analogues were found and rejected. MariaDB answers 28 of the 54 and
@@ -165,9 +165,13 @@ product rather than on the release number, because MariaDB is at 13.0 and MySQL
 at 26.7 and neither number says anything about the other. CI runs both products
 and a third job compares them against the same schema.
 
-SQLite is the one database here with no server. It is a library, so the release
-under test is whichever one the Go driver was built with, it needs no container,
-and its model carries no version gate.
+SQLite and DuckDB have no server. Both are libraries, so the release under test
+is whichever one the Go driver was built with, neither needs a container, and
+neither model carries a version gate.
+
+Every driver the tests use is the one `usql` uses for that database. The version
+may differ and the package may not, because a query that works here and fails
+on the driver `usql` ships is a query that does not work. See D52.
 
 A model ships its queries and a fixture together. The fixture is a known good
 schema containing one of every object the queries read, exported so that other

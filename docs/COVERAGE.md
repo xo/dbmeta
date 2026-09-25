@@ -26,6 +26,7 @@ Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 | `models/postgres` | 54 | 54 | PostgreSQL 9.6 through 18 |
 | `models/mysql` | 28 on MariaDB, 25 on MySQL | 54 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
 | `models/sqlite3` | 14 | 54 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
+| `models/duckdb` | 19 | 54 | duckdb/duckdb-go, the driver usql uses |
 | `models/informationschema` | 11 | 54 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -389,3 +390,115 @@ the oid, because it allows two functions with one name and different
 parameters. Everything else returns the name or the specific name, because
 nothing else here overloads. `RoutineParameters` carries the same value, so a
 caller writes one join for every database.
+
+## DuckDB
+
+DuckDB answers 19 of the 54, which is second only to PostgreSQL. Its catalog is
+unusually complete for an embedded database: comments on most objects, real
+enumerated types, sequences with their bounds, and a constraint catalog that
+names both the columns of a key and the columns they reference.
+
+Like SQLite it has no server, so the release under test is whichever one the Go
+driver was built with, there is no container, and the model carries no version
+gate. Unlike SQLite its driver needs cgo, which D48 allows in the test module.
+
+### How the catalog is shaped
+
+DuckDB publishes its catalog as table functions named `duckdb_something` rather
+than as views, and they behave like tables in a `FROM` clause:
+
+```sql
+FROM duckdb_columns() c JOIN duckdb_tables() t ON t.table_oid = c.table_oid
+```
+
+Where PostgreSQL carries an array, DuckDB carries a list, and
+`unnest(list) WITH ORDINALITY` turns one into rows. That is how the columns of
+a constraint, the labels of an enum and the parameters of a function are read,
+which is the same shape the PostgreSQL model uses for the same things.
+
+Every catalog function carries an `internal` flag, so the system object rule is
+one clause and there is no list of schema names to keep up to date. That is
+better than every other model here manages.
+
+### What it answers
+
+Schemas, databases, tables, columns, indexes, constraints, constraint columns,
+sequences, views, comments, types, enum values, functions, aggregates, routine
+parameters, collations, settings, extensions and the current schema.
+
+Two are worth naming. `Comments` gathers comments from five catalog functions,
+because DuckDB puts a comment on the object rather than in a catalog of
+comments. `Extensions` is a real answer rather than an analogue: a DuckDB
+extension is installed and loaded separately, which is closer to a PostgreSQL
+extension than anything else here manages.
+
+### The one that looks answerable and is not
+
+`IndexColumns`. `duckdb_indexes` has an `expressions` column that prints as
+`[title]`, and its type is `VARCHAR` rather than `VARCHAR[]`. It is a rendering
+of a list rather than a list, so `unnest` refuses it, and splitting the text on
+a comma breaks the moment an index is on an expression containing one, such as
+`concat(a, b)`.
+
+`duckdb_constraints.constraint_column_names` is a real `VARCHAR[]`, which is
+why `ConstraintColumns` works and this does not. The columns of a primary key
+or a unique constraint are therefore readable and the columns of an index
+someone created are not.
+
+### Analogues that were found and rejected
+
+`SUMMARIZE` or `PRAGMA storage_info` for `ColumnStats`. The two reviews split
+on this and running it settled it against both. DeepSeek said `storage_info`
+provides column statistics: it returns one row per row group per segment with
+the statistics as a formatted string, `[Min: 1, Max: 199][Has Null: false]`,
+which is prose rather than parts. Gemini said nothing provides them, and missed
+`SUMMARIZE`, which returns genuinely good per column statistics including the
+minimum, maximum, approximate distinct count, mean and null fraction.
+
+`SUMMARIZE` is rejected for a different reason: it scans the data rather than
+reading a catalog, and it takes one statement per table. That fails the cost
+test in D47 and the one statement rule in D33. PostgreSQL and MariaDB keep
+statistics the planner wrote; DuckDB computes them on demand and stores
+nothing, so there is no catalog to read.
+
+`duckdb_dependencies` for `ExtensionObjects`. Both reviews rejected it. It
+records every catalog dependency, such as a view on a table, rather than what
+an extension owns.
+
+An attached PostgreSQL, SQLite or MySQL database for `ForeignTables`,
+`ForeignServers` or `ForeignDataWrappers`. `ATTACH` makes the other database a
+full catalog rather than a wrapped remote, so it is reported as a `Database`,
+which is what it is.
+
+Hive partitioning through `read_parquet()` for `PartitionedTables`. It is a
+file layout read at scan time, not a catalogued object.
+
+### A difference worth knowing
+
+DuckDB generates its own constraint names and ignores one given in the DDL. The
+fixture writes `CONSTRAINT shipment_region_fk` and DuckDB records
+`shipment_country_area_country_area_fkey`. A caller matching constraints across
+databases by name will not find them.
+
+### NOT NULL, and why it is filtered here too
+
+DuckDB records a NOT NULL as a row in `duckdb_constraints`, exactly as
+PostgreSQL 18 does, and `Constraints` and `ConstraintColumns` both leave it
+out.
+
+D49 filtered it on PostgreSQL for cross release consistency, which does not
+apply here because DuckDB has always recorded it. A second reason does:
+PostgreSQL never reports a NOT NULL constraint and DuckDB would, so the same
+schema would answer differently by database. `Column.Nullable` carries the fact
+in both.
+
+DeepSeek argued the other way, that `duckdb_constraints` is DuckDB's own
+catalog and hiding a row loses information. The information is not lost. The
+constraint name is, which D49 already records as a known gap.
+
+### What it has none of
+
+Everything that needs more than one user or more than one process. No roles, no
+privileges, no triggers, no tablespaces. No casts, domains, operators,
+procedural languages, large objects, event triggers, text search objects or
+replication.
