@@ -129,7 +129,8 @@ records the argument.
 | [D63](#d63-support-says-when-a-release-is-too-old-amends-d54) | Support says when a release is too old | Amends D54 |
 | [D64](#d64-the-verified-tier-is-checked-against-the-document-decided) | The Verified tier is checked against the document | Decided |
 | [D65](#d65-a-windows-machine-rearms-its-evaluation-before-it-expires-decided) | A Windows machine rearms its evaluation before it expires | Decided |
-| [D66](#d66-the-order-the-remaining-dialects-are-written-in-decided) | The order the remaining dialects are written in | Decided |
+| [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67) | The order the remaining dialects are written in | Amended by D67 |
+| [D67](#d67-impala-cannot-be-a-dbmeta-model-and-clickhouse-goes-first-amends-d66) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
 
 ## Decisions
 
@@ -4149,13 +4150,13 @@ is rebuilt, which is about an hour, or the release drops to Archived under D40
 and nothing is claimed for it. Neither is automatic, because both are a
 person's decision about how much a pre-2017 SQL Server is worth.
 
-### D66. The order the remaining dialects are written in. Decided.
+### D66. The order the remaining dialects are written in. Amended by D67.
 
 Impala first, then ClickHouse, then the products that run in a container,
 then the ones that need an account. A product that cannot be started cannot be
 supported, and that decides the order more than anything about the product.
 
-#### Impala first, because usql is waiting on it
+#### Impala first, because usql is waiting on it. D67 found this wrong
 
 `usql` has five hand written metadata readers: postgres, mysql, oracle,
 impala and informationschema. Four of them are reimplemented here. Impala is
@@ -4163,6 +4164,10 @@ the last, and until it exists `usql` cannot retire its own metadata package,
 which is the point of this project. Nothing else on this list blocks anybody.
 
 It runs in a container, `apache/impala`, so the usual rules apply to it.
+
+That reasoning does not survive contact with the product. D67 has the
+measurement: Impala has no queryable catalog and its usql reader is not SQL, so
+it cannot move here at all, and ClickHouse is first instead.
 
 #### Then ClickHouse, the one gap in the default build
 
@@ -4263,6 +4268,65 @@ by what the native catalog adds. Not by popularity: Snowflake and BigQuery
 would be near the top on user count and are last here, because a query that
 has never run against a real server is not finished and neither of them can be
 run on demand.
+
+### D67. Impala cannot be a dbmeta model, and ClickHouse goes first. Amends D66.
+
+Impala is off the list. It has no catalog a statement can read, and the reader
+D66 wanted moved here does not use SQL, so hard rule 1 forbids moving it.
+ClickHouse takes first place.
+
+#### What the server said
+
+A four container quickstart was stood up at 4.5.2 and asked directly. There is
+no `information_schema` and no `sys` database: `SHOW DATABASES LIKE` returns
+zero rows for both, and selecting from `information_schema.tables` is an error.
+`SHOW` is a statement rather than a relation, so `SELECT * FROM (SHOW
+DATABASES) t` does not parse either.
+
+Metadata comes from `SHOW` and `DESCRIBE`, one statement per scope. So dbmeta
+could answer three of the 55: `Schemas` from `SHOW DATABASES`, which returns a
+name and a comment in one statement, `CurrentSchema` from `current_database()`
+and `CurrentUser` from `user()`. `Tables` would need `SHOW TABLES IN` once per
+database and `Columns` would need `DESCRIBE` once per table, which is the per
+row round trip rule 13 forbids.
+
+#### Why usql is not blocked after all
+
+D66 put Impala first because `usql` could not retire its metadata package
+until the last of its five readers moved here. That reader does not run a
+statement. It calls `GetSchemas`, `GetTables` and `GetColumns` on the driver,
+which are HiveServer2 metadata operations in the protocol rather than queries.
+
+Hosting that here would mean importing the Impala driver into the root module,
+and hard rule 1 forbids a database driver there outright. So the reader cannot
+move, and it is already where it belongs: it is a property of the wire
+protocol, which is the driver's business. `usql` keeps it and loses nothing.
+
+#### The cost, for completeness
+
+`apache/impala` publishes no whole server. It publishes components, and a
+running Impala is four containers, a Hive Metastore, statestored, catalogd and
+impalad, on a shared network with a warehouse volume. That is a harness on the
+scale of the Windows machines in `test/vm`, in exchange for three queries.
+
+A three query model is a small job if somebody ever wants `\dn` against
+Impala, and it buys nothing today and needs the harness anyway.
+
+#### What this changes
+
+ClickHouse is first. It is one container that starts in seconds, it is the
+only driver in usql's default build with no model, and `system.tables`,
+`system.columns`, `system.databases`, `system.functions`, `system.settings`
+and `system.data_skipping_indices` are a real catalog rather than an
+`information_schema` emulation. The rest of D66's order stands.
+
+#### The rule this adds
+
+Before scheduling a dialect, check that the product has a catalog a single
+statement can read. A product whose metadata is a protocol operation or a
+`SHOW` per object cannot be a model here, however popular it is and however
+well it runs in a container. D66 ordered by whether a product could be started
+and that was one question short.
 
 ## What exists today
 
