@@ -124,6 +124,7 @@ records the argument.
 | [D58](#d58-one-gitignore-in-the-repository-root-decided) | One .gitignore, in the repository root | Decided |
 | [D59](#d59-oracle-is-tested-with-go-ora-v2-until-v3-tags-its-fix-amends-d52) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52 |
 | [D60](#d60-the-oracle-model-reads-all_-views-and-the-dba_-variant-is-open-not-decided) | The Oracle model reads ALL_ views, and the DBA_ variant is open | Not decided |
+| [D61](#d61-every-dialect-is-measured-against-every-principal-the-product-has-decided) | Every dialect is measured against every principal the product has | Decided |
 
 ## Decisions
 
@@ -3827,6 +3828,100 @@ Three mechanisms have been sketched and none chosen:
    answer, because it doubles a model that is otherwise identical.
 
 Nothing is implemented. Ask Ken before choosing one.
+
+### D61. Every dialect is measured against every principal the product has. Decided.
+
+A dialect is not finished until every query has been asked as the
+administrator and as each lesser kind of principal the product has, and the
+differences are written down. `test/parity_test.go` does it and
+`test/testdata/parity.txt` is the record.
+
+#### Why
+
+D60 asked whether Oracle should read `DBA_` views, and the argument rested on
+`ALL_` showing a caller only what the caller may see. Nobody had asked whether
+the other products do the same thing. They do, and one of them is worse than
+Oracle.
+
+Measured against the fixture schema, with every principal given the same
+rights over it, so that the only thing varying is what kind of principal it
+is:
+
+| Database | Principal | Queries that answer differently |
+| --- | --- | --- |
+| Oracle 26ai | local user | none |
+| SQL Server 2022 | contained user | none |
+| SQL Server 2022 | server login | `roles` |
+| PostgreSQL 18 | schema owner | `settings`, `tablespaces` |
+| PostgreSQL 18 | grantee | `settings`, `tablespaces` |
+| MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
+| MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
+
+`current_user` and `current_schema` are left out of that table and are in the
+file. They are supposed to differ, because they answer a question about the
+connection, and a run where they agreed would be the fault.
+
+Oracle is the cleanest of the four, which is the opposite of what D60 assumed.
+A local user owning the objects gets the administrator's answer to every
+query. The MySQL dialect is the worst: a user holding ALL PRIVILEGES on its
+own database has queries refused outright, six on MariaDB and four on MySQL,
+because they read `mysql.proc`, `mysql.column_stats`, `mysql.servers`,
+`mysql.roles_mapping`, `mysql.role_edges` and `mysql.user`. Those are tables
+in the `mysql` database rather than views that filter themselves, so the
+server answers with error 1142 and the query fails. That is the same shape as
+Oracle's `DBA_` problem and it was never recorded. PostgreSQL refuses
+`tablespaces` on `pg_global` and hides parameters from `pg_settings`.
+
+MariaDB and MySQL do not agree with each other, which is why the section is
+named for the product rather than the dialect. `mysql.proc` was removed in
+MySQL 8.0 and MariaDB still has it, so `aggregates` is refused on one and
+answered on the other.
+
+#### A principal is not one thing
+
+SQL Server has three and they are not interchangeable. A sysadmin. A server
+login mapped to a database user, which is the ordinary model. And a contained
+database user, whose password is in the database and which has no login at the
+server, which needs `CONTAINMENT` set to `PARTIAL`.
+
+Oracle has the same three from 12c. `SYSTEM` is the administrator. A common
+user exists in the container database and in every pluggable database at once,
+which is what a server login is. A local user authenticates against one
+pluggable database and has nothing above it, which is what a contained
+database user is.
+
+PostgreSQL has no containment, because a role belongs to the cluster rather
+than to a database. The nearest three are the superuser, the owner of the
+objects, and a role holding only grants.
+
+MySQL and MariaDB have no containment either. A user is a name and a host at
+server level and a database is only a grant scope, so there are two.
+
+SQLite and DuckDB have no user, no role and no grant. There is no second
+connection to make, so the rule does not reach them and cannot.
+
+#### The rule
+
+Add a dialect, add its principals to `parityTargets` in
+`test/parity_test.go`, run `go test -run TestPrivilegeParity -update`, and
+read the diff. A product with a kind of principal that no target covers is not
+finished. Say in `docs/COVERAGE.md` which queries differ and why, because a
+consumer choosing a connection needs to know which answers depend on who is
+asking.
+
+A difference is not a failure. A principal with no privilege on another schema
+has no business seeing it. The file records the set so that a change in the
+set is what fails, the same way `conformance.txt` works.
+
+#### Two principals nothing covers yet
+
+An Oracle common user cannot be made from inside a pluggable database, and
+every Oracle target now names a pluggable database. Covering it needs a
+connection to `CDB$ROOT`, which `container/oracle.go` already records as a
+target worth having and which is not written.
+
+A SQL Server sysadmin that is not `sa` is not covered either. It would answer
+the same as `sa` and nothing suggests otherwise, so it is not worth a target.
 
 ## What exists today
 

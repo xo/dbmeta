@@ -318,6 +318,60 @@ than empty. It records no comment on any object. It has no type catalog, no
 operators that can be created, no casts, no procedural languages, no
 replication, no tablespaces and no partitioning.
 
+## Which answers depend on who is asking
+
+Every query has been asked as the administrator and as each lesser kind of
+principal the product has. D61 requires it of every dialect,
+`test/parity_test.go` does it, and `test/testdata/parity.txt` is the record.
+
+The principals get the same rights over the fixture schema, so the only thing
+that varies is what kind of principal they are.
+
+| Database | Principal | Queries that answer differently |
+| --- | --- | --- |
+| Oracle 26ai | local user | none |
+| SQL Server 2022 | contained user | none |
+| SQL Server 2022 | server login | `roles` |
+| PostgreSQL 18 | schema owner | `settings`, `tablespaces` |
+| PostgreSQL 18 | grantee | `settings`, `tablespaces` |
+| MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
+| MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
+
+`current_user` and `current_schema` are left out of the table and are in the
+file. They answer a question about the connection, so a run where they agreed
+would be the fault.
+
+### What each one means for a consumer
+
+The MySQL dialect is the one to plan for. Queries are refused outright, not
+narrowed, for a user holding ALL PRIVILEGES on its own database: six on
+MariaDB and four on MySQL. They read `mysql.proc`, `mysql.column_stats`,
+`mysql.servers`, `mysql.roles_mapping`, `mysql.role_edges` and `mysql.user`,
+which are tables in the `mysql` database rather than views that filter
+themselves, so the server answers with error 1142 and the query fails. A
+consumer that offers these to an ordinary user has to be ready for the error.
+
+The two products do not agree with each other, which is why the record names
+the product rather than the dialect. `mysql.proc` was removed in MySQL 8.0 and
+MariaDB still has it, so `aggregates` is refused on one and answered on the
+other.
+
+PostgreSQL refuses `tablespaces`, because reading `pg_global` needs a
+privilege an ordinary role does not have, and narrows `settings` from 404
+parameters to 375 because `pg_settings` hides the rest. Everything else
+answers identically, because the model reads `pg_catalog`, which shows every
+row to everybody. That is why `information_schema` is not used for the
+PostgreSQL model: it filters by privilege and `pg_catalog` does not.
+
+SQL Server narrows `roles` for a server login, from 8 to 6, because a login
+cannot see every server role. A contained user answers identically to the
+sysadmin on every query, which is the cleanest result of the four.
+
+Oracle answers identically on every query for a local user that owns the
+objects. That is worth saying plainly, because D60 began from the worry that
+`ALL_` views would under-report. They do, but only for a caller asking about
+a schema it has no privilege on, which is a different question.
+
 ## What every database agrees on
 
 `TestConformance` builds the same core schema everywhere and compares the

@@ -236,12 +236,18 @@ func compareReport(t *testing.T, name string, want, got []string) {
 // to nothing.
 func readGolden(t *testing.T) map[string][]string {
 	t.Helper()
-	body, err := os.ReadFile(conformGolden)
+	return readGoldenAt(t, conformGolden)
+}
+
+// readGoldenAt reads one expectation file.
+func readGoldenAt(t *testing.T, path string) map[string][]string {
+	t.Helper()
+	body, err := os.ReadFile(path)
 	if err != nil {
 		if *update {
 			return map[string][]string{}
 		}
-		t.Fatalf("reading %s: %v. Run go test -update to write it.", conformGolden, err)
+		t.Fatalf("reading %s: %v. Run go test -update to write it.", path, err)
 	}
 	out := map[string][]string{}
 	var section string
@@ -252,11 +258,11 @@ func readGolden(t *testing.T) map[string][]string {
 		case strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]"):
 			section = line[1 : len(line)-1]
 			if _, seen := out[section]; seen {
-				t.Fatalf("%s: the section [%s] appears twice", conformGolden, section)
+				t.Fatalf("%s: the section [%s] appears twice", path, section)
 			}
 			out[section] = nil
 		case section == "":
-			t.Fatalf("%s: a line before any section: %q", conformGolden, line)
+			t.Fatalf("%s: a line before any section: %q", path, line)
 		default:
 			out[section] = append(out[section], line)
 		}
@@ -268,7 +274,13 @@ func readGolden(t *testing.T) map[string][]string {
 // that is not running keeps its recorded answer rather than losing it.
 func writeGolden(t *testing.T, name string, lines []string) {
 	t.Helper()
-	sections := readGolden(t)
+	writeGoldenAt(t, conformGolden, goldenHeader, name, lines)
+}
+
+// writeGoldenAt rewrites one section of one expectation file.
+func writeGoldenAt(t *testing.T, path, header, name string, lines []string) {
+	t.Helper()
+	sections := readGoldenAt(t, path)
 	sections[name] = lines
 	names := make([]string, 0, len(sections))
 	for n := range sections {
@@ -277,20 +289,20 @@ func writeGolden(t *testing.T, name string, lines []string) {
 	sort.Strings(names)
 
 	var b strings.Builder
-	b.WriteString(goldenHeader)
+	b.WriteString(header)
 	for _, n := range names {
 		b.WriteString("\n[" + n + "]\n")
 		for _, l := range sections[n] {
 			b.WriteString(l + "\n")
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(conformGolden), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(conformGolden, []byte(b.String()), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("wrote the %s section of %s", name, conformGolden)
+	t.Logf("wrote the %s section of %s", name, path)
 }
 
 const goldenHeader = `# What every database answers about the core fixture schema, canonically.

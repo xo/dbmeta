@@ -1,0 +1,47 @@
+# What each query answers for a principal that is not the administrator.
+#
+# Written by go test -update. A line is a query that answered differently for
+# the principal named in the section. An empty section means every query gave
+# the administrator's answer, which is what a principal owning the objects
+# ought to get.
+#
+# A section is <database>/<scene>/<principal>. The scene is the database the
+# comparison ran in, because a contained user needs one of its own.
+
+[mariadb/same/grantee]
+aggregates refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`proc`
+column_stats refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`column_stats`
+current_user the same rows with different values
+foreign_servers refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`servers`
+role_grants refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`roles_mapping`
+roles refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`user`
+user_mappings refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`servers`
+
+[mysql/same/grantee]
+current_user the same rows with different values
+foreign_servers refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table 'servers'
+functions the same rows with different values
+role_grants refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table 'role_edges'
+roles refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table 'user'
+user_mappings refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table 'servers'
+
+[oracle/same/local]
+current_schema the same rows with different values
+current_user the same rows with different values
+
+[postgres/same/grantee]
+current_user the same rows with different values
+settings fewer rows than the administrator
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
+[postgres/same/owner]
+current_user the same rows with different values
+settings fewer rows than the administrator
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
+[sqlserver/contained/contained]
+current_user the same rows with different values
+
+[sqlserver/same/login]
+current_user the same rows with different values
+roles fewer rows than the administrator

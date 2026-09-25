@@ -16,7 +16,7 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 60
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 61
 at the top; read the status, because six of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -158,6 +158,23 @@ something is written down, it is not written down, and it is an open question.
    as a lead and run it against a real server. Leave an analogue that is a
    stretch unsupported, and record it in `docs/COVERAGE.md` with the reason. See
    D43.
+15. A dialect is not finished until every query has been asked as the
+   administrator and as every lesser kind of principal the product has, and
+   the differences are written down. Add the principals to `parityTargets` in
+   `test/parity_test.go`, run `go test -run TestPrivilegeParity -update`, and
+   read the diff.
+   A principal is not one thing. SQL Server has three: a sysadmin, a server
+   login mapped to a database user, and a contained database user whose
+   password is in the database and which has no login at the server. Oracle
+   has the same three from 12c, where a common user is the login and a local
+   user in a pluggable database is the contained user. PostgreSQL and MySQL
+   have no containment, so each has a superuser or root, an owner, and a
+   grantee. SQLite and DuckDB have no user at all and the rule cannot reach
+   them.
+   This is not a formality. It found six MariaDB queries that are refused
+   outright for a user holding ALL PRIVILEGES on its own database, because
+   they read tables in the `mysql` database rather than views that filter
+   themselves. Nothing had recorded that. See D61.
 
 ## Layout
 
