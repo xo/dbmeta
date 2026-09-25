@@ -129,6 +129,80 @@ func checkCell(t *testing.T, model, cell string, got map[string]int) {
 	}
 }
 
+// TestEveryModelIsInTheVersionTable checks that each model's version query has
+// been compared against the one usql runs for the same product.
+//
+// D38 makes that comparison part of adding a dialect, and this is what holds
+// it. The comparison itself cannot be automated, because usql is not a
+// dependency here and must not become one, so what is checked is that
+// somebody wrote the row down.
+//
+// It exists because the comparison was skipped and the gap was invisible from
+// the other end: docs/USQL.md compared the printed version lines and looked
+// complete, while usql had no version query for Oracle at all.
+func TestEveryModelIsInTheVersionTable(t *testing.T) {
+	t.Parallel()
+	body := read(t, filepath.Join("docs", "USQL.md"))
+	_, table, ok := strings.Cut(body, "### The statements, compared")
+	if !ok {
+		t.Fatal("docs/USQL.md has no statements table. D38 requires one.")
+	}
+	table, _, _ = strings.Cut(table, "\n## ")
+	for name := range answers(t) {
+		// mariadb and mysql are one model and share a row.
+		product := map[string]string{
+			"postgres": "PostgreSQL", "mariadb": "MariaDB", "mysql": "MySQL",
+			"sqlite3": "SQLite", "duckdb": "DuckDB", "sqlserver": "SQL Server",
+			"oracle": "Oracle", "cassandra": "Cassandra",
+			"clickhouse": "ClickHouse",
+		}[name]
+		if product == "" {
+			t.Errorf("%s has no product name here, so its version query cannot be"+
+				" looked for. Add it. See D38.", name)
+			continue
+		}
+		if !strings.Contains(table, "| "+product+" ") {
+			t.Errorf("docs/USQL.md: no row for %s in the statements table."+
+				" Compare its version query against usql's and record it. See D38.",
+				product)
+		}
+	}
+}
+
+// TestEveryModelSaysWhetherDbtplCanUseIt checks that each model has a verdict
+// in docs/DBTPL.md, and not only a count.
+//
+// The count and the verdict are different questions and the second does not
+// follow from the first. A database can answer most of the nine reads and
+// still be useless to a generator, if it has no foreign key and so no
+// relationship to follow. See D38 for the same rule about usql.
+func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
+	t.Parallel()
+	body := read(t, filepath.Join("docs", "DBTPL.md"))
+	_, table, ok := strings.Cut(body, "### Whether dbtpl could generate for each database")
+	if !ok {
+		t.Fatal("docs/DBTPL.md has no verdict table. Adding a dialect requires one.")
+	}
+	table, _, _ = strings.Cut(table, "\n## ")
+	for name := range answers(t) {
+		product := map[string]string{
+			"postgres": "PostgreSQL", "mariadb": "MySQL and MariaDB",
+			"mysql": "MySQL and MariaDB", "sqlite3": "SQLite", "duckdb": "DuckDB",
+			"sqlserver": "SQL Server", "oracle": "Oracle", "cassandra": "Cassandra",
+			"clickhouse": "ClickHouse",
+		}[name]
+		if product == "" {
+			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+
+				" looked for. Add it.", name)
+			continue
+		}
+		if !strings.Contains(table, "| "+product+" |") {
+			t.Errorf("docs/DBTPL.md: no verdict for %s. Say whether dbtpl could"+
+				" generate from it and why.", product)
+		}
+	}
+}
+
 // TestTheReadmeTableIsRight checks the support table in README.md.
 func TestTheReadmeTableIsRight(t *testing.T) {
 	t.Parallel()

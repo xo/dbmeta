@@ -20,6 +20,10 @@ object, and `ErrNotSupported` means the server has no such object at all.
 Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
 `PLAN.md` D43 for the rule about finding these analogues in the first place.
 
+Adding a database means adding a section here. [`DIALECT.md`](DIALECT.md) holds
+every step and this is one of them, so read that first if you are adding one
+rather than reading one.
+
 ## The count
 
 | Model | Answers | Of | Tested against |

@@ -80,6 +80,29 @@ PostgreSQL, MySQL, SQL Server, Oracle and SQLite today, so the only one of its
 own databases that is short is SQLite, by one query, for a reason `dbtpl`
 already knows: it writes no parameter names for SQLite either.
 
+### Whether dbtpl could generate for each database
+
+The count above is how many queries answer. Whether `dbtpl` could generate
+from a database is a different question, and it is the one to answer when a
+dialect is added.
+
+| Database | `dbtpl` supports it today | Could generate from `dbmeta` |
+| --- | --- | --- |
+| PostgreSQL | yes | yes, all nine |
+| MySQL and MariaDB | yes | yes, all nine |
+| SQL Server | yes | yes, all nine |
+| Oracle | yes | yes, all nine |
+| SQLite | yes | yes, without parameter names |
+| DuckDB | no | yes, without index columns |
+| ClickHouse | no | partly: no foreign key to follow and no parameter names |
+| Cassandra | no | partly: no current keyspace expression and no parameter names |
+
+A clear no is possible and it is not the same as answering few of the nine.
+`dbtpl` generates typed access from a schema and follows a foreign key to
+decide what relates to what, so a database with no foreign key gives it a
+struct per table and nothing tying them together. A query engine answers that
+way. Say so in the table rather than leaving the count to imply it.
+
 ## What dbmeta added
 
 Five things, three of them shared with `usql`. All five now exist, under D47.

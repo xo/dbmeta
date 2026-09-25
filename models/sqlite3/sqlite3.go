@@ -56,6 +56,8 @@ const Reference = "3.50.4"
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.SQLite3, &dbmeta.Info{
+		// SQLite is a library. There is no server, no port and no user.
+		Embedded:       true,
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   `SELECT sqlite_version()`,
 		VersionColumns: 1,

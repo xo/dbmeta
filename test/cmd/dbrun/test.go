@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
@@ -80,7 +81,26 @@ func doVersion(ctx context.Context, r runner, t target) error {
 func doTest(ctx context.Context, r runner, t target, o options) error {
 	if t.Kind == kindEmbedded {
 		fmt.Printf("=== %s ===\n", t.Name)
-		return goTest(ctx, "")
+		// The file is named the same way a server's DSN is, so the tests put
+		// the database where dbrun says and it is still there afterwards.
+		// --remove deletes it, and nothing else does: a library is kept the
+		// way a machine is, so that `dbrun usql sqlite3` can open what the
+		// test built.
+		if err := os.MkdirAll(filepath.Dir(t.DSN), 0o755); err != nil {
+			return fmt.Errorf("making the directory for %s: %w", t.DSN, err)
+		}
+		if err := goTest(ctx, t.Env+"="+t.DSN); err != nil {
+			return err
+		}
+		if o.remove {
+			if err := os.Remove(t.DSN); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("removing %s: %w", t.DSN, err)
+			}
+			fmt.Printf("  removed %s\n", t.DSN)
+			return nil
+		}
+		fmt.Printf("  kept %s\n", t.DSN)
+		return nil
 	}
 	fmt.Printf("=== %s ===\n", t.Name)
 

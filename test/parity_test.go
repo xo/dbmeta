@@ -249,6 +249,36 @@ func TestEveryDialectIsMeasuredForParity(t *testing.T) {
 	}
 }
 
+// TestEveryEmbeddedModelSaysSo checks the two directions of
+// [dbmeta.Info.Embedded].
+//
+// A model that is a library must declare it, because dbrun builds its target
+// list from the flag and a model that does not declare it simply will not
+// appear. And a model that declares it must be exempt from parity, because
+// the reason it is exempt is the reason it is embedded: there is no second
+// user to be.
+func TestEveryEmbeddedModelSaysSo(t *testing.T) {
+	t.Parallel()
+	// The libraries, pinned. A refactor that drops the flag would otherwise
+	// remove them from dbrun silently.
+	for _, d := range []dbmeta.Dialect{dbmeta.SQLite3, dbmeta.DuckDB} {
+		if !d.Embedded() {
+			t.Errorf("%s is a library and does not declare Embedded."+
+				" dbrun builds its list from that flag. See docs/DIALECT.md.", d)
+		}
+	}
+	for _, d := range dbmeta.Dialects() {
+		if !d.Embedded() {
+			continue
+		}
+		if _, exempt := parityExempt[d]; !exempt {
+			t.Errorf("%s declares Embedded and is not in parityExempt."+
+				" A library has no second user, which is the one reason an"+
+				" exemption is allowed. See D61.", d)
+		}
+	}
+}
+
 // TestPrivilegeParity asks every query as the administrator and as each
 // principal, and records the queries that answer differently.
 //

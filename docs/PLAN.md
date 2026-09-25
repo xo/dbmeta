@@ -2163,6 +2163,40 @@ a version behind the caller's back and must let the caller override. A method
 the caller chooses to call satisfies that. A constructor that silently probes
 the server would not.
 
+#### Compare it against usql, every time
+
+Adding or changing a dialect means comparing its version query against the one
+`usql` runs for the same product, and recording the comparison in
+`docs/USQL.md`. This sits alongside the other requirements for a dialect: the
+fixture in rule 9, the second opinion in D43, the driver in D52 and the
+principals in D61.
+
+Find `usql`'s side in `usql/drivers/<driver>/<driver>.go`, in the `Version`
+field of the registered `drivers.Driver`. A driver that declares none falls
+through to `drivers.Version`, which runs the generic `SELECT version();`, and
+that fallback is part of the comparison rather than an absence of one.
+
+Record one row per model in the statements table in `docs/USQL.md`, saying
+what each side runs and whether the answers agree. Three outcomes are normal
+and each is written differently. The same statement is the common case. A
+different statement with the same answer is fine and is left alone, with the
+reason the two differ. A different answer is a decision: say which side reads
+more and why this one does what it does.
+
+The reason this is a rule is that it was not done, and the gap was invisible
+from the other end. `docs/USQL.md` already compared the printed version lines
+across 26 servers and called the coverage complete. It compared output rather
+than statements, and it predated three models, so nobody noticed that `usql`
+declares no `Version` function for Oracle at all. It falls through to
+`SELECT version();`, Oracle answers `ORA-00904: "VERSION": invalid
+identifier`, `drivers.Version` discards the error, and `usql` prints
+`<unknown>`. Comparing the two statements finds that in a minute. Comparing
+the two printed lines finds it only if somebody notices Oracle is missing from
+the table.
+
+`TestEveryModelIsInTheVersionTable` holds it: a model with no row in that
+table fails.
+
 #### Both forms exist
 
 The one step form is what nearly every caller wants:

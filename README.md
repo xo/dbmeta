@@ -272,6 +272,7 @@ Everything else is in [`docs/`](docs/):
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
 | [`QUERIES.md`](docs/QUERIES.md) | What `psql` describes, what `information_schema` describes, and where the two meet. |
+| [`DIALECT.md`](docs/DIALECT.md) | Every step needed to add a database, in order, with the test that catches each one you skip. |
 | [`EVALUATION.md`](docs/EVALUATION.md) | How the supported version range is chosen, and how to choose one for a database not covered yet. |
 | [`USQL.md`](docs/USQL.md) | What `usql` answers today for each of its 47 drivers, and what changes if it reads `dbmeta`. |
 | [`DBTPL.md`](docs/DBTPL.md) | The same measurement for `dbtpl`. |

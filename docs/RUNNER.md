@@ -50,10 +50,24 @@ by `container.WindowsVM`. It is a container too, of a sort, because
 `dockurr/windows` runs it, but it is provisioned once over an hour and then
 kept, rather than created fresh each time.
 
-An **embedded database** is a library with no server at all: SQLite and DuckDB.
-There is nothing to start. It is in the list so that `test sqlite3` works and
-so that `status` can say what it is rather than leaving somebody wondering
-why the name is missing.
+An **embedded database** is a library with no server at all: SQLite and
+DuckDB. There is nothing to start, and the database is a file. Which dialects
+those are is not decided here: every model declares it with
+`dbmeta.Info.Embedded` and `dbrun` reads that, so one added later appears
+without a second list to edit.
+
+The file is treated the way a running container is. It lives under
+`$XDG_DATA_HOME/dbmeta/embedded`, beside the machine disks, and it is kept
+after a test so that `dbrun usql sqlite3` opens what the test built. Only
+`remove`, or `test --remove`, deletes it.
+
+`dsn` and `status` print a real connection string for one rather than prose.
+The DSN is the bare path, because that is what `sql.Open` takes for both
+drivers, and the URL names the scheme: `sqlite3:/path` and `duckdb:/path`.
+Both products also answer to `file:`, which `dburl` resolves by reading the
+file header and, when the file is not there yet, by the extension. `.db` is
+SQLite there, so a DuckDB database is written `.duckdb` and naming the scheme
+says which one in either state.
 
 They share one name space and it already fits: a machine is
 `sqlserver-2016` and a container is `sqlserver-2017`, because Microsoft's Linux
@@ -119,20 +133,21 @@ hour must be asked for in as many words.
 old bare behaviour and is what a person runs before a release.
 
 `test sqlite3` and `test duckdb` run the tests with no server, because those
-two need none. Every other subcommand answers for them too: `status` says they
-are embedded, `version` reports what the driver links, and `start` says there
-is nothing to start rather than failing.
+two need none. Every other subcommand answers for them too: `status` prints
+the URL and marks it `(embedded)`, `dsn` prints the path, `version` reports
+what the driver links, and `start` prints where the file will be rather than
+failing.
 
 ## How each kind answers each subcommand
 
 | | container | machine | embedded |
 | --- | --- | --- | --- |
-| `start` | create or start | start the provisioned machine | nothing to do, says so |
+| `start` | create or start | start the provisioned machine | nothing to do, prints where the file goes |
 | `stop` | stop | stop | nothing to do |
-| `remove` | delete | delete, and warn that it is an hour to rebuild | nothing to do |
-| `status` | running, with URL | answering, with URL and the viewer port, or starting | says embedded |
+| `remove` | delete | delete, and warn that it is an hour to rebuild | delete the file |
+| `status` | running, with URL | answering, with URL and the viewer port, or starting | the URL, marked `(embedded)` |
 | `version` | connect and read | connect and read | read what the driver links |
-| `test` | start, wait, test, remove | start, wait, test, keep | test |
+| `test` | start, wait, test, remove | start, wait, test, keep | test, keep the file |
 | `provision` | not applicable | build it | not applicable |
 
 Three differences are real and stay. A machine is kept after `test`, because

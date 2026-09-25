@@ -51,6 +51,13 @@ cd test && go build -o ~/bin/dbrun ./cmd/dbrun
 Nothing else starts a container, which is D68, and `docs/RUNNER.md` is the
 design.
 
+## Adding a database
+
+[`docs/DIALECT.md`](docs/DIALECT.md) is every step, in order: choosing the
+version range, asking two other models and checking what they say, writing the
+model and its fixture, the tests, parity, and the four places that hold a
+count. It ends with the tests that fail when a step is skipped.
+
 ## What the reviewer will ask
 
 Does a new query run against a real server, on the oldest supported release and

@@ -28,7 +28,7 @@ Then by what you are doing:
 | writing or changing any query | `docs/NULLS.md`, then `docs/COVERAGE.md` |
 | asking why something is the way it is | the table at the top of `docs/PLAN.md` |
 | adding an object kind | D46 and D47 in `docs/PLAN.md`, then `docs/COMMANDS.md` |
-| adding a database | D66 for which one is next, `docs/EVALUATION.md` for the version range, D43 for the rule about asking other models, D52 for which driver to test with, D61 for the principals to measure it against |
+| adding a database | `docs/DIALECT.md`, which is every step in order. It points at D66, `docs/EVALUATION.md`, D43, D52, D38 and D61 |
 | wondering which database comes next | D66, which holds the order and why a product with no container is last |
 | a parity failure | D61. Decide whether the query began depending on who is asking, or whether one release genuinely differs, and record it |
 | changing what a database answers | `docs/COVERAGE.md`, which is the record of what each one can do |
@@ -38,7 +38,7 @@ Then by what you are doing:
 | wiring up a client | `docs/COMMANDS.md`, then `docs/USQL.md` or `docs/DBTPL.md` |
 | designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
 | adding a release to CI | `container/container.go`, which is the only copy of that list |
-| adding an old SQL Server that needs a Windows VM | `container/windows.go`, then `docs/WINDOWS.md` and D57 |
+| adding an old SQL Server that needs a Windows VM | `docs/DIALECT.md` for where the steps differ, then `docs/WINDOWS.md`, `container/windows.go` and D57 |
 | starting a database for any reason | `dbrun`, and nothing else. `cd test && go run ./cmd/dbrun help`. See D68 and `docs/RUNNER.md` |
 | changing how a database is started | `docs/RUNNER.md`, the design of that command |
 | provisioning a Windows machine | `docs/WINDOWS.md`, then `container/windows.go` and D57 |
@@ -126,6 +126,13 @@ something is written down, it is not written down, and it is an open question.
    SQLite driver, and `duckdb/duckdb-go`.
    Never `godror`, which needs Oracle client libraries rather than only a C
    compiler. See D48.
+   Compare the version query too. Adding or changing a dialect means reading
+   what `usql` runs for the same product, in the `Version` field of its
+   `drivers.Driver`, and recording the comparison in the statements table in
+   `docs/USQL.md`. A driver declaring no `Version` falls through to the generic
+   `SELECT version();`, and that counts as its statement. `usql` has no answer
+   at all for Oracle that way, which comparing printed output never found.
+   `TestEveryModelIsInTheVersionTable` fails when a model has no row. See D38.
    Every driver in the `test` module is the one `usql` uses for that database.
    The version may differ and the package may not. Where `usql` ships two for
    one database, test both as subtests named for the driver: SQLite runs on
@@ -159,7 +166,8 @@ something is written down, it is not written down, and it is an open question.
    parent, because filling a slice needs a second statement or a dialect
    specific aggregate. See D47.
 14. A new dialect is not finished until several AI models have been asked
-   about the queries it cannot answer. Consult at least two of Gemini,
+   about the queries it cannot answer. `docs/DIALECT.md` holds every step of
+   adding one, and this is one of them. Consult at least two of Gemini,
    DeepSeek and Astra, and ask each one to sort the unanswered queries into
    three groups: absent from the product, present under another name, and
    derivable from several catalog reads or one complex statement. A first pass

@@ -223,11 +223,14 @@ Environment:
   DBMETA_VM_STATE       where the Windows disks live, which are tens of
                         gigabytes each. Defaults under $XDG_DATA_HOME/dbmeta
   DBMETA_ORACLE_STATE   where the Oracle 19c checkout and archive live
+  DBMETA_EMBEDDED_STATE where the SQLite and DuckDB files live. They are kept
+                        after a test, so usql can open what the test built
 
 Examples:
   dbrun start postgres            the newest PostgreSQL, left running
   dbrun test clickhouse-25.8      one release, tested and removed
   dbrun test sqlite3              no container, it is a library
+  dbrun usql sqlite3              open the file the last test left
   dbrun status                    what is up
   dbrun usql oracle               a shell on the newest Oracle
   dbrun test all                  everything, which is what a release needs

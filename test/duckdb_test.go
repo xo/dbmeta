@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -29,7 +28,7 @@ import (
 // reference ambiguous.
 func openDuckDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := sql.Open("duckdb", filepath.Join(t.TempDir(), "dbm.duckdb"))
+	db, err := sql.Open("duckdb", embeddedFile(t, "DBMETA_DUCKDB", "dbm.duckdb"))
 	if err != nil {
 		t.Fatalf("opening: %v", err)
 	}

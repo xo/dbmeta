@@ -127,7 +127,18 @@ func one(ctx context.Context, r runner, command string, t target, o options) err
 // until the server has answered.
 func doStatus(ctx context.Context, r runner, t target, o options) error {
 	if t.Kind == kindEmbedded {
-		fmt.Printf("  %-20s embedded, nothing to start\n", t.Name)
+		// A library has a file rather than a server, and the file is the
+		// thing a person connects to, so status says where it is. The marker
+		// trails the way the machine viewer does, because the name is the
+		// fixed column a reader scans and everything after it is detail.
+		note := "(embedded)"
+		if _, err := os.Stat(t.DSN); err != nil {
+			// Not an error. Nothing creates the file until something opens
+			// it, so its absence is a state worth reporting rather than a
+			// failure to report the state.
+			note = "(embedded, no file yet)"
+		}
+		fmt.Printf("  %-20s %s  %s\n", t.Name, t.URL, note)
 		return nil
 	}
 	if !r.running(ctx, t.Name) {
@@ -158,7 +169,9 @@ func doStatus(ctx context.Context, r runner, t target, o options) error {
 func doStart(ctx context.Context, r runner, t target, o options) error {
 	switch t.Kind {
 	case kindEmbedded:
-		fmt.Printf("  %-20s embedded, nothing to start\n", t.Name)
+		// Nothing to start, and the file is made by whatever opens it. Print
+		// the same line a server prints so a caller can use it either way.
+		fmt.Printf("  %-20s embedded: %s=%s\n", t.Name, t.Env, t.DSN)
 		return nil
 	case kindMachine:
 		if !r.exists(ctx, t.Name) {
@@ -219,6 +232,15 @@ func doStop(ctx context.Context, r runner, t target) error {
 // that stops it.
 func doRemove(ctx context.Context, r runner, t target, o options) error {
 	if t.Kind == kindEmbedded {
+		// The file is the database, so this is what removing one means. It is
+		// kept by everything else, including test, the same way a machine is.
+		if err := os.Remove(t.DSN); err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return fmt.Errorf("removing %s: %w", t.DSN, err)
+		}
+		fmt.Printf("  removed %s\n", t.DSN)
 		return nil
 	}
 	if t.Kind == kindMachine && !o.yes {
@@ -258,7 +280,7 @@ func confirm(question string) (bool, error) {
 // when one will not come up.
 func doLogs(ctx context.Context, r runner, t target, o options) error {
 	if t.Kind == kindEmbedded {
-		fmt.Printf("  %-20s embedded, there is no log\n", t.Name)
+		fmt.Printf("  %-20s embedded, there is no log. The file is %s\n", t.Name, t.DSN)
 		return nil
 	}
 	if !r.exists(ctx, t.Name) {

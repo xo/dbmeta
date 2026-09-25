@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -86,29 +87,67 @@ type target struct {
 // them collided. See D68.
 const basePort = 55000
 
-// embedded are the databases that are a library rather than a server.
+// embeddedTargets are the databases that are a library rather than a server.
 //
-// They are declared here and not in container, because D42 says an embedded
-// database has no container and no release to pin and must not be in that
-// list. They are here so that `dbrun test sqlite3` works and so that status
-// can say what they are rather than leaving somebody wondering why the name
-// is missing.
-var embedded = []target{
-	{
-		Name: "sqlite3", Product: "sqlite3", Kind: kindEmbedded,
-		Tier: container.Tested, Dialect: dbmeta.SQLite3,
-		DSN: "(a file the test makes)", URL: "(a file the test makes)",
-	},
-	{
-		Name: "duckdb", Product: "duckdb", Kind: kindEmbedded,
-		Tier: container.Tested, Dialect: dbmeta.DuckDB,
-		DSN: "(a file the test makes)", URL: "(a file the test makes)",
-	},
+// Which dialects those are is not decided here. Every model declares it with
+// [dbmeta.Info.Embedded] and this reads it, so a model added later appears
+// without anybody remembering to edit a second list.
+//
+// They are not in container, because D42 says an embedded database has no
+// container and no release to pin and must not be in that list. They are
+// here so that `dbrun test sqlite3` works and so that status can say what
+// they are rather than leaving somebody wondering why the name is missing.
+func embeddedTargets() []target {
+	var out []target
+	for _, d := range dbmeta.Dialects() {
+		if !d.Embedded() {
+			continue
+		}
+		file := filepath.Join(stateDir("DBMETA_EMBEDDED_STATE", "embedded"),
+			string(d)+embeddedExt(d))
+		out = append(out, target{
+			Name: string(d), Product: string(d), Kind: kindEmbedded,
+			Tier: container.Tested, Dialect: d,
+			Env: "DBMETA_" + strings.ToUpper(string(d)),
+			// The driver DSN is the path, because that is what sql.Open takes
+			// for both of these. The URL is the opaque form dburl parses, and
+			// it is what a person pastes into usql.
+			//
+			// The scheme is named rather than left as file:. Both products
+			// answer to file: and dburl decides which by peeking at the
+			// header, or, when the file does not exist yet, by the extension.
+			// Naming the scheme says which one in either state.
+			DSN: file,
+			URL: string(d) + ":" + file,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+// embeddedExt is the file extension for a library's database.
+//
+// It decides which product a file: URL resolves to when the file does not
+// exist yet: dburl matches the header first and falls back to the extension,
+// and .db is sqlite3 there. A DuckDB database called .db would be opened as
+// SQLite by anything following that URL.
+//
+// A dialect with no entry gets its own name as the extension, which is
+// unambiguous because it matches nothing dburl registers.
+func embeddedExt(d dbmeta.Dialect) string {
+	switch d {
+	case dbmeta.SQLite3:
+		return ".db"
+	case dbmeta.DuckDB:
+		return ".duckdb"
+	}
+	return "." + string(d)
 }
 
 // targets returns every target dbrun knows, in a stable order.
 func targets() []target {
 	servers := container.All()
+	embedded := embeddedTargets()
 	out := make([]target, 0, len(servers)+len(container.WindowsVMs)+len(embedded))
 	for i, s := range servers {
 		port := basePort + i

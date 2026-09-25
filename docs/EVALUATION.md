@@ -7,6 +7,9 @@ covered.
 Read it before you propose adding a database or changing a floor. The decisions
 themselves live in `PLAN.md`. This file holds the method and the evidence.
 
+This is one step of adding a database. [`DIALECT.md`](DIALECT.md) holds all of
+them, and this is its step 2.
+
 ## Why this document exists
 
 The question "which versions do we support" comes up once per database, and

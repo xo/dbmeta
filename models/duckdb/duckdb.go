@@ -52,6 +52,8 @@ const Reference = "1.5.5"
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.DuckDB, &dbmeta.Info{
+		// DuckDB is a library, the same as SQLite.
+		Embedded:       true,
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   `SELECT version()`,
 		VersionColumns: 1,

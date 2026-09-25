@@ -33,6 +33,29 @@ const (
 
 // Info is what a model declares about its database.
 type Info struct {
+	// Embedded says the database is a library rather than a server.
+	//
+	// There is nothing to connect to over a network, nothing to start, no
+	// release to pin beyond whatever the driver links, and no user to be. Two
+	// are: SQLite and DuckDB.
+	//
+	// A consumer reads it to decide what is worth offering. There is no host
+	// to report, no server version separate from the driver's, and no second
+	// principal, so a command that asks about any of those has nothing to
+	// say. dbmeta branches on it nowhere itself: every query runs the same way
+	// against a library as against a server.
+	//
+	// Hard rule 1 would normally send a fact about a scheme to dburl, and
+	// dburl does carry something adjacent: it marks file, sqlite3,
+	// moderncsqlite, csvq, duckdb, chai and ql as Opaque. That is a statement
+	// about how a URL parses rather than about the product, and dbmeta cannot
+	// read it in any case, because dbmeta has no dependencies and never opens
+	// a connection. A caller holding a Dialect has no URL to hand to dburl.
+	//
+	// So the fact is declared here, by the model, and it is the model that
+	// knows it.
+	Embedded bool
+
 	// Placeholder writes the bind parameter for position n, counting from 1.
 	// PostgreSQL writes $1, MySQL writes ?, Oracle writes :1.
 	Placeholder func(n int) string
@@ -97,6 +120,16 @@ func (d Dialect) Info() (*Info, bool) {
 	defer infoMu.RUnlock()
 	info, ok := infos[d]
 	return info, ok
+}
+
+// Embedded reports whether the database is a library rather than a server.
+//
+// It is false for a dialect no model was built for, the same as for a server,
+// because the question cannot be answered without the model. See
+// [Info.Embedded].
+func (d Dialect) Embedded() bool {
+	info, found := d.Info()
+	return found && info.Embedded
 }
 
 // VersionQuery returns the statement that reads the server version, and how

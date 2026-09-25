@@ -231,6 +231,55 @@ DuckDB. `usql`'s side is its own per driver `Version` function, or
 Eleven lines match exactly. Thirteen are `dbmeta` reporting strictly more. Two
 are the SQLite naming, which is the only real disagreement.
 
+That table predates `models/oracle`, `models/cassandra`, `models/clickhouse`
+and `models/clickhouse`, and it compares what the two print rather than what they
+run. The statements are compared below, because comparing only the output hid
+a case where `usql` has no answer at all.
+
+### The statements, compared
+
+| Product | dbmeta runs | usql runs | |
+| --- | --- | --- | --- |
+| PostgreSQL | `SHOW server_version` | the same | same |
+| SQLite | `SELECT sqlite_version()` | the same | same |
+| Cassandra | three columns from `system.local` | the same | same |
+| MariaDB | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |
+| MySQL | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |
+| ClickHouse | `SELECT version()` | no function, so the generic `SELECT version();` | same answer |
+| DuckDB | `SELECT version()` | `SELECT library_version FROM pragma_version()` | different statement, same answer |
+| SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
+| Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | no function, so the generic `SELECT version();` | **`usql` cannot answer** |
+
+Measured on a live server of each, on 2026-09-26.
+
+#### Oracle, where the generic fallback is not valid SQL
+
+`usql` declares no `Version` function for its `oracle` driver, so
+`drivers.Version` falls through to `SELECT version();`. Oracle has no such
+function:
+
+```
+ORA-00904: "VERSION": invalid identifier
+```
+
+`drivers.Version` discards the error and returns `<unknown>`, so the failure
+is silent and `usql` prints no version for Oracle at all. `dbmeta` reads
+`v$version` and gets
+`Oracle AI Database 26ai Free Release 23.26.3.0.0`.
+
+This is the strongest single case for the move, and comparing the printed
+lines would never have found it, because Oracle was not in the table above.
+
+#### DuckDB, where the statement differs and the answer does not
+
+DuckDB returns `v1.5.5` from both `version()` and `library_version` in
+`pragma_version()`, measured on the same build.
+
+That is not a divergence worth closing, and the scalar function is the better
+of the pair, because `pragma_version()` is a table function where `version()`
+is a plain call. A difference of statement with no difference of answer is
+recorded and left alone.
+
 ### MySQL and MariaDB, where usql prints no product at all
 
 The `mysql` driver declares no `Version` function, so `usql` falls through to

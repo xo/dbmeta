@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -33,7 +32,7 @@ var sqliteDrivers = []string{"sqlite3", "sqlite"}
 
 func openSQLiteWith(t *testing.T, driver string) *sql.DB {
 	t.Helper()
-	db, err := sql.Open(driver, filepath.Join(t.TempDir(), "dbmeta.db"))
+	db, err := sql.Open(driver, embeddedFile(t, "DBMETA_SQLITE3", "dbmeta.db"))
 	if err != nil {
 		t.Fatalf("opening with %s: %v", driver, err)
 	}
