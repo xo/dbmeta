@@ -45,6 +45,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -101,6 +102,11 @@ func init() {
 		VersionSQL:     `SELECT VERSION()`,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
+
+		QuotingSQL:     `SELECT @@sql_mode`,
+		QuotingColumns: 1,
+		ParseQuoting:   parseQuoting,
+		ChangePassword: changePassword,
 	})
 	registerRelations()
 	registerRoutines()
@@ -167,4 +173,45 @@ func nameSystem(kind string) []dbmeta.Param {
 		{Name: "name", Desc: kind + " name pattern, empty for every " + kind, Default: ""},
 		{Name: "with_system", Desc: "include what MariaDB keeps for itself", Default: false},
 	}
+}
+
+// parseQuoting reads sql_mode.
+//
+// A backslash escapes unless NO_BACKSLASH_ESCAPES is set, and it is not set by
+// default on either product. This is the setting that makes quote doubling
+// alone wrong here: with the password x\\ and only the quote doubled, the
+// backslash escapes the closing quote and the literal runs on into whatever
+// follows the statement.
+func parseQuoting(cols []string) (dbmeta.Quoting, error) {
+	if len(cols) == 0 {
+		return dbmeta.Quoting{}, dbmeta.ErrQuotingUnknown
+	}
+	plain := !strings.Contains(strings.ToUpper(cols[0]), "NO_BACKSLASH_ESCAPES")
+	return dbmeta.Quoting{
+		BackslashEscapes: sql.Null[bool]{V: plain, Valid: true},
+	}, nil
+}
+
+// changePassword builds ALTER USER ... IDENTIFIED BY.
+//
+// An account here is a user and a host rather than a name, and both halves are
+// string literals rather than identifiers. The name is split on the last @,
+// because a user name can contain one and a host cannot. A name with no @ is
+// written without a host, which the server reads as any host, and that is the
+// server's rule rather than a guess made here.
+//
+// usql cannot change a password on this product at all: its mysql driver
+// declares no ChangePassword. This is the one statement here that is an
+// addition rather than a move. See D56.
+func changePassword(c dbmeta.PasswordChange, q dbmeta.Quoting) (string, error) {
+	if !q.BackslashEscapes.Valid {
+		return "", dbmeta.ErrQuotingUnknown
+	}
+	account := dbmeta.QuoteLiteral(c.User, q)
+	if at := strings.LastIndex(c.User, "@"); at >= 0 {
+		account = dbmeta.QuoteLiteral(c.User[:at], q) + "@" +
+			dbmeta.QuoteLiteral(c.User[at+1:], q)
+	}
+	return "ALTER USER " + account +
+		" IDENTIFIED BY " + dbmeta.QuoteLiteral(c.Password, q), nil
 }

@@ -71,6 +71,11 @@ func init() {
 		VersionSQL:     versionSQL,
 		VersionColumns: 5,
 		ParseVersion:   parseVersion,
+
+		// No QuotingSQL: T-SQL has no setting that changes how a literal is
+		// escaped, and a backslash is an ordinary character. Verified on
+		// 2022, where LEN('a\b') is 3.
+		ChangePassword: changePassword,
 	})
 	registerRelations()
 	registerServer()
@@ -203,4 +208,23 @@ func columnComment(objectID, columnID string) string {
 	return `(SELECT CAST(p.value AS nvarchar(max)) FROM sys.extended_properties p` +
 		` WHERE p.class = 1 AND p.major_id = ` + objectID +
 		` AND p.minor_id = ` + columnID + ` AND p.name = 'MS_Description')`
+}
+
+// changePassword builds ALTER LOGIN ... WITH PASSWORD.
+//
+// A login is an identifier in brackets and the password is a string literal,
+// prefixed N so that a password outside the code page survives. T-SQL doubles
+// the quote and has no backslash escape, so this needs no session state and
+// takes a zero Quoting.
+//
+// OLD_PASSWORD is added only when the caller supplies one. A login changing
+// its own password needs it and a member of the server role does not, and
+// which of those applies is the caller's to know.
+func changePassword(c dbmeta.PasswordChange, q dbmeta.Quoting) (string, error) {
+	stmt := "ALTER LOGIN " + dbmeta.QuoteIdentifier(c.User, "[", "]") +
+		" WITH PASSWORD = N" + dbmeta.QuoteLiteral(c.Password, q)
+	if c.Old != "" {
+		stmt += " OLD_PASSWORD = N" + dbmeta.QuoteLiteral(c.Old, q)
+	}
+	return stmt, nil
 }

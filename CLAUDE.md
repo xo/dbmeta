@@ -7,10 +7,16 @@ and `dbtpl` consume it.
 `Reader` and `Writer` pair from `usql` is a `usql` concept and it does not
 come here.
 
+One statement is the exception and it is a narrow one. `Dialect.ChangePasswordSQL`
+builds the statement that sets a password and returns it as text, because the
+statement and its escaping are per product knowledge and a password cannot be
+bound as a parameter. It takes no database and runs nothing, so everything
+`dbmeta` executes is still a read. Do not widen that. See D56.
+
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 55
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 56
 at the top; read the status, because six of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.

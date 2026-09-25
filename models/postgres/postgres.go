@@ -43,6 +43,11 @@ func init() {
 		VersionSQL:     `SHOW server_version`,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
+
+		QuotingSQL:     `SHOW standard_conforming_strings`,
+		QuotingColumns: 1,
+		ParseQuoting:   parseQuoting,
+		ChangePassword: changePassword,
 	})
 	registerSchemas()
 	registerTables()
@@ -229,4 +234,32 @@ func registerColumns() {
 			return c, err
 		},
 	})
+}
+
+// parseQuoting reads standard_conforming_strings.
+//
+// On means a backslash is an ordinary character, which is the default since
+// release 9.1 and is what almost every server reports. Off means a backslash
+// escapes, and then a password carrying one has to have it doubled.
+func parseQuoting(cols []string) (dbmeta.Quoting, error) {
+	if len(cols) == 0 {
+		return dbmeta.Quoting{}, dbmeta.ErrQuotingUnknown
+	}
+	off := !strings.EqualFold(strings.TrimSpace(cols[0]), "on")
+	return dbmeta.Quoting{
+		BackslashEscapes: sql.Null[bool]{V: off, Valid: true},
+	}, nil
+}
+
+// changePassword builds ALTER USER ... PASSWORD.
+//
+// PostgreSQL takes the password as a string literal and the role as an
+// identifier, so the two are quoted by different rules. It has no old password
+// clause and ignores PasswordChange.Old.
+func changePassword(c dbmeta.PasswordChange, q dbmeta.Quoting) (string, error) {
+	if !q.BackslashEscapes.Valid {
+		return "", dbmeta.ErrQuotingUnknown
+	}
+	return "ALTER USER " + dbmeta.QuoteIdentifier(c.User, `"`, `"`) +
+		" PASSWORD " + dbmeta.QuoteLiteral(c.Password, q), nil
 }

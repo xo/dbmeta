@@ -257,3 +257,19 @@ discovered later.
 `TestTheDisplayLineNamesTheProduct` in the `test` module pins the shape per
 product against a live server, so a model cannot quietly lose its product name
 and start printing the bare number `usql` prints today.
+
+## Changing a password
+
+`usql` changes a password in seven drivers and escapes nothing. Each one
+concatenates the new password into the statement, so a password holding a quote
+or a backslash breaks the statement or sets something other than what was
+asked.
+
+`Dialect.ChangePasswordSQL` builds the statement instead and returns the text
+for `usql` to run. It takes no database, so `dbmeta` still executes only reads.
+The escaping needs the server, because whether a backslash escapes inside a
+string literal is `sql_mode` on MySQL and MariaDB and
+`standard_conforming_strings` on PostgreSQL, and `Dialect.Quoting` reads it.
+
+That makes this the second thing a move would fix rather than merely relocate,
+alongside the version line for MySQL. See D56.

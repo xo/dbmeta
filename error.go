@@ -37,6 +37,14 @@ const (
 	// ErrMissingParam is the missing parameter error. The statement names a
 	// parameter that the arguments do not supply.
 	ErrMissingParam Error = "missing parameter"
+	// ErrQuotingUnknown is the quoting unknown error. Building a statement
+	// that carries a password needs session state the caller did not read,
+	// and guessing it can let the password escape its own literal. See D56.
+	ErrQuotingUnknown Error = "quoting unknown"
+	// ErrInvalidPassword is the invalid password error. A password or a user
+	// name holds a character no product can carry in a statement, which today
+	// means a NUL.
+	ErrInvalidPassword Error = "invalid password"
 	// ErrAmbiguousFragment is the ambiguous fragment error. Two alternatives
 	// of one choice name different versions and the server reports both, so
 	// nothing decides between them. It is a fault in the model, not in the

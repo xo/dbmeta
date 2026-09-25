@@ -44,6 +44,18 @@ type Info struct {
 	// ParseVersion turns the columns of the first row into a version set and a
 	// display line.
 	ParseVersion func(cols []string) (VersionSet, error)
+
+	// QuotingSQL reads the session state that decides how a string literal is
+	// escaped. Empty when the product has no such state. See D56.
+	QuotingSQL string
+	// QuotingColumns is how many columns QuotingSQL returns.
+	QuotingColumns int
+	// ParseQuoting turns those columns into the state.
+	ParseQuoting func(cols []string) (Quoting, error)
+	// ChangePassword builds the statement that sets a password. It returns
+	// text and never runs anything. Nil when the product has no such
+	// statement, which is every embedded database here.
+	ChangePassword func(c PasswordChange, q Quoting) (string, error)
 }
 
 var (
@@ -140,23 +152,34 @@ func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
 		}
 		return VersionSet{Display: "unknown"}, nil
 	}
+	cols, err := readRow(ctx, db, d, sqlstr, n)
+	if err != nil {
+		return VersionSet{}, err
+	}
+	return d.ParseVersion(cols)
+}
+
+// readRow runs a statement that returns one row of n columns and hands back
+// the values as text.
+//
+// Every column is scanned as nullable and flattened to empty. A property the
+// server does not have comes back NULL, and scanning that straight into a
+// string is a hard error naming neither the column nor the dialect. SQL Server
+// has one: productupdatelevel arrived after the oldest release supported here.
+//
+// Flattening a NULL is right for these two callers and nowhere else.
+// docs/NULLS.md forbids it for a catalog column, where NULL and empty are two
+// facts a caller has to tell apart. Here the result is a version line shown to
+// a person or a session setting read as a word, and absent and empty mean the
+// same thing to both.
+func readRow(ctx context.Context, db Querier, d Dialect, sqlstr string, n int) ([]string, error) {
 	// QueryContext rather than QueryRowContext, so that Querier needs one
 	// method. The cost is closing the rows by hand, which is four lines.
 	rows, err := db.QueryContext(ctx, sqlstr)
 	if err != nil {
-		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+		return nil, fmt.Errorf("reading from %s: %w", d, err)
 	}
 	defer rows.Close()
-	// Scanned as nullable and handed over as text. A property the server does
-	// not have comes back NULL, and scanning that straight into a string is a
-	// hard error naming neither the column nor the dialect. SQL Server has
-	// one: productupdatelevel arrived after the oldest release this supports.
-	//
-	// Flattening NULL to empty is right here and only here. docs/NULLS.md
-	// forbids it for a catalog column, where NULL and empty are two facts a
-	// caller has to tell apart. A version line is one string shown to a
-	// person, and a property that is absent and a property that is empty both
-	// mean there is nothing to print.
 	scanned := make([]sql.Null[string], n)
 	dest := make([]any, n)
 	for i := range scanned {
@@ -164,24 +187,24 @@ func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
 	}
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+			return nil, fmt.Errorf("reading from %s: %w", d, err)
 		}
-		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, sql.ErrNoRows)
+		return nil, fmt.Errorf("reading from %s: %w", d, sql.ErrNoRows)
 	}
 	if err := rows.Scan(dest...); err != nil {
-		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+		return nil, fmt.Errorf("reading from %s: %w", d, err)
 	}
 	if err := rows.Err(); err != nil {
-		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+		return nil, fmt.Errorf("reading from %s: %w", d, err)
 	}
 	if err := rows.Close(); err != nil {
-		return VersionSet{}, fmt.Errorf("reading the version of %s: %w", d, err)
+		return nil, fmt.Errorf("reading from %s: %w", d, err)
 	}
 	cols := make([]string, n)
 	for i, v := range scanned {
 		cols[i] = v.V
 	}
-	return d.ParseVersion(cols)
+	return cols, nil
 }
 
 // Meta is what a caller holds. It names the dialect and the server version,
