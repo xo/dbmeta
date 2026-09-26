@@ -22,6 +22,7 @@ import (
 	_ "github.com/prestodb/presto-go-client/v2"
 	_ "github.com/sijms/go-ora/v2"
 	_ "github.com/trinodb/trino-go-client/trino"
+	_ "github.com/vertica/vertica-sql-go"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
@@ -45,6 +46,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.HANA:       "hdb",
 	dbmeta.Hive:       "hive",
 	dbmeta.Exasol:     "exasol",
+	dbmeta.Vertica:    "vertica",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the

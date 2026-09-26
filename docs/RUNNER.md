@@ -53,6 +53,14 @@ shipped on Linux, and it installs over an hour. An appliance is a vendor's
 disk image with the database already in it, imported with
 `dbrun provision <name> --from <file>` in minutes.
 
+A server is up when its database answers, and the check is one of two kinds.
+A container runs its readiness command inside itself, which is
+`container.Server.Ready`. A machine, and a container whose image has no shell
+or client to run one, which is Exasol's nano image, is asked from the host
+instead: `dbrun` connects with the driver the tests use for its dialect and
+runs the version query. D86 made that general, and it fixed a machine that
+answered and was still reported as never answering.
+
 An **embedded database** is a library with no server at all: SQLite and
 DuckDB. There is nothing to start, and the database is a file. Which dialects
 those are is not decided here: every model declares it with

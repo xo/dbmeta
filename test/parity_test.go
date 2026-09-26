@@ -23,6 +23,7 @@ import (
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
+	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
 )
 
 // The privilege parity test, which D61 requires of every dialect.
@@ -273,6 +274,23 @@ func parityTargets() []parityTarget {
 				principals: []parityPrincipal{
 					{name: "owner", make: makeExasolOwner},
 					{name: "grantee", make: makeExasolGrantee},
+				},
+			}},
+		},
+		{
+			dialect: dbmeta.Vertica, driver: "vertica", env: "DBMETA_VERTICA",
+			open: openVertica, build: setupVertica, schema: vefixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Vertica has no containment. A user belongs to the database
+				// and a schema is only a grant scope, so there is the
+				// administrator, the owner of a schema and a grantee. The
+				// administrator here is dbmeta, which holds PSEUDOSUPERUSER,
+				// because dbadmin has no password and cannot be given one
+				// from outside the image.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "owner", make: makeVerticaOwner},
+					{name: "grantee", make: makeVerticaGrantee},
 				},
 			}},
 		},

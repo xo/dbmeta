@@ -102,6 +102,7 @@ linters:
             - github.com/SAP/go-hdb
             - github.com/beltran/gohive
             - github.com/exasol/exasol-driver-go
+            - github.com/vertica/vertica-sql-go
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

@@ -346,6 +346,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Firebird | 3.0 | 5.0 | Criteria 2 and 3 agree, which is rare enough to record |
 | SAP HANA | 2.00.076 | 2.00.088 | Criterion 3. SAP publishes an express edition of 2.0 only |
 | Apache Hive | 4.0 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
+| Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images Ken chose so that a gate has something older to answer against, and D88 records why |
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | SQLite3 | none | none | No server. The release is whichever the driver embeds |
 | DuckDB | none | none | No server. The release is whichever the driver embeds |
@@ -389,29 +390,32 @@ recorded in `container/container.go` rather than in a script.
 
 ## What is still unevaluated
 
-Nothing that runs. Apache Hive was the last one through the procedure, and
+Nothing that runs. Vertica was the last one through the procedure, and
 every product in `container/container.go` has a row in the table above.
-`TestEveryProductIsEvaluated` fails when one does not.
+`TestEveryProductIsEvaluated` fails when one does not. The products `usql`
+ran and dbmeta has no model for are listed under "Candidates carried over
+from usql" below.
 
-One is evaluated and cannot be started, which is a result rather than a gap.
-Vertica has no image outside Kubernetes since the `vertica/vertica-ce` one was
-withdrawn. It has no container entry, no dialect constant and no model,
-because a constant with no model claims something this project cannot do.
-D66 records it.
+Two products were once evaluated as unable to start, and neither is any more.
 
-Exasol was the second until 2026-09-27 and is not any more. `exasol/docker-db`
-would not initialize under rootless podman, which is D77, and Exasol now
-publishes `exasol/nano`, which starts unprivileged on the default network in
-about five seconds. D84 has the measurement. It has a row in the table above
-and a model, which D87 records.
+Vertica had no image outside Kubernetes once `vertica/vertica-ce` was
+withdrawn, which D66 recorded. A community copy of that image at 25.1 starts,
+and three older community images start too, so Vertica has four releases, a
+row above and a model. D88 records the decision, and it is the first product
+here whose release range is set by community images. Every one is pinned by
+digest.
 
-Its range comes from two places rather than one, which nothing else here
-does. The nano images are a container like any other and criterion 2 decides
-them. The Community Edition is an appliance a person imports once and freezes,
-which is criterion 3 with a floor of one, and it exists so that the model has
-a server older than the nano line to answer against. D85 has the approach and
-says what does not carry over from the SQL Server machines, and D86 is how
-`dbrun` imports it.
+Exasol's `exasol/docker-db` would not initialize under rootless podman, which
+is D77, and Exasol now publishes `exasol/nano`, which starts unprivileged on
+the default network in about five seconds. D84 has the measurement, and D87
+records the model.
+
+Exasol's range comes from two places. The nano images are a container like
+any other and criterion 2 decides them. The Community Edition is an
+appliance a person imports once and freezes, which is criterion 3 with a
+floor of one, and it exists so that the model has a server older than the
+nano line to answer against. D85 has the approach and says what does not
+carry over from the SQL Server machines, and D86 is how `dbrun` imports it.
 
 Oracle's container facts are in D54, and the floor followed from them the same
 way SQL Server's did. The privilege question was the open one there rather than
@@ -476,7 +480,8 @@ from `gvenzl/oracle-xe`, and builds 19c Enterprise itself. D54 has the list.
 `usql`'s Exasol and Vertica configurations name `exasol/docker-db` and
 `vertica/vertica-ce`. The first does not initialize under rootless podman,
 which is D77, and dbmeta runs `exasol/nano` instead. The second was
-withdrawn, which D66 records, and Vertica has no model here yet.
+withdrawn, which D66 records, and dbmeta runs a community copy of the same
+image at 25.1 and three older releases, which D88 records.
 
 The Db2 notes in `usql` are about installing IBM's ODBC client, which is
 `usql`'s concern and stays there. The container itself needs nothing beyond

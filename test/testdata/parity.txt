@@ -181,3 +181,73 @@ roles fewer rows than the administrator
 
 [trino/same/other]
 current_user the same rows with different values
+
+[vertica/same/grantee]
+comments fewer rows than the administrator
+current_user the same rows with different values
+functions fewer rows than the administrator
+privileges the same rows with different values
+role_grants fewer rows than the administrator
+role_settings refused: ERROR 4367: [42501] Permission denied for relation user_configuration_parameters
+roles fewer rows than the administrator
+schemas fewer rows than the administrator
+sequences fewer rows than the administrator
+settings the same rows with different values
+
+[vertica/same/owner]
+current_user the same rows with different values
+role_grants fewer rows than the administrator
+role_settings refused: ERROR 4367: [42501] Permission denied for relation user_configuration_parameters
+roles fewer rows than the administrator
+schemas fewer rows than the administrator
+settings the same rows with different values
+
+[vertica@10/same/grantee]
+comments fewer rows than the administrator
+current_user the same rows with different values
+privileges refused: ERROR 4367: [42501] Permission denied for relation access_policy
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+sequences fewer rows than the administrator
+settings the same rows with different values
+
+[vertica@10/same/owner]
+current_user the same rows with different values
+privileges refused: ERROR 4367: [42501] Permission denied for relation access_policy
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+settings the same rows with different values
+
+[vertica@7/same/grantee]
+comments fewer rows than the administrator
+current_user the same rows with different values
+privileges fewer rows than the administrator
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+schemas fewer rows than the administrator
+sequences fewer rows than the administrator
+settings the same rows with different values
+
+[vertica@7/same/owner]
+current_user the same rows with different values
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+schemas fewer rows than the administrator
+settings the same rows with different values
+
+[vertica@9/same/grantee]
+comments fewer rows than the administrator
+current_user the same rows with different values
+privileges fewer rows than the administrator
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+schemas fewer rows than the administrator
+sequences fewer rows than the administrator
+settings the same rows with different values
+
+[vertica@9/same/owner]
+current_user the same rows with different values
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+schemas fewer rows than the administrator
+settings the same rows with different values

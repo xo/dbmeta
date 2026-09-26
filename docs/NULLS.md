@@ -111,6 +111,22 @@ NULL at all, which means a query there cannot report the difference and the
 model must say so rather than pretend. SQL Server and the rest each have their
 own corners.
 
+Exasol is Oracle's case with a twist the driver adds. It reads `''` as NULL,
+so a filter written `? = ''` is never true and matched nothing at all, and a
+statement that selects `''` for a field that is always empty gets NULL back,
+which a plain Go string cannot scan. The Exasol model tests a filter with
+`IS NULL`, scans a plain string field through a helper that reads NULL as
+empty, and restores the three fields where the empty string means something,
+such as a column that is not an identity, from the row. A field typed
+`sql.Null` keeps its NULL. That is not the COALESCE above: on Exasol NULL is
+the only way to write the empty string. D87 has it.
+
+Vertica keeps the two apart, as PostgreSQL does, and still writes `''` in some
+catalog columns to mean absent: a column with no default, and a function with
+no definition or no comment. The model turns those into NULL with `NULLIF`,
+because there the empty string is the catalog's way of saying there is
+nothing, not a value somebody set.
+
 Cassandra is the worst of them and the driver is why. CQL has a null, and
 gocql decodes one as the zero value of its type, so `go-cql-driver` hands
 `database/sql` an empty string rather than a null. Scanning into

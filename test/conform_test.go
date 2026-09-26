@@ -26,6 +26,7 @@ import (
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
+	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
 )
 
 // The cross family conformance test.
@@ -143,6 +144,11 @@ func conformTargets() []conformTarget {
 			open: openExasol, schema: exfixture.Everything.Schema,
 			build: setupExasol,
 		},
+		{
+			name: "vertica", dialect: dbmeta.Vertica,
+			open: openVertica, schema: vefixture.Everything.Schema,
+			build: setupVertica,
+		},
 	}
 }
 
@@ -159,22 +165,45 @@ func TestConformance(t *testing.T) {
 			db := target.open(t)
 			m := target.build(t, db)
 			got := conformReport(t, m, db, target.schema)
+			section := conformSection(target.name, m, want)
 			ran++
 			if *update {
-				writeGolden(t, target.name, got)
+				writeGolden(t, section, got)
 				return
 			}
-			expected, ok := want[target.name]
+			expected, ok := want[section]
 			if !ok {
 				t.Fatalf("no expectation for %s in %s. Run go test -update and read the diff.",
-					target.name, conformGolden)
+					section, conformGolden)
 			}
-			compareReport(t, target.name, expected, got)
+			compareReport(t, section, expected, got)
 		})
 	}
 	if ran == 0 {
 		t.Skip("no database was reachable")
 	}
+}
+
+// conformSection picks the section a server is recorded under.
+//
+// One section holds for every release of a product, because the canonical
+// projection is portable. The exception is a fixture that cannot build a
+// core object on an old release: Vertica added CHECK constraints in 9.1, so
+// 7.2 has no check constraint on book to report. A section named
+// product@major, or product@major.minor, wins for a server reporting that
+// release, the same way parity's does. See D61.
+func conformSection(name string, m *dbmeta.Meta, want map[string][]string) string {
+	main := m.Version().Main()
+	if main.Unknown || len(main.Parts) == 0 {
+		return name
+	}
+	for _, n := range releaseNames(name, "", main.Parts) {
+		n = strings.TrimSuffix(n, "/")
+		if _, ok := want[n]; ok {
+			return n
+		}
+	}
+	return name
 }
 
 // conformReport reads the core schema and returns the canonical answer, as
@@ -463,6 +492,11 @@ func TestConformanceAgreementHolds(t *testing.T) {
 	all := make([]string, 0, len(sections))
 	relational := make([]string, 0, len(sections))
 	for n := range sections {
+		// A release's own section is that product again, not another
+		// database to agree with.
+		if strings.Contains(n, "@") {
+			continue
+		}
 		all = append(all, n)
 		if _, out := agreementExcluded[n]; !out {
 			relational = append(relational, n)

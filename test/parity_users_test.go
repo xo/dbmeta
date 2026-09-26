@@ -445,3 +445,78 @@ func exasolUser(t *testing.T, dsn, user, password string) string {
 	}
 	return strings.Join(append(kept, "password="+password), ";")
 }
+
+// makeVerticaOwner makes a user that owns every object in the fixture
+// schema.
+//
+// From 10.1, ALTER SCHEMA ... OWNER TO ... CASCADE hands over the schema and
+// its objects together. 7.2 and 9.1 have no ALTER SCHEMA ... OWNER, and
+// refuse it as a syntax error, so there each table, view and sequence is
+// handed over on its own and the user is granted usage on the schema, which
+// it cannot own. Ownership goes back to the administrator before the user is
+// dropped, because DROP USER ... CASCADE drops what the user owns.
+func makeVerticaOwner(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	cleanup(t, db, `DROP USER IF EXISTS dbmeta_owner CASCADE`)
+	exec(t, db, `CREATE USER dbmeta_owner IDENTIFIED BY '`+parityPassword+`'`)
+	if _, err := db.ExecContext(t.Context(),
+		`ALTER SCHEMA `+schema+` OWNER TO dbmeta_owner CASCADE`); err == nil {
+		t.Cleanup(func() {
+			cleanup(t, db, `ALTER SCHEMA `+schema+` OWNER TO dbmeta CASCADE`)
+			cleanup(t, db, `DROP USER IF EXISTS dbmeta_owner CASCADE`)
+		})
+		return replaceUser(t, dsn, "dbmeta_owner", parityPassword)
+	}
+	objects := verticaObjects(t, db, schema)
+	t.Cleanup(func() {
+		for _, o := range objects {
+			cleanup(t, db, `ALTER `+o+` OWNER TO dbmeta`)
+		}
+		cleanup(t, db, `DROP USER IF EXISTS dbmeta_owner CASCADE`)
+	})
+	exec(t, db, `GRANT USAGE ON SCHEMA `+schema+` TO dbmeta_owner`)
+	for _, o := range objects {
+		exec(t, db, `ALTER `+o+` OWNER TO dbmeta_owner`)
+	}
+	return replaceUser(t, dsn, "dbmeta_owner", parityPassword)
+}
+
+// verticaObjects names every table, view and sequence in a schema, each with
+// the word ALTER needs before it.
+func verticaObjects(t *testing.T, db *sql.DB, schema string) []string {
+	t.Helper()
+	rows, err := db.QueryContext(t.Context(), `SELECT 'TABLE ' || table_schema || '.' || table_name
+FROM v_catalog.tables WHERE table_schema = ?
+UNION ALL SELECT 'VIEW ' || table_schema || '.' || table_name
+FROM v_catalog.views WHERE table_schema = ?
+UNION ALL SELECT 'SEQUENCE ' || sequence_schema || '.' || sequence_name
+FROM v_catalog.sequences WHERE sequence_schema = ? AND identity_table_name IS NULL`,
+		schema, schema, schema)
+	if err != nil {
+		t.Fatalf("listing the objects in %s: %v", schema, err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var o string
+		if err := rows.Scan(&o); err != nil {
+			t.Fatalf("reading the objects in %s: %v", schema, err)
+		}
+		out = append(out, o)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("listing the objects in %s: %v", schema, err)
+	}
+	return out
+}
+
+// makeVerticaGrantee makes a user that can read the schema and owns nothing.
+func makeVerticaGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	cleanup(t, db, `DROP USER IF EXISTS dbmeta_grantee CASCADE`)
+	exec(t, db, `CREATE USER dbmeta_grantee IDENTIFIED BY '`+parityPassword+`'`)
+	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS dbmeta_grantee CASCADE`) })
+	exec(t, db, `GRANT USAGE ON SCHEMA `+schema+` TO dbmeta_grantee`)
+	exec(t, db, `GRANT SELECT ON ALL TABLES IN SCHEMA `+schema+` TO dbmeta_grantee`)
+	return replaceUser(t, dsn, "dbmeta_grantee", parityPassword)
+}

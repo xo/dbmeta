@@ -329,6 +329,7 @@ a case where `usql` has no answer at all.
 | Firebird | `SELECT rdb$get_context('SYSTEM', 'ENGINE_VERSION') FROM rdb$database` | the same statement | the same answer, and `usql` prefixes the word Firebird |
 | Apache Hive | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement, and Hive has the function, so the fallback works |
 | SAP HANA | `SELECT VERSION FROM SYS.M_DATABASE` | the same statement, lower cased | the same answer, and `usql` prefixes the words SAP HANA |
+| Vertica | `SELECT version()` | the same | same, measured on 7.2.1, 9.1.0, 10.1.1 and 25.1.0 on 2026-09-27 |
 | Exasol | `SELECT PARAM_VALUE FROM EXA_METADATA WHERE PARAM_NAME = 'databaseProductVersion'` | the same statement, lower cased | the same answer, and `usql` prefixes the word Exasol. A user granted nothing but `CREATE SESSION` reads it on 2025.2.1 and 2026.2.0, measured on 2026-09-27 |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and **`usql` fails for everybody else** |
@@ -453,6 +454,14 @@ string literal is `sql_mode` on MySQL and MariaDB and
 
 That makes this the second thing a move would fix rather than merely relocate,
 alongside the version line for MySQL. See D56.
+
+Vertica's is moved, and it fixes the same fault. `usql`'s Vertica driver
+builds `ALTER USER ... IDENTIFIED BY '...'` by concatenating the password with
+no escaping, so a quote in it broke the statement. `dbmeta` quotes it as a
+literal and reads `standard_conforming_strings`, the way it does for
+PostgreSQL. D88 has the rest, including a fault in `vertica-sql-go` itself:
+it splits a statement at every semicolon, so no SQL function can be created
+through it.
 
 Exasol's is new rather than moved, because `usql`'s Exasol driver declares no
 `ChangePassword` at all. Exasol takes a password as a quoted identifier rather

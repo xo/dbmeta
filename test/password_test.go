@@ -266,3 +266,69 @@ func TestChangePasswordExasol(t *testing.T) {
 	}
 	login(t, "exasol", exasolUser(t, base, user, next), `SELECT CURRENT_USER`, user)
 }
+
+// TestChangePasswordVertica sets each password and logs in with it, under
+// both settings of standard_conforming_strings, and then has the user change
+// its own password with the current one.
+//
+// The setting is per session, so the statement is built and run on one
+// connection that set it.
+func TestChangePasswordVertica(t *testing.T) {
+	db := openVertica(t)
+	const user = "dbmeta_pw"
+	exec(t, db, `DROP USER IF EXISTS `+user)
+	exec(t, db, `CREATE USER `+user+` IDENTIFIED BY 'Start-P4ss!x'`)
+	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS `+user) })
+	base := dsnOf(t, "DBMETA_VERTICA")
+	current := "Start-P4ss!x"
+	for _, setting := range []string{"ON", "OFF"} {
+		conn, err := db.Conn(t.Context())
+		if err != nil {
+			t.Fatalf("taking a connection: %v", err)
+		}
+		if _, err := conn.ExecContext(t.Context(), `SET STANDARD_CONFORMING_STRINGS TO `+setting); err != nil {
+			t.Fatalf("setting standard_conforming_strings: %v", err)
+		}
+		q, err := dbmeta.Vertica.Quoting(t.Context(), conn)
+		if err != nil {
+			t.Fatalf("reading the quoting state: %v", err)
+		}
+		if q.BackslashEscapes.V != (setting == "OFF") {
+			t.Fatalf("standard_conforming_strings %s read as BackslashEscapes=%v", setting, q.BackslashEscapes)
+		}
+		for _, c := range hostilePasswords {
+			t.Run(setting+"/"+c.name, func(t *testing.T) {
+				stmt, err := dbmeta.Vertica.ChangePassword(
+					dbmeta.PasswordChange{User: user, Password: c.password}, q)
+				if err != nil {
+					t.Fatalf("building the statement: %v", err)
+				}
+				if _, err := conn.ExecContext(t.Context(), stmt); err != nil {
+					t.Fatalf("running %s: %v", stmt, err)
+				}
+				login(t, "vertica", replaceUser(t, base, user, c.password), `SELECT CURRENT_USER()`, user)
+				current = c.password
+			})
+		}
+		if err := conn.Close(); err != nil {
+			t.Fatalf("returning the connection: %v", err)
+		}
+	}
+
+	// The user changing its own password, which needs the current one.
+	self := openAt(t, "vertica", replaceUser(t, base, user, current))
+	q, err := dbmeta.Vertica.Quoting(t.Context(), self)
+	if err != nil {
+		t.Fatalf("reading the quoting state: %v", err)
+	}
+	const next = `Next-P4ss!x'`
+	stmt, err := dbmeta.Vertica.ChangePassword(
+		dbmeta.PasswordChange{User: user, Password: next, Old: current}, q)
+	if err != nil {
+		t.Fatalf("building the statement: %v", err)
+	}
+	if _, err := self.ExecContext(t.Context(), stmt); err != nil {
+		t.Fatalf("changing its own password: %v", err)
+	}
+	login(t, "vertica", replaceUser(t, base, user, next), `SELECT CURRENT_USER()`, user)
+}

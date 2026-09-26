@@ -200,6 +200,22 @@ What changes for a machine:
 - The evaluation licence rearms itself at every boot. D65 explains it and
   nothing here activates Windows.
 
+**A release a vendor ships only as a disk image is an appliance.** The Exasol
+Community Edition is one. It is a `container.Machine` with an
+`ApplianceSpec` in the product's own container file, naming the file the
+vendor publishes, its SHA256 and the page to download it from, because
+nothing here can fetch it. `dbrun provision <name> --from <file>` checks and
+imports it once, and it is kept and Verified like a Windows machine. D85,
+D86 and D87 are the decisions.
+
+**An image somebody other than the vendor built is pinned by digest.**
+Vertica's four releases run on community images, each pushed once and never
+rebuilt, so each `Tag` carries its `@sha256:` digest as well as its name. A
+push to the same tag would otherwise change what was tested without a line
+changing here. D88 is the decision, and it says what to check before taking
+such an image: whose build it is, and whether the binary reports the release
+the tag claims.
+
 A frozen baseline is the point of both. The machine exists so that a release
 nobody can run in CI is still measured before a release, rather than being
 claimed without evidence. Say which tier a release sits in and never call one

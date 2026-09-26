@@ -42,6 +42,7 @@ rather than reading one.
 | `models/hana` | 32 | 55 | SAP HANA 2.0 SPS 08 |
 | `models/hive` | 16 | 55 | Apache Hive 4.2 |
 | `models/exasol` | 25 | 55 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
+| `models/vertica` | 26 | 55 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on community images |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -1549,6 +1550,166 @@ principal that owns another schema cannot see. The nano image ships none, so
 the difference is in what the machine holds and not in the query.
 `test/testdata/parity.txt` has an `exasol@2025` section for it.
 
+## Vertica
+
+`models/vertica` answers 26 of the 55 on 25.1 and 24 on the three older
+releases, which have no triggers and no per user settings to read. It was run
+against 7.2.1, 9.1.0, 10.1.1 and 25.1.0, all four community images, and D88
+records why those.
+
+### It reads v_catalog
+
+Vertica began as a fork of PostgreSQL and its catalog is the `v_catalog`
+schema, with the engine's running state in `v_monitor`. Every query here reads
+those two. Much of it will look familiar to anybody who knows PostgreSQL:
+`vsql` is `psql`, names fold to lower case, the empty string and NULL are
+different values, and `standard_conforming_strings` decides how a literal is
+escaped.
+
+The catalog grows with the product: `v_catalog` has 56 tables on 7.2, 73 on
+9.1, 89 on 10.1 and more on 25.1, where namespaces arrived. The base names,
+a table's schema and name, are the same on every release, so most queries
+need no fragment, and the gates are few:
+
+| From | What |
+| --- | --- |
+| 9.1 | CHECK constraints, SET USING columns, a function's owner, a user's connection limit |
+| 10.1 | `LISTAGG`, and a comment on a table column |
+| 25.1 | PL/vSQL, a procedure's language, owner and security, triggers, per user settings |
+
+The 25.1 row is measured present there and absent on 10.1, and nothing
+between is measured.
+
+Four things about writing SQL for it, all measured.
+
+A CASE whose branches are literals of different lengths is typed CHAR of the
+longest, so `unique` arrived padded to the width of `primary key`. Every CASE
+that produces text is cast to VARCHAR.
+
+`CURRENT_SCHEMA()` is allowed only in the outermost select list, not in a
+WHERE, a join or a derived table, so CurrentSchema cannot join the schema's
+row and leaves the owner and comment to Schemas.
+
+A subquery beside GROUP BY is refused, so the access policies Privileges folds
+in are aggregated first and joined.
+
+`vertica-sql-go`, the driver `usql` uses, splits a statement at every
+semicolon before it sends it, so a SQL function, whose body needs one, cannot
+be created through it at all. `vsql` creates it without complaint.
+
+### What it answers
+
+Tables, schemas, columns, views, indexes, index columns, constraints,
+constraint columns, sequences, partitioned tables, comments, functions,
+aggregates, types, triggers, roles, role settings, role grants, privileges,
+databases, tablespaces, settings, foreign servers, foreign tables, the
+current schema and the current user.
+
+Six answer with an analogue:
+
+| Kind | Vertica | Why it is a fair answer |
+| --- | --- | --- |
+| `Indexes` | projections | Vertica has no index. A projection is a stored, sorted and segmented copy of some or all of a table's columns, and the optimizer chooses between projections the way another database chooses between indexes. `IndexColumns` is the projection's columns, in the order it stores them |
+| `Tablespaces` | `storage_locations` | a storage location is a directory on a node that holds data or temporary files, and a label lets a storage policy send a table's data to it |
+| `ForeignServers` | `hcatalog_schemata` | an HCatalog schema reaches the tables of a Hive metastore through the HCatalog connector: one source and the settings to reach it |
+| `ForeignTables` | external tables | an external table reads its rows from files through the COPY statement it was created with, and names them directly, so there is no server object |
+| `RoleSettings` | `user_configuration_parameters` | a user's own value for a parameter, set with ALTER USER ... SET. A role carries none. 25.1 alone |
+| `Triggers` | `stored_proc_triggers` | Vertica's own word, and it runs a stored procedure on a schedule rather than on a change to a table, so it names no table. 25.1 alone |
+
+A NOT NULL is not reported as a constraint. Vertica records one per column in
+`constraint_columns`, all under the name `C_NOTNULL`, and not in
+`table_constraints`, which is the way PostgreSQL treats one too. A key is
+recorded whether or not it is enabled, and Vertica checks one only when it
+is. An identity column refuses an explicit value, so its identity kind is
+always.
+
+Before 10.1 there is no string aggregate, so Privileges returns a row per
+object and grantee there, and a row per object from 10.1.
+
+### What it cannot answer
+
+29 kinds. Most are absent from the product: domains, enumerated types, casts,
+operators, operator classes and families, collation objects, conversions,
+large objects, event triggers, extensions, extended statistics, publications,
+subscriptions, text search objects, access methods, user mappings and foreign
+data wrappers. HCatalog is one connector rather than a catalog of them.
+
+Four are present in some form and rejected, which is a different thing.
+
+`RoutineParameters` has no answer. A routine's arguments are one comma
+separated list of types on its own row, and the named parameters a library
+function declares in `user_function_parameters` are `USING PARAMETERS`
+options rather than arguments. Reporting those as parameters would answer a
+different question.
+
+`DefaultACLs` has no answer. A schema can make new objects inherit its grants,
+and `inherited_privileges` and `inheriting_objects` record that from 10.1, but
+that is a flag on the schema rather than a default privilege a principal
+sets.
+
+`Languages` has no answer. Nothing lists them. A library records its SDK
+version and not the language it was written in.
+
+`ColumnStats` has no answer. `table_statistics` holds row counts, and nothing
+exposes a column's null fraction, distinct count or most common values.
+
+### What a second opinion found
+
+Gemini and DeepSeek were both asked about the thirty one kinds, given the
+table lists. Gemini's answer was cut off after the first rows, which agreed
+with the table above. DeepSeek named three leads.
+
+| Lead | What the server says |
+| --- | --- |
+| `RoleSettings` from `user_configuration_parameters` | it exists on 25.1 with user_name, parameter_name and current_value. It is the source `RoleSettings` reads |
+| `Languages` from a `language` column of `user_libraries` | there is no such column |
+| `ColumnStats` from `table_statistics` | it holds row counts, not column statistics |
+
+Running the second one was the only way to tell it was invented. `ForeignServers`
+from `hcatalog_schemata` was found here rather than offered, while checking
+DeepSeek's answer that foreign servers are absent.
+
+### What the fixture cannot build
+
+No SQL function, because of the driver's semicolon split above. Functions
+reads the functions the packages Vertica installs at startup provide, and a
+PL/vSQL procedure on 25.1.
+
+No HCatalog schema, because the images carry no HCatalog connector and CREATE
+HCATALOG SCHEMA is refused, so `ForeignServers` is verified to run and return
+nothing.
+
+On 7.2 and 9.1 the view is created before `book_published`, because a table
+with a projection somebody made gets no superprojection until it holds rows,
+and a view over a column no projection carries is refused. On 7.2 there is no
+CHECK constraint.
+
+### What conformance says
+
+Vertica agrees with the relational databases on all their lines, including
+the unique and check constraints on `book`. 7.2 has no CHECK constraint, so
+it has a section of its own, `vertica@7`, one line shorter. It is the first
+product to need one in `conformance.txt`, and D88 records the change.
+
+### Which answers depend on who is asking
+
+Measured with `dbmeta`, which holds PSEUDOSUPERUSER because `dbadmin` has no
+password, the owner of the fixture schema and a grantee on it.
+
+`RoleSettings` is refused to both on 25.1, because a lesser principal cannot
+read `user_configuration_parameters`.
+
+`Roles`, `RoleGrants` and `Schemas` return fewer rows to both, because each
+view shows a principal what it can reach. The grantee also sees fewer
+comments, functions and sequences.
+
+`Settings` returns the same rows with different values, because
+`configuration_parameters` hides the values a superuser alone can see.
+
+On 10.1 `Privileges` is refused to both, because a lesser principal cannot read
+`access_policy`, which the query joins for its policies. 25.1 serves it. Before
+10.1 the query does not read that view.
+
 ## Which answers depend on who is asking
 
 Every query has been asked as the administrator and as each lesser kind of
@@ -1578,6 +1739,10 @@ that varies is what kind of principal they are.
 | Exasol 2026.2.0 | schema owner | `current_schema`, `foreign_servers`, `role_grants`, `user_mappings` |
 | Exasol 2026.2.0 | grantee | `current_schema`, `foreign_servers`, `privileges`, `role_grants`, `user_mappings` |
 | Exasol 2025.2.1 | both | the same, plus `foreign_data_wrappers`, because the Community Edition ships adapter scripts that SYS owns |
+| Vertica 25.1 | schema owner | `role_grants`, `role_settings`, `roles`, `schemas`, `settings` |
+| Vertica 25.1 | grantee | the same, plus `comments`, `functions`, `privileges` and `sequences` |
+| Vertica 10.1 | both | `privileges` is refused, because a lesser principal cannot read `access_policy` |
+| Vertica 7.2, 9.1 | both | the same as 25.1 without `role_settings`, and a grantee sees fewer rows in `privileges` rather than different values |
 
 `current_user` and `current_schema` are left out of the table and are in the
 file. They answer a question about the connection, so a run where they agreed
