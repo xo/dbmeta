@@ -338,8 +338,20 @@ and D40 make that distinction, and the table must not claim more than is true.
 | MariaDB | 10.6 | 13.0 | Criterion 3, the oldest long term release still maintained |
 | MySQL | 8.4 | 26.7 | Criterion 3, 8.4 is the long term release |
 | SQL Server | 2017 | 2025 | Criterion 2, and nothing else had to be asked |
+| Oracle | 11g | 26ai | Criterion 2, from the free images. The container facts are in D54 |
+| Cassandra | 3.11 | 5.0 | Criterion 2, then held one release up because 3.0 adds no answer |
+| ClickHouse | 25.3 | 26.9 | Criterion 2. It goes stale faster than any other, because ClickHouse releases monthly |
+| Trino | 476 | 483 | Criterion 5. Criterion 2 cannot decide it and criterion 3 gives a floor of one |
+| Presto | 0.299 | 0.299 | Criterion 3, which gives a floor of one, and there is no second release to compare |
+| Firebird | 3.0 | 5.0 | Criteria 2 and 3 agree, which is rare enough to record |
+| SAP HANA | 2.00.076 | 2.00.088 | Criterion 3. SAP publishes an express edition of 2.0 only |
+| Apache Hive | 4.0 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
 | SQLite3 | none | none | No server. The release is whichever the driver embeds |
 | DuckDB | none | none | No server. The release is whichever the driver embeds |
+
+The full reasoning for each is in the doc comment of its `container/` file,
+which is where the template above says to put it. This table is the index to
+those and not a second copy of them.
 
 PostgreSQL covers ten major versions: 9.6, 10, 11, 12, 13, 14, 15, 16, 17 and
 18. See the section above for the unit and the evidence.
@@ -376,7 +388,16 @@ recorded in `container/container.go` rather than in a script.
 
 ## What is still unevaluated
 
-Nothing. Oracle and Cassandra were the last two and both have been through it.
+Nothing that runs. Apache Hive was the last one through the procedure, and
+every product in `container/container.go` has a row in the table above.
+`TestEveryProductIsEvaluated` fails when one does not.
+
+Two are evaluated and cannot be started, which is a result rather than a gap.
+Vertica has no image outside Kubernetes since the `vertica/vertica-ce` one was
+withdrawn, and Exasol does not initialize under rootless podman. Neither has a
+container entry, a dialect constant or a model, because a constant with no
+model claims something this project cannot do. D66 records the first and D77
+the second.
 
 Oracle's container facts are in D54, and the floor followed from them the same
 way SQL Server's did. The privilege question was the open one there rather than

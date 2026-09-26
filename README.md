@@ -172,12 +172,12 @@ shared model serves.
 
 SQL Server was on that list too. `usql` reads it through the shared reader with
 sequences and constraints switched off and a small plugin for catalogs and
-indexes, and the native model here answers 31 kinds instead, including the
+indexes, and the native model here answers 32 kinds instead, including the
 sequences and constraints that reader turns off.
 
 [`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
 and which analogues were found and rejected. MariaDB answers 29 of the 55 and
-MySQL answers 25, because a native model beats the shared one by seventeen.
+MySQL answers 26, because a native model beats the shared one by seventeen.
 
 MariaDB and MySQL share one model. A query written for one of them gates on the
 product rather than on the release number, because MariaDB is at 13.0 and MySQL
@@ -198,14 +198,19 @@ projects can generate against it.
 
 # Version Support
 
-Every version sits in one of three tiers. Read the tier before you rely on a
+Every version sits in one of four tiers. Read the tier before you rely on a
 version.
 
 | Tier     | What it means                                                      |
 | -------- | ------------------------------------------------------------------ |
 | Tested   | Tests run on every change, in CI                                     |
-| Verified | Tests run on a development machine before a release                  |
+| Nightly  | Tests run once a night, in CI                                        |
+| Verified | Tests run on a development machine before a release, and not in CI   |
 | Archived | The queries exist and were checked once, and nothing runs them now   |
+
+D40 set three of these and D42 added Nightly. The first three are values of
+`container.Tier`. Archived is not, because an archived release is one the
+list does not name at all.
 
 ## PostgreSQL
 
@@ -215,15 +220,15 @@ Supported from release 9.6 to release 18, which is ten major versions: 9.6, 10,
 | Releases          | Tier     |
 | ----------------- | -------- |
 | 9.6, 12, 15, 18   | Tested   |
-| 10, 11, 13, 14, 16, 17 | Verified |
+| 10, 11, 13, 14, 16, 17 | Nightly  |
 
 Four releases are Tested: CI starts a real server for each and runs the
 integration tests on every change. They are the floor, the ceiling and one on
 each side of the middle, which is the smallest set that catches every fault
 found so far. Testing only the newest would have caught two of six.
 
-The other six are Verified. All ten run nightly in CI, and `dbrun` runs them
-on a development machine before a release.
+The other six are Nightly. All ten run nightly in CI, and `dbrun` runs any of
+them on a development machine.
 
 Every query is executed against a real server at all ten releases by `dbrun`,
 which also checks that the columns returned match the fields
@@ -272,7 +277,7 @@ Everything else is in [`docs/`](docs/):
 
 | Document | What it holds |
 | --- | --- |
-| [`PLAN.md`](docs/PLAN.md) | Every decision, 80 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because 12 amend or replace an earlier one. |
+| [`PLAN.md`](docs/PLAN.md) | Every decision, 81 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because 12 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -332,7 +337,11 @@ a client can take the parts it needs.
   measures the same thing for it.
 - [`dburl`][dburl] parses a database URL and opens a connection. `dbmeta` never
   parses one, and it never repeats the scheme and flavor taxonomy that `dburl`
-  holds.
+  holds. From v0.29.0 `dburl.Scheme` describes each scheme as well as parsing
+  it, with the Go driver package, whether that driver needs cgo, and whether
+  the product is embedded, a server or hosted. That is where to look up a
+  driver, and D80 says why `dbmeta` reads it as a document rather than
+  importing it.
 - [`tblfmt`][tblfmt] renders a result set the way `psql` does. `dbmeta` reads
   metadata and does not render it, so a client that wants a table passes the
   rows to `tblfmt`.

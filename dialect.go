@@ -7,8 +7,22 @@ import (
 	"sync"
 )
 
-// Dialect names one database family. It is the `dburl` driver name, so
-// `dburl.URL.Driver` selects a dialect directly.
+// Dialect names one database family. It is the `dburl` driver name, and
+// `dburl.URL.Driver` selects a dialect directly for every product that has
+// one driver.
+//
+// It does not where a product has two. dburl registers a scheme per Go
+// driver, so pgx is PostgreSQL, moderncsqlite is SQLite and godror is Oracle,
+// and none of those three words is a Dialect here. A consumer that maps
+// URL.Driver straight to a Dialect finds no model for them. Those are the
+// three today and dbmeta does not hold the list, because hard rule 1 keeps
+// that taxonomy in dburl. How a consumer is meant to cross that gap is an
+// open question at the end of docs/PLAN.md.
+//
+// The five wire compatible schemes are not affected and need nothing.
+// cockroachdb, redshift, memsql, tidb and vitess carry an Override in dburl,
+// so URL.Driver is already postgres or mysql for them and URL.UnaliasedDriver
+// is where the flavor shows.
 //
 // A dialect names the family and never the release. A release arrives as a
 // [VersionSet] value, because D8 resolves version differences at run time. See
@@ -19,9 +33,16 @@ type Dialect string
 //
 // The name is what the database calls itself. The value is the `dburl` driver
 // name, which is not always the same word. PostgreSQL calls itself PostgreSQL
-// and its driver is postgres.
+// and its driver is postgres, and Cassandra calls itself Cassandra and its
+// driver is cql.
+//
+// Cassandra is the one that was written down wrong. It held "cassandra" until
+// the `dburl` session checked all thirteen of these against the registry:
+// cassandra is an alias of the cql scheme, and cql is what
+// github.com/MichaelS11/go-cql-driver passes to sql.Register, so nothing
+// answers to the old value. Read these as constants and never as literals.
 const (
-	Cassandra  Dialect = "cassandra"
+	Cassandra  Dialect = "cql"
 	ClickHouse Dialect = "clickhouse"
 	DuckDB     Dialect = "duckdb"
 	Firebird   Dialect = "firebirdsql"
@@ -51,14 +72,15 @@ type Info struct {
 	// against a library as against a server.
 	//
 	// Hard rule 1 would normally send a fact about a scheme to dburl, and
-	// dburl does carry something adjacent: it marks file, sqlite3,
-	// moderncsqlite, csvq, duckdb, chai and ql as Opaque. That is a statement
-	// about how a URL parses rather than about the product, and dbmeta cannot
-	// read it in any case, because dbmeta has no dependencies and never opens
-	// a connection. A caller holding a Dialect has no URL to hand to dburl.
+	// dburl carries this one from v0.29.0: it marks file, sqlite3,
+	// moderncsqlite, csvq, duckdb, chai and ql DeploymentEmbedded, which is
+	// the same statement about the same seven schemes. It is still declared
+	// here, because dbmeta has no dependencies and never opens a connection,
+	// so a caller holding a Dialect has no URL to hand to dburl.
 	//
-	// So the fact is declared here, by the model, and it is the model that
-	// knows it.
+	// The two do not even count the same objects. dburl counts schemes and
+	// marks three for the two products here, because SQLite has two drivers.
+	// dbmeta counts models and marks two. See D80.
 	Embedded bool
 
 	// Placeholder writes the bind parameter for position n, counting from 1.

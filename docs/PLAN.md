@@ -145,6 +145,7 @@ records the argument.
 | [D78](#d78-hive-reads-sys-and-is-a-model-decided) | Hive reads sys, and is a model | Decided |
 | [D79](#d79-a-dialect-that-cannot-bind-renders-its-values-decided) | A dialect that cannot bind renders its values | Decided |
 | [D80](#d80-the-driver-registry-is-dburls-and-reading-it-is-not-importing-it-decided) | The driver registry is dburl's, and reading it is not importing it | Decided |
+| [D81](#d81-the-cassandra-dialect-is-cql-decided) | The Cassandra dialect is cql | Decided |
 
 ## Decisions
 
@@ -4315,7 +4316,7 @@ Verified is not named in `docs/COVERAGE.md`.
 #### Why the tier needed anything
 
 D40 gives three tiers and two of them have a machine behind them. CI runs
-Tested and Nightly, and `TestWorkflowMatchesTheList` fails when the workflow
+Tested and Nightly, and `TestWorkflowReadsTheList` fails when the workflow
 and `container/container.go` disagree. Verified has nothing: it means a person
 ran the release on a development machine, and no test can prove that.
 
@@ -4404,9 +4405,9 @@ In this order, and the order is what the native catalog adds over
 | --- | --- | --- | --- |
 | 3 | Trino | `trinodb/trino` | federated engine, wide use, connector and session metadata |
 | 4 | Presto | `prestodb/presto` | probably a flavor key on the Trino model rather than a model |
-| 5 | Vertica | `vertica/vertica-ce` | `v_catalog` is rich and nothing else reaches it |
-| 6 | SAP HANA | `saplabs/hanaexpress` | enterprise install base, deep `SYS` catalog |
-| 7 | Firebird | `firebirdsql/firebird` | the `RDB$` catalog answers more than most of this list |
+| 5 | Vertica | `vertica/vertica-ce` | `v_catalog` is rich and nothing else reaches it. Blocked, see below |
+| 6 | SAP HANA | `saplabs/hanaexpress` | enterprise install base, deep `SYS` catalog. Done, see D76 |
+| 7 | Firebird | `firebirdsql/firebird` | the `RDB$` catalog answers more than most of this list. Done, see D74 |
 | 8 | Exasol | `exasol/docker-db` | `EXA_` catalog, analytic install base. Blocked, see D77 |
 | 9 | Hive | `apache/hive` | metastore, and it is the shape Impala already teaches. Done, see D78 |
 
@@ -4683,8 +4684,7 @@ runner against one server.
 #### What it replaces
 
 D42 put the release matrix in `container/container.go` and had the workflow
-repeat it in YAML, with `TestWorkflowMatchesTheList` failing when the two
-disagreed. That worked and it was a second copy: twelve jobs, one per product,
+repeat it in YAML, with a test failing when the two disagreed. That worked and it was a second copy: twelve jobs, one per product,
 each with its own service block, its own image, its own health command and its
 own environment. 690 lines.
 
@@ -6066,13 +6066,72 @@ marks `sqlite3`, `moderncsqlite` and `duckdb`, which is three schemes, and
 `dbmeta` marks two models, because one model covers both SQLite drivers.
 Neither number is wrong and neither is derivable from the other.
 
+### D81. The Cassandra dialect is cql. Decided.
+
+`dbmeta.Cassandra` is `"cql"`. It was `"cassandra"` and that was wrong.
+
+`Dialect` is documented as the `dburl` driver name and twelve of the thirteen
+were. `cassandra` is not a driver name. It is an alias of the `cql` scheme,
+alongside `ca`, `datastax`, `scy` and `scylla`, and `cql` is what
+`github.com/MichaelS11/go-cql-driver` passes to `sql.Register` and what `usql`
+registers at `drivers/cassandra/cassandra.go`. Nothing anywhere answers to
+`cassandra`, so the old value named a driver that does not exist.
+
+The `dburl` session found it. D80 sent a request there for a field saying
+which product a scheme drives, Ken asked whether the thirteen values matched
+the registry, and that session checked all of them. This was the one.
+
+#### Why dburl could not absorb it instead
+
+`Scheme.Driver` has to be the exact string the Go driver registers, because
+that is what a caller hands to `sql.Open`. Renaming the scheme to `cassandra`
+would emit a name nothing answers to and every Cassandra connection would
+fail. Adding a second scheme named `cassandra` would do the same thing with
+more steps. The fault was here.
+
+#### What changed with it
+
+The constant name stays `Cassandra`, which is the whole point of the name and
+the value differing.
+
+The golden section in `test/testdata/parity.txt` is named from the dialect, so
+`[cassandra/same/grantee]` is now `[cql/same/grantee]`.
+
+`dbrun` builds the environment variable from the dialect, as
+`"DBMETA_" + strings.ToUpper(string(d))`, so the variable that carries the
+Cassandra DSN is `DBMETA_CQL` and no longer `DBMETA_CASSANDRA`. The three
+places in the `test` module that read the old name were changed with it. CI
+needed nothing, because it runs `dbrun test` and never writes the name.
+
+Nothing else moved. The model package is still `models/cassandra`, the
+container product is still `cassandra`, the build tag is still `cassandra`,
+and `testdata/conformance.txt` is keyed by the test's own name rather than by
+the dialect, so its `[cassandra]` section is unchanged. Those are four
+different strings that happen to have agreed, and only one of them was the
+dialect.
+
+Verified against Cassandra 5.0.9 on 2026-09-26. The parity, smoke, fixture and
+conformance tests all pass with the renamed section and the renamed variable.
+
+#### The lesson, which is the reason this is a decision and not a commit
+
+A value that is also a word is not checkable by reading it. `cassandra` looks
+right in every place it appears, and it was wrong in exactly one of them. The
+registry is what told the difference, which is D80 paying for itself the week
+it was written.
+
+Read these as constants and never as literals. A consumer that wrote
+`dbmeta.Dialect("cassandra")` breaks here and one that wrote
+`dbmeta.Cassandra` does not.
+
 ## Open questions for Ken
 
 An open question lives here until it is answered, and then it becomes a
 decision above. The argument behind a decision belongs with the decision, which
 is why there is no separate document for it. See D50.
 
-None of the older questions are open. The floor question that the upstream change reopened has been answered:
+One question is open, at the end of this section. None of the older ones are.
+The floor question that the upstream change reopened has been answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
 asked for in exchange.
 
@@ -6102,3 +6161,40 @@ administrator's answer to every query, so there was no gap to close. The model
 stays `ALL_` only.
 
 Raise a new question here rather than deciding one alone.
+
+### Open. How does a consumer get from a dburl URL to a dialect when a product has two drivers?
+
+`dbmeta.Dialect` is the `dburl` driver name, and `dburl.URL.Driver` selects a
+dialect directly for every product with one driver. `dburl` registers a scheme
+per Go driver, so a product with two has two: `pgx` is PostgreSQL,
+`moderncsqlite` is SQLite and `godror` is Oracle. None of those three words is
+a dialect here, and a consumer that maps `URL.Driver` straight to a `Dialect`
+finds no model for any of them.
+
+This is not hypothetical. `usql` builds all three, and rule 10 makes `dbmeta`
+test two of the three pairs, so the case is the rule rather than an edge of
+it. The `Dialect` doc comment and `docs/COMMANDS.md` said the mapping was
+direct until this was found, and both now say it is not.
+
+The five wire compatible schemes are already handled and are not part of this.
+`cockroachdb`, `redshift`, `memsql`, `tidb` and `vitess` carry an `Override`,
+so `URL.Driver` is already `postgres` or `mysql` and `URL.UnaliasedDriver`
+carries the flavor. That is rule 1 working exactly as written.
+
+Three answers are possible and each belongs to a different project:
+
+`dburl` names the product. A field beside `GoPackage` saying that `pgx` and
+`postgres` are one product would answer it for every consumer at once, and it
+is the same kind of fact D80 welcomed. `Desc` almost carries it today,
+"PostgreSQL PGX" against "PostgreSQL", and prose is not a key.
+
+The consumer keeps the mapping. Three entries, and `usql` already knows which
+product each of its drivers is, so it costs `usql` nothing. It costs the next
+consumer the same three entries again, which is how two copies start
+disagreeing.
+
+`dbmeta` accepts the alias. Rule 1 forbids it, and it is written here only so
+that nobody proposes it a second time without reading why.
+
+Ken decides. The first is the one this session would pick, and it is a change
+to `dburl` rather than to anything here.

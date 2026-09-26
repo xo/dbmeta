@@ -93,8 +93,9 @@ type parityTarget struct {
 	// in the golden file. There is no separate name field: the two were the
 	// same string in every target.
 	dialect dbmeta.Dialect
-	// driver is the database/sql driver, which is not the dialect. PostgreSQL
-	// is read through pgx and Cassandra through cql.
+	// driver is the database/sql driver, which is not always the dialect.
+	// PostgreSQL is read through pgx, and the two coincide for Cassandra,
+	// whose dialect is cql because that is the name the driver registers.
 	driver string
 	env    string
 	// open returns the administrator connection, or skips.
@@ -196,7 +197,7 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
-			dialect: dbmeta.Cassandra, driver: "cql", env: "DBMETA_CASSANDRA",
+			dialect: dbmeta.Cassandra, driver: "cql", env: "DBMETA_CQL",
 			open: openCassandra, build: setupCassandra,
 			schema: cafixture.Everything.Schema,
 			scenes: []parityScene{{

@@ -698,7 +698,16 @@ PartitionedTables is left unanswered on that basis rather than on absence. The
 source exists and no connector in the test image populates it, so rule 9 has
 no object to build and the query would be verified against nothing.
 
-### Firebird
+### Which answers depend on who is asking
+
+None of them, and that is the measurement rather than a gap in it. Trino has
+no users to create: a client states a principal on every request and the
+server takes it, because the image configures no authenticator. With no access
+control plugin the server then allows that principal everything, so the only
+query that answers differently for a second principal is `current_user`, which
+is the one that is supposed to.
+
+## Firebird
 
 `models/firebird` answers 24 of the 55, against Firebird 3.0.14, 4.0.7 and
 5.0.4.
@@ -1081,7 +1090,20 @@ from that query. The check itself is in `Constraints` with its condition, and
 dependencies of the triggers that implement it, and HANA implements a check
 without a trigger, so there is no equivalent to follow.
 
-### Apache Hive
+### Which answers depend on who is asking
+
+Eleven queries answer differently for a user that is not the administrator,
+which is the most of any product here. That is HANA rather than the model:
+almost every SYS view filters itself by what the reader may see, so a grantee
+sees fewer collations, fewer databases, fewer adapters and fewer settings, as
+well as fewer roles and grants.
+
+Four of the eleven return the same number of rows with different values:
+functions, sequences, triggers and views. Those carry a definition, and HANA
+returns the row and withholds the text from a reader without the privilege.
+That is worth knowing before a consumer treats a definition as always present.
+
+## Apache Hive
 
 `models/hive` answers 16 of the 55, against Apache Hive 4.2.1. It is the
 only model here that writes its filter values into the statement, and the
@@ -1233,28 +1255,6 @@ it is the same shape as Trino and Presto.
 
 A Hive with SQL standard authorization configured would answer differently
 and nothing here measures that, because the image does not configure it.
-
-## Which answers depend on who is asking
-
-Eleven queries answer differently for a user that is not the administrator,
-which is the most of any product here. That is HANA rather than the model:
-almost every SYS view filters itself by what the reader may see, so a grantee
-sees fewer collations, fewer databases, fewer adapters and fewer settings, as
-well as fewer roles and grants.
-
-Four of the eleven return the same number of rows with different values:
-functions, sequences, triggers and views. Those carry a definition, and HANA
-returns the row and withholds the text from a reader without the privilege.
-That is worth knowing before a consumer treats a definition as always present.
-
-## Which answers depend on who is asking
-
-None of them, and that is the measurement rather than a gap in it. Trino has
-no users to create: a client states a principal on every request and the
-server takes it, because the image configures no authenticator. With no access
-control plugin the server then allows that principal everything, so the only
-query that answers differently for a second principal is `current_user`, which
-is the one that is supposed to.
 
 ## Presto
 

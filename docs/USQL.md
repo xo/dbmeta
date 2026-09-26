@@ -59,8 +59,17 @@ A package is a different count and reconciles with neither. There are 46
 packages under `drivers/`, 42 calls to `drivers.Register` with a literal
 scheme, which undercounts because Oracle and godror go through
 `orshared.Register`, and 15 packages that define a reader of their own. More
-schemes answer than that, because cockroachdb, redshift, tidb, vitess, memsql
-and nzgo have no package and register against another driver's reader.
+schemes answer than that, because cockroachdb, redshift, tidb, vitess and
+memsql have no package and register against another driver's reader: the
+first two through `drivers/postgres` and the last three through
+`drivers/mysql`.
+
+An earlier version of this paragraph put `nzgo` in that list and it is not in
+it. Netezza has its own package, `drivers/netezza`, its own driver,
+`github.com/IBM/nzgo/v12`, and a reader it configures itself. The scheme and
+the package are named differently, which is what made it look like an alias.
+The `dburl` registry settles this kind of question now: a scheme that borrows
+another scheme's driver has no `GoPackage`, and `nzgo` has one. See D80.
 
 An earlier version of this section said 47, 20 and 27 without saying which
 build, so it could not be reproduced. The figures here were measured by the

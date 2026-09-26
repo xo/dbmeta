@@ -78,6 +78,43 @@ func TestEveryDecisionReferenceExists(t *testing.T) {
 	}
 }
 
+// TestEveryTestNameInTheDocsExists checks that a test the documentation names
+// is a test that is written.
+//
+// A rule here is usually paired with the test that enforces it, and the pair
+// is what makes the rule credible. Renaming the test breaks that silently:
+// TestWorkflowReadsTheList
+// was TestWorkflowMatchesTheList until D69 renamed it, and CLAUDE.md went on
+// naming the old one.
+func TestEveryTestNameInTheDocsExists(t *testing.T) {
+	t.Parallel()
+	written := make(map[string]bool)
+	for _, path := range repoFiles(t, ".go") {
+		for _, m := range regexp.MustCompile(`(?m)^func (Test[A-Za-z0-9]+)\(`).
+			FindAllStringSubmatch(read(t, path), -1) {
+			written[m[1]] = true
+		}
+	}
+	if len(written) < 50 {
+		t.Fatalf("expected at least 50 tests, found %d", len(written))
+	}
+	var named int
+	for _, path := range repoFiles(t, ".md") {
+		for _, m := range regexp.MustCompile(`\bTest[A-Z][A-Za-z0-9]*`).
+			FindAllString(read(t, path), -1) {
+			named++
+			if !written[m] {
+				t.Errorf("%s: names %s, which no test defines. Renaming a test "+
+					"means fixing the documents that tell a reader to trust it.",
+					path, m)
+			}
+		}
+	}
+	if named == 0 {
+		t.Error("no document names a test any more, so this guards nothing")
+	}
+}
+
 // TestTheDecisionIndexIsComplete checks the table at the top of docs/PLAN.md
 // against the decisions below it. D50 keeps the log in one file on the
 // condition that the index makes it navigable, so a missing entry undoes that.
@@ -192,6 +229,65 @@ func TestTheRootHoldsThreeDocuments(t *testing.T) {
 		if _, err := os.Stat(name); err != nil {
 			t.Errorf("expected %s in the repository root", name)
 		}
+	}
+}
+
+// TestNoSectionHeadingIsRepeated checks that a level two heading appears once
+// in the document that holds it.
+//
+// A deeper heading repeats on purpose, because docs/COVERAGE.md asks the same
+// questions of every product and "### What it answers" is the answer to one
+// of them. A level two heading is a section, and two sections with one name
+// means a section landed in the wrong place. docs/COVERAGE.md had three
+// called "Which answers depend on who is asking": the document wide one, and
+// the SAP HANA and Trino ones, which had been left outside their products and
+// after Apache Hive, where nobody reading about HANA would find them.
+func TestNoSectionHeadingIsRepeated(t *testing.T) {
+	t.Parallel()
+	for _, path := range repoFiles(t, ".md") {
+		seen := make(map[string]bool)
+		for _, m := range regexp.MustCompile(`(?m)^## (.+)$`).
+			FindAllStringSubmatch(read(t, path), -1) {
+			if seen[m[1]] {
+				t.Errorf("%s has two sections called %q. A repeated section "+
+					"heading is how one lands under the wrong product.", path, m[1])
+			}
+			seen[m[1]] = true
+		}
+	}
+}
+
+// TestEveryDocumentIsInBothTables checks that a document in docs/ is named in
+// the table at the top of CLAUDE.md and in the one in README.md.
+//
+// Both documents say to do this and neither could tell you whether it had
+// been done. CLAUDE.md goes further and says a document that is not in that
+// table does not exist, which is only true if something holds it. See D50.
+func TestEveryDocumentIsInBothTables(t *testing.T) {
+	t.Parallel()
+	entries, err := os.ReadDir("docs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tables := map[string]string{
+		"CLAUDE.md": read(t, "CLAUDE.md"),
+		"README.md": read(t, "README.md"),
+	}
+	var found int
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		found++
+		for name, body := range tables {
+			if !strings.Contains(body, "docs/"+e.Name()) {
+				t.Errorf("%s does not name docs/%s. A document nobody can find "+
+					"is a document nobody reads. See D50.", name, e.Name())
+			}
+		}
+	}
+	if found == 0 {
+		t.Error("docs/ holds no document, so this guards nothing")
 	}
 }
 

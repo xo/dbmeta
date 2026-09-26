@@ -16,7 +16,7 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 80
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 81
 at the top. Read the status, because 12 of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -93,10 +93,13 @@ something is written down, it is not written down, and it is an open question.
    `Gate{Key: MariaDB, Min: V(10, 2)}`. Set a key only for a product you
    detected. See D44.
 4. Stay backward compatible within reason. An old database keeps working when
-   support for a new one arrives. Every version sits in one of three tiers:
-   Tested in CI, Verified on a development machine before a release, or
-   Archived with no tests at all. Never call a version supported without naming
-   its tier. See D40.
+   support for a new one arrives. Every version sits in one of four tiers:
+   Tested in CI on every push, Nightly in CI once a night, Verified on a
+   development machine before a release and never in CI, or Archived with no
+   tests at all. Never call a version supported without naming its tier.
+   D40 set three and D42 added Nightly. The first three are values of
+   `container.Tier` and Archived is not, because an archived release is one
+   `container.All` does not name. See D40 and D42.
 5. A query translated from a source tree that upstream no longer ships records
    the release and commit of that tree beside the query. PostgreSQL 9.6 is the
    case: `psql` dropped it in release 20, so there is nothing current to check
@@ -130,8 +133,13 @@ something is written down, it is not written down, and it is an open question.
    what `usql` runs for the same product, in the `Version` field of its
    `drivers.Driver`, and recording the comparison in the statements table in
    `docs/USQL.md`. A driver declaring no `Version` falls through to the generic
-   `SELECT version();`, and that counts as its statement. `usql` has no answer
-   at all for Oracle that way, which comparing printed output never found.
+   `SELECT version();`, and that counts as its statement. Read the field and
+   not the `drivers.Register` call: Oracle and godror both register through
+   `orshared.Register`, so a grep for the call says neither has a version
+   query and both do. The Oracle defect is real and it is a different one.
+   `usql` reads `v$instance`, which an ordinary user cannot see, so it prints
+   a version for an administrator and none for anybody else. Comparing
+   printed output never found that. `docs/USQL.md` holds the measurement.
    `TestEveryModelIsInTheVersionTable` fails when a model has no row. See D38.
    Every driver in the `test` module is the one `usql` uses for that database.
    The version may differ and the package may not. Where `usql` ships two for
@@ -185,9 +193,11 @@ something is written down, it is not written down, and it is an open question.
 15. Never start a container by hand. `test/cmd/dbrun` starts every database
    this project uses, and every container is named `<product>-<release>`, such
    as `postgres-18` or `clickhouse-26.9`. Run
-   `cd test && go run ./cmd/dbrun help`: it has `start`, `stop`, `remove`,
-   `status`, `version`, `dsn`, `usql` and `test`, and it takes `all` or a tier
-   name where it takes a server.
+   `cd test && go run ./cmd/dbrun help`, which lists every command, and
+   `docs/RUNNER.md` holds the same table. It takes `all` or a tier name
+   where it takes a server. The commands most often wanted are `start`,
+   `stop`, `remove`, `status`, `version`, `dsn`, `usql` and `test`. The rest
+   are in that table and this file does not repeat them.
    This is not tidiness. A container started by hand gets a port somebody
    typed rather than the one `container.All` assigns, so `dbrun version`
    cannot reach a server that is plainly running, and two copies of the same
@@ -451,10 +461,22 @@ code is pure Go, so `dbmeta` does not need the runner matrix that the other
 `xo` projects use. Keep the workflow small.
 
 CI runs a release matrix, which D42 decided and which replaced the single
-latest version D24 first called for. Every push runs PostgreSQL 9.6, 12, 15 and
-18, MariaDB 10.6 and 13.0, MySQL 8.4 and 26.7, SQL Server 2017, 2019, 2022 and
-2025, Oracle 21c and 26ai, Cassandra 3.11 and 5.0, and SQLite3 and DuckDB in a
-job that starts no container. The remaining releases run nightly.
+latest version D24 first called for. Every push runs the Tested tier, and
+`container.AtTier(container.Tested)` is the list. This file does not repeat
+it, because the copy written here went stale the moment a product was added,
+and it named six products for as long as ClickHouse, Trino, Presto, Firebird,
+SAP HANA and Apache Hive went on being added to the tier without it. Read the
+list with:
+
+```bash
+cd test && go run ./cmd/dbrun list --json --names tested
+```
+
+That command adds SQLite3 and DuckDB, which are not in `container.AtTier`
+at all and run in a job that starts no container. D42 keeps an embedded
+database out of the release list, and `dbrun` puts the two back because a
+person asking for the tier wants to run them too. The remaining releases run
+nightly.
 
 The Cassandra job builds its image first rather than naming a service, because
 the published one refuses what the queries read. See D62 and
@@ -462,7 +484,7 @@ the published one refuses what the queries read. See D62 and
 
 Do not write that list in the workflow from memory. It lives in
 `container/container.go`, `container.AtTier` selects a tier, and
-`TestWorkflowMatchesTheList` fails when the YAML and the Go disagree. Change the
+`TestWorkflowReadsTheList` fails when the YAML and the Go disagree. Change the
 Go first and then the YAML. See D42 and D54.
 
 Two facts about the runner. The preinstalled PostgreSQL is 16, not the latest

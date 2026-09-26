@@ -25,7 +25,7 @@ order without asking Ken.
 
 ### 2. Choose the version range
 
-Follow the procedure in [`EVALUATION.md`](EVALUATION.md). Work through its four
+Follow the procedure in [`EVALUATION.md`](EVALUATION.md). Work through its five
 steps and stop at the first that gives a clear answer. Record the floor, the
 ceiling and which step decided, in the doc comment of the container file you
 write next.
@@ -402,15 +402,23 @@ them, so expect to find yours the same way.
 
 ### 17. The counts
 
-Three places hold a count and a test checks each:
+Four places hold a count and a test checks each:
 
-- the table at the top of [`COVERAGE.md`](COVERAGE.md)
-- the support table in `README.md`
-- the model's own package doc
+- the table at the top of [`COVERAGE.md`](COVERAGE.md), by
+  `TestTheCoverageTableIsRight`
+- the support table in `README.md`, by `TestTheReadmeTableIsRight`
+- the model's own package doc, by `TestEveryPackageCommentStatesItsCount`
+- a count written in a sentence in any document, by
+  `TestTheCountsInProseMatchTheModels`
 
-Add the database to the list in `all/coverage_test.go`, in both `answers` and
-the name map in `TestTheReadmeTableIsRight`. The tests then tell you which
-numbers are wrong.
+Add the database to `answers` in `all/coverage_test.go` and to `displayNames`
+beside it, which is the one map the table tests and the prose test share. The
+tests then tell you which numbers are wrong.
+
+The fourth was added after the first three had been passing for months while
+`README.md` said SQL Server answered 31 kinds and MySQL 25, a few lines under
+a table that a test was reading. A number in a sentence is not safer than a
+number in a table.
 
 ### 18. The coverage section
 
@@ -502,9 +510,15 @@ Reading the list is faster than rediscovering them one at a time:
 | `TestWorkflowReadsTheList` | the workflow stopped reading the release list |
 | `TestTheDecisionIndexIsComplete` | a decision is written and not indexed |
 | `TestEveryDecisionReferenceExists` | a document points at a decision that does not exist |
-| `TestTheCountsInProseAreRight` | a number written in prose went stale |
+| `TestEveryTestNameInTheDocsExists` | a document names a test that was renamed or removed |
+| `TestTheCountsInProseAreRight` | the decision count or the hard rule count went stale |
+| `TestTheCountsInProseMatchTheModels` | a count written in a sentence is not what the model answers |
+| `TestEveryDocumentIsInBothTables` | a document in `docs/` is missing from `CLAUDE.md` or `README.md` |
+| `TestNoSectionHeadingIsRepeated` | a section landed under the wrong product |
+| `TestTheReadmeNamesEveryTier` | the list grew a tier that `README.md` does not explain |
+| `TestTheReadmeTierTablesMatchTheList` | `README.md` puts a release in a tier the list does not |
 
-Three of those check a table that could be generated instead. The `usql`
+Several of those check a table that could be generated instead. The `usql`
 session made the argument and it is right: `usql` does not test its README
 driver table, it builds it from the `dburl` registry, so there is nothing for
 the prose to drift from. Generation is stronger than a test, because a test

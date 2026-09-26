@@ -8,7 +8,7 @@
 # A section is <database>/<scene>/<principal>. The scene is the database the
 # comparison ran in, because a contained user needs one of its own.
 
-[cassandra/same/grantee]
+[cql/same/grantee]
 privileges refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
 role_grants refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
 roles refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents

@@ -15,15 +15,15 @@ import (
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 )
 
-// openCassandra returns a connection to the server named by DBMETA_CASSANDRA.
+// openCassandra returns a connection to the server named by DBMETA_CQL.
 //
 // The DSN is a host list and query options rather than a URL, which is what
 // the go-cql-driver takes and what dburl produces for a cassandra scheme.
 func openCassandra(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn := os.Getenv("DBMETA_CASSANDRA")
+	dsn := os.Getenv("DBMETA_CQL")
 	if dsn == "" {
-		t.Skip("set DBMETA_CASSANDRA to run against a real server")
+		t.Skip("set DBMETA_CQL to run against a real server")
 	}
 	db, err := sql.Open("cql", dsn)
 	if err != nil {

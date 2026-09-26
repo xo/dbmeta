@@ -19,7 +19,7 @@ import (
 // back-ports nothing. There is no long term release and no security branch, so
 // the vendor's answer is a floor of one.
 //
-// That is too narrow to be useful to a consumer, so step 4 sets the range:
+// That is too narrow to be useful to a consumer, so step 5 sets the range:
 // cost, measured. The floor is 476 and the fixture decides it rather than the
 // catalog.
 //

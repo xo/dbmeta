@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -77,6 +78,84 @@ func answers(t *testing.T) map[string]int {
 	return out
 }
 
+// displayNames maps the word a document writes to the model that answers.
+var displayNames = map[string]string{
+	"PostgreSQL": "postgres", "MariaDB": "mariadb", "MySQL": "mysql",
+	"SQLite3": "sqlite3", "SQLite": "sqlite3", "DuckDB": "duckdb",
+	"SQL Server": "sqlserver", "Oracle": "oracle", "Cassandra": "cassandra",
+	"ClickHouse": "clickhouse", "Trino": "trino", "Presto": "presto",
+	"Firebird": "firebird", "SAP HANA": "hana", "Apache Hive": "hive",
+}
+
+// proseCount matches a count written in running text rather than in a table,
+// in either of the two forms the documents use: a database by name, as in
+// "MariaDB answers 29 of the 55", or a model by path, as in
+// "`models/hive` answers 16 of the 55".
+var proseCount = regexp.MustCompile(
+	"(?:`models/(\\w+)`|([A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)?)) answers (\\d+) of the (\\d+)")
+
+// TestTheCountsInProseMatchTheModels checks a count written in a sentence, as
+// against the two tables the other tests here read.
+//
+// A table is the obvious place for a number to go stale and it turned out to
+// be the safe one, because two tests read the tables and nothing read the
+// prose. README.md said SQL Server answered 31 kinds when it answered 32, and
+// MySQL 25 when it answered 26, and both sat a few lines under a table that a
+// test was checking.
+func TestTheCountsInProseMatchTheModels(t *testing.T) {
+	t.Parallel()
+	got, total := answers(t), len(dbmeta.Queries())
+	var checked int
+	for _, path := range docs(t) {
+		body := read(t, path)
+		for _, m := range proseCount.FindAllStringSubmatch(body, -1) {
+			model, stated, of := m[1], m[3], m[4]
+			if model == "" {
+				var ok bool
+				if model, ok = displayNames[m[2]]; !ok {
+					// A sentence about something that is not a model, such as
+					// a usql driver answering a number of commands.
+					continue
+				}
+			}
+			if of != strconv.Itoa(total) {
+				t.Errorf("%s: %q is out of %s and there are %d kinds",
+					path, strings.TrimSpace(m[0]), of, total)
+			}
+			if model == sharedModel {
+				continue
+			}
+			checked++
+			if stated != strconv.Itoa(got[model]) {
+				t.Errorf("%s: %q and the model answers %d",
+					path, strings.TrimSpace(m[0]), got[model])
+			}
+		}
+	}
+	if checked == 0 {
+		t.Error("no document states a count in prose any more, so this guards nothing")
+	}
+}
+
+// docs returns every markdown file in the root and in docs/, named the way
+// read wants them, which is relative to the repository rather than to here.
+func docs(t *testing.T) []string {
+	t.Helper()
+	var out []string
+	for _, dir := range []string{"", "docs"} {
+		entries, err := os.ReadDir(filepath.Join("..", dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
+				out = append(out, filepath.Join(dir, e.Name()))
+			}
+		}
+	}
+	return out
+}
+
 // TestTheCoverageTableIsRight checks the count table in docs/COVERAGE.md.
 func TestTheCoverageTableIsRight(t *testing.T) {
 	t.Parallel()
@@ -144,7 +223,9 @@ func checkCell(t *testing.T, model, cell string, got map[string]int) {
 //
 // It exists because the comparison was skipped and the gap was invisible from
 // the other end: docs/USQL.md compared the printed version lines and looked
-// complete, while usql had no version query for Oracle at all.
+// complete, while usql's Oracle version query read v$instance, which an
+// ordinary user cannot see, so usql printed a version for an administrator
+// and none for anybody else.
 func TestEveryModelIsInTheVersionTable(t *testing.T) {
 	t.Parallel()
 	body := read(t, filepath.Join("docs", "USQL.md"))
@@ -217,16 +298,9 @@ func TestTheReadmeTableIsRight(t *testing.T) {
 	// | PostgreSQL | native             | 55      | Complete    |
 	row := regexp.MustCompile(`(?m)^\| ([A-Za-z0-9 ]+?)\s*\| native\s*\| (\d+)\s*\|`)
 	body := read(t, "README.md")
-	names := map[string]string{
-		"PostgreSQL": "postgres", "MariaDB": "mariadb", "MySQL": "mysql",
-		"SQLite3": "sqlite3", "DuckDB": "duckdb", "SQL Server": "sqlserver",
-		"Oracle": "oracle", "Cassandra": "cassandra", "ClickHouse": "clickhouse",
-		"Trino": "trino", "Presto": "presto", "Firebird": "firebird",
-		"SAP HANA": "hana", "Apache Hive": "hive",
-	}
 	var checked int
 	for _, m := range row.FindAllStringSubmatch(body, -1) {
-		model, ok := names[m[1]]
+		model, ok := displayNames[m[1]]
 		if !ok {
 			// a native model with no count here yet, such as a planned one
 			continue
@@ -251,7 +325,24 @@ func TestTheReadmeTableIsRight(t *testing.T) {
 func TestEveryPackageCommentStatesItsCount(t *testing.T) {
 	t.Parallel()
 	got, total := answers(t), len(dbmeta.Queries())
-	for _, pkg := range []string{"mysql", "sqlite3", "duckdb", "sqlserver", "oracle"} {
+	// The list is derived rather than written, because a written one grew
+	// stale silently: it held five of the twelve models that state a count
+	// and the other seven went unchecked for as long as they existed.
+	//
+	// models/postgres is the exception and the only one. It answers all 55
+	// and its comment says so without a number, which is the one shape this
+	// cannot read.
+	pkgs := make([]string, 0, len(got))
+	for name := range got {
+		switch name {
+		case "postgres":
+		case "mariadb": // one package serves two products
+		default:
+			pkgs = append(pkgs, name)
+		}
+	}
+	slices.Sort(pkgs)
+	for _, pkg := range pkgs {
 		doc, _, _ := strings.Cut(read(t, filepath.Join("models", pkg, pkg+".go")), "\npackage ")
 		doc = spellOut(doc)
 		if !strings.Contains(doc, "of the "+strconv.Itoa(total)) {
