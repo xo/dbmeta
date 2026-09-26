@@ -148,6 +148,7 @@ call and filter in the loop.
 | Trino      | native             | 13      | In progress |
 | Presto     | native             | 9       | In progress |
 | Firebird   | native             | 24      | In progress |
+| SAP HANA   | native             | 32      | In progress |
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
@@ -270,7 +271,7 @@ Everything else is in [`docs/`](docs/):
 
 | Document | What it holds |
 | --- | --- |
-| [`PLAN.md`](docs/PLAN.md) | Every decision, 74 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because 11 amend or replace an earlier one. |
+| [`PLAN.md`](docs/PLAN.md) | Every decision, 76 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because 11 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

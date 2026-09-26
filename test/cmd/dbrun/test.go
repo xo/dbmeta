@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 	_ "github.com/MichaelS11/go-cql-driver"
+	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/microsoft/go-mssqldb"
@@ -39,6 +40,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Trino:      "trino",
 	dbmeta.Presto:     "presto",
 	dbmeta.Firebird:   "firebirdsql",
+	dbmeta.HANA:       "hdb",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the

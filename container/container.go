@@ -47,6 +47,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/xo/dbmeta"
 )
@@ -72,6 +73,21 @@ import (
 // where a DSN is a URL, which is why each one builds through
 // [net/url.QueryEscape] rather than concatenating.
 const Password = "P4ssw0rd!x"
+
+// MemoryLimit is how much memory one of these containers is allowed.
+//
+// It is one value for every product, the way [Password] is, and for the same
+// reason: these are throwaway servers on a development machine and none of
+// them is doing real work. A database given the whole machine will take it,
+// and several at once then push the host into swap, which looks like a slow
+// server rather than an overcommitted one.
+//
+// Four gigabytes, which every product here answers within but one.
+//
+// SAP HANA is the exception and [Server.Memory] carries it. An exception is
+// allowed only where the product was measured and the number written down
+// beside it, never because a server looked slow.
+const MemoryLimit = "4g"
 
 // Tier is how thoroughly a release is tested. It is the support tier from D40,
 // attached to the thing that does the testing.
@@ -124,6 +140,30 @@ type Server struct {
 	// reports ready too early on several of these images, so each one
 	// connects over TCP.
 	Ready []string
+	// RunFlags are extra flags for the run command, before the image name.
+	// Empty for every product but SAP HANA, which will not start under the
+	// default open file limit.
+	RunFlags []string
+	// Memory is what this server is allowed, where MemoryLimit is not
+	// enough. Empty means MemoryLimit.
+	Memory string
+	// Startup is how long this server needs before it answers, where the
+	// usual budget is not enough. Zero means the caller's default.
+	//
+	// SAP HANA is the only one that sets it. It took 108 seconds on a warm
+	// image on a development machine, which is past the 90 seconds every
+	// other product here answers within, and a cold or loaded host is
+	// slower still.
+	Startup time.Duration
+	// Args are arguments for the image's own entrypoint, after the image
+	// name. Empty for every product but SAP HANA, whose entrypoint takes the
+	// initial password on the command line and reads no environment variable
+	// for it.
+	//
+	// This is the container's argument list rather than a shell command. A
+	// value containing a space is one argument here and stays one, because
+	// nothing joins them.
+	Args []string
 
 	// dsn builds a connection string for a port on the host.
 	dsn func(port int) string
@@ -136,6 +176,15 @@ type Server struct {
 	// package already starts, in the second form a person needs, beside the
 	// one the driver needs.
 	url func(port int) string
+}
+
+// MemoryOrDefault is what this server is allowed, which is [MemoryLimit]
+// unless the product was measured to need more.
+func (s Server) MemoryOrDefault() string {
+	if s.Memory != "" {
+		return s.Memory
+	}
+	return MemoryLimit
 }
 
 // Ref returns the image and tag, fully qualified, such as
@@ -156,7 +205,10 @@ func (s Server) RunArgs(name string, hostPort int) []string {
 		args = append(args, "--env", e)
 	}
 	args = append(args, "--publish", fmt.Sprintf("%d:%d", hostPort, s.Port))
-	return append(args, s.Ref())
+	args = append(args, "--memory", s.MemoryOrDefault())
+	args = append(args, s.RunFlags...)
+	args = append(args, s.Ref())
+	return append(args, s.Args...)
 }
 
 // ReadyArgs returns the arguments that ask the named container whether it
@@ -231,7 +283,7 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA)
 }
 
 // AtTier returns the servers tested at t.
@@ -281,6 +333,10 @@ type product struct {
 	port      int
 	env       map[string]string
 	ready     []string
+	runFlags  []string
+	args      []string
+	memory    string
+	startup   time.Duration
 	dsn       func(port int) string
 	// url is the dburl style URL, where it differs from the DSN. See
 	// [Server.URL].
@@ -300,18 +356,22 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			major = p.major(v)
 		}
 		l = append(l, Server{
-			Dialect: p.dialect,
-			Product: p.name,
-			Release: v,
-			Major:   major,
-			Tier:    tier,
-			Image:   p.image,
-			Tag:     v + p.tagSuffix,
-			Port:    p.port,
-			Env:     p.env,
-			Ready:   p.ready,
-			dsn:     p.dsn,
-			url:     p.url,
+			Dialect:  p.dialect,
+			Product:  p.name,
+			Release:  v,
+			Major:    major,
+			Tier:     tier,
+			Image:    p.image,
+			Tag:      v + p.tagSuffix,
+			Port:     p.port,
+			Env:      p.env,
+			Ready:    p.ready,
+			RunFlags: p.runFlags,
+			Args:     p.args,
+			Memory:   p.memory,
+			Startup:  p.startup,
+			dsn:      p.dsn,
+			url:      p.url,
 		})
 	}
 	slices.SortStableFunc(l, func(a, b Server) int { return compareRelease(a.Release, b.Release) })

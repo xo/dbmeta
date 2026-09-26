@@ -353,3 +353,19 @@ func firebirdUser(t *testing.T, dsn, user, password string) string {
 	u.User = url.UserPassword(user, password)
 	return strings.TrimPrefix(u.String(), "firebird://")
 }
+
+// makeHANAGrantee creates a user with SELECT on one table.
+//
+// NO FORCE_FIRST_PASSWORD_CHANGE is required rather than tidy: without it
+// HANA marks the password as needing a change and the new user cannot run a
+// statement until it has changed one, so every query would report the same
+// error and the comparison would say nothing.
+func makeHANAGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	cleanup(t, db, `DROP USER dbmeta_parity CASCADE`)
+	exec(t, db, `CREATE USER dbmeta_parity PASSWORD "`+parityPassword+
+		`" NO FORCE_FIRST_PASSWORD_CHANGE`)
+	t.Cleanup(func() { cleanup(t, db, `DROP USER dbmeta_parity CASCADE`) })
+	exec(t, db, `GRANT SELECT ON SCHEMA `+schema+` TO dbmeta_parity`)
+	return replaceUser(t, dsn, "dbmeta_parity", parityPassword)
+}

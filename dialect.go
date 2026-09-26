@@ -25,6 +25,7 @@ const (
 	ClickHouse Dialect = "clickhouse"
 	DuckDB     Dialect = "duckdb"
 	Firebird   Dialect = "firebirdsql"
+	HANA       Dialect = "hdb"
 	MySQL      Dialect = "mysql"
 	Oracle     Dialect = "oracle"
 	Presto     Dialect = "presto"

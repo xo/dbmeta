@@ -99,6 +99,7 @@ linters:
             - github.com/trinodb/trino-go-client
             - github.com/prestodb/presto-go-client
             - github.com/nakagami/firebirdsql
+            - github.com/SAP/go-hdb
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

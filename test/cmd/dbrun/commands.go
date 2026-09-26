@@ -22,9 +22,48 @@ const (
 	statusProbe = 5 * time.Second
 )
 
+// maxRunning is how many of these servers may be up at once.
+//
+// Each one is bounded to container.MemoryLimit, so the ceiling is that times
+// this, and the rest of the machine is left alone. Without a cap a session
+// that starts a server per question ends with a dozen up, all idle, and the
+// host in swap.
+//
+// Starting one when this many are already up stops the one that has been
+// running longest. That is the right one to lose: the server in use is the
+// one most recently started, and starting is a minute for a container.
+const maxRunning = 4
+
+// makeRoom stops the longest running servers until starting one more keeps
+// the count at or below maxRunning.
+//
+// It only ever stops a container this project knows about, and never the one
+// being started. A machine is left alone: stopping Windows mid install is
+// how an hour is lost, and D57 keeps a machine for that reason.
+func makeRoom(ctx context.Context, r runner, keep string) {
+	known := map[string]bool{}
+	for _, t := range targets() {
+		if t.Kind == kindContainer && t.Name != keep {
+			known[t.Name] = true
+		}
+	}
+	up := r.runningSince(ctx, known)
+	for len(up) >= maxRunning {
+		oldest := up[0]
+		up = up[1:]
+		if !r.quiet(ctx, "stop", oldest) {
+			continue
+		}
+		fmt.Printf("  %-20s stopped to stay within %d running\n", oldest, maxRunning)
+	}
+}
+
 func (t target) timeout(o options) time.Duration {
 	if o.timeout > 0 {
 		return o.timeout
+	}
+	if t.Startup > 0 {
+		return t.Startup
 	}
 	if t.Kind == kindMachine {
 		return machineTimeout
@@ -209,6 +248,9 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		return err
 	}
 	if r.exists(ctx, t.Name) {
+		if t.Kind == kindContainer {
+			makeRoom(ctx, r, t.Name)
+		}
 		if !r.quiet(ctx, "start", t.Name) {
 			if t.Kind == kindMachine {
 				return errors.New("the machine would not start")
@@ -219,6 +261,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		}
 	}
 	if !r.running(ctx, t.Name) && t.Kind == kindContainer {
+		makeRoom(ctx, r, t.Name)
 		if err := r.create(ctx, t); err != nil {
 			return err
 		}

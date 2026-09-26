@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -181,4 +182,37 @@ func (r runner) waitReady(ctx context.Context, t target, timeout time.Duration) 
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+// runningSince lists the containers this project knows about that are up,
+// oldest first. The second value of each pair is when it started.
+//
+// It asks the runner for every running container and keeps the ones whose
+// name is a target here, so a container somebody else is running on the same
+// machine is never touched.
+func (r runner) runningSince(ctx context.Context, known map[string]bool) []string {
+	out, err := r.output(ctx, "ps", "--format", "{{.StartedAt}}\t{{.Names}}")
+	if err != nil {
+		return nil
+	}
+	type up struct {
+		at   string
+		name string
+	}
+	var ours []up
+	for line := range strings.SplitSeq(out, "\n") {
+		at, name, ok := strings.Cut(strings.TrimSpace(line), "\t")
+		if !ok || !known[name] {
+			continue
+		}
+		ours = append(ours, up{at: at, name: name})
+	}
+	// StartedAt sorts lexically in the order it sorts chronologically for
+	// both runners, because both write a fixed width timestamp.
+	slices.SortFunc(ours, func(a, b up) int { return strings.Compare(a.at, b.at) })
+	names := make([]string, len(ours))
+	for i, u := range ours {
+		names[i] = u.name
+	}
+	return names
 }

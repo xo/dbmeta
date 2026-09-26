@@ -16,6 +16,7 @@ import (
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
+	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
@@ -119,6 +120,11 @@ func conformTargets() []conformTarget {
 			name: "presto", dialect: dbmeta.Presto,
 			open: openPresto, schema: prfixture.Everything.Schema,
 			build: setupPresto,
+		},
+		{
+			name: "hana", dialect: dbmeta.HANA,
+			open: openHANA, schema: hafixture.Everything.Schema,
+			build: setupHANA,
 		},
 		{
 			name: "firebird", dialect: dbmeta.Firebird,

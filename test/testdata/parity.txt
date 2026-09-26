@@ -31,6 +31,21 @@ current_user the same rows with different values
 roles fewer rows than the administrator
 settings fewer rows than the administrator
 
+[hdb/same/grantee]
+collations fewer rows than the administrator
+current_schema the same rows with different values
+current_user the same rows with different values
+databases fewer rows than the administrator
+foreign_data_wrappers fewer rows than the administrator
+functions the same rows with different values
+privileges fewer rows than the administrator
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+sequences the same rows with different values
+settings fewer rows than the administrator
+triggers the same rows with different values
+views the same rows with different values
+
 [mariadb/same/grantee]
 aggregates refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`proc`
 column_stats refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`column_stats`

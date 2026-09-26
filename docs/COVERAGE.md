@@ -39,6 +39,7 @@ rather than reading one.
 | `models/trino` | 13 | 55 | Trino 476 and 483 |
 | `models/presto` | 9 | 55 | Presto 0.299 |
 | `models/firebird` | 24 | 55 | Firebird 3.0, 4.0 and 5.0 |
+| `models/hana` | 32 | 55 | SAP HANA 2.0 SPS 08 |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -914,6 +915,184 @@ test creates a principal, so it runs every such statement on a connection of
 its own and closes it. That was measured against Firebird 5.0.4 with
 `nakagami/firebirdsql` v0.9.21.
 
+## SAP HANA
+
+`models/hana` answers 32 of the 55, against SAP HANA 2.0 SPS 08, which is
+2.00.088. It is the second richest answer here after PostgreSQL's.
+
+### It reads SYS, and there is a lot of it
+
+SAP HANA has no `information_schema`. Its catalog is the SYS schema, a large
+set of views that a statement reads like any other. That is why this model
+answers as much as it does: a concept PostgreSQL has usually has a view here,
+rather than an analogue that has to be argued for.
+
+Three prefixes appear. A plain name such as `SYS.TABLES` is the catalog. A
+name beginning `M_` is a monitoring view and reports what the server is doing
+now rather than what is defined. A name beginning `_SYS_` is a schema the
+server owns and not a view, which is why the system filter tests a prefix with
+`LEFT` rather than with `LIKE`: an underscore is a single character wildcard
+in `LIKE`, so `LIKE '_SYS%'` also matches `ASYS` and anything else of that
+shape.
+
+Two things about writing SQL for it, both measured rather than read.
+
+A flag is the string TRUE or FALSE, and HANA refuses a bare comparison in a
+select list. `SELECT IS_PRIMARY_KEY = 'TRUE' FROM SYS.CONSTRAINTS` is a syntax
+error rather than a boolean, and so is comparing a CASE to FALSE, so the model
+has both a `yes` and a `no` helper and writes the inversion out.
+
+A bind parameter needs no cast, which is the opposite of Firebird. HANA infers
+the type from the comparison, including where the same parameter appears twice.
+
+### What it answers
+
+Tables, schemas, columns, views, indexes, index columns, constraints,
+constraint columns, triggers, sequences, partitioned tables, functions,
+routine parameters, types, collations, roles, role grants, privileges,
+comments, databases, settings, access methods, column statistics, extended
+statistics, foreign data wrappers, foreign servers, user mappings, foreign
+tables, subscriptions, text search configurations, the current schema and the
+current user.
+
+Four of those are the reason HANA is worth having. Smart data access is real
+foreign data with a view per concept, so all four answer from a catalog rather
+than by analogy:
+
+| Kind | View |
+| --- | --- |
+| `ForeignDataWrappers` | `SYS.ADAPTERS` |
+| `ForeignServers` | `SYS.REMOTE_SOURCES` |
+| `UserMappings` | `SYS.REMOTE_USERS` |
+| `ForeignTables` | `SYS.VIRTUAL_TABLES` |
+
+No other model here answers all four. `SYS.REMOTE_SUBSCRIPTIONS` answers
+`Subscriptions` as well, which is the subscriber half of replication.
+
+Three more are worth naming. `SYS.DATA_STATISTICS` answers extended
+statistics, `SYS.PARTITIONED_TABLES` answers partitioned tables, and
+`SYS.TEXT_CONFIGURATIONS` answers text search configurations, which is the one
+member of that family HANA has.
+
+Two answers needed a decision rather than a view.
+
+`AccessMethods` reports the row store and the column store. A HANA table is
+held one way or the other and the choice is per table, which is the same
+question a MySQL storage engine and a Trino connector answer. HANA keeps no
+catalog of the kinds, so the query counts the tables that name each one, and
+a kind nothing uses does not appear. `Tables` carries the same fact per table,
+so the type is row table or column table rather than table.
+
+`Constraints` derives the kind from two flags and the check text, because
+`SYS.CONSTRAINTS` has no type column: a primary key sets both flags, a unique
+key sets one, and a check sets neither and carries the condition. A foreign
+key is not in that view at all and comes from
+`SYS.REFERENTIAL_CONSTRAINTS`, which is the one place in this project where
+the referenced column is on the row itself rather than reached through the
+referenced constraint.
+
+### What it cannot answer
+
+23 kinds, and every one because HANA has no such object.
+
+There is no `CREATE DOMAIN`, no enumerated type, no user defined cast,
+operator or aggregate, no tablespace, no DDL or event trigger, no publication,
+no default privilege and no per role setting. There is no catalog of
+procedural languages either: `PROCEDURE_TYPE` and `FUNCTION_TYPE` say what one
+routine is written in, which `Function.Language` carries, and there is no list
+of the languages installed. That is the same stretch Firebird's engine names
+are, and it is left unsupported for the same reason.
+
+Two are worth a sentence rather than a word.
+
+`LargeObjects` has no answer because a HANA LOB is addressed from the row that
+holds it. There is no catalog of them.
+
+`Publications` has no answer although `Subscriptions` does, and that is not an
+oversight. HANA replicates by subscribing to a remote source, so the
+subscriber half is in the catalog and there is no publisher object at all.
+
+### What a second opinion found
+
+Gemini was asked about twelve concepts. It answered absent for eleven and
+named `SYS.REMOTE_SUBSCRIPTIONS` for the twelfth, which exists and is the
+source `Subscriptions` now reads. That is the first time in three dialects
+that a second opinion found a source rather than only confirming an absence.
+
+DeepSeek named three and two do not exist:
+
+| Named | What the server says |
+| --- | --- |
+| `SYS.TABLESPACES` | no such view |
+| `SYS.PROCEDURAL_LANGUAGES` | no such view |
+| `SYS.FUNCTIONS.FUNCTION_TYPE = 2` for aggregates | the column exists and holds BUILTIN or SQLSCRIPT2, never a number |
+
+That is the third dialect running where DeepSeek invented a source and running
+it was the only way to tell. See D43.
+
+### What the fixture cannot build
+
+Four things, and each is verified to run and return nothing rather than left
+untested.
+
+No remote source, virtual table or remote subscription: federating needs a
+second database to federate to.
+
+No text configuration: it is a repository object created outside SQL.
+
+No data statistics object: `CREATE STATISTICS` needs rows, and the fixture
+inserts none.
+
+No column level grant, and this one is a product fact rather than a fixture
+limit. `SYS.GRANTED_PRIVILEGES` carries a `COLUMN_NAME` column and HANA 2.0
+SPS 08 has no `GRANT` syntax that fills it. Every spelling is a syntax error:
+
+	GRANT UPDATE(rating) ON t TO r        -> syntax error near "("
+	GRANT SELECT (rating) ON t TO r       -> syntax error near "("
+	GRANT UPDATE ON t(rating) TO r        -> syntax error near "("
+
+So `Privilege.ColumnAccess` is always empty. The query keeps the column
+because the catalog has it, and `TestHANAHasNoColumnGrant` asserts both halves
+so that the absence stays a decision.
+
+No user either. A HANA user belongs to the tenant database and outlives the
+schema, so `test/parity_test.go` creates its principal and drops it again.
+
+### What the conformance test says
+
+HANA's section differs from PostgreSQL's in three places and each one is a
+real difference rather than a gap.
+
+The three `has_default=true` lines are PostgreSQL's `serial` keys, where HANA
+agrees with the other nine databases.
+
+A view's columns are reported NOT NULL where PostgreSQL reports them nullable.
+HANA computes a view column's nullability from the column behind it, and
+`book_id` and `title` are both NOT NULL, so the view says so. PostgreSQL
+reports a view column nullable whatever is behind it.
+
+There is no `constraint book check (title)` line, and the reason is
+structural. A HANA check belongs to the table rather than to a column:
+`SYS.CONSTRAINTS` leaves `COLUMN_NAME` and `POSITION` NULL on a check row, so
+`ConstraintColumns` has nothing to report and the conformance line is built
+from that query. The check itself is in `Constraints` with its condition, and
+`TestHANAConstraints` reads it. Firebird reaches a check's columns through the
+dependencies of the triggers that implement it, and HANA implements a check
+without a trigger, so there is no equivalent to follow.
+
+### Which answers depend on who is asking
+
+Eleven queries answer differently for a user that is not the administrator,
+which is the most of any product here. That is HANA rather than the model:
+almost every SYS view filters itself by what the reader may see, so a grantee
+sees fewer collations, fewer databases, fewer adapters and fewer settings, as
+well as fewer roles and grants.
+
+Four of the eleven return the same number of rows with different values:
+functions, sequences, triggers and views. Those carry a definition, and HANA
+returns the row and withholds the text from a reader without the privilege.
+That is worth knowing before a consumer treats a definition as always present.
+
 ## Which answers depend on who is asking
 
 None of them, and that is the measurement rather than a gap in it. Trino has
@@ -1060,6 +1239,7 @@ that varies is what kind of principal they are.
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 10.6 | grantee | the same, plus `functions` |
 | Firebird 3.0, 4.0, 5.0 | grantee | `roles`, `settings` |
+| SAP HANA 2.0 SPS 08 | grantee | `collations`, `databases`, `foreign_data_wrappers`, `functions`, `privileges`, `role_grants`, `roles`, `sequences`, `settings`, `triggers`, `views` |
 
 `current_user` and `current_schema` are left out of the table and are in the
 file. They answer a question about the connection, so a run where they agreed

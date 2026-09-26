@@ -14,6 +14,7 @@ import (
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
+	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
@@ -214,6 +215,19 @@ func parityTargets() []parityTarget {
 				// and a database is only a grant scope.
 				name:       "same",
 				principals: []parityPrincipal{{name: "grantee", make: makeClickHouseGrantee}},
+			}},
+		},
+		{
+			dialect: dbmeta.HANA, driver: "hdb", env: "DBMETA_HDB",
+			open: openHANA, build: setupHANA, schema: hafixture.Everything.Schema,
+			scenes: []parityScene{{
+				// A HANA connection reaches one tenant database and a user
+				// belongs to that tenant, so there is the administrator and
+				// there is everybody else. The system database has users of
+				// its own and nothing here connects to it, which is the same
+				// shape as Oracle's CDB$ROOT.
+				name:       "same",
+				principals: []parityPrincipal{{name: "grantee", make: makeHANAGrantee}},
 			}},
 		},
 		{

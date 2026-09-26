@@ -109,7 +109,7 @@ that does that, and it is deliberate.
 
 ### It does not raise the command count for PostgreSQL
 
-PostgreSQL already answers 8 of 8. What changes there is the number of object
+PostgreSQL already answers 11 of 11. What changes there is the number of object
 kinds: 14 against 55. `COMMANDS.md` maps every `psql` metadata command to the
 Go value that answers it, and 37 of them have no reader interface in `usql`
 today. Tablespaces, types, domains, operators, text search, publications,
@@ -126,47 +126,69 @@ version is that the fact must come out of one statement.
 
 ### Which databases answer everything usql asks
 
-`usql` has eight metadata commands and `\d NAME` has four sections. This is
-what each `dbmeta` model answers of them, counted from the queries the models
-actually register rather than from memory.
+`usql` dispatches eleven metadata commands through `Describe`, and `\d NAME`
+adds a section per further reader, of which there are five. That is the unit
+below, and an earlier version of this section used a different one.
 
-| Database | usql today | with dbmeta | What it still cannot answer |
+It said eight commands and four sections, which was a right count of the wrong
+thing twice over: eight counted the gating readers rather than the commands,
+and four missed one of the five section readers. The eleven and the five are
+in the first section of this document and this table now agrees with them. The
+`usql` session measured the commands and put the same correction to this
+table, which is how it was found.
+
+This is what each `dbmeta` model answers, counted by asking every registered
+query whether it supports the newest release of its dialect rather than by
+reading code.
+
+| Database | Commands | Sections | What it cannot answer |
 | --- | --- | --- | --- |
-| PostgreSQL | 8/8, 4/4 | 8/8, 4/4 | nothing |
-| MariaDB | 6/8, 3/4 | 8/8, 4/4 | nothing |
-| SQL Server | 8/8, 4/4 | 8/8, 4/4 | nothing |
-| MySQL | 6/8, 3/4 | 7/8, 4/4 | `\ss`: the model registers ColumnStats for the shared dialect and MySQL the product has no such view |
-| Oracle | 6/8, 1/4 | 7/8, 4/4 | `\l`: Oracle has one database per instance and no list to read |
-| ClickHouse | 4/8, 0/4 | 6/8, 3/4 | `\ds` and `\ss`: no sequence and no column distribution. No trigger section |
-| DuckDB | 8/8, 4/4 | 6/8, 3/4 | `\dp` and `\ss`. No trigger section |
-| SQLite | 5/8, 1/4 | 5/8, 4/4 | `\ds`, `\dp` and `\ss`. It gains all four sections |
-| Cassandra | none | 5/8, 4/4 | `\l`, `\ds` and `\ss`. It had no reader at all |
+| PostgreSQL | 11/11 | 5/5 | nothing |
+| MariaDB | 11/11 | 5/5 | nothing |
+| SQL Server | 11/11 | 5/5 | nothing |
+| SAP HANA | 11/11 | 5/5 | nothing |
+| MySQL | 11/11 | 4/5 | the sequence section: MySQL has no sequence |
+| ClickHouse | 11/11 | 2/5 | the sequence, trigger and constraint column sections |
+| Oracle | 10/11 | 5/5 | `\l`: Oracle has one database per instance and no list to read |
+| Firebird | 10/11 | 5/5 | `\dn`: Firebird has no schemas before 6.0 |
+| DuckDB | 10/11 | 3/5 | `\dp`, and the index column and trigger sections |
+| SQLite | 10/11 | 4/5 | `\dp`, and the sequence section |
+| Cassandra | 10/11 | 4/5 | `\l`, and the sequence section |
+| Trino | 8/11 | 0/5 | `\df`, `\da`, `\di` and every section: a query engine has no index, no constraint and no table valued function list |
+| Presto | 8/11 | 0/5 | the same as Trino |
 
-Three answer everything `usql` asks: PostgreSQL, MariaDB and SQL Server. Every
-one of the others is short because the product has no such object rather than
-because the model is unfinished, and each says so rather than returning
-nothing.
+Four answer every command and every section: PostgreSQL, MariaDB, SQL Server
+and SAP HANA. Every gap in the table is the product having no such object
+rather than the model being unfinished, and each one says so with
+`NotSupported` rather than returning no rows.
 
-Two rows need a note. DuckDB reads 8 of 8 through `usql`'s shared
-`information_schema` reader today and 6 through `dbmeta`, and which of those
-is right has not been measured: the shared reader answers `\dp` and `\ss` from
-`information_schema` views, and whether what they report is true of DuckDB is
-the D43 question and nobody has asked it. Cassandra had no reader in `usql` at
-all, so every one of its five is new.
+The `usql` side of the comparison is not in this table, because it is
+measured in `usql` and not here, and a copy of somebody else's measurement is
+the thing that goes stale. One figure is worth stating because the `usql`
+session measured it and it is the argument for moving MariaDB first: MariaDB
+answers 10 of the 11 today and lacks only `CatalogReader`, so it fails only
+`\l`, and `dbmeta` closes exactly that gap.
+
+The wider `usql` figure is that 21 of 51 registered names have a reader at
+all, so 30 answer no metadata command whatever.
 
 The count is per dialect, and MySQL and MariaDB share one. A query the model
-registers for both is counted for both, so MySQL's `\ss` is listed as
-answerable and returns nothing on the product. `docs/COVERAGE.md` keeps the
-two apart, at 29 kinds for MariaDB and 26 for MySQL.
+registers for both is counted for both, so a difference between the two
+products shows up in `docs/COVERAGE.md` rather than here, at 29 kinds for
+MariaDB and 26 for MySQL.
 
-### It offers something to the 27 with nothing
+### It offers something to the 30 with nothing
 
-`models/informationschema` answers 7 kinds for any database with a standard
+`models/informationschema` answers 12 kinds for any database with a standard
 `information_schema`, which is enough for `\dn`, `\dt`, `\d NAME`, `\df` and
 `\dp`. A driver registers a profile saying how it differs from the standard,
 which is tens of lines rather than a reader.
 
-Which of the 27 have a usable `information_schema` is not measured here and
+That is the cheapest coverage in this project and it is why it should move
+first. It is one adapter rather than one per driver, and it lands on a set of
+names rather than on one product.
+
+Which of the 30 have a usable `information_schema` is not measured here and
 must not be guessed. Each one needs the D43 treatment: ask two models, then run
 the queries against a real server.
 
@@ -250,7 +272,7 @@ division is D5 and it does not change.
 
 The order that loses nothing: move one driver, then the rest. PostgreSQL is the
 wrong one to move first because it already works. MariaDB is the right one,
-because it goes from 6 commands of 8 to all 8, and the difference is visible
+because it goes from 10 commands of 11 to all 11, and the difference is visible
 the moment it lands.
 
 The three kinds that blocked this are done. What is left is `usql`'s own work:
@@ -296,6 +318,7 @@ a case where `usql` has no answer at all.
 | Trino | `SELECT version()` | `SELECT node_version FROM system.runtime.nodes LIMIT 1` | different statement, same answer |
 | Presto | `SELECT node_version FROM system.runtime.nodes WHERE coordinator = true LIMIT 1` | the same, without the coordinator filter | same answer, and `usql` may read a worker on a cluster |
 | Firebird | `SELECT rdb$get_context('SYSTEM', 'ENGINE_VERSION') FROM rdb$database` | the same statement | the same answer, and `usql` prefixes the word Firebird |
+| SAP HANA | `SELECT VERSION FROM SYS.M_DATABASE` | the same statement, lower cased | the same answer, and `usql` prefixes the words SAP HANA |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | no function, so the generic `SELECT version();` | **`usql` cannot answer** |
 

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
@@ -77,6 +78,12 @@ type target struct {
 	// Viewer is the port a machine's screen is on, so that somebody can
 	// watch an install that is not finishing.
 	Viewer int `json:"viewer,omitempty"`
+
+	// Startup is how long this server needs before it answers, where the
+	// default is not enough. It comes from the container list rather than
+	// from a flag, because how long a product takes to start is a property
+	// of the product and not of the run.
+	Startup time.Duration `json:"-"`
 }
 
 // basePort is where the published ports start.
@@ -200,6 +207,7 @@ func targets() []target {
 			URL:     s.URL(port),
 			Run:     s.RunArgs(s.Name(), port),
 			Ready:   s.ReadyArgs(s.Name()),
+			Startup: s.Startup,
 			Remove:  s.RemoveArgs(s.Name()),
 		})
 	}
