@@ -198,6 +198,23 @@ one, and otherwise podman is preferred and docker is used when podman is
 absent, so the command works on a machine with either and nobody has to say
 which. CI sets `DBMETA_RUNNER=docker`.
 
+## Running a test binary that is already built
+
+`DBMETA_TEST_BINARY` names a binary made by `go test -c`. When it is set,
+`dbrun test` runs that binary instead of `go test`.
+
+Nothing sets it for a person, and a person does not want it: `dbrun test
+postgres` compiles what they just changed, which is the point of running it.
+
+CI sets it, and that is the reason it exists. The test module links every
+driver and two of them are cgo, so compiling it costs about ninety seconds,
+and a matrix job spends one or two seconds testing. One job now builds
+`dbrun` and the test binary and every other job downloads them. D82 has the
+measurement.
+
+The server is still started by `dbrun test`, which is D68 unchanged. What the
+variable selects is which binary runs the tests, not who starts the database.
+
 A Go client library was considered and rejected. It would be a dependency in
 the `test` module for something the two commands already do identically, it
 would have to speak two socket protocols to cover both, and the few places

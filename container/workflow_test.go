@@ -39,11 +39,15 @@ func workflowText(t *testing.T) string {
 func TestWorkflowReadsTheList(t *testing.T) {
 	t.Parallel()
 	text := workflowText(t)
+	// The command dbrun is invoked by is matched from the subcommand on,
+	// because the workflow runs a binary it built earlier rather than
+	// `go run ./cmd/dbrun`, and what matters is that dbrun answers the
+	// question rather than where its binary sits. See D82.
 	for _, tier := range []container.Tier{container.Tested, container.Nightly} {
-		want := "./cmd/dbrun list --json --names " + string(tier)
+		want := "dbrun\" list --json --names " + string(tier)
 		if !strings.Contains(text, want) {
-			t.Errorf("the workflow never runs %q, so the %s tier is not read from"+
-				" container.All and can drift from it", want, tier)
+			t.Errorf("the workflow never runs dbrun %q, so the %s tier is not read"+
+				" from container.All and can drift from it", want, tier)
 		}
 	}
 	if !strings.Contains(text, "fromJSON(needs.releases.outputs.tested)") {
@@ -51,6 +55,50 @@ func TestWorkflowReadsTheList(t *testing.T) {
 	}
 	if !strings.Contains(text, "fromJSON(needs.releases.outputs.nightly)") {
 		t.Error("the workflow does not expand the nightly list into a matrix")
+	}
+}
+
+// TestTheMatrixJobsCompileNothing checks that a job in either release matrix
+// runs the binaries the build job made, rather than compiling its own.
+//
+// This is the whole of D82 and it is invisible from a passing run: a job that
+// compiles still gives the right answer, it just costs ninety seconds to do
+// it, and there are more than twenty of them. Measured before the change, one
+// nightly job spent 95 seconds of 103 compiling and 1.4 testing.
+//
+// The unit job is not covered and must not be. It compiles on purpose, which
+// is what it is for.
+func TestTheMatrixJobsCompileNothing(t *testing.T) {
+	t.Parallel()
+	text := workflowText(t)
+	for _, job := range []string{"server:", "nightly:"} {
+		_, rest, ok := strings.Cut(text, "\n  "+job+"\n")
+		if !ok {
+			t.Errorf("the workflow has no %s job", strings.TrimSuffix(job, ":"))
+			continue
+		}
+		// Everything up to the next job, which starts at the same indent.
+		body, _, _ := strings.Cut(rest, "\n  compare:")
+		if i := strings.Index(body, "\n  nightly:"); job == "server:" && i >= 0 {
+			body = body[:i]
+		}
+		name := strings.TrimSuffix(job, ":")
+		if strings.Contains(body, "go run ") || strings.Contains(body, "go test ") {
+			t.Errorf("the %s job compiles. It runs the binaries the build job"+
+				" uploaded, because compiling the test module costs about ninety"+
+				" seconds and every job in the matrix would pay it. See D82.", name)
+		}
+		if !strings.Contains(body, "DBMETA_TEST_BINARY") {
+			t.Errorf("the %s job does not set DBMETA_TEST_BINARY, so dbrun will"+
+				" fall back to `go test` and compile the tests itself. See D82.", name)
+		}
+		if !strings.Contains(body, "actions/download-artifact") {
+			t.Errorf("the %s job does not download the built binaries", name)
+		}
+	}
+	if !strings.Contains(text, "actions/upload-artifact") {
+		t.Error("nothing uploads the built binaries, so the matrix jobs have" +
+			" nothing to download")
 	}
 }
 

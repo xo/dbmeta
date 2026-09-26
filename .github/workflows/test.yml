@@ -107,7 +107,7 @@ jobs:
           done
 
   releases:
-    name: The release list
+    name: Build dbrun and the tests
     runs-on: ubuntu-latest
     outputs:
       tested: ${{ steps.list.outputs.tested }}
@@ -121,6 +121,32 @@ jobs:
         with:
           go-version-file: go.mod
           check-latest: true
+          cache-dependency-path: |
+            go.sum
+            test/go.sum
+
+      # Compiled once here and run by every job in the matrices below.
+      #
+      # The test module links every driver and two of them are cgo, so
+      # compiling it costs about ninety seconds and a matrix job spends one or
+      # two actually testing. Doing it per job cost more than everything else
+      # in the run put together. See D82.
+      - name: Build
+        working-directory: test
+        run: |
+          mkdir -p "${{ runner.temp }}/bin"
+          go build -o "${{ runner.temp }}/bin/dbrun" ./cmd/dbrun
+          go test -c -o "${{ runner.temp }}/bin/dbmeta.test" .
+
+      - name: Upload them
+        uses: actions/upload-artifact@v4
+        with:
+          name: bin
+          path: |
+            ${{ runner.temp }}/bin/dbrun
+            ${{ runner.temp }}/bin/dbmeta.test
+          retention-days: 1
+          if-no-files-found: error
 
       # The list lives in container/container.go and nowhere else. This job
       # reads it and hands it to the matrix below, so the workflow names no
@@ -131,8 +157,8 @@ jobs:
         working-directory: test
         run: |
           {
-            echo "tested=$(go run ./cmd/dbrun list --json --names tested)"
-            echo "nightly=$(go run ./cmd/dbrun list --json --names nightly)"
+            echo "tested=$("${{ runner.temp }}/bin/dbrun" list --json --names tested)"
+            echo "nightly=$("${{ runner.temp }}/bin/dbrun" list --json --names nightly)"
           } >> "$GITHUB_OUTPUT"
 
   server:
@@ -146,14 +172,20 @@ jobs:
         server: ${{ fromJSON(needs.releases.outputs.tested) }}
 
     steps:
+      # Still checked out, because the tests read testdata/ at run time.
+      # No Go toolchain, because nothing here compiles anything.
       - name: Check out
         uses: actions/checkout@v5
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
+      - name: Download dbrun and the tests
+        uses: actions/download-artifact@v4
         with:
-          go-version-file: go.mod
-          check-latest: true
+          name: bin
+          path: ${{ runner.temp }}/bin
+
+      - name: Make them executable
+        # The artifact does not carry the mode bit.
+        run: chmod +x "${{ runner.temp }}/bin/dbrun" "${{ runner.temp }}/bin/dbmeta.test"
 
       # SQLite and DuckDB are in this matrix too. They are a library rather
       # than a server, so dbrun starts nothing for them and runs the tests,
@@ -163,12 +195,14 @@ jobs:
       # against it and removes it. It is the same entry point a person uses,
       # which D68 requires, so CI cannot start a container a different way
       # from everybody else. It builds the Cassandra image when that is the
-      # one being asked for.
+      # one being asked for, from the Containerfile it embeds.
       - name: Test against ${{ matrix.server }}
         working-directory: test
         env:
           DBMETA_RUNNER: docker
-        run: go run ./cmd/dbrun test "${{ matrix.server }}"
+          DBMETA_TEST_BINARY: ${{ runner.temp }}/bin/dbmeta.test
+        run: |
+          "${{ runner.temp }}/bin/dbrun" test "${{ matrix.server }}"
 
   nightly:
     name: ${{ matrix.server }} (nightly)
@@ -184,17 +218,22 @@ jobs:
       - name: Check out
         uses: actions/checkout@v5
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
+      - name: Download dbrun and the tests
+        uses: actions/download-artifact@v4
         with:
-          go-version-file: go.mod
-          check-latest: true
+          name: bin
+          path: ${{ runner.temp }}/bin
+
+      - name: Make them executable
+        run: chmod +x "${{ runner.temp }}/bin/dbrun" "${{ runner.temp }}/bin/dbmeta.test"
 
       - name: Test against ${{ matrix.server }}
         working-directory: test
         env:
           DBMETA_RUNNER: docker
-        run: go run ./cmd/dbrun test "${{ matrix.server }}"
+          DBMETA_TEST_BINARY: ${{ runner.temp }}/bin/dbmeta.test
+        run: |
+          "${{ runner.temp }}/bin/dbrun" test "${{ matrix.server }}"
 
   compare:
     name: MariaDB against MySQL

@@ -141,8 +141,32 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 
 // goTest runs the integration tests, with one environment variable set when
 // there is a server to point at.
+//
+// DBMETA_TEST_BINARY names a test binary built earlier by `go test -c`, and
+// running that rather than `go test` is what makes the CI matrix affordable.
+// Compiling the tests takes about ninety seconds, because the test module
+// links every driver and two of them are cgo, and a matrix job spends only a
+// second or two actually testing. Measured on one nightly job: 103 seconds in
+// the step, 95 of them compiling and 1.4 running. The workflow builds the
+// binary once and every job runs it. See D82.
+//
+// A person runs `go test`, which is what they want: it recompiles what they
+// just changed. Nothing is set for them and nothing changes.
 func goTest(ctx context.Context, env string) error {
-	cmd := exec.CommandContext(ctx, "go", "test", "-count=1", "./...")
+	argv := []string{"go", "test", "-count=1", "./..."}
+	if bin := os.Getenv("DBMETA_TEST_BINARY"); bin != "" {
+		// An absolute path, because the tests run with the test module as the
+		// working directory and a relative one would be read against it.
+		abs, err := filepath.Abs(bin)
+		if err != nil {
+			return fmt.Errorf("resolving DBMETA_TEST_BINARY %s: %w", bin, err)
+		}
+		if _, err := os.Stat(abs); err != nil {
+			return fmt.Errorf("reading DBMETA_TEST_BINARY %s: %w", abs, err)
+		}
+		argv = []string{abs, "-test.count=1"}
+	}
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	cmd.Env = os.Environ()
 	if env != "" {
