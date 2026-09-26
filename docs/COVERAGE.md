@@ -1413,8 +1413,9 @@ DuckDB are the products with no reason to have one: neither has a user.
 
 `test/testdata/parity.txt` has a section per product, and six releases have
 one of their own: `postgres@10`, `postgres@11`, `postgres@12`, `postgres@13`,
-`clickhouse@25` and `mariadb@10`. A section named for a release wins over the
-shared one for a server reporting that major.
+`clickhouse@25.3` and `mariadb@10`. A section named for a release wins over
+the shared one, and a name carrying a minor wins over one carrying only the
+major.
 
 PostgreSQL restricts a column of `pg_subscription` from an ordinary role. The
 `Subscriptions` query reads `subsynccommit` as `synchronous`, so the whole
@@ -1439,11 +1440,19 @@ PostgreSQL 10 words the refusal differently from the rest, "permission denied
 for relation" where 11 and later say "for table", which is why its section
 cannot be shared with theirs.
 
-ClickHouse 25.3 does not refuse `foreign_servers` and 26 does. The query reads
-`system.named_collections`, and the privilege check on that table arrived
-between the two, so a granted user reads it on 25.3 and is refused on 26.9.
-That is the reverse of the usual shape here: the newer release is the stricter
-one.
+ClickHouse 25.3 does not refuse `foreign_servers` and every later release
+does. The query reads `system.named_collections` and the privilege check on
+that table arrived after 25.3, so a granted user reads it there and is
+refused from 25.8 on. That is the reverse of the usual shape here, where the
+newer release is the more permissive one.
+
+It is also why a section can name a minor. The first attempt called it
+`clickhouse@25`, which is what every other product's section does, and that
+broke 25.8: ClickHouse versions by calendar, so 25.3 and 25.8 are both major
+25 and they do not answer the same. The change is narrow. A section naming a
+minor wins over one naming a major, so nothing moves for PostgreSQL, Oracle
+or SQL Server, where the major does identify a release line. SAP HANA would
+have hit the same edge, since every one of its releases is major 2.
 
 The query is not gated for this. A superuser on 12 can read the column, and
 padding it would withhold a fact from the caller who is allowed it, which rule

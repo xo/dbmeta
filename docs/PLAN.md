@@ -5889,22 +5889,64 @@ rather than returning an error when the auth mode is missing or unknown, so
 `auth=NONE` is not optional. And it requires the DSN to keep its `hive://`
 scheme.
 
-#### One requirement this leaves with dburl
+#### What dburl had to change, and what it found
 
-`dburl` generates the Hive DSN with `GenFromURL("truncate://localhost:10000/")`,
-which strips the scheme and emits `localhost:10000/default`, and v2 rejects
-anything that does not begin with `hive://`. `usql`'s driver swap is blocked
-on it.
+`dburl` generated the Hive DSN with `GenFromURL("truncate://localhost:10000/")`,
+which strips the scheme and emits `localhost:10000/default`, and
+`beltran/gohive/v2` rejects anything that does not begin with `hive://`. The
+requirement was recorded here first, while the `dburl` session was not
+running, and that session has since shipped it as its D16: the scheme is kept,
+the `hive2` alias normalizes to `hive`, and `auth=NONE` is defaulted.
 
-The fix belongs in `dburl`: the `hive` scheme has to emit a URL with its
-scheme intact, and the `hive2` alias has to normalize to `hive`, because the
-driver rejects the alias too. The URL's own String method does not do it,
-because it keeps the alias and drops the default port.
+The `auth` default is not tidiness and it came out of a form table run
+against the server here. The driver panics rather than returning an error
+when `auth` is missing:
 
-This is recorded here because the `dburl` session is not running and the
-requirement would otherwise be lost. Hard rule 1 keeps dbmeta out of dburl's
-taxonomy, so this is a note and not work for this project. `container/hive.go`
-writes the DSN itself and is unaffected.
+	hive://hive:pw@host:10000/default                 panic: Unrecognized auth
+	hive://hive:pw@host:10000/default?auth=NONE       connects
+	hive://hive:pw@host:10000/default?auth=CUSTOM     connects
+
+`dburl` v0.28.0 emitted exactly the first shape, so every caller was one
+`Open` from a crashed process. That is worth keeping here because it is the
+clearest case yet for the rule the `usql` session wrote into its driver gate:
+the check that pays is not reading the driver, it is reading what the driver
+is a client of, and then asking what it does with nothing rather than with
+something wrong.
+
+`transport` behaves differently from `auth` and the difference matters.
+Measured on 4.2.1:
+
+	no transport option                connects
+	transport=binary                   connects
+	transport=http                     fails cleanly, the server is binary
+	transport=nonsense                 panic: Unrecognized transport mode
+
+So an absent `transport` is safe where an absent `auth` is not, and only a
+wrong value panics. Nothing needs to default it.
+
+The `dburl` session then found the mechanism, which turns the distinction
+from a judgement into something checkable. `ParseDSN` fills in
+`TransportMode: "binary"` and `Service: "hive"` when it builds its struct
+and does not fill in `Auth`, so `Auth` reaches the connect path as the empty
+string that panics while the other two arrive with working values. The form
+table and that literal say the same thing from opposite ends.
+
+There is a second trap one layer in, which that session hit while writing
+the test for its own fix. `?auth=` and a bare `?auth` both parse to an empty
+string, so a mechanism that overrides per key regardless of value hands back
+exactly the value that panics, and the spelling most likely to be typed by
+somebody trying to clear the option is the one that breaks. Checking what a
+driver does with nothing is not enough on its own: whatever supplies the
+default has to be able to tell nothing from empty.
+
+Two facts the `dburl` session measured from the source, recorded so that
+nobody re-measures them: the driver supplies port 10000 itself when the DSN
+omits it, and TLS is selected by the `sslcert` and `sslkey` options together
+rather than by a scheme suffix, so there is no `s` alias.
+
+`container/hive.go` writes its own DSN and was never blocked on any of this.
+Hard rule 1 keeps dbmeta out of dburl's taxonomy, so none of it is work for
+this project.
 
 ### D79. A dialect that cannot bind renders its values. Decided.
 

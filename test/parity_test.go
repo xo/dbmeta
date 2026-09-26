@@ -464,11 +464,31 @@ func parityRelease(base string, m *dbmeta.Meta, want map[string][]string) string
 		return base
 	}
 	product, rest, _ := strings.Cut(base, "/")
-	per := product + "@" + strconv.FormatUint(uint64(main.Parts[0]), 10) + "/" + rest
-	if _, ok := want[per]; ok {
-		return per
+	// The major alone is not always a release line. ClickHouse versions by
+	// calendar, so 25.3 and 25.8 are both "25" and they do not answer the
+	// same: the privilege check on system.named_collections arrived between
+	// them. SAP HANA is the same shape, where every release is 2.
+	//
+	// So the narrower name wins where the file has one. A product whose
+	// major does identify a line keeps using it and nothing changes for
+	// PostgreSQL, Oracle or SQL Server.
+	for _, name := range releaseNames(product, rest, main.Parts) {
+		if _, ok := want[name]; ok {
+			return name
+		}
 	}
 	return base
+}
+
+// releaseNames are the section names for a version, narrowest first.
+func releaseNames(product, rest string, parts []uint32) []string {
+	major := strconv.FormatUint(uint64(parts[0]), 10)
+	names := make([]string, 0, 2)
+	if len(parts) > 1 {
+		minor := strconv.FormatUint(uint64(parts[1]), 10)
+		names = append(names, product+"@"+major+"."+minor+"/"+rest)
+	}
+	return append(names, product+"@"+major+"/"+rest)
 }
 
 // parityName is the database the section is recorded under.
