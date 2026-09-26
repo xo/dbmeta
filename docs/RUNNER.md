@@ -44,11 +44,14 @@ A **container server** is a database in a container: PostgreSQL, MariaDB,
 MySQL, SQL Server from 2017, Oracle, Cassandra, ClickHouse. It is described by
 `container.Server` and started, stopped and removed by the container runner.
 
-A **machine server** is a database on a Windows virtual machine: SQL Server
-2008 R2 through 2016, which Microsoft never shipped on Linux. It is described
-by `container.WindowsVM`. It is a container too, of a sort, because
-`dockurr/windows` runs it, but it is provisioned once over an hour and then
-kept, rather than created fresh each time.
+A **machine server** is a database on a virtual machine. It is described by
+`container.Machine`, and D86 is the design. It is a container too, of a sort,
+because `dockurr/windows` or `qemux/qemu` runs it, but it is provisioned once
+and then kept, rather than created fresh each time. There are two kinds. A
+Windows machine is SQL Server 2008 R2 through 2016, which Microsoft never
+shipped on Linux, and it installs over an hour. An appliance is a vendor's
+disk image with the database already in it, imported with
+`dbrun provision <name> --from <file>` in minutes.
 
 An **embedded database** is a library with no server at all: SQLite and
 DuckDB. There is nothing to start, and the database is a file. Which dialects

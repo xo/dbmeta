@@ -139,6 +139,10 @@ type Server struct {
 	// Run it inside the container. A health check that tests the local socket
 	// reports ready too early on several of these images, so each one
 	// connects over TCP.
+	//
+	// Empty means the image has nothing to run it with. The Exasol nano image
+	// has no shell and no client, so the caller asks from the host instead,
+	// by connecting with a driver.
 	Ready []string
 	// RunFlags are extra flags for the run command, before the image name.
 	// Empty for every product but SAP HANA, which will not start under the
@@ -246,7 +250,12 @@ func (s Server) RunArgs(name string, hostPort int) []string {
 // Waiting is not optional and a fixed pause does not do it. Several of these
 // images start, bootstrap a data directory, and restart, and a connection made
 // between the two is refused.
+//
+// It returns nil when the image has no readiness command. See [Server.Ready].
 func (s Server) ReadyArgs(name string) []string {
+	if len(s.Ready) == 0 {
+		return nil
+	}
 	return append([]string{"exec", name}, s.Ready...)
 }
 
@@ -321,7 +330,7 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol)
 }
 
 // AtTier returns the servers tested at t.

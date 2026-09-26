@@ -15,6 +15,7 @@ import (
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
+	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
@@ -136,6 +137,11 @@ func conformTargets() []conformTarget {
 			name: "firebird", dialect: dbmeta.Firebird,
 			open: openFirebird, schema: fbfixture.Everything.Schema,
 			build: setupFirebird,
+		},
+		{
+			name: "exasol", dialect: dbmeta.Exasol,
+			open: openExasol, schema: exfixture.Everything.Schema,
+			build: setupExasol,
 		},
 	}
 }
@@ -511,6 +517,11 @@ var agreementExcluded = map[string]string{
 		" no foreign key and no unique constraint, and system.constraints holds" +
 		" the expression a CHECK asserts rather than the columns behind it, so" +
 		" the section has no constraint lines at all",
+	"exasol": "no unique constraint: Exasol refuses UNIQUE and CHECK as not" +
+		" supported on every release, so the unique constraint on book.title" +
+		" the relational databases agree on cannot be built. It agrees on the" +
+		" other 22 lines, and it reports each NOT NULL as a named constraint" +
+		" of its own, which is how Exasol keeps them",
 	"presto": "a query engine rather than a store, which is the same reason as" +
 		" trino. It also keeps no NOT NULL, because its memory connector refuses" +
 		" one on the newest release there is, so every column reads nullable" +

@@ -16,7 +16,7 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 85
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 87
 at the top. Read the status, because 13 of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -244,9 +244,11 @@ something is written down, it is not written down, and it is an open question.
   It starts no container and imports no container client. `test/cmd/dbrun` and
   the CI workflow both read it, and a test fails when they drift.
 - `test/cmd/dbrun` is the only thing that starts a database, container or
-  Windows machine alike. `container/windows.go` holds the machine list, and
-  `dbrun provision` builds one from the payload it embeds in
-  `test/cmd/dbrun/oem/`. Read `docs/WINDOWS.md`. See D57 and D68.
+  virtual machine alike. `container/machine.go` holds the machine list, and
+  `container/windows.go` holds the Windows machines in it. `dbrun provision`
+  builds a Windows machine from the payload it embeds in
+  `test/cmd/dbrun/oem/`, and imports an appliance from the file a person
+  downloaded. Read `docs/WINDOWS.md`. See D57, D68 and D86.
 - `test/cmd/dbrun/image/` holds the Containerfiles this repository builds.
   The Apache Cassandra image cannot be configured from the outside for what
   the queries read, so the settings are baked in. `dbrun` embeds the file and

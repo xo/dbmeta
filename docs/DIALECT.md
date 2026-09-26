@@ -180,11 +180,12 @@ procedure. Read that rather than this section if you are provisioning one.
 
 What changes for a machine:
 
-- It is declared in `container/windows.go` as a `WindowsVM`, not as a
-  `product` in the product's own file. The fields carry what the era needs:
-  the Windows release that hosts it, the installer, and the registry key for
-  the instance, which is named for the SQL Server release and writes the port
-  where nothing reads it if you get it wrong.
+- It is declared in `container/windows.go` as a `container.Machine` with a
+  `WindowsSpec`, not as a `product` in the product's own file. The fields
+  carry what the era needs: the Windows release that hosts it, the
+  installer, and the registry key for the instance, which is named for the
+  SQL Server release and writes the port where nothing reads it if you get
+  it wrong.
 - Its tier is always Verified and never Tested. A machine needs KVM and an
   hour, so CI cannot run one. D40 has the tiers and D64 fails when a Verified
   release is not documented as such.

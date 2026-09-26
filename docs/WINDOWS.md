@@ -10,8 +10,8 @@ virtual machine route and it is not Windows: D85 imports one frozen Exasol
 Community Edition appliance beside the nano containers. It shares the idea
 that a machine is a target `dbrun` starts, and it shares almost none of the
 machinery here, because an appliance has nothing to install and no evaluation
-licence to rearm. Where its list and its documentation live is decided when
-it is built.
+licence to rearm. Both kinds are one list, `container.Machines()`, and D86
+says how they share it.
 
 | SQL Server | Windows host | dockur `VERSION` | host port |
 | --- | --- | --- | --- |

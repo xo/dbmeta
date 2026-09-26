@@ -329,6 +329,7 @@ a case where `usql` has no answer at all.
 | Firebird | `SELECT rdb$get_context('SYSTEM', 'ENGINE_VERSION') FROM rdb$database` | the same statement | the same answer, and `usql` prefixes the word Firebird |
 | Apache Hive | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement, and Hive has the function, so the fallback works |
 | SAP HANA | `SELECT VERSION FROM SYS.M_DATABASE` | the same statement, lower cased | the same answer, and `usql` prefixes the words SAP HANA |
+| Exasol | `SELECT PARAM_VALUE FROM EXA_METADATA WHERE PARAM_NAME = 'databaseProductVersion'` | the same statement, lower cased | the same answer, and `usql` prefixes the word Exasol. A user granted nothing but `CREATE SESSION` reads it on 2025.2.1 and 2026.2.0, measured on 2026-09-27 |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and **`usql` fails for everybody else** |
 
@@ -452,3 +453,8 @@ string literal is `sql_mode` on MySQL and MariaDB and
 
 That makes this the second thing a move would fix rather than merely relocate,
 alongside the version line for MySQL. See D56.
+
+Exasol's is new rather than moved, because `usql`'s Exasol driver declares no
+`ChangePassword` at all. Exasol takes a password as a quoted identifier rather
+than as a string literal, so the only escaping is a doubled double quote and
+there is no session state to read. D87 has the rest.

@@ -346,6 +346,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Firebird | 3.0 | 5.0 | Criteria 2 and 3 agree, which is rare enough to record |
 | SAP HANA | 2.00.076 | 2.00.088 | Criterion 3. SAP publishes an express edition of 2.0 only |
 | Apache Hive | 4.0 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
+| Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | SQLite3 | none | none | No server. The release is whichever the driver embeds |
 | DuckDB | none | none | No server. The release is whichever the driver embeds |
 
@@ -401,16 +402,16 @@ D66 records it.
 Exasol was the second until 2026-09-27 and is not any more. `exasol/docker-db`
 would not initialize under rootless podman, which is D77, and Exasol now
 publishes `exasol/nano`, which starts unprivileged on the default network in
-about five seconds. D84 has the measurement. Exasol is unwritten rather than
-blocked: it passes criterion 2 and it has no container entry yet, so it has
-no row in the table above.
+about five seconds. D84 has the measurement. It has a row in the table above
+and a model, which D87 records.
 
-Its range will come from two places rather than one, which nothing else here
+Its range comes from two places rather than one, which nothing else here
 does. The nano images are a container like any other and criterion 2 decides
 them. The Community Edition is an appliance a person imports once and freezes,
 which is criterion 3 with a floor of one, and it exists so that the model has
 a server older than the nano line to answer against. D85 has the approach and
-says what does not carry over from the SQL Server machines.
+says what does not carry over from the SQL Server machines, and D86 is how
+`dbrun` imports it.
 
 Oracle's container facts are in D54, and the floor followed from them the same
 way SQL Server's did. The privilege question was the open one there rather than

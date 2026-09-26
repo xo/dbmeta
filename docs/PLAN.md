@@ -150,6 +150,8 @@ records the argument.
 | [D83](#d83-a-server-is-ready-when-it-can-run-a-query-and-keeps-being-able-to-decided) | A server is ready when it can run a query, and keeps being able to | Decided |
 | [D84](#d84-exasol-runs-after-all-on-the-nano-image-amends-d77) | Exasol runs after all, on the nano image | Amends D77 |
 | [D85](#d85-exasol-is-the-nano-containers-and-one-frozen-virtual-machine-decided) | Exasol is the nano containers and one frozen virtual machine | Decided |
+| [D86](#d86-a-machine-is-one-list-with-a-spec-for-how-it-is-built-decided) | A machine is one list, with a spec for how it is built | Decided |
+| [D87](#d87-exasol-is-a-model-read-from-the-exa_all-views-decided) | Exasol is a model, read from the EXA_ALL views | Decided |
 
 ## Decisions
 
@@ -6484,13 +6486,64 @@ SQL Server machines already have, where a virtual machine is a container
 
 An OVA is a tar of an OVF descriptor and one or more VMDK disks, which qemu
 does not boot as a unit. So importing means unpacking the tar, taking the
-disk, and converting it with `qemu-img convert -O qcow2`. That conversion is
-the import, it happens once, and the qcow2 lives in the state directory
-beside the Windows disks, which is why `state/` is gitignored under D58.
+disks, and converting each with `qemu-img convert -O qcow2`. That conversion
+is the import, it happens once, and the qcow2 files live in the state
+directory, which `stateDir` puts under `~/.local/share/dbmeta` and never in
+the working tree.
 
-Exasol publishes two OVAs, one tuned for VMware and one for VirtualBox. Which
-one converts more cleanly is not yet measured. Both were downloading when
-this was written.
+Exasol publishes two OVAs, one tuned for VMware and one for VirtualBox. The
+VirtualBox one was tried first and it worked, so the VMware one has not been
+tried.
+
+#### What the first boot measured
+
+On 2026-09-27 the VirtualBox OVA,
+`Exasol_Community_Edition_v8_202521_virtualbox.ova`, ran under
+`qemux/qemu` on Ken's machine and answered `usql`. It was started by hand,
+with Ken's agreement, because `dbrun` has no entry for it yet. This is the
+one exception to rule 15 and it ends when the entry exists.
+
+The OVA holds two disks, not one. The first is the system disk, 100 GiB
+virtual and 10 GiB used. The second is a data disk, 500 GiB virtual and 41 MiB
+used. The manifest's SHA256 sums all passed. Converted, they are 21 GB and
+353 MB of qcow2.
+
+`qemux/qemu` takes them with no extra configuration if they are placed where
+it looks. Its first disk is `/storage/data.qcow2` and its second is
+`/storage2/data2.qcow2`, each a directory mounted as a volume. `DISK_SIZE`
+and `DISK2_SIZE` are set to the virtual sizes, 100G and 500G, so that it
+does not try to resize either.
+
+The machine uses what the OVF declares: 4 CPUs, 8 GB of memory and UEFI
+firmware, which is `BOOT_MODE=uefi` and is also the default. The OVF names an
+NVMe controller. The default virtual SCSI disk boots it anyway, so the
+controller does not have to match.
+
+It boots straight to the appliance's desktop with no login. The appliance
+reports its address as 10.0.2.15, which is VirtualBox's NAT address, while
+qemu gives the guest 172.30.1.2. The desktop has an "Update IPs" button for
+this. It was not needed: the database answered through the published port
+without it.
+
+The ports published on the host were 58563 for SQL, 58443 for the admin
+interface, 52222 for SSH and 8110 for the viewer. They are provisional and
+were chosen only because nothing used them. The entry in `container` decides
+the real ones.
+
+This connected and read the version as 2025.2.1, as `SYS`:
+
+	usql 'exasol://sys:exasol@localhost:58563?validateservercertificate=0'
+
+The appliance's certificate is issued for `exacluster.local` and
+`*.exacluster.local`, so a connection to `localhost` fails verification.
+`validateservercertificate=0` turns verification off. The alternative is
+`certificatefingerprint=`, which pins the certificate, but the fingerprint
+has to be read from the machine first. That choice is made with the machine
+entry.
+
+`qemux/qemu` warns that copy on write is on for both disk images, which it
+recommends against on btrfs. `chattr +C` on the directories before the
+conversion avoids that, and the import step must do it.
 
 #### What the Community Edition answers with
 
@@ -6523,6 +6576,178 @@ extra steps are a `container/exasol.go` for the nano releases and a machine
 entry for the frozen one, and the question of whether the machine list stays
 `container/windows.go` or becomes something that holds both is answered then
 rather than now.
+
+### D86. A machine is one list, with a spec for how it is built. Decided.
+
+D85 left one question for when the Exasol machine was built: whether the
+machine list stays `container/windows.go` or becomes something that holds
+both kinds. This answers it. Ken decided it on 2026-09-27, after Gemini and
+DeepSeek reviewed the design and agreed on its shape.
+
+#### One list
+
+`container.Machine` is one database release on a virtual machine, and
+`container.Machines()` returns every one. It holds what every machine has:
+the dialect, product, release, tier, the host port for the database, the
+viewer port, the time allowed to provision it and to start it later, and how
+to build the connection string.
+
+How the machine is built is held beside that, in one of two fields, and
+exactly one is set. `Windows` is a `WindowsSpec`, which is what
+`container.WindowsVM` used to hold beyond the common part: the Windows
+release, the dockurr image, the installer, the registry key and the licence
+flag. `Appliance` is an `ApplianceSpec`: the file the vendor publishes, its
+SHA256, the page to download it from, the disks inside it, the memory, the
+processors and the port inside the guest.
+
+There is no interface. Nothing dispatches on the kind of machine. `dbrun`
+reads fields, and only `provision` looks at which spec is set.
+
+`container/machine.go` holds the type and the list. `container/windows.go`
+keeps `WindowsSpec` and the four SQL Server machines. A machine's name is
+still `<product>-<release>`, so `sqlserver-2012` did not change.
+
+#### What was rejected
+
+Two lists, one per kind. Every reader would join them, and the checks that
+matter most, that no name and no port is used twice, span both anyway.
+
+Fields for the user, the password and TLS options. The connection string is
+a function, the same as a `Server`'s, so an appliance whose credentials are
+the vendor's writes them there. The project password stays the default
+everywhere else without any field saying so.
+
+A probe described as data, with a driver name and a query. A driver name
+belongs to the `test` module and not to the root one. `dbrun` already has a
+map from dialect to driver, and the dialect's own version query is the probe.
+
+A map of environment variables for the virtual machine. Memory, processors
+and disk sizes come from the vendor's descriptor and are typed fields.
+`dbrun` builds the variables from them.
+
+#### One verb
+
+`provision` builds a machine of either kind. For an appliance it takes the
+file with `--from`, or finds it in the machine's state directory, and fails
+with the download page and the expected SHA256 when neither has it. A second
+verb would be a second place for start, status and remove to disagree.
+
+The import reads the file once. It checks the SHA256 of the whole file and
+unpacks the disks in the same pass, then converts each disk to qcow2 with the
+`qemu-img` inside `qemux/qemu`, so the host needs only the container runner.
+It turns copy on write off for the disk directories first, and says so when
+the file system has no such attribute.
+
+#### One way to ask a machine whether it answers
+
+A container is asked with its own readiness command, run inside it. A
+machine is asked by connecting with the driver the tests use for its dialect
+and running the version query. That was written for SQL Server alone and now
+takes the dialect.
+
+This also fixed a fault. `dbrun start` on a machine ran the machine's
+readiness command, which is empty, so the runner ran with no arguments,
+which always fails. Starting a machine that was answering waited out the
+whole fifteen minutes and then said it never answered.
+
+#### What this does not do
+
+It adds no Exasol machine. The entry needs `dbmeta.Exasol`, and D85 still
+holds: there is no dialect constant until there is a model.
+
+### D87. Exasol is a model, read from the EXA_ALL views. Decided.
+
+D85 decided how Exasol is tested and D86 decided how `dbrun` runs a machine.
+This is what was decided building the rest, on 2026-09-27, when Ken asked for
+the whole dialect. `models/exasol` answers 25 of the 55 on 2025.2.1 and
+2026.2.0, identically. `docs/COVERAGE.md` is the record of what it answers
+and why, and this holds only what had to be decided rather than measured.
+
+#### The two releases, and their tiers
+
+The nano container, 2026.2.0, is Tested. It is the one Exasol that CI can
+start, and it starts in under a minute, so it is a job on every push like
+every other product's newest release. The tag pins the build, nano.5, because
+each nano build replaces the one before it rather than being a release of its
+own.
+
+The Community Edition machine, 2025.2.1, is Verified, as D85 said. It
+publishes the database on host port 51437 and its screen on 8110, beside the
+SQL Server machines.
+
+#### The vendor's password on both
+
+Both keep `sys` and `exasol`. The appliance cannot be handed a password, which
+D85 recorded. The nano image reads its first password from a file mounted into
+it, and a `container.Server` carries arguments and environment rather than
+files, so it keeps its default too rather than growing a field for one
+product. Certificate validation is off on both, because neither certificate is
+signed by anything a host trusts.
+
+#### Readiness from the host
+
+The nano image has no shell and no client, so nothing can be run inside it to
+ask whether it is up. A container with no readiness command is now asked the
+way D86 asks a machine: by connecting with the driver and running the version
+query. `Server.ReadyArgs` returns nil for it.
+
+The Exasol driver logs every failed connection to standard error as well as
+returning it, which printed a line per attempt while `dbrun` waited. `dbrun`
+gives it a logger that discards, and the error still arrives through the
+return value.
+
+#### An empty string is NULL
+
+Exasol reads `''` as NULL. A filter tests for NULL, and a plain string field
+is scanned through a helper that reads NULL as empty. That is not the COALESCE
+`docs/NULLS.md` forbids: a field typed `sql.Null` keeps its NULL, and a plain
+string field is one the object model says is never absent. Three fields where
+the empty string means something, identity, generated and a foreign key's
+catalog, are restored from the row, so that they read present and empty
+rather than absent.
+
+#### Two queries an ordinary user is refused
+
+`RoleGrants` reads `EXA_DBA_ROLE_PRIVS` and `UserMappings` reads the
+connection views, and both need `SELECT ANY DICTIONARY`. The alternative for
+role grants was the views that filter themselves, and they list only the
+grants the current user holds, which hides every other member's grants from an
+administrator as well. That is withholding a fact, which hard rule 13 forbids,
+so the refusal is recorded instead, the way D61 recorded MariaDB's.
+
+#### The analogues
+
+A virtual schema is a foreign server, its adapter script the wrapper and its
+virtual tables the foreign tables. A connection granted to a principal is a
+user mapping. A set UDF that returns one value is an aggregate. An index is
+named by its object id, because nothing else names it, and its columns are
+read from `REMARKS` by matching the table's real columns rather than by
+splitting the list.
+
+Three were rejected. Parsing a routine's parameters out of its text was
+rejected, because a type such as `DECIMAL(18, 0)` puts a comma inside one.
+Computing column statistics from the data was rejected, because the scan grows
+with the data. A consumer group as a role setting was rejected, because it
+limits resources rather than setting anything.
+
+#### Changing a password
+
+`Dialect.ChangePassword` builds `ALTER USER "name" IDENTIFIED BY "new"`, with
+`REPLACE "old"` when the caller gives the current password. A user changing its
+own password without `ALTER USER` has to give it, and the statement without it
+is refused. Both were measured on both releases.
+
+The password is a quoted identifier rather than a string literal, so the only
+escaping is a doubled double quote. A single quote, a backslash and a semicolon
+are ordinary characters inside it, and no session state changes that, so the
+model reads no `Quoting`. The user is quoted too and matched exactly, so the
+name to pass is the one the catalog records, which is upper case for a user
+created without quotes.
+
+The test logs in with every hostile password but one. The password containing
+a semicolon is left out, because an Exasol DSN separates its pairs with a
+semicolon and escapes one with a backslash, and that is the driver's quirk
+rather than this model's. Ken decided that. The statement itself handles it.
 
 ## Open questions for Ken
 

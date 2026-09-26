@@ -200,3 +200,69 @@ func dsnOf(t *testing.T, name string) string {
 	}
 	return dsn
 }
+
+// TestChangePasswordExasol sets each password and logs in with it, and then
+// has the user change its own password, which needs the current one.
+//
+// Exasol takes a password as a quoted identifier, so the escaping is a
+// doubled double quote and nothing else. The password that contains a
+// semicolon is left out. The statement handles it, and the Exasol DSN is
+// key=value pairs separated by semicolons with an escaping of its own, which
+// is the driver's business rather than this model's.
+func TestChangePasswordExasol(t *testing.T) {
+	db := openExasol(t)
+	// Exasol needs no session state to escape a password.
+	q, err := dbmeta.Exasol.Quoting(t.Context(), db)
+	if err != nil {
+		t.Fatalf("reading the quoting state: %v", err)
+	}
+	if q.BackslashEscapes.Valid {
+		t.Errorf("expected Exasol to report no quoting state, got %v", q.BackslashEscapes)
+	}
+	// Created unquoted, so the catalog records it upper cased, and that is
+	// the name the statement quotes.
+	const user = "DBMETA_PW"
+	exec(t, db, `DROP USER IF EXISTS dbmeta_pw`)
+	exec(t, db, `CREATE USER dbmeta_pw IDENTIFIED BY "Start-P4ss!x"`)
+	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS dbmeta_pw`) })
+	exec(t, db, `GRANT CREATE SESSION TO dbmeta_pw`)
+	base := dsnOf(t, "DBMETA_EXASOL")
+	current := "Start-P4ss!x"
+	for _, c := range hostilePasswords {
+		t.Run(c.name, func(t *testing.T) {
+			if strings.Contains(c.password, ";") {
+				t.Skip("an Exasol DSN separates its pairs with a semicolon")
+			}
+			stmt, err := dbmeta.Exasol.ChangePassword(
+				dbmeta.PasswordChange{User: user, Password: c.password}, q)
+			if err != nil {
+				t.Fatalf("building the statement: %v", err)
+			}
+			exec(t, db, stmt)
+			login(t, "exasol", exasolUser(t, base, user, c.password), `SELECT CURRENT_USER`, user)
+			current = c.password
+		})
+	}
+
+	// The user changing its own password. Without ALTER USER it has to name
+	// the current password, and a statement without it is refused, which is
+	// what makes REPLACE worth writing.
+	self := openAt(t, "exasol", exasolUser(t, base, user, current))
+	const next = `Next-P4ss!x"'`
+	bare, err := dbmeta.Exasol.ChangePassword(dbmeta.PasswordChange{User: user, Password: next}, q)
+	if err != nil {
+		t.Fatalf("building the statement: %v", err)
+	}
+	if _, err := self.ExecContext(t.Context(), bare); err == nil {
+		t.Error("expected a user without ALTER USER to need its current password")
+	}
+	stmt, err := dbmeta.Exasol.ChangePassword(
+		dbmeta.PasswordChange{User: user, Password: next, Old: current}, q)
+	if err != nil {
+		t.Fatalf("building the statement: %v", err)
+	}
+	if _, err := self.ExecContext(t.Context(), stmt); err != nil {
+		t.Fatalf("changing its own password: %v", err)
+	}
+	login(t, "exasol", exasolUser(t, base, user, next), `SELECT CURRENT_USER`, user)
+}

@@ -13,6 +13,7 @@ import (
 	"github.com/xo/dbmeta"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
+	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
@@ -258,6 +259,21 @@ func parityTargets() []parityTarget {
 				// and Oracle have three.
 				name:       "same",
 				principals: []parityPrincipal{{name: "grantee", make: makeFirebirdGrantee}},
+			}},
+		},
+		{
+			dialect: dbmeta.Exasol, driver: "exasol", env: "DBMETA_EXASOL",
+			open: openExasol, build: setupExasol, schema: exfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Exasol has no containment. A user belongs to the database
+				// and a schema is only a grant scope, so there is SYS, the
+				// owner of a schema and a grantee, the same three kinds
+				// PostgreSQL has.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "owner", make: makeExasolOwner},
+					{name: "grantee", make: makeExasolGrantee},
+				},
 			}},
 		},
 		{
@@ -625,8 +641,14 @@ func firstLine(s string) string {
 		s = s[:i]
 	}
 	s = clientHost.ReplaceAllString(s, "@'client'")
+	s = exasolSession.ReplaceAllString(s, "")
 	return grantColumns.ReplaceAllString(s, "$1 ON")
 }
+
+// exasolSession matches the session number Exasol ends every message with,
+// such as (Session: 1877435836291743744). It is a new number on every
+// connection, so the refusal would never read the same twice.
+var exasolSession = regexp.MustCompile(` \(Session: [0-9]+\)`)
 
 // clientHost matches the host half of a MySQL user name.
 var clientHost = regexp.MustCompile(`@'[^']*'`)

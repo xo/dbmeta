@@ -12,11 +12,14 @@ import (
 	"time"
 )
 
-// defaultTimeout is how long a container gets to answer, and a machine gets
-// far longer because it boots Windows first.
+// defaultTimeout is how long a container gets to answer. A machine carries
+// its own, in container.Machine.Startup, because Windows boots for minutes
+// before SQL Server listens and an appliance does not.
 const (
 	defaultTimeout = 90 * time.Second
-	machineTimeout = 15 * time.Minute
+	// How long one readiness check waits for a machine to answer, while
+	// start waits for it.
+	machineProbe = 20 * time.Second
 	// How long status waits for a machine to answer. It is short because
 	// status is a question about what is there, not a wait for it to arrive.
 	statusProbe = 5 * time.Second
@@ -64,9 +67,6 @@ func (t target) timeout(o options) time.Duration {
 	}
 	if t.Startup > 0 {
 		return t.Startup
-	}
-	if t.Kind == kindMachine {
-		return machineTimeout
 	}
 	return defaultTimeout
 }
@@ -193,7 +193,7 @@ func doStatus(ctx context.Context, r runner, t target, o options) error {
 		if o.timeout > 0 {
 			probe = o.timeout
 		}
-		if !answered(ctx, t.DSN, probe) {
+		if !answered(ctx, t, probe) {
 			fmt.Printf("  %-20s %-*s  screen http://127.0.0.1:%d\n",
 				t.Name, len(t.URL), "starting, not answering yet", t.Viewer)
 			return nil
@@ -219,7 +219,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		return nil
 	case kindMachine:
 		if !r.exists(ctx, t.Name) {
-			return fmt.Errorf("not provisioned. Run: dbrun provision %s, which takes about an hour", t.Name)
+			return fmt.Errorf("not provisioned. Run: dbrun provision %s", t.Name)
 		}
 	case kindContainer:
 	}
@@ -231,8 +231,8 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if t.Kind == kindMachine {
 			return fmt.Errorf(
 				"it publishes %v and the list now says %v."+
-					" Remove it and provision again, which takes about an hour",
-				have, t.wantPorts())
+					" Remove it and provision again, and %s",
+				have, t.wantPorts(), t.Rebuild)
 		}
 		fmt.Printf("  %-20s published %v and the list now says %v, rebuilding\n",
 			t.Name, have, t.wantPorts())
@@ -317,8 +317,7 @@ func doRemove(ctx context.Context, r runner, t target, o options) error {
 		if !r.exists(ctx, t.Name) {
 			return nil
 		}
-		ok, err := confirm(t.Name +
-			" is a Windows machine and rebuilding it takes about an hour. Remove it?")
+		ok, err := confirm(t.Name + " is a machine and " + t.Rebuild + ". Remove it?")
 		if err != nil {
 			return err
 		}

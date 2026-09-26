@@ -1,9 +1,10 @@
 package container
 
 import (
-	"fmt"
-	"net/url"
 	"strings"
+	"time"
+
+	"github.com/xo/dbmeta"
 )
 
 // The SQL Server releases that need a Windows virtual machine, and the Windows
@@ -14,10 +15,8 @@ import (
 // Archived, which means nothing is claimed for them. A virtual machine is how
 // that changes, and D57 says what may be claimed once one has run.
 //
-// This holds data and nothing else, the same way the rest of this package
-// does. It starts no virtual machine and knows nothing about podman. The
-// provisioning lives in test/cmd/dbrun, which reads this list from here so
-// that the list has one copy.
+// Each is a [Machine] with a [WindowsSpec], and machine.go says what the two
+// kinds of machine share.
 //
 // # Why one machine per release
 //
@@ -31,15 +30,9 @@ import (
 // A machine also runs one at a time rather than all four at once. Each is
 // started, tested and stopped.
 
-// WindowsVM is one SQL Server release, the Windows it runs on, and what is
-// needed to install it without a person watching.
-type WindowsVM struct {
-	// Release is the SQL Server release, written the way Microsoft names it.
-	Release string
-	// Tier is how thoroughly this release is tested. It is always Verified:
-	// a virtual machine needs KVM and twenty minutes, so CI cannot run one.
-	Tier Tier
-
+// WindowsSpec is what installing SQL Server into Windows needs, without a
+// person watching.
+type WindowsSpec struct {
 	// Windows is the Windows Server release that hosts it, chosen to match the
 	// era rather than to be current. Every one is a Microsoft evaluation
 	// edition, which is free for 180 days of testing and needs no activation.
@@ -65,41 +58,39 @@ type WindowsVM struct {
 	// release here requires it, and the field stays because a release that
 	// does not is exactly the kind of thing this list should be able to say.
 	LicenseFlag bool
-
-	// Port is the host port this machine publishes SQL Server on. One per
-	// machine, so two can run at once when somebody wants to compare them.
-	Port int
-	// Viewer is the host port for the dockur web console, which is how a
-	// person watches an install that has gone wrong.
-	Viewer int
-}
-
-// Name returns a short name, such as "sqlserver-2012". It is safe as a
-// container name and as a directory name.
-func (v WindowsVM) Name() string { return "sqlserver-" + v.Release }
-
-// DSN returns a connection string for this machine on the host.
-func (v WindowsVM) DSN() string {
-	return fmt.Sprintf("sqlserver://sa:%s@127.0.0.1:%d?database=master&encrypt=disable",
-		url.QueryEscape(Password), v.Port)
 }
 
 // InstallerFile returns the file name the installer is saved as.
-func (v WindowsVM) InstallerFile() string {
-	if i := strings.LastIndex(v.Installer, "/"); i >= 0 {
-		return v.Installer[i+1:]
+func (w WindowsSpec) InstallerFile() string {
+	if i := strings.LastIndex(w.Installer, "/"); i >= 0 {
+		return w.Installer[i+1:]
 	}
-	return v.Installer
+	return w.Installer
 }
 
-// WindowsVMs is every SQL Server release that needs a virtual machine.
+// sqlserverMachine is a SQL Server release on Windows, with what every one of
+// them shares filled in.
+func sqlserverMachine(release string, port, viewer int, spec WindowsSpec) Machine {
+	return Machine{
+		Dialect: dbmeta.SQLServer, Product: "sqlserver", Release: release,
+		Tier: Verified, Port: port, Viewer: viewer,
+		// The first run installs Windows and then SQL Server, which is about
+		// an hour, and a slow host is slower.
+		Provision: 90 * time.Minute,
+		// A later start boots Windows before SQL Server listens.
+		Startup: 15 * time.Minute,
+		Windows: &spec,
+		dsn:     sqlserver.dsn,
+	}
+}
+
+// SQLServerMachines is every SQL Server release that needs a virtual machine.
 //
 // 2008 R2 is the floor because it is the oldest release whose Express
 // installer Microsoft still publishes. The plain 2008 page is gone, and every
 // 2012 service pack page is still there although the release page is not.
-var WindowsVMs = []WindowsVM{
-	{
-		Release: "2008R2", Tier: Verified,
+var SQLServerMachines = []Machine{
+	sqlserverMachine("2008R2", 51433, 8106, WindowsSpec{
 		Windows: "Windows Server 2008 R2", Image: "2008r2",
 		// SQL Server 2008 R2 SP2 Express.
 		Installer:   "https://download.microsoft.com/download/0/4/b/04be03cd-eaf3-4797-9d8d-2e08e316c998/SQLEXPR_x64_ENU.exe",
@@ -112,20 +103,16 @@ var WindowsVMs = []WindowsVM{
 		//	missing or has not been set to true. It is a required parameter
 		//	for the setup action you are running.
 		LicenseFlag: true,
-		Port:        51433, Viewer: 8106,
-	},
-	{
-		Release: "2012", Tier: Verified,
+	}),
+	sqlserverMachine("2012", 51434, 8107, WindowsSpec{
 		Windows: "Windows Server 2012 R2", Image: "2012r2",
 		// SQL Server 2012 SP4 Express. The service pack matters: 2012 RTM
 		// does not install on Server 2012 R2 at all.
 		Installer:   "https://download.microsoft.com/download/b/d/e/bde8fad6-33e5-44f6-b714-348f73e602b6/SQLEXPR_x64_ENU.exe",
 		RegistryKey: "MSSQL11.MSSQLSERVER",
 		LicenseFlag: true,
-		Port:        51434, Viewer: 8107,
-	},
-	{
-		Release: "2014", Tier: Verified,
+	}),
+	sqlserverMachine("2014", 51435, 8108, WindowsSpec{
 		Windows: "Windows Server 2012 R2", Image: "2012r2",
 		// SQL Server 2014 Express. The path has a space in it, and it is
 		// written %20 here because it has to be: curl rejects the raw
@@ -134,10 +121,8 @@ var WindowsVMs = []WindowsVM{
 		Installer:   "https://download.microsoft.com/download/e/a/e/eae6f7fc-767a-4038-a954-49b8b05d04eb/Express%2064BIT/SQLEXPR_x64_ENU.exe",
 		RegistryKey: "MSSQL12.MSSQLSERVER",
 		LicenseFlag: true,
-		Port:        51435, Viewer: 8108,
-	},
-	{
-		Release: "2016", Tier: Verified,
+	}),
+	sqlserverMachine("2016", 51436, 8109, WindowsSpec{
 		Windows: "Windows Server 2016", Image: "2016",
 		// SQL Server 2016 SP2 Express, and the only one of the four that is a
 		// bootstrapper rather than the package. It downloads the media when it
@@ -146,16 +131,5 @@ var WindowsVMs = []WindowsVM{
 		Bootstrapper: true,
 		RegistryKey:  "MSSQL13.MSSQLSERVER",
 		LicenseFlag:  true,
-		Port:         51436, Viewer: 8109,
-	},
-}
-
-// WindowsVMByRelease returns the machine for a SQL Server release.
-func WindowsVMByRelease(release string) (WindowsVM, bool) {
-	for _, v := range WindowsVMs {
-		if strings.EqualFold(v.Release, release) {
-			return v, true
-		}
-	}
-	return WindowsVM{}, false
+	}),
 }

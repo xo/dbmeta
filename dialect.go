@@ -45,6 +45,7 @@ const (
 	Cassandra  Dialect = "cql"
 	ClickHouse Dialect = "clickhouse"
 	DuckDB     Dialect = "duckdb"
+	Exasol     Dialect = "exasol"
 	Firebird   Dialect = "firebirdsql"
 	Hive       Dialect = "hive"
 	HANA       Dialect = "hdb"

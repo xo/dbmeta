@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
 )
 
@@ -29,15 +28,20 @@ var oemFiles embed.FS
 // vmState is where the machine disks live.
 func vmState() string { return stateDir("DBMETA_VM_STATE", "vm") }
 
-// cmdProvision builds the Windows machines the named targets are on.
+// cmdProvision builds the machines the named targets are on.
 //
-// The first run installs Windows and then SQL Server and takes about an hour.
-// A later run starts a machine that already exists, which is about a minute.
+// A Windows machine installs Windows and then SQL Server on its first run,
+// which takes about an hour. An appliance is imported from the file a person
+// downloaded, which takes minutes. A later run starts a machine that already
+// exists, whichever kind it is.
 func cmdProvision(ctx context.Context, picked []target, o options) error {
 	for _, t := range picked {
 		if t.Kind != kindMachine {
 			return fmt.Errorf("%s is a %s and there is nothing to provision", t.Name, t.Kind)
 		}
+	}
+	if o.from != "" && len(picked) != 1 {
+		return errors.New("--from names one file, so provision one machine with it")
 	}
 	r, err := newRunner()
 	if err != nil {
@@ -52,12 +56,21 @@ func cmdProvision(ctx context.Context, picked []target, o options) error {
 	}
 	var failed []string
 	for _, t := range picked {
-		vm, ok := container.WindowsVMByRelease(t.Release)
+		m, ok := container.MachineByName(t.Name)
 		if !ok {
 			return fmt.Errorf("no machine is described for %s", t.Name)
 		}
-		fmt.Printf("=== %s (SQL Server %s on %s) ===\n", t.Name, vm.Release, vm.Windows)
-		if err := provisionOne(ctx, r, t, vm, o); err != nil {
+		switch {
+		case m.Windows != nil:
+			fmt.Printf("=== %s (SQL Server %s on %s) ===\n", t.Name, m.Release, m.Windows.Windows)
+			err = provisionWindows(ctx, r, t, m, o)
+		case m.Appliance != nil:
+			fmt.Printf("=== %s (imported from %s) ===\n", t.Name, m.Appliance.File)
+			err = importAppliance(ctx, r, t, m, o)
+		default:
+			err = errors.New("the machine says neither how to install it nor how to import it")
+		}
+		if err != nil {
 			fmt.Printf("  %v\n", err)
 			failed = append(failed, t.Name)
 		}
@@ -68,7 +81,10 @@ func cmdProvision(ctx context.Context, picked []target, o options) error {
 	return nil
 }
 
-func provisionOne(ctx context.Context, r runner, t target, vm container.WindowsVM, o options) error {
+// provisionWindows installs Windows and then SQL Server, or starts a machine
+// that already has them.
+func provisionWindows(ctx context.Context, r runner, t target, m container.Machine, o options) error {
+	w := *m.Windows
 	state := filepath.Join(vmState(), t.Name)
 	oem := filepath.Join(state, "oem")
 	shared := filepath.Join(state, "shared")
@@ -83,42 +99,51 @@ func provisionOne(ctx context.Context, r runner, t target, vm container.WindowsV
 		return fmt.Errorf("writing the shared marker: %w", err)
 	}
 
-	if err := fetchInstaller(ctx, vm, oem, o); err != nil {
+	if err := fetchInstaller(ctx, w, oem, o); err != nil {
 		return err
 	}
-	if err := writeOEM(vm, oem); err != nil {
+	if err := writeOEM(m.Release, w, oem); err != nil {
 		return err
 	}
 	if o.render {
 		fmt.Printf("  wrote %s\n", oem)
 		return nil
 	}
-	if err := startMachine(ctx, r, t, vm, state, oem, shared); err != nil {
+	if !r.exists(ctx, t.Name) {
+		fmt.Println("  creating the machine, which installs Windows and then SQL Server")
+	}
+	if err := createMachine(ctx, r, t.Name, windowsRunArgs(t.Name, m, state, oem, shared)); err != nil {
 		return err
 	}
-	fmt.Printf("  watch it at http://127.0.0.1:%d\n", vm.Viewer)
+	return awaitMachine(ctx, t, m, o,
+		"the first run installs Windows and then SQL Server, so allow an hour",
+		"the install log, if it got that far: "+filepath.Join(shared, "provision-*.log"))
+}
+
+// awaitMachine waits for a machine's database to answer, after it was
+// created or started.
+//
+// It waits on a query rather than on the port. The runtime publishes the port
+// when the container is created, so a connection to it succeeds within
+// seconds and keeps succeeding while Windows is still installing. The first
+// version of this reported every machine ready twenty seconds in.
+func awaitMachine(ctx context.Context, t target, m container.Machine, o options, expect, where string) error {
+	fmt.Printf("  watch it at http://127.0.0.1:%d\n", m.Viewer)
 	if o.watch {
 		fmt.Println("  --watch given, leaving it running")
 		return nil
 	}
-
-	// Waiting on a query rather than on the port. The runtime publishes the
-	// port when the container is created, so a connection to it succeeds
-	// within seconds and keeps succeeding while Windows is still installing.
-	// The first version of this reported every machine ready twenty seconds
-	// in.
-	timeout := 90 * time.Minute
+	timeout := m.Provision
 	if o.timeout > 0 {
 		timeout = o.timeout
 	}
-	fmt.Printf("  waiting for SQL Server on 127.0.0.1:%d\n", vm.Port)
-	fmt.Println("  the first run installs Windows and then SQL Server, so allow an hour")
-	if err := waitForSQLServer(ctx, vm.DSN(), timeout); err != nil {
-		return fmt.Errorf("%w\n  the install log, if it got that far: %s\n"+
-			"  and the screen is at http://127.0.0.1:%d",
-			err, filepath.Join(shared, "provision-*.log"), vm.Viewer)
+	fmt.Printf("  waiting for %s on 127.0.0.1:%d\n", m.Dialect, m.Port)
+	fmt.Printf("  %s\n", expect)
+	if err := waitForAnswer(ctx, t, timeout); err != nil {
+		return fmt.Errorf("%w\n  %s\n  and the screen is at http://127.0.0.1:%d",
+			err, where, m.Viewer)
 	}
-	fmt.Printf("  answering: %s\n", vm.DSN())
+	fmt.Printf("  answering: %s\n", t.URL)
 	return nil
 }
 
@@ -126,28 +151,28 @@ func provisionOne(ctx context.Context, r runner, t target, vm container.WindowsV
 //
 // Not inside the machine: Windows Server 2008 R2 has no TLS 1.2 and cannot
 // reach Microsoft's download servers at all.
-func fetchInstaller(ctx context.Context, vm container.WindowsVM, oem string, o options) error {
-	path := filepath.Join(oem, vm.InstallerFile())
+func fetchInstaller(ctx context.Context, w container.WindowsSpec, oem string, o options) error {
+	path := filepath.Join(oem, w.InstallerFile())
 	if o.render {
-		fmt.Printf("  --render given, not downloading %s\n", vm.InstallerFile())
+		fmt.Printf("  --render given, not downloading %s\n", w.InstallerFile())
 		return nil
 	}
 	if info, err := os.Stat(path); err == nil && info.Size() > 0 {
 		fmt.Println("  installer already present")
 		return nil
 	}
-	fmt.Printf("  downloading %s\n", vm.InstallerFile())
-	return download(ctx, vm.Installer, path)
+	fmt.Printf("  downloading %s\n", w.InstallerFile())
+	return download(ctx, w.Installer, path)
 }
 
 // writeOEM renders the payload for this release.
-func writeOEM(vm container.WindowsVM, oem string) error {
+func writeOEM(release string, w container.WindowsSpec, oem string) error {
 	config, err := oemFiles.ReadFile("oem/ConfigurationFile.ini")
 	if err != nil {
 		return fmt.Errorf("reading the embedded configuration: %w", err)
 	}
 	text := string(config)
-	if vm.Release == "2008R2" {
+	if release == "2008R2" {
 		// 2008 R2 wants its own section header. It does take the license
 		// flag, despite a review saying otherwise, and refuses to install
 		// without it.
@@ -167,20 +192,20 @@ func writeOEM(vm container.WindowsVM, oem string) error {
 		return fmt.Errorf("reading the embedded installer script: %w", err)
 	}
 	license := ""
-	if vm.LicenseFlag {
+	if w.LicenseFlag {
 		license = "/IACCEPTSQLSERVERLICENSETERMS"
 	}
 	text = strings.NewReplacer(
-		"@@REGISTRY_KEY@@", vm.RegistryKey,
+		"@@REGISTRY_KEY@@", w.RegistryKey,
 		"@@SA_PASSWORD@@", container.Password,
-		"@@INSTALLER_FILE@@", vm.InstallerFile(),
+		"@@INSTALLER_FILE@@", w.InstallerFile(),
 		"@@LICENSE_FLAG@@", license,
 	).Replace(string(install))
 	if strings.Contains(text, "@@") {
 		// A placeholder left behind means a rename somewhere, and the machine
 		// would run the literal text for the next forty minutes before
 		// failing.
-		return fmt.Errorf("a placeholder is unfilled in install.bat for %s", vm.Release)
+		return fmt.Errorf("a placeholder is unfilled in install.bat for %s", release)
 	}
 	if err := writeCRLF(filepath.Join(oem, "install.bat"), text); err != nil {
 		return err
@@ -221,32 +246,18 @@ func writeCRLF(path, text string) error {
 	return nil
 }
 
-// startMachine creates the machine, or starts one that is already there.
-func startMachine(ctx context.Context, r runner, t target, vm container.WindowsVM,
-	state, oem, shared string,
-) error {
-	if r.exists(ctx, t.Name) {
+// createMachine creates a machine from its run arguments, or starts one that
+// is already there.
+//
+// A machine that exists is never recreated here, because its disk is the
+// hour of work or the import that made it.
+func createMachine(ctx context.Context, r runner, name string, args []string) error {
+	if r.exists(ctx, name) {
 		fmt.Println("  the machine exists, starting it")
-		if !r.quiet(ctx, "start", t.Name) {
+		if !r.quiet(ctx, "start", name) {
 			return errors.New("it would not start")
 		}
 		return nil
-	}
-	fmt.Println("  creating the machine, which installs Windows and then SQL Server")
-	args := []string{
-		"run", "--detach", "--name", t.Name,
-		"--env", "VERSION=" + vm.Image,
-		"--env", "DISK_SIZE=64G",
-		"--env", "RAM_SIZE=4G",
-		"--env", "CPU_CORES=4",
-		"--publish", fmt.Sprintf("127.0.0.1:%d:1433", vm.Port),
-		"--publish", fmt.Sprintf("127.0.0.1:%d:8006", vm.Viewer),
-		"--device=/dev/kvm", "--device=/dev/net/tun", "--cap-add", "NET_ADMIN",
-		"--volume", filepath.Join(state, "storage") + ":/storage",
-		"--volume", oem + ":/oem",
-		"--volume", shared + ":/shared",
-		"--stop-timeout", "120",
-		"docker.io/dockurr/windows",
 	}
 	if out, err := r.output(ctx, args...); err != nil {
 		return fmt.Errorf("it would not start: %s", lastLine(out))
@@ -254,11 +265,31 @@ func startMachine(ctx context.Context, r runner, t target, vm container.WindowsV
 	return nil
 }
 
-// waitForSQLServer opens a real connection and runs a statement.
-func waitForSQLServer(ctx context.Context, dsn string, timeout time.Duration) error {
+// windowsRunArgs are the arguments that create a Windows machine.
+func windowsRunArgs(name string, m container.Machine, state, oem, shared string) []string {
+	return []string{
+		"run", "--detach", "--name", name,
+		"--env", "VERSION=" + m.Windows.Image,
+		"--env", "DISK_SIZE=64G",
+		"--env", "RAM_SIZE=4G",
+		"--env", "CPU_CORES=4",
+		"--publish", fmt.Sprintf("127.0.0.1:%d:%d", m.Port, m.GuestPort()),
+		"--publish", fmt.Sprintf("127.0.0.1:%d:8006", m.Viewer),
+		"--device=/dev/kvm", "--device=/dev/net/tun", "--cap-add", "NET_ADMIN",
+		"--volume", filepath.Join(state, "storage") + ":/storage",
+		"--volume", oem + ":/oem",
+		"--volume", shared + ":/shared",
+		"--stop-timeout", "120",
+		"docker.io/dockurr/windows",
+	}
+}
+
+// waitForAnswer opens a real connection and runs the version query until it
+// answers.
+func waitForAnswer(ctx context.Context, t target, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
-		if answered(ctx, dsn, 20*time.Second) {
+		if answered(ctx, t, 20*time.Second) {
 			return nil
 		}
 		if time.Now().After(deadline) {
@@ -272,19 +303,26 @@ func waitForSQLServer(ctx context.Context, dsn string, timeout time.Duration) er
 	}
 }
 
-// answered reports whether SQL Server on the other end of a DSN answers a
-// query within the timeout.
-func answered(ctx context.Context, dsn string, timeout time.Duration) bool {
-	db, err := sql.Open("sqlserver", dsn)
+// answered reports whether the database on a machine answers a query within
+// the timeout.
+//
+// It connects with the driver the tests use for that dialect and runs the
+// version query dbmeta runs, rather than SELECT 1, so that a machine which
+// answers but has not finished configuring is not called ready. It was
+// written for SQL Server alone, and the dialect is what made it general.
+func answered(ctx context.Context, t target, timeout time.Duration) bool {
+	driver, ok := drivers[t.Dialect]
+	if !ok {
+		return false
+	}
+	db, err := sql.Open(driver, t.DSN)
 	if err != nil {
 		return false
 	}
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	// The version query rather than SELECT 1, so that a machine which
-	// answers but has not finished configuring is not called ready.
-	_, err = dbmeta.SQLServer.Version(ctx, db)
+	_, err = t.Dialect.Version(ctx, db)
 	return err == nil
 }
 

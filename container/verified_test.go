@@ -51,7 +51,7 @@ func TestEveryVerifiedReleaseIsDocumented(t *testing.T) {
 				s.Name(), coverage, s.Major, s.Release)
 		}
 	}
-	for _, vm := range container.WindowsVMs {
+	for _, vm := range container.Machines() {
 		if vm.Tier != container.Verified {
 			continue
 		}

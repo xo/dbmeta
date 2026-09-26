@@ -177,7 +177,7 @@ func (r runner) waitReady(ctx context.Context, t target, timeout time.Duration) 
 	var since time.Time
 	for {
 		switch {
-		case !r.quiet(ctx, t.Ready...):
+		case !r.ready(ctx, t):
 			// Not ready, or ready and then not. Either way the clock on a
 			// settle starts again from the next pass.
 			since = time.Time{}
@@ -201,6 +201,22 @@ func (r runner) waitReady(ctx context.Context, t target, timeout time.Duration) 
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+// ready asks once whether a server answers.
+//
+// A container is asked with its own readiness command, run inside it. A
+// machine has none, because nothing can be run inside Windows or an
+// appliance from here, and neither does a container whose image has no
+// client, which Exasol's does not. Those are asked the way status asks a
+// machine: by connecting and running the version query. Running a machine's empty command ran the
+// runner with no arguments, which always fails, so starting a machine that
+// was up waited out the whole timeout and then said it never answered.
+func (r runner) ready(ctx context.Context, t target) bool {
+	if t.Kind == kindMachine || len(t.Ready) == 0 {
+		return answered(ctx, t, machineProbe)
+	}
+	return r.quiet(ctx, t.Ready...)
 }
 
 // runningSince lists the containers this project knows about that are up,

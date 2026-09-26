@@ -74,6 +74,7 @@ than from memory.
 | SAP HANA | 9 | nothing |
 | Apache Hive | 6 | `Indexes`, `IndexColumns` and `RoutineParameters`: Hive removed indexes in 3.0, and a function is a Java class whose parameters are in the class rather than in the metastore |
 | Firebird | 8 | `Schema`: Firebird has no schemas before 6.0, so there is no current one to read and none is invented |
+| Exasol | 8 | `RoutineParameters`: Exasol keeps the parameters of a function or a script only inside its text, and no catalog view lists them |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
 Five answer all nine: PostgreSQL, the MySQL dialect, SQL Server, Oracle and
@@ -107,6 +108,7 @@ dialect is added.
 | SAP HANA | no | yes, all nine |
 | Apache Hive | no | partly: the foreign keys are there to follow, and they are declarations Hive does not enforce, so a generator would trust something the database never checks |
 | Firebird | no | yes, once it is told there is no schema to qualify by |
+| Exasol | no | partly: every table, key and foreign key is there to follow, and a routine has no parameters to read. The indexes are the engine's own, built and dropped as queries need them and named by object id, so a generator that emits an index would emit a different set on another day |
 
 Trino is the first that is a clear no, and it is not the same as answering few
 of the nine. `dbtpl` generates typed access from a schema and follows a foreign

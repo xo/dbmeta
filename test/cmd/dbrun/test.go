@@ -14,6 +14,7 @@ import (
 	_ "github.com/MichaelS11/go-cql-driver"
 	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/beltran/gohive/v2"
+	_ "github.com/exasol/exasol-driver-go"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/microsoft/go-mssqldb"
@@ -43,6 +44,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Firebird:   "firebirdsql",
 	dbmeta.HANA:       "hdb",
 	dbmeta.Hive:       "hive",
+	dbmeta.Exasol:     "exasol",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the
@@ -83,8 +85,9 @@ func doVersion(ctx context.Context, r runner, t target) error {
 //
 // What happens afterwards differs by kind and that is deliberate. A container
 // is removed, because rebuilding it is a minute and leaving it is how a
-// machine fills with servers nobody can place. A Windows machine is kept,
-// because rebuilding it is an hour. Both reviews of this design wanted one
+// machine fills with servers nobody can place. A virtual machine is kept,
+// because rebuilding it is an hour for Windows and a fresh import for an
+// appliance. Both reviews of this design wanted one
 // rule with a flag, and the asymmetry is real, so the answer is to say which
 // one happened rather than to pick the wrong default for one of them.
 // --keep and --remove override it.

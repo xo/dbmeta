@@ -20,8 +20,9 @@ const (
 	// kindContainer is a database in a container, which is created fresh and
 	// removed after a test run because rebuilding it costs a minute.
 	kindContainer kind = iota
-	// kindMachine is a database on a Windows virtual machine, which is
-	// provisioned once over an hour and kept.
+	// kindMachine is a database on a virtual machine, which is provisioned
+	// once and kept. A Windows machine takes an hour to build and an
+	// appliance takes minutes to import, and both are kept for that.
 	kindMachine
 	// kindEmbedded is a library with no server at all. There is nothing to
 	// start and the tests run against whatever the driver links.
@@ -82,6 +83,9 @@ type target struct {
 	// Viewer is the port a machine's screen is on, so that somebody can
 	// watch an install that is not finishing.
 	Viewer int `json:"viewer,omitempty"`
+	// Rebuild says what building a machine again costs, for the messages
+	// that refuse to do it without asking. Empty for anything else.
+	Rebuild string `json:"-"`
 
 	// Startup is how long this server needs before it answers, where the
 	// default is not enough. It comes from the container list rather than
@@ -200,7 +204,7 @@ func (t target) portsMatch(have map[string]string) bool {
 func targets() []target {
 	servers := container.All()
 	embedded := embeddedTargets()
-	out := make([]target, 0, len(servers)+len(container.WindowsVMs)+len(embedded))
+	out := make([]target, 0, len(servers)+len(container.Machines())+len(embedded))
 	for i, s := range servers {
 		port := basePort + i
 		out = append(out, target{
@@ -221,22 +225,32 @@ func targets() []target {
 			Remove:  s.RemoveArgs(s.Name()),
 		})
 	}
-	for _, v := range container.WindowsVMs {
+	for _, m := range container.Machines() {
 		out = append(out, target{
-			Name:    v.Name(),
-			Product: "sqlserver",
-			Release: v.Release,
+			Name:    m.Name(),
+			Product: strings.ToLower(m.Product),
+			Release: m.Release,
 			Kind:    kindMachine,
-			Tier:    v.Tier,
-			Dialect: dbmeta.SQLServer,
-			Env:     envFor(dbmeta.SQLServer),
-			DSN:     v.DSN(),
-			URL:     v.DSN(),
-			Viewer:  v.Viewer,
+			Tier:    m.Tier,
+			Dialect: m.Dialect,
+			Env:     envFor(m.Dialect),
+			DSN:     m.DSN(),
+			URL:     m.URL(),
+			Viewer:  m.Viewer,
+			Rebuild: rebuildCost(m),
+			Startup: m.Startup,
 		})
 	}
 	out = append(out, embedded...)
 	return out
+}
+
+// rebuildCost says what building a machine again costs.
+func rebuildCost(m container.Machine) string {
+	if m.Appliance != nil {
+		return "importing it again takes minutes and needs " + m.Appliance.File
+	}
+	return "provisioning it again takes about an hour"
 }
 
 // envFor names the variable the integration tests read a connection string
@@ -333,7 +347,7 @@ func resolve(all []target, args []string, allReleases bool) ([]target, []string,
 // container.All is already sorted by release within a product, so the last
 // one is the newest. Sorting again here rather than relying on that keeps
 // this correct if the order in that package ever changes, and it has to
-// handle the Windows machines, which are a separate list.
+// handle the machines, which are a separate list.
 func newestOf(product []target) target {
 	sorted := append([]target(nil), product...)
 	sort.SliceStable(sorted, func(i, j int) bool {

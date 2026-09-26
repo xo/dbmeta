@@ -384,3 +384,64 @@ func makeHivePrincipal(t *testing.T, _ *sql.DB, dsn, _ string) string {
 	t.Helper()
 	return replaceUser(t, dsn, "dbmeta_other", parityPassword)
 }
+
+// makeExasolOwner makes a user that owns the fixture schema.
+//
+// An Exasol schema's owner owns every object in it, so changing the schema's
+// owner is the whole of it. The schema goes back to SYS before the user is
+// dropped, because DROP USER ... CASCADE drops every schema the user owns and
+// the fixture's own teardown would then find the adapter its virtual schema
+// needs already gone.
+func makeExasolOwner(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	cleanup(t, db, `DROP USER IF EXISTS dbmeta_owner CASCADE`)
+	exec(t, db, `CREATE USER dbmeta_owner IDENTIFIED BY "`+parityPassword+`"`)
+	t.Cleanup(func() {
+		cleanup(t, db, `ALTER SCHEMA `+schema+` CHANGE OWNER SYS`)
+		cleanup(t, db, `DROP USER IF EXISTS dbmeta_owner CASCADE`)
+	})
+	exec(t, db, `GRANT CREATE SESSION TO dbmeta_owner`)
+	exec(t, db, `ALTER SCHEMA `+schema+` CHANGE OWNER dbmeta_owner`)
+	return exasolUser(t, dsn, "dbmeta_owner", parityPassword)
+}
+
+// makeExasolGrantee makes a user that can read the schema and owns nothing.
+func makeExasolGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	cleanup(t, db, `DROP USER IF EXISTS dbmeta_grantee CASCADE`)
+	exec(t, db, `CREATE USER dbmeta_grantee IDENTIFIED BY "`+parityPassword+`"`)
+	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS dbmeta_grantee CASCADE`) })
+	exec(t, db, `GRANT CREATE SESSION TO dbmeta_grantee`)
+	exec(t, db, `GRANT SELECT ON SCHEMA `+schema+` TO dbmeta_grantee`)
+	return exasolUser(t, dsn, "dbmeta_grantee", parityPassword)
+}
+
+// exasolUser rewrites the user and password of an Exasol DSN, which is not a
+// URL but exa:host:port followed by key=value pairs separated by semicolons.
+//
+// The password goes last. The driver reads a backslash before a semicolon as
+// an escaped separator, so a password ending in a backslash would swallow the
+// semicolon after it. At the end there is none. A password containing a
+// semicolon is not written here at all: that is the driver's escaping, and
+// test/password_test.go leaves that case out.
+func exasolUser(t *testing.T, dsn, user, password string) string {
+	t.Helper()
+	var kept []string
+	var found int
+	for p := range strings.SplitSeq(dsn, ";") {
+		key, _, ok := strings.Cut(p, "=")
+		switch {
+		case ok && strings.EqualFold(key, "user"):
+			kept = append(kept, "user="+user)
+			found++
+		case ok && strings.EqualFold(key, "password"):
+			found++
+		default:
+			kept = append(kept, p)
+		}
+	}
+	if found != 2 {
+		t.Fatalf("expected a user and a password in %s", dsn)
+	}
+	return strings.Join(append(kept, "password="+password), ";")
+}

@@ -41,6 +41,7 @@ rather than reading one.
 | `models/firebird` | 24 | 55 | Firebird 3.0, 4.0 and 5.0 |
 | `models/hana` | 32 | 55 | SAP HANA 2.0 SPS 08 |
 | `models/hive` | 16 | 55 | Apache Hive 4.2 |
+| `models/exasol` | 25 | 55 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -1369,6 +1370,185 @@ authenticator, a client states a principal on every request, and with no
 access control plugin the server allows it everything. Only `current_user`
 differs for a second principal.
 
+## Exasol
+
+`models/exasol` answers 25 of the 55. It was run against Exasol 2026.2.0 on
+the nano image and 2025.2.1 on the Community Edition machine, and the two
+answer identically, so the model has no version fragment. D85 says why there
+are two, and D87 records what was decided here.
+
+### It reads the EXA_ALL views
+
+Exasol's catalog is a set of system tables in SYS, in three families.
+`EXA_USER_` is what the current user owns, `EXA_ALL_` is what it can see, and
+`EXA_DBA_` is everything and needs `SELECT ANY DICTIONARY`. The model reads
+`EXA_ALL_`, for the reason the Oracle model reads `ALL_`: it answers every
+principal with what that principal can see and asks for no special right.
+
+Two queries read `EXA_DBA_`, because nothing else holds the answer.
+`RoleGrants` reads `EXA_DBA_ROLE_PRIVS`. The views an ordinary user can read
+list only the grants that user holds, which would hide every other member's
+grants from an administrator too. `UserMappings` reads the connection views,
+which carry the remote user and every grant. Both are refused to a lesser
+principal, and parity records it.
+
+The system tables are not in the `EXA_ALL_` views, which list what users made.
+`with_system` reaches them through `EXA_SYSCAT` and `EXA_SYS_COLUMNS`, for
+tables, columns, schemas and the system scripts.
+
+Three things about writing SQL for it, all measured.
+
+An empty string is NULL. Exasol reads `''` as NULL, the way Oracle does, so
+`? = ''` is never true and the first version of every filter matched nothing.
+A filter tests for NULL instead. A statement that selects `''` for a field
+that is always empty gets NULL back, so a plain string field is scanned
+through a helper that reads NULL as empty, and three fields where the empty
+string means something are restored from the row: identity and generated,
+which are empty for an ordinary column, and a foreign key's catalog.
+
+A correlated `EXISTS` in a select list is refused as not supported, so the
+primary key flag on a column is a join. A correlated scalar subquery is
+accepted, which is how the partition key and a virtual schema's properties are
+folded into one row.
+
+`CONNECT BY` runs before `WHERE`. Splitting the `SCRIPT_LANGUAGES` parameter
+over `EXA_PARAMETERS` itself multiplied every level by every parameter and
+returned 182 rows for four languages, so the parameter is selected first and
+the generator runs over that one row.
+
+### What it answers
+
+Tables, schemas, columns, views, indexes, index columns, constraints,
+constraint columns, partitioned tables, comments, functions, aggregates,
+types, languages, roles, role grants, privileges, settings, the database,
+foreign data wrappers, foreign servers, user mappings, foreign tables, the
+current schema and the current user.
+
+Five need a sentence.
+
+A virtual schema is how Exasol reaches data it does not hold, and it lines up
+with PostgreSQL's foreign data in three places:
+
+| Kind | Exasol |
+| --- | --- |
+| `ForeignDataWrappers` | an adapter script, `EXA_ALL_SCRIPTS` where `SCRIPT_TYPE` is ADAPTER |
+| `ForeignServers` | a virtual schema, with its properties as the options |
+| `ForeignTables` | a virtual table, which belongs to its virtual schema |
+
+The fixture builds all three with a Lua adapter that answers with one fixed
+table, because Lua runs inside the engine and needs no language container and
+no second database.
+
+`UserMappings` is a connection granted to a principal. A connection holds an
+address and the credentials to use it, which is what a mapping records: who
+can reach a source, and as whom. Its server is the connection, which is not
+the virtual schema `ForeignServers` reports, and a virtual schema names the
+connection it uses in its `CONNECTION_NAME` property.
+
+`Aggregates` is a set UDF that returns one value. Exasol's own documentation
+calls that an aggregate. A set UDF that emits rows is a function returning a
+set.
+
+`Indexes` reports the indices the engine made. Exasol has no `CREATE INDEX`:
+it builds an index for a key and others as joins need them, and drops the ones
+that go unused. Nothing names one, so the object id is the name and `REMARKS`,
+the engine's own description such as `GLOBAL INDEX (COUNTRY,AREA)`, is the
+comment.
+
+`IndexColumns` reads the column list out of `REMARKS`, which is the only place
+it is kept. The names in it are not quoted, and a column can be called `a,b`,
+so the list is matched against the table's real columns rather than split on
+its commas. A name that is itself two other column names joined by a comma
+would match twice. Nothing short of that can be misread.
+
+### What it cannot answer
+
+30 kinds. Most are absent from the product.
+
+There is no sequence, trigger, domain, enumerated type, collation, tablespace,
+access method, conversion, cast, large object, event trigger, operator,
+operator class or family, extension, extended statistic, publication,
+subscription, text search object or default privilege. There is no unique or
+check constraint: both are refused as not supported, on both releases. An
+identity column is the only generator.
+
+Three are present and unreachable, which is a different thing.
+
+`RoutineParameters` has no answer because Exasol keeps the parameters of a
+function or a script only inside its text. Parsing them out was considered and
+left alone: a SQL function's text is stored as written, and a type such as
+`DECIMAL(18, 0)` puts a comma inside a parameter, so a split is wrong exactly
+where it matters. `Function.ArgTypes` and `Function.ResultType` are empty for
+the same reason, and the text is in `Function.Source`.
+
+`ColumnStats` has no answer because Exasol exposes no planner statistic.
+`EXA_ALL_COLUMN_SIZES` holds the memory and raw size of each column, which is
+storage rather than a statistic about the values.
+
+`RoleSettings` has no answer. A user or a role carries a consumer group, which
+limits resources, and that is not a configuration setting a role applies.
+
+### What a second opinion found
+
+Gemini and DeepSeek were both asked about the thirty kinds, given the whole
+list of system tables. They agreed on three leads.
+
+| Lead | What the server says |
+| --- | --- |
+| `UserMappings` from `EXA_DBA_CONNECTIONS` and `EXA_DBA_CONNECTION_PRIVS` | both exist with the columns named. It is the source `UserMappings` reads |
+| `IndexColumns` by parsing `REMARKS` | the list is there and unquoted. Splitting it is wrong for a column named `a,b`, so the model matches it against the real columns |
+| `RoutineParameters` by parsing the text | the text is there. Rejected, above |
+
+DeepSeek also offered `ColumnStats` computed from the data, with `COUNT(*)`
+and `COUNT(DISTINCT)` per column. That is a scan that grows with every row in
+the database, which D47 forbids.
+
+Both invented a column. Gemini said `EXA_ALL_COLUMN_SIZES` has
+`AVERAGE_COLUMN_SIZE` and `COMPRESSED_SIZE`. It has `RAW_OBJECT_SIZE` and
+`MEM_OBJECT_SIZE`. DeepSeek said `EXA_ALL_INDICES` has `ROOT_SCHEMA` and
+`ROOT_NAME`. It has `INDEX_SCHEMA` and `INDEX_TABLE`. Neither would have run.
+See D43.
+
+### What the fixture cannot build
+
+No index, because there is no `CREATE INDEX`, so the core object
+`book_published` does not exist here and the fixture is not in the root
+module's fixture test. No unique or check constraint on `book`. No user,
+because a user outlives the schema, so parity makes its own.
+
+A view comment is written in the `COMMENT IS` clause of `CREATE VIEW`, because
+`COMMENT ON VIEW` is refused.
+
+### What conformance says
+
+Exasol agrees with the relational databases on 22 of their 23 lines. The one
+it lacks is the unique constraint on `book.title`, which cannot be built, so
+it is in `agreementExcluded` with that reason. It also reports each NOT NULL
+as a named constraint of its own, which is how Exasol keeps them, and a view
+column as nullable.
+
+### Which answers depend on who is asking
+
+Measured with SYS, the owner of the fixture schema and a grantee on it.
+
+`RoleGrants` and `UserMappings` are refused to both, as above.
+
+`Privileges` returns fewer rows to the grantee, because `EXA_ALL_OBJ_PRIVS`
+lists the grants a user made, received, or owns the object of.
+
+`ForeignServers` returns the same row with its options absent, because a
+virtual schema's properties are shown to its owner and not to a user who can
+only see the schema.
+
+`CurrentSchema` returns no row for a new session, which has opened no schema.
+That is the session rather than the principal.
+
+On 2025.2.1 `ForeignDataWrappers` returns fewer rows as well. The Community
+Edition ships eleven adapter scripts in `VS_ADAPTERS`, which SYS owns and a
+principal that owns another schema cannot see. The nano image ships none, so
+the difference is in what the machine holds and not in the query.
+`test/testdata/parity.txt` has an `exasol@2025` section for it.
+
 ## Which answers depend on who is asking
 
 Every query has been asked as the administrator and as each lesser kind of
@@ -1395,6 +1575,9 @@ that varies is what kind of principal they are.
 | Firebird 3.0, 4.0, 5.0 | grantee | `roles`, `settings` |
 | Apache Hive 4.2 | other principal | none. The image configures no authorization, so every principal is allowed everything |
 | SAP HANA 2.0 SPS 08 | grantee | `collations`, `databases`, `foreign_data_wrappers`, `functions`, `privileges`, `role_grants`, `roles`, `sequences`, `settings`, `triggers`, `views` |
+| Exasol 2026.2.0 | schema owner | `current_schema`, `foreign_servers`, `role_grants`, `user_mappings` |
+| Exasol 2026.2.0 | grantee | `current_schema`, `foreign_servers`, `privileges`, `role_grants`, `user_mappings` |
+| Exasol 2025.2.1 | both | the same, plus `foreign_data_wrappers`, because the Community Edition ships adapter scripts that SYS owns |
 
 `current_user` and `current_schema` are left out of the table and are in the
 file. They answer a question about the connection, so a run where they agreed
@@ -1987,7 +2170,7 @@ apart. Both now read `notGeneratedNotNull`.
 
 Every query reads the `ALL_` views. Both reviews agreed, and the reasoning is
 the one this project already knows from `information_schema`: `ALL_` shows the
-connected user what it may see and needs no special role, `DBA_` needs
+connected user what it can see and needs no special role, `DBA_` needs
 `SELECT_CATALOG_ROLE` that an ordinary application user does not have, and
 `USER_` shows only the caller's own schema and has no `OWNER` column at all.
 

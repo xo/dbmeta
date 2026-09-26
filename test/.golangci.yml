@@ -101,6 +101,7 @@ linters:
             - github.com/nakagami/firebirdsql
             - github.com/SAP/go-hdb
             - github.com/beltran/gohive
+            - github.com/exasol/exasol-driver-go
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

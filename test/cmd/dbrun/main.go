@@ -18,14 +18,24 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	exalogger "github.com/exasol/exasol-driver-go/pkg/logger"
 )
 
 func main() {
+	// The Exasol driver logs every failed connection to standard error as
+	// well as returning it. dbrun connects in a loop while a server starts,
+	// so every attempt printed a line of its own. The error still arrives
+	// through the return value, which is the copy dbrun reads. SetLogger
+	// refuses only a nil logger, and this one is not.
+	_ = exalogger.SetLogger(log.New(io.Discard, "", 0))
 	if err := run(os.Args[1:]); err != nil {
 		if !errors.Is(err, errSilent) {
 			fmt.Fprintln(os.Stderr, "dbrun:", err)
@@ -49,6 +59,7 @@ type options struct {
 	render      bool
 	watch       bool
 	timeout     time.Duration
+	from        string
 }
 
 func run(args []string) error {
@@ -77,6 +88,8 @@ func run(args []string) error {
 		"with provision, write the OEM folder and stop, without downloading or starting anything")
 	fs.BoolVar(&o.watch, "watch", false,
 		"with provision, leave the machine running rather than waiting for it")
+	fs.StringVar(&o.from, "from", "",
+		"with provision, the machine image a person downloaded, for an appliance")
 	fs.DurationVar(&o.timeout, "timeout", 0,
 		"how long to wait for a server to answer, zero for the default")
 	fs.Usage = func() { usage(os.Stderr) }
@@ -146,9 +159,9 @@ func run(args []string) error {
 
 // splitArgs separates the flags from the selectors, wherever they appear.
 //
-// Every flag dbrun takes is a boolean except --timeout, so only that one
-// consumes the word after it, and only when it is not written with an equals
-// sign.
+// Every flag dbrun takes is a boolean except --timeout and --from, so only
+// those consume the word after them, and only when they are not written with
+// an equals sign.
 func splitArgs(args []string) ([]string, []string) {
 	var flags, selectors []string
 	for i := 0; i < len(args); i++ {
@@ -156,7 +169,7 @@ func splitArgs(args []string) ([]string, []string) {
 		switch {
 		case arg == "--":
 			return flags, append(selectors, args[i+1:]...)
-		case arg == "-timeout" || arg == "--timeout":
+		case arg == "-timeout" || arg == "--timeout" || arg == "-from" || arg == "--from":
 			flags = append(flags, arg)
 			if i+1 < len(args) {
 				i++
@@ -195,7 +208,8 @@ Commands:
   logs        show what the server said
   list        show what a selector expands to, without touching anything
   build       build the images this repository makes, for Cassandra and Oracle 19c
-  provision   build a Windows machine, which takes about an hour
+  provision   build a Windows machine, which takes about an hour, or import
+              an appliance from the file you downloaded, which takes minutes
   help        this
 
 Selectors:
@@ -213,14 +227,15 @@ Flags:
   --timeout       how long to wait for a server to answer
   --json          machine readable output, for list, dsn, status and version
   --names         with --json, just the names, which is what a CI matrix takes
-  --yes           do not ask before deleting a Windows machine
+  --yes           do not ask before deleting a machine
   --render        with provision, write the OEM folder and stop
   --watch         with provision, leave the machine running rather than waiting
+  --from          with provision, the appliance image you downloaded
   -f              follow the log
 
 Environment:
   DBMETA_RUNNER         podman by default, set to docker to use that instead
-  DBMETA_VM_STATE       where the Windows disks live, which are tens of
+  DBMETA_VM_STATE       where the machine disks live, which are tens of
                         gigabytes each. Defaults under $XDG_DATA_HOME/dbmeta
   DBMETA_ORACLE_STATE   where the Oracle 19c checkout and archive live
   DBMETA_EMBEDDED_STATE where the SQLite and DuckDB files live. They are kept
