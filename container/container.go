@@ -144,6 +144,18 @@ type Server struct {
 	// Empty for every product but SAP HANA, which will not start under the
 	// default open file limit.
 	RunFlags []string
+	// Init is a command run inside the container once it is ready, for a
+	// server whose catalog is not there until it is installed.
+	//
+	// Apache Hive is the only one. Its metastore is relational and it is
+	// not readable through SQL until the sys database is created over it,
+	// and the script that does that ships in the image and needs a
+	// running HiveServer2 to run against. That makes it a step after the
+	// server answers rather than a layer in an image, which is where the
+	// two built images here put their setup.
+	//
+	// It must be safe to run twice, because start runs it every time.
+	Init []string
 	// Memory is what this server is allowed, where MemoryLimit is not
 	// enough. Empty means MemoryLimit.
 	Memory string
@@ -222,6 +234,16 @@ func (s Server) ReadyArgs(name string) []string {
 	return append([]string{"exec", name}, s.Ready...)
 }
 
+// InitArgs returns the arguments that install the catalog in the named
+// container, or nil when the product needs nothing. Run it after
+// [Server.ReadyArgs] succeeds.
+func (s Server) InitArgs(name string) []string {
+	if len(s.Init) == 0 {
+		return nil
+	}
+	return append([]string{"exec", name}, s.Init...)
+}
+
 // RemoveArgs returns the arguments that stop and remove the named container.
 func (s Server) RemoveArgs(name string) []string {
 	return []string{"rm", "--force", name}
@@ -283,7 +305,7 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive)
 }
 
 // AtTier returns the servers tested at t.
@@ -333,6 +355,7 @@ type product struct {
 	port      int
 	env       map[string]string
 	ready     []string
+	init      []string
 	runFlags  []string
 	args      []string
 	memory    string
@@ -366,6 +389,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			Port:     p.port,
 			Env:      p.env,
 			Ready:    p.ready,
+			Init:     p.init,
 			RunFlags: p.runFlags,
 			Args:     p.args,
 			Memory:   p.memory,

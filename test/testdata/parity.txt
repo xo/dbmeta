@@ -46,6 +46,8 @@ settings fewer rows than the administrator
 triggers the same rows with different values
 views the same rows with different values
 
+[hive/same/other]
+
 [mariadb/same/grantee]
 aggregates refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`proc`
 column_stats refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`column_stats`

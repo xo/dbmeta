@@ -16,8 +16,8 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 76
-at the top. Read the status, because 11 of them amend or replace an earlier
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 79
+at the top. Read the status, because 12 of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
 

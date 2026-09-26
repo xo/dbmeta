@@ -159,6 +159,48 @@ constraint region primary key (country, area)
 constraint shipment foreign key (country, area) -> region(country, area)
 constraint shipment primary key (shipment_id)
 
+[hive]
+table author table
+table book table
+table recent view
+table region table
+table shipment table
+column author.author_id ordinal=1 nullable=false primary_key=true has_default=false
+column author.name ordinal=2 nullable=false primary_key=false has_default=false
+column author.rating ordinal=3 nullable=true primary_key=false has_default=false
+column author.shade ordinal=4 nullable=true primary_key=false has_default=true
+column book.author_id ordinal=2 nullable=false primary_key=false has_default=false
+column book.book_id ordinal=1 nullable=false primary_key=true has_default=false
+column book.published ordinal=4 nullable=true primary_key=false has_default=false
+column book.title ordinal=3 nullable=false primary_key=false has_default=false
+column recent.book_id ordinal=1 nullable=true primary_key=false has_default=false
+column recent.title ordinal=2 nullable=true primary_key=false has_default=false
+column region.area ordinal=2 nullable=false primary_key=true has_default=false
+column region.country ordinal=1 nullable=false primary_key=true has_default=false
+column shipment.amount ordinal=4 nullable=false primary_key=false has_default=false
+column shipment.area ordinal=3 nullable=false primary_key=false has_default=false
+column shipment.country ordinal=2 nullable=false primary_key=false has_default=false
+column shipment.shipment_id ordinal=1 nullable=false primary_key=true has_default=false
+constraint author default (shade)
+constraint author not null (author_id)
+constraint author not null (name)
+constraint author primary key (author_id)
+constraint book foreign key (author_id) -> author(author_id)
+constraint book not null (author_id)
+constraint book not null (book_id)
+constraint book not null (title)
+constraint book primary key (book_id)
+constraint book unique (title)
+constraint region not null (area)
+constraint region not null (country)
+constraint region primary key (country, area)
+constraint shipment foreign key (country, area) -> region(country, area)
+constraint shipment not null (amount)
+constraint shipment not null (area)
+constraint shipment not null (country)
+constraint shipment not null (shipment_id)
+constraint shipment primary key (shipment_id)
+
 [mysql]
 table author table
 table book table

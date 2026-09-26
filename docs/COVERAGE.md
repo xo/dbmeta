@@ -40,6 +40,7 @@ rather than reading one.
 | `models/presto` | 9 | 55 | Presto 0.299 |
 | `models/firebird` | 24 | 55 | Firebird 3.0, 4.0 and 5.0 |
 | `models/hana` | 32 | 55 | SAP HANA 2.0 SPS 08 |
+| `models/hive` | 16 | 55 | Apache Hive 4.2 |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -1080,7 +1081,160 @@ from that query. The check itself is in `Constraints` with its condition, and
 dependencies of the triggers that implement it, and HANA implements a check
 without a trigger, so there is no equivalent to follow.
 
+### Apache Hive
+
+`models/hive` answers 16 of the 55, against Apache Hive 4.2.1. It is the
+only model here that writes its filter values into the statement, and the
+reason is in D78 rather than here.
+
+### It reads sys, and Hive is not Impala
+
+Hive keeps its metadata in a relational metastore that SQL cannot reach.
+Hive 3.0 added a `sys` database that exposes that metastore as external
+tables over the JDBC storage handler, and those answer ordinary SQL. There
+are 57 of them and they are what this model reads.
+
+That is the difference D66 left open. D67 struck Impala because it answers
+only through `SHOW` and `DESCRIBE`, which are statements rather than
+relations and cannot be filtered, joined or aliased. `sys` is relations, so
+Hive passes the test Impala failed.
+
+`sys` is not there when a server starts. The script that creates it ships in
+the image and needs a running HiveServer2 to run against, because the tables
+are external tables pointed at the metastore. That is neither an image layer
+nor a fixture, so `container.Server.Init` was added for it: a command run
+once the server answers and before anything reads it. Hive is the only
+product that sets it.
+
+### What it answers
+
+Tables, schemas, columns, views, constraints, constraint columns,
+partitioned tables, functions, roles, role grants, privileges, comments,
+column statistics, access methods, the current schema and the current user.
+
+Three answers are worth naming because Hive arranges the fact differently
+from everything else here.
+
+Nullability, a default and a primary key are not properties of a column in
+Hive. They are constraints in `KEY_CONSTRAINTS`, so `Columns` reads them
+with three outer joins rather than from the column row. They are joins
+rather than correlated subqueries because Hive does not take a correlated
+scalar subquery in a select list.
+
+A partition key is not a column of the table. It is in `PARTITION_KEYS` and
+it does not appear in `COLUMNS_V2` at all, so `Columns` does not report it
+and `PartitionedTables` does.
+`TestHivePartitionColumnIsNotAColumn` asserts both halves, because a caller
+that reads only `Columns` sees a table without its partition column and that
+absence would otherwise look like a bug.
+
+A SerDe is how Hive reads and writes a table's rows, which is the question
+an access method answers, so `AccessMethods` reports the SerDe classes in
+use. Hive keeps no catalog of them, so the query counts the tables that name
+each one and a SerDe nothing uses does not appear.
+
+### The trap in KEY_CONSTRAINTS, which cost a round of wrong answers
+
+Hive stores the two sides of a constraint the other way round from how the
+names read, and only a foreign key has both. Measured on 4.2.1, with tables
+115 and 116:
+
+	kp_pk  type=0  child(tbl=0)    parent(tbl=115)
+	kp_fk  type=1  child(tbl=116)  parent(tbl=115)
+
+For a foreign key the child is the table that has the constraint and the
+parent is the table it points at. For every other kind the parent is the
+table that has it, and the child columns are zero rather than null.
+
+Reading child as "the table this is on" is the obvious mistake and it was
+made here first. It is worse than wrong: joining on a zero finds nothing
+rather than dropping the row, so every primary key, unique, not null and
+default goes silently missing while foreign keys keep working. A schema with
+foreign keys in it looks correct. The model normalizes the two sides in a
+derived table and the comment on it records the measurement.
+
+### What it cannot answer
+
+39 kinds, and almost all of them because Hive has no such object.
+
+Indexes were removed in Hive 3.0 and there is no statement that makes one,
+so `Indexes` and `IndexColumns` have no answer. There are no sequences, no
+triggers, no domains, no collations, no user defined types, no operators and
+no foreign data of any kind.
+
+`RoutineParameters` has no answer for a reason worth stating: a Hive
+function is a Java class registered under a name, and the metastore holds
+the name and the class and nothing else. The parameters are in the class.
+`Function.Source` carries the class name, which is the nearest thing to a
+body Hive has.
+
+`Settings` has no answer because Hive's configuration is read with `SET -v`,
+which is a statement rather than a relation, and the `sys` tables do not
+carry it.
+
+### What a second opinion found
+
+DeepSeek named three sources and two do not exist:
+
+| Named | What the server says |
+| --- | --- |
+| `sys.IDXS` for indexes | no such table |
+| `sys.TYPES` for a type catalog | no such table |
+| `sys.SEQUENCE_TABLE` for sequences | exists, and holds something else entirely |
+
+The third is the most interesting wrong lead in this project so far, because
+it is not an invention. `sys.SEQUENCE_TABLE` is real and the name matches
+what was asked for. It holds the metastore's internal identifier allocator:
+
+	org.apache.hadoop.hive.metastore.model.MDatabase = 11
+	org.apache.hadoop.hive.metastore.model.MRole = 11
+
+Reporting that as `Sequences` would have shipped a wrong answer that no test
+would catch, because the query runs and returns rows. A lead that exists is
+more dangerous than one that does not, and running it is the only thing that
+separates them. See D43.
+
+### What the fixture cannot build
+
+No index, and that is why Hive is not in the cross family comparison in the
+root module. D53 asks every fixture for six core objects and one of them is
+an index somebody created. Hive builds five.
+
+No function, because `CREATE FUNCTION` registers a Java class by name and a
+fixture that made one would depend on a class being on the server's path.
+`Functions` is verified to run and returns nothing.
+
+No sequence and no trigger, because Hive has neither.
+
+Every constraint carries `DISABLE NOVALIDATE`, which Hive requires because
+it enforces none of them. They are declarations for a planner and the
+queries read them as the catalog records them.
+
+### What the conformance test says
+
+Hive's section matches PostgreSQL's on every table, view and column, and
+differs in two ways that are both facts.
+
+PostgreSQL reports `has_default=true` on the three `serial` keys, where Hive
+agrees with the other nine databases.
+
+Hive reports extra constraint lines. It records NOT NULL and DEFAULT as
+constraints where every other database records them on the column, so a
+Hive table has `not null` and `default` constraints that the same table
+elsewhere does not. Those are additional rows rather than missing ones, and
+`Columns` reports the same facts in the same place as everywhere else.
+
 ### Which answers depend on who is asking
+
+None of them. The image configures no authorization, so a client states a
+principal and HiveServer2 takes it, and the server then allows that
+principal everything. That is the measurement rather than a gap in it, and
+it is the same shape as Trino and Presto.
+
+A Hive with SQL standard authorization configured would answer differently
+and nothing here measures that, because the image does not configure it.
+
+## Which answers depend on who is asking
 
 Eleven queries answer differently for a user that is not the administrator,
 which is the most of any product here. That is HANA rather than the model:
@@ -1239,6 +1393,7 @@ that varies is what kind of principal they are.
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 10.6 | grantee | the same, plus `functions` |
 | Firebird 3.0, 4.0, 5.0 | grantee | `roles`, `settings` |
+| Apache Hive 4.2 | other principal | none. The image configures no authorization, so every principal is allowed everything |
 | SAP HANA 2.0 SPS 08 | grantee | `collations`, `databases`, `foreign_data_wrappers`, `functions`, `privileges`, `role_grants`, `roles`, `sequences`, `settings`, `triggers`, `views` |
 
 `current_user` and `current_schema` are left out of the table and are in the

@@ -272,6 +272,13 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		}
 		return err
 	}
+	// A server that answers is not always a server with a catalog. Hive's
+	// is installed here, after it is ready and before anything reads it.
+	if len(t.Init) > 0 {
+		if _, err := r.output(ctx, t.Init...); err != nil {
+			return fmt.Errorf("installing the catalog: %w", err)
+		}
+	}
 	fmt.Printf("  %-20s up: %s=%s\n", t.Name, t.Env, t.DSN)
 	return nil
 }

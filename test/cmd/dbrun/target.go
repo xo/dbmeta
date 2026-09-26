@@ -74,6 +74,10 @@ type target struct {
 	Run    []string `json:"-"`
 	Ready  []string `json:"-"`
 	Remove []string `json:"-"`
+	// Init installs the catalog once the server answers, for a product
+	// whose catalog is not there until it is. Empty for every product but
+	// Apache Hive.
+	Init []string `json:"-"`
 
 	// Viewer is the port a machine's screen is on, so that somebody can
 	// watch an install that is not finishing.
@@ -207,6 +211,7 @@ func targets() []target {
 			URL:     s.URL(port),
 			Run:     s.RunArgs(s.Name(), port),
 			Ready:   s.ReadyArgs(s.Name()),
+			Init:    s.InitArgs(s.Name()),
 			Startup: s.Startup,
 			Remove:  s.RemoveArgs(s.Name()),
 		})

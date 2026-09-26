@@ -37,6 +37,12 @@ const (
 	// ErrMissingParam is the missing parameter error. The statement names a
 	// parameter that the arguments do not supply.
 	ErrMissingParam Error = "missing parameter"
+	// ErrInvalidParam is the invalid parameter error. A value cannot be
+	// rendered into a statement by a dialect that has no way to bind one.
+	// Only Apache Hive can return it, because only Hive renders literals,
+	// and it returns one rather than guessing at a value it cannot escape
+	// safely. See [Info.Literal] and D78.
+	ErrInvalidParam Error = "invalid parameter"
 	// ErrQuotingUnknown is the quoting unknown error. Building a statement
 	// that carries a password needs session state the caller did not read,
 	// and guessing it can let the password escape its own literal. See D56.

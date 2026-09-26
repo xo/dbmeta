@@ -72,6 +72,7 @@ than from memory.
 | Trino | 4 | `Indexes`, `IndexColumns`, `Functions`, `RoutineParameters` and `ConstraintColumns`: Trino is a query engine and has no index, no constraint of any kind, and no table valued source for its function list |
 | Presto | 3 | the same five as Trino, and `Schema`: neither `current_catalog` nor `current_schema` resolves |
 | SAP HANA | 9 | nothing |
+| Apache Hive | 6 | `Indexes`, `IndexColumns` and `RoutineParameters`: Hive removed indexes in 3.0, and a function is a Java class whose parameters are in the class rather than in the metastore |
 | Firebird | 8 | `Schema`: Firebird has no schemas before 6.0, so there is no current one to read and none is invented |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
@@ -104,6 +105,7 @@ dialect is added.
 | Trino | no | **no** |
 | Presto | no | **no** |
 | SAP HANA | no | yes, all nine |
+| Apache Hive | no | partly: the foreign keys are there to follow, and they are declarations Hive does not enforce, so a generator would trust something the database never checks |
 | Firebird | no | yes, once it is told there is no schema to qualify by |
 
 Trino is the first that is a clear no, and it is not the same as answering few

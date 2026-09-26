@@ -130,7 +130,7 @@ records the argument.
 | [D63](#d63-support-says-when-a-release-is-too-old-amends-d54) | Support says when a release is too old | Amends D54 |
 | [D64](#d64-the-verified-tier-is-checked-against-the-document-decided) | The Verified tier is checked against the document | Decided |
 | [D65](#d65-a-windows-machine-rearms-its-evaluation-before-it-expires-decided) | A Windows machine rearms its evaluation before it expires | Decided |
-| [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67) | The order the remaining dialects are written in | Amended by D67 |
+| [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67-and-d77) | The order the remaining dialects are written in | Amended by D67 and D77 |
 | [D67](#d67-impala-cannot-be-a-dbmeta-model-and-clickhouse-goes-first-amends-d66) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
 | [D68](#d68-every-container-is-started-by-the-runner-and-named-product-release-amended-by-d70) | Every container is started by the runner and named product-release | Amended by D70 |
 | [D69](#d69-the-workflow-builds-its-matrix-from-the-go-list-amends-d42) | The workflow builds its matrix from the Go list | Amends D42 |
@@ -141,6 +141,9 @@ records the argument.
 | [D74](#d74-firebird-has-no-schemas-and-none-is-invented-decided) | Firebird has no schemas, and none is invented | Decided |
 | [D75](#d75-every-container-is-bounded-and-four-run-at-once-decided) | Every container is bounded, and four run at once | Decided |
 | [D76](#d76-sap-hana-reads-sys-and-answers-more-than-anything-but-postgresql-decided) | SAP HANA reads SYS, and answers more than anything but PostgreSQL | Decided |
+| [D77](#d77-exasol-will-not-run-here-and-hive-goes-ahead-of-it-amends-d66) | Exasol will not run here, and Hive goes ahead of it | Amends D66 |
+| [D78](#d78-hive-reads-sys-and-is-a-model-decided) | Hive reads sys, and is a model | Decided |
+| [D79](#d79-a-dialect-that-cannot-bind-renders-its-values-decided) | A dialect that cannot bind renders its values | Decided |
 
 ## Decisions
 
@@ -4359,7 +4362,7 @@ is rebuilt, which is about an hour, or the release drops to Archived under D40
 and nothing is claimed for it. Neither is automatic, because both are a
 person's decision about how much a pre-2017 SQL Server is worth.
 
-### D66. The order the remaining dialects are written in. Amended by D67.
+### D66. The order the remaining dialects are written in. Amended by D67 and D77.
 
 Impala first, then ClickHouse, then the products that run in a container,
 then the ones that need an account. A product that cannot be started cannot be
@@ -4403,8 +4406,8 @@ In this order, and the order is what the native catalog adds over
 | 5 | Vertica | `vertica/vertica-ce` | `v_catalog` is rich and nothing else reaches it |
 | 6 | SAP HANA | `saplabs/hanaexpress` | enterprise install base, deep `SYS` catalog |
 | 7 | Firebird | `firebirdsql/firebird` | the `RDB$` catalog answers more than most of this list |
-| 8 | Exasol | `exasol/docker-db` | `EXA_` catalog, analytic install base |
-| 9 | Hive | `apache/hive` | metastore, and it is the shape Impala already teaches |
+| 8 | Exasol | `exasol/docker-db` | `EXA_` catalog, analytic install base. Blocked, see D77 |
+| 9 | Hive | `apache/hive` | metastore, and it is the shape Impala already teaches. Done, see D78 |
 
 #### Vertica cannot be started, measured 2026-09-26
 
@@ -5723,6 +5726,252 @@ rather than fewer rows. Functions, sequences, triggers and views all carry a
 definition, and HANA returns the row and withholds the text from a reader
 without the privilege. A consumer that treats a definition as always present
 is wrong on HANA, and nothing but D61 would have found it.
+
+### D77. Exasol will not run here, and Hive goes ahead of it. Amends D66.
+
+Exasol is number 8 in D66's order and Hive is number 9. Hive goes first,
+because Exasol does not start and four separate things had to be got past
+before that became clear.
+
+There is no `models/exasol`, no dialect constant and no container entry. A
+constant with no model and a container entry that cannot start are both worse
+than nothing: they claim something this project cannot do. What was learned is
+here instead, so that whoever tries again starts from the fourth problem
+rather than the first.
+
+#### What was got past
+
+Each of these is a real fix and each one revealed the next. Measured on
+`exasol/docker-db:2026.1.2`, rootless podman, on 2026-09-26.
+
+The container needs a bridge network. Exasol picks its own address by looking
+for the first interface whose state is UP, and rootless podman's default
+networking gives an interface whose state is UNKNOWN, so initialization fails
+before anything else happens:
+
+	exadt:: searching for the first interface with state UP
+	IndexError: list index out of range
+
+The container needs to be privileged, which Ken granted on 2026-09-26. The
+image's own README says so: privileged mode is required for permissions
+management, UDF support and environment configuration. `--cap-add SYS_ADMIN`
+alone gets past `sethostname`, which is the first thing to fail, and then
+`bucketfsd` restarts forever with "Master authentication service rejected
+authentication: Unauthenticated". With `--privileged` the initialization runs
+to "All stages finished", which it never does otherwise.
+
+The container needs a longer readiness budget than anything but SAP HANA. It
+builds a single node cluster on first start.
+
+#### What it did not get past
+
+The database process starts, runs for about three minutes and aborts:
+
+	*** Exception caught in init of ObjectMgmt:
+	    ObjectClient: Invalid hash value ***
+
+Then the controller shuts down cleanly and the container stays up with nothing
+listening on 8563, so the symptom a caller sees is a readiness timeout rather
+than an error. That is the worst shape a failure can have and it is why this
+took as long as it did.
+
+Two hypotheses were tested and both were wrong. Memory is not it: the error is
+identical at 4g and at 8g, and the container was using 357MB when it failed.
+The password is not it either: `init-sc` has an `--encode-passwd` flag and its
+sibling `--root-passwd` documents that a password is expected already encoded,
+so passing the password as cleartext looked like exactly what "Invalid hash
+value" would say. Encoding it changes nothing.
+
+The evidence points at storage and that is where the next person should start.
+Exasol's device is a 6GB file at `/exa/data/storage/dev.1` and it sits on
+overlayfs. The image's README says the host must support O_DIRECT, which
+overlayfs does not, and `--no-odirect` is already passed. "Invalid hash value"
+reads as an object checksum failure against that device rather than anything
+to do with a password.
+
+So the next thing to try is a real volume for `/exa`, which the README
+documents under managing disks and devices. That needs a volume field on
+`container.Server` and a host directory for `dbrun` to create and remove,
+which is machinery no other product here needs.
+
+#### Why that was not tried
+
+Judgement rather than difficulty. Exasol had by then cost more than the whole
+Firebird model did, including its queries, fixture, tests, conformance, parity
+and documentation. Four gates were already behind it and the fifth needed a
+new field in a shared package.
+
+Hive needs none of it. It is Apache 2.0, multiarch, was rebuilt the day before
+this was written, and asks for no licence, no privileged container and no
+special networking. Taking the cheap one first is the same reasoning D66
+already uses to put the products that run in a container ahead of the ones
+that need an account.
+
+Exasol is not struck the way Impala was in D67. Impala cannot be a model
+because it has no queryable catalog. Exasol has `EXA_` and there is every
+reason to think the queries would be good. It is blocked on starting the
+server, which is a different thing and may take one volume mount to fix.
+
+### D78. Hive reads sys, and is a model. Decided.
+
+`models/hive` answers 16 of the 55 against Apache Hive 4.2.1.
+`docs/COVERAGE.md` holds the measurements.
+
+An earlier version of this decision said Hive could not be a model. That was
+right about the evidence at the time and wrong about the conclusion, and
+both halves of what changed it came from outside this project.
+
+#### Hive is not Impala, which is what D66 left open
+
+D66 put Hive last with the note that it is the shape Impala already teaches,
+and D67 struck Impala because it answers only through `SHOW` and `DESCRIBE`,
+which are statements rather than relations.
+
+Hive passes that test. Hive 3.0 added a `sys` database that exposes the
+metastore as 57 external tables over the JDBC storage handler, and they
+answer ordinary SQL.
+
+`sys` is not there when a server starts. The script that creates it ships in
+the image and needs a running HiveServer2, because the tables are external
+tables pointed at the metastore. That is neither an image layer nor a
+fixture, so `container.Server.Init` was added: a command run once the server
+answers and before anything reads it. It has to be safe to run twice,
+because `dbrun start` runs it every time, and Hive's script is, because
+every statement in it is CREATE IF NOT EXISTS or CREATE OR REPLACE.
+
+#### The protocol cannot bind, and the driver had to change
+
+`TExecuteStatementReq`, the Thrift request that carries a statement to
+HiveServer2, has five fields and none of them is parameters:
+
+	SessionHandle  Statement  ConfOverlay  RunAsync  QueryTimeout
+
+So HiveServer2 cannot bind server side at all, and Hive's own JDBC
+`PreparedStatement` substitutes on the client. No Go driver can offer real
+binding. Saying it that way matters, because "the driver is broken" invites
+somebody to go looking for a better driver and this does not. The `usql`
+session found this by reading the protocol after reading the driver, which
+is the check that pays: read what the driver is a client of.
+
+`sqlflow.org/gohive`, which `usql` shipped, had two defects on top of that
+and either one alone rules it out.
+
+It accepted bind parameters and discarded them. `args` is a parameter of its
+`execute` and appears nowhere in the body, and `NumInput` panics with "not
+implemented", so a statement reached Hive with its question marks still in
+it and came back as a Thrift frame size error rather than a refusal.
+
+Worse, it could not represent NULL. Measured:
+
+	SELECT CAST(NULL AS string)   valid=true  ""
+	SELECT ''                     valid=true  ""
+	SELECT CAST(NULL AS bigint)   valid=true  0
+
+A NULL and an empty string were the same value, and a NULL and a zero were
+the same value. Every nullable field in a model built on it would have been
+a lie, silently, and nothing about the model would have looked wrong.
+`docs/NULLS.md` is the shortest document here and the one that cost the most
+to learn, and that driver breaks all of it.
+
+`usql` is replacing it with `github.com/beltran/gohive/v2`, which Ken
+confirmed. v2 refuses parameters with a message instead of mangling them,
+and it tells NULL from empty. `TestHiveTellsNullFromEmpty` asserts the
+second, because a driver change that regressed it would leave no other
+trace.
+
+One trap the `usql` session recorded and this keeps: `beltran/gohive` v1 has
+no `database/sql` driver at all, only a Connect and Cursor client, and it
+was already in the module graph as an indirect dependency. It looks like a
+candidate and is not. The driver arrived in v2.
+
+Two things about v2 are worth knowing before anybody debugs it. It panics
+rather than returning an error when the auth mode is missing or unknown, so
+`auth=NONE` is not optional. And it requires the DSN to keep its `hive://`
+scheme.
+
+#### One requirement this leaves with dburl
+
+`dburl` generates the Hive DSN with `GenFromURL("truncate://localhost:10000/")`,
+which strips the scheme and emits `localhost:10000/default`, and v2 rejects
+anything that does not begin with `hive://`. `usql`'s driver swap is blocked
+on it.
+
+The fix belongs in `dburl`: the `hive` scheme has to emit a URL with its
+scheme intact, and the `hive2` alias has to normalize to `hive`, because the
+driver rejects the alias too. The URL's own String method does not do it,
+because it keeps the alias and drops the default port.
+
+This is recorded here because the `dburl` session is not running and the
+requirement would otherwise be lost. Hard rule 1 keeps dbmeta out of dburl's
+taxonomy, so this is a note and not work for this project. `container/hive.go`
+writes the DSN itself and is unaffected.
+
+### D79. A dialect that cannot bind renders its values. Decided.
+
+[dbmeta.Info.Literal] renders a parameter value as a SQL literal. A dialect
+that sets it gets its statements with the values in them and no bind
+arguments. Apache Hive is the only one, because it is the only product here
+whose protocol has no parameter channel at all. See D78.
+
+Ken decided this. The alternative was to leave Hive unsupported, which is
+where D78 stood before.
+
+#### Why it is safe enough, and what that argument does not cover
+
+The statements are written in this repository. No caller supplies one, and
+nothing a caller passes becomes part of the statement's structure. What gets
+rendered is a filter value for a parameter this project declared.
+
+The value does come from outside. In `usql` it is a pattern somebody typed
+and in `dbtpl` it is a schema name from a configuration, and in both the
+person supplying it already has full SQL access through the same session, so
+there is no privilege boundary for an injection to cross. That is Ken's
+argument and it holds for both consumers.
+
+It does not hold for every consumer. `dbmeta` is a library, and something
+that put an untrusted name into a filter and ran it against Hive would have
+a boundary to cross. So the escaping is written as though it mattered,
+because for somebody it will:
+
+`TestLiteral` checks the break out shapes directly, and
+`TestHiveEscapingHoldsOnTheServer` asks a real Hive for tables named
+`x' OR '1'='1` and three others, and fails if any of them matches more than
+nothing. A unit test can show the string looks right. Only the server shows
+what it means.
+
+#### The dialect supplies the function rather than setting a flag
+
+The first design was a boolean and a shared escaper. Hive killed it.
+
+[dbmeta.QuoteLiteral] doubles the quote, which is the standard's rule and
+right for every other product here. Hive does not accept a doubled quote.
+Measured on 4.2.1:
+
+	SELECT 'a''b'  ->  ab
+	SELECT 'a\'b'  ->  a'b
+
+The first is read as two literals written next to each other and joined, so
+a doubled quote loses the quote and returns a wrong answer rather than an
+error. Hive needs C style backslash escapes.
+
+So escaping is per product knowledge and cannot be a flag, which is the same
+conclusion D56 reached for `ChangePassword`: the escaping is the product's
+and the value cannot be bound. This is the second instance of that rule
+rather than a new exception to anything.
+
+#### What it refuses
+
+An implementation returns [dbmeta.ErrInvalidParam] rather than guessing. The
+Hive one refuses a type it does not know, because every parameter this
+project declares is a string or a boolean and an unknown type means a caller
+passed something a query did not declare. It refuses a NUL for the reason
+`ChangePassword` does: it can end a string early in a layer below this.
+
+#### What it is not
+
+It is not a general literal mode and there must not be one. A caller cannot
+reach it, a dialect that can bind must leave it nil, and `Query.Build`
+returns no argument values when it is set, so a dialect cannot half use it.
 
 ## Open questions for Ken
 

@@ -15,6 +15,7 @@ import (
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
+	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
@@ -215,6 +216,21 @@ func parityTargets() []parityTarget {
 				// and a database is only a grant scope.
 				name:       "same",
 				principals: []parityPrincipal{{name: "grantee", make: makeClickHouseGrantee}},
+			}},
+		},
+		{
+			dialect: dbmeta.Hive, driver: "hive", env: "DBMETA_HIVE",
+			open: openHive, build: setupHive, schema: hvfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Hive has roles and no users. The image configures no
+				// authorization, so a client states a principal and the
+				// server takes it, which is the same shape as Trino and
+				// Presto. There is nothing to create and nothing to
+				// grant, so this target is expected to find no
+				// difference at all, and D61 wants that written down
+				// either way.
+				name:       "same",
+				principals: []parityPrincipal{{name: "other", make: makeHivePrincipal}},
 			}},
 		},
 		{

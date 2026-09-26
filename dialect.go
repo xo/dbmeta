@@ -25,6 +25,7 @@ const (
 	ClickHouse Dialect = "clickhouse"
 	DuckDB     Dialect = "duckdb"
 	Firebird   Dialect = "firebirdsql"
+	Hive       Dialect = "hive"
 	HANA       Dialect = "hdb"
 	MySQL      Dialect = "mysql"
 	Oracle     Dialect = "oracle"
@@ -63,6 +64,38 @@ type Info struct {
 	// Placeholder writes the bind parameter for position n, counting from 1.
 	// PostgreSQL writes $1, MySQL writes ?, Oracle writes :1.
 	Placeholder func(n int) string
+	// Literal renders one parameter value as a SQL literal, for a product
+	// whose protocol cannot carry a parameter at all. Nil for every
+	// product that can bind, which is every one but Apache Hive, and a
+	// nil Literal is what says the dialect binds.
+	//
+	// This exists because HiveServer2 has no parameter channel. Its
+	// Thrift request carries a session handle, a statement, a
+	// configuration overlay, an asynchronous flag and a timeout, and
+	// nothing else, so no driver can bind and Hive's own JDBC
+	// PreparedStatement substitutes on the client. A dialect in that
+	// position either renders its values into the statement or answers
+	// nothing at all. See D78.
+	//
+	// It is deliberately not a general literal mode and it is not a
+	// switch. The dialect supplies the function, because escaping is per
+	// product knowledge and one shared rule is not enough: Hive does not
+	// accept a doubled quote the way [QuoteLiteral] writes one. It reads
+	// 'a''b' as two literals joined and returns ab, silently, so a
+	// doubled quote there is a wrong answer rather than an error.
+	//
+	// This is the same reasoning D56 used to let ChangePassword build a
+	// statement: the escaping is the product's and the value cannot be
+	// bound.
+	//
+	// What it renders is a parameter this project declared, never a
+	// statement. The statement is written here and no caller supplies
+	// one. A value still reaches it from outside, so an implementation
+	// refuses what it cannot render rather than guessing, and returns an
+	// error for a type it does not know and for a string it cannot
+	// escape safely.
+	Literal func(v any) (string, error)
+
 	// VersionQuery reads the server version. An empty string means the database
 	// reports no version, and a caller uses an unknown version.
 	VersionQuery string

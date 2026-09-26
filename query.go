@@ -405,7 +405,7 @@ func (q *Query[T]) Build(m *Meta, args map[string]any) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	return bind(s, info.Placeholder, b.Params, args)
+	return bind(s, info.Placeholder, info.Literal, b.Params, args)
 }
 
 // All runs the query against db and yields one value per row.
@@ -476,7 +476,7 @@ func First[T any](seq iter.Seq2[T, error]) (T, bool, error) {
 
 // bind rewrites the named parameters of s into the placeholders the dialect
 // wants, and returns the values in matching order.
-func bind(s string, placeholder func(int) string, params []Param, args map[string]any) (string, []any, error) {
+func bind(s string, placeholder func(int) string, literal func(any) (string, error), params []Param, args map[string]any) (string, []any, error) {
 	known := make(map[string]Param, len(params))
 	for _, p := range params {
 		known[p.Name] = p
@@ -524,6 +524,17 @@ func bind(s string, placeholder func(int) string, params []Param, args map[strin
 		// because $2 may appear twice, but MySQL writes ? and every ? consumes
 		// one argument. Reusing the number there gives "expected 5 arguments,
 		// got 3". Appending is correct for both.
+		// A dialect whose protocol cannot carry a parameter writes the
+		// value into the statement instead. It returns no values, so a
+		// caller passes none and the same call site serves both.
+		if literal != nil {
+			lit, err := literal(v)
+			if err != nil {
+				return "", nil, err
+			}
+			out.WriteString(lit)
+			continue
+		}
 		vals = append(vals, v)
 		out.WriteString(placeholder(len(vals)))
 	}

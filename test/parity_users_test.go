@@ -369,3 +369,18 @@ func makeHANAGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	exec(t, db, `GRANT SELECT ON SCHEMA `+schema+` TO dbmeta_parity`)
 	return replaceUser(t, dsn, "dbmeta_parity", parityPassword)
 }
+
+// makeHivePrincipal names a different principal on the connection.
+//
+// Hive has no users to create. The image configures no authorization, so the
+// client states who it is and HiveServer2 takes it: the SASL exchange
+// happens and nothing is validated. A password still has to be non empty,
+// which is the one thing the exchange checks.
+//
+// With no authorization configured the server then allows that principal
+// everything, so this target is expected to find no difference. That is the
+// measurement rather than a gap in it.
+func makeHivePrincipal(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	return replaceUser(t, dsn, "dbmeta_other", parityPassword)
+}

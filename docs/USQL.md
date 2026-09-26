@@ -318,29 +318,53 @@ a case where `usql` has no answer at all.
 | Trino | `SELECT version()` | `SELECT node_version FROM system.runtime.nodes LIMIT 1` | different statement, same answer |
 | Presto | `SELECT node_version FROM system.runtime.nodes WHERE coordinator = true LIMIT 1` | the same, without the coordinator filter | same answer, and `usql` may read a worker on a cluster |
 | Firebird | `SELECT rdb$get_context('SYSTEM', 'ENGINE_VERSION') FROM rdb$database` | the same statement | the same answer, and `usql` prefixes the word Firebird |
+| Apache Hive | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement, and Hive has the function, so the fallback works |
 | SAP HANA | `SELECT VERSION FROM SYS.M_DATABASE` | the same statement, lower cased | the same answer, and `usql` prefixes the words SAP HANA |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
-| Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | no function, so the generic `SELECT version();` | **`usql` cannot answer** |
+| Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and **`usql` fails for everybody else** |
 
 Measured on a live server of each, on 2026-09-26.
 
-#### Oracle, where the generic fallback is not valid SQL
+#### Oracle, where usql reads a view an ordinary user cannot
 
-`usql` declares no `Version` function for its `oracle` driver, so
-`drivers.Version` falls through to `SELECT version();`. Oracle has no such
-function:
+An earlier version of this section said `usql` declares no `Version` function
+for Oracle and falls through to the generic `SELECT version();`. That is
+wrong, it was written here first, and it reached `usql`'s migration plan and
+a commit message before the `usql` session caught it.
+
+`usql` does declare one. It is at `drivers/oracle/orshared/orshared.go` and
+both the `oracle` and `godror` drivers get it, because neither calls
+`drivers.Register` itself: they both go through `orshared.Register`. Anything
+that greps this tree for `drivers.Register(` misses both, which is the same
+indirection that produced a wrong scheme count twice before. Grep for the
+field rather than the call.
+
+The statement is `SELECT version FROM v$instance`, and the defect is real but
+different. `v$instance` needs a privilege an ordinary user does not have.
+Measured on Oracle 26ai, as a user granted nothing but `CREATE SESSION`:
 
 ```
-ORA-00904: "VERSION": invalid identifier
+SELECT version FROM v$instance                -> ORA-00942: table or view
+                                                 "SYS"."V_$INSTANCE" does not exist
+SELECT banner FROM v$version WHERE ROWNUM = 1 -> Oracle AI Database 26ai Free ...
 ```
 
-`drivers.Version` discards the error and returns `<unknown>`, so the failure
-is silent and `usql` prints no version for Oracle at all. `dbmeta` reads
-`v$version` and gets
-`Oracle AI Database 26ai Free Release 23.26.3.0.0`.
+So `usql` prints a version for an administrator and prints none for anybody
+else. `dbmeta` reads `v$version`, which every user can read, and it is the
+only `v$` view the Oracle model touches: every other source is an `all_`
+view, which is D61's doing.
 
-This is the strongest single case for the move, and comparing the printed
-lines would never have found it, because Oracle was not in the table above.
+The predicate is load bearing rather than tidiness. `v$version` returns five
+rows on Oracle 11g, one each for the database, PL/SQL, CORE, TNS and NLSRTL,
+and became a single row in 18c. Measured on 11.2.0.2, `ROWNUM = 1` returns
+the database banner, which is the one that is wanted. A version query written
+against `v$version` without a predicate is nondeterministic on an older
+server.
+
+The comparison still did its job. It found that Oracle's version handling is
+wrong in `usql`, and it found it because the statements were compared rather
+than the printed output. It found the wrong reason, which is what the first
+paragraph is for.
 
 #### DuckDB and Trino, where the statement differs and the answer does not
 
