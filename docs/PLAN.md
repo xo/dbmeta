@@ -6199,15 +6199,18 @@ when the matrix is wider than the concurrency limit.
 
 ### D83. A server is ready when it can run a query, not when it answers one. Decided.
 
-The readiness check for Presto and Trino reads a table. It read a constant
-and that was not the same thing.
+The readiness check for Presto and Trino creates a schema and drops it. It
+asked for a constant, and that was not the same thing.
 
 `presto-cli --execute "SELECT 1"` succeeded and the fixture's first statement
 then failed:
 
 	NO_NODES_AVAILABLE: No nodes available to run query
 
-`EXPLAIN (TYPE DISTRIBUTED)` says why, on Presto 0.299 and Trino 483 alike:
+#### The first fix was wrong, and it is worth saying why
+
+`EXPLAIN (TYPE DISTRIBUTED)` looked conclusive, on Presto 0.299 and Trino 483
+alike:
 
 | query | plan |
 | --- | --- |
@@ -6215,14 +6218,39 @@ then failed:
 | `SELECT * FROM (VALUES 1) t(x)` | one SINGLE fragment |
 | `SELECT count(*) FROM system.runtime.nodes` | a SINGLE and a SOURCE fragment |
 
-A SINGLE fragment is evaluated by the coordinator on its own. A SOURCE
-fragment has to be scheduled on a node. So a constant is answered in the
-window between the HTTP port opening and a worker registering, and a table
-read is not. Both checks now read `system.runtime.nodes`.
+A SINGLE fragment is evaluated by the coordinator alone and a SOURCE fragment
+has to be scheduled on a node, so reading `system.runtime.nodes` ought to have
+waited for one. It shipped, and Presto failed the same way on the next run:
+every test, from the first, inside three seconds of the server being called
+up.
+
+The plan was true and the inference from it was not. The coordinator serves
+its own node list before the scheduler will place connector work on it, so a
+query that must be scheduled is still not a query that proves the thing the
+fixture needs. Reasoning about an engine's internals from what it says about
+a plan is how this went wrong twice in one day.
+
+#### What it is now
+
+`CREATE SCHEMA IF NOT EXISTS memory.dbmeta_ready; DROP SCHEMA IF EXISTS
+memory.dbmeta_ready`, in one call, for both products. That is the operation
+that was failing, so a server that passes has just done it.
+
+Both statements run in one invocation and the client exits non-zero when
+either fails, which is what `dbrun` reads. Nothing is left behind: `dbrun`
+stops polling on a zero exit, and a poll that leaked the schema is not a poll
+that returned zero. Measured on 0.299: the schema list before and after the
+check is `default` and `information_schema` both times, and a statement
+against a catalog that does not exist exits 1.
 
 Trino is changed on the same evidence rather than on a failure of its own. It
-plans identically and the image has the same shape, so the difference is that
-nobody has been unlucky with it yet.
+has not been unlucky yet and it is the same server at this level.
+
+#### The rule
+
+A readiness check has to be the work, or something that cannot succeed
+without it. Anything cheaper is a guess about the server's startup order, and
+this pair cost two attempts to learn that.
 
 #### D82 is what exposed it
 
@@ -6237,17 +6265,23 @@ quietly depending on, and a readiness check that needs a ninety second pause
 after it is not one. The same reasoning applies to anything else in
 `container/` whose check is cheaper than the work that follows it.
 
-#### What was not done
+#### What was rejected
 
-The check does not assert that the count is not zero, and it does not need
-to. If no node is active the query cannot be scheduled and fails, so the exit
-code already carries the answer, and a shell wrapper to compare the number
-would add quoting for nothing.
+`/v1/info` reports `"starting":false` and is what Presto's own deployments
+probe. It was not used, because it is another thing that correlates with
+being ready rather than the thing itself, and the point of this decision is
+that the correlation is what failed twice.
 
-Verified by removing both containers and running `dbrun test presto-0.299`
-and `dbrun test trino-483` from cold. This machine starts both too fast to
-reproduce the race, which is why the plans were measured rather than the
-timing.
+#### How it was verified
+
+By removing the containers and running `dbrun test presto-0.299`,
+`dbrun test trino-483` and `dbrun test trino-476` from cold, all of which
+pass.
+
+This machine starts Presto in about two seconds, so the race cannot be
+reproduced here and none of the three runs proves the fix. What proves it is
+that the check performs the failing operation. The first attempt passed
+locally too, which is the reason this section exists.
 
 ## Open questions for Ken
 

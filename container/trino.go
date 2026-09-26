@@ -60,12 +60,16 @@ var trino = product{
 	// Trino ships no password by default and the HTTP protocol takes the user
 	// from the DSN. The name is arbitrary and the server does not check it
 	// until authentication is configured, which the image does not do.
-	// Reading a table rather than a constant, for the reason in presto.go:
-	// `SELECT 1` is answered by the coordinator alone and is ready before
-	// the server can run a query that touches a connector. Trino has not
-	// failed that way in CI and Presto has, and the two plan identically, so
-	// this is the same fix rather than a different one. See D83.
-	ready: []string{"trino", "--execute", "SELECT count(*) FROM system.runtime.nodes WHERE state = 'active'"},
+	// Creating a schema and dropping it, for the reason in presto.go: a
+	// constant is answered by the coordinator alone and is ready before the
+	// server will schedule connector work. Trino has not failed that way in
+	// CI and Presto has, and the two are the same server at this level, so
+	// this is the same check rather than a different one. See D83.
+	ready: []string{
+		"trino", "--execute",
+		"CREATE SCHEMA IF NOT EXISTS memory.dbmeta_ready;" +
+			" DROP SCHEMA IF EXISTS memory.dbmeta_ready",
+	},
 	dsn: func(port int) string {
 		return fmt.Sprintf("http://trino@127.0.0.1:%d?catalog=memory&schema=default", port)
 	},

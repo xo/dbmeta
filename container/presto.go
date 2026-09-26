@@ -43,19 +43,30 @@ var presto = product{
 	port:    8080,
 	// presto-cli is on the path and defaults to localhost:8080.
 	//
-	// The query reads a table rather than a constant, because a constant is
-	// answered before the server can run anything. `SELECT 1` plans to one
-	// SINGLE fragment, which the coordinator evaluates by itself, so it
-	// succeeds in the window after the HTTP port opens and before a worker
-	// registers. The fixture's first statement then fails:
+	// The check does what the fixture does, because nothing cheaper predicts
+	// it. `SELECT 1` is answered by the coordinator alone, so it is ready
+	// while the fixture's first statement still fails:
 	//
 	//	NO_NODES_AVAILABLE: No nodes available to run query
 	//
-	// Reading system.runtime.nodes plans to a SOURCE fragment as well, and a
-	// SOURCE fragment has to be scheduled on a node, so the query cannot
-	// answer until one exists. Checked with EXPLAIN (TYPE DISTRIBUTED) on
-	// 0.299 and on Trino 483, which has the same two plans. See D83.
-	ready: []string{"presto-cli", "--execute", "SELECT count(*) FROM system.runtime.nodes WHERE state = 'active'"},
+	// Reading system.runtime.nodes was tried and is not enough. It plans to a
+	// SOURCE fragment, which said it had to be scheduled on a node, and it
+	// still answered three seconds before a write to the memory connector
+	// would run. Reasoning from the plan was the mistake: the coordinator
+	// serves its own node list before the scheduler will place connector work
+	// on it.
+	//
+	// So the check creates a schema and drops it, which is the operation that
+	// was failing. Both statements run in one presto-cli call and it exits
+	// non-zero if either fails, so a ready server is one that has just done
+	// the thing and cleaned up after itself. Nothing is left behind: dbrun
+	// stops polling on the exit code, and a run that leaked the schema would
+	// not be the run that returned zero. See D83.
+	ready: []string{
+		"presto-cli", "--execute",
+		"CREATE SCHEMA IF NOT EXISTS memory.dbmeta_ready;" +
+			" DROP SCHEMA IF EXISTS memory.dbmeta_ready",
+	},
 	// presto-go-client/v2 takes the catalog and schema in the path and
 	// refuses them as query parameters, where it reads any unknown name as a
 	// session property and the server rejects it:
