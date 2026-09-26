@@ -38,6 +38,7 @@ rather than reading one.
 | `models/clickhouse` | 23 | 55 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
 | `models/trino` | 13 | 55 | Trino 476 and 483 |
 | `models/presto` | 9 | 55 | Presto 0.299 |
+| `models/firebird` | 24 | 55 | Firebird 3.0, 4.0 and 5.0 |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -695,7 +696,225 @@ PartitionedTables is left unanswered on that basis rather than on absence. The
 source exists and no connector in the test image populates it, so rule 9 has
 no object to build and the query would be verified against nothing.
 
-### Which answers depend on who is asking
+### Firebird
+
+`models/firebird` answers 24 of the 55, against Firebird 3.0.14, 4.0.7 and
+5.0.4.
+
+### It reads RDB$, and there is no information_schema
+
+Firebird has no `information_schema` at any release in range. Its catalog is
+the `RDB$` tables, which are ordinary tables inside the database that a
+statement reads the way it reads any other. Two other prefixes matter. `MON$`
+is the monitoring set, and `MON$DATABASE` is where the attached database
+describes itself. `SEC$` is a view on the server's security database, and it
+is where users live, because a user belongs to the server and a role belongs
+to the database.
+
+Two properties of `RDB$` shape every query here, and both cost a round of
+wrong answers before they were understood.
+
+Every name is `CHAR(63)` and blank padded. Equality pads and `LIKE` does not,
+so `RDB$RELATION_NAME LIKE 'AUTHOR'` matches nothing at all: the stored value
+is AUTHOR followed by 57 spaces. A filter written without a trim looks correct
+and returns an empty result rather than an error. Only the trailing blanks are
+padding, so the model trims those alone and not a leading space, which a
+quoted identifier is allowed to have.
+
+Every bind parameter needs a cast. Firebird takes the type of a bare parameter
+from what it is compared with, so `? = ''` types it `VARCHAR(0)` and the server
+then refuses any value:
+
+	arithmetic exception, numeric overflow, or string truncation
+	string right truncation
+	expected length 0, actual 6
+
+An empty filter still passes, which is what makes it worth writing down. A
+first run with no arguments reports nothing wrong.
+
+### There are no schemas, and none is invented
+
+Firebird 3.0 through 5.0 has no schemas. Every object lives in one namespace
+and names are unique across the database. Firebird 6.0 adds SQL schemas and is
+out of range.
+
+So `Schemas` and `CurrentSchema` report `NotSupported`, and every other query
+returns an empty schema. An invented name would be indistinguishable from a
+real one to a caller that cannot see the server, and an empty result must never
+stand in for `NotSupported`, which is D34. `TestFirebirdSchemasAreNotSupported`
+holds both halves of that.
+
+A Firebird database is a file rather than a name, and the server keeps no
+catalog of the files it has served, so `Databases` returns exactly one row: the
+database attached, named by its path.
+
+### What it answers
+
+Tables, columns, views, indexes, index columns, constraints, constraint
+columns, triggers, event triggers, sequences, domains, functions, routine
+parameters, types, collations, roles, role grants, privileges, comments,
+databases, settings, publications, publication tables and the current user.
+
+Three of those need 4.0 and report `TooOld` on 3.0, which D63 added the state
+for: `Settings` reads `RDB$CONFIG`, and `Publications` and `PublicationTables`
+read `RDB$PUBLICATIONS` and `RDB$PUBLICATION_TABLES`. None of the three exists
+before 4.0.
+
+Two answers take a second source and are worth naming.
+
+A check constraint has no index, so it has no entry in `RDB$INDEX_SEGMENTS`
+and the join every other constraint uses cannot reach its columns. Firebird
+implements a check with a pair of system triggers and records the columns as
+those triggers' rows in `RDB$DEPENDENCIES`, and nowhere else. That is the
+second arm of `ConstraintColumns`, and `TestFirebirdCheckConstraintColumns`
+exists so that it cannot quietly stop working: without it the result would
+merely be a shorter list.
+
+A foreign key names the unique constraint it references rather than the table,
+so reaching the target column takes three more joins: to `RDB$REF_CONSTRAINTS`
+for the referenced constraint, to its row in `RDB$RELATION_CONSTRAINTS` for the
+table, and to that constraint's index segments for the column in the matching
+position.
+
+`Roles` is one statement over two places, because Firebird splits what
+PostgreSQL keeps in one. `SEC$USERS` holds the users and `RDB$ROLES` holds the
+roles, and `can_login` is what tells them apart.
+
+A member of a package is left out of `Functions`, the way `models/oracle`
+leaves one out. It is not callable by name on its own, and the package is what
+a caller names.
+
+### What it cannot answer, and why
+
+Thirty-one kinds have no answer and every one of them is absent from the
+product rather than hidden by the catalog.
+
+There are no schemas, no tablespaces, no user defined casts, no operators, no
+user defined aggregates, no enumerated types, no extensions, no foreign tables
+or foreign data wrappers, no text search objects, no operator classes or
+families, no partitioned tables, no extended statistics, no default privileges
+and no per role settings. Firebird has one index kind and no pluggable access
+method, so there is nothing for `AccessMethods` to list.
+
+Three deserve a reason rather than a word.
+
+`LargeObjects` has no answer because a Firebird BLOB is addressed from the row
+that holds it and page chain that follows it. There is no catalog of them to
+list, so this is absence rather than reach.
+
+`ColumnStats` has no answer either, and the near miss is worth recording.
+`RDB$INDEX_SEGMENTS.RDB$STATISTICS` holds a selectivity, but it is an index
+prefix selectivity rather than a per column statistic, and it is none of the
+things `ColumnStat` carries: no average width, no null fraction, no distinct
+count, no most common values. Reporting it would be a different number under
+the same name.
+
+`Languages` is the one analogue left unsupported as a stretch, which rule 14
+asks for explicitly. `RDB$FUNCTIONS.RDB$ENGINE_NAME` and the same column on
+`RDB$PROCEDURES` name the external engine a routine is written for, so the
+engines actually in use are derivable in one statement. That is a list of
+languages in use and not a catalog of languages installed, and Firebird has no
+catalog of the second. An unused engine would be missing and a caller could not
+tell. The fact is not lost: `Function.Language` carries it per routine, which
+is where Firebird records it.
+
+`Subscriptions` is absent for a reason that is not obvious from the name.
+Firebird 4.0 has logical replication and the publisher side is in the catalog,
+which is why `Publications` answers. The subscriber side is configured in
+`replication.conf` on disk and never reaches the database, so there is nothing
+to read.
+
+Firebird 5.0 added a partial index, whose predicate is in
+`RDB$INDICES.RDB$CONDITION_SOURCE`. `dbmeta.Index` has no field to carry a
+predicate, so the model does not read it and nothing here gates on 5.0. Adding
+the field is a D47 question for every model rather than for this one.
+
+### What a second opinion found
+
+D43 and hard rule 14 require asking at least two models about the kinds a
+first pass cannot answer, and this is the second time the rule has paid by
+catching an invention rather than by finding a source. Trino was the first.
+
+Gemini was asked about twelve concepts and answered absent for all twelve, and
+every one of those answers was right. It also correctly identified
+`RDB$INDEX_SEGMENTS.RDB$STATISTICS` as an index prefix selectivity rather than
+a column statistic.
+
+DeepSeek named seven sources. Six of them do not exist on a real Firebird 5.0
+server and the seventh exists and is never filled:
+
+| Named | What the server says |
+| --- | --- |
+| `RDB$INDEX_TYPES` | no such table |
+| `RDB$INDICES.RDB$INDEX_TYPE_NAME` | no such column |
+| `RDB$RELATION_FIELDS.RDB$STATISTICS` | no such column |
+| `RDB$SUBSCRIPTIONS` | no such table |
+| `RDB$SUBSCRIPTION_TABLES` | no such table |
+| `RDB$FTS_CONFIG` | no such table |
+| `RDB$FTS_STOPWORDS` | no such table |
+| `RDB$FUNCTIONS.RDB$FUNCTION_TYPE = 2` for aggregates | the column exists and is NULL on every row |
+
+Each was run rather than read, which is the whole of the rule. A lead is a lead
+and nothing more.
+
+### What the fixture cannot build
+
+Nothing. The Firebird fixture builds all six core objects D53 asks for and all
+33 of its steps run on 3.0, 4.0 and 5.0, except the one publication step, which
+carries a gate and is skipped on 3.0 for the same reason `Publications` reports
+`TooOld` there.
+
+It creates no user, and that is deliberate rather than a gap. A Firebird user
+lives in the server's security database, which every database on that server
+shares, so creating one from a fixture would change a database the test never
+opened. `test/parity_test.go` creates its principal and removes it again,
+because a parity test has to.
+
+### What the conformance test says
+
+Firebird's section of `test/testdata/conformance.txt` is identical to
+PostgreSQL's except for three lines, and on all three Firebird agrees with the
+other eight databases rather than differing from them. PostgreSQL reports
+`has_default=true` on `author_id`, `book_id` and `shipment_id` because its
+fixture declares them `serial`. Firebird's keys are plain integers, the way
+they are everywhere else.
+
+Everything else matches exactly: the tables and the view, every column with its
+ordinal, nullability and primary key flag, the composite primary key on
+`region`, the composite foreign key from `shipment` into it with both target
+columns, the unique constraint and the check.
+
+### Two faults in the driver, and where they do and do not matter
+
+Neither affects a consumer, and both cost enough to find that they are written
+down here.
+
+`nakagami/firebirdsql` returns a stale error for user management. After one
+such statement fails, every later one on the same connection reports the first
+error, while an ordinary query on that connection still works:
+
+	DROP USER dbmeta_absent  -> record not found for user: DBMETA_ABSENT
+	CREATE USER dbmeta_p1    -> record not found for user: DBMETA_ABSENT
+	SELECT COUNT(*) ...      -> <nil>
+	CREATE USER dbmeta_p2    -> record not found for user: DBMETA_ABSENT
+
+Worse, a successful `CREATE USER` poisons a later read of `SEC$USERS` on the
+same connection. The server answers EOF and drops the attachment, and the
+pool's next connection then fails its handshake, so every query after that
+reports a protocol error. It takes a few statements in between to become
+reliable, which is why it looked intermittent until it was pinned down:
+
+	CREATE USER ...          -> <nil>
+	... ten metadata queries -> <nil>
+	SELECT FROM SEC$USERS    -> EOF
+
+`dbmeta` issues no user management statement at any time and never will, so
+neither fault can reach a consumer and `Roles` keeps `SEC$USERS`. The parity
+test creates a principal, so it runs every such statement on a connection of
+its own and closes it. That was measured against Firebird 5.0.4 with
+`nakagami/firebirdsql` v0.9.21.
+
+## Which answers depend on who is asking
 
 None of them, and that is the measurement rather than a gap in it. Trino has
 no users to create: a client states a principal on every request and the
@@ -840,6 +1059,7 @@ that varies is what kind of principal they are.
 | MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 10.6 | grantee | the same, plus `functions` |
+| Firebird 3.0, 4.0, 5.0 | grantee | `roles`, `settings` |
 
 `current_user` and `current_schema` are left out of the table and are in the
 file. They answer a question about the connection, so a run where they agreed

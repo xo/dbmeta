@@ -53,6 +53,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "clickhouse", dialect: dbmeta.ClickHouse},
 		{name: "trino", dialect: dbmeta.Trino},
 		{name: "presto", dialect: dbmeta.Presto},
+		{name: "firebird", dialect: dbmeta.Firebird},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -157,6 +158,7 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"sqlite3": "SQLite", "duckdb": "DuckDB", "sqlserver": "SQL Server",
 			"oracle": "Oracle", "cassandra": "Cassandra",
 			"clickhouse": "ClickHouse", "trino": "Trino", "presto": "Presto",
+			"firebird": "Firebird",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -192,6 +194,7 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"mysql": "MySQL and MariaDB", "sqlite3": "SQLite", "duckdb": "DuckDB",
 			"sqlserver": "SQL Server", "oracle": "Oracle", "cassandra": "Cassandra",
 			"clickhouse": "ClickHouse", "trino": "Trino", "presto": "Presto",
+			"firebird": "Firebird",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+
@@ -216,7 +219,7 @@ func TestTheReadmeTableIsRight(t *testing.T) {
 		"PostgreSQL": "postgres", "MariaDB": "mariadb", "MySQL": "mysql",
 		"SQLite3": "sqlite3", "DuckDB": "duckdb", "SQL Server": "sqlserver",
 		"Oracle": "oracle", "Cassandra": "cassandra", "ClickHouse": "clickhouse",
-		"Trino": "trino", "Presto": "presto",
+		"Trino": "trino", "Presto": "presto", "Firebird": "firebird",
 	}
 	var checked int
 	for _, m := range row.FindAllStringSubmatch(body, -1) {

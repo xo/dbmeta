@@ -98,6 +98,7 @@ linters:
             - github.com/ClickHouse/clickhouse-go
             - github.com/trinodb/trino-go-client
             - github.com/prestodb/presto-go-client
+            - github.com/nakagami/firebirdsql
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

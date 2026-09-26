@@ -71,6 +71,7 @@ than from memory.
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
 | Trino | 4 | `Indexes`, `IndexColumns`, `Functions`, `RoutineParameters` and `ConstraintColumns`: Trino is a query engine and has no index, no constraint of any kind, and no table valued source for its function list |
 | Presto | 3 | the same five as Trino, and `Schema`: neither `current_catalog` nor `current_schema` resolves |
+| Firebird | 8 | `Schema`: Firebird has no schemas before 6.0, so there is no current one to read and none is invented |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
 Four answer all nine: PostgreSQL, the MySQL dialect, SQL Server and Oracle.
@@ -100,6 +101,7 @@ dialect is added.
 | Cassandra | no | partly: no current keyspace expression and no parameter names |
 | Trino | no | **no** |
 | Presto | no | **no** |
+| Firebird | no | yes, once it is told there is no schema to qualify by |
 
 Trino is the first that is a clear no, and it is not the same as answering few
 of the nine. `dbtpl` generates typed access from a schema and follows a foreign

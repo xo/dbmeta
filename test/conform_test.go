@@ -15,6 +15,7 @@ import (
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
+	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
@@ -118,6 +119,11 @@ func conformTargets() []conformTarget {
 			name: "presto", dialect: dbmeta.Presto,
 			open: openPresto, schema: prfixture.Everything.Schema,
 			build: setupPresto,
+		},
+		{
+			name: "firebird", dialect: dbmeta.Firebird,
+			open: openFirebird, schema: fbfixture.Everything.Schema,
+			build: setupFirebird,
 		},
 	}
 }

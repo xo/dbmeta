@@ -24,6 +24,7 @@ const (
 	Cassandra  Dialect = "cassandra"
 	ClickHouse Dialect = "clickhouse"
 	DuckDB     Dialect = "duckdb"
+	Firebird   Dialect = "firebirdsql"
 	MySQL      Dialect = "mysql"
 	Oracle     Dialect = "oracle"
 	Presto     Dialect = "presto"

@@ -9,6 +9,7 @@ import (
 	"github.com/xo/dbmeta"
 
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
+	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
@@ -101,7 +102,7 @@ func allFixtures(t *testing.T) []fixtureText {
 		}
 		out = append(out, fixtureText{name, len(stmts), b.String()})
 	}
-	var pg, my, sq, dk, ms []dbmeta.Stmt
+	var pg, my, sq, dk, ms, fb []dbmeta.Stmt
 	for _, s := range pgfixture.Everything.Setup {
 		pg = append(pg, s.Stmt)
 	}
@@ -117,6 +118,9 @@ func allFixtures(t *testing.T) []fixtureText {
 	for _, s := range msfixture.Everything.Setup {
 		ms = append(ms, s.Stmt)
 	}
+	for _, s := range fbfixture.Everything.Setup {
+		fb = append(fb, s.Stmt)
+	}
 	gather("postgres", newest(), pg)
 	// One product at a time, because asking about both at once is ambiguous.
 	gather("mariadb", newest("mariadb"), my)
@@ -124,6 +128,7 @@ func allFixtures(t *testing.T) []fixtureText {
 	gather("sqlite3", newest(), sq)
 	gather("duckdb", newest(), dk)
 	gather("sqlserver", newest(), ms)
+	gather("firebird", newest(), fb)
 	return out
 }
 

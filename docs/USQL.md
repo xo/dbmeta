@@ -295,6 +295,7 @@ a case where `usql` has no answer at all.
 | DuckDB | `SELECT version()` | `SELECT library_version FROM pragma_version()` | different statement, same answer |
 | Trino | `SELECT version()` | `SELECT node_version FROM system.runtime.nodes LIMIT 1` | different statement, same answer |
 | Presto | `SELECT node_version FROM system.runtime.nodes WHERE coordinator = true LIMIT 1` | the same, without the coordinator filter | same answer, and `usql` may read a worker on a cluster |
+| Firebird | `SELECT rdb$get_context('SYSTEM', 'ENGINE_VERSION') FROM rdb$database` | the same statement | the same answer, and `usql` prefixes the word Firebird |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | no function, so the generic `SELECT version();` | **`usql` cannot answer** |
 

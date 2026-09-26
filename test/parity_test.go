@@ -13,6 +13,7 @@ import (
 	"github.com/xo/dbmeta"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
+	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
@@ -213,6 +214,19 @@ func parityTargets() []parityTarget {
 				// and a database is only a grant scope.
 				name:       "same",
 				principals: []parityPrincipal{{name: "grantee", make: makeClickHouseGrantee}},
+			}},
+		},
+		{
+			dialect: dbmeta.Firebird, driver: "firebirdsql", env: "DBMETA_FIREBIRDSQL",
+			open: openFirebird, build: setupFirebird, schema: fbfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Firebird has no containment, and it cannot: a user lives in
+				// the server's security database and a role lives in the
+				// database, so a principal that can log in is always the
+				// server's. That is two kinds and not three, where SQL Server
+				// and Oracle have three.
+				name:       "same",
+				principals: []parityPrincipal{{name: "grantee", make: makeFirebirdGrantee}},
 			}},
 		},
 		{

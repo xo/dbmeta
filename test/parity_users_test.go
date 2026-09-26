@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"database/sql"
 	"net/url"
 	"strings"
@@ -275,4 +276,80 @@ func makePrestoPrincipal(t *testing.T, _ *sql.DB, dsn, _ string) string {
 	}
 	u.User = url.User("dbmeta_other")
 	return u.String()
+}
+
+// makeFirebirdGrantee creates a user with SELECT on one table.
+//
+// A Firebird user belongs to the server rather than to the database, so
+// CREATE USER writes to the security database that every database on the
+// server shares. That is why the fixture creates none and this does, and why
+// it is dropped again whatever the test finds.
+//
+// Every user management statement runs on a connection of its own and that
+// connection is then closed. Two faults make it necessary, and both were
+// measured rather than guessed.
+//
+// The first is that Firebird has no DROP USER ... IF EXISTS before 5.0, so
+// the tidying drop fails on a clean server, and nakagami/firebirdsql then
+// returns that same error for every later user management statement on the
+// connection:
+//
+//	DROP USER dbmeta_absent  -> record not found for user: DBMETA_ABSENT
+//	CREATE USER dbmeta_p1    -> record not found for user: DBMETA_ABSENT
+//	SELECT COUNT(*) ...      -> <nil>
+//	CREATE USER dbmeta_p2    -> record not found for user: DBMETA_ABSENT
+//
+// The second is worse and it is why the successful CREATE USER is moved as
+// well. After a CREATE USER, a later read of SEC$USERS on the same
+// connection is answered with EOF: the server drops the attachment, and the
+// pool's next connection then fails to hand shake at all, so every query
+// after it reports a protocol error. It takes a few statements in between to
+// become reliable, which is why it looked intermittent before it was pinned
+// down:
+//
+//	CREATE USER ...          -> <nil>
+//	... ten metadata queries -> <nil>
+//	SELECT FROM SEC$USERS    -> EOF
+//
+// dbmeta issues no user management statement at any time, so nothing a
+// consumer reads is affected and the Roles query keeps SEC$USERS. A test that
+// creates a principal has to keep the two apart, and this does.
+func makeFirebirdGrantee(t *testing.T, db *sql.DB, dsn, _ string) string {
+	t.Helper()
+	firebirdApart(t, dsn, `DROP USER dbmeta_parity`)
+	firebirdApart(t, dsn, `CREATE USER dbmeta_parity PASSWORD '`+parityPassword+`'`)
+	t.Cleanup(func() { firebirdApart(t, dsn, `DROP USER dbmeta_parity`) })
+	// A grant is ordinary SQL and belongs on the connection under test.
+	exec(t, db, `GRANT SELECT ON author TO dbmeta_parity`)
+	return firebirdUser(t, dsn, "dbmeta_parity", parityPassword)
+}
+
+// firebirdApart runs one statement on a connection it then closes, so that
+// neither fault above can reach the connection the test measures.
+func firebirdApart(t *testing.T, dsn, stmt string) {
+	t.Helper()
+	db, err := sql.Open("firebirdsql", dsn)
+	if err != nil {
+		t.Logf("opening for %s: %v", stmt, err)
+		return
+	}
+	defer db.Close()
+	if _, err := db.ExecContext(context.WithoutCancel(t.Context()), stmt); err != nil {
+		t.Logf("running %s: %v", stmt, err)
+	}
+}
+
+// firebirdUser swaps the principal in a Firebird DSN.
+//
+// replaceUser cannot, because a Firebird DSN carries no scheme and url.Parse
+// then reads the user name as one. This adds the scheme dburl would, edits
+// the user and takes the scheme off again.
+func firebirdUser(t *testing.T, dsn, user, password string) string {
+	t.Helper()
+	u, err := url.Parse("firebird://" + dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.UserPassword(user, password)
+	return strings.TrimPrefix(u.String(), "firebird://")
 }
