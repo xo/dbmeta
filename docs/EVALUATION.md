@@ -392,12 +392,25 @@ Nothing that runs. Apache Hive was the last one through the procedure, and
 every product in `container/container.go` has a row in the table above.
 `TestEveryProductIsEvaluated` fails when one does not.
 
-Two are evaluated and cannot be started, which is a result rather than a gap.
+One is evaluated and cannot be started, which is a result rather than a gap.
 Vertica has no image outside Kubernetes since the `vertica/vertica-ce` one was
-withdrawn, and Exasol does not initialize under rootless podman. Neither has a
-container entry, a dialect constant or a model, because a constant with no
-model claims something this project cannot do. D66 records the first and D77
-the second.
+withdrawn. It has no container entry, no dialect constant and no model,
+because a constant with no model claims something this project cannot do.
+D66 records it.
+
+Exasol was the second until 2026-09-27 and is not any more. `exasol/docker-db`
+would not initialize under rootless podman, which is D77, and Exasol now
+publishes `exasol/nano`, which starts unprivileged on the default network in
+about five seconds. D84 has the measurement. Exasol is unwritten rather than
+blocked: it passes criterion 2 and it has no container entry yet, so it has
+no row in the table above.
+
+Its range will come from two places rather than one, which nothing else here
+does. The nano images are a container like any other and criterion 2 decides
+them. The Community Edition is an appliance a person imports once and freezes,
+which is criterion 3 with a floor of one, and it exists so that the model has
+a server older than the nano line to answer against. D85 has the approach and
+says what does not carry over from the SQL Server machines.
 
 Oracle's container facts are in D54, and the floor followed from them the same
 way SQL Server's did. The privilege question was the open one there rather than

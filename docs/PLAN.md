@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 12 of them amend or replace an earlier
+Read the status before the decision. 13 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -148,6 +148,8 @@ records the argument.
 | [D81](#d81-the-cassandra-dialect-is-cql-decided) | The Cassandra dialect is cql | Decided |
 | [D82](#d82-ci-compiles-once-and-every-job-runs-the-binary-decided) | CI compiles once and every job runs the binary | Decided |
 | [D83](#d83-a-server-is-ready-when-it-can-run-a-query-and-keeps-being-able-to-decided) | A server is ready when it can run a query, and keeps being able to | Decided |
+| [D84](#d84-exasol-runs-after-all-on-the-nano-image-amends-d77) | Exasol runs after all, on the nano image | Amends D77 |
+| [D85](#d85-exasol-is-the-nano-containers-and-one-frozen-virtual-machine-decided) | Exasol is the nano containers and one frozen virtual machine | Decided |
 
 ## Decisions
 
@@ -4410,7 +4412,7 @@ In this order, and the order is what the native catalog adds over
 | 5 | Vertica | `vertica/vertica-ce` | `v_catalog` is rich and nothing else reaches it. Blocked, see below |
 | 6 | SAP HANA | `saplabs/hanaexpress` | enterprise install base, deep `SYS` catalog. Done, see D76 |
 | 7 | Firebird | `firebirdsql/firebird` | the `RDB$` catalog answers more than most of this list. Done, see D74 |
-| 8 | Exasol | `exasol/docker-db` | `EXA_` catalog, analytic install base. Blocked, see D77 |
+| 8 | Exasol | `exasol/nano` | `EXA_` catalog, analytic install base. Unblocked, see D84, and D85 for the two tracks |
 | 9 | Hive | `apache/hive` | metastore, and it is the shape Impala already teaches. Done, see D78 |
 
 #### Vertica cannot be started, measured 2026-09-26
@@ -5730,7 +5732,7 @@ definition, and HANA returns the row and withholds the text from a reader
 without the privilege. A consumer that treats a definition as always present
 is wrong on HANA, and nothing but D61 would have found it.
 
-### D77. Exasol will not run here, and Hive goes ahead of it. Amends D66.
+### D77. Exasol will not run here, and Hive goes ahead of it. Amends D66, amended by D84.
 
 Exasol is number 8 in D66's order and Hive is number 9. Hive goes first,
 because Exasol does not start and four separate things had to be got past
@@ -5814,6 +5816,10 @@ Exasol is not struck the way Impala was in D67. Impala cannot be a model
 because it has no queryable catalog. Exasol has `EXA_` and there is every
 reason to think the queries would be good. It is blocked on starting the
 server, which is a different thing and may take one volume mount to fix.
+
+That last paragraph aged well and the rest of this decision did not. D84 has
+the measurement: Exasol publishes a second image, it needs none of the four
+gates above, and the blocking reason is gone.
 
 ### D78. Hive reads sys, and is a model. Decided.
 
@@ -6328,6 +6334,195 @@ has seen two refreshes.
 The settle logic is tested rather than trusted. Four tests drive the real
 `waitReady` through a shell command, and the one that matters watches a
 check that passes, fails once and passes again.
+
+### D84. Exasol runs after all, on the nano image. Amends D77.
+
+D77 said Exasol will not run here. That is no longer true, and the reason is
+not that anything here got better at starting it. Exasol publishes a second
+image.
+
+`docker.io/exasol/nano` has 29 tags, amd64 and arm64, one release line so
+far, `2026.2.0-nano.1` through `nano.5`. `nano.5` was pushed on 2026-09-24,
+three days before this was written. That is criterion 2 of
+`docs/EVALUATION.md` answered, which `exasol/docker-db` could never answer
+whatever the tag list said, because the image did not initialize.
+
+#### What it does not need
+
+Every gate D77 recorded is gone. Measured on Ken's machine, on a container
+the Exasol installer started, read with `podman inspect`:
+
+	privileged=false  network=pasta  memory=0
+
+`pasta` is rootless podman's default networking, so the bridge network D77
+had to create is not needed. The container is unprivileged, so the
+`--privileged` grant D77 asked for and got is not needed. The installer
+reported the database up in about five seconds against the startup budget
+D77 spent, and the storage question that D77 identified and did not attempt
+never arises.
+
+The fourth gate was the one D77 said might take a single volume mount. It
+takes none.
+
+#### What this decision does not do
+
+It does not add Exasol. There is still no `models/exasol`, no dialect
+constant and no container entry, and this decision creates none of them, for
+the reason D77 gave: a constant with no model claims something this project
+cannot do. What has changed is that the work is now possible, so Exasol goes
+back in D66's order rather than sitting behind a blocked note.
+
+It also does not adopt the running container. The installer names it
+`exasol-nano`, and every container here is `<product>-<release>`, so `dbrun`
+cannot see it, `dbrun version` would report nothing for a server that is
+plainly running, and a second copy could end up on the machine with nothing
+to tell them apart. That is D68 exactly. If Exasol is added, it is added to
+`container/container.go` and started by `dbrun` like everything else.
+
+#### The installer, since it is the way in
+
+`curl https://www.exasol.com/install/starter-kit.sh | sh` is what publishes
+the image to a machine, and the script is worth reading before it runs. It
+is 189 lines, refuses to run as root, wraps everything in `main` so a
+truncated download cannot execute half a script, pins `curl --proto
+'=https'`, and unpacks to `~/.exasol-starter-kit/kit` so every script it
+hands off to can be read. `EXAKIT_DRY_RUN=1` prints the plan and installs
+nothing, and `EXAKIT_PREFLIGHT=1` checks the machine.
+
+Three things it does that are worth knowing rather than discovering:
+
+It installs from the `main` branch by default, with no checksum on the kit
+archive. `EXAKIT_REF` pins a tag. What runs today is not what runs tomorrow.
+
+It edits the user's shell profile unless `EXAKIT_NO_PROFILE_EDIT=1` is set.
+
+It writes a Claude Code skill into `~/.claude/skills`, and it did so on a run
+where the AI client question was answered "Skip for now". A skill is
+instructions that every later agent session on that machine can load, so an
+installer that writes one has a channel into work that has nothing to do with
+Exasol. The one it wrote reads as an ordinary onboarding guide and tells an
+agent to show the SQL before running it, so this is about the mechanism
+rather than about that file.
+
+None of that blocks using the image. `podman pull docker.io/exasol/nano` and
+a container entry need none of the installer, which is how this project would
+reach it.
+
+### D85. Exasol is the nano containers and one frozen virtual machine. Decided.
+
+Exasol is tested two ways, because the product ships two ways.
+
+`docker.io/exasol/nano` is an ordinary container and goes in
+`container/container.go` with every other release. D84 measured it:
+unprivileged, rootless podman's default network, up in about five seconds.
+
+The Community Edition is a virtual machine appliance, and one release of it
+is imported and then frozen. It is reached the way the old SQL Servers are,
+which is D57 and `docs/WINDOWS.md`, so a machine stays a target like any
+other and `dbrun start`, `stop`, `status`, `version`, `dsn`, `usql` and
+`test` all keep working on it.
+
+Ken decided this.
+
+#### Why both, when the containers are so much cheaper
+
+Because one release cannot test a version gate.
+
+The nano line is `2026.2.0` and nothing else. A product with one release is
+Presto, where D73 records that the floor is also the ceiling and there is no
+second release to compare against. A model written against one release can
+carry no gate that anything ever exercises, and rule 3's whole apparatus is
+unused.
+
+The Community Edition is Exasol 8, build 2025.2.1, which is a release line
+behind. That is the point rather than a drawback: it gives the model an old
+server to answer against, so a fragment that claims a column arrived in
+2026.2 has something that predates it. Without the machine, Exasol would be
+a single release product and its coverage would say so.
+
+#### Frozen, and what that means
+
+The Community Edition release does not move. It is imported once, recorded
+with its build, and left there. Exasol shipping 2025.2.2 is not a reason to
+rebuild it, and a new decision is what would change that.
+
+It is Verified under D40, the same tier as the four SQL Server machines and
+for the same reasons: it needs KVM, it is about ten gigabytes, and CI cannot
+run one. Nothing is claimed for it beyond what a person ran before a release.
+
+#### Where the SQL Server path does not carry over
+
+Three differences, and the first one decides the design.
+
+**The image cannot be fetched unattended.** `container/windows.go` gives each
+release an `Installer` URL on `download.microsoft.com`, and `dbrun provision`
+downloads it. The Community Edition is behind a signup form at
+`exasol.com/free-signup-community-edition`, so there is no URL to put in a Go
+file and no way for a machine to fetch it. The Exasol entry names a file and
+its checksum rather than a URL, and `dbrun provision` imports the file the
+person already downloaded, from the state directory, and fails with a message
+naming the page when it is not there.
+
+**There is nothing to install.** The Windows path boots an evaluation Windows,
+runs an unattended SQL Server setup from an OEM folder, and sets a registry
+key to pin the port. The Community Edition is a prebuilt appliance: the
+database is already in it. So there is no OEM folder, no unattended answer
+file, no installer bootstrapper and no `LicenseFlag`. That is most of
+`WindowsVM` gone.
+
+**No Windows licence and no rearm.** D65's `slmgr /rearm` machinery exists
+because a Windows evaluation edition expires after 180 days. The appliance is
+Ubuntu with Exasol on it, so none of that applies and none of it carries over.
+
+#### How it runs
+
+`dockurr/windows` is Windows only. Its sibling `qemux/qemu` boots an
+arbitrary disk image in a container under KVM, is from the same family, and
+was rebuilt three weeks before this was written. That keeps the shape the
+SQL Server machines already have, where a virtual machine is a container
+`dbrun` starts, so nothing above it has to learn a second mechanism.
+
+An OVA is a tar of an OVF descriptor and one or more VMDK disks, which qemu
+does not boot as a unit. So importing means unpacking the tar, taking the
+disk, and converting it with `qemu-img convert -O qcow2`. That conversion is
+the import, it happens once, and the qcow2 lives in the state directory
+beside the Windows disks, which is why `state/` is gitignored under D58.
+
+Exasol publishes two OVAs, one tuned for VMware and one for VirtualBox. Which
+one converts more cleanly is not yet measured. Both were downloading when
+this was written.
+
+#### What the Community Edition answers with
+
+Recorded here so the fixture and the DSN are not guesswork later. From
+`exasol-labs/exasol-labs-community-edition`: the database is `sys` with
+password `exasol` on port 8563, the appliance's Ubuntu login is `exasol` and
+`exasol`, and an admin interface is on 8443. That password is the vendor's
+and is not [Password], which every other server here uses. A frozen appliance
+cannot be handed a password at start time the way a container is, so this is
+the one server whose credentials are not this project's to choose.
+
+#### What was checked rather than assumed
+
+The Community Edition is not abandoned, and the plan does not depend on it
+being abandoned. `exasol-labs/exasol-labs-community-edition` was last pushed
+on 2026-04-07, with a commit named `2025.2.1_Update`. So it is maintained on
+a slower cadence and a release line behind the nano images, which is exactly
+the shape this decision wants: a current product for CI and an older one to
+test a gate against.
+
+#### Nothing is built yet
+
+There is no `models/exasol`, no dialect constant, no container entry and no
+virtual machine entry. This decision records the approach and creates none of
+them, for the reason D77 gave and D84 repeated: a constant with no model
+claims something this project cannot do.
+
+When it is built, `docs/DIALECT.md` is still every step in order. The two
+extra steps are a `container/exasol.go` for the nano releases and a machine
+entry for the frozen one, and the question of whether the machine list stays
+`container/windows.go` or becomes something that holds both is answered then
+rather than now.
 
 ## Open questions for Ken
 

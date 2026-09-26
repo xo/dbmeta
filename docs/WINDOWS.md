@@ -5,6 +5,14 @@ run in CI, and is Archived under D54, which means nothing is claimed for it.
 `dbrun provision` is how those releases get tested at all. D57 says what may
 be claimed once a machine has run.
 
+This document is Windows and SQL Server only. A second product is going the
+virtual machine route and it is not Windows: D85 imports one frozen Exasol
+Community Edition appliance beside the nano containers. It shares the idea
+that a machine is a target `dbrun` starts, and it shares almost none of the
+machinery here, because an appliance has nothing to install and no evaluation
+licence to rearm. Where its list and its documentation live is decided when
+it is built.
+
 | SQL Server | Windows host | dockur `VERSION` | host port |
 | --- | --- | --- | --- |
 | 2008 R2 SP2 Express | Windows Server 2008 R2 | `2008r2` | 51433 |
