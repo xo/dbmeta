@@ -12,8 +12,11 @@ Measured against `usql` at commit `382e1da` on `main`, with 47 drivers built.
 
 ## How usql reads metadata today
 
-`usql` defines 14 reader interfaces in `drivers/metadata/metadata.go`, one per
-object kind. A driver implements the ones it can. The writer asks for a reader
+`usql` defines 14 leaf reader interfaces in `drivers/metadata/metadata.go`,
+one per object kind, aggregated by `ExtendedReader`. The file declares 19
+interfaces in total and 16 of those end in `Reader`, because two are composites
+and three are `Writer`, `CatalogProvider` and `Result`, so counting with grep
+gives a different and less useful number. `BasicReader` embeds 3 of the 14. A driver implements the ones it can. The writer asks for a reader
 by type assertion and leaves out the section when the driver does not have one,
 so a command degrades rather than failing.
 
@@ -21,43 +24,86 @@ The 14 kinds: Catalogs, Schemas, Tables, Columns, ColumnStats, Indexes,
 IndexColumns, Triggers, Constraints, ConstraintColumns, Functions,
 FunctionColumns, Sequences and PrivilegeSummaries.
 
-Eight commands read them. `\l` needs Catalogs. `\dn` needs Schemas. `\dt`,
-`\dv`, `\dm`, `\ds` and bare `\d` need Tables. `\d NAME` needs Tables and
-Columns to print anything, and adds a section per further reader. `\di` needs
-Indexes. `\df` and `\da` need Functions. `\dp` and `\z` need
-PrivilegeSummaries. `\ss` needs ColumnStats.
+Eleven metacommands register in the Describe family in `metacmd/descs.go` and
+all of them dispatch through `Describe`:
+
+	\d \da \df \di \dm \dn \dp \ds \dt \dv \l
+
+Seven readers decide whether a command runs at all: TableReader, ColumnReader,
+FunctionReader, IndexReader, SchemaReader, PrivilegeSummaryReader and
+CatalogReader. The other seven leaf readers decide how much a command prints
+once it does run. SequenceReader, IndexColumnReader, TriggerReader,
+ConstraintReader and ConstraintColumnReader add sections inside
+`DescribeTableDetails`, FunctionColumnReader inside `DescribeFunctions`, and
+ColumnStatReader serves `\ss` alone. `\l` needs Catalogs. `\dn` needs Schemas. `\dt`, `\dv`, `\dm`,
+`\ds` and bare `\d` need Tables. `\d NAME` needs Tables and Columns to print
+anything, and adds a section per further reader. `\di` needs Indexes. `\df`
+and `\da` need Functions. `\dp` needs PrivilegeSummaries. `\ss` needs
+ColumnStats and is outside the Describe family, as is `\z`.
+
+Two earlier versions of this section were wrong in the same way, and both
+errors were a right count of the wrong thing. It said eight commands, which
+counted readers. Then it said eight gating readers, which counted seven gating
+readers plus one that is not. The `usql` session measured both.
 
 ## Which databases answer what
 
-Of 47 drivers built, 20 have a metadata reader and 27 have none at all. A
-driver with no reader answers no metadata command: `\dt` on it prints nothing
-useful.
+Counting needs a unit and a build, and this is the unit: registered names,
+which includes aliases, because `Register` puts an alias in the same map as its
+own key.
 
-| Driver | Commands | `\d NAME` sections | Kinds it cannot read |
-| --- | --- | --- | --- |
-| postgres, pgx | 8/8 | 4/4 | none |
-| cockroachdb | 8/8 | 4/4 | none |
-| redshift | 8/8 | 4/4 | none |
-| sqlserver | 8/8 | 4/4 | none, and it reads `information_schema` with sequences and constraints off |
-| duckdb | 8/8 | 4/4 | none |
-| trino | 8/8 | 4/4 | none |
-| mysql, mymysql | 6/8 | 3/4 | Catalogs, ColumnStats, Triggers |
-| memsql, tidb, vitess | 6/8 | 3/4 | Catalogs, ColumnStats, Triggers |
-| snowflake | 6/8 | 3/4 | Catalogs, ColumnStats, Triggers |
-| databend | 6/8 | 3/4 | Catalogs, ColumnStats, Triggers |
-| nzgo (Netezza) | 6/8 | 3/4 | Catalogs, ColumnStats, Triggers |
-| oracle | 6/8 | 1/4 | ColumnStats, Triggers, Constraints, ConstraintColumns, Sequences, PrivilegeSummaries |
-| sqlite3, moderncsqlite | 5/8 | 1/4 | Catalogs, ColumnStats, Triggers, Constraints, ConstraintColumns, Sequences, PrivilegeSummaries |
-| clickhouse | 4/8 | 0/4 | everything but Schemas, Tables, Columns, Functions |
-| impala | 0/8 | 0/4 | its reader satisfies no interface |
+	51 registered names, 21 with a reader, 30 without    built with -tags all
+	13 registered names, 12 with a reader, 1 without     the default build
 
-The 27 with no reader at all: avatica, awsathena, bigquery, chai, cosmos, cql,
-csvq, databricks, exasol, firebirdsql, flightsql, gocosmos, godynamo, h2, hdb,
-hive, ignite, maxcompute, n1ql, ots, presto, ql, spanner, tds, vertica, voltdb,
+A package is a different count and reconciles with neither. There are 46
+packages under `drivers/`, 42 calls to `drivers.Register` with a literal
+scheme, which undercounts because Oracle and godror go through
+`orshared.Register`, and 15 packages that define a reader of their own. More
+schemes answer than that, because cockroachdb, redshift, tidb, vitess, memsql
+and nzgo have no package and register against another driver's reader.
+
+An earlier version of this section said 47, 20 and 27 without saying which
+build, so it could not be reproduced. The figures here were measured by the
+`usql` session with a program that asserts each registered reader against the
+interfaces the dispatch requires, rather than by reading code.
+
+A driver with no reader answers no metadata command: `\dt` on it prints
+nothing useful.
+
+| Driver | Commands | Missing |
+| --- | --- | --- |
+| postgres, pgx | 11/11 | none |
+| cockroachdb, redshift | 11/11 | none |
+| sqlserver | 11/11 | none, and it reads `information_schema` with sequences and constraints off |
+| duckdb | 11/11 | none |
+| trino | 11/11 | none |
+| mysql, mymysql | 10/11 | `\l`, no `CatalogReader` |
+| memsql, tidb, vitess | 10/11 | `\l` |
+| snowflake, databend, nzgo | 10/11 | `\l` |
+| oracle, godror | 10/11 | `\dp`, no `PrivilegeSummaryReader` |
+| sqlite3, moderncsqlite | 9/11 | `\dp` and `\l` |
+| clickhouse | 8/11 | `\di`, `\dp` and `\l` |
+| impala | 6/11 | `\da`, `\df`, `\di`, `\dp` and `\l` |
+
+The floor is higher than a bare count suggests, and the gaps are two features
+rather than a long tail. Every driver that fails fails on the same two
+commands. `\l` is missing across the whole MySQL family and Snowflake,
+Databend and Netezza, because none implements `CatalogReader`. `\dp` is
+missing on Oracle, godror, SQLite, ClickHouse and Impala, because none
+implements `PrivilegeSummaryReader`. Nothing is missing `\dt`, `\dn` or `\d`.
+
+The 30 with no reader at all include avatica, awsathena, bigquery, chai,
+cosmos, cql, csvq, databricks, exasol, firebirdsql, flightsql, h2, hdb, hive,
+ignite, maxcompute, n1ql, ots, presto, ql, spanner, tds, vertica, voltdb and
 ydb.
 
-Most of the seven at 8/8 get there the same way: they are PostgreSQL, or they
-are wire compatible with it and reuse its reader.
+The seven at full marks get there the same way: they are PostgreSQL, or wire
+compatible with it and reusing its reader, or they read `information_schema`.
+
+One shape worth knowing, because D67 turns on it. Impala's reader returns a
+value satisfying nothing when its handle is not a `*sql.DB`, so it degrades to
+no metadata at all rather than reporting anything. It is the only driver here
+that does that, and it is deliberate.
 
 ## What dbmeta changes
 

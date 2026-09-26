@@ -4403,6 +4403,85 @@ In this order, and the order is what the native catalog adds over
 | 8 | Exasol | `exasol/docker-db` | `EXA_` catalog, analytic install base |
 | 9 | Hive | `apache/hive` | metastore, and it is the shape Impala already teaches |
 
+#### Vertica cannot be started, measured 2026-09-26
+
+The image in that table no longer exists. `vertica/vertica-ce` returns "object
+not found" on Docker Hub, and there is no `vertica` namespace there at all.
+
+Vertica's maintained image moved to OpenText and is `opentext/vertica-k8s`,
+which is healthy: 91 tags, amd64, and 26.2.0-2 rebuilt three weeks before this
+was written. It cannot be started outside Kubernetes without reimplementing
+what the operator does. It declares no entrypoint and no command, it ships no
+`admintools`, and it has no `dbadmin` user, because the operator creates the
+user and drives `vcluster` itself. Pulling it and trying was how this was
+found, which is what step 2 of `docs/EVALUATION.md` warns about.
+
+The supported standalone path is the Oracle 19c pattern exactly. Vertica
+publishes a Dockerfile, an entrypoint and a Makefile at
+`vertica/vertica-containers/one-node-ce`, and the image is built from a
+Community Edition RPM that a person downloads after registering at
+vertica.com/try. Nothing here can fetch it, the same way nothing here can
+fetch Oracle's archive, and D71's `dbrun build` already has the shape for it.
+
+#### A Kubernetes VM was considered and is not the answer
+
+The obvious next thought is to run the operator properly: a Talos Linux VM as a
+single node cluster under KVM, install the VerticaDB operator, apply a
+VerticaDB resource, and freeze the result the way D57 freezes the Windows
+machines. Gemini and DeepSeek were both asked and both said no, plainly, and
+the reason is better than the recommendation.
+
+The stack is not a VM, it is five things. Kubernetes on Talos, cert-manager for
+the operator's admission webhook, communal object storage because the operator
+runs Vertica in Eon mode only and Eon needs S3, so MinIO as well, then the
+operator, then the custom resource. All of that to read catalog tables.
+
+The part that settles it is that the analogy to the Windows machines fails.
+Those work as frozen baselines because a Windows machine has exactly one time
+sensitive thing in it, the evaluation licence, and D65 handles that by rearming
+at every boot. A Kubernetes cluster has many: etcd leases, node heartbeats, API
+server certificates and service account tokens all expire while the snapshot
+sits on disk. It boots and then needs a person. A frozen baseline that needs a
+person is not frozen, and the whole value of the Verified tier is that a
+release can be measured a year later without an archaeology session first.
+
+Both models independently named the same third route, and it is route B: put
+the Community Edition package on an ordinary machine and let `admintools`
+create a single node database. That is exactly what `one-node-ce` does.
+
+#### And then the download went away too
+
+Checked on 2026-09-26, after Rocket Software took Vertica over from OpenText.
+`vertica.com/try` answers 403. The community edition download page still
+answers 200 and now serves OpenText's generic Information Management marketing
+with no download on it. Rocket's own Vertica pages answer 403 from here, which
+may be geography or bot filtering rather than absence, so that one is not
+proven either way.
+
+So route B is blocked as well, and not on a registration anybody can complete.
+
+What does still work is an unmaintained third party image.
+`saadmairaj/vertica:10.1.1-RHEL6`, published in 2021, starts cleanly on a
+current host, creates its database, and answers with a complete `v_catalog`:
+
+	Vertica Analytic Database v10.1.1-0
+
+That is a real Vertica and the queries could be written against it. It is not
+a release anybody runs, it is five years old, it is built by a stranger, and
+nothing about it can be rebuilt or reproduced. `docs/EVALUATION.md` step 2
+rejects it, and D40 forbids calling a version supported without naming its
+tier, and there is no tier for "verified once against an unmaintained image of
+a dead release". Writing a model on it would satisfy rule 9 in the letter and
+not at all in the spirit: the queries would be verified against something no
+consumer will ever connect to.
+
+So Vertica waits until a current release can be started. It is not next.
+
+The four products after it on this list all have live images that need no
+account: `saplabs/hanaexpress` last rebuilt in November 2025,
+`firebirdsql/firebird` and `apache/hive` rebuilt the day before this was
+written, and `exasol/docker-db` two weeks before. Firebird is next.
+
 Below those and worth a model only if somebody asks: Couchbase, Ignite,
 VoltDB, YDB and Databend. Each runs the real engine in an image and none of
 them is shaped much like the 55.
@@ -5049,20 +5128,6 @@ type to its underlying type, so `tblfmt` printed `"YES"` with quotation marks in
 `\d` output for every driver. Commit `cd8edc9` added `func (b Bool) String()
 string` at `usql/drivers/metadata/metadata.go:362`. If `dbmeta` keeps `Bool`,
 keep the method.
-
-## Open pull requests against the source package
-
-Five pull requests against `usql` touch `drivers/metadata`. The `usql` peer
-session will report when any of them lands.
-
-- 452, add column comment, touches `informationschema/metadata.go` and
-  `metadata.go`
-- 524, oracle driver version from a view available to all users
-- 526, NULL scan in the list functions query
-- 570, lower the privilege the oracle catalogs query needs
-- 583, NULL scan for catalog privileges and table description
-
-An agent that ports a reader must check whether one of these changed it first.
 
 ## External review
 

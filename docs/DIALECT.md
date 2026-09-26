@@ -483,3 +483,25 @@ Reading the list is faster than rediscovering them one at a time:
 | `TestTheDecisionIndexIsComplete` | a decision is written and not indexed |
 | `TestEveryDecisionReferenceExists` | a document points at a decision that does not exist |
 | `TestTheCountsInProseAreRight` | a number written in prose went stale |
+
+Three of those check a table that could be generated instead. The `usql`
+session made the argument and it is right: `usql` does not test its README
+driver table, it builds it from the `dburl` registry, so there is nothing for
+the prose to drift from. Generation is stronger than a test, because a test
+tells you the prose is stale and generation means it never was.
+
+Where a table is derived from something the code already knows, generate it.
+Keep a test for the residue that cannot be, which here is the counts written
+as words in running prose.
+
+Assert the unit, not only the number. The `usql` session made this point after
+a day in which every wrong figure between the two projects was a right count of
+the wrong thing: four open pull requests that were two, eight commands that
+were eleven, eight gating readers that were seven, 47 drivers that were 51 under
+a build nobody had stated. A test that checks a number without checking what is
+being counted catches none of those. Write the unit into the sentence the test
+greps, so that changing the unit breaks the test.
+
+And the honest limit on generation, which is theirs too: it beats a test only
+where something structured already knows the answer. A number measured by a
+program that is then deleted is prose, and it rots like prose.
