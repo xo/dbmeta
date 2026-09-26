@@ -136,7 +136,13 @@ func TestTheCountsInProseAreRight(t *testing.T) {
 			regexp.MustCompile(`(\d+) (?:of them )?amend or replace`)},
 	} {
 		var found bool
-		for _, name := range []string{"README.md", "CLAUDE.md", "CONTRIBUTING.md"} {
+		// docs/PLAN.md quotes the amendment count in its own introduction and
+		// was the one place this test did not look, so that number went stale
+		// while the three it did look at stayed right.
+		for _, name := range []string{
+			"README.md", "CLAUDE.md", "CONTRIBUTING.md",
+			filepath.Join("docs", "PLAN.md"),
+		} {
 			for _, m := range c.phrase.FindAllStringSubmatch(read(t, name), -1) {
 				found = true
 				if m[1] != strconv.Itoa(c.want) {

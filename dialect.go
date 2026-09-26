@@ -26,6 +26,7 @@ const (
 	DuckDB     Dialect = "duckdb"
 	MySQL      Dialect = "mysql"
 	Oracle     Dialect = "oracle"
+	Presto     Dialect = "presto"
 	PostgreSQL Dialect = "postgres"
 	SQLite3    Dialect = "sqlite3"
 	SQLServer  Dialect = "sqlserver"

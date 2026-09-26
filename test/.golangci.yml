@@ -97,6 +97,7 @@ linters:
             - github.com/MichaelS11/go-cql-driver
             - github.com/ClickHouse/clickhouse-go
             - github.com/trinodb/trino-go-client
+            - github.com/prestodb/presto-go-client
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

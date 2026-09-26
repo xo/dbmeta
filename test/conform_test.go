@@ -18,6 +18,7 @@ import (
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
+	prfixture "github.com/xo/dbmeta/models/presto/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
@@ -112,6 +113,11 @@ func conformTargets() []conformTarget {
 			name: "trino", dialect: dbmeta.Trino,
 			open: openTrino, schema: trfixture.Everything.Schema,
 			build: setupTrino,
+		},
+		{
+			name: "presto", dialect: dbmeta.Presto,
+			open: openPresto, schema: prfixture.Everything.Schema,
+			build: setupPresto,
 		},
 	}
 }
@@ -487,6 +493,10 @@ var agreementExcluded = map[string]string{
 		" no foreign key and no unique constraint, and system.constraints holds" +
 		" the expression a CHECK asserts rather than the columns behind it, so" +
 		" the section has no constraint lines at all",
+	"presto": "a query engine rather than a store, which is the same reason as" +
+		" trino. It also keeps no NOT NULL, because its memory connector refuses" +
+		" one on the newest release there is, so every column reads nullable" +
+		" where the relational databases agree",
 	"trino": "a query engine rather than a store: it has no constraint of any" +
 		" kind at any release, so every column reads primary_key=false where" +
 		" the relational databases agree on the key, and there are no" +

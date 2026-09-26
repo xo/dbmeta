@@ -263,3 +263,16 @@ func makeTrinoPrincipal(t *testing.T, _ *sql.DB, dsn, _ string) string {
 	u.User = url.User("dbmeta_other")
 	return u.String()
 }
+
+// makePrestoPrincipal names a different principal on the connection, the same
+// way makeTrinoPrincipal does. Presto takes the user from the DSN and the
+// image configures no authenticator.
+func makePrestoPrincipal(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.User("dbmeta_other")
+	return u.String()
+}

@@ -70,6 +70,7 @@ than from memory.
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
 | Trino | 4 | `Indexes`, `IndexColumns`, `Functions`, `RoutineParameters` and `ConstraintColumns`: Trino is a query engine and has no index, no constraint of any kind, and no table valued source for its function list |
+| Presto | 3 | the same five as Trino, and `Schema`: neither `current_catalog` nor `current_schema` resolves |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
 Four answer all nine: PostgreSQL, the MySQL dialect, SQL Server and Oracle.
@@ -98,6 +99,7 @@ dialect is added.
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |
 | Cassandra | no | partly: no current keyspace expression and no parameter names |
 | Trino | no | **no** |
+| Presto | no | **no** |
 
 Trino is the first that is a clear no, and it is not the same as answering few
 of the nine. `dbtpl` generates typed access from a schema and follows a foreign
@@ -106,8 +108,8 @@ constraint and no index at any release, so the relationships are not there to
 read and a generator would produce a struct per table with nothing tying them
 together.
 
-That is the answer for a query engine rather than for Trino alone. Presto sits
-next to it on D66 and will answer the same way.
+That is the answer for a query engine rather than for Trino alone, and Presto
+answers the same way for the same reason, which D66 predicted.
 
 ## What dbmeta added
 

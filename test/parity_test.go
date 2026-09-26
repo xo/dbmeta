@@ -16,6 +16,7 @@ import (
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
+	prfixture "github.com/xo/dbmeta/models/presto/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 )
@@ -167,6 +168,17 @@ func parityTargets() []parityTarget {
 					principals: []parityPrincipal{{name: "contained", make: makeSQLServerContained}},
 				},
 			},
+		},
+		{
+			dialect: dbmeta.Presto, driver: "presto", env: "DBMETA_PRESTO",
+			open: openPresto, build: setupPresto, schema: prfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// The same shape as Trino. Presto has no containment and no
+				// users, and its memory connector implements no roles at all,
+				// so a principal is whatever the client says it is.
+				name:       "same",
+				principals: []parityPrincipal{{name: "other", make: makePrestoPrincipal}},
+			}},
 		},
 		{
 			dialect: dbmeta.Trino, driver: "trino", env: "DBMETA_TRINO",

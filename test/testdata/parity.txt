@@ -79,6 +79,9 @@ settings fewer rows than the administrator
 subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
 tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
 
+[presto/same/other]
+current_user the same rows with different values
+
 [sqlserver/contained/contained]
 current_user the same rows with different values
 

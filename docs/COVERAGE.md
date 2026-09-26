@@ -37,6 +37,7 @@ rather than reading one.
 | `models/cassandra` | 17 | 55 | Cassandra 3.11, 4.0, 4.1 and 5.0 |
 | `models/clickhouse` | 23 | 55 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
 | `models/trino` | 13 | 55 | Trino 476 and 483 |
+| `models/presto` | 9 | 55 | Presto 0.299 |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -702,6 +703,119 @@ server takes it, because the image configures no authenticator. With no access
 control plugin the server then allows that principal everything, so the only
 query that answers differently for a second principal is `current_user`, which
 is the one that is supposed to.
+
+## Presto
+
+Presto is Trino's older self. They forked in 2019 and `models/presto` is a
+model of its own rather than a flavor, which D73 decides and measures. Read
+the Trino section first: everything there about a catalog being a real level
+and about `system.jdbc` spanning catalogs is true here too, and this section
+records only where the two differ.
+
+### What it answers
+
+9 of the 55. Catalogs as databases, schemas, tables, columns, views, types,
+access methods, privileges and the current user.
+
+Trino answers four more, and each is absent from the product rather than
+missing from the model.
+
+**Comments has no source.** Presto accepts a `COMMENT` clause on
+`CREATE TABLE`, keeps nothing readable, and shows nothing in
+`SHOW CREATE TABLE`. There is no `system.metadata.table_comments` for the
+query to reach, so `Tables.comment` and `Views.comment` are padded absent and
+the Comments kind is not registered. `COMMENT ON` is not a statement Presto
+has at all: the parser rejects the word, so a column comment cannot be set
+either and `system.jdbc.columns.remarks` is always NULL.
+
+**CurrentSchema has no expression.** Neither `current_catalog` nor
+`current_schema` resolves, and nothing in `system.runtime` carries the
+session. `current_user` does resolve, so CurrentUser is answered.
+
+**Roles and RoleGrants raise rather than answering nothing.** This is the
+sharpest difference from Trino and the one most likely to surprise. Both
+products read the same standard views. Trino's memory connector returns no
+rows, which is a supported query with an empty result. Presto's answers:
+
+```
+NOT_SUPPORTED: This connector does not support roles
+```
+
+D34 says a query dbmeta offers must run, so those two are not registered here.
+Privileges reads `information_schema.table_privileges`, which does answer on
+the same connector, and returns nothing.
+
+### The version query, and why it is not Trino's
+
+Presto has no `version()` function:
+
+```
+Function version not registered
+```
+
+So the model reads the coordinator's row from `system.runtime.nodes` instead,
+with `WHERE coordinator = true` so that a cluster cannot answer with a
+worker's version. `usql` reads the same table for both products and omits that
+filter.
+
+The numbering is the other half of D73. Presto is `0.299-7d50721`, which is
+release 299 and the build it was cut from. Trino is `483`. There is no version
+to compare, only a product to tell apart.
+
+### The two drivers want opposite DSNs
+
+`prestodb/presto-go-client/v2`, which is what `usql` pins, takes the catalog
+and schema in the path and refuses an `http://` scheme. It rejects the scheme
+before any network call, and reads any unrecognised query parameter as a
+Presto session property, so the server rejects the statement:
+
+```
+unsupported scheme "http": must be presto or trino
+INVALID_SESSION_PROPERTY: Unknown session property schema
+```
+
+The form it takes is `presto://user@host:port/catalog/schema`, which is what
+`container/presto.go` generates. Trino wants the opposite:
+`trinodb/trino-go-client` takes `http://` with the catalog and schema as query
+parameters. v1 of the Presto driver took that form too, so this is a v2 break
+rather than a long standing fault.
+
+This is another measure of how far apart the two have drifted, and `dburl`
+found a sharper one. It had no `GenTrino` at all: the `trino` scheme was
+registered against `GenPresto`, one generator serving both since Trino was
+Presto, with the name left on the function that had quietly become the Trino
+one. `dburl` is splitting them.
+
+`dbmeta` is not affected either way. It depends on nothing and generates its
+own DSNs in `container`, which is D19 and hard rule 1.
+
+### What the fixture cannot build
+
+Everything Trino cannot, and two more.
+
+No `NOT NULL`. The memory connector answers "does not support non-null column"
+on 0.299, which is the newest release there is, so every column is nullable.
+That is the same error that sets Trino's floor at 476, and here there is no
+newer release to move to.
+
+No comment of any kind, as above. The view is created without one, because
+Presto's `CREATE VIEW` takes `AS` or `SECURITY` after the name and treats
+`COMMENT` as a syntax error rather than accepting and dropping it.
+
+### What the conformance test says
+
+Presto builds every core object D53 asks for, including the view, with the
+same names and ordinals as every other database. Every column reads
+`nullable=true`, which is the fixture difference above, and that is why Presto
+has its own section rather than sharing Trino's. It is left out of the
+relational agreement count for the same reason Trino is, plus that one.
+
+### Which answers depend on who is asking
+
+None, the same as Trino and for the same reason. The image configures no
+authenticator, a client states a principal on every request, and with no
+access control plugin the server allows it everything. Only `current_user`
+differs for a second principal.
 
 ## Which answers depend on who is asking
 

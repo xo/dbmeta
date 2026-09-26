@@ -15,7 +15,9 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/microsoft/go-mssqldb"
+	_ "github.com/prestodb/presto-go-client/v2"
 	_ "github.com/sijms/go-ora/v2"
+	_ "github.com/trinodb/trino-go-client/trino"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
@@ -33,6 +35,8 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Oracle:     "oracle",
 	dbmeta.Cassandra:  "cql",
 	dbmeta.ClickHouse: "clickhouse",
+	dbmeta.Trino:      "trino",
+	dbmeta.Presto:     "presto",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the
