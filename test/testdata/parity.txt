@@ -26,6 +26,16 @@ role_grants refused: code: 497, message: dbmeta_parity: Not enough privileges. T
 roles refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users
 tablespaces refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies
 
+[clickhouse@25/same/grantee]
+current_user the same rows with different values
+databases fewer rows than the administrator
+index_columns refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices
+indexes refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices
+privileges refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.grants
+role_grants refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.role_grants
+roles refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users
+tablespaces refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies
+
 [firebirdsql/same/grantee]
 current_user the same rows with different values
 roles fewer rows than the administrator
@@ -89,6 +99,30 @@ current_user the same rows with different values
 settings fewer rows than the administrator
 tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
 
+[postgres@10/same/grantee]
+current_user the same rows with different values
+settings fewer rows than the administrator
+subscriptions refused: ERROR: permission denied for relation pg_subscription (SQLSTATE 42501)
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
+[postgres@10/same/owner]
+current_user the same rows with different values
+settings fewer rows than the administrator
+subscriptions refused: ERROR: permission denied for relation pg_subscription (SQLSTATE 42501)
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
+[postgres@11/same/grantee]
+current_user the same rows with different values
+settings fewer rows than the administrator
+subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
+[postgres@11/same/owner]
+current_user the same rows with different values
+settings fewer rows than the administrator
+subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
 [postgres@12/same/grantee]
 current_user the same rows with different values
 settings fewer rows than the administrator
@@ -96,6 +130,18 @@ subscriptions refused: ERROR: permission denied for table pg_subscription (SQLST
 tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
 
 [postgres@12/same/owner]
+current_user the same rows with different values
+settings fewer rows than the administrator
+subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
+[postgres@13/same/grantee]
+current_user the same rows with different values
+settings fewer rows than the administrator
+subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+
+[postgres@13/same/owner]
 current_user the same rows with different values
 settings fewer rows than the administrator
 subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)

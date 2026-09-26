@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/xo/dbmeta"
 )
@@ -86,6 +87,17 @@ func oracleReady(service string) []string {
 		"echo exit | sqlplus -s -L system/" + Password + "@localhost/" + service}
 }
 
+// oracleStartup is how long an Oracle gets to answer.
+//
+// Oracle bootstraps a database on its first start and it is the one product
+// here that is marginal against the usual budget rather than clearly inside
+// it or outside it. A fresh oracle-23ai came up in 25 seconds on a
+// development machine and did not answer within 90 on a GitHub runner,
+// while every other Oracle release on the same run did. That is a slower
+// machine rather than a property of 23ai, so the budget is on the product
+// and all three images take it.
+const oracleStartup = 5 * time.Minute
+
 var (
 	// The Express images, which carry 11g through 21c.
 	oraclexe = product{
@@ -98,6 +110,7 @@ var (
 		tagSuffix: "-slim",
 		port:      1521,
 		env:       map[string]string{"ORACLE_PASSWORD": Password},
+		startup:   oracleStartup,
 		ready:     oracleReady("XEPDB1"),
 		dsn:       oracleService("XEPDB1"),
 	}
@@ -110,6 +123,7 @@ var (
 		tagSuffix: "-slim",
 		port:      1521,
 		env:       map[string]string{"ORACLE_PASSWORD": Password},
+		startup:   oracleStartup,
 		ready:     oracleReady("FREEPDB1"),
 		dsn:       oracleService("FREEPDB1"),
 	}
@@ -125,6 +139,7 @@ var (
 		tagSuffix: "-ee",
 		port:      1521,
 		env:       map[string]string{"ORACLE_PWD": Password},
+		startup:   oracleStartup,
 		ready:     oracleReady("ORCLCDB"),
 		dsn:       oracleService("ORCLCDB"),
 	}

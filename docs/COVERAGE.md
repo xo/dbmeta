@@ -1411,15 +1411,39 @@ DuckDB are the products with no reason to have one: neither has a user.
 
 ### One release answers differently
 
-`test/testdata/parity.txt` has a section per product, and two releases have one
-of their own, written `postgres@12` and `mariadb@10`. A section named for a
-release wins over the shared one for a server reporting that major.
+`test/testdata/parity.txt` has a section per product, and six releases have
+one of their own: `postgres@10`, `postgres@11`, `postgres@12`, `postgres@13`,
+`clickhouse@25` and `mariadb@10`. A section named for a release wins over the
+shared one for a server reporting that major.
 
-PostgreSQL 12 grants public SELECT on six columns of `pg_subscription` and not
-on `subsynccommit`, which the `Subscriptions` query reads as `synchronous`, so
-an ordinary role is refused the whole query. PostgreSQL 13 widened the grant to
-every column except `subconninfo`, so the same role is served from 13 on. A
-superuser reads it on every release.
+PostgreSQL restricts a column of `pg_subscription` from an ordinary role. The
+`Subscriptions` query reads `subsynccommit` as `synchronous`, so the whole
+query is refused where that column is restricted. Measured directly, with a
+role granted nothing but LOGIN:
+
+	13.23   SELECT count(*) FROM pg_subscription    ok
+	13.23   SELECT count(subsynccommit) ...         permission denied
+	14.24   SELECT count(subsynccommit) ...         ok
+
+So an ordinary role is refused on 10, 11, 12 and 13, and served from 14. A
+superuser reads it on every release, and `pg_subscription` does not exist
+before 10, where `Subscriptions` reports `TooOld` instead.
+
+An earlier version of this section said the grant widened in 13 and that the
+same role is served from 13 on. That was wrong by one release and it went
+unnoticed because only 12 had a section: 10, 11 and 13 were never measured
+until D69 made the nightly matrix read the release list, and all three failed
+the first night it did. The four sections now carry the measurement.
+
+PostgreSQL 10 words the refusal differently from the rest, "permission denied
+for relation" where 11 and later say "for table", which is why its section
+cannot be shared with theirs.
+
+ClickHouse 25.3 does not refuse `foreign_servers` and 26 does. The query reads
+`system.named_collections`, and the privilege check on that table arrived
+between the two, so a granted user reads it on 25.3 and is refused on 26.9.
+That is the reverse of the usual shape here: the newer release is the stricter
+one.
 
 The query is not gated for this. A superuser on 12 can read the column, and
 padding it would withhold a fact from the caller who is allowed it, which rule
