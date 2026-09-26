@@ -167,6 +167,22 @@ type Server struct {
 	// other product here answers within, and a cold or loaded host is
 	// slower still.
 	Startup time.Duration
+	// Settle is how long the readiness check has to keep passing before the
+	// server is called up. Zero means the first pass is enough, which is
+	// true of every product that does not set this.
+	//
+	// Presto and Trino set it, because for them the first pass is not
+	// enough and no cheaper check is. Their coordinator refreshes which
+	// nodes it will schedule on by polling discovery, at
+	// internal-communication.node-discovery-polling-interval-millis, which
+	// the 0.299 image logs as 5000. Between two refreshes the set is a
+	// snapshot, so a server that runs a statement now can refuse the next
+	// one with NO_NODES_AVAILABLE, and it did: measured in CI at one second
+	// after a readiness check that had itself created and dropped a schema.
+	//
+	// A check that has to keep passing across more than one refresh sees
+	// that, and nothing shorter can. See D83.
+	Settle time.Duration
 	// Args are arguments for the image's own entrypoint, after the image
 	// name. Empty for every product but SAP HANA, whose entrypoint takes the
 	// initial password on the command line and reads no environment variable
@@ -360,6 +376,7 @@ type product struct {
 	args      []string
 	memory    string
 	startup   time.Duration
+	settle    time.Duration
 	dsn       func(port int) string
 	// url is the dburl style URL, where it differs from the DSN. See
 	// [Server.URL].
@@ -394,6 +411,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			Args:     p.args,
 			Memory:   p.memory,
 			Startup:  p.startup,
+			Settle:   p.settle,
 			dsn:      p.dsn,
 			url:      p.url,
 		})

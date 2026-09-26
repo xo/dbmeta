@@ -88,6 +88,10 @@ type target struct {
 	// from a flag, because how long a product takes to start is a property
 	// of the product and not of the run.
 	Startup time.Duration `json:"-"`
+
+	// Settle is how long Ready has to keep passing before the server counts
+	// as up. Zero means the first pass is enough. See D83.
+	Settle time.Duration `json:"-"`
 }
 
 // basePort is where the published ports start.
@@ -213,6 +217,7 @@ func targets() []target {
 			Ready:   s.ReadyArgs(s.Name()),
 			Init:    s.InitArgs(s.Name()),
 			Startup: s.Startup,
+			Settle:  s.Settle,
 			Remove:  s.RemoveArgs(s.Name()),
 		})
 	}

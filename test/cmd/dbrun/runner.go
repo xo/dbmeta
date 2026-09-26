@@ -167,13 +167,32 @@ func (r runner) create(ctx context.Context, t target) error {
 // connection made in between is refused and a fixed pause is not enough. A
 // Windows machine is worse: it boots the whole operating system before SQL
 // Server listens, which is why the wait is measured in minutes.
+//
+// A server with a Settle does not count as up on the first pass. The check
+// has to keep passing for that long, and one failure starts it again, because
+// Presto and Trino can run a statement and then refuse the next one while
+// their coordinator refreshes which nodes it will schedule on. See D83.
 func (r runner) waitReady(ctx context.Context, t target, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
+	var since time.Time
 	for {
-		if r.quiet(ctx, t.Ready...) {
+		switch {
+		case !r.quiet(ctx, t.Ready...):
+			// Not ready, or ready and then not. Either way the clock on a
+			// settle starts again from the next pass.
+			since = time.Time{}
+		case t.Settle <= 0:
+			return nil
+		case since.IsZero():
+			since = time.Now()
+		case time.Since(since) >= t.Settle:
 			return nil
 		}
 		if time.Now().After(deadline) {
+			if !since.IsZero() {
+				return fmt.Errorf("it answered and did not keep answering for %s, in %s",
+					t.Settle, timeout)
+			}
 			return fmt.Errorf("it never answered in %s", timeout)
 		}
 		select {

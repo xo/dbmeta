@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/xo/dbmeta"
 )
@@ -70,6 +71,9 @@ var trino = product{
 		"CREATE SCHEMA IF NOT EXISTS memory.dbmeta_ready;" +
 			" DROP SCHEMA IF EXISTS memory.dbmeta_ready",
 	},
+	// The same settle as Presto, and for the same reason. See presto.go
+	// and D83.
+	settle: 12 * time.Second,
 	dsn: func(port int) string {
 		return fmt.Sprintf("http://trino@127.0.0.1:%d?catalog=memory&schema=default", port)
 	},

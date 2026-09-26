@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/xo/dbmeta"
 )
@@ -67,6 +68,16 @@ var presto = product{
 		"CREATE SCHEMA IF NOT EXISTS memory.dbmeta_ready;" +
 			" DROP SCHEMA IF EXISTS memory.dbmeta_ready",
 	},
+	// Doing the work once is still not enough, because the answer expires.
+	// The coordinator refreshes which nodes it will schedule on by polling
+	// discovery every five seconds, which the image logs as
+	// internal-communication.node-discovery-polling-interval-millis=5000,
+	// so a statement that runs now can be refused after the next refresh.
+	// Measured in CI: the check created and dropped a schema, and the
+	// fixture's first CREATE TABLE failed 1.1 seconds later.
+	//
+	// Twelve seconds is two of those refreshes and a margin. See D83.
+	settle: 12 * time.Second,
 	// presto-go-client/v2 takes the catalog and schema in the path and
 	// refuses them as query parameters, where it reads any unknown name as a
 	// session property and the server rejects it:
