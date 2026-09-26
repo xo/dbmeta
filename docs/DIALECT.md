@@ -36,16 +36,36 @@ step 3 decided instead. Say so when it happens.
 
 ### 3. Find the driver `usql` uses
 
+The package is in the `dburl` registry, from v0.29.0. Find the scheme for the
+product and read `GoPackage`, which is the import path, and `RequiresCGO`:
+
 ```bash
-grep -rn "// DRIVER" ~/src/go/src/github.com/xo/usql
+grep -n 'Driver: *"<product>"' -A 12 ~/src/go/src/github.com/xo/dburl/scheme.go
 ```
+
+The version is not there. Read it from `usql`'s `go.mod`, because D52 requires
+the same package and allows a different version.
+
+```bash
+grep -n "<package>" ~/src/go/src/github.com/xo/usql/go.mod
+```
+
+A scheme with no `GoPackage` borrows another scheme's driver and is wire
+compatible with it. `cockroachdb` is one, and reading `pgx` for it is the
+right answer rather than a missing one.
 
 D52 requires the same package `usql` uses. The version may differ and the
 package may not. A query that works here and fails on the driver `usql` ships
 is a query that does not work.
 
 If `usql` ships two drivers for the product, test both, as subtests named for
-the driver. SQLite and PostgreSQL both do this.
+the driver. SQLite and PostgreSQL both do this. The registry shows this as two
+schemes: `sqlite3` and `moderncsqlite`, `postgres` and `pgx`.
+
+`grep -rn "// DRIVER" ~/src/go/src/github.com/xo/usql` is the second look, not
+the first. It finds the import that carries the comment, and Oracle has none,
+because `oracle` and `godror` both register through `orshared.Register`. That
+grep was step 3 until D80 and it answered Oracle wrongly.
 
 ## Standing the server up
 

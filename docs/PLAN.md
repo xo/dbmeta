@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 11 of these amend or replace an earlier
+Read the status before the decision. 12 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -144,6 +144,7 @@ records the argument.
 | [D77](#d77-exasol-will-not-run-here-and-hive-goes-ahead-of-it-amends-d66) | Exasol will not run here, and Hive goes ahead of it | Amends D66 |
 | [D78](#d78-hive-reads-sys-and-is-a-model-decided) | Hive reads sys, and is a model | Decided |
 | [D79](#d79-a-dialect-that-cannot-bind-renders-its-values-decided) | A dialect that cannot bind renders its values | Decided |
+| [D80](#d80-the-driver-registry-is-dburls-and-reading-it-is-not-importing-it-decided) | The driver registry is dburl's, and reading it is not importing it | Decided |
 
 ## Decisions
 
@@ -6014,6 +6015,56 @@ passed something a query did not declare. It refuses a NUL for the reason
 It is not a general literal mode and there must not be one. A caller cannot
 reach it, a dialect that can bind must leave it nil, and `Query.Build`
 returns no argument values when it is set, so a dialect cannot half use it.
+
+### D80. The driver registry is dburl's, and reading it is not importing it. Decided.
+
+`dburl` v0.29.0 describes every scheme it registers. `dburl.Scheme` gained
+`Desc`, `Home`, `GoPackage`, `DriverURL`, `RequiresCGO` and `Deployment`, so
+the question step 3 of `docs/DIALECT.md` asks has an authoritative answer in
+one place for the first time. Step 3 and hard rule 10 now name that registry.
+
+Nothing in the root module changes and nothing is imported. Hard rule 1
+forbids the dependency, D19 removed it once already, and none of this is a
+reason to bring it back: `dbmeta` takes a `DB` and a `Dialect` and has no URL
+to parse. The registry is a document here, read by a person adding a dialect
+and by nothing at build time.
+
+#### Why the grep it replaces gave a wrong answer
+
+Step 3 said `grep -rn "// DRIVER" ~/src/go/src/github.com/xo/usql`. That finds
+an import that carries the comment. Oracle does not have one: `oracle` and
+`godror` both register through `orshared.Register`, so the grep answers for
+every product except the one this project spent a day getting wrong. The
+registry names `github.com/sijms/go-ora/v3` for `oracle` and
+`github.com/godror/godror` for `godror`, and puts `RequiresCGO: true` on the
+second, which is D48's rule written as data rather than as prose here.
+
+Keep the grep as a second look. It shows what `usql` actually imports, and the
+registry shows what it says it imports. Where the two disagree, one of the two
+projects has a defect and the disagreement is the finding.
+
+#### What the registry does not answer
+
+The version. D52 requires the same package and allows a different version, and
+the version lives in `usql`'s `go.mod`. Step 3 now reads two things: the
+registry for the package, and that `go.mod` for the version `usql` pins.
+Oracle is the standing example, because D59 holds `dbmeta` on `go-ora/v2`
+while the registry and `usql` both name v3.
+
+A scheme with no `GoPackage` is not a hole. It is how the registry says the
+scheme borrows another scheme's driver, and it is the same fact
+`URL.UnaliasedDriver` reports at parse time. Seven schemes are in that state
+today: `cockroachdb`, `memsql`, `redshift`, `tidb`, `vitess`, `oleodbc` and
+`file`.
+
+#### Scheme.Deployment and Info.Embedded both stay
+
+`DeploymentEmbedded` and `dbmeta.Info.Embedded` say the same thing about the
+same products and neither replaces the other. `dbmeta` cannot read the first,
+which settles it, and the two do not even count the same objects: `dburl`
+marks `sqlite3`, `moderncsqlite` and `duckdb`, which is three schemes, and
+`dbmeta` marks two models, because one model covers both SQLite drivers.
+Neither number is wrong and neither is derivable from the other.
 
 ## Open questions for Ken
 

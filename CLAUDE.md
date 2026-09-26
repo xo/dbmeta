@@ -16,7 +16,7 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 79
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 80
 at the top. Read the status, because 12 of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -141,10 +141,15 @@ something is written down, it is not written down, and it is an open question.
    says why. Oracle is the one exception
    and D59 says why: the `go-ora/v3` that `usql` pins panics rather than
    connecting on 11g and 18c. It is fixed upstream and untagged, so Oracle uses
-   v2 until v3 tags the fix, and then goes back. `usql` marks them, so
-   `grep -rn "// DRIVER" usql` is the list, and it is the first thing to check
-   before adding a driver or a dialect. A query that works here and fails on
-   the driver `usql` ships is a query that does not work. See D52.
+   v2 until v3 tags the fix, and then goes back. The package is in the `dburl`
+   registry, from v0.29.0: `Scheme.GoPackage` is the import path and
+   `Scheme.RequiresCGO` says whether it needs a C compiler. Read that first,
+   and read `usql`'s `go.mod` for the version, because the registry does not
+   carry one. `grep -rn "// DRIVER" usql` is the second look and it is not the
+   list: it finds an import carrying the comment, and Oracle has none, because
+   `oracle` and `godror` both register through `orshared.Register`. A query
+   that works here and fails on the driver `usql` ships is a query that does
+   not work. See D52 and D80.
 11. Never write a `//go:build` constraint on an operating system or an
    architecture, and never branch on either. Testing is `linux/amd64` only.
    The same database version is assumed to answer the same way everywhere.
