@@ -428,3 +428,56 @@ still runs has it. See `container/cassandra.go`.
 
 Do not assume a floor for a database until it has been through the procedure
 above.
+
+## Candidates carried over from usql
+
+`usql` kept a podman configuration per database in `contrib/`, started by
+`podman-run.sh`. The products dbmeta already has a model for are started by
+`dbrun` from `container/container.go`, and that list is the one copy of their
+images, ports, environment and passwords, so nothing of theirs was carried
+over. The seven below have no model here, and D77 keeps a product out of
+`container/` until it has one, because an entry with no model claims
+something this project cannot do. So their container facts are recorded here
+instead, as `usql` had them on 2026-09-27, and the next evaluation starts from
+them rather than from nothing.
+
+None of these was started by dbmeta. They are leads, the same as an AI
+model's answer, and step 2 of the procedure above still has to be run.
+
+| Product | Image | Ports | Environment and setup |
+| --- | --- | --- | --- |
+| CockroachDB | `docker.io/cockroachdb/cockroach:latest` | 26257 | `COCKROACH_DATABASE`, `COCKROACH_USER`, `COCKROACH_PASSWORD`, and the command `start-single-node` |
+| Couchbase | `docker.io/library/couchbase` | 8091 to 8094 | a volume at `/opt/couchbase/var`. The cluster is then configured by hand in the web console at port 8091, which a start command cannot do |
+| Db2 | `icr.io/db2_community/db2` | 50000, 55000 | `LICENSE=accept`, `DB2INSTANCE=db2inst1`, `DB2INST1_PASSWORD`, `DBNAME=testdb`, and a volume at `/database` |
+| Flight SQL | `docker.io/voltrondata/flight-sql` | 31337 | `FLIGHT_PASSWORD` |
+| H2 | `docker.io/buildo/h2database` | 8082, 9092 | none |
+| Apache Ignite | `docker.io/usql/ignite` | 10800 | host networking, and the cluster activated after it starts with `control.sh --activate --user ignite --password ignite` inside the container |
+| YDB | `cr.yandex/yc/yandex-docker-local-ydb` | 2135, 2136, 8765 | `GRPC_TLS_PORT=2135`, `GRPC_PORT=2136`, `MON_PORT=8765`, `YDB_DEFAULT_LOG_LEVEL=NOTICE`, the host name `localhost`, and volumes at `/ydb_certs` and `/ydb_data` |
+
+Three of these need a word before anybody starts one.
+
+CockroachDB speaks the PostgreSQL wire protocol, and `dburl` overrides its
+driver to `postgres`, so it is a flavor of the PostgreSQL model rather than a
+model of its own, the way MySQL is a flavor of MariaDB's. D14 and D44 hold
+what that means.
+
+Couchbase and Ignite both need a step after the container starts. Ignite's is
+one command and fits `container.Server.Init`. Couchbase's is a person in a
+browser, which is the same shape D57 solved for the Windows machines, and it
+decides how Couchbase would be run.
+
+Two more `usql` targets are covered here and differ from what `usql` ran,
+which is worth knowing when comparing the two.
+
+`usql` started Oracle Enterprise 21.3.0.0 from `container-registry.oracle.com`,
+which needs an Oracle account to pull. dbmeta runs 21.3.0 as the free edition
+from `gvenzl/oracle-xe`, and builds 19c Enterprise itself. D54 has the list.
+
+`usql`'s Exasol and Vertica configurations name `exasol/docker-db` and
+`vertica/vertica-ce`. The first does not initialize under rootless podman,
+which is D77, and dbmeta runs `exasol/nano` instead. The second was
+withdrawn, which D66 records, and Vertica has no model here yet.
+
+The Db2 notes in `usql` are about installing IBM's ODBC client, which is
+`usql`'s concern and stays there. The container itself needs nothing beyond
+the table above.
