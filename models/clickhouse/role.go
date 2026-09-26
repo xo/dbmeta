@@ -294,7 +294,14 @@ func registerRoles() {
 			always(`, NULL AS "type"`),
 			always(`, NULL AS "version"`),
 			always(`, NULL AS "access"`),
-			always(`, nullIf(n.create_query, '') AS "options"`),
+			// system.named_collections.create_query arrived in 25.6, with
+			// source, in ClickHouse pull request 78582. Measured absent on
+			// 25.3.14.14 and present on 25.8.33.6, and the older side pads
+			// rather than the query failing to resolve the identifier.
+			dbmeta.Choice{
+				{Query: `, NULL AS "options"`},
+				{Min: v256, Query: `, nullIf(n.create_query, '') AS "options"`},
+			},
 			always(`, NULL AS "comment"`),
 			always(`FROM system.named_collections n`),
 			always(`WHERE (@name = '' OR n.name LIKE @name)`),
@@ -313,8 +320,11 @@ func registerRoles() {
 			{Name: "access", Desc: "always absent: a grant on it is in the privileges query"},
 			{
 				Name: "options",
+				Min:  v256,
 				Desc: "the CREATE NAMED COLLECTION as written. A key marked NOT" +
-					" OVERRIDABLE is shown and a secret is masked by the server",
+					" OVERRIDABLE is shown and a secret is masked by the server." +
+					" Absent below 25.6, where the server exposes no such column:" +
+					" the collection is there and its definition is not readable",
 			},
 			{Name: "comment", Desc: "always absent: a named collection carries no comment"},
 		},

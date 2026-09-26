@@ -87,6 +87,12 @@ func init() {
 // and never lies.
 var v268 = dbmeta.V(26, 8)
 
+// v256 is where system.named_collections gained create_query and source,
+// which is ClickHouse pull request 78582 and the 25.6 changelog. This one is
+// known rather than bracketed: measured absent on 25.3.14.14 and present on
+// 25.8.33.6, and the release between them is what upstream records.
+var v256 = dbmeta.V(25, 6)
+
 // always is a fragment every release takes.
 func always(query string) dbmeta.Choice { return dbmeta.Choice{{Query: query}} }
 

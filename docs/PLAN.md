@@ -147,6 +147,7 @@ records the argument.
 | [D80](#d80-the-driver-registry-is-dburls-and-reading-it-is-not-importing-it-decided) | The driver registry is dburl's, and reading it is not importing it | Decided |
 | [D81](#d81-the-cassandra-dialect-is-cql-decided) | The Cassandra dialect is cql | Decided |
 | [D82](#d82-ci-compiles-once-and-every-job-runs-the-binary-decided) | CI compiles once and every job runs the binary | Decided |
+| [D83](#d83-a-server-is-ready-when-it-can-run-a-query-not-when-it-answers-one-decided) | A server is ready when it can run a query, not when it answers one | Decided |
 
 ## Decisions
 
@@ -6195,6 +6196,58 @@ run was bounded by the slowest job rather than by the sum, and SAP HANA at
 five minutes is mostly a server starting. What this recovers is the ninety
 seconds inside every job, the runner minutes behind them, and the second wave
 when the matrix is wider than the concurrency limit.
+
+### D83. A server is ready when it can run a query, not when it answers one. Decided.
+
+The readiness check for Presto and Trino reads a table. It read a constant
+and that was not the same thing.
+
+`presto-cli --execute "SELECT 1"` succeeded and the fixture's first statement
+then failed:
+
+	NO_NODES_AVAILABLE: No nodes available to run query
+
+`EXPLAIN (TYPE DISTRIBUTED)` says why, on Presto 0.299 and Trino 483 alike:
+
+| query | plan |
+| --- | --- |
+| `SELECT 1` | one SINGLE fragment |
+| `SELECT * FROM (VALUES 1) t(x)` | one SINGLE fragment |
+| `SELECT count(*) FROM system.runtime.nodes` | a SINGLE and a SOURCE fragment |
+
+A SINGLE fragment is evaluated by the coordinator on its own. A SOURCE
+fragment has to be scheduled on a node. So a constant is answered in the
+window between the HTTP port opening and a worker registering, and a table
+read is not. Both checks now read `system.runtime.nodes`.
+
+Trino is changed on the same evidence rather than on a failure of its own. It
+plans identically and the image has the same shape, so the difference is that
+nobody has been unlucky with it yet.
+
+#### D82 is what exposed it
+
+The race was always there and the compile was hiding it. Every job spent
+ninety seconds building the tests between `dbrun` declaring the server ready
+and the first statement running, which was ample for a worker to register.
+D82 removed that and the gap closed to nothing.
+
+This is worth stating plainly, because the obvious reading is that D82 broke
+Presto. It did not. It removed an accidental delay that a readiness check was
+quietly depending on, and a readiness check that needs a ninety second pause
+after it is not one. The same reasoning applies to anything else in
+`container/` whose check is cheaper than the work that follows it.
+
+#### What was not done
+
+The check does not assert that the count is not zero, and it does not need
+to. If no node is active the query cannot be scheduled and fails, so the exit
+code already carries the answer, and a shell wrapper to compare the number
+would add quoting for nothing.
+
+Verified by removing both containers and running `dbrun test presto-0.299`
+and `dbrun test trino-483` from cold. This machine starts both too fast to
+reproduce the race, which is why the plans were measured rather than the
+timing.
 
 ## Open questions for Ken
 

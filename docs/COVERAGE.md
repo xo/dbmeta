@@ -1411,11 +1411,10 @@ DuckDB are the products with no reason to have one: neither has a user.
 
 ### One release answers differently
 
-`test/testdata/parity.txt` has a section per product, and six releases have
-one of their own: `postgres@10`, `postgres@11`, `postgres@12`, `postgres@13`,
-`clickhouse@25.3` and `mariadb@10`. A section named for a release wins over
-the shared one, and a name carrying a minor wins over one carrying only the
-major.
+`test/testdata/parity.txt` has a section per product, and five releases have
+one of their own: `postgres@10`, `postgres@11`, `postgres@12`, `postgres@13`
+and `mariadb@10`. A section named for a release wins over the shared one, and
+a name carrying a minor wins over one carrying only the major.
 
 PostgreSQL restricts a column of `pg_subscription` from an ordinary role. The
 `Subscriptions` query reads `subsynccommit` as `synchronous`, so the whole
@@ -1440,20 +1439,6 @@ PostgreSQL 10 words the refusal differently from the rest, "permission denied
 for relation" where 11 and later say "for table", which is why its section
 cannot be shared with theirs.
 
-ClickHouse 25.3 does not refuse `foreign_servers` and every later release
-does. The query reads `system.named_collections` and the privilege check on
-that table arrived after 25.3, so a granted user reads it there and is
-refused from 25.8 on. That is the reverse of the usual shape here, where the
-newer release is the more permissive one.
-
-It is also why a section can name a minor. The first attempt called it
-`clickhouse@25`, which is what every other product's section does, and that
-broke 25.8: ClickHouse versions by calendar, so 25.3 and 25.8 are both major
-25 and they do not answer the same. The change is narrow. A section naming a
-minor wins over one naming a major, so nothing moves for PostgreSQL, Oracle
-or SQL Server, where the major does identify a release line. SAP HANA would
-have hit the same edge, since every one of its releases is major 2.
-
 The query is not gated for this. A superuser on 12 can read the column, and
 padding it would withhold a fact from the caller who is allowed it, which rule
 13 forbids. What was wrong was the file claiming one answer covers every
@@ -1462,6 +1447,27 @@ release of a product.
 It was found by CI rather than by the cross-release check that was supposed to
 catch it. That check compared 9.6 against 18, and 9.6 has no `pg_subscription`
 at all, so the query was never asked and the difference never showed.
+
+ClickHouse had a sixth section, `clickhouse@25.3`, and it is gone because it
+was never a difference in the product. It recorded that 25.3 did not refuse
+`foreign_servers` when every later release did, and the truth was that the
+query did not run on 25.3 at all: it read `n.create_query`, which arrived in
+25.6, so the server could not resolve the identifier and there was no answer
+to compare. A query that fails for everybody looks like a query that treats
+everybody alike.
+
+With the column gated the query runs on 25.3, a granted user is refused there
+exactly as on every later release, and the shared section covers it. D83 has
+the measurement.
+
+A section can still name a minor, and nothing names one today. The mechanism
+was added for this section and it was right for a reason that outlives it:
+the first attempt called it `clickhouse@25`, which is what every other
+product's section does, and that broke 25.8, because ClickHouse versions by
+calendar and 25.3 and 25.8 are both major 25. Any product that versions that
+way will need it again. SAP HANA is the nearest, since every one of its
+releases is major 2. Nothing moves for PostgreSQL, Oracle or SQL Server,
+where the major does identify a release line.
 
 MariaDB 10.6 is the second, and it is `Functions`.
 `information_schema.ROUTINES` reports `routine_definition` as NULL to a user

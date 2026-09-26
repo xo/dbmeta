@@ -8,12 +8,6 @@
 # A section is <database>/<scene>/<principal>. The scene is the database the
 # comparison ran in, because a contained user needs one of its own.
 
-[cql/same/grantee]
-privileges refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
-role_grants refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
-roles refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
-settings refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
-
 [clickhouse/same/grantee]
 constraints refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.constraints
 current_user the same rows with different values
@@ -26,15 +20,11 @@ role_grants refused: code: 497, message: dbmeta_parity: Not enough privileges. T
 roles refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users
 tablespaces refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies
 
-[clickhouse@25.3/same/grantee]
-current_user the same rows with different values
-databases fewer rows than the administrator
-index_columns refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices
-indexes refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices
-privileges refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.grants
-role_grants refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.role_grants
-roles refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users
-tablespaces refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies
+[cql/same/grantee]
+privileges refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
+role_grants refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
+roles refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
+settings refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
 
 [firebirdsql/same/grantee]
 current_user the same rows with different values

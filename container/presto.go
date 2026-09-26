@@ -42,7 +42,20 @@ var presto = product{
 	image:   "docker.io/prestodb/presto",
 	port:    8080,
 	// presto-cli is on the path and defaults to localhost:8080.
-	ready: []string{"presto-cli", "--execute", "SELECT 1"},
+	//
+	// The query reads a table rather than a constant, because a constant is
+	// answered before the server can run anything. `SELECT 1` plans to one
+	// SINGLE fragment, which the coordinator evaluates by itself, so it
+	// succeeds in the window after the HTTP port opens and before a worker
+	// registers. The fixture's first statement then fails:
+	//
+	//	NO_NODES_AVAILABLE: No nodes available to run query
+	//
+	// Reading system.runtime.nodes plans to a SOURCE fragment as well, and a
+	// SOURCE fragment has to be scheduled on a node, so the query cannot
+	// answer until one exists. Checked with EXPLAIN (TYPE DISTRIBUTED) on
+	// 0.299 and on Trino 483, which has the same two plans. See D83.
+	ready: []string{"presto-cli", "--execute", "SELECT count(*) FROM system.runtime.nodes WHERE state = 'active'"},
 	// presto-go-client/v2 takes the catalog and schema in the path and
 	// refuses them as query parameters, where it reads any unknown name as a
 	// session property and the server rejects it:
