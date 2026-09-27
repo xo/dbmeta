@@ -14,17 +14,17 @@ func registerRoles() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT role AS "name"`),
 			always(`, is_superuser AS "superuser"`),
-			always(`, (boolean)false AS "create_role"`),
-			always(`, (boolean)false AS "create_db"`),
+			fixed(", ", `(boolean)false`, "role", "create_role"),
+			fixed(", ", `(boolean)false`, "role", "create_db"),
 			always(`, can_login`),
-			always(`, (boolean)false AS "replication"`),
-			always(`, (boolean)false AS "bypass_rls"`),
-			always(`, (boolean)true AS "inherit"`),
-			always(`, (bigint)-1 AS "conn_limit"`),
-			always(`, (text)NULL AS "valid_until"`),
+			fixed(", ", `(boolean)false`, "role", "replication"),
+			fixed(", ", `(boolean)false`, "role", "bypass_rls"),
+			fixed(", ", `(boolean)true`, "role", "inherit"),
+			fixed(", ", `(bigint)-1`, "role", "conn_limit"),
+			fixed(", ", `(text)NULL`, "role", "valid_until"),
 			always(`, member_of`),
-			always(`, (text)NULL AS "comment"`),
-			always(`FROM system_auth.roles`),
+			fixed(", ", `(text)NULL`, "role", "comment"),
+			{{Query: `FROM system_auth.roles`}, scylla(`FROM system.roles`)},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"}, {Name: "superuser"},
@@ -54,10 +54,59 @@ func registerRoles() {
 				v        dbmeta.Role
 				memberOf any
 			)
-			err := rows.Scan(&v.Name, &v.Superuser, &v.CreateRole, &v.CreateDB,
-				&v.CanLogin, &v.Replication, &v.BypassRLS, &v.Inherit, &v.ConnLimit,
+			err := rows.Scan(&v.Name, &v.Superuser, pad{}, pad{},
+				&v.CanLogin, pad{}, pad{}, pad{}, pad{},
 				pad{}, &memberOf, pad{})
+			v.Inherit = true
+			v.ConnLimit = -1
 			v.MemberOf = textList(memberOf)
+			return v, err
+		},
+	})
+
+	// \drds, on ScyllaDB alone. A role's attribute is a value set on the
+	// role itself, and ATTACH SERVICE LEVEL is what sets one: it gives the
+	// role's sessions the timeout and the share of the server that the
+	// service level names. That is the ScyllaDB form of ALTER ROLE ... SET,
+	// and D91 records why it is a fair analogue.
+	//
+	// Cassandra has no such table, so every fragment names the ScyllaDB key
+	// and Cassandra reports that it cannot answer.
+	//
+	// The row is per attribute rather than per role, because CQL cannot
+	// group. There are three columns for three fields, and settings needs
+	// both the attribute's name and its value, so the name is selected under
+	// "database" and Scan folds the two into settings. A ScyllaDB role
+	// belongs to the cluster rather than to a keyspace, so database is
+	// always empty.
+	dbmeta.RoleSettings.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.RoleSetting]{
+		Stmt: dbmeta.Stmt{
+			{scylla(`SELECT role`)},
+			{scylla(`, name AS "database"`)},
+			{scylla(`, value AS "settings"`)},
+			{scylla(`FROM system.role_attributes`)},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "role"},
+			{
+				Name: "database",
+				Desc: "always empty: a role belongs to the cluster, and an" +
+					" attribute applies wherever the role connects",
+			},
+			{
+				Name: "settings",
+				Desc: "one attribute as name=value, such as" +
+					" service_level=reporting. A role with two has two rows",
+			},
+		},
+		Params: filters("role"),
+		Scan: func(rows *sql.Rows) (dbmeta.RoleSetting, error) {
+			var (
+				v           dbmeta.RoleSetting
+				name, value string
+			)
+			err := rows.Scan(&v.Role, &name, &value)
+			v.Settings = sql.Null[string]{V: name + "=" + value, Valid: true}
 			return v, err
 		},
 	})
@@ -72,11 +121,11 @@ func registerRoles() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT member AS "role"`),
 			always(`, role AS "member_of"`),
-			always(`, (text)NULL AS "grantor"`),
-			always(`, (boolean)false AS "admin"`),
-			always(`, (boolean)true AS "inherit"`),
-			always(`, (boolean)true AS "set"`),
-			always(`FROM system_auth.role_members`),
+			fixed(", ", `(text)NULL`, "role", "grantor"),
+			fixed(", ", `(boolean)false`, "role", "admin"),
+			fixed(", ", `(boolean)true`, "role", "inherit"),
+			fixed(", ", `(boolean)true`, "role", "set"),
+			{{Query: `FROM system_auth.role_members`}, scylla(`FROM system.role_members`)},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "role", Desc: "the role that was granted something"},
@@ -93,8 +142,9 @@ func registerRoles() {
 		Params: filters("role"),
 		Scan: func(rows *sql.Rows) (dbmeta.RoleGrant, error) {
 			var v dbmeta.RoleGrant
-			err := rows.Scan(&v.Role, &v.MemberOf, pad{}, &v.Admin,
-				&v.Inherit, &v.Set)
+			err := rows.Scan(&v.Role, &v.MemberOf, pad{}, pad{}, pad{}, pad{})
+			v.Inherit = true
+			v.Set = true
 			return v, err
 		},
 	})
@@ -107,9 +157,9 @@ func registerRoles() {
 			always(`, resource AS "name"`),
 			always(`, resource AS "type"`),
 			always(`, permissions AS "access"`),
-			always(`, (text)'' AS "column_access"`),
-			always(`, (text)'' AS "policies"`),
-			always(`FROM system_auth.role_permissions`),
+			fixed(", ", `(text)''`, "role", "column_access"),
+			fixed(", ", `(text)''`, "role", "policies"),
+			{{Query: `FROM system_auth.role_permissions`}, scylla(`FROM system.role_permissions`)},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "schema", Desc: "the keyspace named in the resource path, empty for a grant above one"},
@@ -135,8 +185,7 @@ func registerRoles() {
 				v                             dbmeta.Privilege
 				resource, spare1, spare2, acc any
 			)
-			err := rows.Scan(&resource, &spare1, &spare2, &acc,
-				&v.ColumnAccess, &v.Policies)
+			err := rows.Scan(&resource, &spare1, &spare2, &acc, pad{}, pad{})
 			v.Schema, v.Name, v.Type = splitResource(toText(resource))
 			if s := textList(acc); s != "" {
 				v.Access = sql.Null[string]{V: s, Valid: true}
@@ -148,20 +197,37 @@ func registerRoles() {
 	// The server configuration, which arrived as a virtual table in 4.0.
 	// Every fragment gates on it, so an older release reports that the server
 	// is too old rather than a wrong answer.
+	//
+	// ScyllaDB keeps it in system.config, which also records each setting's
+	// type and where its value came from. Its release_version reads 3.0.8,
+	// which is below the gate, so the ScyllaDB fragment is what answers
+	// there.
 	dbmeta.Settings.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Setting]{
 		Stmt: dbmeta.Stmt{
-			{{Min: v40, Query: `SELECT name`}},
-			{{Min: v40, Query: `, value`}},
-			{{Min: v40, Query: `, (text)NULL AS "type"`}},
-			{{Min: v40, Query: `, (text)NULL AS "context"`}},
-			{{Min: v40, Query: `, (text)NULL AS "access"`}},
-			{{Min: v40, Query: `FROM system_views.settings`}},
+			{{Min: v40, Query: `SELECT name`}, scylla(`SELECT name`)},
+			{{Min: v40, Query: `, value`}, scylla(`, value`)},
+			{{Min: v40, Query: `, (text)NULL AS "type"`}, scylla(`, type`)},
+			{{Min: v40, Query: `, (text)NULL AS "context"`}, scylla(`, name AS "context"`)},
+			{{Min: v40, Query: `, (text)NULL AS "access"`}, scylla(`, name AS "access"`)},
+			{{Min: v40, Query: `FROM system_views.settings`}, scylla(`FROM system.config`)},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"},
-			{Name: "value"},
-			{Name: "type", Desc: "always absent: the virtual table records no type"},
-			{Name: "context", Desc: "always absent: it records no context either"},
+			{
+				Name: "value",
+				Desc: "the current value. ScyllaDB writes it as JSON, so a text" +
+					" value arrives in double quotes",
+			},
+			{
+				Name: "type", Key: Scylla,
+				Desc: "the type ScyllaDB records, such as integer. Cassandra's" +
+					" virtual table records none",
+			},
+			{
+				Name: "context",
+				Desc: "always absent: neither product records when a setting" +
+					" can be changed",
+			},
 			{
 				Name: "access",
 				Desc: "always absent: whether a setting can be changed at runtime" +
@@ -170,8 +236,19 @@ func registerRoles() {
 		},
 		Params: filters("setting"),
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
-			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, pad{}, pad{}, pad{})
+			// The type is scanned as text rather than into pad, because on
+			// ScyllaDB it is a real column. On Cassandra it is padded and
+			// the driver hands the padding over as an empty string, which
+			// is why an empty type is read as absent. ScyllaDB records a
+			// type for every setting, so nothing real is lost.
+			var (
+				v   dbmeta.Setting
+				typ string
+			)
+			err := rows.Scan(&v.Name, &v.Value, &typ, pad{}, pad{})
+			if typ != "" {
+				v.Type = sql.Null[string]{V: typ, Valid: true}
+			}
 			return v, err
 		},
 	})
@@ -179,52 +256,52 @@ func registerRoles() {
 	// \df.
 	dbmeta.Functions.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Function]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT (text)'' AS "catalog"`),
+			fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 			always(`, keyspace_name AS "schema"`),
 			always(`, function_name AS "name"`),
-			always(`, (text)NULL AS "id"`),
-			always(`, (text)'function' AS "kind"`),
+			fixed(", ", `(text)NULL`, "keyspace_name", "id"),
+			fixed(", ", `(text)'function'`, "keyspace_name", "kind"),
 			always(`, return_type AS "result_type"`),
 			always(`, argument_types AS "arg_types"`),
-			always(`, (text)'' AS "volatility"`),
-			always(`, (text)'' AS "parallel"`),
-			always(`, (text)'' AS "owner"`),
-			always(`, (text)'' AS "security"`),
-			always(`, (text)NULL AS "access"`),
+			fixed(", ", `(text)''`, "keyspace_name", "volatility"),
+			fixed(", ", `(text)''`, "keyspace_name", "parallel"),
+			fixed(", ", `(text)''`, "keyspace_name", "owner"),
+			fixed(", ", `(text)''`, "keyspace_name", "security"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "access"),
 			always(`, language`),
 			always(`, body AS "source"`),
-			always(`, (text)NULL AS "comment"`),
+			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.functions`),
 		},
 		Fields: routineFields("function"),
 		Params: filters("function"),
-		Scan:   scanRoutine,
+		Scan:   scanRoutine("function"),
 	})
 
 	// \da. An aggregate has no body of its own: it names a state function
 	// and a final function, which are ordinary functions.
 	dbmeta.Aggregates.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Function]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT (text)'' AS "catalog"`),
+			fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 			always(`, keyspace_name AS "schema"`),
 			always(`, aggregate_name AS "name"`),
-			always(`, (text)NULL AS "id"`),
-			always(`, (text)'aggregate' AS "kind"`),
+			fixed(", ", `(text)NULL`, "keyspace_name", "id"),
+			fixed(", ", `(text)'aggregate'`, "keyspace_name", "kind"),
 			always(`, return_type AS "result_type"`),
 			always(`, argument_types AS "arg_types"`),
-			always(`, (text)'' AS "volatility"`),
-			always(`, (text)'' AS "parallel"`),
-			always(`, (text)'' AS "owner"`),
-			always(`, (text)'' AS "security"`),
-			always(`, (text)NULL AS "access"`),
+			fixed(", ", `(text)''`, "keyspace_name", "volatility"),
+			fixed(", ", `(text)''`, "keyspace_name", "parallel"),
+			fixed(", ", `(text)''`, "keyspace_name", "owner"),
+			fixed(", ", `(text)''`, "keyspace_name", "security"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "access"),
 			always(`, state_func AS "language"`),
 			always(`, final_func AS "source"`),
-			always(`, (text)NULL AS "comment"`),
+			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.aggregates`),
 		},
 		Fields: aggregateFields(),
 		Params: filters("aggregate"),
-		Scan:   scanRoutine,
+		Scan:   scanRoutine("aggregate"),
 	})
 }
 
@@ -286,15 +363,19 @@ func aggregateFields() []dbmeta.Field {
 	return out
 }
 
-// scanRoutine reads one row of either routine query.
-func scanRoutine(rows *sql.Rows) (dbmeta.Function, error) {
-	var (
-		v    dbmeta.Function
-		args any
-	)
-	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, pad{}, &v.Kind, &v.ResultType,
-		&args, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, pad{},
-		&v.Language, &v.Source, pad{})
-	v.ArgTypes = textList(args)
-	return v, err
+// scanRoutine returns the Scan for one of the two routine queries. kind is
+// what the query selects as its kind, which Scan sets itself.
+func scanRoutine(kind string) func(*sql.Rows) (dbmeta.Function, error) {
+	return func(rows *sql.Rows) (dbmeta.Function, error) {
+		var (
+			v    dbmeta.Function
+			args any
+		)
+		err := rows.Scan(pad{}, &v.Schema, &v.Name, pad{}, pad{}, &v.ResultType,
+			&args, pad{}, pad{}, pad{}, pad{}, pad{},
+			&v.Language, &v.Source, pad{})
+		v.Kind = kind
+		v.ArgTypes = textList(args)
+		return v, err
+	}
 }

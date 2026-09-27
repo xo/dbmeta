@@ -20,3 +20,8 @@ state/
 
 # dbrun, if somebody builds it rather than running it with go run.
 /test/dbrun
+
+# The Claude Code permissions of one person. The shared .claude/settings.json
+# is not ignored, because a setting that belongs to the project is committed.
+# See D89.
+.claude/settings.local.json

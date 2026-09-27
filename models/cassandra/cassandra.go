@@ -32,18 +32,36 @@
 // asks for. See docs/NULLS.md, which this obeys: a fact that is absent is
 // NULL and never a literal.
 //
+// ScyllaDB accepts no literal in a select list at all, so there it selects a
+// real column in the padded one's place. Scan discards a padded or fixed
+// column on both products and sets the value itself. [fixed] holds the rule.
+//
+// # ScyllaDB
+//
+// ScyllaDB is a second product that speaks CQL, and this model reads it.
+// Cassandra is the reference product and ScyllaDB is the flavor, the way
+// MariaDB and MySQL share the mysql model. It keeps system_schema as
+// Cassandra 3.0 laid it out, so most queries need nothing. Three things
+// differ, and each is a fragment on the [Scylla] key: the roles, grants and
+// permissions are in the system keyspace rather than system_auth, the
+// settings are in system.config, and no literal is allowed in a select list.
+//
 // # What it answers
 //
-// 17 of the 55. Keyspaces as schemas, tables, columns, materialized views as
-// views, user defined types, indexes, index columns, the primary key as a
-// constraint and its columns, triggers, comments, functions, aggregates,
-// roles, role grants, privileges and settings.
+// 17 of the 55 on Cassandra, and 18 on ScyllaDB. Keyspaces as schemas,
+// tables, columns, materialized views as views, user defined types, indexes,
+// index columns, the primary key as a constraint and its columns, triggers,
+// comments, functions, aggregates, roles, role grants, privileges and
+// settings. ScyllaDB also answers role settings, from the service level
+// attached to a role.
 //
-// Settings needs 4.0, where the system_views keyspace arrived. Everything else
-// answers on every release from 3.11 up.
+// On Cassandra, Settings needs 4.0, where the system_views keyspace arrived.
+// Everything else answers on every release from 3.11 up. ScyllaDB answers all
+// 18 on every release from 2025.1 up.
 package cassandra
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -51,22 +69,66 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// versionQuery reads the three versions Cassandra reports.
+// Scylla is the version key a ScyllaDB server reports under.
 //
-// They move independently, which is why [dbmeta.VersionSet] holds more than
-// one. The release is the main version, because that is what a fragment gates
-// on. CQL and the native protocol are recorded under their own keys so a
-// caller can read them, and so a future fragment can gate on either.
-const versionQuery = `SELECT release_version, cql_version, native_protocol_version` +
-	` FROM system.local WHERE key = 'local'`
+// ScyllaDB is a second product that speaks CQL, and it shares this model the
+// way MySQL shares MariaDB's. Cassandra is the reference product and ScyllaDB
+// is the flavor. A fragment that belongs to ScyllaDB names this key, and a
+// Cassandra server never reports it. See D44 and D91.
+const Scylla = "scylla"
 
-// parseVersion reads the three columns versionQuery returns.
+// onScylla is a gate that ScyllaDB meets at any release. A fragment for one
+// ScyllaDB release and newer writes dbmeta.Gate{Key: Scylla, Min: ...}, and
+// the release comes from the follow-up statement. See D92.
+var onScylla = dbmeta.Gate{Key: Scylla}
+
+// scylla returns a fragment that applies on ScyllaDB.
+func scylla(query string) dbmeta.Fragment {
+	return dbmeta.Fragment{Min: onScylla.Min, Key: onScylla.Key, Query: query}
+}
+
+// versionQuery reads the row that describes the node, as one JSON text.
+//
+// JSON is what lets one statement work on both products. Cassandra and
+// ScyllaDB each have columns in system.local that the other lacks, and CQL
+// refuses a statement that names a column the table does not have. SELECT
+// JSON * names none, so it runs on both, and the row says which product sent
+// it.
+//
+// The three versions Cassandra reports move independently, which is why
+// [dbmeta.VersionSet] holds more than one. The release is the main version,
+// because that is what a fragment gates on. CQL and the native protocol are
+// recorded under their own keys so a caller can read them, and so a future
+// fragment can gate on either.
+const versionQuery = `SELECT JSON * FROM system.local WHERE key = 'local'`
+
+// parseVersion reads the one column versionQuery returns.
+//
+// ScyllaDB is found by the supported_features column, which ScyllaDB puts in
+// system.local and Cassandra does not have. Its release_version is not its own
+// release. It is the Cassandra release it keeps compatible with, 3.0.8 on
+// every release measured here, and it stays the main version, because that
+// is the catalog ScyllaDB offers: system_schema as Cassandra 3.0 laid it out.
+//
+// The ScyllaDB release itself is in system.versions, which Cassandra does not
+// have, so no statement that runs on both can read it. The Scylla key is
+// recorded here as an unknown version, and [followUpQuery] reads the release.
+// See D91 and D92.
 func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	var s dbmeta.VersionSet
-	if len(cols) != 3 {
+	if len(cols) != 1 {
 		return s, dbmeta.ErrInvalidVersion
 	}
-	release, cql, protocol := cols[0], cols[1], cols[2]
+	var row map[string]any
+	if err := json.Unmarshal([]byte(cols[0]), &row); err != nil {
+		return s, fmt.Errorf("reading system.local: %w", dbmeta.ErrInvalidVersion)
+	}
+	release, _ := row["release_version"].(string)
+	cql, _ := row["cql_version"].(string)
+	protocol, _ := row["native_protocol_version"].(string)
+	if release == "" || cql == "" || protocol == "" {
+		return s, dbmeta.ErrInvalidVersion
+	}
 	s.Set("", dbmeta.ParseVersion(release))
 	s.Set("cql", dbmeta.ParseVersion(cql))
 	s.Set("protocol", dbmeta.ParseVersion(protocol))
@@ -74,6 +136,43 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	// thing. The protocol is a bare number and carries a v, which is how
 	// Cassandra's own documentation writes it.
 	s.Display = "Cassandra " + release + ", CQL " + cql + ", Protocol v" + protocol
+	if _, ok := row["supported_features"]; ok {
+		s.Set(Scylla, dbmeta.Version{Unknown: true})
+		// usql prints this line with "Cassandra" in front, and on ScyllaDB
+		// that names the wrong product. The number is the compatibility
+		// release, so the line says so.
+		s.Display = "ScyllaDB, compatible with Cassandra " + release +
+			", CQL " + cql + ", Protocol v" + protocol
+	}
+	return s, nil
+}
+
+// followUpQuery reads the ScyllaDB release, and asks nothing of Cassandra.
+//
+// system.versions is refused to a role that was granted nothing on it, while
+// system.local is not. [dbmeta.Dialect.Version] keeps the first statement's
+// answer when this one is refused, so such a role still learns that it is
+// talking to ScyllaDB, and the release stays unknown. See D92.
+func followUpQuery(s dbmeta.VersionSet) (string, int) {
+	if !s.Has(Scylla) {
+		return "", 0
+	}
+	return `SELECT version FROM system.versions WHERE key = 'local'`, 1
+}
+
+// parseFollowUp records the ScyllaDB release, such as
+// 2026.3.1-0.20260904.97cbf7898aae, under the Scylla key and puts it in the
+// display line.
+func parseFollowUp(s dbmeta.VersionSet, cols []string) (dbmeta.VersionSet, error) {
+	if len(cols) != 1 || cols[0] == "" {
+		return s, dbmeta.ErrInvalidVersion
+	}
+	ver := dbmeta.ParseVersion(cols[0])
+	if ver.Unknown {
+		return s, dbmeta.ErrInvalidVersion
+	}
+	s.Set(Scylla, ver)
+	s.Display = strings.Replace(s.Display, "ScyllaDB,", "ScyllaDB "+cols[0]+",", 1)
 	return s, nil
 }
 
@@ -98,8 +197,10 @@ func init() {
 		// MySQL. The number is not used.
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,
-		VersionColumns: 3,
+		VersionColumns: 1,
 		ParseVersion:   parseVersion,
+		FollowUpQuery:  followUpQuery,
+		ParseFollowUp:  parseFollowUp,
 		ChangePassword: changePassword,
 	})
 	registerSchema()
@@ -112,6 +213,24 @@ var v40 = dbmeta.V(4)
 
 // always is a fragment every release takes.
 func always(query string) dbmeta.Choice { return dbmeta.Choice{{Query: query}} }
+
+// fixed selects a column whose value is known before the query runs, such as
+// a padded NULL or a flag that is always false.
+//
+// On Cassandra the statement selects the literal, so that it says what the
+// field holds. ScyllaDB accepts no literal in a select list: 2025.1 refuses
+// (text)NULL, (boolean)false and even CAST(false AS boolean) as a syntax
+// error, and 2026.3 refuses every NULL. So on ScyllaDB the fragment selects
+// standIn, a real column of the same table, under the same name. The query
+// then returns as many columns as it declares fields on both products.
+//
+// Scan discards the column on both products and sets the value itself, so one
+// Scan reads either product. prefix is "SELECT " for the first column and
+// ", " for any other.
+func fixed(prefix, literal, standIn, name string) dbmeta.Choice {
+	as := ` AS "` + name + `"`
+	return dbmeta.Choice{{Query: prefix + literal + as}, scylla(prefix + standIn + as)}
+}
 
 // filters declares the filters a caller may pass.
 //

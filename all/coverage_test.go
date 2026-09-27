@@ -51,6 +51,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "sqlserver", dialect: dbmeta.SQLServer},
 		{name: "oracle", dialect: dbmeta.Oracle},
 		{name: "cassandra", dialect: dbmeta.Cassandra},
+		{name: "scylla", dialect: dbmeta.Cassandra, key: "scylla"},
 		{name: "clickhouse", dialect: dbmeta.ClickHouse},
 		{name: "trino", dialect: dbmeta.Trino},
 		{name: "presto", dialect: dbmeta.Presto},
@@ -87,7 +88,7 @@ var displayNames = map[string]string{
 	"SQL Server": "sqlserver", "Oracle": "oracle", "Cassandra": "cassandra",
 	"ClickHouse": "clickhouse", "Trino": "trino", "Presto": "presto",
 	"Firebird": "firebird", "SAP HANA": "hana", "Apache Hive": "hive",
-	"Exasol": "exasol", "Vertica": "vertica",
+	"Exasol": "exasol", "Vertica": "vertica", "ScyllaDB": "scylla",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -179,8 +180,11 @@ func TestTheCoverageTableIsRight(t *testing.T) {
 		}
 	}
 	for model := range got {
-		if model == "mariadb" || model == "mysql" {
+		switch model {
+		case "mariadb", "mysql":
 			model = "mysql"
+		case "scylla":
+			model = "cassandra"
 		}
 		if !seen[model] {
 			t.Errorf("docs/COVERAGE.md has no row for models/%s", model)
@@ -200,6 +204,8 @@ func checkCell(t *testing.T, model, cell string, got map[string]int) {
 	switch model {
 	case "mysql":
 		want = []int{got["mariadb"], got["mysql"]}
+	case "cassandra":
+		want = []int{got["cassandra"], got["scylla"]}
 	default:
 		want = []int{got[model]}
 	}
@@ -245,7 +251,7 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"oracle": "Oracle", "cassandra": "Cassandra",
 			"clickhouse": "ClickHouse", "trino": "Trino", "presto": "Presto",
 			"firebird": "Firebird", "hana": "SAP HANA", "hive": "Apache Hive",
-			"exasol": "Exasol", "vertica": "Vertica",
+			"exasol": "Exasol", "vertica": "Vertica", "scylla": "ScyllaDB",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -282,7 +288,7 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"sqlserver": "SQL Server", "oracle": "Oracle", "cassandra": "Cassandra",
 			"clickhouse": "ClickHouse", "trino": "Trino", "presto": "Presto",
 			"firebird": "Firebird", "hana": "SAP HANA", "hive": "Apache Hive",
-			"exasol": "Exasol", "vertica": "Vertica",
+			"exasol": "Exasol", "vertica": "Vertica", "scylla": "ScyllaDB",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+
@@ -341,7 +347,7 @@ func TestEveryPackageCommentStatesItsCount(t *testing.T) {
 	for name := range got {
 		switch name {
 		case "postgres":
-		case "mariadb": // one package serves two products
+		case "mariadb", "scylla": // one package serves two products
 		default:
 			pkgs = append(pkgs, name)
 		}
@@ -355,10 +361,13 @@ func TestEveryPackageCommentStatesItsCount(t *testing.T) {
 				pkg, total)
 			continue
 		}
-		// One model serves two products and its comment names both.
+		// Two models serve two products each, and each comment names both.
 		want := []int{got[pkg]}
-		if pkg == "mysql" {
+		switch pkg {
+		case "mysql":
 			want = []int{got["mariadb"], got["mysql"]}
+		case "cassandra":
+			want = []int{got["cassandra"], got["scylla"]}
 		}
 		for _, n := range want {
 			if !strings.Contains(doc, strconv.Itoa(n)) {

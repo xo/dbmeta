@@ -16,8 +16,8 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 88
-at the top. Read the status, because 14 of them amend or replace an earlier
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 92
+at the top. Read the status, because 16 of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
 
@@ -46,6 +46,8 @@ Then by what you are doing:
 | changing the CI workflow | D69. It reads the release list from `dbrun list --json` and names no image of its own |
 | answering a lint finding | the rule below, under Linting |
 | ignoring a build artifact | the root `.gitignore`, which is the only one. See D58 |
+| writing a document, a code comment, an error message or a commit message | the `simple-english` skill. Load it first. See below, under Writing documentation |
+| adding or updating an agent skill | `CONTRIBUTING.md`, under Agent skills, and D89 |
 
 `CONTRIBUTING.md` is the same thing for a person, and shorter.
 
@@ -512,3 +514,8 @@ Write plain English. Use short sentences and the active voice. Use `can`,
 `will`, and `must`, and do not use `should`, `may`, or `might`. Do not use
 semicolons or em dashes. Put the condition before the command: "If the query
 returns no rows, return the empty set."
+
+Load the `simple-english` skill before you write any text that a person reads:
+a document, a code comment, an error message or a commit message. Follow it
+for that text. Its rules include the ones above and add more, such as no
+contractions and one word for one meaning. Ken asked for this. See D89.

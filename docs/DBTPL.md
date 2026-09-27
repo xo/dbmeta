@@ -69,6 +69,7 @@ than from memory.
 | SQLite | 8 | `RoutineParameters`: a SQLite function has no named parameters |
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
+| ScyllaDB | 7 | the same two as Cassandra, for the same reasons |
 | Trino | 4 | `Indexes`, `IndexColumns`, `Functions`, `RoutineParameters` and `ConstraintColumns`: Trino is a query engine and has no index, no constraint of any kind, and no table valued source for its function list |
 | Presto | 3 | the same five as Trino, and `Schema`: neither `current_catalog` nor `current_schema` resolves |
 | SAP HANA | 9 | nothing |
@@ -104,6 +105,7 @@ dialect is added.
 | DuckDB | no | yes, without index columns |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |
 | Cassandra | no | partly: no current keyspace expression and no parameter names |
+| ScyllaDB | no | partly: the same as Cassandra |
 | Trino | no | **no** |
 | Presto | no | **no** |
 | SAP HANA | no | yes, all nine |

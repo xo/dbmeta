@@ -21,6 +21,14 @@
 // classpath, so the fixture creates none and the triggers query returns no
 // rows anywhere.
 //
+// # ScyllaDB builds it too
+//
+// ScyllaDB refuses three of these statements as Cassandra writes them, so
+// those steps carry a ScyllaDB form on the "scylla" version key: the keyspace
+// turns tablets off, and the two functions are written in Lua. Two steps run
+// on ScyllaDB alone and attach a service level to a role, which is what role
+// settings reads there. Cassandra skips them. See D91.
+//
 // # Dropping what may not exist
 //
 // CQL has DROP ... IF EXISTS for everything here, so the teardown is plain and
@@ -76,6 +84,12 @@ func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 				Skipped: true,
 				Reason:  "the server is older than this step needs",
 			})
+		case errors.Is(err, dbmeta.ErrNotSupported):
+			out = append(out, Result{
+				Name:    step.Name,
+				Skipped: true,
+				Reason:  "the step is for the other product",
+			})
 		case err != nil:
 			return nil, err
 		default:
@@ -89,6 +103,24 @@ func at(name, query string) Step {
 	return Step{Name: name, Stmt: dbmeta.Always(query)}
 }
 
+// scyllaKey is the version key a ScyllaDB server reports under. It is written
+// here rather than imported, because a fixture must not import the model it
+// builds a schema for.
+const scyllaKey = "scylla"
+
+// onScylla is a step that runs on ScyllaDB and is skipped on Cassandra.
+func onScylla(name, query string) Step {
+	return Step{Name: name, Stmt: dbmeta.Stmt{{{Key: scyllaKey, Query: query}}}}
+}
+
+// either is a step with one statement for Cassandra and another for ScyllaDB.
+func either(name, cassandra, scylla string) Step {
+	return Step{Name: name, Stmt: dbmeta.Stmt{{
+		{Query: cassandra},
+		{Key: scyllaKey, Query: scylla},
+	}}}
+}
+
 // Everything is a keyspace holding one of every object the Cassandra queries
 // read.
 var Everything = Fixture{
@@ -98,8 +130,18 @@ var Everything = Fixture{
 		// SimpleStrategy with one replica, because the tests run one node.
 		// A keyspace is the only namespace Cassandra has, so this is what
 		// every other fixture calls a schema.
-		at("keyspace", `CREATE KEYSPACE dbmeta_fixture WITH replication =`+
-			` {'class': 'SimpleStrategy', 'replication_factor': 1}`),
+		//
+		// ScyllaDB refuses SimpleStrategy, because it places a new keyspace
+		// on tablets and SimpleStrategy cannot place one there. Tablets are
+		// turned off too, because 2025.1 refuses a secondary index and a
+		// materialized view on a keyspace that uses them, and this keyspace
+		// needs both.
+		either("keyspace",
+			`CREATE KEYSPACE dbmeta_fixture WITH replication =`+
+				` {'class': 'SimpleStrategy', 'replication_factor': 1}`,
+			`CREATE KEYSPACE dbmeta_fixture WITH replication =`+
+				` {'class': 'NetworkTopologyStrategy', 'replication_factor': 1}`+
+				` AND tablets = {'enabled': false}`),
 
 		// A user defined type, which is the only kind of type CQL lets
 		// anybody declare. It is used by author below, so that the column
@@ -157,13 +199,24 @@ var Everything = Fixture{
 	PRIMARY KEY (title, book_id)`),
 
 		// A function and an aggregate built on it. Java is the only language
-		// left: scripted functions were removed after 4.0.
-		at("function", `CREATE FUNCTION dbmeta_fixture.plus_one(n int)
+		// left in Cassandra: scripted functions were removed after 4.0.
+		//
+		// ScyllaDB runs no Java. It takes Lua and WebAssembly, so the same
+		// two functions are written in Lua there. A Lua function called with
+		// a null argument receives nil, and the two bodies return nil for
+		// it, which is what the Java ones do for null.
+		either("function", `CREATE FUNCTION dbmeta_fixture.plus_one(n int)
 	CALLED ON NULL INPUT RETURNS int LANGUAGE java
-	AS 'return n == null ? null : n + 1;'`),
-		at("state function", `CREATE FUNCTION dbmeta_fixture.sum_state(state int, n int)
+	AS 'return n == null ? null : n + 1;'`,
+			`CREATE FUNCTION dbmeta_fixture.plus_one(n int)
+	CALLED ON NULL INPUT RETURNS int LANGUAGE lua
+	AS 'if n == nil then return nil end return n + 1'`),
+		either("state function", `CREATE FUNCTION dbmeta_fixture.sum_state(state int, n int)
 	CALLED ON NULL INPUT RETURNS int LANGUAGE java
-	AS 'return (state == null ? 0 : state) + (n == null ? 0 : n);'`),
+	AS 'return (state == null ? 0 : state) + (n == null ? 0 : n);'`,
+			`CREATE FUNCTION dbmeta_fixture.sum_state(state int, n int)
+	CALLED ON NULL INPUT RETURNS int LANGUAGE lua
+	AS 'return (state or 0) + (n or 0)'`),
 		at("aggregate", `CREATE AGGREGATE dbmeta_fixture.total(int)
 	SFUNC sum_state STYPE int INITCOND 0`),
 
@@ -174,6 +227,11 @@ var Everything = Fixture{
 		at("group role", `CREATE ROLE dbmeta_group WITH LOGIN = false`),
 		at("role grant", `GRANT dbmeta_group TO dbmeta_reader`),
 		at("permission", `GRANT SELECT ON KEYSPACE dbmeta_fixture TO dbmeta_reader`),
+
+		// A service level attached to a role, which is the attribute
+		// RoleSettings reads on ScyllaDB. Cassandra has neither.
+		onScylla("service level", `CREATE SERVICE LEVEL dbmeta_level WITH timeout = 5s`),
+		onScylla("role attribute", `ATTACH SERVICE LEVEL dbmeta_level TO dbmeta_reader`),
 
 		// Rows, so that a query reading data rather than catalog has
 		// something, and so that the column statistics a cluster keeps are
@@ -194,5 +252,8 @@ var Everything = Fixture{
 		at("keyspace", `DROP KEYSPACE IF EXISTS dbmeta_fixture`),
 		at("role", `DROP ROLE IF EXISTS dbmeta_reader`),
 		at("group role", `DROP ROLE IF EXISTS dbmeta_group`),
+		// Dropping the role takes its attribute with it, and the service
+		// level goes last, once nothing is attached to it.
+		onScylla("service level", `DROP SERVICE LEVEL IF EXISTS dbmeta_level`),
 	},
 }

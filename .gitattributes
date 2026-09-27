@@ -1,0 +1,9 @@
+# Every text file is LF on every checkout, including a checkout on Windows.
+#
+# Git for Windows writes CRLF by default. Three kinds of file here must keep
+# the same bytes on every machine. The golden files in test/testdata are read
+# line by line, and a section header that ends in CR is not a header. The
+# Containerfile that dbrun embeds goes to a Linux build. The two .bat files
+# that dbrun embeds go to a Windows machine, and every Windows machine here
+# was provisioned with them as LF, so LF is the tested form. See D89.
+* text=auto eol=lf

@@ -42,6 +42,13 @@
 //	versions, err := dbmeta.Postgres.ParseVersion(cols)
 //	m, err := dbmeta.New(dbmeta.Postgres, versions)
 //
+// One dialect can need a second statement. [Dialect.FollowUpQuery] says
+// whether it does for the server the first one found, and
+// [Dialect.ParseFollowUp] reads its columns. [Dialect.Version] runs both. A
+// caller that runs the statements itself asks for the follow-up after every
+// first statement, because the answer depends on the server and not on the
+// dialect alone. See D92.
+//
 // The version can be anything the caller chooses. Overriding it matters for a
 // proxy that hides the server, for a product that reports a version it does
 // not behave like, and for a generator with no server at all.

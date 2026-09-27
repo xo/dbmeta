@@ -41,6 +41,12 @@ import (
 // one product here that does not use [Password], because the password is not
 // ours to choose at startup.
 //
+// # ScyllaDB
+//
+// Cassandra is the reference product for the cql dialect, and ScyllaDB is the
+// flavor. [Scylla] holds its releases, and models/cassandra reads both. See
+// D91.
+//
 // # Memory
 //
 // Cassandra sizes its heap from the memory it can see, and on a machine with

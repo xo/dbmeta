@@ -11,7 +11,7 @@ import (
 	_ "github.com/MichaelS11/go-cql-driver"
 
 	"github.com/xo/dbmeta"
-	_ "github.com/xo/dbmeta/models/cassandra"
+	"github.com/xo/dbmeta/models/cassandra"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 )
 
@@ -389,4 +389,80 @@ func TestCassandraFixtureObjects(t *testing.T) {
 		}
 		return n, nil
 	})
+	// A service level attached to a role exists on ScyllaDB alone, and
+	// TestScyllaIsItsOwnProduct checks what Cassandra says instead.
+	if m.Version().Has(cassandra.Scylla) {
+		count("role settings", func() (int, error) {
+			n := 0
+			for v, err := range dbmeta.RoleSettings.All(ctx, m, db, nil) {
+				if err != nil {
+					return 0, err
+				}
+				if v.Role == "dbmeta_reader" && v.Settings.V == "service_level=dbmeta_level" {
+					n++
+				}
+			}
+			return n, nil
+		})
+	}
+}
+
+// TestScyllaIsItsOwnProduct checks what the model makes of the product it is
+// connected to. ScyllaDB and Cassandra share the cql dialect, and the version
+// row is the only place the two are told apart, so a wrong answer there sends
+// every ScyllaDB fragment to the wrong server. See D91.
+func TestScyllaIsItsOwnProduct(t *testing.T) {
+	db := openCassandra(t)
+	versions, err := dbmeta.Cassandra.Version(t.Context(), db)
+	if err != nil {
+		t.Fatalf("reading the version: %v", err)
+	}
+	m, err := dbmeta.New(dbmeta.Cassandra, versions)
+	if err != nil {
+		t.Fatalf("building the metadata: %v", err)
+	}
+	scylla := versions.Has(cassandra.Scylla)
+	display := versions.String()
+	if got := strings.HasPrefix(display, "ScyllaDB"); got != scylla {
+		t.Errorf("the scylla key is %v and the display line is %q", scylla, display)
+	}
+	// RoleSettings has a source on ScyllaDB and none on Cassandra.
+	want := dbmeta.NotSupported
+	if scylla {
+		want = dbmeta.Supported
+	}
+	if got := dbmeta.RoleSettings.Support(m); got != want {
+		t.Errorf("RoleSettings on %s: got %v, want %v", display, got, want)
+	}
+	if !scylla {
+		return
+	}
+	// The administrator reads the ScyllaDB release from system.versions.
+	if rel := versions.Get(cassandra.Scylla); rel.Unknown || rel.Parts[0] < 2025 {
+		t.Errorf("expected a ScyllaDB release of 2025 or newer, got %s", rel)
+	}
+	// A role granted nothing is refused system.versions and served
+	// system.local, so it learns the product and not the release.
+	exec(t, db, `CREATE ROLE IF NOT EXISTS dbmeta_nobody WITH PASSWORD = '`+
+		parityPassword+`' AND LOGIN = true`)
+	t.Cleanup(func() { cleanup(t, db, `DROP ROLE IF EXISTS dbmeta_nobody`) })
+	nobody := openAt(t, "cql", cqlUser(t, os.Getenv("DBMETA_CQL"), "dbmeta_nobody", parityPassword))
+	theirs, err := dbmeta.Cassandra.Version(t.Context(), nobody)
+	if err != nil {
+		t.Fatalf("reading the version as a role granted nothing: %v", err)
+	}
+	if !theirs.Has(cassandra.Scylla) || !theirs.Get(cassandra.Scylla).Unknown {
+		t.Errorf("a role granted nothing: expected ScyllaDB with no release, got %s", theirs)
+	}
+	// ScyllaDB records a type for every setting, so the field that is
+	// padded on Cassandra has a value here.
+	for v, err := range dbmeta.Settings.All(t.Context(), m, db, nil) {
+		if err != nil {
+			t.Fatalf("reading settings: %v", err)
+		}
+		if !v.Type.Valid {
+			t.Errorf("setting %s has no type", v.Name)
+		}
+	}
+	t.Logf("server reports %s", display)
 }

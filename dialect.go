@@ -129,6 +129,19 @@ type Info struct {
 	// ParseVersion turns the columns of the first row into a version set and a
 	// display line.
 	ParseVersion func(cols []string) (VersionSet, error)
+	// FollowUpQuery returns a second version statement, and how many columns
+	// it returns, when what the first one found calls for it. It returns an
+	// empty statement when none is needed. Nil for every dialect but cql.
+	//
+	// It exists because two products share the cql dialect and only one
+	// table both have. ScyllaDB reports the Cassandra release it keeps
+	// compatible with in system.local, and keeps its own release in
+	// system.versions, which Cassandra does not have. The first statement
+	// finds ScyllaDB and this one reads its release. See D92.
+	FollowUpQuery func(s VersionSet) (query string, cols int)
+	// ParseFollowUp adds the columns of the follow-up row to the set the
+	// first statement produced.
+	ParseFollowUp func(s VersionSet, cols []string) (VersionSet, error)
 
 	// QuotingQuery reads the session state that decides how a string literal is
 	// escaped. Empty when the product has no such state. See D56.
@@ -223,10 +236,38 @@ func (d Dialect) ParseVersion(cols []string) (VersionSet, error) {
 	return info.ParseVersion(cols)
 }
 
+// FollowUpQuery returns the second version statement for s, the set that
+// [Dialect.ParseVersion] returned, and how many columns it returns.
+//
+// The caller runs it after the first statement and passes its columns to
+// [Dialect.ParseFollowUp]. The third result is false when the dialect needs no
+// second statement for this server, which is every dialect but cql, and cql
+// on Cassandra. See D92.
+func (d Dialect) FollowUpQuery(s VersionSet) (query string, cols int, ok bool) {
+	info, found := d.Info()
+	if !found || info.FollowUpQuery == nil {
+		return "", 0, false
+	}
+	query, cols = info.FollowUpQuery(s)
+	return query, cols, query != ""
+}
+
+// ParseFollowUp adds the columns returned by [Dialect.FollowUpQuery] to s.
+func (d Dialect) ParseFollowUp(s VersionSet, cols []string) (VersionSet, error) {
+	info, ok := d.Info()
+	if !ok {
+		return VersionSet{}, ErrModelNotBuilt
+	}
+	if info.ParseFollowUp == nil {
+		return s, nil
+	}
+	return info.ParseFollowUp(s, cols)
+}
+
 // Version runs the version statement against db and returns the parsed
 // result.
 //
-// It is the two steps above done together, because every caller needs both and
+// It is the steps above done together, because every caller needs both and
 // doing them by hand means building a slice of pointers into a slice of
 // strings. A caller that wants the statement without running it, to print it
 // or to run it its own way, uses [Dialect.VersionQuery] and
@@ -251,7 +292,29 @@ func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
 	if err != nil {
 		return VersionSet{}, err
 	}
-	return d.ParseVersion(cols)
+	s, err := d.ParseVersion(cols)
+	if err != nil {
+		return VersionSet{}, err
+	}
+	query, n, ok = d.FollowUpQuery(s)
+	if !ok {
+		return s, nil
+	}
+	// The follow-up refines what the first statement found, and the server
+	// can refuse it to a principal that the first statement served.
+	// ScyllaDB refuses system.versions to a role granted nothing on it and
+	// serves system.local to the same role. So a refusal leaves the set as
+	// the first statement read it, which still names the product. Only a
+	// cancelled context is an error, because then nothing that follows can
+	// run either.
+	cols, err = readRow(ctx, db, d, query, n)
+	switch {
+	case err == nil:
+		return d.ParseFollowUp(s, cols)
+	case ctx.Err() != nil:
+		return VersionSet{}, fmt.Errorf("reading from %s: %w", d, ctx.Err())
+	}
+	return s, nil
 }
 
 // readRow runs a statement that returns one row of n columns and hands back

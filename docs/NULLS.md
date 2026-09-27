@@ -142,6 +142,13 @@ on a database that has no defaults. A real catalog column that is null is not
 rescued by this and cannot be with that driver, and `docs/COVERAGE.md` says so
 rather than pretending otherwise. See D62.
 
+ScyllaDB goes through the same driver and adds one more limit. It accepts no
+literal in a select list, not even `(text)NULL`, so a padded column cannot be
+selected as NULL at all. The ScyllaDB fragment selects a real column of the
+same table in its place, and Scan discards it on both products, the same way
+it discards a padded column on Cassandra. The field keeps its invalid Null.
+See D91.
+
 The lesson generalises. Before trusting a padded NULL, check what the driver
 does with one, not only what the database does. The two are different
 questions and only the second is in the manual.

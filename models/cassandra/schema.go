@@ -10,10 +10,10 @@ func registerSchema() {
 	// \dn. A keyspace is Cassandra's namespace and the only one it has.
 	dbmeta.Schemas.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT (text)'' AS "catalog"`),
+			fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 			always(`, keyspace_name AS "name"`),
-			always(`, (text)'' AS "owner"`),
-			always(`, (text)NULL AS "comment"`),
+			fixed(", ", `(text)''`, "keyspace_name", "owner"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.keyspaces`),
 		},
 		Fields: []dbmeta.Field{
@@ -30,7 +30,7 @@ func registerSchema() {
 		Params: filters("keyspace"),
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var v dbmeta.Schema
-			err := rows.Scan(&v.Catalog, &v.Name, &v.Owner, pad{})
+			err := rows.Scan(pad{}, &v.Name, pad{}, pad{})
 			return v, err
 		},
 	})
@@ -43,10 +43,10 @@ func registerSchema() {
 	// model, where one query answers both.
 	dbmeta.Tables.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT (text)'' AS "catalog"`),
+			fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 			always(`, keyspace_name AS "schema"`),
 			always(`, table_name AS "name"`),
-			always(`, (text)'table' AS "type"`),
+			fixed(", ", `(text)'table'`, "keyspace_name", "type"),
 			always(`, comment`),
 			always(`FROM system_schema.tables`),
 		},
@@ -63,7 +63,8 @@ func registerSchema() {
 		Params: filters("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(pad{}, &v.Schema, &v.Name, pad{}, &v.Comment)
+			v.Type = "table"
 			return v, err
 		},
 	})
@@ -77,18 +78,18 @@ func registerSchema() {
 	// cannot be null. Scan does the mapping. See D62.
 	dbmeta.Columns.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Column]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT (text)'' AS "catalog"`),
+			fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 			always(`, keyspace_name AS "schema"`),
 			always(`, table_name AS "table"`),
 			always(`, column_name AS "name"`),
 			always(`, position AS "ordinal"`),
 			always(`, type AS "data_type"`),
 			always(`, kind AS "nullable"`),
-			always(`, (text)NULL AS "default"`),
+			fixed(", ", `(text)NULL`, "keyspace_name", "default"),
 			always(`, kind AS "primary_key"`),
-			always(`, (text)NULL AS "identity"`),
-			always(`, (text)NULL AS "generated"`),
-			always(`, (text)NULL AS "comment"`),
+			fixed(", ", `(text)NULL`, "keyspace_name", "identity"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "generated"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.columns`),
 		},
 		Fields: []dbmeta.Field{
@@ -124,7 +125,7 @@ func registerSchema() {
 				v                 dbmeta.Column
 				nullKind, keyKind string
 			)
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
+			err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &nullKind, pad{}, &keyKind, pad{},
 				pad{}, pad{})
 			v.Nullable = !isKey(nullKind)
@@ -136,13 +137,13 @@ func registerSchema() {
 	// \dm. A materialized view is Cassandra's only view.
 	dbmeta.Views.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.View]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT (text)'' AS "catalog"`),
+			fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 			always(`, keyspace_name AS "schema"`),
 			always(`, view_name AS "name"`),
 			always(`, where_clause AS "definition"`),
-			always(`, (text)NULL AS "check_option"`),
-			always(`, (boolean)false AS "updatable"`),
-			always(`, (boolean)false AS "insertable"`),
+			fixed(", ", `(text)NULL`, "keyspace_name", "check_option"),
+			fixed(", ", `(boolean)false`, "keyspace_name", "updatable"),
+			fixed(", ", `(boolean)false`, "keyspace_name", "insertable"),
 			always(`, comment`),
 			always(`FROM system_schema.views`),
 		},
@@ -166,8 +167,8 @@ func registerSchema() {
 		Params: filters("view"),
 		Scan: func(rows *sql.Rows) (dbmeta.View, error) {
 			var v dbmeta.View
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Definition,
-				pad{}, &v.Updatable, &v.Insertable, &v.Comment)
+			err := rows.Scan(pad{}, &v.Schema, &v.Name, &v.Definition,
+				pad{}, pad{}, pad{}, &v.Comment)
 			return v, err
 		},
 	})

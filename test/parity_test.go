@@ -465,8 +465,12 @@ func TestPrivilegeParity(t *testing.T) {
 //
 // Only these are looked up. Cassandra records a version under cql and another
 // under protocol, and neither is a product: reading any key here would file
-// its answers under cql.
-var parityFlavors = map[dbmeta.Dialect][]string{dbmeta.MySQL: {"mariadb", "mysql"}}
+// its answers under cql. ScyllaDB is a product, so its key is listed, and a
+// Cassandra server, which reports no such key, stays under cql.
+var parityFlavors = map[dbmeta.Dialect][]string{
+	dbmeta.MySQL:     {"mariadb", "mysql"},
+	dbmeta.Cassandra: {"scylla"},
+}
 
 // parityRelease picks the section this server is recorded under.
 //
@@ -494,11 +498,17 @@ var parityFlavors = map[dbmeta.Dialect][]string{dbmeta.MySQL: {"mariadb", "mysql
 // The major alone is the key. A product whose answers differ between two
 // releases of one major would need more, and none here does.
 func parityRelease(base string, m *dbmeta.Meta, want map[string][]string) string {
+	product, rest, _ := strings.Cut(base, "/")
+	// A flavor's release is under its own key, and the main version can be
+	// another product's number. ScyllaDB reports Cassandra 3.0.8 as its main
+	// version, so a section for ScyllaDB 2026 is found by the scylla key.
 	main := m.Version().Main()
+	if m.Version().Has(product) {
+		main = m.Version().Get(product)
+	}
 	if main.Unknown || len(main.Parts) == 0 {
 		return base
 	}
-	product, rest, _ := strings.Cut(base, "/")
 	// The major alone is not always a release line. ClickHouse versions by
 	// calendar, so 25.3 and 25.8 are both "25" and they do not answer the
 	// same: the privilege check on system.named_collections arrived between

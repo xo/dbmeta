@@ -34,7 +34,7 @@ rather than reading one.
 | `models/duckdb` | 20 | 55 | duckdb/duckdb-go, the driver usql uses |
 | `models/sqlserver` | 32 | 55 | SQL Server 2017, 2019, 2022 and 2025 |
 | `models/oracle` | 25 | 55 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
-| `models/cassandra` | 17 | 55 | Cassandra 3.11, 4.0, 4.1 and 5.0 |
+| `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 55 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
 | `models/clickhouse` | 23 | 55 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
 | `models/trino` | 13 | 55 | Trino 476 and 483 |
 | `models/presto` | 9 | 55 | Presto 0.299 |
@@ -484,6 +484,124 @@ thing from the per column distribution `psql` prints.
 `PartitionedTables` is a stretch and is left unsupported under the D43 rule.
 Every Cassandra table is partitioned, so a list of the partitioned ones is a
 list of all of them and says nothing.
+
+## ScyllaDB
+
+ScyllaDB answers 18 of the 55, verified against 2025.1.15, 2026.1, 2026.2 and
+2026.3.1. It is a second product that speaks CQL, and `models/cassandra` reads
+it. Cassandra is the reference product and ScyllaDB is the flavor, the way
+MariaDB and MySQL share `models/mysql`. D91 is the decision.
+
+### How the model knows which product it has
+
+ScyllaDB puts a `supported_features` column in `system.local`, and Cassandra
+has no such column. The version query reads the whole row as one JSON text,
+with `SELECT JSON *`, because CQL refuses a statement that names a column the
+table does not have. A row with that column is ScyllaDB, and the model records
+the `scylla` version key.
+
+Its `release_version` is 3.0.8 on every release measured. That is the
+Cassandra release that ScyllaDB keeps compatible with, not its own release,
+and it stays the main version, because it describes the catalog that ScyllaDB
+offers. The ScyllaDB release is in `system.versions`, which Cassandra does not have,
+so a second statement reads it, and only on ScyllaDB. D92 is the decision. A
+role granted nothing is refused `system.versions` and served `system.local`,
+so it learns that it is talking to ScyllaDB and not which release. The
+version read does not fail for it.
+
+### What differs from Cassandra
+
+ScyllaDB keeps `system_schema` as Cassandra 3.0 laid it out, so most queries
+need nothing. Four things differ, and each one is a fragment on the `scylla`
+key:
+
+1. Roles, role grants and permissions are in `system.roles`,
+   `system.role_members` and `system.role_permissions`, with the columns that
+   Cassandra has in `system_auth`. `system_auth.roles` is refused as an
+   unconfigured table on both 2025.1 and 2026.3.
+2. Settings are in `system.config`, which also records a type for each
+   setting and where its value came from. The value arrives as JSON, so a text
+   value is in double quotes. The `system_views` gate at Cassandra 4.0 does
+   not reach ScyllaDB, because its main version is 3.0.8, so the ScyllaDB
+   fragment is the one that answers.
+3. No literal is allowed in a select list. 2025.1 refuses `(text)NULL`,
+   `(boolean)false` and `CAST(false AS boolean)` as syntax errors. 2026.3
+   takes the cast and still refuses every NULL. So where the Cassandra
+   statement selects a literal, the ScyllaDB fragment selects a real column of
+   the same table under the same name, and Scan discards that column on both
+   products and sets the known value itself.
+4. `RoleSettings` has a source. `system.role_attributes` holds a value set on
+   a role, and `ATTACH SERVICE LEVEL` is what sets one. It gives the role's
+   sessions the timeout and the share of the server that the service level
+   names, which is the ScyllaDB form of `ALTER ROLE ... SET`. The row is per
+   attribute, because CQL cannot group.
+
+### A secondary index is also a view
+
+ScyllaDB builds a secondary index as a materialized view. `Views` returns the
+view that backs the fixture's index, `book_author_index`, beside the view the
+fixture creates, so it reports two rows where Cassandra reports one. The
+catalog holds the row, and hard rule 13 says to return it. A consumer can tell
+the two apart with `Indexes`, which names the index.
+
+### The container needs its settings as arguments
+
+The published image `docker.io/scylladb/scylla` passes every argument that its
+entrypoint does not know to `scylla` itself, so nothing is built. The
+arguments turn on `PasswordAuthenticator`, `CassandraAuthorizer` and user
+defined functions, and hold the server to one shard and one gigabyte.
+
+2026.3 does not create the `cassandra` role that Cassandra creates. So the
+superuser is named at startup with `--auth-superuser-name` and a salted
+password, which 2025.1 also takes. The pair is `cassandra` and `cassandra`,
+the same as the reference product, so one set of test helpers logs in to both.
+The entrypoint writes the arguments into a file that a shell reads, so each
+dollar sign in the salted password is escaped once.
+
+### What the fixture does differently
+
+Three steps have a ScyllaDB form, and two steps run on ScyllaDB alone:
+
+1. The keyspace uses `NetworkTopologyStrategy` and turns tablets off.
+   ScyllaDB refuses `SimpleStrategy`, because it places a new keyspace on
+   tablets, and 2025.1 refuses a secondary index and a materialized view on a
+   keyspace that uses tablets.
+2. The two functions are written in Lua. ScyllaDB runs no Java, and it takes
+   Lua and WebAssembly behind an experimental flag.
+3. A service level is created and attached to `dbmeta_reader`, so that
+   `RoleSettings` has a row. The teardown drops it last.
+
+Twenty one steps run on ScyllaDB and none is skipped. Cassandra runs nineteen
+and skips the two service level steps.
+
+### What a second opinion found
+
+Gemini and DeepSeek were both asked to sort the 38 unanswered kinds. Both
+called 35 of them absent and named three leads. None of the three is a
+source:
+
+| Lead | What the server says |
+| --- | --- |
+| `Databases` from `system_schema.keyspaces` | a keyspace is already what `Schemas` returns, and one object cannot be both |
+| `Languages` from `SELECT DISTINCT language FROM system_schema.functions`, from DeepSeek | refused: `SELECT DISTINCT` works only on partition key columns |
+| `RoutineParameters` from `argument_names` and `argument_types` | they are two lists on the function's own row, and CQL cannot unnest a list into one row per parameter, the same as on Cassandra |
+
+`RoleSettings` from `system.role_attributes` was found here rather than
+offered, while reading the tables that the system keyspace holds.
+
+### What the conformance test says
+
+ScyllaDB gives the canonical answer that Cassandra gives, line for line, under
+`[cassandra]` in `test/testdata/conformance.txt`. The flavor agrees with the
+reference product on everything the projection reads.
+
+### Which answers depend on who is asking
+
+A role granted every permission on the fixture keyspace is refused the same
+four queries as on Cassandra, from the `system` tables rather than from
+`system_auth` and `system_views`, and is refused `RoleSettings` as well. All
+four releases give the same answer, under `[scylla/same/grantee]` in
+`test/testdata/parity.txt`.
 
 ## ClickHouse
 
@@ -1729,6 +1847,7 @@ that varies is what kind of principal they are.
 | PostgreSQL 18 | schema owner | `settings`, `tablespaces` |
 | PostgreSQL 18 | grantee | `settings`, `tablespaces` |
 | Cassandra 5.0 | granted role | `privileges`, `role_grants`, `roles`, `settings` |
+| ScyllaDB 2025.1, 2026.1, 2026.2, 2026.3 | granted role | the same as Cassandra, plus `role_settings` |
 | ClickHouse 26.9 | granted user | `constraints`, `databases`, `foreign_servers`, `index_columns`, `indexes`, `privileges`, `role_grants`, `roles`, `tablespaces` |
 | MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |

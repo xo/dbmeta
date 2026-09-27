@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 14 of them amend or replace an earlier
+Read the status before the decision. 16 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -130,7 +130,7 @@ records the argument.
 | [D63](#d63-support-says-when-a-release-is-too-old-amends-d54) | Support says when a release is too old | Amends D54 |
 | [D64](#d64-the-verified-tier-is-checked-against-the-document-decided) | The Verified tier is checked against the document | Decided |
 | [D65](#d65-a-windows-machine-rearms-its-evaluation-before-it-expires-decided) | A Windows machine rearms its evaluation before it expires | Decided |
-| [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67-d77-and-d88) | The order the remaining dialects are written in | Amended by D67, D77 and D88 |
+| [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67-d77-d88-and-d91) | The order the remaining dialects are written in | Amended by D67, D77, D88 and D91 |
 | [D67](#d67-impala-cannot-be-a-dbmeta-model-and-clickhouse-goes-first-amends-d66) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
 | [D68](#d68-every-container-is-started-by-the-runner-and-named-product-release-amended-by-d70) | Every container is started by the runner and named product-release | Amended by D70 |
 | [D69](#d69-the-workflow-builds-its-matrix-from-the-go-list-amends-d42) | The workflow builds its matrix from the Go list | Amends D42 |
@@ -153,6 +153,10 @@ records the argument.
 | [D86](#d86-a-machine-is-one-list-with-a-spec-for-how-it-is-built-decided) | A machine is one list, with a spec for how it is built | Decided |
 | [D87](#d87-exasol-is-a-model-read-from-the-exa_all-views-decided) | Exasol is a model, read from the EXA_ALL views | Decided |
 | [D88](#d88-vertica-is-a-model-on-four-community-images-amends-d66) | Vertica is a model, on four community images | Amends D66 |
+| [D89](#d89-agent-skills-are-committed-as-copies-and-one-command-installs-them-decided) | Agent skills are committed as copies, and one command installs them | Decided |
+| [D90](#d90-a-database-qualifies-when-it-is-free-to-run-for-development-and-testing-decided) | A database qualifies when it is free to run for development and testing | Decided |
+| [D91](#d91-scylladb-is-a-flavor-of-the-cassandra-model-amends-d66-amended-by-d92) | ScyllaDB is a flavor of the Cassandra model | Amends D66, amended by D92 |
+| [D92](#d92-a-second-version-statement-reads-the-scylladb-release-amends-d91) | A second version statement reads the ScyllaDB release | Amends D91 |
 
 ## Decisions
 
@@ -4371,7 +4375,7 @@ is rebuilt, which is about an hour, or the release drops to Archived under D40
 and nothing is claimed for it. Neither is automatic, because both are a
 person's decision about how much a pre-2017 SQL Server is worth.
 
-### D66. The order the remaining dialects are written in. Amended by D67, D77 and D88.
+### D66. The order the remaining dialects are written in. Amended by D67, D77, D88 and D91.
 
 Impala first, then ClickHouse, then the products that run in a container,
 then the ones that need an account. A product that cannot be started cannot be
@@ -4504,6 +4508,10 @@ written, and `exasol/docker-db` two weeks before. Firebird is next.
 Below those and worth a model only if somebody asks: Couchbase, Ignite,
 VoltDB, YDB and Databend. Each runs the real engine in an image and none of
 them is shaped much like the 55.
+
+ScyllaDB was not on this list, and Ken asked for it on 2026-09-27. It is a
+flavor of the Cassandra model rather than a model of its own, so it took no
+place in the order. D91 is the decision.
 
 Avatica is not on the list at all. It is a wire protocol in front of whatever
 database somebody put behind it, so it has no catalog of its own to read.
@@ -6885,6 +6893,258 @@ the current password. The password is a string literal, so it reads
 driver concatenated the password with no escaping at all, so this is a move
 that fixes something, the same as D56's. Every hostile password logs in on
 7.2 and 25.1 under both settings.
+
+### D89. Agent skills are committed as copies, and one command installs them. Decided.
+
+The repository carries two agent skills. A skill is a set of instructions that
+a coding agent loads for a task. `simple-english` sets how prose is written,
+and `go-pedantry` sets how Go is written. Commit 28ccdaa added both, with
+`skills-lock.json`. Three facts about them were not written down: where they
+come from, how a person updates them, and what a Windows checkout does with
+them. Ken decided all three on 2026-09-27.
+
+#### Where they come from
+
+`skills-lock.json` names the source of each skill. The `skills` command from
+npm writes that file, and version 1.7.0 is the one measured here. It writes
+each skill into two folders. Codex and the other agents read
+`.agents/skills/<name>`, and Claude Code reads `.claude/skills/<name>`.
+`CONTRIBUTING.md` holds the command, under Agent skills.
+
+The command was run in an empty repository, once for each skill, with
+`--agent codex claude-code --copy -y`. The result was the same `.agents`
+folder and the same `skills-lock.json` that this repository holds, byte for
+byte. `npx skills experimental_install` restores the skills from the lock
+file, but it writes only `.agents/skills`. That is why the document names
+`add` and not the restore command.
+
+#### A Windows checkout gets folders, not links
+
+Until this decision, `.claude/skills/<name>` was a symbolic link to
+`.agents/skills/<name>`. The `skills` command writes a link by default. Git
+writes a symbolic link as a small text file that holds the target path when
+`core.symlinks` is off, and it is off by default on Windows. Claude Code then
+finds a file where it expects a folder. It loads no skill and it reports
+nothing.
+
+Both copies are now ordinary folders, and the command takes `--copy` so that
+it writes them that way. Two copies can drift apart. `TestSkillsAreCopies`
+in the root module stops that. It fails on a link, on a copy that is missing,
+on two copies that differ, and on a skill folder that the lock file does not
+name.
+
+The alternative was to keep the links and to tell each Windows developer to
+turn on `core.symlinks`, which needs Developer Mode or an administrator. Ken
+wanted the repository to handle it. A folder works on every checkout with no
+setting.
+
+#### Line endings
+
+A Windows checkout changes one more thing. Git for Windows writes CRLF by
+default, and some files here must keep the same bytes on every machine.
+`.gitattributes` makes every text file LF on every checkout. Three kinds of
+file need it:
+
+1. The golden files in `test/testdata`. The reader splits them at LF, so a
+   section header that ends in CR is not a header and the test stops.
+2. The Containerfile that `dbrun` embeds. It goes to a Linux build.
+3. The two `.bat` files that `dbrun` embeds. They go to a Windows machine,
+   and every Windows machine here was provisioned with them as LF. LF is the
+   tested form, so they stay LF.
+
+Every file in the index was LF already, so the rule changed no file.
+`.gitattributes` is not an ignore file, so D58 still holds: there is one
+`.gitignore`.
+
+#### The file that belongs to one person
+
+`.claude/settings.local.json` holds the Claude Code permissions of one
+person. The root `.gitignore` now ignores it. The shared
+`.claude/settings.json` is not ignored, because a setting that belongs to the
+project is committed.
+
+#### Which skill is for what
+
+Ken asked that `simple-english` apply to every text a person reads: a
+document, a code comment, an error message and a commit message. `CLAUDE.md`
+tells an agent to load it first. Its rules include the ones `CLAUDE.md`
+already had, which are short sentences, the active voice, `can`, `will` and
+`must`, no semicolons, no em dashes, and the condition before the command. It
+adds more, such as no contractions and one word for one meaning.
+
+### D90. A database qualifies when it is free to run for development and testing. Decided.
+
+Ken decided on 2026-09-27 that a database qualifies for `dbmeta` when a
+person can get it and run it for development and testing without paying. An
+open source license is not the test. A source available release, an
+evaluation edition, a developer edition and a free community edition all
+qualify.
+
+No document said that a database must be open source. The question came up
+because ScyllaDB stopped its open source edition after 6.2, and its releases
+from 2025.1 are source available with a free tier. That was read as a reason
+to stop at 6.2, and Ken said that the reading was too strict. The project
+already worked the other way. SQL Server runs as the Developer and
+evaluation editions, Oracle as Free and XE, SAP HANA as the express edition,
+Exasol as the Community Edition, Vertica as the community edition, and Db2 as
+the Community image. None of them is open source in the way that PostgreSQL
+and MariaDB are.
+
+Two things follow. If a release needs an account, a signup or an accepted
+license, its decision records that, as D85 does for the Exasol signup and D76
+does for the SAP license. A release that nobody can run without paying cannot
+be tested, so step 2 of `EVALUATION.md` decides against it, and this decision
+changes nothing there. `EVALUATION.md` holds the rule under Which databases
+qualify.
+
+### D91. ScyllaDB is a flavor of the Cassandra model. Amends D66, amended by D92.
+
+Ken asked on 2026-09-27 for ScyllaDB to be tested against the `cql` dialect.
+`models/cassandra` now reads it. Cassandra is the reference product and
+ScyllaDB is the flavor, the way MariaDB and MySQL share `models/mysql`. It
+answers 18 of the 55 on ScyllaDB and 17 on Cassandra. D66 did not list it,
+and it took no place in that order, because it is not a new model.
+
+#### Why a flavor and not a model
+
+ScyllaDB keeps `system_schema` as Cassandra 3.0 laid it out, and the driver is
+the same. dburl reads `scylla` and `scy` as aliases of the `cql` scheme, so a
+consumer already reaches this dialect with no change, which is what hard rule
+1 asks. Of the 17 queries Cassandra answers, 13 read the same tables on
+ScyllaDB. A second model copies those 13, and two copies drift apart.
+
+#### The releases
+
+`docker.io/scylladb/scylla` is the vendor's own image. Step 2 of
+`EVALUATION.md` gives 2025.1 to 2026.3: 2025.1 was rebuilt on 2026-09-01 and
+2026.3 on 2026-09-13, and 2025.2 to 2025.4 are no longer rebuilt. 2025.1 and
+2026.3 are Tested, and 2026.1 and 2026.2 are Nightly. 6.2 was the last open
+source release, and releases from 2025.1 are source available with a free
+tier. D90 says that qualifies. The image is not pinned by digest, because the
+vendor rebuilds each tag with its point releases, the same as the other
+vendor images here.
+
+#### How the model finds ScyllaDB
+
+A fragment for ScyllaDB gates on the `scylla` key, which hard rule 3
+requires. The key has to come from the one version statement, and that
+statement has to run on both products.
+
+The three columns Cassandra's query read cannot tell the two apart.
+ScyllaDB's `release_version` is 3.0.8 on every release measured, and 3.0.8 is
+also a real Cassandra release. The version query is now `SELECT JSON * FROM
+system.local`. It names no column, so it runs on both products, and a row
+with the `supported_features` column is ScyllaDB. The main version stays the
+Cassandra release that the row reports, because that is the catalog the
+server offers.
+
+The ScyllaDB release is in `system.versions`, and Cassandra has no such table.
+No statement that runs on both products can read it, so the `scylla` key is
+an unknown version. A gate can say "ScyllaDB" and cannot say "ScyllaDB 2026.1
+or newer". No query needs that today: all four releases answer every query
+the same way. The open question at the end of this file asks what to do when
+one does.
+
+`usql` reads the three columns and prints "Cassandra 3.0.8" for a ScyllaDB
+server, which names the wrong product. `docs/USQL.md` records it.
+
+#### No literal in a select list
+
+ScyllaDB refuses every literal in a select list. 2025.1 refuses `(text)NULL`,
+`(boolean)false` and `CAST(false AS boolean)` as syntax errors, and 2026.3
+refuses every NULL. The Cassandra model padded about 70 columns that way.
+
+Each padded or fixed column is now a fragment pair. Cassandra selects the
+literal, so that its statement still says what the field holds. ScyllaDB
+selects a real column of the same table under the same name. Scan discards the
+column on both products and sets the known value itself. One Scan reads both,
+and hard rule 3 holds, because both statements return the same columns.
+
+The alternative was a Scan that knows which product it reads. Scan receives
+only the rows, so it cannot know. Setting a known value in Go is also what
+`NULLS.md` asks of this driver already, because the driver cannot report a
+null.
+
+#### RoleSettings from a service level
+
+`system.role_attributes` holds a value set on a role, and `ATTACH SERVICE
+LEVEL` is what sets one. A service level gives a role's sessions a timeout and
+a share of the server, so the attribute is per role configuration of the same
+kind as `ALTER ROLE ... SET`. D88 accepted Vertica's per user parameters as
+role settings on the same argument. The row is per attribute, because CQL
+cannot group, and Cassandra reports that it cannot answer.
+
+#### The superuser
+
+2026.3 creates no default superuser. The container names one at startup with
+`--auth-superuser-name` and a salted password, `cassandra` and `cassandra`,
+the same pair that Cassandra creates, so that the test helpers log in to both
+products. The image's entrypoint writes its arguments into a file that a shell
+reads, and the shell expanded each dollar sign in the hash. So the hash is
+written with each dollar sign escaped once.
+
+#### What a second opinion found
+
+Gemini and DeepSeek agreed that 35 of the 38 unanswered kinds are absent, and
+named three leads, which were `Databases`, `Languages` and
+`RoutineParameters`. None of them is a source, and `COVERAGE.md` says why for
+each. `RoleSettings` was found here, while reading the tables in the system
+keyspace.
+
+### D92. A second version statement reads the ScyllaDB release. Amends D91.
+
+D91 found ScyllaDB from `system.local` and did not read its release, which is
+only in `system.versions`. It left that as an open question, and Ken
+answered it on 2026-09-27: read the release with a second statement.
+
+#### What changed in the API
+
+`Info` has two new fields, `FollowUpQuery` and `ParseFollowUp`, and `Dialect`
+has two methods with the same names. `FollowUpQuery` takes the set that the
+first statement produced and returns a second statement, or none.
+`ParseFollowUp` adds what that statement read. `Dialect.Version` runs both.
+The cql model is the only one that sets them, and it asks the follow-up only
+of a server that the first statement found to be ScyllaDB. Cassandra runs one
+statement, as before.
+
+A caller that runs the statements itself, as `usql` does, now asks for the
+follow-up after the first statement. The answer depends on the server, so the
+caller cannot decide it from the dialect alone. D38 already made the version
+statements something a consumer runs and `dbmeta` does not.
+
+The ScyllaDB release, such as 2026.3.1, is recorded under the `scylla` key,
+and the display line names it. The main version stays the Cassandra release
+from `system.local`. A fragment for one ScyllaDB release and newer can now
+gate on `Gate{Key: Scylla, Min: ...}`, which hard rule 3 asks for. No query
+needs one yet.
+
+#### A refusal is not an error
+
+A role granted nothing reads `system.local` and is refused `system.versions`,
+on 2025.1 and on 2026.3. If the follow-up failed the whole version read, that
+role reads nothing at all, because every consumer reads the version first. So `Dialect.Version` keeps the first statement's answer when the
+follow-up fails. The role still learns that it is talking to ScyllaDB, and
+the release stays unknown. An unknown release meets every gate on the key, so
+the role gets the newest fragments, which is what D21 does above the ceiling.
+
+A cancelled context is the one failure that is an error, because nothing
+after it can run. A test in the root module cancels between the two
+statements to hold that apart from a refusal.
+
+This is the answer depending on who is asking, which D61 exists to find.
+`usql` has the same shape for Oracle, where it reads `v$instance` and prints
+nothing for an ordinary user. The difference is that here the ordinary user
+still gets the product and every query, and loses only a number that no
+query gates on today. `TestScyllaIsItsOwnProduct` connects as a role granted
+nothing and checks exactly that.
+
+#### Parity files a release by the product's own number
+
+`parityRelease` picked a section such as `product@major` by the main version.
+For ScyllaDB that is Cassandra 3.0.8, so a section for one ScyllaDB release
+was never found. It now reads the product's own key when the server
+reports one, so a section named `scylla@2026` works. None exists yet, because
+all four releases give the same answers.
 
 ## Open questions for Ken
 

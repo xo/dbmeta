@@ -172,6 +172,13 @@ tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE
 [presto/same/other]
 current_user the same rows with different values
 
+[scylla/same/grantee]
+privileges refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.role_permissions> or any of its parents
+role_grants refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.role_members> or any of its parents
+role_settings refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.role_attributes> or any of its parents
+roles refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.roles> or any of its parents
+settings refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.config> or any of its parents
+
 [sqlserver/contained/contained]
 current_user the same rows with different values
 

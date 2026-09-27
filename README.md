@@ -144,6 +144,7 @@ call and filter in the loop.
 | SQL Server | native             | 32      | Complete    |
 | Oracle     | native             | 25      | In progress |
 | Cassandra  | native             | 17      | In progress |
+| ScyllaDB   | native             | 18      | In progress |
 | ClickHouse | native             | 23      | In progress |
 | Trino      | native             | 13      | In progress |
 | Presto     | native             | 9       | In progress |
@@ -185,6 +186,10 @@ MariaDB and MySQL share one model. A query written for one of them gates on the
 product rather than on the release number, because MariaDB is at 13.0 and MySQL
 at 26.7 and neither number says anything about the other. CI runs both products
 and a third job compares them against the same schema.
+
+Cassandra and ScyllaDB share one model in the same way. ScyllaDB answers one
+kind more, `RoleSettings`, from the service level attached to a role. D91
+records how the model tells the two products apart.
 
 SQLite and DuckDB have no server. Both are libraries, so the release under test
 is whichever one the Go driver was built with, neither needs a container, and
@@ -279,7 +284,7 @@ Everything else is in [`docs/`](docs/):
 
 | Document | What it holds |
 | --- | --- |
-| [`PLAN.md`](docs/PLAN.md) | Every decision, 88 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because 14 amend or replace an earlier one. |
+| [`PLAN.md`](docs/PLAN.md) | Every decision, 92 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because 16 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

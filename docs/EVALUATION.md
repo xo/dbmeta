@@ -20,6 +20,24 @@ produces a table that anyone can check.
 Later phases will ask other AI models and third party sources for data. This
 document says which of their answers to trust and which to verify.
 
+## Which databases qualify
+
+A database qualifies when a person can get it and run it for development and
+testing without paying. An open source license is not the test. A source
+available release, an evaluation edition, a developer edition and a free
+community edition all qualify.
+
+Many of the databases here are commercial and qualify this way. SQL Server
+runs as the Developer and evaluation editions, Oracle as Free and XE, SAP HANA
+as the express edition, Exasol as the Community Edition, Vertica as the
+community edition, and Db2 as the Community image.
+
+If a release needs an account, a signup or an accepted license, record that in
+its decision. D85 records the Exasol signup, and D76 records the SAP license
+that the HANA container accepts. A release that no person can run
+without paying cannot be tested, and step 2 below then decides against it.
+See D90.
+
 ## The decision procedure
 
 Work through these in order. Stop at the first one that gives a clear answer.
@@ -348,6 +366,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Apache Hive | 4.0 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
 | Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images Ken chose so that a gate has something older to answer against, and D88 records why |
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
+| ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
 | SQLite3 | none | none | No server. The release is whichever the driver embeds |
 | DuckDB | none | none | No server. The release is whichever the driver embeds |
 

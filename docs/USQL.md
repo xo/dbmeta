@@ -163,6 +163,7 @@ reading code.
 | DuckDB | 10/11 | 3/5 | `\dp`, and the index column and trigger sections |
 | SQLite | 10/11 | 4/5 | `\dp`, and the sequence section |
 | Cassandra | 10/11 | 4/5 | `\l`, and the sequence section |
+| ScyllaDB | 10/11 | 4/5 | the same as Cassandra |
 | Trino | 8/11 | 0/5 | `\df`, `\da`, `\di` and every section: a query engine has no index, no constraint and no table valued function list |
 | Presto | 8/11 | 0/5 | the same as Trino |
 
@@ -319,7 +320,8 @@ a case where `usql` has no answer at all.
 | --- | --- | --- | --- |
 | PostgreSQL | `SHOW server_version` | the same | same |
 | SQLite | `SELECT sqlite_version()` | the same | same |
-| Cassandra | three columns from `system.local` | the same | same |
+| Cassandra | `SELECT JSON * FROM system.local`, the whole row as one text | three columns from `system.local` | different statement, same answer |
+| ScyllaDB | the same statement as Cassandra | the same three columns | `usql` names the wrong product. It prints "Cassandra 3.0.8", which is the Cassandra release that ScyllaDB keeps compatible with. `dbmeta` finds ScyllaDB by the `supported_features` column, then runs `SELECT version FROM system.versions WHERE key = 'local'` for the ScyllaDB release, and prints both. A caller that runs the statements itself asks `Dialect.FollowUpQuery` for the second one. See D92. Measured on 2025.1 and 2026.3 on 2026-09-27 |
 | MariaDB | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |
 | MySQL | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |
 | ClickHouse | `SELECT version()` | no function, so the generic `SELECT version();` | same answer |

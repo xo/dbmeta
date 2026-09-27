@@ -12,14 +12,14 @@ func registerExtra() {
 	// and it is returned by the constraints query instead.
 	dbmeta.Indexes.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Index]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT (text)'' AS "catalog"`),
+			fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 			always(`, keyspace_name AS "schema"`),
 			always(`, table_name AS "table"`),
 			always(`, index_name AS "name"`),
 			always(`, kind AS "type"`),
-			always(`, (boolean)false AS "unique"`),
-			always(`, (boolean)false AS "primary"`),
-			always(`, (text)NULL AS "comment"`),
+			fixed(", ", `(boolean)false`, "keyspace_name", "unique"),
+			fixed(", ", `(boolean)false`, "keyspace_name", "primary"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.indexes`),
 		},
 		Fields: []dbmeta.Field{
@@ -37,8 +37,8 @@ func registerExtra() {
 		Params: filters("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, pad{})
+			err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Name, &v.Type,
+				pad{}, pad{}, pad{})
 			return v, err
 		},
 	})
@@ -55,9 +55,9 @@ func registerExtra() {
 			always(`, table_name AS "table"`),
 			always(`, index_name AS "index"`),
 			always(`, options AS "name"`),
-			always(`, (bigint)1 AS "ordinal"`),
+			fixed(", ", `(bigint)1`, "keyspace_name", "ordinal"),
 			always(`, options AS "expression"`),
-			always(`, (boolean)false AS "descending"`),
+			fixed(", ", `(boolean)false`, "keyspace_name", "descending"),
 			always(`FROM system_schema.indexes`),
 		},
 		Fields: []dbmeta.Field{
@@ -88,8 +88,9 @@ func registerExtra() {
 				v              dbmeta.IndexColumn
 				options, spare any
 			)
-			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &options, &v.Ordinal,
-				&spare, &v.Descending)
+			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &options, pad{},
+				&spare, pad{})
+			v.Ordinal = 1
 			col, call := indexTarget(textMap(options))
 			v.Name = col
 			if call != "" {
@@ -131,11 +132,11 @@ func registerExtra() {
 			always(`SELECT keyspace_name AS "schema"`),
 			always(`, table_name AS "table"`),
 			always(`, table_name AS "name"`),
-			always(`, (text)'primary key' AS "type"`),
+			fixed(", ", `(text)'primary key'`, "keyspace_name", "type"),
 			always(`, column_name AS "definition"`),
-			always(`, (boolean)false AS "deferrable"`),
-			always(`, (boolean)false AS "deferred"`),
-			always(`, (text)NULL AS "comment"`),
+			fixed(", ", `(boolean)false`, "keyspace_name", "deferrable"),
+			fixed(", ", `(boolean)false`, "keyspace_name", "deferred"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.columns`),
 			always(`WHERE position >= 0 ALLOW FILTERING`),
 		},
@@ -158,8 +159,9 @@ func registerExtra() {
 		Params: filters("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
-			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, pad{})
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, pad{}, &v.Definition,
+				pad{}, pad{}, pad{})
+			v.Type = "primary key"
 			return v, err
 		},
 	})
@@ -168,16 +170,16 @@ func registerExtra() {
 	dbmeta.ConstraintColumns.Register(dbmeta.Cassandra,
 		&dbmeta.Binding[dbmeta.ConstraintColumn]{
 			Stmt: dbmeta.Stmt{
-				always(`SELECT (text)'' AS "catalog"`),
+				fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 				always(`, keyspace_name AS "schema"`),
 				always(`, table_name AS "table"`),
 				always(`, table_name AS "constraint"`),
 				always(`, column_name AS "name"`),
 				always(`, position AS "ordinal"`),
-				always(`, (text)NULL AS "foreign_catalog"`),
-				always(`, (text)NULL AS "foreign_schema"`),
-				always(`, (text)NULL AS "foreign_table"`),
-				always(`, (text)NULL AS "foreign_name"`),
+				fixed(", ", `(text)NULL`, "keyspace_name", "foreign_catalog"),
+				fixed(", ", `(text)NULL`, "keyspace_name", "foreign_schema"),
+				fixed(", ", `(text)NULL`, "keyspace_name", "foreign_table"),
+				fixed(", ", `(text)NULL`, "keyspace_name", "foreign_name"),
 				always(`FROM system_schema.columns`),
 				always(`WHERE position >= 0 ALLOW FILTERING`),
 			},
@@ -203,7 +205,7 @@ func registerExtra() {
 			Params: filters("table"),
 			Scan: func(rows *sql.Rows) (dbmeta.ConstraintColumn, error) {
 				var v dbmeta.ConstraintColumn
-				err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Constraint,
+				err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Constraint,
 					&v.Name, &v.Ordinal, pad{}, pad{}, pad{}, pad{})
 				return v, err
 			},
@@ -216,9 +218,9 @@ func registerExtra() {
 			always(`SELECT keyspace_name AS "schema"`),
 			always(`, table_name AS "table"`),
 			always(`, trigger_name AS "name"`),
-			always(`, (text)'enabled' AS "enabled"`),
+			fixed(", ", `(text)'enabled'`, "keyspace_name", "enabled"),
 			always(`, options AS "definition"`),
-			always(`, (text)NULL AS "comment"`),
+			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.triggers`),
 		},
 		Fields: []dbmeta.Field{
@@ -241,7 +243,8 @@ func registerExtra() {
 				v       dbmeta.Trigger
 				options any
 			)
-			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Enabled, &options, pad{})
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, pad{}, &options, pad{})
+			v.Enabled = "enabled"
 			v.Definition = textList(options)
 			return v, err
 		},
@@ -252,7 +255,7 @@ func registerExtra() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT keyspace_name AS "schema"`),
 			always(`, table_name AS "name"`),
-			always(`, (text)'table' AS "type"`),
+			fixed(", ", `(text)'table'`, "keyspace_name", "type"),
 			always(`, comment`),
 			always(`FROM system_schema.tables`),
 		},
@@ -272,7 +275,8 @@ func registerExtra() {
 		Params: filters("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.Comment, error) {
 			var v dbmeta.Comment
-			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, pad{}, &v.Comment)
+			v.Type = "table"
 			return v, err
 		},
 	})
@@ -280,15 +284,15 @@ func registerExtra() {
 	// \dT. A user defined type, with its fields as one text.
 	dbmeta.Types.Register(dbmeta.Cassandra, &dbmeta.Binding[dbmeta.Type]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT (text)'' AS "catalog"`),
+			fixed("SELECT ", `(text)''`, "keyspace_name", "catalog"),
 			always(`, keyspace_name AS "schema"`),
 			always(`, type_name AS "name"`),
 			always(`, type_name AS "internal"`),
-			always(`, (text)'composite' AS "kind"`),
+			fixed(", ", `(text)'composite'`, "keyspace_name", "kind"),
 			always(`, field_types AS "elements"`),
-			always(`, (text)'' AS "owner"`),
-			always(`, (text)NULL AS "access"`),
-			always(`, (text)NULL AS "comment"`),
+			fixed(", ", `(text)''`, "keyspace_name", "owner"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "access"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.types`),
 		},
 		Fields: []dbmeta.Field{
@@ -311,8 +315,9 @@ func registerExtra() {
 				v      dbmeta.Type
 				fields any
 			)
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&fields, &v.Owner, pad{}, pad{})
+			err := rows.Scan(pad{}, &v.Schema, &v.Name, &v.Internal, pad{},
+				&fields, pad{}, pad{}, pad{})
+			v.Kind = "composite"
 			v.Elements = textList(fields)
 			return v, err
 		},

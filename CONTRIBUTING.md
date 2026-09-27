@@ -11,8 +11,8 @@ the lint policy and how to run the tests. It is written for an AI coding agent
 and everything in it applies to a person.
 
 [`docs/PLAN.md`](docs/PLAN.md) holds every decision this project has made, with
-the reasoning and what was rejected. The table at the top lists all 88 with
-their status. Read the status: 14 of them amend or replace an earlier one.
+the reasoning and what was rejected. The table at the top lists all 92 with
+their status. Read the status: 16 of them amend or replace an earlier one.
 
 Do not decide an open question on your own. The open questions are at the end
 of `docs/PLAN.md`. Ask Ken.
@@ -57,6 +57,33 @@ design.
 version range, asking two other models and checking what they say, writing the
 model and its fixture, the tests, parity, and the four places that hold a
 count. It ends with the tests that fail when a step is skipped.
+
+## Agent skills
+
+The repository carries two agent skills. A skill is a set of instructions
+that a coding agent loads for a task. `simple-english` sets how prose is
+written, and `go-pedantry` sets how Go is written.
+
+`skills-lock.json` names the source of each skill. The `skills` command from
+npm writes that file, and version 1.7.0 is the one measured here. It writes
+each skill into two folders. Codex and the other agents read
+`.agents/skills/<name>`, and Claude Code reads `.claude/skills/<name>`.
+
+To add a skill or to update one, run this in the repository root. The example
+updates `simple-english`, and `skills-lock.json` holds the source for each
+skill:
+
+```bash
+npx skills@1.7.0 add AminBlg/SimpleEnglish --skill simple-english --agent codex claude-code --copy -y
+```
+
+Keep `--copy`. Without it, the command writes `.claude/skills/<name>` as a
+symbolic link. A Windows checkout writes a symbolic link as a text file, and
+Claude Code then loads no skill and says nothing. `TestSkillsAreCopies` fails
+on a link, and it fails when the two folders differ. See D89.
+
+`.claude/settings.local.json` holds the Claude Code permissions of one person.
+The root `.gitignore` ignores it.
 
 ## What the reviewer will ask
 

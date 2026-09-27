@@ -111,7 +111,9 @@ including that an embedded model is exempt from parity.
 ### 5a. If two products share the dialect
 
 A driver is a family rather than a product, which is D14. MariaDB and MySQL
-share one dialect and one model, and so would Trino and Presto.
+share one dialect and one model, and so do Cassandra and ScyllaDB. D91 is the
+second case, and it shows the step that is easy to miss: the one version
+statement has to run on both products and say which one answered.
 
 When that happens the model must tell them apart by a product key and never by
 the number alone. MariaDB 11.8 and MySQL 9 have no numeric relation, so a gate
