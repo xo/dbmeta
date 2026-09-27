@@ -208,7 +208,7 @@ func makeCassandraGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	return cqlUser(t, dsn, "dbmeta_grantee", parityPassword)
 }
 
-// cqlUser rewrites the credentials of a go-cql-driver DSN.
+// cqlUser rewrites the credentials of a cql DSN in the host list form.
 //
 // The DSN is a host list and then query options, which is neither a URL nor
 // the MySQL shape, so it gets its own helper. The user and the password are

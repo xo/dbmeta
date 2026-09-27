@@ -75,15 +75,16 @@ var cassandra = product{
 	// can answer, and a cqlsh that does not authenticate reports ready too
 	// early.
 	ready: []string{"bash", "-c", "echo exit | cqlsh -u cassandra -p cassandra"},
-	// The go-cql-driver DSN is a host list and query options rather than a
-	// URL, which is what dburl's GenCassandra produces too.
+	// A host list and query options rather than a URL, which is the form
+	// dburl's GenCassandra produces. github.com/xo/cql reads it and the URL
+	// form both.
 	dsn: func(port int) string {
 		return fmt.Sprintf(
 			"127.0.0.1:%d?username=cassandra&password=cassandra"+
 				"&timeout=30s&connectTimeout=30s", port)
 	},
-	// The go-cql-driver DSN above is a host list rather than a URL, so a
-	// person needs the other form to paste into usql.
+	// The DSN above is a host list rather than a URL, so a person needs the
+	// other form to paste into usql.
 	url: func(port int) string {
 		return fmt.Sprintf("cassandra://cassandra:cassandra@127.0.0.1:%d/", port)
 	},

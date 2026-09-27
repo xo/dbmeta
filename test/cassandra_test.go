@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/MichaelS11/go-cql-driver"
+	_ "github.com/xo/cql"
 
 	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/models/cassandra"
@@ -17,8 +17,8 @@ import (
 
 // openCassandra returns a connection to the server named by DBMETA_CQL.
 //
-// The DSN is a host list and query options rather than a URL, which is what
-// the go-cql-driver takes and what dburl produces for a cassandra scheme.
+// The DSN is a host list and query options rather than a URL. github.com/xo/cql
+// takes both forms, and dbrun writes this one.
 func openCassandra(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_CQL")
@@ -405,6 +405,97 @@ func TestCassandraFixtureObjects(t *testing.T) {
 			return n, nil
 		})
 	}
+}
+
+// TestCassandraScansEveryQuery reads every query the model answers through
+// its Scan, row by row, on whichever product is running.
+//
+// The smoke test runs each statement and counts its columns, and that does not
+// reach Scan. A Scan that reads a NULL into a plain string passes there and
+// fails for every caller. Settings did exactly that on Cassandra 5.0, once the
+// driver began to report a NULL as one: the old driver sent an empty string
+// instead, so the fault stayed hidden until the driver changed.
+func TestCassandraScansEveryQuery(t *testing.T) {
+	db := openCassandra(t)
+	m := setupCassandra(t, db)
+	var read, skipped int
+	check := func(name string, support dbmeta.Support, n int, err error) {
+		t.Helper()
+		switch {
+		case support != dbmeta.Supported:
+			skipped++
+		case err != nil:
+			t.Errorf("%s: %v", name, err)
+		default:
+			read++
+			t.Logf("%-18s %d rows", name, n)
+		}
+	}
+	scan := func(name string, support dbmeta.Support, all func() (int, error)) {
+		t.Helper()
+		if support != dbmeta.Supported {
+			check(name, support, 0, nil)
+			return
+		}
+		n, err := all()
+		check(name, support, n, err)
+	}
+	scan("schemas", dbmeta.Schemas.Support(m), func() (int, error) { return drain(t, dbmeta.Schemas, m, db) })
+	scan("tables", dbmeta.Tables.Support(m), func() (int, error) { return drain(t, dbmeta.Tables, m, db) })
+	scan("columns", dbmeta.Columns.Support(m), func() (int, error) { return drain(t, dbmeta.Columns, m, db) })
+	scan("views", dbmeta.Views.Support(m), func() (int, error) { return drain(t, dbmeta.Views, m, db) })
+	scan("types", dbmeta.Types.Support(m), func() (int, error) { return drain(t, dbmeta.Types, m, db) })
+	scan("indexes", dbmeta.Indexes.Support(m), func() (int, error) { return drain(t, dbmeta.Indexes, m, db) })
+	scan("index columns", dbmeta.IndexColumns.Support(m), func() (int, error) { return drain(t, dbmeta.IndexColumns, m, db) })
+	scan("constraints", dbmeta.Constraints.Support(m), func() (int, error) { return drain(t, dbmeta.Constraints, m, db) })
+	scan("constraint columns", dbmeta.ConstraintColumns.Support(m), func() (int, error) { return drain(t, dbmeta.ConstraintColumns, m, db) })
+	scan("triggers", dbmeta.Triggers.Support(m), func() (int, error) { return drain(t, dbmeta.Triggers, m, db) })
+	scan("comments", dbmeta.Comments.Support(m), func() (int, error) { return drain(t, dbmeta.Comments, m, db) })
+	scan("functions", dbmeta.Functions.Support(m), func() (int, error) { return drain(t, dbmeta.Functions, m, db) })
+	scan("aggregates", dbmeta.Aggregates.Support(m), func() (int, error) { return drain(t, dbmeta.Aggregates, m, db) })
+	scan("roles", dbmeta.Roles.Support(m), func() (int, error) { return drain(t, dbmeta.Roles, m, db) })
+	scan("role grants", dbmeta.RoleGrants.Support(m), func() (int, error) { return drain(t, dbmeta.RoleGrants, m, db) })
+	scan("role settings", dbmeta.RoleSettings.Support(m), func() (int, error) { return drain(t, dbmeta.RoleSettings, m, db) })
+	scan("privileges", dbmeta.Privileges.Support(m), func() (int, error) { return drain(t, dbmeta.Privileges, m, db) })
+	scan("settings", dbmeta.Settings.Support(m), func() (int, error) { return drain(t, dbmeta.Settings, m, db) })
+	// Every query the model registers is in the list above, so a new one
+	// that is left out shows as a count that does not add up.
+	var registered int
+	for _, q := range dbmeta.Queries() {
+		if s := q.Support(m); s == dbmeta.Supported || s == dbmeta.TooOld {
+			registered++
+		}
+	}
+	if read+countTooOld(m) != registered {
+		t.Errorf("read %d queries and the model answers %d: add the missing one here",
+			read, registered)
+	}
+	t.Logf("%d read, %d not asked", read, skipped)
+}
+
+// countTooOld counts the queries this release is too old for, which the list
+// in TestCassandraScansEveryQuery skips.
+func countTooOld(m *dbmeta.Meta) int {
+	n := 0
+	for _, q := range dbmeta.Queries() {
+		if q.Support(m) == dbmeta.TooOld {
+			n++
+		}
+	}
+	return n
+}
+
+// drain reads every row of one query through its Scan and counts them.
+func drain[T any](t *testing.T, q *dbmeta.Query[T], m *dbmeta.Meta, db *sql.DB) (int, error) {
+	t.Helper()
+	n := 0
+	for _, err := range q.All(t.Context(), m, db, nil) {
+		if err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
 }
 
 // TestScyllaIsItsOwnProduct checks what the model makes of the product it is

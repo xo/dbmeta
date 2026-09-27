@@ -236,19 +236,12 @@ func registerRoles() {
 		},
 		Params: filters("setting"),
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
-			// The type is scanned as text rather than into pad, because on
-			// ScyllaDB it is a real column. On Cassandra it is padded and
-			// the driver hands the padding over as an empty string, which
-			// is why an empty type is read as absent. ScyllaDB records a
-			// type for every setting, so nothing real is lost.
-			var (
-				v   dbmeta.Setting
-				typ string
-			)
-			err := rows.Scan(&v.Name, &v.Value, &typ, pad{}, pad{})
-			if typ != "" {
-				v.Type = sql.Null[string]{V: typ, Valid: true}
-			}
+			// The type is scanned into the field rather than into pad,
+			// because on ScyllaDB it is a real column. On Cassandra it is
+			// the padded NULL, which github.com/xo/cql reports as one, so
+			// the field is absent there by itself.
+			var v dbmeta.Setting
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, pad{}, pad{})
 			return v, err
 		},
 	})

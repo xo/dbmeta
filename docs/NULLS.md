@@ -127,20 +127,18 @@ no definition or no comment. The model turns those into NULL with `NULLIF`,
 because there the empty string is the catalog's way of saying there is
 nothing, not a value somebody set.
 
-Cassandra is the worst of them and the driver is why. CQL has a null, and
-gocql decodes one as the zero value of its type, so `go-cql-driver` hands
-`database/sql` an empty string rather than a null. Scanning into
-[`sql.Null[string]`] gives `Valid` with `""`. Verified directly:
-`SELECT (text)NULL` comes back valid and empty.
-
-That defeats the whole mechanism, so the Cassandra model does not rely on it.
-A column the statement pads is scanned into a target that discards the value,
-and the field keeps its zero value, which is the invalid Null this document
-asks for. It cost a real fault before it was found: every padded column looked
+Cassandra was the worst of them, and the driver was why. CQL has a null, and
+the old driver, `go-cql-driver`, handed `database/sql` an empty string for
+one. `SELECT (text)NULL` came back valid and empty, every padded column looked
 present and empty, and the conformance projection reported `has_default=true`
-on a database that has no defaults. A real catalog column that is null is not
-rescued by this and cannot be with that driver, and `docs/COVERAGE.md` says so
-rather than pretending otherwise. See D62.
+on a database that has no defaults. The model scanned a padded column into a
+target that discards the value, so that the field kept its invalid Null. See
+D62.
+
+The tests now use `github.com/xo/cql`, which reports a null as one. A real
+catalog column that is null now reaches the caller as NULL. The change also
+exposed a Scan that read a padded column into a plain string, which only the
+old driver's empty string had kept working. See D93.
 
 ScyllaDB goes through the same driver and adds one more limit. It accepts no
 literal in a select list, not even `(text)NULL`, so a padded column cannot be

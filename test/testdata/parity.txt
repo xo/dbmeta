@@ -21,10 +21,10 @@ roles refused: code: 497, message: dbmeta_parity: Not enough privileges. To exec
 tablespaces refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies
 
 [cql/same/grantee]
-privileges refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
-role_grants refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
-roles refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
-settings refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
+privileges refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
+role_grants refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
+roles refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
+settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
 
 [exasol/same/grantee]
 current_schema fewer rows than the administrator
@@ -173,11 +173,11 @@ tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE
 current_user the same rows with different values
 
 [scylla/same/grantee]
-privileges refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.role_permissions> or any of its parents
-role_grants refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.role_members> or any of its parents
-role_settings refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.role_attributes> or any of its parents
-roles refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.roles> or any of its parents
-settings refused: RowData error: User dbmeta_grantee has no SELECT permission on <table system.config> or any of its parents
+privileges refused: running query: User dbmeta_grantee has no SELECT permission on <table system.role_permissions> or any of its parents
+role_grants refused: running query: User dbmeta_grantee has no SELECT permission on <table system.role_members> or any of its parents
+role_settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system.role_attributes> or any of its parents
+roles refused: running query: User dbmeta_grantee has no SELECT permission on <table system.roles> or any of its parents
+settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system.config> or any of its parents
 
 [sqlserver/contained/contained]
 current_user the same rows with different values

@@ -38,9 +38,10 @@ type Dialect string
 //
 // Cassandra is the one that was written down wrong. It held "cassandra" until
 // the `dburl` session checked all thirteen of these against the registry:
-// cassandra is an alias of the cql scheme, and cql is what
-// github.com/MichaelS11/go-cql-driver passes to sql.Register, so nothing
-// answers to the old value. Read these as constants and never as literals.
+// cassandra is an alias of the cql scheme, and cql is what the driver passes
+// to sql.Register, both github.com/xo/cql and the go-cql-driver it replaced,
+// so nothing answers to the old value. Read these as constants and never as
+// literals.
 const (
 	Cassandra  Dialect = "cql"
 	ClickHouse Dialect = "clickhouse"
@@ -50,6 +51,7 @@ const (
 	Hive       Dialect = "hive"
 	HANA       Dialect = "hdb"
 	MySQL      Dialect = "mysql"
+	N1QL       Dialect = "n1ql"
 	Oracle     Dialect = "oracle"
 	Presto     Dialect = "presto"
 	PostgreSQL Dialect = "postgres"

@@ -94,7 +94,7 @@ linters:
             - github.com/lib/pq
             - github.com/microsoft/go-mssqldb
             - github.com/sijms/go-ora
-            - github.com/MichaelS11/go-cql-driver
+            - github.com/xo/cql
             - github.com/ClickHouse/clickhouse-go
             - github.com/trinodb/trino-go-client
             - github.com/prestodb/presto-go-client

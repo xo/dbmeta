@@ -11,7 +11,6 @@ import (
 	"time"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
-	_ "github.com/MichaelS11/go-cql-driver"
 	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/beltran/gohive/v2"
 	_ "github.com/exasol/exasol-driver-go"
@@ -23,6 +22,7 @@ import (
 	_ "github.com/sijms/go-ora/v2"
 	_ "github.com/trinodb/trino-go-client/trino"
 	_ "github.com/vertica/vertica-sql-go"
+	_ "github.com/xo/cql"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"

@@ -158,9 +158,12 @@ type Server struct {
 	// answers rather than a layer in an image, which is where the two
 	// built images here put their setup.
 	//
-	// The three older Vertica images are the other. Their entrypoint takes
+	// The three older Vertica images are another. Their entrypoint takes
 	// nothing from the environment, so the user every test connects as is
 	// created here.
+	//
+	// Couchbase is the third. A new node belongs to no cluster and serves no
+	// query, so the cluster and a bucket are made here.
 	//
 	// It must be safe to run twice, because start runs it every time.
 	Init []string
@@ -334,7 +337,7 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase)
 }
 
 // AtTier returns the servers tested at t.

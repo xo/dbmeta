@@ -427,20 +427,16 @@ No trigger. A Cassandra trigger names a Java class that has to be on the
 server's classpath already, so the fixture creates none and `Triggers` returns
 no rows anywhere. It is the one registered query with no fixture object.
 
-### A null arrives as an empty string
+### A null arrives as a null
 
-The driver cannot report a null. gocql decodes a null of any type as the zero
-value of that type, so scanning one into `sql.Null[string]` gives a valid
-empty string rather than an absent one.
+The tests use `github.com/xo/cql`, which reports a CQL null as NULL. The
+driver before it sent an empty string for every null, and D62 worked around
+that by discarding each padded column. D93 records the change.
 
-For a column the model pads, this is handled: the value is discarded and the
-field keeps the invalid Null that `docs/NULLS.md` asks for. See D62.
-
-For a real catalog column that is null, it is not handled and cannot be. A
-comment that was never set and a comment set to the empty string are the same
-value to a caller. In practice Cassandra stores the empty string rather than a
-null for a table with no comment, so the two agree, but a consumer should not
-rely on `Valid` meaning anything on this dialect.
+A real catalog column that is null now reaches the caller as NULL, so `Valid`
+means what it means on every other dialect. Cassandra itself stores the empty
+string rather than a null for a table with no comment, so an uncommented table
+reports a valid empty comment. That is what the catalog holds.
 
 ### What the conformance test says
 

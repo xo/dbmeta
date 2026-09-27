@@ -253,20 +253,19 @@ func filters(kind string) []dbmeta.Param {
 	}
 }
 
-// pad is the scan target for a column the statement selects as (text)NULL.
+// pad is the scan target for a column whose value Scan already knows: a
+// padded NULL, or a flag that is always false.
 //
-// The driver cannot report a CQL null. gocql decodes one as the zero value of
-// its type and go-cql-driver hands that to database/sql, so scanning a null
-// text into sql.Null[string] gives a valid empty string rather than an absent
-// one. Verified: SELECT (text)NULL comes back Valid with "".
+// On ScyllaDB the column is a real column standing in for a literal, because
+// ScyllaDB accepts no literal in a select list, so its value means nothing and
+// is discarded here. [fixed] holds that rule. The field keeps its zero value,
+// or Scan sets the known one, which on a padded field is the invalid Null
+// docs/NULLS.md asks for. The column is still selected, because a query returns
+// as many columns as it declares fields.
 //
-// A padded column is known to be absent, so it is discarded here and the field
-// keeps its zero value, which is the invalid Null docs/NULLS.md asks for. The
-// column is still selected, because the statement should say what it returns
-// and because a query returns as many columns as it declares fields.
-//
-// This does not rescue a real catalog column that is null. Nothing can, with
-// this driver, and docs/COVERAGE.md says so.
+// It began as a workaround for a driver fault. go-cql-driver sent an empty
+// string for a CQL null, so a padded column arrived valid and empty.
+// github.com/xo/cql reports a null as one, and D93 records the change.
 type pad struct{}
 
 // Scan discards the value and satisfies sql.Scanner.

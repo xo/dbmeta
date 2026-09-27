@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 16 of them amend or replace an earlier
+Read the status before the decision. 18 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -126,11 +126,11 @@ records the argument.
 | [D59](#d59-oracle-is-tested-with-go-ora-v2-until-v3-tags-its-fix-amends-d52) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52 |
 | [D60](#d60-the-oracle-model-reads-all_-views-and-there-is-no-dba_-variant-decided) | The Oracle model reads ALL_ views, and there is no DBA_ variant | Decided |
 | [D61](#d61-every-dialect-is-measured-against-every-principal-the-product-has-amended-in-place) | Every dialect is measured against every principal the product has | Amended in place |
-| [D62](#d62-cql-cannot-compute-so-the-cassandra-model-computes-in-scan-decided) | CQL cannot compute, so the Cassandra model computes in Scan | Decided |
+| [D62](#d62-cql-cannot-compute-so-the-cassandra-model-computes-in-scan-amended-by-d93) | CQL cannot compute, so the Cassandra model computes in Scan | Amended by D93 |
 | [D63](#d63-support-says-when-a-release-is-too-old-amends-d54) | Support says when a release is too old | Amends D54 |
 | [D64](#d64-the-verified-tier-is-checked-against-the-document-decided) | The Verified tier is checked against the document | Decided |
 | [D65](#d65-a-windows-machine-rearms-its-evaluation-before-it-expires-decided) | A Windows machine rearms its evaluation before it expires | Decided |
-| [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67-d77-d88-and-d91) | The order the remaining dialects are written in | Amended by D67, D77, D88 and D91 |
+| [D66](#d66-the-order-the-remaining-dialects-are-written-in-amended-by-d67-d77-d88-d91-and-d94) | The order the remaining dialects are written in | Amended by D67, D77, D88, D91 and D94 |
 | [D67](#d67-impala-cannot-be-a-dbmeta-model-and-clickhouse-goes-first-amends-d66) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
 | [D68](#d68-every-container-is-started-by-the-runner-and-named-product-release-amended-by-d70) | Every container is started by the runner and named product-release | Amended by D70 |
 | [D69](#d69-the-workflow-builds-its-matrix-from-the-go-list-amends-d42) | The workflow builds its matrix from the Go list | Amends D42 |
@@ -157,6 +157,8 @@ records the argument.
 | [D90](#d90-a-database-qualifies-when-it-is-free-to-run-for-development-and-testing-decided) | A database qualifies when it is free to run for development and testing | Decided |
 | [D91](#d91-scylladb-is-a-flavor-of-the-cassandra-model-amends-d66-amended-by-d92) | ScyllaDB is a flavor of the Cassandra model | Amends D66, amended by D92 |
 | [D92](#d92-a-second-version-statement-reads-the-scylladb-release-amends-d91) | A second version statement reads the ScyllaDB release | Amends D91 |
+| [D93](#d93-the-cql-tests-use-githubcomxocql-which-reports-a-null-amends-d62) | The cql tests use github.com/xo/cql, which reports a NULL | Amends D62 |
+| [D94](#d94-couchbase-runs-under-dbrun-and-its-model-waits-for-the-n1ql-rewrite-amends-d66) | Couchbase runs under dbrun, and its model waits for the n1ql rewrite | Amends D66 |
 
 ## Decisions
 
@@ -4182,7 +4184,7 @@ fixture step the server is too old for is skipped rather than refused.
 A kind of principal that a release does not have is not a gap in coverage. It
 is the product, and recording it as a skip says so where a reader sees it.
 
-### D62. CQL cannot compute, so the Cassandra model computes in Scan. Decided.
+### D62. CQL cannot compute, so the Cassandra model computes in Scan. Amended by D93.
 
 A CQL statement selects columns and nothing else. There is no CASE, no
 expression, no function that turns one value into another. Every other model
@@ -4375,7 +4377,7 @@ is rebuilt, which is about an hour, or the release drops to Archived under D40
 and nothing is claimed for it. Neither is automatic, because both are a
 person's decision about how much a pre-2017 SQL Server is worth.
 
-### D66. The order the remaining dialects are written in. Amended by D67, D77, D88 and D91.
+### D66. The order the remaining dialects are written in. Amended by D67, D77, D88, D91 and D94.
 
 Impala first, then ClickHouse, then the products that run in a container,
 then the ones that need an account. A product that cannot be started cannot be
@@ -4512,6 +4514,9 @@ them is shaped much like the 55.
 ScyllaDB was not on this list, and Ken asked for it on 2026-09-27. It is a
 flavor of the Cassandra model rather than a model of its own, so it took no
 place in the order. D91 is the decision.
+
+Ken asked about Couchbase on the same day. It is in `container/` without a
+model, for the n1ql driver's tests, and D94 records why the model waits.
 
 Avatica is not on the list at all. It is a wire protocol in front of whatever
 database somebody put behind it, so it has no catalog of its own to read.
@@ -7145,6 +7150,105 @@ For ScyllaDB that is Cassandra 3.0.8, so a section for one ScyllaDB release
 was never found. It now reads the product's own key when the server
 reports one, so a section named `scylla@2026` works. None exists yet, because
 all four releases give the same answers.
+
+### D93. The cql tests use github.com/xo/cql, which reports a NULL. Amends D62.
+
+The `test` module now reads Cassandra and ScyllaDB through
+`github.com/xo/cql` v0.1.0 in place of `github.com/MichaelS11/go-cql-driver`.
+Ken asked for it on 2026-09-27, once the fork was tagged. dburl's registry
+already names `github.com/xo/cql` as the package for the `cql` scheme, and
+hard rule 10 reads the package from the registry. `usql`'s `go.mod` still
+names the old driver, and the `cql` session's plan moves `usql` too. Until it
+does, the package here is the registry's and not yet `usql`'s.
+
+#### A NULL now arrives as a NULL
+
+D62 found that the old driver sent an empty string for every CQL null, so
+`SELECT (text)NULL` came back valid and empty. The new driver reports a null
+as one. Measured on Cassandra 3.11 and 5.0: `SELECT (text)NULL` scans into an
+invalid `sql.Null[string]`, and a real comment scans as itself.
+
+So a real catalog column that is null now reaches the caller as NULL. D62
+recorded that as out of reach with the old driver. A padded column still scans
+into `pad`, because on ScyllaDB the padded column is a real column that stands
+in for a literal, and D91 has why.
+
+#### The fault it found
+
+Settings scanned its padded `type` column into a plain string, which only
+worked because a padded NULL arrived as an empty string. On Cassandra 5.0 the
+new driver sent the NULL, and Settings failed with "converting NULL to string
+is unsupported". It now scans into the field, which is a `sql.Null[string]`.
+
+No test caught it. The smoke test runs each statement and counts its
+columns, which does not reach Scan. `TestCassandraScansEveryQuery` now reads
+every query the model answers through its Scan, on whichever product is
+running, and fails when a query is left out of its list.
+
+#### What changed in the record
+
+The parity record changed wording and nothing else: the new driver writes
+"running query:" where the old one wrote "RowData error:", and every refusal
+is the same refusal. The conformance record did not change.
+
+### D94. Couchbase runs under dbrun, and its model waits for the n1ql rewrite. Amends D66.
+
+Ken asked on 2026-09-27 whether a Couchbase dialect can be built, or at least
+whether `dbrun` can start Couchbase for the tests of the n1ql rewrite. The
+second is done. The first is possible on the catalog and not yet on the
+driver.
+
+#### dbrun starts it with no change to dbrun
+
+`container/couchbase.go` names 7.2.9 and 8.0.3 as Tested and 7.6.12 as
+Nightly, on the official image. `EVALUATION.md` has the floor. A bare tag is
+the Enterprise edition, which is free for development and testing, and D90
+says that qualifies.
+
+A new node belongs to no cluster, which `EVALUATION.md` had recorded as a
+person in the web console. It is not. `couchbase-cli`, which ships in the
+image, makes the cluster with the data, index and query services and a bucket
+named `dbmeta`, and `Init` runs it. It checks for each first, so it is safe on
+every start, and it waits until the query service answers. `Ready` asks the
+cluster manager on 8091 inside the container, which answers before any
+cluster exists. Each release was up in about ten seconds.
+
+Only 8093, the query service, is published, and the DSN names it. The driver
+tries a DSN as a cluster address first, and a cluster address hands back the
+container's own address for the query service, which the host cannot reach.
+
+The releases are Tested and Nightly although no model reads them yet. A CI
+job then starts each release and runs `Init` on a GitHub runner, and the n1ql
+CI depends on exactly that. Verified was the other choice, and it needs a
+section in `COVERAGE.md` that has nothing to describe yet.
+
+#### The catalog can answer
+
+SQL++ reads a real catalog: `system:buckets`, `system:scopes`,
+`system:keyspaces`, `system:indexes`, `system:functions` and the user and
+role views, with `ORDER BY`, `CASE` and `UNNEST`. A bucket, a scope and a
+collection map onto a database, a schema and a table. There is no column
+catalog, because a document has no fixed shape, and `INFER` is a statement
+rather than a relation.
+
+#### The driver cannot, today
+
+`github.com/couchbase/go_n1ql`, the driver `usql` uses, was run against 8.0.3.
+It has three faults, and any one of them breaks a model:
+
+1. It returns the columns in name order rather than in the order the
+   statement selects them. A query selecting name, namespace, bucket and scope
+   returned bucket, name, namespace and scope. Every Scan here reads a column
+   by its position.
+2. It returns each value as JSON text, so a name arrives as `"dbmeta"` with
+   its quotes.
+3. A result of one column arrives as the whole object, such as
+   `{"v":"8.0.3-5933-enterprise"}`.
+
+`xo/n1ql` is rewriting the driver, and hard rule 10 requires the package that
+`usql` uses. So the model waits for the rewrite, is written against it, and
+moves `usql` with it, the way D93 moved the cql tests. The three faults went
+to the `n1ql` session as requirements.
 
 ## Open questions for Ken
 

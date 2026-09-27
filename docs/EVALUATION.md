@@ -367,6 +367,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images Ken chose so that a gate has something older to answer against, and D88 records why |
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
+| Couchbase | 7.2.9 | 8.0.3 | Criterion 2. 7.2 is the oldest line the image still rebuilds, and 7.0 and 7.1 stopped in November 2024. There is no model yet, and D94 says why the releases are listed anyway |
 | SQLite3 | none | none | No server. The release is whichever the driver embeds |
 | DuckDB | none | none | No server. The release is whichever the driver embeds |
 
@@ -485,9 +486,10 @@ model of its own, the way MySQL is a flavor of MariaDB's. D14 and D44 hold
 what that means.
 
 Couchbase and Ignite both need a step after the container starts. Ignite's is
-one command and fits `container.Server.Init`. Couchbase's is a person in a
-browser, which is the same shape D57 solved for the Windows machines, and it
-decides how Couchbase would be run.
+one command and fits `container.Server.Init`. Couchbase's was recorded here as
+a person in a browser, and it is not: `couchbase-cli`, which ships in the
+image, makes the cluster and the bucket, and `container/couchbase.go` runs it
+from `Init`. D94 has it.
 
 Two more `usql` targets are covered here and differ from what `usql` ran,
 which is worth knowing when comparing the two.
