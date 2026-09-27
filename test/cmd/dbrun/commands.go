@@ -275,8 +275,11 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	// A server that answers is not always a server with a catalog. Hive's
 	// is installed here, after it is ready and before anything reads it.
 	if len(t.Init) > 0 {
-		if _, err := r.output(ctx, t.Init...); err != nil {
-			return fmt.Errorf("installing the catalog: %w", err)
+		// The output is kept on failure, because the exit status alone says
+		// nothing. A Hive run failed in CI with "exit status 2" and no way
+		// to tell which statement beeline refused.
+		if out, err := r.output(ctx, t.Init...); err != nil {
+			return fmt.Errorf("installing the catalog: %w\n%s", err, lastLines(out, 10))
 		}
 	}
 	fmt.Printf("  %-20s up: %s=%s\n", t.Name, t.Env, t.DSN)

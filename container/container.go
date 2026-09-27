@@ -149,14 +149,18 @@ type Server struct {
 	// default open file limit.
 	RunFlags []string
 	// Init is a command run inside the container once it is ready, for a
-	// server whose catalog is not there until it is installed.
+	// server whose catalog or user is not there until it is installed.
 	//
-	// Apache Hive is the only one. Its metastore is relational and it is
-	// not readable through SQL until the sys database is created over it,
-	// and the script that does that ships in the image and needs a
-	// running HiveServer2 to run against. That makes it a step after the
-	// server answers rather than a layer in an image, which is where the
-	// two built images here put their setup.
+	// Apache Hive is one. Its metastore is relational and it is not
+	// readable through SQL until the sys database is created over it, and
+	// the script that does that ships in the image and needs a running
+	// HiveServer2 to run against. That makes it a step after the server
+	// answers rather than a layer in an image, which is where the two
+	// built images here put their setup.
+	//
+	// The three older Vertica images are the other. Their entrypoint takes
+	// nothing from the environment, so the user every test connects as is
+	// created here.
 	//
 	// It must be safe to run twice, because start runs it every time.
 	Init []string

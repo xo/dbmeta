@@ -326,6 +326,16 @@ func answered(ctx context.Context, t target, timeout time.Duration) bool {
 	return err == nil
 }
 
+// lastLines returns the last n lines of s, each indented, for an error that
+// carries what a command said.
+func lastLines(s string, n int) string {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return "    " + strings.Join(lines, "\n    ")
+}
+
 func lastLine(s string) string {
 	s = strings.TrimSpace(s)
 	if i := strings.LastIndexByte(s, '\n'); i >= 0 {
