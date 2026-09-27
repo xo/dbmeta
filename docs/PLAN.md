@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 25 of them amend or replace an earlier
+Read the status before the decision. 26 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -169,8 +169,9 @@ records the argument.
 | [D102](#d102-dbrun-prints-every-principal-of-a-server-amends-d98) | dbrun prints every principal of a server | Amends D98 |
 | [D103](#d103-surrealdb-runs-under-dbrun-for-the-dbimp-driver-decided) | SurrealDB runs under dbrun, for the dbimp driver | Decided |
 | [D104](#d104-the-couchbase-model-reads-76-and-later-amends-d94-d95-and-d96) | The Couchbase model reads 7.6 and later | Amends D94, D95 and D96 |
-| [D105](#d105-dbrun-runs-a-setup-again-after-a-failure-and-prints-the-log-of-a-server-that-never-answered-decided) | dbrun runs a setup again after a failure, and prints the log of a server that never answered | Decided |
+| [D105](#d105-dbrun-runs-a-setup-again-after-a-failure-and-prints-the-log-of-a-server-that-never-answered-amended-by-d107) | dbrun runs a setup again after a failure, and prints the log of a server that never answered | Amended by D107 |
 | [D106](#d106-neo4j-enterprise-runs-under-dbrun-under-the-evaluation-agreement-decided) | Neo4j Enterprise runs under dbrun, under the evaluation agreement | Decided |
+| [D107](#d107-the-hive-setup-runs-from-a-copy-that-is-safe-to-run-twice-amends-d105) | The Hive setup runs from a copy that is safe to run twice | Amends D105 |
 
 ## Decisions
 
@@ -7739,7 +7740,7 @@ The test that checks references to decisions matched two digits alone, so a
 reference to D100 or later went unchecked. It now matches any number, and
 this is the first reference it caught before its decision existed.
 
-### D105. dbrun runs a setup again after a failure, and prints the log of a server that never answered. Decided.
+### D105. dbrun runs a setup again after a failure, and prints the log of a server that never answered. Amended by D107.
 
 Ken reported timeouts for `oracle-21c` and `hive-4.2.1` on 2026-09-27. The
 push run of 323cd36 failed on both. In the 28 runs before it, `oracle-21c`
@@ -7850,6 +7851,32 @@ settles the URL in its own step 9. The server's `Dialect` is empty, so
 `dbrun` names the test variable for the product, `DBMETA_NEO4J`. The `dsn`
 is the plain `http://` address of the HTTP API, and there is no `url` field.
 Both change when dbimp settles the name.
+
+### D107. The Hive setup runs from a copy that is safe to run twice. Amends D105.
+
+D105 runs a failed setup again, and it said that every setup was already safe
+to run twice. Hive's was not. The next push run, of 1335428, failed on
+`hive-4.2.1` with the retry in place. The first attempt failed on the
+SerDeException that D105 records. The second and third failed on "Table
+hive.SYS.HIVE_LOCKS already exists", because the first attempt had created
+that table.
+
+`hive-schema-4.2.0.hive.sql` makes every table with `CREATE ... IF NOT
+EXISTS` except one, `CREATE EXTERNAL TABLE HIVE_LOCKS`. beeline stops at the
+first error, so a second run of the script failed there and never reached the
+rest. That also broke a plain stop and start of a Hive server, measured on
+2026-09-27. CI never starts a server twice, so nothing found it. The comment
+in `container/hive.go` said that every statement was safe, and it was wrong.
+
+The setup now copies the script with `sed`, adds `IF NOT EXISTS` to each
+`CREATE TABLE` and `CREATE EXTERNAL TABLE` that lacks it, and runs the copy.
+The copy ran twice in one container with exit status 0 both times. A fresh
+start, a stop, a second start and `dbrun test` passed three times in a row.
+
+The SerDeException, "proto.class has to be set", is still not explained. It
+comes from one of the `PROTO_` tables at the end of the script, which dbmeta
+does not read. Now that the script is safe to run twice, the retry of D105 can
+get past it.
 
 ## Open questions for Ken
 

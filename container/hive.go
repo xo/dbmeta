@@ -55,14 +55,21 @@ var hive = product{
 	//
 	// The script name carries the release, so this takes the newest one
 	// that is not an alpha or a beta rather than naming a file that a
-	// later image will not have. Every statement in it is CREATE ... IF
-	// NOT EXISTS or CREATE OR REPLACE, so running it on every start is
-	// safe and the second run is quick.
+	// later image will not have.
+	//
+	// The script is run from a copy with IF NOT EXISTS added to each CREATE
+	// TABLE that lacks it, because it runs on every start and dbrun runs it
+	// again after a failure. Every other statement in it is CREATE ... IF
+	// NOT EXISTS or CREATE OR REPLACE. In 4.2.0 the one that is not is
+	// CREATE EXTERNAL TABLE `HIVE_LOCKS`, and beeline stops at the first
+	// error, so a second run failed there and never reached the rest. That
+	// broke every start after the first, and a retry in CI. See D107.
 	init: []string{
 		"sh", "-c",
-		"TERM=dumb beeline -u jdbc:hive2://localhost:10000/ --silent=true -f " +
-			"$(ls /opt/hive/scripts/metastore/upgrade/hive/hive-schema-*.hive.sql" +
-			" | grep -v alpha | grep -v beta | sort -V | tail -1)",
+		"f=$(ls /opt/hive/scripts/metastore/upgrade/hive/hive-schema-*.hive.sql" +
+			" | grep -v alpha | grep -v beta | sort -V | tail -1)" +
+			" && sed -E 's/^CREATE (EXTERNAL )?TABLE `/CREATE \\1TABLE IF NOT EXISTS `/' \"$f\" > /tmp/dbmeta-schema.sql" +
+			" && TERM=dumb beeline -u jdbc:hive2://localhost:10000/ --silent=true -f /tmp/dbmeta-schema.sql",
 	},
 	// HiveServer2 starts a metastore, a compactor and a session pool
 	// before it listens, and it took longer than the usual budget here.
