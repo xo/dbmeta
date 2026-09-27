@@ -36,7 +36,8 @@ session or through Ken.
 8. Write a readiness check that passes only when a test can connect and log
    in as the user the tests use.
 9. Make the setup, `Init`, safe to run twice, because `start` runs it every
-   time. Check before you create.
+   time. Check before you create. `start` also runs it again after a failure,
+   up to three times (D105).
 10. Pin an image by its digest as well as its tag when somebody other than the
     vendor built it (D88).
 11. Read an image without starting a container. Use

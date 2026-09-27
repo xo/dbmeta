@@ -104,3 +104,32 @@ func TestSettleSaysWhichKindOfTimeoutItWas(t *testing.T) {
 		t.Errorf("the error is %q and does not say the server never answered", err)
 	}
 }
+
+// install runs Init again after a failure, because a server that has just
+// begun to answer can still refuse a statement on a slow machine.
+func TestInstallTriesAgainAfterAFailure(t *testing.T) {
+	t.Parallel()
+	r := runner{name: "env"}
+	// Fails on the first call and succeeds from the second.
+	if err := r.install(context.Background(), target{
+		Name: "flaky",
+		Init: flapper(t, 1),
+	}, 0); err != nil {
+		t.Fatalf("installing: %v, and the second attempt should have succeeded", err)
+	}
+}
+
+func TestInstallGivesUpAndSaysWhy(t *testing.T) {
+	t.Parallel()
+	r := runner{name: "env"}
+	err := r.install(context.Background(), target{
+		Name: "broken",
+		Init: []string{"sh", "-c", "echo the statement was refused; exit 2"},
+	}, 0)
+	if err == nil {
+		t.Fatal("expected an error from an Init that always fails")
+	}
+	if !strings.Contains(err.Error(), "the statement was refused") {
+		t.Errorf("the error is %q and does not carry what Init said", err)
+	}
+}

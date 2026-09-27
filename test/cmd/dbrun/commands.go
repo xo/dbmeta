@@ -326,20 +326,64 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if t.Kind == kindMachine {
 			return fmt.Errorf("%w. Watch it at http://127.0.0.1:%d", err, t.Viewer)
 		}
+		// The log says why. Oracle 21c answers in under a minute on a
+		// GitHub runner, and once it did not answer in five, and the error
+		// alone could not say whether the database was slow or stuck.
+		if out, lerr := r.output(ctx, "logs", "--tail", "20", t.Name); lerr == nil && out != "" {
+			return fmt.Errorf("%w\n  the last lines of its log:\n%s", err, lastLines(out, 20))
+		}
 		return err
 	}
 	// A server that answers is not always a server with a catalog. Hive's
 	// is installed here, after it is ready and before anything reads it.
 	if len(t.Init) > 0 {
-		// The output is kept on failure, because the exit status alone says
-		// nothing. A Hive run failed in CI with "exit status 2" and no way
-		// to tell which statement beeline refused.
-		if out, err := r.outputIn(ctx, t.InitInput, t.Init...); err != nil {
-			return fmt.Errorf("installing the catalog: %w\n%s", err, lastLines(out, 10))
+		if err := r.install(ctx, t, initPause); err != nil {
+			return err
 		}
 	}
 	fmt.Printf("  %-20s up: %s=%s\n", t.Name, t.Env, t.DSN)
 	return nil
+}
+
+// initAttempts is how many times install runs a server's Init before it
+// gives up, and initPause is the wait between two attempts.
+const (
+	initAttempts = 3
+	initPause    = 10 * time.Second
+)
+
+// install runs a server's Init, and runs it again when it fails.
+//
+// Every Init runs on every start, so each one is already safe to run twice.
+// Hive's failed twice in CI, soon after HiveServer2 first answered: once on a
+// SerDeException and once on a ParseException in a script that does not
+// change. Neither failed on a development machine in three fresh starts. A
+// GitHub runner is a slower machine, and a server that has just begun to
+// answer can still refuse a statement there.
+//
+// The output of each failure is printed, because the exit status alone says
+// nothing. The first Hive failure was "exit status 2", with no way to tell
+// which statement beeline refused.
+func (r runner) install(ctx context.Context, t target, pause time.Duration) error {
+	var err error
+	for attempt := 1; attempt <= initAttempts; attempt++ {
+		var out string
+		if out, err = r.outputIn(ctx, t.InitInput, t.Init...); err == nil {
+			return nil
+		}
+		err = fmt.Errorf("installing the catalog: %w\n%s", err, lastLines(out, 10))
+		if attempt == initAttempts {
+			break
+		}
+		fmt.Printf("  %-20s attempt %d of %d failed, trying again in %s: %v\n",
+			t.Name, attempt, initAttempts, pause, err)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pause):
+		}
+	}
+	return err
 }
 
 func doStop(ctx context.Context, r runner, t target, o options) error {

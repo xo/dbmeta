@@ -201,14 +201,17 @@ password in `container.Password`:
 | Vertica | `dbmeta`, a pseudo superuser | `container.Password` |
 | Couchbase | `Administrator` | `container.Password` |
 | SurrealDB | `root` | `container.Password` |
+| Neo4j | `neo4j` | `container.Password` |
 | Cassandra, ScyllaDB | `cassandra` | `cassandra` |
 | Apache Hive | `hive` | none. The image configures no authentication. |
 | Trino, Presto | `trino`, `presto` | none |
 
-Two products also have an ordinary user that their setup creates, both named
+Three products also have an ordinary user that their setup creates, each named
 `dbmeta_user` with `container.Password`. On Couchbase it is
 `container.CouchbaseUser` (D96). On SurrealDB it is `container.SurrealDBUser`,
-a user on the database `dbmeta` in the namespace `dbmeta` (D103). `dsn --json`
+a user on the database `dbmeta` in the namespace `dbmeta` (D103). On Neo4j it
+is `container.Neo4jUser`, with the role `publisher`, and the setup also makes
+the database `dbmeta` (D106). `dsn --json`
 prints each in the `principals` field, after the administrator, with its own
 connection string (D102). Every other ordinary user is created by the test
 that needs it and dropped when that test ends.
@@ -281,7 +284,9 @@ setup finished. `test` exits 1 when a test failed.
    connection from the host through the driver and the version query.
 3. The setup of the product finished, if the product has one. The setup runs
    inside the container on every start. It creates the users or the catalog
-   that the tests read, and it is safe to run twice.
+   that the tests read, and it is safe to run twice. If it fails, `dbrun`
+   prints what it said and runs it again, up to three times, 10 seconds apart
+   (D105).
 
 A server waits 90 seconds by default. A product that needs longer names its
 own time, such as SAP HANA at 108 seconds. `--timeout` sets another.
@@ -337,8 +342,8 @@ outside its limit of four.
 
 ## When something goes wrong
 
-- A server never answered. Run `dbrun logs <name>` to read what it said. Then
-  run `dbrun remove <name>` and `dbrun start <name>` to build it fresh. A
+- A server never answered. The error ends with the last 20 lines of the
+  container's log. Run `dbrun logs <name>` to read all of it. Then run `dbrun remove <name>` and `dbrun start <name>` to build it fresh. A
   container that did not start stays behind until you remove it.
 - A server runs and every connection is refused. Run `dbrun status`. If it
   says the server runs on another port than the list asks for, run
