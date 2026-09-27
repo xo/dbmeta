@@ -36,14 +36,14 @@ work of another. They apply to a person and to a coding agent alike.
 3. Start only the releases your task tests, by their exact names, such as
    `postgres-18`. Use a tier or `all` only when the task is a release run.
 4. Keep the machine at four running servers or fewer. The four include the
-   servers of every session, and a virtual machine counts as one. If four are
-   running and any of them is not yours, do not start a fifth. Ask the person
-   first. The reason is in the next rule.
-5. Never stop, remove or restart a server that you did not start. `dbrun`
-   stops the longest running server when a start brings the count to five,
-   and it does not know who started that server (D75). So a fifth start can
-   stop the server that another session is testing against, in the middle of
-   its test.
+   servers of every session. `dbrun` keeps the limit for containers: a start
+   that brings the count to five stops your own oldest server, and refuses
+   when none of the four is yours. A virtual machine is not counted by
+   `dbrun`, so count it yourself.
+5. Never stop, remove or restart a server that another owner started.
+   `dbrun` refuses to, and `--force` overrides the refusal. Pass `--force`
+   only when the person tells you to. Treat a server with no owner as
+   somebody else's too, although `dbrun` lets you stop it (D98).
 6. When your task ends, leave the machine as you found it. Stop or remove each
    server that you started. Leave running each server that was running before
    you began. If you stopped one of those by mistake, start it again.
@@ -52,7 +52,41 @@ work of another. They apply to a person and to a coding agent alike.
 8. Tell the person which servers you left running when you finish.
 
 A server that dbmeta's own tests need is started for them by `dbrun test`,
-and removed again at the end unless you pass `--keep`.
+and removed again at the end unless you pass `--keep`. The next section says
+who owns a server and what that changes.
+
+## Owners and sharing
+
+Every server that `dbrun` creates carries its owner, as the container label
+`dbmeta.owner` (D98). The owner is, in this order:
+
+1. `DBMETA_OWNER`, when it is set.
+2. The session of a coding agent, from `CLAUDE_CODE_SESSION_ID`, written
+   `claude-code:<session>`.
+3. The login name of a person, written `user:<name>`.
+
+The owner changes what a command does:
+
+| When the server belongs to | `start` | `stop`, `remove` | `test` |
+| --- | --- | --- | --- |
+| you | starts or shares it | acts | removes it at the end, unless `--keep` |
+| another owner, running | shares it, and says whose it is | refuses | shares it, and keeps it |
+| another owner, stopped | refuses | refuses | refuses |
+| nobody | starts or shares it | acts | as for your own |
+
+A start that needs room stops only your own oldest server. It never stops a
+server of another owner or a server with no owner, unless you pass `--force`.
+
+A server has no owner when it was created before owners existed. A label
+cannot be added to a container that exists, and rebuilding one loses what is
+in it, so it keeps no owner until you remove it and start it again.
+
+Two sessions that test one release share one server. The first session's
+`start` creates it, and the second session's `start` finds it running and
+uses it. Only the owner stops it.
+
+`status` shows the owner of each running server, as `(yours)`, the owner's
+name, or `(no owner)`.
 
 ## Common tasks
 
@@ -110,7 +144,7 @@ dbrun logs postgres-18
 | `start` | Starts the server, waits until it answers, runs its setup, and prints its connection string. The server stays running. | yes |
 | `stop` | Stops the server and keeps the container, so that `start` resumes it. | yes |
 | `remove` | Stops the server and deletes the container. A machine asks first, because it takes an hour to rebuild. | yes |
-| `status` | Prints each running server and its URL. For a machine, it prints whether the database answers yet. | no |
+| `status` | Prints each running server, its URL and its owner. For a machine, it prints whether the database answers yet. | no |
 | `version` | Connects and prints the version that dbmeta reads. It needs a dbmeta model for the product. | no |
 | `dsn` | Prints the URL of the server, running or not. | no |
 | `usql` | Runs the `usql` on your `PATH` with the URL of the server, and nothing else. | no |
@@ -178,9 +212,9 @@ administrator's connection string.
 
 ## Output
 
-Every command prints for a person by default. `list` and `dsn` also print JSON
-with `--json`, and `--names` shortens that JSON to a list of names, which is
-what a CI matrix takes.
+Every command prints for a person by default. `list`, `dsn`, `status` and
+`version` also print JSON with `--json`, and `--names` shortens the JSON of
+`list` and `dsn` to a list of names, which is what a CI matrix takes.
 
 The JSON is a list of objects, one for each server that the selector names,
 with these fields:
@@ -206,8 +240,21 @@ service and the `url` uses `couchbase://`.
 A plain `dsn` prints the name and the URL on one line, separated by spaces. It
 does not print the bare URL. Use `dsn --json` in a script.
 
-`status` and `version` accept `--json` and print text anyway. The help says
-that both print JSON, which is not so today.
+`status --json` prints the running servers with every field above, and four
+more:
+
+| Field | What it holds |
+| --- | --- |
+| `state` | `running` for a container, `answering` or `starting` for a machine, `moved` for a container whose port no longer matches the list, and `embedded` for SQLite and DuckDB |
+| `owner` | who started the server, and empty when it has no owner |
+| `mine` | whether the owner is you |
+| `started` | when the server last started, as the container runner writes it |
+
+`version --json` prints one object for each running server, with `name`,
+`display` for the line a person reads, and `versions`, which maps each key
+the server reports to its version. The empty key is the main version. A
+server whose version cannot be read has an `error` field instead, and the
+command then exits 1.
 
 ## Exit status
 
@@ -257,6 +304,7 @@ under `$XDG_DATA_HOME/dbmeta/embedded` and stays after a test, so that
 | Variable | What it does |
 | --- | --- |
 | `DBMETA_RUNNER` | `podman` or `docker`. Without it, `dbrun` uses podman, and docker when podman is absent. CI sets `docker`. |
+| `DBMETA_OWNER` | Who you are, for the owner label of each server you create. Without it, `dbrun` uses the session of a coding agent, and then the login name. |
 | `DBMETA_TEST_BINARY` | A test binary built with `go test -c`. `dbrun test` runs it instead of compiling the tests. CI sets it (D82). |
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
 | `DBMETA_ORACLE_STATE` | Where the Oracle 19c checkout and installer archive live. |
@@ -291,9 +339,14 @@ outside its limit of four.
 - A server runs and every connection is refused. Run `dbrun status`. If it
   says the server runs on another port than the list asks for, run
   `dbrun start <name>`, which rebuilds the container.
-- A server was stopped while you used it. Another session started a fifth
-  server, and rule 5 explains why. Run `dbrun start <name>` to resume it, and
-  tell the person.
+- A start is refused because four servers run and none is yours. Stop one of
+  your own servers, or ask the owner of one. `dbrun` names each server and its
+  owner in the refusal.
+- A `stop` or `remove` is refused because the server belongs to another owner.
+  Leave it, and ask its owner.
+- A server was stopped while you used it. Its owner stopped it, somebody
+  passed `--force`, or it had no owner and somebody stopped it by name. Run
+  `dbrun start <name>` to resume it, and tell the person.
 - The setup failed. The error ends with the last lines of the setup's output.
 
 ## What dbrun does not start
@@ -307,14 +360,12 @@ outside its limit of four.
 - A product that needs two containers that work together, such as ksqlDB with
   Kafka. `dbrun` runs one container for each server.
 
-## What dbrun does not do yet
+## What dbrun does not do
 
-These are known gaps. Each changes `dbrun`, so each waits for Ken. The open
-question at the end of `PLAN.md` holds them.
+Ken chose on 2026-09-27 to leave these as they are for now (D98):
 
-- A server carries no owner, so `dbrun` cannot tell your servers from another
-  session's, and a fifth start stops the oldest server of any session.
-- `status --json` and `version --json` print text.
 - Every failure exits 1.
 - A plain `dsn` prints two columns rather than the bare URL.
 - `dsn` prints only the administrator, and one scheme for each product.
+- A server cannot be pinned against being stopped for room. Only its owner
+  stops it, which covers most of the need.

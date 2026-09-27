@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 20 of them amend or replace an earlier
+Read the status before the decision. 21 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -139,7 +139,7 @@ records the argument.
 | [D72](#d72-trino-reads-system-jdbc-and-a-catalog-is-a-real-level-decided) | Trino reads system.jdbc, and a catalog is a real level | Decided |
 | [D73](#d73-presto-is-its-own-dialect-and-not-a-flavor-of-trino-decided) | Presto is its own dialect, and not a flavor of Trino | Decided |
 | [D74](#d74-firebird-has-no-schemas-and-none-is-invented-decided) | Firebird has no schemas, and none is invented | Decided |
-| [D75](#d75-every-container-is-bounded-and-four-run-at-once-decided) | Every container is bounded, and four run at once | Decided |
+| [D75](#d75-every-container-is-bounded-and-four-run-at-once-amended-by-d98) | Every container is bounded, and four run at once | Amended by D98 |
 | [D76](#d76-sap-hana-reads-sys-and-answers-more-than-anything-but-postgresql-decided) | SAP HANA reads SYS, and answers more than anything but PostgreSQL | Decided |
 | [D77](#d77-exasol-will-not-run-here-and-hive-goes-ahead-of-it-amends-d66) | Exasol will not run here, and Hive goes ahead of it | Amends D66 |
 | [D78](#d78-hive-reads-sys-and-is-a-model-decided) | Hive reads sys, and is a model | Decided |
@@ -162,6 +162,8 @@ records the argument.
 | [D95](#d95-the-couchbase-model-waits-for-the-dbimp-driver-amends-d94) | The Couchbase model waits for the dbimp driver | Amends D94 |
 | [D96](#d96-couchbase-gets-an-ordinary-user-and-starts-again-after-a-stop-amends-d94) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94 |
 | [D97](#d97-dbrun-is-documented-for-its-users-in-dbrun-and-containers-decided) | dbrun is documented for its users, in DBRUN and CONTAINERS | Decided |
+| [D98](#d98-a-server-has-an-owner-and-dbrun-acts-only-on-the-callers-own-amends-d75) | A server has an owner, and dbrun acts only on the caller's own | Amends D75 |
+| [D99](#d99-dburl-names-the-product-that-a-scheme-drives-decided) | dburl names the product that a scheme drives | Decided |
 
 ## Decisions
 
@@ -5641,7 +5643,7 @@ That is the closest any model has come to the reference, and it is worth
 saying after two query engines that could answer neither a constraint nor an
 index.
 
-### D75. Every container is bounded, and four run at once. Decided.
+### D75. Every container is bounded, and four run at once. Amended by D98.
 
 `container.MemoryLimit` is `4g` and every container this project starts is
 given it. `dbrun` starts a fifth server by stopping the one that has been
@@ -7396,13 +7398,109 @@ server that another session was using on 2026-09-27. So the rules tell a session
 to start a fifth server when any of the four is not its own. The open
 question at the end of this file asks what `dbrun` does about it.
 
+### D98. A server has an owner, and dbrun acts only on the caller's own. Amends D75.
+
+Ken decided on 2026-09-27, answering the question D97 raised. Several coding
+agents use this machine at once, and D75 let one agent's fifth start stop a
+Couchbase server that another agent was using.
+
+#### What dbrun does now
+
+Every container and machine that `dbrun` creates carries the label
+`dbmeta.owner`. The owner is `DBMETA_OWNER` when it is set, then the session
+of a coding agent from `CLAUDE_CODE_SESSION_ID`, and then the login name. A
+session's ID stays the same across every command it runs and differs between
+two sessions, so it tells two agents apart with no setup.
+
+- A start that brings the count to five stops the caller's own oldest server.
+  When none of the four is the caller's, it refuses and names each server and
+  its owner. This amends D75, which stopped the oldest server of any session.
+- `stop`, `remove`, a start of a stopped server, and the rebuild of a server
+  whose port moved all refuse a server of another owner.
+- A start of a running server shares it, whoever owns it, and says whose it
+  is. Two sessions that test one release use one server. `test` never removes
+  a server that it shared.
+- `--force` overrides every refusal, and on a fifth start it stops the oldest
+  server of any owner, which is what D75 did.
+- `status` shows each owner, and `status --json` prints the owner, whether it
+  is the caller, and when the server started. `version --json` prints JSON.
+  The help said both did before either one did.
+
+`TestPickEvicteeStopsOnlyYourOwn` holds the rule for room, and it was run on
+the machine with three owners named by `DBMETA_OWNER`. The fifth start of one
+owner stopped that owner's oldest server, a start by an owner of none was
+refused, and a stop of another owner's server was refused.
+
+#### A server from before owners
+
+A container that existed before this change has no label, and a label cannot
+be added to a container that exists. Rebuilding it loses what is in it.
+So it keeps no owner until it is removed and started again. A command that
+names it acts on it as before, and a start that needs room never stops it,
+because every such server is somebody's and stopping one silently is the
+fault that owners end. A start of such a stopped container resumes it without
+an owner, which the measurement showed with `postgres-15`.
+
+#### What was not chosen
+
+The `usql` and `dbimp` sessions asked for more, and Ken chose these for now:
+
+- No pin. A server is stopped for room only by its owner, which covers the
+  long measurement and the design session that a pin was for.
+- A failure still exits 1, a plain `dsn` still prints two columns, and `dsn`
+  still prints only the administrator, in one scheme.
+
+`DBRUN.md` holds the rules and says what is not done.
+
+### D99. dburl names the product that a scheme drives. Decided.
+
+Ken decided on 2026-09-27, answering the question that was open since D80,
+that dburl is where a consumer learns the dialect of a scheme. dburl already
+does it. This session sent the dburl session a request for the field, and the
+dburl session answered that it had shipped: `Scheme.Dialect`, in dburl
+v0.30.0, which dburl's D19 records as requested by dbmeta. The request was not
+needed. `scheme.go` was read earlier the same day, with its `Dialect` lines in
+it.
+
+#### What the field holds
+
+`Scheme.Dialect` is the Driver name of the scheme that is canonical for the
+product, which is the value `dbmeta.Dialect` holds. It is `postgres` for pgx,
+postgres, pq, cockroachdb and redshift, `sqlite3` for moderncsqlite and
+sqlite3, `oracle` for godror and oracle, and `mysql` for memsql, tidb, vitess
+and mysql. Every scheme but `file` has one, and a test in dburl requires it. So the three schemes the question named map with no list here,
+which is what hard rule 1 asks.
+
+#### How a consumer reads it
+
+A parsed `URL` carries it from dburl v0.32.0. `Parse` sets `URL.Dialect` to
+the `Scheme.Dialect` of the parsed scheme, for a scheme registered at run time
+too, and a `file:` URL takes the Dialect of the scheme it resolves to. dburl's
+D24 records it. Ken chose a field on `URL` over a lookup by scheme name,
+because a lookup has to be passed `UnaliasedDriver`, and passing `Driver` is
+the easy mistake.
+
+Mapping `URL.Driver` to a dialect is wrong, not only incomplete. dburl's D22
+makes `postgres://` open pgx and return the Driver `pgx`, moves lib/pq to
+`pq://`, and points cockroachdb and redshift at pgx. `URL.Dialect` is
+`postgres` for all of them. Hard rule 1 in `CLAUDE.md` names `URL.Dialect` as
+what selects a model.
+
+#### What was weighed
+
+Each consumer keeping its own mapping costs `usql` three entries and costs
+every later consumer the same three again, and two copies drift. `dbmeta`
+accepting the alias is what hard rule 1 forbids. dburl holding the fact
+answers every consumer at once, and it is the same kind of fact as
+`GoPackage`, which D80 welcomed.
+
 ## Open questions for Ken
 
 An open question lives here until it is answered, and then it becomes a
 decision above. The argument behind a decision belongs with the decision, which
 is why there is no separate document for it. See D50.
 
-Two questions are open, at the end of this section. None of the older ones are.
+No question is open. None of the older ones are.
 The floor question that the upstream change reopened has been answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
 asked for in exchange.
@@ -7433,78 +7531,3 @@ administrator's answer to every query, so there was no gap to close. The model
 stays `ALL_` only.
 
 Raise a new question here rather than deciding one alone.
-
-### Open. How does a consumer get from a dburl URL to a dialect when a product has two drivers?
-
-`dbmeta.Dialect` is the `dburl` driver name, and `dburl.URL.Driver` selects a
-dialect directly for every product with one driver. `dburl` registers a scheme
-per Go driver, so a product with two has two: `pgx` is PostgreSQL,
-`moderncsqlite` is SQLite and `godror` is Oracle. None of those three words is
-a dialect here, and a consumer that maps `URL.Driver` straight to a `Dialect`
-finds no model for any of them.
-
-This is not hypothetical. `usql` builds all three, and rule 10 makes `dbmeta`
-test two of the three pairs, so the case is the rule rather than an edge of
-it. The `Dialect` doc comment and `docs/COMMANDS.md` said the mapping was
-direct until this was found, and both now say it is not.
-
-The five wire compatible schemes are already handled and are not part of this.
-`cockroachdb`, `redshift`, `memsql`, `tidb` and `vitess` carry an `Override`,
-so `URL.Driver` is already `postgres` or `mysql` and `URL.UnaliasedDriver`
-carries the flavor. That is rule 1 working exactly as written.
-
-Three answers are possible and each belongs to a different project:
-
-`dburl` names the product. A field beside `GoPackage` saying that `pgx` and
-`postgres` are one product would answer it for every consumer at once, and it
-is the same kind of fact D80 welcomed. `Desc` almost carries it today,
-"PostgreSQL PGX" against "PostgreSQL", and prose is not a key.
-
-The consumer keeps the mapping. Three entries, and `usql` already knows which
-product each of its drivers is, so it costs `usql` nothing. It costs the next
-consumer the same three entries again, which is how two copies start
-disagreeing.
-
-`dbmeta` accepts the alias. Rule 1 forbids it, and it is written here only so
-that nobody proposes it a second time without reading why.
-
-Ken decides. The first is the one this session would pick, and it is a change
-to `dburl` rather than to anything here.
-
-### Open. How does dbrun share one machine between sessions?
-
-D75 lets `dbrun` stop the longest running server when a start brings the
-count to five, and it stops a server whatever session started it. Several coding agents now
-use this machine at once, and one agent's fifth start stopped a Couchbase
-server that another agent was using, on 2026-09-27. `DBRUN.md` asks each
-session to avoid that by hand. The `usql` and `dbimp` sessions both asked for
-`dbrun` to keep the rule itself, and proposed these changes:
-
-- Each server carries an owner, as a container label naming the session or
-  the repository. `status` and `list --json` print it, with when it started.
-- `stop`, `remove` and the limit act only on the servers of the owner, unless
-  a flag forces them. A fifth start refuses, and names who holds the four,
-  rather than stopping another owner's server.
-- A server can be pinned, so that it is never stopped to make room. A long
-  measurement, a design session and a server Ken started for his own work
-  span many turns.
-- A start reuses a running server of the same name, so that two sessions
-  testing one release share it, and only its owner stops it.
-
-They also asked for smaller changes, which are faults in the output rather
-than design:
-
-- `status --json` and `version --json` print text, although the help says
-  that both print JSON.
-- A plain `dsn` prints the name and the URL rather than the bare URL, so
-  `$(dbrun dsn postgres-18)` does not work.
-- Every failure exits 1, so a script cannot tell an unknown name from a
-  server that did not start.
-- `dsn` prints only the administrator. `dbimp` tests Couchbase as its
-  ordinary user too, and `usql` asked for another scheme on the same server,
-  such as `pgx://` beside `postgres://`.
-
-D75 considered a refusal in place of stopping a server and rejected it,
-because a refusal turns `dbrun test all` into an error at the fifth server. An
-owner answers that: a run that owns all four servers stops its own oldest one,
-as it does now.

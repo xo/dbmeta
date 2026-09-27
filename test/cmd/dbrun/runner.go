@@ -143,7 +143,7 @@ func (r runner) hostPorts(ctx context.Context, name string) (map[string]string, 
 // and hiding that behind "could not start" cost an afternoon once, so the one
 // command that clears it is printed with the error.
 func (r runner) create(ctx context.Context, t target) error {
-	out, err := r.output(ctx, t.Run...)
+	out, err := r.output(ctx, withOwner(t.Run, currentOwner())...)
 	if err == nil {
 		return nil
 	}

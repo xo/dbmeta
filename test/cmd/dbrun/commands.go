@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 )
@@ -37,28 +38,41 @@ const (
 // one most recently started, and starting is a minute for a container.
 const maxRunning = 4
 
-// makeRoom stops the longest running servers until starting one more keeps
-// the count at or below maxRunning.
+// makeRoom stops the longest running servers of the caller until starting
+// one more keeps the count at or below maxRunning.
 //
 // It only ever stops a container this project knows about, and never the one
 // being started. A machine is left alone: stopping Windows mid install is
 // how an hour is lost, and D57 keeps a machine for that reason.
-func makeRoom(ctx context.Context, r runner, keep string) {
+//
+// It stops only the caller's own servers. When none of the running servers
+// is the caller's it refuses rather than stop another session's server, and
+// --force stops the oldest anyway. See D98.
+func makeRoom(ctx context.Context, r runner, keep string, o options) error {
 	known := map[string]bool{}
 	for _, t := range targets() {
 		if t.Kind == kindContainer && t.Name != keep {
 			known[t.Name] = true
 		}
 	}
-	up := r.runningSince(ctx, known)
+	names := r.runningSince(ctx, known)
+	up := make([]holder, len(names))
+	for i, name := range names {
+		up[i] = holder{name: name, owner: r.owner(ctx, name)}
+	}
+	me := currentOwner()
 	for len(up) >= maxRunning {
-		oldest := up[0]
-		up = up[1:]
-		if !r.quiet(ctx, "stop", oldest) {
+		name, err := pickEvictee(up, me, o.force)
+		if err != nil {
+			return err
+		}
+		up = slices.DeleteFunc(up, func(h holder) bool { return h.name == name })
+		if !r.quiet(ctx, "stop", name) {
 			continue
 		}
-		fmt.Printf("  %-20s stopped to stay within %d running\n", oldest, maxRunning)
+		fmt.Printf("  %-20s stopped to stay within %d running\n", name, maxRunning)
 	}
+	return nil
 }
 
 func (t target) timeout(o options) time.Duration {
@@ -122,6 +136,14 @@ func withRunner(ctx context.Context, command string, picked []target, o options)
 	if err != nil {
 		return err
 	}
+	if o.asJSON {
+		switch command {
+		case "status":
+			return statusJSON(ctx, r, picked)
+		case "version":
+			return versionJSON(ctx, r, picked)
+		}
+	}
 	var failed []string
 	for _, t := range picked {
 		if err := one(ctx, r, command, t, o); err != nil {
@@ -142,7 +164,7 @@ func one(ctx context.Context, r runner, command string, t target, o options) err
 	case "start":
 		return doStart(ctx, r, t, o)
 	case "stop":
-		return doStop(ctx, r, t)
+		return doStop(ctx, r, t, o)
 	case "remove":
 		return doRemove(ctx, r, t, o)
 	case "logs":
@@ -198,11 +220,26 @@ func doStatus(ctx context.Context, r runner, t target, o options) error {
 				t.Name, len(t.URL), "starting, not answering yet", t.Viewer)
 			return nil
 		}
-		fmt.Printf("  %-20s %s  screen http://127.0.0.1:%d\n", t.Name, t.URL, t.Viewer)
+		fmt.Printf("  %-20s %s  screen http://127.0.0.1:%d%s\n",
+			t.Name, t.URL, t.Viewer, whose(ctx, r, t))
 		return nil
 	}
-	fmt.Printf("  %-20s %s\n", t.Name, t.URL)
+	fmt.Printf("  %-20s %s%s\n", t.Name, t.URL, whose(ctx, r, t))
 	return nil
+}
+
+// whose says who started a running server, for the text form of status. The
+// caller's own servers say so too, so that a glance tells which ones a
+// session may stop. See D98.
+func whose(ctx context.Context, r runner, t target) string {
+	switch owner := r.owner(ctx, t.Name); owner {
+	case currentOwner():
+		return "  (yours)"
+	case "":
+		return "  (no owner)"
+	default:
+		return "  (" + showOwner(owner) + ")"
+	}
 }
 
 // doStart brings a server up and leaves it there.
@@ -227,7 +264,13 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	// port it was given then, because a port is an index in that list. It
 	// stays running and answers nothing on the port everything now computes,
 	// which looks like a broken server rather than a stale one.
+	me := currentOwner()
+	owner := r.owner(ctx, t.Name)
 	if have, ok := r.hostPorts(ctx, t.Name); ok && !t.portsMatch(have) {
+		if !mayTouch(owner, me, o.force) {
+			return fmt.Errorf("it publishes %v and the list now says %v, and %w",
+				have, t.wantPorts(), notYours(owner))
+		}
 		if t.Kind == kindMachine {
 			return fmt.Errorf(
 				"it publishes %v and the list now says %v."+
@@ -238,9 +281,18 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 			t.Name, have, t.wantPorts())
 		r.quiet(ctx, t.Remove...)
 	}
+	// A server that is already up is shared, whoever started it, so two
+	// sessions that test one release use one server. Only its owner stops it.
 	if r.running(ctx, t.Name) {
-		fmt.Printf("  %-20s already up: %s=%s\n", t.Name, t.Env, t.DSN)
+		note := ""
+		if owner != me {
+			note = ", started by " + showOwner(owner)
+		}
+		fmt.Printf("  %-20s already up%s: %s=%s\n", t.Name, note, t.Env, t.DSN)
 		return nil
+	}
+	if r.exists(ctx, t.Name) && !mayTouch(owner, me, o.force) {
+		return fmt.Errorf("it is stopped, and %w", notYours(owner))
 	}
 	// An image this repository builds is made here, so that start and test
 	// both get it and neither caller has to remember.
@@ -249,7 +301,9 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	}
 	if r.exists(ctx, t.Name) {
 		if t.Kind == kindContainer {
-			makeRoom(ctx, r, t.Name)
+			if err := makeRoom(ctx, r, t.Name, o); err != nil {
+				return err
+			}
 		}
 		if !r.quiet(ctx, "start", t.Name) {
 			if t.Kind == kindMachine {
@@ -261,7 +315,9 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		}
 	}
 	if !r.running(ctx, t.Name) && t.Kind == kindContainer {
-		makeRoom(ctx, r, t.Name)
+		if err := makeRoom(ctx, r, t.Name, o); err != nil {
+			return err
+		}
 		if err := r.create(ctx, t); err != nil {
 			return err
 		}
@@ -286,12 +342,15 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	return nil
 }
 
-func doStop(ctx context.Context, r runner, t target) error {
+func doStop(ctx context.Context, r runner, t target, o options) error {
 	if t.Kind == kindEmbedded {
 		return nil
 	}
 	if !r.running(ctx, t.Name) {
 		return nil
+	}
+	if owner := r.owner(ctx, t.Name); !mayTouch(owner, currentOwner(), o.force) {
+		return notYours(owner)
 	}
 	if !r.quiet(ctx, "stop", t.Name) {
 		return errors.New("it would not stop")
@@ -315,6 +374,9 @@ func doRemove(ctx context.Context, r runner, t target, o options) error {
 		}
 		fmt.Printf("  removed %s\n", t.DSN)
 		return nil
+	}
+	if owner := r.owner(ctx, t.Name); !mayTouch(owner, currentOwner(), o.force) {
+		return notYours(owner)
 	}
 	if t.Kind == kindMachine && !o.yes {
 		if !r.exists(ctx, t.Name) {

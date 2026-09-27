@@ -212,17 +212,14 @@ An agent doing that work needs three things beyond this table.
 
 The caller supplies the dialect and version. `usql` already reads a version
 string per driver, and `dbmeta.Dialect.Version` replaces that. The dialect is
-`dburl.URL.Driver`, which `usql` already has, and it is the right answer for
-every product with one driver.
+`dburl.URL.Dialect`, which dburl sets when it parses a URL, from v0.32.0.
 
-Three schemes need a step. `dburl` registers a scheme per Go driver, so
-`pgx://` gives `pgx`, `moderncsqlite://` gives `moderncsqlite` and
-`godror://` gives `godror`, and none of those three is a dialect here. The
-dialect is `postgres`, `sqlite3` and `oracle`. `usql` builds all three today,
-and `dbmeta` tests two of them under rule 10, so this is the case rather than
-an edge of it. `dbmeta` does not hold the mapping, because hard rule 1 keeps
-that taxonomy in `dburl`, and how a consumer is meant to cross the gap is an
-open question at the end of [`PLAN.md`](PLAN.md).
+Read `URL.Dialect` and never `URL.Driver`. `dburl` registers a scheme per Go
+driver, so `URL.Driver` names the driver: `pgx`, `moderncsqlite` or `godror`,
+and from dburl's D22 `pgx` for `postgres://` too. None of those is a dialect
+here. `URL.Dialect` is `postgres`, `sqlite3` or `oracle` for each of them,
+because dburl holds that taxonomy and hard rule 1 keeps it out of `dbmeta`.
+D99 in [`PLAN.md`](PLAN.md) has it.
 
 The flavor needs nothing. `dbmeta` reads it from the server rather than from
 the URL: `models/mysql` sets the `mariadb` key when `SELECT VERSION()` carries

@@ -259,7 +259,7 @@ func createMachine(ctx context.Context, r runner, name string, args []string) er
 		}
 		return nil
 	}
-	if out, err := r.output(ctx, args...); err != nil {
+	if out, err := r.output(ctx, withOwner(args, currentOwner())...); err != nil {
 		return fmt.Errorf("it would not start: %s", lastLine(out))
 	}
 	return nil

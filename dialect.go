@@ -7,22 +7,18 @@ import (
 	"sync"
 )
 
-// Dialect names one database family. It is the `dburl` driver name, and
-// `dburl.URL.Driver` selects a dialect directly for every product that has
-// one driver.
+// Dialect names one database family. Its value is the dburl driver name of
+// the scheme that is canonical for the product, and a consumer with a dburl
+// URL reads it from URL.Dialect, which dburl sets from v0.32.0.
 //
-// It does not where a product has two. dburl registers a scheme per Go
-// driver, so pgx is PostgreSQL, moderncsqlite is SQLite and godror is Oracle,
-// and none of those three words is a Dialect here. A consumer that maps
-// URL.Driver straight to a Dialect finds no model for them. Those are the
-// three today and dbmeta does not hold the list, because hard rule 1 keeps
-// that taxonomy in dburl. How a consumer is meant to cross that gap is an
-// open question at the end of docs/PLAN.md.
+// Read URL.Dialect and never URL.Driver. A product with two Go drivers has two
+// schemes, and URL.Driver names the driver: pgx and postgres, moderncsqlite
+// and sqlite3, godror and oracle. Each pair has one Dialect. dbmeta holds no
+// such list, because hard rule 1 keeps that taxonomy in dburl. See D99.
 //
-// The five wire compatible schemes are not affected and need nothing.
-// cockroachdb, redshift, memsql, tidb and vitess carry an Override in dburl,
-// so URL.Driver is already postgres or mysql for them and URL.UnaliasedDriver
-// is where the flavor shows.
+// A wire compatible scheme, such as cockroachdb, redshift, memsql, tidb or
+// vitess, has the Dialect of the product it speaks, and URL.UnaliasedDriver is
+// where the flavor shows.
 //
 // A dialect names the family and never the release. A release arrives as a
 // [VersionSet] value, because D8 resolves version differences at run time. See

@@ -56,6 +56,7 @@ type options struct {
 	asJSON      bool
 	namesOnly   bool
 	yes         bool
+	force       bool
 	follow      bool
 	render      bool
 	watch       bool
@@ -84,6 +85,8 @@ func run(args []string) error {
 	fs.BoolVar(&o.namesOnly, "names", false,
 		"with --json, print just the names, which is what a CI matrix takes")
 	fs.BoolVar(&o.yes, "yes", false, "do not ask before a destructive command")
+	fs.BoolVar(&o.force, "force", false,
+		"act on a server that another owner started, and stop another owner's to make room")
 	fs.BoolVar(&o.follow, "f", false, "follow the log")
 	fs.BoolVar(&o.render, "render", false,
 		"with provision, write the OEM folder and stop, without downloading or starting anything")
@@ -229,6 +232,8 @@ Flags:
   --json          machine readable output, for list, dsn, status and version
   --names         with --json, just the names, which is what a CI matrix takes
   --yes           do not ask before deleting a machine
+  --force         act on a server another owner started, and stop another
+                  owner's server to make room
   --render        with provision, write the OEM folder and stop
   --watch         with provision, leave the machine running rather than waiting
   --from          with provision, the appliance image you downloaded
@@ -236,6 +241,9 @@ Flags:
 
 Environment:
   DBMETA_RUNNER         podman by default, set to docker to use that instead
+  DBMETA_OWNER          who you are, which dbrun labels each server it creates
+                        with. It defaults to the coding agent's session, or to
+                        your login name
   DBMETA_VM_STATE       where the machine disks live, which are tens of
                         gigabytes each. Defaults under $XDG_DATA_HOME/dbmeta
   DBMETA_ORACLE_STATE   where the Oracle 19c checkout and archive live

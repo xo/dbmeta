@@ -63,13 +63,24 @@ func doVersion(ctx context.Context, r runner, t target) error {
 	if !r.running(ctx, t.Name) {
 		return nil
 	}
+	versions, err := readVersion(ctx, t)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("  %-20s %s\n", t.Name, versions)
+	return nil
+}
+
+// readVersion connects to a running server and reads its version the way
+// dbmeta does.
+func readVersion(ctx context.Context, t target) (dbmeta.VersionSet, error) {
 	driver, ok := drivers[t.Dialect]
 	if !ok {
-		return fmt.Errorf("no driver for %s", t.Dialect)
+		return dbmeta.VersionSet{}, fmt.Errorf("no driver for %s", t.Dialect)
 	}
 	db, err := sql.Open(driver, t.DSN)
 	if err != nil {
-		return fmt.Errorf("opening: %w", err)
+		return dbmeta.VersionSet{}, fmt.Errorf("opening: %w", err)
 	}
 	defer db.Close()
 
@@ -77,10 +88,9 @@ func doVersion(ctx context.Context, r runner, t target) error {
 	defer cancel()
 	versions, err := t.Dialect.Version(ctx, db)
 	if err != nil {
-		return fmt.Errorf("reading the version: %w", err)
+		return dbmeta.VersionSet{}, fmt.Errorf("reading the version: %w", err)
 	}
-	fmt.Printf("  %-20s %s\n", t.Name, versions)
-	return nil
+	return versions, nil
 }
 
 // doTest runs the integration tests against one server.
@@ -130,7 +140,15 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 	case o.remove:
 		keep = false
 	}
+	// A test never removes a server it may not touch, which is one another
+	// session started and this test only shared. See D98.
+	owner := r.owner(ctx, t.Name)
+	shared := !mayTouch(owner, currentOwner(), o.force)
 	defer func() {
+		if shared {
+			fmt.Printf("  kept %s, which belongs to %s\n", t.Name, showOwner(owner))
+			return
+		}
 		if keep {
 			fmt.Printf("  kept %s\n", t.Name)
 			return
