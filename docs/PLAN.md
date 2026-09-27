@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 18 of them amend or replace an earlier
+Read the status before the decision. 20 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -158,7 +158,9 @@ records the argument.
 | [D91](#d91-scylladb-is-a-flavor-of-the-cassandra-model-amends-d66-amended-by-d92) | ScyllaDB is a flavor of the Cassandra model | Amends D66, amended by D92 |
 | [D92](#d92-a-second-version-statement-reads-the-scylladb-release-amends-d91) | A second version statement reads the ScyllaDB release | Amends D91 |
 | [D93](#d93-the-cql-tests-use-githubcomxocql-which-reports-a-null-amends-d62) | The cql tests use github.com/xo/cql, which reports a NULL | Amends D62 |
-| [D94](#d94-couchbase-runs-under-dbrun-and-its-model-waits-for-the-n1ql-rewrite-amends-d66) | Couchbase runs under dbrun, and its model waits for the n1ql rewrite | Amends D66 |
+| [D94](#d94-couchbase-runs-under-dbrun-and-its-model-waits-for-the-n1ql-rewrite-amends-d66-amended-by-d95-and-d96) | Couchbase runs under dbrun, and its model waits for the n1ql rewrite | Amends D66, amended by D95 and D96 |
+| [D95](#d95-the-couchbase-model-waits-for-the-dbimp-driver-amends-d94) | The Couchbase model waits for the dbimp driver | Amends D94 |
+| [D96](#d96-couchbase-gets-an-ordinary-user-and-starts-again-after-a-stop-amends-d94) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94 |
 
 ## Decisions
 
@@ -7191,7 +7193,7 @@ The parity record changed wording and nothing else: the new driver writes
 "running query:" where the old one wrote "RowData error:", and every refusal
 is the same refusal. The conformance record did not change.
 
-### D94. Couchbase runs under dbrun, and its model waits for the n1ql rewrite. Amends D66.
+### D94. Couchbase runs under dbrun, and its model waits for the n1ql rewrite. Amends D66, amended by D95 and D96.
 
 Ken asked on 2026-09-27 whether a Couchbase dialect can be built, or at least
 whether `dbrun` can start Couchbase for the tests of the n1ql rewrite. The
@@ -7249,6 +7251,85 @@ It has three faults, and any one of them breaks a model:
 `usql` uses. So the model waits for the rewrite, is written against it, and
 moves `usql` with it, the way D93 moved the cql tests. The three faults went
 to the `n1ql` session as requirements.
+
+### D95. The Couchbase model waits for the dbimp driver. Amends D94.
+
+D94 tied the Couchbase model to a rewrite of `xo/n1ql`. Ken decided on
+2026-09-27 that the first driver in `github.com/xo/dbimp` is a new Couchbase
+driver for SQL++ over HTTP, and that it replaces `xo/n1ql`. dbimp's D23
+records it. So the model waits for that driver instead.
+
+Nothing else in D94 changes. `dbrun` starts the same three releases, the DSN
+names the query service, and the three faults D94 found in `go_n1ql` are the
+requirements the new driver is written to. dbimp's D8 names them.
+
+When the driver works, `dburl`, `usql` and `dbmeta` move to it together,
+because hard rule 10 requires the package that `usql` uses. The model is then
+written against it and measured, as D93 measured the cql model on
+`xo/cql`.
+
+#### Couchbase 7.2 sends its columns in name order
+
+The `n1ql` session measured the query service itself on 2026-09-27. 7.2.9
+sends the fields of each result object in name order, and 7.6.12 and 8.0.3
+send them in the order the statement selects them. So on 8.0.3 the name order
+that D94 found came from `go_n1ql` decoding into a map, and on 7.2.9 it comes
+from the server, where no driver can undo it. Ken chose, for dbimp, to accept
+name order on 7.2 rather than send a PREPARE to learn the order.
+
+Every Scan in a dbmeta model reads a column by its position. So a Couchbase
+model has three choices on 7.2, and it makes one when it is written: raise
+the floor to 7.6, name every column so that name order and field order agree,
+or read 7.2 by name. This was measured by the `n1ql` session and not yet here.
+
+dbimp's D24 goes further. A dbimp driver can replace one that `usql` imports
+today, such as the ones for ClickHouse, Trino, Presto and DynamoDB, to cut
+`usql`'s dependencies. Each such switch means that dbmeta measures the model
+again on the new driver. Nothing changes here until `usql` switches.
+
+### D96. Couchbase gets an ordinary user, and starts again after a stop. Amends D94.
+
+dbimp asked on 2026-09-27 for an ordinary Couchbase user, so that its driver
+is tested as more than the administrator. Ken accepted that for dbimp in its
+D31. dbmeta's parity work needs the same principal (D61), so `Init` makes one
+for both.
+
+#### The ordinary user
+
+`container.CouchbaseUser` is `dbmeta_user`, and its password is
+`container.Password`. It holds `query_select`, `query_insert`, `query_update`
+and `query_delete` on the `dbmeta` bucket, and `query_system_catalog`.
+`user-manage --set` makes the user or resets it, so it is safe on every start.
+
+Measured on 7.2.9, 7.6.12 and 8.0.3: the user writes and reads the bucket and
+reads `system:keyspaces`. It is refused `system:user_info`, `CREATE INDEX` and
+the creation of a bucket. That is a grantee in D61's terms. An owner, with
+`bucket_admin` on the bucket, is the second lesser principal a parity target
+will want, and a test makes it when the model exists.
+
+`Init` also makes a primary index on the bucket. Without one, a SELECT over
+the bucket is refused on every release: 7.2 has no sequential scan at all, and
+8.0 allows one only through `query_use_sequential_scans`, a role the user does
+not hold. A primary index is the smaller grant.
+
+#### A start after a stop never became ready
+
+D94's `Ready` asked `/pools` for a 200. A new node answers 200, and a node
+whose cluster exists answers 401 to a request with no credentials. So a
+stopped server that was started again never became ready, and `dbrun` gave up
+after 90 seconds. D94 measured only a first start. `Ready` now takes 200 or
+401, which says that the cluster manager answers.
+
+On that start the query service answers before the bucket has warmed up, and
+7.2.9 refused an INSERT in that window. `Init` now waits until a count over
+the bucket succeeds. Each release was stopped and started again, and each
+became ready and served the ordinary user.
+
+#### A fact for a driver's tests
+
+The index is updated after a write, not with it. On 7.6.12 a SELECT straight
+after an UPSERT returned no rows. A test that writes and then reads asks for
+`scan_consistency=request_plus`.
 
 ## Open questions for Ken
 

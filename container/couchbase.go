@@ -10,9 +10,10 @@ import (
 // The Couchbase Server releases dbmeta is tested against.
 //
 // dbmeta has no Couchbase model yet. The releases are here so that dbrun can
-// start a server for the n1ql driver's own tests, which is the one thing a
-// consumer of this package asked for first. A model follows the steps in
-// docs/DIALECT.md, and it reads this list when it does.
+// start a server for the tests of a Couchbase driver. That driver is now the
+// first one in github.com/xo/dbimp, and the model waits for it. See D95. A
+// model follows the steps in docs/DIALECT.md, and it reads this list when it
+// does.
 //
 // # The floor, by the docs/EVALUATION.md procedure
 //
@@ -37,13 +38,30 @@ import (
 // and cannot create a bucket. Init checks for each first, so it is safe on
 // every start, and it waits until the query service answers.
 //
+// Init also makes a primary index on dbmeta, so that an ordinary user can
+// read the bucket with no index of its own. 7.2 has no sequential scan at all,
+// and 8.0 grants one only through a role that this user does not hold. It
+// waits until a count over the bucket succeeds. On a start after a stop the
+// query service answers before the bucket has warmed up, and 7.2 refused an
+// INSERT in that window.
+//
 // Ready and Init both run inside the container against 8091, the cluster
 // manager, which is never published. Only 8093, the query service, is
 // published, and the DSN names it. go_n1ql, the driver usql uses, tries a
 // DSN as a cluster address first and then as a query address, and a cluster
 // address would hand back the container's own address for the query service.
 //
-// The administrator is Administrator with [Password].
+// The administrator is Administrator with [Password]. Init also makes
+// [CouchbaseUser], an ordinary user with the same password, for a driver's
+// tests and for parity (D61). It can run SELECT, INSERT, UPDATE and DELETE on
+// the dbmeta bucket and read the system: catalog, and it cannot administer the
+// cluster. user-manage --set makes the user or resets it, so it is safe on
+// every start.
+
+// CouchbaseUser is the ordinary user that Init makes on every Couchbase
+// release. Its password is [Password]. A consumer reads the name from here
+// rather than writing it again.
+const CouchbaseUser = "dbmeta_user"
 
 // couchbaseCLI runs couchbase-cli against the node's own cluster manager.
 const couchbaseCLI = `/opt/couchbase/bin/couchbase-cli`
@@ -54,9 +72,13 @@ var couchbase = product{
 	name:    "couchbase",
 	image:   "docker.io/library/couchbase",
 	port:    8093,
-	// The cluster manager answers before any cluster exists, and Init needs
-	// nothing more than that.
-	ready: []string{"/opt/couchbase/bin/curl", "-sf", "-o", "/dev/null", "http://127.0.0.1:8091/pools"},
+	// Ready means the cluster manager answers, which is all Init needs. It
+	// answers 200 on a new node and 401 once the cluster exists, because an
+	// initialized cluster refuses /pools to a request with no credentials.
+	// The first version asked for 200 alone, so a stopped server that was
+	// started again never became ready.
+	ready: []string{"bash", "-c", `code=$(/opt/couchbase/bin/curl -s -o /dev/null -w '%{http_code}' ` +
+		`http://127.0.0.1:8091/pools); [ "$code" = 200 ] || [ "$code" = 401 ]`},
 	init: []string{"bash", "-c", `set -e
 pw='` + Password + `'
 cli=` + couchbaseCLI + `
@@ -70,13 +92,31 @@ if ! $cli bucket-list -c 127.0.0.1 -u Administrator -p "$pw" | grep -qx dbmeta; 
   $cli bucket-create -c 127.0.0.1 -u Administrator -p "$pw" --bucket dbmeta \
     --bucket-type couchbase --bucket-ramsize 128 --wait
 fi
-i=0
-until /opt/couchbase/bin/curl -sf -o /dev/null -u "Administrator:$pw" \
-    -d 'statement=SELECT 1' http://127.0.0.1:8093/query/service; do
-  i=$((i + 1))
-  [ "$i" -gt 120 ] && { echo "the query service never answered"; exit 1; }
-  sleep 1
-done`},
+$cli user-manage -c 127.0.0.1 -u Administrator -p "$pw" --set \
+  --rbac-username ` + CouchbaseUser + ` --rbac-password "$pw" --auth-domain local \
+  --roles 'query_select[dbmeta],query_insert[dbmeta],query_update[dbmeta],query_delete[dbmeta],query_system_catalog' \
+  >/dev/null
+# q runs one statement as Administrator and succeeds only when the query
+# service reports success.
+q() {
+  /opt/couchbase/bin/curl -s -u "Administrator:$pw" \
+    --data-urlencode "statement=$1" http://127.0.0.1:8093/query/service |
+    grep -q '"status": "success"'
+}
+# wait runs a statement until it succeeds, because the query service answers
+# before the index service and the bucket are ready, most of all on a start
+# after a stop.
+wait() {
+  i=0
+  until q "$1"; do
+    i=$((i + 1))
+    [ "$i" -gt 120 ] && { echo "never succeeded: $1"; exit 1; }
+    sleep 1
+  done
+}
+wait 'SELECT 1'
+wait 'CREATE PRIMARY INDEX IF NOT EXISTS ON dbmeta'
+wait 'SELECT RAW COUNT(*) FROM dbmeta'`},
 	dsn: func(port int) string {
 		u := url.URL{
 			Scheme: "http",
