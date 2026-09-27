@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-30 of them amend or replace an earlier one, and a decision read without its
+33 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -116,7 +116,7 @@ file.
 | [D95](D095-the-couchbase-model-waits-for-the-dbimp-driver.md) | The Couchbase model waits for the dbimp driver | Amends D94, amended by D101 and D104 |
 | [D96](D096-couchbase-gets-an-ordinary-user-and-starts-again.md) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94, amended by D104 |
 | [D97](D097-dbrun-is-documented-for-its-users-in-dbrun-and.md) | dbrun is documented for its users, in DBRUN and CONTAINERS | Decided |
-| [D98](D098-a-server-has-an-owner-and-dbrun-acts-only-on-the.md) | A server has an owner, and dbrun acts only on the caller's own | Amends D75, amended by D102 and D108 |
+| [D98](D098-a-server-has-an-owner-and-dbrun-acts-only-on-the.md) | A server has an owner, and dbrun acts only on the caller's own | Amends D75, amended by D102, D108 and D115 |
 | [D99](D099-dburl-names-the-product-that-a-scheme-drives.md) | dburl names the product that a scheme drives | Decided |
 | [D100](D100-the-vertica-images-live-in-usql-vertica-and-the.md) | The Vertica images live in usql/vertica, and the older ones wait for admintools | Amends D88 |
 | [D101](D101-couchbase-is-the-dialect-couchbase-read-through.md) | Couchbase is the dialect couchbase, read through the dbimp driver | Amends D95 |
@@ -127,6 +127,11 @@ file.
 | [D106](D106-neo4j-enterprise-runs-under-dbrun-under-the.md) | Neo4j Enterprise runs under dbrun, under the evaluation agreement | Amended by D109 |
 | [D107](D107-the-hive-setup-runs-from-a-copy-that-is-safe-to.md) | The Hive setup runs from a copy that is safe to run twice | Amends D105 |
 | [D108](D108-eight-servers-run-at-once-and-a-stopped.md) | Eight servers run at once, and a stopped container belongs to nobody | Amends D75 and D98 |
-| [D109](D109-neo4j-is-the-dialect-neo4j-and-its-url-names-the.md) | Neo4j is the dialect neo4j, and its URL names the database | Amends D106 |
+| [D109](D109-neo4j-is-the-dialect-neo4j-and-its-url-names-the.md) | Neo4j is the dialect neo4j, and its URL names the database | Amends D106, amended by D112 |
 | [D110](D110-every-xo-repository-is-set-up-for-agents-alike.md) | Every xo repository is set up for coding agents the same way | Amends D50 and D89 |
 | [D111](D111-a-large-project-keeps-one-file-per-decision.md) | A large project keeps one file per decision | Amends D50 |
+| [D112](D112-eight-servers-run-under-dbrun-for-dbimp.md) | Eight more servers run under dbrun for dbimp's drivers | Amends D109, amended by D114 |
+| [D113](D113-three-avatica-servers-run-under-dbrun.md) | Three Avatica servers run under dbrun for dbimp's driver | Decided |
+| [D114](D114-a-server-can-answer-more-than-one-dialect.md) | A server can answer more than one dialect | Amends D112 |
+| [D115](D115-a-server-shows-its-owners-name-and-status-a-shows.md) | A server shows its owner's name, and status -a shows the stopped ones | Amends D98 |
+| [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Decided |

@@ -1,6 +1,6 @@
 # D109. Neo4j is the dialect neo4j, and its URL names the database
 
-Status: Amends D106.
+Status: Amends D106, amended by D112.
 
 Ken accepted dbimp's D60 and D61 on 2026-09-27, which D106 waited for. The
 dialect and the dburl scheme are `neo4j`, so `dbmeta.Neo4j` is `neo4j`, as

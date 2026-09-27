@@ -9,6 +9,11 @@ Everything below was measured rather than read. A program built `usql` with the
 one which reader interfaces it satisfies. The counts come from that.
 
 Measured against `usql` at commit `382e1da` on `main`, with 47 drivers built.
+`usql` has changed since. `ef8bf17` removed mymysql, adodb, sapase and
+ignite, `2cc28e2` made pgx the PostgreSQL driver and moved lib/pq, `8407785`
+replaced n1ql with dbimp's Couchbase driver, and `54c12a4` added SurrealDB.
+The counts and the driver names below are the measurement at `382e1da`, and
+they have not been measured again.
 
 ## How usql reads metadata today
 
@@ -39,7 +44,7 @@ ColumnStatReader serves `\ss` alone. `\l` needs Catalogs. `\dn` needs Schemas. `
 `\ds` and bare `\d` need Tables. `\d NAME` needs Tables and Columns to print
 anything, and adds a section per further reader. `\di` needs Indexes. `\df`
 and `\da` need Functions. `\dp` needs PrivilegeSummaries. `\ss` needs
-ColumnStats and is outside the Describe family, as is `\z`.
+ColumnStats and is outside the Describe family. `usql` has no `\z`.
 
 Two earlier versions of this section were wrong in the same way, and both
 errors were a right count of the wrong thing. It said eight commands, which
@@ -167,9 +172,12 @@ reading code.
 | ScyllaDB | 10/11 | 4/5 | the same as Cassandra |
 | Trino | 8/11 | 0/5 | `\df`, `\da`, `\di` and every section: a query engine has no index, no constraint and no table valued function list |
 | Presto | 8/11 | 0/5 | the same as Trino |
+| Apache Hive | 9/11 | 2/5 | `\l` and `\di`, and the sequence, index column and trigger sections |
+| Exasol | 11/11 | 3/5 | the sequence and trigger sections |
+| Vertica | 11/11 | 5/5 | nothing on 25.1. Below 25.1 there is no trigger section |
 
-Four answer every command and every section: PostgreSQL, MariaDB, SQL Server
-and SAP HANA. Every gap in the table is the product having no such object
+Five answer every command and every section: PostgreSQL, MariaDB, SQL
+Server, SAP HANA and Vertica. Every gap in the table is the product having no such object
 rather than the model being unfinished, and each one says so with
 `NotSupported` rather than returning no rows.
 
@@ -212,26 +220,29 @@ now exist.
 
 `dbmeta.ConstraintColumns` is the column level detail of a constraint: which
 column, in what position, and for a foreign key which column of which table it
-points at. Every model answers it, including SQLite.
+points at. Every model answers it but ClickHouse, Trino, Presto and Couchbase,
+which have no such constraint to read, and SQLite answers it.
 
 `dbmeta.RoutineParameters` is `usql`'s FunctionColumns: the name, position,
-direction and type of each parameter. Every model except SQLite answers it,
-and SQLite cannot, because a function there is compiled C with no named
-parameters.
+direction and type of each parameter. PostgreSQL, the MySQL dialect, SQL
+Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase and the shared model
+answer it. SQLite cannot, because a function there is compiled C with no
+named parameters, and `COVERAGE.md` says why each of the others cannot.
 
-`dbmeta.ColumnStats` backs `\ss`. PostgreSQL, MariaDB and SQL Server answer it.
-MySQL, SQLite and DuckDB cannot, and say so rather than returning rows that are
-almost all absent. `usql` implements `\ss` today for PostgreSQL, DuckDB, Trino,
-CockroachDB, Redshift and SQL Server. Two of those six are covered, and DuckDB
-is not: `usql` prints statistics there that `dbmeta` refuses, because DuckDB
-has no catalog of them.
+`dbmeta.ColumnStats` backs `\ss`. PostgreSQL, MariaDB, SQL Server, Oracle, SAP
+HANA and Apache Hive answer it. MySQL, SQLite, DuckDB and Trino cannot, and
+say so rather than returning rows that are almost all absent. `usql`
+implements `\ss` through its PostgreSQL reader, for postgres, pgx, cockroachdb
+and redshift, and through its DuckDB and Trino readers. DuckDB and Trino are
+not covered: `usql` prints statistics there that `dbmeta` refuses, because
+neither keeps a catalog of them that the models read.
 
 ### What is still missing for a lossless migration
 
-Nothing, for the databases `dbmeta` models. `usql` implements `\ss` for six
-drivers and `dbmeta` answers it for two of them, so a migration of the other
-four waits on a model for Trino and on what CockroachDB and Redshift answer
-through the PostgreSQL model, rather than on a missing kind.
+Nothing, for the databases `dbmeta` models, except `\ss` on DuckDB and Trino.
+A migration of those two loses `\ss`, because neither model can answer it.
+CockroachDB and Redshift wait on what they answer through the PostgreSQL
+model, rather than on a missing kind.
 
 Two `usql` reader kinds have no `dbmeta` equivalent by design.
 ConstraintColumns replaces both ConstraintColumns and the column part of
@@ -294,8 +305,8 @@ output still matches `psql`.
 
 `usql` prints one line on connecting, and `dbmeta` builds the same line in
 `VersionSet.Display`. Both were read from the same connection on 26 servers,
-which is every release in `container.All()` plus the two SQLite drivers and
-DuckDB. `usql`'s side is its own per driver `Version` function, or
+which was every release in `container.All()` at the time, plus the two SQLite
+drivers and DuckDB. `usql`'s side is its own per driver `Version` function, or
 `SELECT version()` where a driver declares none.
 
 | Product | Releases | Result |
@@ -310,9 +321,8 @@ DuckDB. `usql`'s side is its own per driver `Version` function, or
 Eleven lines match exactly. Thirteen are `dbmeta` reporting strictly more. Two
 are the SQLite naming, which is the only real disagreement.
 
-That table predates `models/oracle`, `models/cassandra`, `models/clickhouse`
-and `models/trino`, and it compares what the two print rather than what they
-run. The statements are compared below, because comparing only the output hid
+That table predates every model after `models/sqlserver`, and it compares
+what the two print rather than what they run. The statements are compared below, because comparing only the output hid
 a case where `usql` has no answer at all.
 
 ### The statements, compared

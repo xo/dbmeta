@@ -16,6 +16,17 @@ import (
 // See D98.
 const ownerLabel = "dbmeta.owner"
 
+// ownerNameLabel is the container label that holds the friendly name of the
+// owner, such as dbimp, which a person can read where the owner is a session
+// ID. It is set from DBMETA_OWNER_NAME, and it is only ever shown: the owner
+// label alone decides who may act on a server. See D115.
+const ownerNameLabel = "dbmeta.owner.name"
+
+// currentOwnerName is the friendly name the caller gave itself, or empty.
+func currentOwnerName() string {
+	return os.Getenv("DBMETA_OWNER_NAME")
+}
+
 // currentOwner names the caller, in the form the label records.
 //
 // DBMETA_OWNER wins, so a person or a workflow can name itself. A coding
@@ -36,25 +47,45 @@ func currentOwner() string {
 }
 
 // withOwner returns the arguments of a run command with the owner label added
-// after the word run. Every run command here begins with it.
-func withOwner(args []string, owner string) []string {
+// after the word run, and the friendly name of the owner when there is one.
+// Every run command here begins with run.
+func withOwner(args []string, owner, name string) []string {
 	if len(args) == 0 || args[0] != "run" {
 		return args
 	}
-	out := make([]string, 0, len(args)+2)
+	out := make([]string, 0, len(args)+4)
 	out = append(out, args[0], "--label", ownerLabel+"="+owner)
+	if name != "" {
+		out = append(out, "--label", ownerNameLabel+"="+name)
+	}
 	return append(out, args[1:]...)
+}
+
+// label reads one label of a container, and is empty when it has none or
+// there is no such container.
+func (r runner) label(ctx context.Context, name, label string) string {
+	out, err := r.output(ctx, "inspect", "--format",
+		`{{index .Config.Labels "`+label+`"}}`, name)
+	if err != nil || out == "<no value>" {
+		return ""
+	}
+	return out
+}
+
+// who says who owns a server, for a person to read: the friendly name and
+// the owner, or the owner alone.
+func (r runner) who(ctx context.Context, name string) string {
+	owner := r.owner(ctx, name)
+	if friendly := r.label(ctx, name, ownerNameLabel); friendly != "" && owner != "" {
+		return friendly + " (" + showOwner(owner) + ")"
+	}
+	return showOwner(owner)
 }
 
 // owner reads the owner label of a container. It is empty for a container
 // created before servers had owners, and for one that does not exist.
 func (r runner) owner(ctx context.Context, name string) string {
-	out, err := r.output(ctx, "inspect", "--format",
-		`{{index .Config.Labels "`+ownerLabel+`"}}`, name)
-	if err != nil || out == "<no value>" {
-		return ""
-	}
-	return out
+	return r.label(ctx, name, ownerLabel)
 }
 
 // startedAt reads when a container last started, as the runner writes it.
@@ -84,17 +115,17 @@ func claimable(t target, owner, me string, force, running bool) bool {
 	return mayTouch(owner, me, force) || (t.Kind == kindContainer && !running)
 }
 
-// notYours is the error for a server that belongs to somebody else.
-func notYours(owner string) error {
-	return fmt.Errorf("it belongs to %s. Ask them, or pass --force to act on it anyway",
-		showOwner(owner))
+// notYours is the error for a server that belongs to somebody else. who is
+// the owner as runner.who writes it.
+func notYours(who string) error {
+	return fmt.Errorf("it belongs to %s. Ask them, or pass --force to act on it anyway", who)
 }
 
 // showOwner shortens an owner for a person to read. A session name is a UUID,
 // and its first part is enough to tell two sessions apart.
 func showOwner(owner string) string {
 	if owner == "" {
-		return "nobody, from before servers had owners"
+		return "nobody"
 	}
 	if kind, id, ok := strings.Cut(owner, ":"); ok && kind == "claude-code" && len(id) > 8 {
 		return kind + ":" + id[:8]
@@ -102,10 +133,12 @@ func showOwner(owner string) string {
 	return owner
 }
 
-// holder is one running server and who started it.
+// holder is one running server and who started it. who is the owner as a
+// person reads it.
 type holder struct {
 	name  string
 	owner string
+	who   string
 }
 
 // pickEvictee chooses which running server to stop so that one more can start.
@@ -125,7 +158,11 @@ func pickEvictee(up []holder, me string, force bool) (string, error) {
 	}
 	held := make([]string, len(up))
 	for i, h := range up {
-		held[i] = h.name + " (" + showOwner(h.owner) + ")"
+		who := h.who
+		if who == "" {
+			who = showOwner(h.owner)
+		}
+		held[i] = h.name + " (" + who + ")"
 	}
 	return "", fmt.Errorf("%d servers are running and none of them is yours: %s."+
 		" Stop one of yours, ask the owner of one, or pass --force to stop the oldest",

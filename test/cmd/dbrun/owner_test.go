@@ -29,13 +29,13 @@ func TestCurrentOwnerPrefersWhatIsNamed(t *testing.T) {
 // that anything else is left alone.
 func TestWithOwnerLabelsARun(t *testing.T) {
 	t.Parallel()
-	got := withOwner([]string{"run", "--detach", "--name", "postgres-18", "image"}, "user:ken")
+	got := withOwner([]string{"run", "--detach", "--name", "postgres-18", "image"}, "user:ken", "")
 	want := []string{"run", "--label", "dbmeta.owner=user:ken", "--detach", "--name", "postgres-18", "image"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	start := []string{"start", "postgres-18"}
-	if got := withOwner(start, "user:ken"); !slices.Equal(got, start) {
+	if got := withOwner(start, "user:ken", "dbimp"); !slices.Equal(got, start) {
 		t.Errorf("a command that is not run changed: %v", got)
 	}
 }
@@ -121,5 +121,17 @@ func TestClaimable(t *testing.T) {
 		if got := claimable(test.t, test.owner, me, false, test.running); got != test.want {
 			t.Errorf("%s: got %v, want %v", test.name, got, test.want)
 		}
+	}
+}
+
+// TestWithOwnerNamesTheOwner checks that a friendly name goes in a label of
+// its own beside the owner, and only when it is given. See D115.
+func TestWithOwnerNamesTheOwner(t *testing.T) {
+	t.Parallel()
+	got := withOwner([]string{"run", "image"}, "claude-code:aaaa", "dbimp")
+	want := []string{"run", "--label", ownerLabel + "=claude-code:aaaa",
+		"--label", ownerNameLabel + "=dbimp", "image"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }

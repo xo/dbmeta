@@ -1,6 +1,6 @@
 # D98. A server has an owner, and dbrun acts only on the caller's own
 
-Status: Amends D75, amended by D102 and D108.
+Status: Amends D75, amended by D102, D108 and D115.
 
 Ken decided on 2026-09-27, answering the question D97 raised. Several coding
 agents use this machine at once, and D75 let one agent's fifth start stop a

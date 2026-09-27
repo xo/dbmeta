@@ -1,12 +1,12 @@
 # Windows machines for the old SQL Servers
 
-SQL Server on Linux begins at 2017. Everything older has no container, cannot
-run in CI, and is Archived under D54, which means nothing is claimed for it.
-`dbrun provision` is how those releases get tested at all. D57 says what may
-be claimed once a machine has run.
+SQL Server on Linux begins at 2017. Everything older has no container and
+cannot run in CI. D54 put those releases in Archived, which claims nothing.
+D57 makes each one Verified once its machine has run, and `dbrun provision`
+builds that machine.
 
-This document is Windows and SQL Server only. A second product is going the
-virtual machine route and it is not Windows: D85 imports one frozen Exasol
+This document is Windows and SQL Server only. A second product runs as a
+virtual machine, and it is not Windows: D85 imports one frozen Exasol
 Community Edition appliance beside the nano containers. It shares the idea
 that a machine is a target `dbrun` starts, and it shares almost none of the
 machinery here, because an appliance has nothing to install and no evaluation
@@ -138,7 +138,7 @@ walks it. They go under the XDG data directory instead:
 ${XDG_DATA_HOME:-$HOME/.local/share}/dbmeta/vm/<machine>/
     storage/   the Windows disk
     oem/       the payload copied to C:\OEM
-    shared/    what the install writes back, including provision.log
+    shared/    what the install writes back, including provision-<computer>.log, a copy of C:\OEM\provision.log
 ```
 
 `DBMETA_VM_STATE` moves that elsewhere, which is also how to put a machine on

@@ -174,7 +174,8 @@ obviously right for a histogram.
 The shape taken is PostgreSQL's, with every field nullable. A database that
 computes something reports it and a database that does not reports absent,
 which is the padding rule applied to a kind rather than to a release.
-PostgreSQL and MariaDB answer. MySQL and SQLite report `ErrNotSupported`,
+PostgreSQL, MariaDB, SQL Server, Oracle, SAP HANA and Apache Hive answer. MySQL,
+SQLite and the other models report `ErrNotSupported`,
 because neither has a width, a null fraction or a distinct count to give, and a
 row of absences would be worse than no row. See COVERAGE.md.
 
@@ -184,7 +185,7 @@ row of absences would be worse than no row. See COVERAGE.md.
 
 ## The kinds with no psql command
 
-Six object kinds here answer no `psql` command. They exist because `usql` and
+Seven object kinds here answer no `psql` command. They exist because `usql` and
 `dbtpl` were measured and needed them, and D47 allows them: `psql` sets the
 object model and does not set the column set.
 
@@ -196,6 +197,7 @@ object model and does not set the column set.
 | `dbmeta.Views` | `View` | `\d name` on a view prints the definition, and `\sv` shows it outside `describe.c` |
 | `dbmeta.ColumnStats` | `ColumnStat` | `psql` has no such command. `usql` added `\ss` |
 | `dbmeta.CurrentSchema` | `Schema` | session state rather than an object. `dbtpl` reads it in every loader |
+| `dbmeta.CurrentUser` | `User` | session state rather than an object. It came from auditing `usql` (D55) |
 
 In each of the first three the prose and the parts are both available. The
 parts are authoritative and the prose is what `psql` prints, so a client
@@ -234,5 +236,5 @@ database has no such object, and those are different messages to a person.
 
 Rendering stays in `usql`. D5 keeps the `tblfmt` writer there, so the loop is
 to read rows from a `Query` and hand them to the existing writer. The old
-`Reader` and `Writer` interfaces do not carry over, and their names are being
-changed in `usql` itself.
+`Reader` and `Writer` interfaces do not carry over. `usql` writes no new
+reader until it reads `dbmeta` (usql D3).

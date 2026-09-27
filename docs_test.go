@@ -204,7 +204,7 @@ func TestTheDecisionIndexIsComplete(t *testing.T) {
 // A number written in prose goes stale the next time somebody adds one, and
 // the decision count had gone stale in two documents at once. It is cheaper to
 // check than to remember. There are two such numbers: how many decisions
-// docs/PLAN.md holds, and how many hard rules AGENTS.md holds.
+// docs/decisions holds, and how many hard rules AGENTS.md holds.
 func TestTheCountsInProseAreRight(t *testing.T) {
 	t.Parallel()
 	all := decisions(t)

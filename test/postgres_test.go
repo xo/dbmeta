@@ -168,7 +168,7 @@ func TestEveryQueryRuns(t *testing.T) {
 }
 
 // TestPaddedFieldsAreNull is the invariant that replaces a golden file per
-// release. Ten releases times 48 queries is 480 combinations, which nobody
+// release. Ten releases times 55 queries is 550 combinations, which nobody
 // would maintain. [dbmeta.Field.Min] already declares the release each column
 // arrived in, so the assertion can be generic: a field the server is too old
 // for must be NULL in every row, because the statement padded it.

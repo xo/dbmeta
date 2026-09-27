@@ -132,8 +132,9 @@ Five things, three of them shared with `usql`. All five now exist, under D47.
 What follows is what each one became and what it still cannot do.
 
 **Routine parameters** became `dbmeta.RoutineParameters`, with a name,
-position, mode and type per parameter. PostgreSQL, MariaDB, MySQL and the
-shared model answer it. SQLite cannot: a function there is compiled C with no
+position, mode and type per parameter. PostgreSQL, the MySQL dialect, SQL
+Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase and the shared model
+answer it. SQLite cannot: a function there is compiled C with no
 named parameters.
 
 Group by `Routine` and, where the database overloads a name, by `RoutineID`.
@@ -142,14 +143,15 @@ database. On PostgreSQL it is the oid, which is what `dbtpl` uses today.
 
 **Constraint columns** became `dbmeta.ConstraintColumns`, with the column, its
 one based position within the constraint, and for a foreign key the catalog,
-schema, table and column it points at. Every model answers it, SQLite included.
+schema, table and column it points at. Every model but ClickHouse, Trino,
+Presto and Couchbase answers it, SQLite included.
 
 This was the largest gap, and it is closed exactly the way `dbtpl` needs: a
 composite key is several rows sharing a constraint name, ordered by `Ordinal`,
 each paired with the column it references.
 
-**Enum values as rows** became `dbmeta.EnumValues`, and only PostgreSQL answers
-it. A label there is a row with a one based ordinal, which is what a generated
+**Enum values as rows** became `dbmeta.EnumValues`, and PostgreSQL and DuckDB
+answer it. A label there is a row with a one based ordinal, which is what a generated
 Go constant needs.
 
 MariaDB and MySQL cannot, and this is the one place `dbtpl` gains nothing. They
@@ -162,12 +164,12 @@ has the same limitation, so nothing is lost by keeping that where it is.
 
 **The definition of a view** became `dbmeta.Views`, a kind of its own rather
 than a field on `Table`. Reaching the definition costs a join or a function
-call per row, and a caller listing tables should not pay it. Every model
-answers it.
+call per row, and a caller listing tables should not pay it. Every model but
+Couchbase answers it.
 
 **The current schema** became `dbmeta.CurrentSchema`, which answers one row and
 is read with `dbmeta.First`. It is session dependent and says so. Every model
-answers it.
+but Cassandra, Firebird, Presto and Couchbase answers it.
 
 ### The two smaller ones
 
@@ -241,5 +243,5 @@ can be read directly. Then `Procs` and `ProcParams` together, joined on
 `Function.ID`.
 
 Leave `Enums` and `EnumValues` where they are for MariaDB and MySQL. `dbmeta`
-answers them only for PostgreSQL, so moving them would mean two code paths
-rather than one.
+answers them only for PostgreSQL and DuckDB, so moving them would mean two
+code paths rather than one.

@@ -39,19 +39,19 @@ rather than reading one.
 | `models/trino` | 13 | 55 | Trino 476 and 483 |
 | `models/presto` | 9 | 55 | Presto 0.299 |
 | `models/firebird` | 24 | 55 | Firebird 3.0, 4.0 and 5.0 |
-| `models/hana` | 32 | 55 | SAP HANA 2.0 SPS 08 |
-| `models/hive` | 16 | 55 | Apache Hive 4.2 |
+| `models/hana` | 32 | 55 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
+| `models/hive` | 16 | 55 | Apache Hive 4.0 and 4.2 |
 | `models/exasol` | 25 | 55 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
 | `models/vertica` | 26 | 55 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
-| `models/couchbase` | 12 | 55 | Couchbase 7.6.12 and 8.0.3 |
+| `models/couchbase` | 12 | 55 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
-The shared `information_schema` model answers eleven: tables, schemas, columns,
-functions, privileges, constraints, sequences, constraint columns, routine
-parameters, views and the current schema. It is the floor. A native model
+The shared `information_schema` model answers twelve: tables, schemas,
+columns, functions, privileges, constraints, sequences, constraint columns,
+routine parameters, views, the current schema and the current user. It is the floor. A native model
 exists to beat it, and `models/mysql` beats it by seventeen.
 
-Four of those eleven arrived with the kinds D47 added, and they arrived for
+Four of those twelve arrived with the kinds D47 added, and they arrived for
 free: the standard defines `key_column_usage`, `parameters`, `views` and
 `schemata`, so every database close to the standard answers them.
 
@@ -233,7 +233,7 @@ in general, and they happen to agree today. See D48.
 Eleven from `psql` and three of the six D47 added: the columns of a constraint,
 the statement a view selects, and the schema an unqualified name resolves in.
 It cannot answer routine parameters, enum values or column statistics, and the
-reasons are in the table above.
+reasons are in the table under The seven kinds psql has no command for.
 
 | Question | What SQLite reads |
 | --- | --- |
@@ -375,8 +375,9 @@ columns, triggers, comments, functions, aggregates, roles, role grants,
 privileges and settings.
 
 `Settings` needs 4.0, where the `system_views` keyspace arrived. Everything
-else answers on every release from 3.11 up. That is the only version fragment
-the model has, which is why the tested pair spans it.
+else answers on every release from 3.11 up. That is the only fragment gated on
+a Cassandra release, which is why the tested pair spans it. The other
+fragments gate on the `scylla` key.
 
 ### No query filters, and every query returns the system keyspaces
 
@@ -412,8 +413,9 @@ one would not make the answer ordered.
 objects D53 asks every fixture for, plus one of every Cassandra object the
 queries read: a user defined type, a secondary index, a materialized view, a
 function, an aggregate built on a second function, two roles, a grant between
-them and a permission on the keyspace. Nineteen steps, none of them skipped on
-either 3.11 or 5.0.
+them and a permission on the keyspace. Twenty one steps. Cassandra runs
+nineteen on every release and skips the two service level steps, which run on
+ScyllaDB alone.
 
 It needs the image this repository builds. Against the published one the
 function, the view and the roles are all refused, and the test says so rather
@@ -1044,8 +1046,8 @@ its own and closes it. That was measured against Firebird 5.0.4 with
 
 ## SAP HANA
 
-`models/hana` answers 32 of the 55, against SAP HANA 2.0 SPS 08, which is
-2.00.088. It is the second richest answer here after PostgreSQL's.
+`models/hana` answers 32 of the 55, against SAP HANA 2.00.088, which is
+Tested, and 2.00.076 and 2.00.082, which run nightly. It is the second richest answer here after PostgreSQL's.
 
 ### It reads SYS, and there is a lot of it
 
@@ -1222,7 +1224,8 @@ That is worth knowing before a consumer treats a definition as always present.
 
 ## Apache Hive
 
-`models/hive` answers 16 of the 55, against Apache Hive 4.2.1. It is the
+`models/hive` answers 16 of the 55, against Apache Hive 4.2.1, which is
+Tested, and 4.0.1, which runs nightly. It is the
 only model here that writes its filter values into the statement, and the
 reason is in D78 rather than here.
 
@@ -1453,7 +1456,7 @@ This is another measure of how far apart the two have drifted, and `dburl`
 found a sharper one. It had no `GenTrino` at all: the `trino` scheme was
 registered against `GenPresto`, one generator serving both since Trino was
 Presto, with the name left on the function that had quietly become the Trino
-one. `dburl` is splitting them.
+one. `dburl` has since split them, and `GenTrino` generates the Trino DSN.
 
 `dbmeta` is not affected either way. It depends on nothing and generates its
 own DSNs in `container`, which is D19 and hard rule 1.
@@ -1994,7 +1997,8 @@ that varies is what kind of principal they are.
 | ClickHouse 26.9 | granted user | `constraints`, `databases`, `foreign_servers`, `index_columns`, `indexes`, `privileges`, `role_grants`, `roles`, `tablespaces` |
 | MySQL 8.4 | grantee | `foreign_servers`, `functions`, `role_grants`, `roles`, `user_mappings` |
 | MariaDB 13.0 | grantee | `aggregates`, `column_stats`, `foreign_servers`, `role_grants`, `roles`, `user_mappings` |
-| MariaDB 10.6 | grantee | the same, plus `functions` |
+| MariaDB 10.6, 10.11 | grantee | the same, plus `functions` |
+| PostgreSQL 10, 11, 12, 13 | both | each has a section of its own, and `subscriptions` is refused on some. One release answers differently, below, says why |
 | Firebird 3.0, 4.0, 5.0 | grantee | `roles`, `settings` |
 | Apache Hive 4.2 | other principal | none. The image configures no authorization, so every principal is allowed everything |
 | SAP HANA 2.0 SPS 08 | grantee | `collations`, `databases`, `foreign_data_wrappers`, `functions`, `privileges`, `role_grants`, `roles`, `sequences`, `settings`, `triggers`, `views` |
@@ -2003,8 +2007,10 @@ that varies is what kind of principal they are.
 | Exasol 2025.2.1 | both | the same, plus `foreign_data_wrappers`, because the Community Edition ships adapter scripts that SYS owns |
 | Vertica 25.1 | schema owner | `role_grants`, `role_settings`, `roles`, `schemas`, `settings` |
 | Vertica 25.1 | grantee | the same, plus `comments`, `functions`, `privileges` and `sequences` |
-| Vertica 10.1 | both | `privileges` is refused, because a lesser principal cannot read `access_policy` |
-| Vertica 7.2, 9.1 | both | the same as 25.1 without `role_settings`, and a grantee sees fewer rows in `privileges` rather than different values |
+| Vertica 10.1 | both | the same as 25.1 without `role_settings` and `schemas`, a grantee sees every function, and `privileges` is refused, because a lesser principal cannot read `access_policy` |
+| Vertica 7.2, 9.1 | both | the same as 25.1 without `role_settings`, a grantee sees every function, and a grantee sees fewer rows in `privileges` rather than different values |
+| Trino 476, 483 | other principal | none. The image configures no authenticator |
+| Presto 0.299 | other principal | none, for the same reason |
 | Couchbase 7.6, 8.0 | ordinary user | `functions`, `privileges`, `role_grants`, `roles`, `routine_parameters` |
 
 `current_user` and `current_schema` are left out of the table and are in the
@@ -2136,8 +2142,10 @@ measurement is what closed D60 with no change to the model.
 
 `TestConformance` builds the same core schema everywhere and compares the
 canonical answer against `test/testdata/conformance.txt`, which is checked in.
-23 of the canonical lines are identical across PostgreSQL, MariaDB, MySQL,
-SQLite and DuckDB. Every difference below is real and none is a fault.
+23 of the canonical lines are identical across every section that
+`agreementExcluded` in `test/conform_test.go` does not name. The table below
+holds the differences between the first five, PostgreSQL, MariaDB, MySQL,
+SQLite and DuckDB. Every difference is real and none is a fault.
 
 | Difference | Why |
 | --- | --- |
@@ -2145,7 +2153,7 @@ SQLite and DuckDB. Every difference below is real and none is a fault.
 | PostgreSQL reports a default on a primary key | `serial` is implemented as a `nextval` default. `AUTO_INCREMENT` and DuckDB's plain key are not defaults. |
 | MariaDB reports the literal `NULL` as the default of a nullable column with no default | MariaDB is saying the column defaults to NULL, which is true. MySQL reports no default, as PostgreSQL, SQLite and DuckDB do. `TestMySQLNullDefault` pins both. |
 | MariaDB reports a view's columns as not nullable | The others say nullable. Each is inferring from the view body differently. |
-| Only PostgreSQL and DuckDB report the columns of a check constraint | `KEY_COLUMN_USAGE` does not cover a check, and SQLite publishes nothing about one. |
+| Of those five, only PostgreSQL and DuckDB report the columns of a check constraint | `KEY_COLUMN_USAGE` does not cover a check, and SQLite publishes nothing about one. |
 
 The comparison is over the portable facts only: whether a column accepts NULL,
 where it sits, whether it is in the primary key, whether it has an explicit
@@ -2171,12 +2179,14 @@ reading them.
 | `EnumValues` | yes | no | no | no | yes | no | no |
 | `ColumnStats` | yes | yes | no | no | no | yes | no |
 
-Four of the seven are answered by every model, because the SQL standard defines
-`key_column_usage`, `parameters`, `views` and `schemata` and every database
-here has them. That was not the expectation: the two the consumers wanted most
-turned out to be the two the standard already had.
+The table holds the first seven models, and the section of each later model
+says which of the seven it answers. The SQL standard defines
+`key_column_usage`, `parameters`, `views` and `schemata`, so a database close
+to the standard answers those four. That was not the expectation: the two the
+consumers wanted most turned out to be the two the standard already had.
 
-`CurrentUser` is answered by every model but SQLite, which has no users. It is
+`CurrentUser` is answered by every model but SQLite, which has no users, and
+Cassandra, which has no CQL expression for it. It is
 the one question here that reads no catalog at all on the shared model, because
 `CURRENT_USER` is a standard SQL expression rather than a view. It came from
 auditing `usql` for database specific SQL outside its metadata readers, which
@@ -2484,7 +2494,7 @@ logical replication, which rules out `TextSearchConfigs`,
 
 ### Analogues that were found and rejected
 
-Hard rule 13 says to ask several models and then run the answer against a real
+Hard rule 14 says to ask several models and then run the answer against a real
 server. These were named, checked on SQL Server 2022, and left unsupported.
 
 `Extensions` and `ExtensionObjects` from `sys.assemblies`,

@@ -62,9 +62,18 @@ type target struct {
 	Tier    container.Tier `json:"tier"`
 	Dialect dbmeta.Dialect `json:"dialect"`
 
+	// Directory says an embedded database is a directory rather than a
+	// file, as chai and csvq are.
+	Directory bool `json:"directory,omitempty"`
+
 	// Env is the variable the integration tests read a connection string
 	// from, such as DBMETA_POSTGRES.
 	Env string `json:"env,omitempty"`
+	// Also is every other dialect the server answers, and AlsoEnv is the
+	// variable of each. dbrun sets each to the same connection string. See
+	// D114.
+	Also    []dbmeta.Dialect `json:"also,omitempty"`
+	AlsoEnv []string         `json:"alsoEnv,omitempty"`
 	// DSN is what the driver takes and URL is what a person types. They
 	// differ for MySQL and Cassandra, whose drivers take a form that is not
 	// a URL.
@@ -147,8 +156,34 @@ func embeddedTargets() []target {
 			URL: string(d) + ":" + file,
 		})
 	}
+	for _, e := range unmodeled {
+		path := filepath.Join(stateDir("DBMETA_EMBEDDED_STATE", "embedded"), e.name+e.ext)
+		out = append(out, target{
+			Name: e.name, Product: e.name, Kind: kindEmbedded,
+			Tier: container.Tested, Dialect: e.dialect, Directory: e.ext == "",
+			Env: "DBMETA_" + strings.ToUpper(e.name),
+			DSN: path, URL: e.name + ":" + path,
+		})
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
+}
+
+// unmodeled are the embedded databases that have no dbmeta model yet, so no
+// model declares them. Ken asked on 2026-09-28 for dbrun to know them before a
+// dialect is written for them, and the list goes when a model does. The
+// dialect is the one dburl names. moderncsqlite is SQLite without cgo, which
+// dburl gives the dialect sqlite3, and it has a file of its own beside the
+// sqlite3 entry. A database with no extension is a directory. See D116.
+var unmodeled = []struct {
+	name    string
+	dialect dbmeta.Dialect
+	ext     string
+}{
+	{name: "chai", dialect: dbmeta.Chai},
+	{name: "csvq", dialect: dbmeta.CSVQ},
+	{name: "moderncsqlite", dialect: dbmeta.SQLite3, ext: ".db"},
+	{name: "ql", dialect: dbmeta.QL, ext: ".ql"},
 }
 
 // embeddedExt is the file extension for a library's database.
@@ -221,7 +256,9 @@ func targets() []target {
 			Kind:       kindContainer,
 			Tier:       s.Tier,
 			Dialect:    s.Dialect,
-			Env:        envFor(s.Dialect),
+			Env:        envFor(s.Dialect, s.Product),
+			Also:       s.Also,
+			AlsoEnv:    alsoEnv(s.Also),
 			DSN:        s.DSN(port),
 			URL:        s.URL(port),
 			Principals: principalsOf(s, port),
@@ -242,7 +279,7 @@ func targets() []target {
 			Kind:    kindMachine,
 			Tier:    m.Tier,
 			Dialect: m.Dialect,
-			Env:     envFor(m.Dialect),
+			Env:     envFor(m.Dialect, m.Product),
 			DSN:     m.DSN(),
 			URL:     m.URL(),
 			Viewer:  m.Viewer,
@@ -281,8 +318,33 @@ func rebuildCost(m container.Machine) string {
 
 // envFor names the variable the integration tests read a connection string
 // from. One per dialect, because one test run reaches one server per dialect.
-func envFor(d dbmeta.Dialect) string {
+//
+// A server whose dialect is not settled yet is named for its product. Several
+// servers are listed for dbimp's drivers before dburl has a scheme for them,
+// as Neo4j was before D109. See D112.
+func envFor(d dbmeta.Dialect, product string) string {
+	if d == "" {
+		return "DBMETA_" + strings.ToUpper(product)
+	}
 	return "DBMETA_" + strings.ToUpper(string(d))
+}
+
+// alsoEnv names the variable of each other dialect a server answers.
+func alsoEnv(ds []dbmeta.Dialect) []string {
+	var out []string
+	for _, d := range ds {
+		out = append(out, envFor(d, ""))
+	}
+	return out
+}
+
+// env is every variable the tests read for this target, each set to its DSN.
+func (t target) env() []string {
+	out := []string{t.Env + "=" + t.DSN}
+	for _, e := range t.AlsoEnv {
+		out = append(out, e+"="+t.DSN)
+	}
+	return out
 }
 
 // resolve turns the selectors a caller typed into the targets they name.

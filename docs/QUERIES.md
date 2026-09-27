@@ -4,8 +4,8 @@ This document surveys the two sources that D9 names as models. It lists what
 `psql` describes, what `information_schema` describes, and where the two meet.
 
 Read it before designing the object set. It exists so that the design starts
-from what the sources actually contain rather than from the 15 object types
-that `usql` happens to model today.
+from what the sources actually contain rather than from the 14 object kinds
+that `usql` happened to model at the start.
 
 ## How the numbers were produced
 

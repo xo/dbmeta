@@ -9,7 +9,7 @@ Read the rules first. Then find your task under Common tasks, and use the
 reference sections below them when you need a detail. To add a release, a
 product or a virtual machine to what `dbrun` can start, read
 [`CONTAINERS.md`](CONTAINERS.md) instead. The reasons behind the design are in
-`decisions/`: D68, D69, D75, D82, D86 and D97.
+`decisions/`: D68, D69, D75, D82, D86, D97, D98, D105, D108, D115 and D116.
 
 Run every command from the `test` directory of a dbmeta checkout:
 
@@ -56,6 +56,12 @@ work of another. They apply to a person and to a coding agent alike.
 7. Never run a command that acts on every container, such as
    `podman stop --all`, `podman rm --all` or `podman system prune`.
 8. Tell the person which servers you left running when you finish.
+9. If you are a coding agent, set `DBMETA_OWNER_NAME` to the name of your
+   session on every `dbrun` command, such as
+   `DBMETA_OWNER_NAME=dbimp go run ./cmd/dbrun start neo4j`. `status` then
+   shows your name beside your session, so the person can see which session
+   owns which server. Do not set `DBMETA_OWNER` for this. The session is what
+   tells two agents apart (D115).
 
 A server that dbmeta's own tests need is started for them by `dbrun test`,
 and removed again at the end unless you pass `--keep`. The next section says
@@ -71,6 +77,12 @@ Every server that `dbrun` creates carries its owner, as the container label
    `claude-code:<session>`.
 3. The login name of a person, written `user:<name>`.
 
+`DBMETA_OWNER_NAME` adds a friendly name, such as `dbimp`, as a second label,
+`dbmeta.owner.name`. It is only shown: `status` and every refusal print it
+with the owner, as `dbimp (claude-code:05124815)`. The owner label alone
+decides who may act on a server, so two sessions that give the same name are
+still two owners (D115).
+
 The owner changes what a command does:
 
 | When the server belongs to | `start` | `stop`, `remove` | `test` |
@@ -79,7 +91,7 @@ The owner changes what a command does:
 | another owner, running | shares it, and says whose it is | refuses | shares it, and keeps it |
 | another owner, stopped container | creates it again as yours | `remove` acts | creates it again as yours, and removes it at the end |
 | another owner, stopped machine | refuses | refuses | refuses |
-| nobody | starts or shares it | acts | removes it at the end only if the test started it |
+| no owner | starts or shares it | acts | removes it at the end only if the test started it |
 
 A start that needs room stops only your own oldest server. It never stops a
 server of another owner or a server with no owner, unless you pass `--force`.
@@ -99,8 +111,10 @@ Two sessions that test one release share one server. The first session's
 `start` creates it, and the second session's `start` finds it running and
 uses it. Only the owner stops it.
 
-`status` shows the owner of each running server, as `(yours)`, the owner's
-name, or `(no owner)`.
+`status` shows the owner of each running server, as `(yours)`, as
+`name (owner)` when the owner gave a name, as the owner alone, or as
+`(no owner)`. `status -a` shows a stopped server as `(stopped, <owner>)`, or
+as `(stopped, nobody)` when it has no owner.
 
 ## Common tasks
 
@@ -158,7 +172,7 @@ dbrun logs postgres-18
 | `start` | Starts the server, waits until it answers, runs its setup, and prints its connection string. The server stays running. | yes |
 | `stop` | Stops the server and keeps the container, so that `start` resumes it. | yes |
 | `remove` | Stops the server and deletes the container. A machine asks first, because it takes an hour to rebuild. | yes |
-| `status` | Prints each running server, its URL and its owner. For a machine, it prints whether the database answers yet. | no |
+| `status` | Prints each running server, its URL and its owner. For a machine, it prints whether the database answers yet. `-a` or `--all` also prints each stopped server, marked `stopped`, with who made it, the way `podman ps -a` does. | no |
 | `version` | Connects and prints the version that dbmeta reads. It needs a dbmeta model for the product. | no |
 | `dsn` | Prints the URL of the server, running or not. | no |
 | `usql` | Runs the `usql` on your `PATH` with the URL of the server, and nothing else. | no |
@@ -183,7 +197,7 @@ A command acts on the servers that its selectors name. Every command except
 | `nightly` | every release that CI runs once a night |
 | `verified` | every release that a person runs before a release |
 | `all` | every release of every product |
-| `sqlite3`, `duckdb` | an embedded database, which is a file and not a server |
+| `sqlite3`, `duckdb`, `moderncsqlite`, `ql`, `chai`, `csvq` | an embedded database, which is a file or a directory and not a server |
 
 ## Names, ports and credentials
 
@@ -216,16 +230,29 @@ password in `container.Password`:
 | Couchbase | `Administrator` | `container.Password` |
 | SurrealDB | `root` | `container.Password` |
 | Neo4j | `neo4j` | `container.Password` |
+| ArangoDB, TDengine | `root` | `container.Password` |
+| Databend | `root` | `container.Password` |
+| rqlite, libSQL, Apache Pinot | `admin` | `container.Password` |
+| InfluxDB 1 | `admin` | `container.Password` |
+| InfluxDB 2 and 3 | the admin token `_admin` | `container.InfluxDBToken`, which is `apiv3_` and `container.Password`. `/query` takes it as the password |
+| CrateDB | `crate` | none. CrateDB takes no password for its superuser. |
+| Apache Druid | `admin` | `container.Password` |
+| Avatica, Apache Phoenix | `SA`, `phoenix` | none. Neither checks a user, and the name is checked by nothing. |
 | Cassandra, ScyllaDB | `cassandra` | `cassandra` |
 | Apache Hive | `hive` | none. The image configures no authentication. |
 | Trino, Presto | `trino`, `presto` | none |
 
-Three products also have an ordinary user that their setup creates, each named
-`dbmeta_user` with `container.Password`. On Couchbase it is
+Several products also have an ordinary user that their setup creates, each
+named `dbmeta_user` with `container.Password`. On Couchbase it is
 `container.CouchbaseUser` (D96). On SurrealDB it is `container.SurrealDBUser`,
 a user on the database `dbmeta` in the namespace `dbmeta` (D103). On Neo4j it
 is `container.Neo4jUser`, with the role `publisher`, and the setup also makes
-the database `dbmeta` (D106). `dsn --json`
+the database `dbmeta` (D106). ArangoDB, CrateDB, Databend, TDengine, rqlite,
+Apache Pinot and Apache Druid have one too, and D112 and D113 say what each
+may do. InfluxDB 1 and 2
+have `container.InfluxDBUser`, who may only read `dbmeta` (D114). InfluxDB 3
+Core and libSQL have none, because neither can make a principal with fewer
+rights than its administrator. `dsn --json`
 prints each in the `principals` field, after the administrator, with its own
 connection string (D102). Every other ordinary user is created by the test
 that needs it and dropped when that test ends.
@@ -245,9 +272,11 @@ with these fields:
 | `product` | the product, such as `couchbase` |
 | `release` | the release, such as `8.0.3`. An embedded database has none. |
 | `kind` | `container`, `machine` or `embedded` |
+| `directory` | true for an embedded database that is a directory, chai and csvq (D116) |
 | `tier` | `tested`, `nightly` or `verified` |
-| `dialect` | the dbmeta dialect, which is the dburl driver name, such as `couchbase` |
+| `dialect` | the dbmeta dialect, which is the dburl driver name, such as `couchbase`. It is empty until dbimp settles the name, as for ArangoDB (D112) |
 | `env` | the environment variable that dbmeta's tests read the DSN from, such as `DBMETA_COUCHBASE` |
+| `also`, `alsoEnv` | every other dialect the server answers, and the variable of each, which dbrun sets to the same DSN. InfluxDB 3 answers `influxql` beside `influxdb` (D114) |
 | `dsn` | the connection string that the Go driver takes |
 | `url` | the dburl URL, which is what `usql` takes |
 | `viewer` | for a machine, the port of its screen viewer |
@@ -263,13 +292,14 @@ its path, such as `neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` (D109).
 A plain `dsn` prints the name and the URL on one line, separated by spaces. It
 does not print the bare URL. Use `dsn --json` in a script.
 
-`status --json` prints the running servers with every field above, and four
-more:
+`status --json` prints the running servers with every field above, and five
+more. With `-a`, it prints the stopped servers too.
 
 | Field | What it holds |
 | --- | --- |
-| `state` | `running` for a container, `answering` or `starting` for a machine, `moved` for a container whose port no longer matches the list, and `embedded` for SQLite and DuckDB |
+| `state` | `running` for a container, `answering` or `starting` for a machine, `moved` for a container whose port no longer matches the list, `stopped` for one that is stopped, which only `-a` prints, and `embedded` for an embedded database |
 | `owner` | who started the server, and empty when it has no owner |
+| `ownerName` | the friendly name the owner gave itself with `DBMETA_OWNER_NAME`, when it gave one |
 | `mine` | whether the owner is you |
 | `started` | when the server last started, as the container runner writes it |
 
@@ -305,7 +335,8 @@ setup finished. `test` exits 1 when a test failed.
    (D105).
 
 A server waits 90 seconds by default. A product that needs longer names its
-own time, such as SAP HANA at 108 seconds. `--timeout` sets another.
+own time. SAP HANA, Oracle, Apache Hive, Vertica, Apache Pinot, Apache Phoenix
+and Apache Druid wait 5 minutes. `--timeout` sets another.
 
 A server that answered is not always a server that is fully warm. Couchbase
 updates its indexes after a write rather than with it, so a test that writes
@@ -315,14 +346,24 @@ and then reads asks for `scan_consistency=request_plus` (D96).
 
 | | container | machine | embedded |
 | --- | --- | --- | --- |
-| `start` | creates or resumes it | starts the provisioned machine | prints where the file will be |
+| `start` | creates or resumes it | starts the provisioned machine | prints where the file will be, and gives csvq its sample files |
 | `stop` | stops it and keeps it | stops it and keeps it | nothing to do |
 | `remove` | deletes it | deletes it, after asking | deletes the file |
-| after `test` | removed, unless `--keep` | kept, because it takes an hour to rebuild | the file is kept |
+| after `test` | removed, unless `--keep` | kept, because it takes an hour to rebuild, unless `--remove` | kept, unless `--remove` |
 
-An embedded database is SQLite or DuckDB. It has no server. The file lives
-under `$XDG_DATA_HOME/dbmeta/embedded` and stays after a test, so that
-`dbrun usql sqlite3` opens what the test built.
+An embedded database runs in the process that opens it and has no server.
+SQLite and DuckDB have dbmeta models. moderncsqlite, ql, chai and csvq have
+none yet, and `dbrun` knows them so that a test or `usql` can find them
+(D116). moderncsqlite is SQLite without cgo, with a file of its own beside
+the sqlite3 one. chai and csvq are a directory rather than a file.
+
+The files live under `$XDG_DATA_HOME/dbmeta/embedded` and stay after a test,
+so that `dbrun usql sqlite3` opens what the test built. csvq reads a
+directory of CSV files as its tables, so `start`, `test` and `usql` put four
+sample files in it: `author.csv`, `book.csv`, `region.csv` and
+`shipment.csv`, the core tables of D53. A file that is there already is kept.
+`dbrun remove csvq` deletes the directory, and the next command gives the
+samples again.
 
 ## Environment variables
 
@@ -330,11 +371,12 @@ under `$XDG_DATA_HOME/dbmeta/embedded` and stays after a test, so that
 | --- | --- |
 | `DBMETA_RUNNER` | `podman` or `docker`. Without it, `dbrun` uses podman, and docker when podman is absent. CI sets `docker`. |
 | `DBMETA_OWNER` | Who you are, for the owner label of each server you create. Without it, `dbrun` uses the session of a coding agent, and then the login name. |
+| `DBMETA_OWNER_NAME` | The friendly name of your session, such as `dbimp`, which `status` shows beside the owner. A coding agent sets it on every command (D115). |
 | `DBMETA_TEST_BINARY` | A test binary built with `go test -c`. `dbrun test` runs it instead of compiling the tests. CI sets it (D82). |
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
 | `DBMETA_ORACLE_STATE` | Where the Oracle 19c checkout and installer archive live. |
-| `DBMETA_EMBEDDED_STATE` | Where the SQLite and DuckDB files live. |
-| `DBMETA_<DIALECT>` | The DSN that dbmeta's tests read, such as `DBMETA_COUCHBASE`. `dbrun test` sets it, and a test skips when it is not set. |
+| `DBMETA_EMBEDDED_STATE` | Where the files and directories of the embedded databases live. |
+| `DBMETA_<DIALECT>` | The DSN that dbmeta's tests read, such as `DBMETA_COUCHBASE`. A server with no dialect yet uses its product, such as `DBMETA_ARANGODB` (D112), and moderncsqlite uses `DBMETA_MODERNCSQLITE` (D116). `dbrun test` sets it, and each `alsoEnv` variable too (D114). A test skips when it is not set. |
 
 ## Using dbrun from another repository
 
@@ -363,7 +405,8 @@ outside its limit of eight.
   container that did not start stays behind until you remove it.
 - A server runs and every connection is refused. Run `dbrun status`. If it
   says the server runs on another port than the list asks for, run
-  `dbrun start <name>`, which rebuilds the container.
+  `dbrun start <name>`, which rebuilds the container. If the server runs and
+  belongs to another owner, `start` refuses. Ask its owner.
 - A start is refused because eight servers run and none is yours. Stop one of
   your own servers, or ask the owner of one. `dbrun` names each server and its
   owner in the refusal.
@@ -378,8 +421,8 @@ outside its limit of eight.
 
 - Products that are only a cloud service, such as Snowflake, BigQuery,
   Databricks, Athena and Spanner. There is no server to run.
-- Products that dbmeta has not evaluated yet, such as CockroachDB, Databend,
-  Flight SQL, H2, Impala, Netezza, VoltDB, YDB and Avatica.
+- Products that have no entry in `container/` yet, such as CockroachDB,
+  Flight SQL, H2, Impala, Netezza, VoltDB and YDB.
   `EVALUATION.md` names the candidates, under Candidates carried over from
   usql.
 - A product that needs two containers that work together, such as ksqlDB with

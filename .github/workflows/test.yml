@@ -15,14 +15,15 @@
 # have been caught by those four, and four of the six would have been missed by
 # testing the newest release alone.
 #
-# The nightly job runs all ten, because a wrong version gate is only visible in
-# the window between the release it claims and the release that is true, and
-# that window cannot be predicted.
+# The nightly job runs the Nightly tier, which is every release the push jobs
+# leave out, because a wrong version gate is only visible in the window between
+# the release it claims and the release that is true, and that window cannot be
+# predicted.
 #
-# SQLite and DuckDB have no service container, because neither has a server:
-# both are libraries, and the version is whichever one the pinned driver ships.
-# They run in the embedded job, which starts nothing. SQLite runs against both
-# of its drivers. See D42 and D48.
+# The embedded databases, SQLite, DuckDB and the four of D116, have no server:
+# each is a library, and the version is whichever one the pinned driver ships.
+# They run in the same matrix as the servers, and dbrun starts nothing for
+# them. SQLite runs against both of its drivers. See D42 and D48.
 #
 # MariaDB and MySQL are two products sharing one dialect and one model, so each
 # has its own job and a third compares them. The compare job builds the same

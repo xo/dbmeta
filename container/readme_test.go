@@ -115,6 +115,13 @@ func majorsAtTier(d dbmeta.Dialect, tier container.Tier) []string {
 			out = append(out, s.Major)
 		}
 	}
+	// A release on a Windows machine is in the tier table too, such as the
+	// Verified SQL Server releases that have no Linux container (D57).
+	for _, m := range container.Machines() {
+		if m.Dialect == d && m.Tier == tier {
+			out = append(out, m.Release)
+		}
+	}
 	return out
 }
 

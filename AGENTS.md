@@ -31,7 +31,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 111. Read the status, because 30
+`docs/decisions/README.md` is a table of all 116. Read the status, because 33
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -51,11 +51,11 @@ Then by what you are doing:
 | deciding whether a field belongs here | D47 in `docs/decisions/`, which holds the cost test |
 | wiring up a client | `docs/COMMANDS.md`, then `docs/USQL.md` or `docs/DBTPL.md` |
 | designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
-| adding a release to CI | `container/container.go`, which is the only copy of that list |
+| adding a release to CI | the product's file in `container/`, which is the only copy of its list |
 | adding an old SQL Server that needs a Windows VM | `docs/DIALECT.md` for where the steps differ, then `docs/WINDOWS.md`, `container/windows.go` and D57 |
 | starting a database for any reason | `dbrun`, and nothing else. `docs/DBRUN.md` holds its use and the rules for a shared machine. Read those rules first |
 | adding a container or a machine that dbrun starts | `docs/CONTAINERS.md`, every step in order |
-| changing how a database is started | D68, D70, D75, D86 and D97 in `docs/decisions/`, then `docs/DBRUN.md` |
+| changing how a database is started | D68, D70, D75, D86, D97, D98, D105, D108 and D115 in `docs/decisions/`, then `docs/DBRUN.md` |
 | provisioning a Windows machine | `docs/WINDOWS.md`, then `container/windows.go` and D57 |
 | testing against Cassandra | `test/cmd/dbrun/image/cassandra.Containerfile`. `dbrun` embeds it and builds it when the image is missing |
 | changing the CI workflow | D69. It reads the release list from `dbrun list --json` and names no image of its own |
@@ -103,7 +103,7 @@ something is written down, it is not written down, and it is an open question.
    produce it, and never return prose as the only form of anything. D47 holds
    the cost test, and rule 13 is the short version.
 3. A query that must differ between releases is one query with version
-   fragments, held as generated data in the one model package. There is no
+   fragments, held as data in the one model package. There is no
    package per release. A fragment must never change the set of columns a
    query returns. Whichever side lacks a source pads, old or new: select the
    column as `NULL AS name` on the server that has no source for it. A type
@@ -167,9 +167,8 @@ something is written down, it is not written down, and it is an open question.
    The version may differ and the package may not. Where `usql` ships two for
    one database, test both as subtests named for the driver: SQLite runs on
    `mattn/go-sqlite3` and `modernc.org/sqlite`, and PostgreSQL on
-   `jackc/pgx/v5/stdlib` and `lib/pq`. Parity is the one exception and D52
-   says why. Oracle is the one exception
-   and D59 says why: the `go-ora/v3` that `usql` pins panics rather than
+   `jackc/pgx/v5/stdlib` and `lib/pq`. There are two exceptions. Parity is
+   one, and D52 says why. Oracle is the other, and D59 says why: the `go-ora/v3` that `usql` pins panics rather than
    connecting on 11g and 18c. It is fixed upstream and untagged, so Oracle uses
    v2 until v3 tags the fix, and then goes back. The package is in the `dburl`
    registry, from v0.29.0: `Scheme.GoPackage` is the import path and
@@ -225,6 +224,9 @@ something is written down, it is not written down, and it is an open question.
    typed rather than the one `container.All` assigns, so `dbrun version`
    cannot reach a server that is plainly running, and two copies of the same
    release end up on the machine with nothing to tell them apart. See D68.
+   If you are a coding agent, set `DBMETA_OWNER_NAME` to the name of your
+   session on every `dbrun` command, so that `status` shows whose each server
+   is. See D115.
 16. A dialect is not finished until every query has been asked as the
    administrator and as every lesser kind of principal the product has, and
    the differences are written down. Add the principals to `parityTargets` in
@@ -438,19 +440,24 @@ Read `golangci-lint run` output as a list of questions, not a list of tasks.
 
 ## Container images
 
-`container/container.go` names every database release dbmeta is tested
-against, as Go data. It starts nothing and imports no container client, and it
-must not: a consumer brings its own podman, docker or Go client and picks its
-own version of it, the same way it brings its own driver.
+`container/` names every server release that `dbrun` starts, as Go data, one
+file per product, and `container.All` in `container/container.go` joins them.
+Most are what dbmeta is tested against. The rest are there for dbimp's
+drivers and have no model (D103, D106, D112, D113). The package starts
+nothing and imports no container client, and it must not: a consumer brings
+its own podman, docker or Go client and picks its own version of it, the same
+way it brings its own driver.
 
-An embedded database is not in there and must not be. SQLite and DuckDB have no
-server and no container, and the release is whichever one the pinned Go driver
-ships, so both are tested in a CI job that starts nothing. See D42.
+An embedded database is not in there and must not be. SQLite3, DuckDB,
+moderncsqlite, ql, chai and csvq have no server and no container, and the
+release is whichever one the pinned Go driver ships. `dbrun` knows them
+itself (D116), and CI tests them in the same matrix as the servers, where
+`dbrun` starts nothing for them. See D42.
 
 That list is the only copy. `test/cmd/dbrun` reads it, the CI workflow builds
 its matrix from `dbrun list --json --names`, and
 `container/workflow_test.go` fails when the workflow and the Go list disagree.
-Change `container/container.go` first and the workflow second.
+Change the product's file in `container/` first and the workflow second.
 
 Add a release there before you add it anywhere else.
 
@@ -497,26 +504,24 @@ list with:
 cd test && go run ./cmd/dbrun list --json --names tested
 ```
 
-That command adds SQLite3 and DuckDB, which are not in `container.AtTier`
-at all and run in a job that starts no container. D42 keeps an embedded
-database out of the release list, and `dbrun` puts the two back because a
-person asking for the tier wants to run them too. The remaining releases run
-nightly.
+That command adds the six embedded databases, which are not in
+`container.AtTier` at all, and `dbrun` starts nothing for them. D42 keeps an
+embedded database out of the release list, and `dbrun` puts them back because
+a person asking for the tier wants to run them too. The Nightly tier runs
+once a night.
 
-The Cassandra job builds its image first rather than naming a service, because
-the published one refuses what the queries read. See D62 and
-`test/cmd/dbrun/image/cassandra.Containerfile`.
+`dbrun` builds the Cassandra image before it tests a Cassandra release, from
+the Containerfile it embeds, because the published image refuses what the
+queries read. See D62 and `test/cmd/dbrun/image/cassandra.Containerfile`.
 
-Do not write that list in the workflow from memory. It lives in
-`container/container.go`, `container.AtTier` selects a tier, and
+Do not write that list in the workflow from memory. It lives in `container/`,
+`container.AtTier` selects a tier, and
 `TestWorkflowReadsTheList` fails when the YAML and the Go disagree. Change the
 Go first and then the YAML. See D42 and D54.
 
-Two facts about the runner. The preinstalled PostgreSQL is 16, not the latest
-release, so testing the newest PostgreSQL needs a service container. The
-preinstalled MySQL server is MySQL, not MariaDB, which is intentional: MariaDB
-is the reference product and MySQL is the flavor, so CI covers the flavor for
-free. Do not replace it with MariaDB.
+CI uses no database that is preinstalled on the runner. `dbrun` starts every
+release, and the compare job runs MariaDB 13.0 and MySQL 26.7 as service
+containers to check that the two products answer the same way (D44).
 
 ## Writing documentation
 

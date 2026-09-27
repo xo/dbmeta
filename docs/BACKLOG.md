@@ -15,9 +15,10 @@ anything that was decided on the way (D110).
 The test module reads Cassandra and ScyllaDB through `github.com/xo/cql`
 (D93). Ken decided on 2026-09-27 that `xo/cql` gets no further work, and that
 a clean driver in `github.com/xo/dbimp` replaces it. When dbimp has that
-driver and `usql` imports it, move the tests to it. Then run the Cassandra and
-ScyllaDB tests on every release again, as D101 did for Couchbase. Hard rule 10
-requires the package that `usql` uses, so the move waits for `usql`.
+driver, move the tests to it and run the Cassandra and ScyllaDB tests on every
+release again. Couchbase is the precedent: D101 moved its tests to dbimp's
+driver before `usql` imported it, and `usql` followed. Hard rule 10 asks for
+the package that `usql` uses, so ask Ken whether the move waits for `usql`.
 
 ## Servers
 
@@ -38,11 +39,32 @@ prints the last 20 lines of the container's log when a server never answers.
 When it happens again, read that log and decide whether the entry needs a
 change.
 
-### Move the Neo4j ceiling each month
+### Find why Databend's first start can fail
 
-The Neo4j ceiling is the newest monthly release, 2026.09.0 (D106). A monthly
-release stops being rebuilt when the next one arrives. When 2026.10 arrives,
-replace 2026.09.0 in `container/neo4j.go` and in the row in `EVALUATION.md`.
+The first start of `databend-1.2.948-nightly` after the pull of the image did
+not answer. The image's bootstrap script starts the query server one second
+after the metadata server, and the metadata server was still waiting to become
+the leader, so the query server gave up with "cannot connect to
+http://0.0.0.0:9191". It did not happen again in four fresh starts (D112). If
+it comes back in CI, the entry can start the two servers itself and wait for
+the metadata server between them.
+
+### Move the ceilings that move
+
+Three ceilings move faster than the others. Databend publishes a weekly
+release almost every day, ArangoDB's release is the newest 3.12 patch, and
+Neo4j's is the newest monthly release (D106, D112). When a newer release is
+published, replace it in the file in `container/` and in the row in
+`EVALUATION.md`.
+
+### Try an ordinary user on the standalone Avatica server
+
+The standalone Avatica server checks no user, and passes the user and the
+password of each connection to HSQLDB, which has users. A user that SA made
+through the server was then not found by a second connection, and the
+requests were built by hand (D113). Build them with the Go driver
+apache/calcite-avatica-go instead, and find whether HSQLDB then checks the
+user. If it does, the entry can make one.
 
 ## Consumers
 

@@ -6,8 +6,8 @@ Read this before you start. The rules themselves live in `AGENTS.md`, and the
 reasoning lives in `decisions/`, one file per decision. This file is the
 checklist, and it points at both.
 
-Read [`NULLS.md`](NULLS.md) before you write the first query. It is 139 lines,
-it is the shortest document here, and it cost three rounds of real bugs to
+Read [`NULLS.md`](NULLS.md) before you write the first query. It is the
+shortest document here, and it cost three rounds of real bugs to
 learn. Step 10 says where it applies. It is a separate document because its
 audience is anyone writing any query, not only somebody adding a dialect.
 
@@ -20,8 +20,8 @@ once, by you, on one server, as one user.
 
 ### 1. Check it is the one to do next
 
-D66 in `decisions/` holds the order and D67 amends it. Do not start a database out of
-order without asking Ken.
+D66 in `decisions/` holds the order, and D67, D77, D88, D91 and D94 amend it.
+Do not start a database out of order without asking Ken.
 
 ### 2. Choose the version range
 
@@ -53,6 +53,10 @@ grep -n "<package>" ~/src/go/src/github.com/xo/usql/go.mod
 A scheme with no `GoPackage` borrows another scheme's driver and is wire
 compatible with it. `cockroachdb` is one, and reading `pgx` for it is the
 right answer rather than a missing one.
+
+If dburl names a driver that `usql` does not import yet, ask Ken. Couchbase
+was the case: dburl named dbimp's driver, the tests moved to it first and
+pinned their own version (D101), and `usql` followed.
 
 D52 requires the same package `usql` uses. The version may differ and the
 package may not. A query that works here and fails on the driver `usql` ships
@@ -87,6 +91,11 @@ else that needs a server, because D68 means nothing else may start one.
 Use `container.Password` for the password. It is one value for every product
 and it is shaped to clear the strictest policy any of them enforces.
 
+If the product has users, make an ordinary user in `Init` and declare it in
+`users`, so that `dsn --json` prints it (D102). The parity target connects as
+that user (D104). `Init` runs on every start, and `dbrun` runs it again after
+a failure, so it must be safe to run twice (D105, D107).
+
 Check before this that the published image can do what the queries read. Two
 here cannot and are built instead. The Apache Cassandra image refuses a user
 defined function, a materialized view and a role, and its entrypoint maps only
@@ -104,7 +113,10 @@ added at run time with no build at all.
 
 Add it to the `Dialect` block in `dialect.go`, in alphabetical order. The value
 is the `dburl` driver name, which is not always the word the database calls
-itself.
+itself. The constant can exist already, because a `dbrun` entry for one of
+dbimp's drivers adds one before a model does. If dburl has no scheme for the
+product, the name waits until dbimp and Ken settle it (D112). Do not invent
+one.
 
 If the database is a library rather than a server, set `Embedded: true` in the
 `Info` the model registers, at step 10. Nothing else has to be told: `dbrun`
@@ -143,17 +155,18 @@ Never start a container any other way. D68 says why, and
 [`DBRUN.md`](DBRUN.md) says how to use the command. `dbrun usql <name>` opens
 a shell on it and `dbrun dsn <name>` prints the URL.
 
-### Three kinds of database, and which steps change
+### Databases that are not a plain container, and which steps change
 
-Most of this file assumes a server in a Linux container. Two kinds are not
-that, and each changes a handful of steps rather than all of them.
+Most of this file assumes a server in a Linux container. Four kinds differ,
+and each changes a handful of steps rather than all of them.
 
 **An embedded database is a library.** SQLite and DuckDB have no server, no
 port, no password and no release to pin, because the release is whichever one
-the driver links. D42 keeps them out of `container/container.go` and they must
-stay out. Declare them in the `embedded` list in `test/cmd/dbrun/target.go`
-instead, so that `dbrun test sqlite3` works and `dbrun status` says what they
-are rather than leaving somebody wondering why the name is missing.
+the driver links. D42 keeps them out of `container/` and they must stay out.
+`dbrun` finds them through `Info.Embedded`, so that `dbrun test sqlite3` works
+and `dbrun status` says what they are. If the database is in `unmodeled` in
+`test/cmd/dbrun/target.go`, as chai, csvq, ql and moderncsqlite are, remove it
+from there when the model registers (D116).
 
 What changes for an embedded database:
 
@@ -168,8 +181,8 @@ What changes for an embedded database:
   a file under `$XDG_DATA_HOME/dbmeta/embedded` that `dbrun` names and keeps.
 - The test opens a file in `t.TempDir()` rather than reading a DSN from the
   environment, and never skips for a missing server.
-- CI runs them in the job that starts no container. Nothing to add: the
-  workflow already has it.
+- CI runs them in the same matrix as the servers, and `dbrun test` starts
+  nothing for them. Nothing to add.
 - They go in `parityExempt` with the reason, not in `parityTargets`. A file on
   disk has no user, so there is no second principal to be, and hard rule 16
   cannot reach them. That is an exemption for the only reason an exemption is
@@ -249,7 +262,7 @@ Which source carries the comment? It is often not the obvious one.
 D43 and hard rule 14 require this, and it is not a formality. Ask two of
 Gemini, DeepSeek and Astra to sort the kinds you could not answer into three
 groups: absent from the product, present under another name, and derivable from
-one statement.
+several catalog reads or one complex statement.
 
 Then run every lead against a real server. Every one.
 
@@ -294,8 +307,7 @@ Four rules decide most of the detail, and the first one is the one that has
 cost this project the most.
 
 **Never hide a NULL.** Read [`NULLS.md`](NULLS.md) in full before writing a
-query, and keep it open while you write them. It is the whole rule and it is
-139 lines.
+query, and keep it open while you write them. It is the whole rule.
 
 The short version, which is not a substitute for reading it. A database
 returns NULL to mean something, and turning it into an empty string, a zero or
@@ -412,7 +424,8 @@ A scene the server is too old for carries a `min` and is skipped with the
 reason, the way a fixture step is.
 
 Where one release genuinely answers differently from the rest, write a section
-named `product@major` rather than lowering the shared one. Two exist.
+named `product@major` rather than lowering the shared one. Several exist, and
+two examples follow.
 PostgreSQL 12 grants public SELECT on six columns of `pg_subscription` and not
 on the seventh, so an ordinary role is refused the whole query where 13 serves
 it. MariaDB 10 reports a routine definition as NULL to a grantee, because
@@ -475,8 +488,10 @@ no foreign key, so there are no relationships for `dbtpl` to follow.
 Say which of the two it is and why, in the product's own terms.
 
 Add a decision to `decisions/` for anything that had to be decided rather than
-discovered. Put the status in the heading and say so in both headings when it
-changes an earlier decision. See D50.
+discovered. It is a file of its own, with its status on the line under the
+title, and a row in `decisions/README.md`. If it changes an earlier decision,
+say so in both status lines (D111). `TestTheDecisionIndexIsComplete` and
+`TestAnAmendmentPointsBothWays` check this.
 
 ### 20. CI
 
@@ -532,7 +547,9 @@ Reading the list is faster than rediscovering them one at a time:
 | `TestEveryPackageCommentStatesItsCount` | the count in the package doc is wrong |
 | `TestConformanceAgreementHolds` | the new database makes the others agree on less |
 | `TestWorkflowReadsTheList` | the workflow stopped reading the release list |
-| `TestTheDecisionIndexIsComplete` | a decision is written and not indexed |
+| `TestTheDecisionIndexIsComplete` | a decision is written and not indexed, or its row does not match its file |
+| `TestAnAmendmentPointsBothWays` | an amendment is not named in both statuses |
+| `TestEveryServerNamesItsPrincipals` | a server does not name its principals |
 | `TestEveryDecisionReferenceExists` | a document points at a decision that does not exist |
 | `TestEveryTestNameInTheDocsExists` | a document names a test that was renamed or removed |
 | `TestTheCountsInProseAreRight` | the decision count or the hard rule count went stale |

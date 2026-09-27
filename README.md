@@ -167,12 +167,12 @@ ClickHouse table what it is: the engine, the partition key, the sorting key,
 the codec per column and the skipping indices. `system` has all of it.
 
 Cassandra has no `information_schema` at all and has a native model for the
-same reason SQLite, DuckDB and Oracle do. It is the only one here that is not
+same reason SQLite and Oracle do. It is the only one here that is not
 SQL, and CQL is narrower than the name suggests: it cannot compute, it cannot
 express an optional filter, and it cannot order across partitions. D62 holds
 what follows from that. `usql` builds on the shared reader today for
-Snowflake, Trino, Databend and Netezza, which is the evidence for who the
-shared model serves.
+Snowflake, Trino, Databend, Netezza and DuckDB, which is the evidence for who
+the shared model serves.
 
 SQL Server was on that list too. `usql` reads it through the shared reader with
 sequences and constraints switched off and a small plugin for catalogs and
@@ -235,8 +235,8 @@ integration tests on every change. They are the floor, the ceiling and one on
 each side of the middle, which is the smallest set that catches every fault
 found so far. Testing only the newest would have caught two of six.
 
-The other six are Nightly. All ten run nightly in CI, and `dbrun` runs any of
-them on a development machine.
+The other six are Nightly, and CI runs them once a night. `dbrun` runs any of
+the ten on a development machine.
 
 Every query is executed against a real server at all ten releases by `dbrun`,
 which also checks that the columns returned match the fields
@@ -252,24 +252,25 @@ release are translated from an older checkout.
 
 ## SQL Server
 
-Supported on every major release that runs on Linux: 2017, 2019, 2022 and 2025.
+Supported on 2017, 2019, 2022 and 2025 in containers, and on 2008R2, 2012,
+2014 and 2016 on Windows machines.
 
 | Releases                     | Tier     |
 | ---------------------------- | -------- |
 | 2017, 2019, 2022, 2025       | Tested   |
-| 2016 and older               | Archived |
+| 2008R2, 2012, 2014, 2016     | Verified |
 
 All four are Tested, and CI starts a real server for each on every change.
 There are only four, and every version gate the model carries sits below all of
 them, so there is no older branch that a smaller matrix would leave uncovered.
 
-2017 is a hard floor rather than a choice. Microsoft shipped SQL Server on
-Linux from 2017, so no container exists for 2016 or earlier and no test can run
-against one. The queries carry gates for `sys.sequences` and
-`sys.dm_db_stats_properties` at 2012 and for `sys.external_tables` at 2016, and
-those gates resolve correctly without a server, which
-`models/sqlserver/version_test.go` checks. That is all that is claimed for an
-older release. It is not a claim that the query ran. See D54.
+2017 is the first release with a Linux container. Microsoft shipped SQL Server
+on Linux from 2017, so the older releases run on Windows machines that `dbrun`
+builds. They are Verified: a person runs them on a development machine before
+a release, and CI never does. The queries carry gates for `sys.sequences` and
+`sys.dm_db_stats_properties` at 2012 and for `sys.external_tables` at 2016,
+and `models/sqlserver/version_test.go` checks that those gates resolve. See
+D54 and D57.
 
 # Design
 
@@ -286,14 +287,14 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 111 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 30 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 116 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 33 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
 | [`QUERIES.md`](docs/QUERIES.md) | What `psql` describes, what `information_schema` describes, and where the two meet. |
 | [`DIALECT.md`](docs/DIALECT.md) | Every step needed to add a database, in order, with the test that catches each one you skip. |
 | [`EVALUATION.md`](docs/EVALUATION.md) | How the supported version range is chosen, and how to choose one for a database not covered yet. |
-| [`USQL.md`](docs/USQL.md) | What `usql` answers today for each of its 47 drivers, and what changes if it reads `dbmeta`. |
+| [`USQL.md`](docs/USQL.md) | What `usql` answered for each of the 47 drivers it built at the commit measured, and what changes if it reads `dbmeta`. |
 | [`DBTPL.md`](docs/DBTPL.md) | The same measurement for `dbtpl`. |
 | [`DBRUN.md`](docs/DBRUN.md) | How to use `dbrun`, the command that starts the databases the tests run against, and the rules for sharing one machine. |
 | [`CONTAINERS.md`](docs/CONTAINERS.md) | How to add a container or a virtual machine that `dbrun` can start. |
@@ -307,8 +308,9 @@ agent, with a table saying which document to read for which task.
 
 # Testing
 
-`container/container.go` names every database release the tests run against,
-as Go data. It holds the image, the tag, the environment, the readiness
+`container/` names every server release that `dbrun` starts, as Go data, one
+file per product, and `container.All` joins them. A few are there only for
+dbimp's drivers and have no model. Each entry holds the image, the tag, the environment, the readiness
 command and the connection string, and it starts nothing: a caller brings its
 own podman, docker or Go client, and `dbmeta` depends on none of them.
 

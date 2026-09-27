@@ -61,7 +61,7 @@ func makeRoom(ctx context.Context, r runner, keep string, o options) error {
 	names := r.runningSince(ctx, known)
 	up := make([]holder, len(names))
 	for i, name := range names {
-		up[i] = holder{name: name, owner: r.owner(ctx, name)}
+		up[i] = holder{name: name, owner: r.owner(ctx, name), who: r.who(ctx, name)}
 	}
 	me := currentOwner()
 	for len(up) >= maxRunning {
@@ -142,7 +142,7 @@ func withRunner(ctx context.Context, command string, picked []target, o options)
 	if o.asJSON {
 		switch command {
 		case "status":
-			return statusJSON(ctx, r, picked)
+			return statusJSON(ctx, r, picked, o.all)
 		case "version":
 			return versionJSON(ctx, r, picked)
 		}
@@ -206,6 +206,11 @@ func doStatus(ctx context.Context, r runner, t target, o options) error {
 		return nil
 	}
 	if !r.running(ctx, t.Name) {
+		// A stopped server is shown only when asked for, the way podman ps
+		// -a shows it, with who made it. See D115.
+		if o.all && r.exists(ctx, t.Name) {
+			fmt.Printf("  %-20s %s  (stopped, %s)\n", t.Name, t.URL, r.who(ctx, t.Name))
+		}
 		return nil
 	}
 	if have, ok := r.hostPorts(ctx, t.Name); ok && !t.portsMatch(have) {
@@ -241,7 +246,7 @@ func whose(ctx context.Context, r runner, t target) string {
 	case "":
 		return "  (no owner)"
 	default:
-		return "  (" + showOwner(owner) + ")"
+		return "  (" + r.who(ctx, t.Name) + ")"
 	}
 }
 
@@ -253,8 +258,12 @@ func whose(ctx context.Context, r runner, t target) string {
 func doStart(ctx context.Context, r runner, t target, o options) error {
 	switch t.Kind {
 	case kindEmbedded:
-		// Nothing to start, and the file is made by whatever opens it. Print
-		// the same line a server prints so a caller can use it either way.
+		// Nothing to start, and the file is made by whatever opens it. A
+		// database that starts from sample files gets them. Print the same
+		// line a server prints so a caller can use it either way.
+		if err := extractSamples(t); err != nil {
+			return err
+		}
 		fmt.Printf("  %-20s embedded: %s=%s\n", t.Name, t.Env, t.DSN)
 		return nil
 	case kindMachine:
@@ -272,7 +281,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	if have, ok := r.hostPorts(ctx, t.Name); ok && !t.portsMatch(have) {
 		if !claimable(t, owner, me, o.force, r.running(ctx, t.Name)) {
 			return fmt.Errorf("it publishes %v and the list now says %v, and %w",
-				have, t.wantPorts(), notYours(owner))
+				have, t.wantPorts(), notYours(r.who(ctx, t.Name)))
 		}
 		if t.Kind == kindMachine {
 			return fmt.Errorf(
@@ -289,7 +298,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	if r.running(ctx, t.Name) {
 		note := ""
 		if owner != me {
-			note = ", started by " + showOwner(owner)
+			note = ", started by " + r.who(ctx, t.Name)
 		}
 		fmt.Printf("  %-20s already up%s: %s=%s\n", t.Name, note, t.Env, t.DSN)
 		return nil
@@ -301,10 +310,10 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	// A machine keeps its owner, because it takes an hour to create. See D108.
 	if r.exists(ctx, t.Name) && !mayTouch(owner, me, o.force) {
 		if t.Kind == kindMachine {
-			return fmt.Errorf("it is stopped, and %w", notYours(owner))
+			return fmt.Errorf("it is stopped, and %w", notYours(r.who(ctx, t.Name)))
 		}
 		fmt.Printf("  %-20s stopped, and created by %s. Creating it again as yours\n",
-			t.Name, showOwner(owner))
+			t.Name, r.who(ctx, t.Name))
 		if !r.quiet(ctx, t.Remove...) {
 			return errors.New("the stopped container would not be removed")
 		}
@@ -357,6 +366,9 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		}
 	}
 	fmt.Printf("  %-20s up: %s=%s\n", t.Name, t.Env, t.DSN)
+	for _, e := range t.AlsoEnv {
+		fmt.Printf("  %-20s also: %s=%s\n", "", e, t.DSN)
+	}
 	return nil
 }
 
@@ -409,7 +421,7 @@ func doStop(ctx context.Context, r runner, t target, o options) error {
 		return nil
 	}
 	if owner := r.owner(ctx, t.Name); !mayTouch(owner, currentOwner(), o.force) {
-		return notYours(owner)
+		return notYours(r.who(ctx, t.Name))
 	}
 	if !r.quiet(ctx, "stop", t.Name) {
 		return errors.New("it would not stop")
@@ -425,7 +437,12 @@ func doRemove(ctx context.Context, r runner, t target, o options) error {
 	if t.Kind == kindEmbedded {
 		// The file is the database, so this is what removing one means. It is
 		// kept by everything else, including test, the same way a machine is.
-		if err := os.Remove(t.DSN); err != nil {
+		// chai and csvq are a directory, which goes with what it holds.
+		remove := os.Remove
+		if t.Directory {
+			remove = os.RemoveAll
+		}
+		if err := remove(t.DSN); err != nil {
 			if os.IsNotExist(err) {
 				return nil
 			}
@@ -435,7 +452,7 @@ func doRemove(ctx context.Context, r runner, t target, o options) error {
 		return nil
 	}
 	if owner := r.owner(ctx, t.Name); !claimable(t, owner, currentOwner(), o.force, r.running(ctx, t.Name)) {
-		return notYours(owner)
+		return notYours(r.who(ctx, t.Name))
 	}
 	if t.Kind == kindMachine && !o.yes {
 		if !r.exists(ctx, t.Name) {
@@ -492,6 +509,11 @@ func doLogs(ctx context.Context, r runner, t target, o options) error {
 func doUsql(ctx context.Context, r runner, t target, _ options) error {
 	if t.Kind != kindEmbedded && !r.running(ctx, t.Name) {
 		return fmt.Errorf("it is not running. Start it with: dbrun start %s", t.Name)
+	}
+	if t.Kind == kindEmbedded {
+		if err := extractSamples(t); err != nil {
+			return err
+		}
 	}
 	if _, err := exec.LookPath("usql"); err != nil {
 		return errors.New("usql is not on the path")

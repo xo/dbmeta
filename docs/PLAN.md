@@ -4,16 +4,13 @@ This document records the plan for `github.com/xo/dbmeta`. The decisions are
 in [`decisions/`](decisions/README.md), one file each (D111). Other coding
 agents must read this file before they change code in this repository.
 
-Status of this repository at the time of writing: `go.mod` and `LICENSE` only.
-There are no commits and no Go source files.
+`AGENTS.md`, in the repository root, holds the rules for writing code here,
+and its table names every document in `docs/` and the task each one is for.
+Read `NULLS.md` before writing a query for any database.
 
-Three other documents sit beside this one. `AGENTS.md` holds the rules for
-writing code here. `EVALUATION.md` holds the method for deciding which versions
-of a database to support. `QUERIES.md` surveys what `psql` and
-`information_schema` each describe, and compares them side by side. Read
-`QUERIES.md` before designing the object set, and `NULLS.md` before writing a
-query for any database. `COMMANDS.md` maps every `psql` metadata command to the
-Go value that answers it, for wiring up a client.
+Parts of this document were written at the start of the project, before any
+code existed. Those parts say so, and they are kept as the record of where the
+work began. The rest describes the project as it is.
 
 ## Purpose
 
@@ -32,8 +29,8 @@ The module has two layers.
 
 The root package `dbmeta` gives consumers one driver agnostic API. Driver
 agnostic means the caller asks for tables without knowing which database
-answers. This layer holds the common types, the reader interfaces, and the
-error values.
+answers. This layer holds the object types, the `Query` values, the one
+method `Querier` interface, the `Args` filter and the error values.
 
 The package `dbmeta/models/<driver>` holds the code for one driver. For
 example, `dbmeta/models/sqlite3` holds the SQLite3 queries and the structs that
@@ -42,8 +39,9 @@ receive their rows. Each driver gets its own Go package, so the types in
 types.
 
 There is no version directory below the driver. A database changes its metadata
-between releases, and D8 holds those differences as generated data inside the
-one driver package rather than as a package per release.
+between releases, and D8 holds those differences as data inside the one driver
+package rather than as a package per release. The data is written by hand, and
+nothing generates it (D71).
 
 A third layer joins the two. Something must convert the per driver model rows
 into the common types of the root package. It also merges the version fragments
@@ -60,7 +58,27 @@ of this file.
 
 ## What exists today
 
-An agent that starts work must read these sources first.
+`models/` holds 16 native models: cassandra, clickhouse, couchbase, duckdb,
+exasol, firebird, hana, hive, mysql, oracle, postgres, presto, sqlite3,
+sqlserver, trino and vertica. ScyllaDB is a flavor of the Cassandra model and
+MySQL a flavor of the MariaDB one. `models/informationschema` is the shared
+model for any database with a standard `information_schema`, and no native
+model builds on it. `COVERAGE.md` holds what each one answers.
+
+`container/` names every release the tests run against, and `dbrun` starts
+each one. `dbrun` also starts servers for dbimp's drivers that have no model:
+SurrealDB, Neo4j, the eight products of D112 and the three Avatica servers of
+D113. It knows the embedded databases too, including four that have no model
+yet (D116). `README.md` holds the support tiers.
+
+Neither consumer reads `dbmeta` yet. `USQL.md` and `DBTPL.md` hold what each
+would gain, and `BACKLOG.md` holds that work.
+
+## What existed at the start
+
+This section describes `usql` and `dbtpl` as they were on 2026-09-24, when the
+project began, and it is kept as the record of what was moved. It is not the
+present state of either.
 
 ### `usql/drivers/metadata`
 
@@ -107,7 +125,7 @@ and `dbmeta` can define its own:
   `database/sql.Tx` both satisfy
 - `env.Vars()`, used by `writer.go` only
 
-### Driver coverage today
+### Driver coverage at the start
 
 14 of the 44 `usql` drivers have metadata support:
 
@@ -159,9 +177,9 @@ item describes the display path, where `usql` builds a scan destination with
 because the readers never call it. There is no `reflect.New` anywhere under
 `drivers/metadata`.
 
-The fix for `dbmeta` has two parts. Generate nullable fields with `-U`. Force
-the field type with `-Z` where introspection reports a column as NOT NULL and
-the database still returns NULL. Do not port the four patches.
+The fix for `dbmeta` is a field of type `sql.Null[T]` wherever a column can be
+NULL, and `NULL AS "name"` where a release has no source for a column. D6,
+D51 and `NULLS.md` hold it. Do not port the four patches.
 
 ### The shared reader instance hazard
 
@@ -183,8 +201,8 @@ be explicit, not implicit through a shared default.
 `metadata.Bool` is a named string type. A Go type switch does not match a named
 type to its underlying type, so `tblfmt` printed `"YES"` with quotation marks in
 `\d` output for every driver. Commit `cd8edc9` added `func (b Bool) String()
-string` at `usql/drivers/metadata/metadata.go:362`. If `dbmeta` keeps `Bool`,
-keep the method.
+string` at `usql/drivers/metadata/metadata.go:362`. `dbmeta` did not keep
+`Bool`: its fields are `bool` or `sql.Null[bool]`.
 
 ## External review
 
@@ -234,7 +252,8 @@ there is no version directory to name. Question 4 disappears, because data
 needs no inheritance. Question 1 gets simpler, because the adapter has one
 package per driver to live in.
 
-Ken must decide this. D8 stands until he does.
+Ken took it. D8 now holds the version fragments as data in one package, and
+`Stmt.Build` merges them.
 
 ### Both reviews attacked D9, and both partly misread it
 
@@ -272,25 +291,31 @@ Gemini called `dbtpl` generating `dbmeta` a cyclic dependency. It is not.
 way, from `dbtpl` to `dbmeta`. This is bootstrapping, which is ordinary.
 
 Gemini said to abandon `dbtpl` and hand write the queries with `go:embed`. That
-contradicts D2, D10 and D11, which Ken decided. The review did not know that.
+contradicted D2, D10 and D11, which Ken had decided. The review did not know
+that. D71 later made both points moot: nothing here is generated, and the
+models are written by hand.
 
 ### Points raised that the plan did not cover
 
-DeepSeek raised these and they are not yet decided anywhere:
+DeepSeek raised these. Three are now answered, as each says.
 
 1. An error taxonomy. Separate "not supported" from "permission denied", from
    "connection failed", and from "version too old". The `usql` readers return
    one undifferentiated error today, and the oracle privilege pull requests
-   exist because of it.
+   exist because of it. D34 and D63 answer it, with `ErrNotSupported`,
+   `ErrVersionTooOld` and a query that is not built for a dialect.
 2. Reproducible generation. D12 generates against a live container. Most
    `usql/contrib` configs name an untagged image, so the same command run twice
    can read two different servers. Pin the image digest and record which digest
-   produced which model.
+   produced which model. D71 answers it, because nothing is generated, and
+   D88 pins the digest of an image that somebody other than the vendor built.
 3. Identifier handling. Quoting, case folding, reserved words, and the maximum
    identifier length differ per database and the plan says nothing about them.
 4. Visibility. `information_schema` hides objects that the connected user
    cannot see, so two users get two answers from the same query. Metadata tests
-   must fix the user, and the API must say which user it reflects.
+   must fix the user, and the API must say which user it reflects. D61
+   answers it: every query is measured as each kind of principal, and the
+   differences are recorded.
 5. Repeated queries. A caller that asks for the columns of 200 tables must not
    send 200 queries. Decide whether the API batches, caches, or leaves this to
    the caller.
@@ -314,6 +339,8 @@ not the source of the data. Three of the phase 3 databases have no
 `information_schema` at all. They still present the same surface.
 
 ### Phase 1. Translate the PostgreSQL queries from the PostgreSQL source
+
+Done. `models/postgres` answers all 55 kinds on 9.6 to 18.
 
 This phase produces the primary platonic model. Every later phase copies its
 API.
@@ -339,9 +366,8 @@ short version is that the current tree can no longer tell you what release 9.6
 needs.
 
 The version gates are the work, not a detail. `psql` writes one query and
-switches fragments on the integer server version. D8 requires one model per
-version instead. Each gate you meet becomes a decision about which versions get
-their own model.
+switches fragments on the integer server version. D8 does the same: each gate
+becomes a version fragment in the one model.
 
 The local checkout at `/home/ken/src/postgres` sits at
 `REL_19_BETA1-1062-gd9de60c5e47` on `master`, which is release 20 under
@@ -354,10 +380,13 @@ checking out a release 15 or older tree and reading `describe.c` there.
 Record which tree each fragment came from, beside the fragment. A reader who
 cannot tell which source a gate was translated from cannot check it.
 
-Read `SHOW server_version_num` to select a model at run time. It returns the
+Read `SHOW server_version_num` to select the fragments at run time. It returns the
 same integer that `describe.c` compares against.
 
 ### Phase 2. Build the information schema reader, with MariaDB as the reference
+
+Done. `models/mysql` is the native MariaDB model, and `models/informationschema`
+is the shared model.
 
 This phase produces the second platonic model. It must present the same API
 surface as phase 1.
@@ -380,12 +409,15 @@ invent a query that returns a partly filled object.
 Add these, each presenting the same API surface: SQLite3, DuckDB, Microsoft SQL
 Server, Oracle, and Cassandra.
 
-They split into two groups, and the split decides how much of phase 2 each one
-reuses.
+Done. Each has a native model. None extends the shared model: DuckDB reads its
+own catalog functions and SQL Server reads `sys`, because each answers more
+that way.
 
-DuckDB and Microsoft SQL Server have an `information_schema`. Both already use
-the shared reader in `usql` today. They extend phase 2 with their own clause
-overrides.
+As planned, they split into two groups by how much of phase 2 each could
+reuse.
+
+DuckDB and Microsoft SQL Server have an `information_schema`, and both used
+the shared reader in `usql`.
 
 SQLite3, Oracle and Cassandra have no `information_schema`. Each needs its own
 queries against its own catalog. `usql` shows what SQLite3 and Oracle use.
@@ -417,8 +449,8 @@ a change in one query shows up as a diff and not as a silent difference.
 
 Version tests protect D8. For each database with more than one model, run the
 same call against each version and assert that the caller sees the same types.
-Assert also that selection picks the right model, and that a version older than
-every model falls back rather than fails.
+Assert also that the fragments resolve for each release, and that a server
+older than the floor reports `ErrVersionTooOld` (D63).
 
 Benchmarks measure the cost per call and the cost per row. Metadata queries run
 inside an interactive client, where a slow response is visible to a person.
@@ -431,9 +463,9 @@ patterns straight into a query. Fuzz the pattern handling, the clause
 substitution that D9 describes, and the version parser. A fuzz target must
 assert that no input causes a panic and that no input reaches the SQL unquoted.
 
-Split the work by where it runs. D24 puts the latest version of PostgreSQL,
-MySQL, SQLite3 and DuckDB in CI, and everything else on a development machine.
-Write the local matrix so that one command runs it, or it will not be run.
+Split the work by where it runs. D42 and D69 set what CI runs: the Tested tier
+on every push and the Nightly tier once a night. `dbrun test` runs any of them
+on a development machine with one command.
 
 One warning about dependencies. The `usql` metadata tests import
 `github.com/ory/dockertest/v4` and `github.com/google/go-cmp/cmp`. D7 forbids
@@ -447,8 +479,8 @@ Change `usql` to import `dbmeta`, then delete the moved code from `usql`.
 D5 keeps `writer.go` in `usql`. That file is 838 lines and it is the only one
 that uses `tblfmt` and `usql/env`. Leaving the writer behind is what keeps
 those two out of this module. It also uses `dburl` across the eight `Writer`
-methods at lines 148 to 162, which no longer matters, because D19 makes `dburl`
-a direct dependency.
+methods at lines 148 to 162, which does not matter here, because `dbmeta`
+never parses a URL (D99).
 
 Coordinate through the `usql` session. It owns that repository and has agreed
 to report before any of the five open pull requests against `drivers/metadata`
@@ -462,16 +494,9 @@ Decide whether completion reads through the `dbmeta` API or keeps its own path.
 ### Phase 6. Expand to the other databases
 
 Add the databases that `usql` supports and that the earlier phases did not
-cover. 14 of the 44 drivers have metadata support today and 30 do not. The
-uncovered list is in the section on driver coverage.
-
-Order the work by two facts. Prefer a driver that `usql/contrib` can already
-start in a container. Prefer a driver whose database has an
-`information_schema`, because phase 2 already did most of that work.
-
-Leave the hard cases until the API has settled. Several of the 30 are not
-relational at all, such as dynamodb and couchbase. The finding from the
-Cassandra work in phase 3 tells you whether the surface holds for them.
+cover. D66, with the decisions that amend it, holds the order, and every
+database it names is done. `EVALUATION.md` lists the candidates that are
+left.
 
 ## Testing plan for versions and flavors
 
@@ -517,25 +542,16 @@ fail, and a failure is a finding to record rather than a fault to hide.
 
 ### Which combinations to run
 
-Run three tiers. The tier decides where the test runs, not whether it matters.
-D24 sets the split between CI and a development machine.
+Every release sits in one of four tiers (D40, D42). Tested runs in CI on every
+push, and Nightly runs once a night. Verified runs on a development machine
+before a release and never in CI. Archived has no tests. `container/` holds
+the list, and the workflow reads it through `dbrun list --json --names`
+(D69). CI compiles the tests once and every job runs the binary (D82). The
+embedded databases run in the same matrix and start nothing. A separate job
+compares MariaDB with MySQL (D44). CockroachDB, Redshift and TiDB have no
+entry yet.
 
-Tier 1 runs in CI on every change. It holds three databases at their latest
-version: PostgreSQL, MySQL and SQLite3. SQLite3 is embedded, so it costs
-nothing. PostgreSQL and MySQL are preinstalled on the runner. DuckDB was in
-this tier until D35 removed it. More databases can join later.
-
-Tier 2 runs on a development machine, not in CI. It holds every supported major
-release of each primary driver. This is the version axis and it is what proves
-that model selection works. D22 explains why a sample of versions is not
-enough, and D24 explains why it still moved off CI.
-
-Tier 3 also runs on a development machine. It holds the flavors: MariaDB
-against the `mysql` models, and CockroachDB, Redshift and TiDB against their
-parent models. Note that tier 1 already covers one flavor by accident, because
-the runner provides MySQL while D14 makes MariaDB the reference.
-
-Tier 2 and tier 3 must run before a release. See D24.
+The Verified tier must run before a release (D64).
 
 ### What a test asserts
 
@@ -548,22 +564,16 @@ Every tier asserts the same three things.
 3. No field that the database can return as NULL reaches a caller as a zero
    value that is indistinguishable from a real value.
 
-Tier 2 asserts one more thing. Given a server version, selection picks the
-newest model that is not newer than the server, and a server older than every
-model falls back rather than fails.
+One more thing is asserted across releases. Given a server version, the
+fragments resolve to the newest one that is not newer than the server, and a
+server older than the floor reports `ErrVersionTooOld` (D63).
 
 ### Requirements on the container harness
 
-D12 reuses the podman configuration in `usql/contrib`. Three changes are
-needed before the matrix above can run.
-
-1. Most configs name an image without a tag, as in
-   `IMAGE=docker.io/usql/postgres`. A version axis needs a tag per version.
-2. Pin the image digest, not only the tag. A tag moves, and a test that means
-   to meet one release must not quietly meet another. Nothing here needs a
-   digest to reproduce a file, because nothing here is produced. See D71.
-3. Add configs for the flavors in tier 3. `contrib` has `cockroach` already. It
-   has no MySQL config, because its `mysql` directory runs the MariaDB image.
+D12 first planned to reuse the podman configuration in `usql/contrib`. `dbrun`
+replaced it (D68, D70): it starts every server from `container/`, each entry
+names its tag, and an image that somebody other than the vendor built is also
+pinned by digest (D88). MySQL and MariaDB each have their own entries.
 
 ### Fixing the user, and why it matters
 
@@ -574,13 +584,14 @@ golden files must record which user produced them.
 
 This is not a detail. Two of the five open pull requests against
 `usql/drivers/metadata` exist because an Oracle query needed a privilege that
-an ordinary user does not have.
+an ordinary user does not have. D61 now measures every principal of every
+dialect.
 
 ## Open questions for Ken
 
 An open question lives here until it is answered, and then it becomes a
-decision above. The argument behind a decision belongs with the decision, which
-is why there is no separate document for it. See D50.
+decision in `decisions/` (D111). The argument behind a decision belongs with
+the decision, which is why there is no separate document for it.
 
 No question is open. None of the older ones are.
 The floor question that the upstream change reopened has been answered:
@@ -588,7 +599,7 @@ D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
 asked for in exchange.
 
 Everything else raised in this document has been answered, and every decision
-is marked Decided or Superseded.
+has a status in its file.
 
 Nothing is deferred either. Both of the items that were are closed, and each
 is worth a line here because both were read as live design space after they had

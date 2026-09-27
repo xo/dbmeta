@@ -69,6 +69,14 @@ image is still rebuilt. The `images` list must include `linux/amd64`.
 
 The floor is the oldest release whose image is still rebuilt.
 
+Some publishers never rebuild a tag. They build each release once, on the
+day it is released, and only a new release gets a new build. Databend,
+rqlite, libSQL, TDengine, Apache Pinot, Avatica and Apache Druid work this
+way. For such a product,
+the floor is the newest release of the line before the newest, and the
+ceiling is the newest release. A product with one line has one release. Ken
+chose this rule on 2026-09-27 (D112).
+
 Warning: an image that exists is not an image that runs. A container built
 several years ago sits on an old base system and can fail on a current host
 over blocked syscalls or a C library mismatch. Pull it and start it before you
@@ -355,7 +363,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | PostgreSQL | 9.6 | 18 | Criterion 1, it is the model |
 | MariaDB | 10.6 | 13.0 | Criterion 3, the oldest long term release still maintained |
 | MySQL | 8.4 | 26.7 | Criterion 3, 8.4 is the long term release |
-| SQL Server | 2017 | 2025 | Criterion 2, and nothing else had to be asked |
+| SQL Server | 2008 R2 | 2025 | Criterion 2 for the containers, 2017 to 2025. 2008 R2 to 2016 have no Linux container and are Verified Windows machines (D57) |
 | Oracle | 11g | 26ai | Criterion 2, from the free images. The container facts are in D54 |
 | Cassandra | 3.11 | 5.0 | Criterion 2, then held one release up because 3.0 adds no answer |
 | ClickHouse | 25.3 | 26.9 | Criterion 2. It goes stale faster than any other, because ClickHouse releases monthly |
@@ -363,13 +371,25 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Presto | 0.299 | 0.299 | Criterion 3, which gives a floor of one, and there is no second release to compare |
 | Firebird | 3.0 | 5.0 | Criteria 2 and 3 agree, which is rare enough to record |
 | SAP HANA | 2.00.076 | 2.00.088 | Criterion 3. SAP publishes an express edition of 2.0 only |
-| Apache Hive | 4.0 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
+| Apache Hive | 4.0.1 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
 | Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images Ken chose so that a gate has something older to answer against, and D88 records why. The images are copies in `docker.io/usql/vertica` (D100) |
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
 | Couchbase | 7.2.9 | 8.0.3 | Criterion 2. 7.2 is the oldest line the image still rebuilds, and 7.0 and 7.1 stopped in November 2024. The model's floor is 7.6, because 7.2 sends its columns in name order. 7.2.9 stays for the dbimp driver, and the model reports it too old (D104) |
 | Neo4j | 5.26.31 | 2026.09.0 | Criterion 2. 4.4.48, 5.26.31 and 2026.09.0 were rebuilt on 2026-09-26, and a monthly release stops being rebuilt when the next one arrives. 4.4 is out, because its Enterprise image starts only with the commercial licence. The ceiling moves each month. There is no dbmeta model, and the entry is for dbimp's driver (D106) |
 | SurrealDB | 2.7.0 | 3.3.0 | Criterion 2. 2.7.0 was rebuilt on 2026-09-23 and 3.3.0 on 2026-09-24, and between them 3.1.6 on 2026-09-01 and 3.2.4 on 2026-08-03. 1.5.6 was last rebuilt in November 2024, and 2.6.5 and 3.0.5 in March 2026. There is no dbmeta model, and the entry is for dbimp's driver |
+| ArangoDB | 3.12.12 | 3.12.12 | Criterion 2. Only the 3.12 line is still built: 3.12.12 was rebuilt on 2026-09-24, and 3.11.14 was last built on 2025-05-24. The release moves with each patch. The entry is for dbimp's driver (D112) |
+| InfluxDB | 1.11.8 | 3.11.5 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. Ken chose the tiers in dbimp's D79: the newest of 1 and 2 Tested and the oldest Nightly, and 3.9.13 and 3.11.5 Tested. The entries are for dbimp's driver (D112, D114) |
+| CrateDB | 6.3.7 | 6.4.5 | Criterion 2. 6.4.5 and 6.3.7 were rebuilt in September 2026, and 6.2 last on 2026-07-09. The entry is for dbimp's driver (D112) |
+| TDengine | 3.3.8.8 | 3.4.2.8 | The rule for an image that is never rebuilt: the newest release of each of the last two lines (D112). The entry is for dbimp's driver |
+| Apache Pinot | 1.4.0 | 1.5.1 | The rule for an image that is never rebuilt (D112). Apache supports only the newest release. The entry is for dbimp's driver |
+| Databend | 1.2.881 | 1.2.948-nightly | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. The entry is for dbimp's driver |
+| rqlite | 9.4.5 | 10.3.6 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver |
+| libSQL | 0.24.33 | 0.24.33 | The rule for an image that is never rebuilt (D112). libSQL has one line, and its newest release was built on 2025-12-19. The entry is for dbimp's driver |
+| chai, csvq, ql, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
+| Avatica | 1.28.0 | 1.29.0 | The rule for an image that is never rebuilt (D112). The standalone server over HSQLDB, which the Calcite project builds. The entry is for dbimp's Avatica driver (D113) |
+| Apache Phoenix | 2.0-5.0 | 2.0-5.0 | An exception to step 2, which Ken made (D113). The Phoenix project publishes no image, and the only one that runs in one container, boostport/hbase-phoenix-all-in-one, was last pushed on 2023-03-14. The entry is for dbimp's Avatica driver |
+| Apache Druid | 36.0.0 | 37.0.0 | The rule for an image that is never rebuilt (D112). 38.0.0-rc1 is a candidate. The entry is for dbimp's Avatica driver (D113) |
 | SQLite3 | none | none | No server. The release is whichever the driver embeds |
 | DuckDB | none | none | No server. The release is whichever the driver embeds |
 
@@ -412,11 +432,11 @@ recorded in `container/container.go` rather than in a script.
 
 ## What is still unevaluated
 
-Nothing that runs. Vertica was the last one through the procedure, and
-every product in `container/container.go` has a row in the table above.
-`TestEveryProductIsEvaluated` fails when one does not. The products `usql`
-ran and dbmeta has no model for are listed under "Candidates carried over
-from usql" below.
+Nothing that runs. Apache Druid, Apache Phoenix and Avatica were the last
+through the procedure (D113), and every product in `container.All` has a row
+in the table above. `TestEveryProductIsEvaluated` fails when one does not.
+The products `usql` ran that have no entry in `container/` are listed under
+"Candidates carried over from usql" below.
 
 Two products were once evaluated as unable to start, and neither is any more.
 
@@ -460,13 +480,13 @@ above.
 
 `usql` kept a podman configuration per database in `contrib/`, started by
 `podman-run.sh`. The products dbmeta already has a model for are started by
-`dbrun` from `container/container.go`, and that list is the one copy of their
-images, ports, environment and passwords, so nothing of theirs was carried
-over. The seven below have no model here, and D77 keeps a product out of
-`container/` until it has one, because an entry with no model claims
-something this project cannot do. So their container facts are recorded here
-instead, as `usql` had them on 2026-09-27, and the next evaluation starts from
-them rather than from nothing.
+`dbrun` from `container/`, and that list is the one copy of their images,
+ports, environment and passwords, so nothing of theirs was carried over. The
+six below have no entry in `container/`. A product gets one when dbmeta writes
+its model, or when dbimp needs a server for one of its drivers (D103, D112),
+so their container facts are recorded here instead, as `usql` had them on
+2026-09-27, and the next evaluation starts from them rather than from
+nothing.
 
 None of these was started by dbmeta. They are leads, the same as an AI
 model's answer, and step 2 of the procedure above still has to be run.
@@ -474,25 +494,24 @@ model's answer, and step 2 of the procedure above still has to be run.
 | Product | Image | Ports | Environment and setup |
 | --- | --- | --- | --- |
 | CockroachDB | `docker.io/cockroachdb/cockroach:latest` | 26257 | `COCKROACH_DATABASE`, `COCKROACH_USER`, `COCKROACH_PASSWORD`, and the command `start-single-node` |
-| Couchbase | `docker.io/library/couchbase` | 8091 to 8094 | a volume at `/opt/couchbase/var`. The cluster is then configured by hand in the web console at port 8091, which a start command cannot do |
 | Db2 | `icr.io/db2_community/db2` | 50000, 55000 | `LICENSE=accept`, `DB2INSTANCE=db2inst1`, `DB2INST1_PASSWORD`, `DBNAME=testdb`, and a volume at `/database` |
 | Flight SQL | `docker.io/voltrondata/flight-sql` | 31337 | `FLIGHT_PASSWORD` |
 | H2 | `docker.io/buildo/h2database` | 8082, 9092 | none |
 | Apache Ignite | `docker.io/usql/ignite` | 10800 | host networking, and the cluster activated after it starts with `control.sh --activate --user ignite --password ignite` inside the container. usql removed its Ignite driver on 2026-09-27 and dburl v0.31.0 dropped the scheme, so no consumer reads it now |
 | YDB | `cr.yandex/yc/yandex-docker-local-ydb` | 2135, 2136, 8765 | `GRPC_TLS_PORT=2135`, `GRPC_PORT=2136`, `MON_PORT=8765`, `YDB_DEFAULT_LOG_LEVEL=NOTICE`, the host name `localhost`, and volumes at `/ydb_certs` and `/ydb_data` |
 
-Three of these need a word before anybody starts one.
+Two of these need a word before anybody starts one.
 
 CockroachDB speaks the PostgreSQL wire protocol, and `dburl` overrides its
 driver to `postgres`, so it is a flavor of the PostgreSQL model rather than a
 model of its own, the way MySQL is a flavor of MariaDB's. D14 and D44 hold
 what that means.
 
-Couchbase and Ignite both need a step after the container starts. Ignite's is
-one command and fits `container.Server.Init`. Couchbase's was recorded here as
-a person in a browser, and it is not: `couchbase-cli`, which ships in the
-image, makes the cluster and the bucket, and `container/couchbase.go` runs it
-from `Init`. D94 has it.
+Ignite needs a step after the container starts, and it is one command, which
+fits `container.Server.Init`. Couchbase was on this list and needed the same:
+`usql` recorded it as a person in a browser, and `couchbase-cli`, which ships
+in the image, makes the cluster and the bucket from `Init` instead. It has an
+entry and a model now (D94, D104).
 
 Two more `usql` targets are covered here and differ from what `usql` ran,
 which is worth knowing when comparing the two.

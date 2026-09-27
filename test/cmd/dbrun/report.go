@@ -14,20 +14,23 @@ type statusEntry struct {
 
 	// State is "running" for a container, "answering" or "starting" for a
 	// machine, "moved" for a container whose port no longer matches the
-	// list, and "embedded" for a library.
+	// list, "stopped" for one that is stopped, which only --all prints, and
+	// "embedded" for a library.
 	State string `json:"state"`
 	// Owner is who started the server, empty for one from before servers
-	// had owners. Mine says whether that is the caller. See D98.
-	Owner string `json:"owner"`
-	Mine  bool   `json:"mine"`
+	// had owners. Mine says whether that is the caller. See D98. OwnerName
+	// is the friendly name the owner gave itself, when it gave one (D115).
+	Owner     string `json:"owner"`
+	OwnerName string `json:"ownerName,omitempty"`
+	Mine      bool   `json:"mine"`
 	// Started is when the server last started, as the runner writes it.
 	Started string `json:"started,omitempty"`
 }
 
 // statusJSON prints the running servers among picked, and every embedded
 // database, as one JSON list. A server that is not running is left out, the
-// way the text form leaves it out.
-func statusJSON(ctx context.Context, r runner, picked []target) error {
+// way the text form leaves it out, unless all asks for it.
+func statusJSON(ctx context.Context, r runner, picked []target, all bool) error {
 	me := currentOwner()
 	out := []statusEntry{}
 	for _, t := range picked {
@@ -35,16 +38,25 @@ func statusJSON(ctx context.Context, r runner, picked []target) error {
 			out = append(out, statusEntry{target: t, State: "embedded", Mine: true})
 			continue
 		}
+		state := "running"
 		if !r.running(ctx, t.Name) {
-			continue
+			if !all || !r.exists(ctx, t.Name) {
+				continue
+			}
+			state = "stopped"
 		}
 		e := statusEntry{
-			target:  t,
-			State:   "running",
-			Owner:   r.owner(ctx, t.Name),
-			Started: r.startedAt(ctx, t.Name),
+			target:    t,
+			State:     state,
+			Owner:     r.owner(ctx, t.Name),
+			OwnerName: r.label(ctx, t.Name, ownerNameLabel),
+			Started:   r.startedAt(ctx, t.Name),
 		}
 		e.Mine = e.Owner == me
+		if state == "stopped" {
+			out = append(out, e)
+			continue
+		}
 		if have, ok := r.hostPorts(ctx, t.Name); ok && !t.portsMatch(have) {
 			e.State = "moved"
 		} else if t.Kind == kindMachine {

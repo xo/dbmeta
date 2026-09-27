@@ -90,11 +90,11 @@ Three layers, and only the last one found any of these.
 and fails on a `COALESCE` around a column named `access`, `comment`, `default`
 or `options`.
 
-`TestPaddedFieldsAreNull` in the `test` module runs every query against a real
-server at every supported release and asserts that a field whose `Field.Min` is
+`TestPaddedFieldsAreNull` in the `test` module runs every PostgreSQL query
+against each PostgreSQL release and asserts that a field whose `Field.Min` is
 above the server version is NULL in every row. This is the one that works, and
 it is also what replaces a golden file per release: ten releases times
-forty-eight queries is four hundred and eighty combinations that nobody would
+fifty-five queries is five hundred and fifty combinations that nobody would
 maintain, and `Field.Min` already declares what each of them should contain.
 
 Running the queries. Every fault above was invisible to a test that only

@@ -58,6 +58,7 @@ type options struct {
 	yes         bool
 	force       bool
 	follow      bool
+	all         bool
 	render      bool
 	watch       bool
 	timeout     time.Duration
@@ -88,6 +89,8 @@ func run(args []string) error {
 	fs.BoolVar(&o.force, "force", false,
 		"act on a server that another owner started, and stop another owner's to make room")
 	fs.BoolVar(&o.follow, "f", false, "follow the log")
+	fs.BoolVar(&o.all, "a", false, "with status, also show the stopped servers")
+	fs.BoolVar(&o.all, "all", false, "with status, also show the stopped servers")
 	fs.BoolVar(&o.render, "render", false,
 		"with provision, write the OEM folder and stop, without downloading or starting anything")
 	fs.BoolVar(&o.watch, "watch", false,
@@ -219,9 +222,11 @@ Commands:
 Selectors:
   postgres-18     that release
   postgres        the newest PostgreSQL, and only that one
-  sqlite3         an embedded library, which has no server to start
+  sqlite3         an embedded library, which has no server to start. The
+                  others are duckdb, moderncsqlite, ql, chai and csvq
   tested          the releases CI runs on every push
   nightly         the releases CI runs at night
+  verified        the releases a person runs before a release, never in CI
   all             every release of every product
 
 Flags:
@@ -238,16 +243,20 @@ Flags:
   --watch         with provision, leave the machine running rather than waiting
   --from          with provision, the appliance image you downloaded
   -f              follow the log
+  -a, --all       with status, also show the stopped servers and who made them
 
 Environment:
   DBMETA_RUNNER         podman by default, set to docker to use that instead
   DBMETA_OWNER          who you are, which dbrun labels each server it creates
                         with. It defaults to the coding agent's session, or to
                         your login name
+  DBMETA_OWNER_NAME     your friendly name, such as dbimp, which status shows
+                        beside the owner. A coding agent sets it to the name
+                        of its session
   DBMETA_VM_STATE       where the machine disks live, which are tens of
                         gigabytes each. Defaults under $XDG_DATA_HOME/dbmeta
   DBMETA_ORACLE_STATE   where the Oracle 19c checkout and archive live
-  DBMETA_EMBEDDED_STATE where the SQLite and DuckDB files live. They are kept
+  DBMETA_EMBEDDED_STATE where the embedded databases live. They are kept
                         after a test, so usql can open what the test built
 
 Examples:

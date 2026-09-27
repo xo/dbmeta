@@ -113,14 +113,27 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 		// --remove deletes it, and nothing else does: a library is kept the
 		// way a machine is, so that `dbrun usql sqlite3` can open what the
 		// test built.
-		if err := os.MkdirAll(filepath.Dir(t.DSN), 0o755); err != nil {
+		dir := filepath.Dir(t.DSN)
+		if t.Directory {
+			// csvq reads a directory of files, which has to exist.
+			dir = t.DSN
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("making the directory for %s: %w", t.DSN, err)
+		}
+		if err := extractSamples(t); err != nil {
+			return err
 		}
 		if err := goTest(ctx, t.Env+"="+t.DSN); err != nil {
 			return err
 		}
 		if o.remove {
-			if err := os.Remove(t.DSN); err != nil && !os.IsNotExist(err) {
+			// chai and csvq are a directory, which goes with what it holds.
+			remove := os.Remove
+			if t.Directory {
+				remove = os.RemoveAll
+			}
+			if err := remove(t.DSN); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("removing %s: %w", t.DSN, err)
 			}
 			fmt.Printf("  removed %s\n", t.DSN)
@@ -155,7 +168,7 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 		(wasUp && owner != currentOwner() && !o.force)
 	defer func() {
 		if shared {
-			fmt.Printf("  kept %s, which belongs to %s\n", t.Name, showOwner(owner))
+			fmt.Printf("  kept %s, which belongs to %s\n", t.Name, r.who(ctx, t.Name))
 			return
 		}
 		if keep {
@@ -168,11 +181,12 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 		fmt.Printf("  removed %s\n", t.Name)
 	}()
 
-	return goTest(ctx, t.Env+"="+t.DSN)
+	return goTest(ctx, t.env()...)
 }
 
-// goTest runs the integration tests, with one environment variable set when
-// there is a server to point at.
+// goTest runs the integration tests, with the environment variables of the
+// server set when there is one to point at. A server that answers two
+// dialects sets two (D114).
 //
 // DBMETA_TEST_BINARY names a test binary built earlier by `go test -c`, and
 // running that rather than `go test` is what makes the CI matrix affordable.
@@ -184,7 +198,7 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 //
 // A person runs `go test`, which is what they want: it recompiles what they
 // just changed. Nothing is set for them and nothing changes.
-func goTest(ctx context.Context, env string) error {
+func goTest(ctx context.Context, env ...string) error {
 	argv := []string{"go", "test", "-count=1", "./..."}
 	if bin := os.Getenv("DBMETA_TEST_BINARY"); bin != "" {
 		// An absolute path, because the tests run with the test module as the
@@ -200,10 +214,7 @@ func goTest(ctx context.Context, env string) error {
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	cmd.Env = os.Environ()
-	if env != "" {
-		cmd.Env = append(cmd.Env, env)
-	}
+	cmd.Env = append(os.Environ(), env...)
 	if err := cmd.Run(); err != nil {
 		return errors.New("the tests failed")
 	}

@@ -20,8 +20,9 @@ session or through Ken.
 
 1. Add the entry to `container/` before anything else that needs the server.
    Nothing else starts one (D68).
-2. A new product needs Ken's agreement first. D66 holds the order, and D90
-   says which products qualify.
+2. A new product needs Ken's agreement first. D66 holds the order for a dbmeta
+   model, and dbimp's order holds it for a server that one of its drivers
+   needs (D112, D113). D90 says which products qualify.
 3. Choose the releases with [`EVALUATION.md`](EVALUATION.md), and record the
    floor, the ceiling and which step decided in the doc comment of the file.
 4. Name every release in one of the tiers `Tested`, `Nightly` or `Verified`.
@@ -56,7 +57,9 @@ session or through Ken.
 ## A new release of a product
 
 1. Find the tag on the registry and check that the image is still rebuilt,
-   with the command in step 2 of `EVALUATION.md`.
+   with the command in step 2 of `EVALUATION.md`. If the product's images are
+   never rebuilt, apply the rule under step 2 for such a product instead
+   (D112).
 2. Add the release to the list of its product in `container/<product>.go`,
    with its tier. `list.add` takes the tier and the releases, and `list.on`
    changes one release where the product differs from itself.
@@ -80,8 +83,11 @@ that the ports moved.
 2. Choose its releases with `EVALUATION.md`, and add a row to the table
    Databases evaluated so far. `TestEveryProductIsEvaluated` fails until the
    row exists.
-3. Add a constant to the `Dialect` block in `dialect.go` if dbmeta has no
-   dialect for it yet. The value is the dburl driver name.
+3. If dburl names a scheme for the product, add a constant to the `Dialect`
+   block in `dialect.go`, with the dburl driver name, if dbmeta has none yet.
+   If the server is for a dbimp driver whose name dbimp has not settled,
+   leave `dialect` empty. `dbrun` then names the test variable for the
+   product, such as `DBMETA_ARANGODB` (D112).
 4. Read the image, as rule 11 says. Find the port the tests use, the
    administrator, how a password reaches it, the settings the tests need, and
    the tools inside it that a readiness check or a setup can run.
@@ -92,10 +98,13 @@ that the ports moved.
    running server gets a new port.
 7. If the product has no shell to run a readiness check, leave `ready` empty.
    `dbrun` then connects from the host through the driver in the `drivers`
-   map in `test/cmd/dbrun/test.go`, which needs an entry for the dialect.
-8. Add the administrator to the credentials table in `DBRUN.md`. If `init`
-   creates an ordinary user, declare it in `users`, so that `dsn --json`
-   prints it. `container/couchbase.go` does this.
+   map in `test/cmd/dbrun/test.go`, which needs an entry for the dialect and
+   a dbmeta model, because it runs the version query. A product with no model
+   needs a `ready` command.
+8. Add the administrator to the credentials table in `DBRUN.md`. If the
+   setup, the start command or the image creates an ordinary user, declare it
+   in `users`, so that `dsn --json` prints it. `container/couchbase.go` does
+   this.
 9. Run the checks under Check it.
 10. Write a decision in `decisions/` for anything you chose rather than found,
     such as a setting you turned on or a user you created.
@@ -111,7 +120,8 @@ defined function, a materialized view and a role, and Oracle publishes no free
    the build itself, as the Cassandra file does, because a `sed` that matches
    nothing changes nothing and reports nothing.
 2. Embed it and add the product to `buildFor` in `test/cmd/dbrun/build.go`.
-3. Name the image `localhost/dbmeta/<product>` in the entry.
+3. Name the image `localhost/dbmeta/<product>` in the entry. Oracle 19c keeps
+   `localhost/oracle/database`, the name Oracle's build script gives it.
 
 `start` and `test` build a missing image. `dbrun build <name>` builds it again,
 which is what you run after you change the file.
@@ -136,6 +146,15 @@ its memory and processors. Nothing here can download it, so a person does, and
 Name every Verified release in `COVERAGE.md`.
 `TestEveryVerifiedReleaseIsDocumented` fails until you do.
 
+## An embedded database
+
+An embedded database has no entry in `container/`, because it has no server
+(D42). A model that declares itself embedded gets a `dbrun` entry by itself.
+If the database has no model yet, add it to `unmodeled` in
+`test/cmd/dbrun/target.go`, with its dialect in `dialect.go` as dburl names
+it, and remove it from there when its model is written (D116). If it starts
+from sample files, as csvq does, put them in `test/cmd/dbrun/sample/<name>/`.
+
 ## Field reference
 
 The fields of `product` in `container/container.go`, which `list.add` copies
@@ -143,7 +162,8 @@ into each release:
 
 | Field | What it holds |
 | --- | --- |
-| `dialect` | the dbmeta dialect that reads the server |
+| `dialect` | the dbmeta dialect, which is the dburl name. It is empty until dbimp settles it, and `dbrun` then names the test variable for the product (D112) |
+| `also` | every other dialect the server answers. dbrun sets the test variable of each to the same DSN (D114) |
 | `name` | the product, the first half of every server name |
 | `image` | the image without its tag, with the registry written out, such as `docker.io/library/postgres` |
 | `major` | turns a release into the name a person uses. Only Oracle needs it. |
@@ -154,14 +174,14 @@ into each release:
 | `ready` | a command, run inside the container, that exits 0 once the server answers |
 | `init` | a command, run inside the container on every start after `ready` passes |
 | `initInput` | text sent to `init` on its standard input, for an image with no shell, such as SurrealDB's |
-| `runFlags` | flags for the run command, before the image name |
-| `args` | arguments for the entrypoint of the image, after the image name |
+| `runFlags` | flags for the run command, before the image name, such as `--entrypoint` where Apache Pinot, Apache Druid and Avatica replace the image's entrypoint, or `--add-host` where Databend blocks its telemetry (D112) |
+| `args` | arguments after the image name, for the image's entrypoint or the one `runFlags` names |
 | `memory` | a memory limit above `MemoryLimit`, with its measurement |
 | `startup` | a wait longer than 90 seconds, with its measurement |
 | `settle` | how long `ready` has to keep passing. Presto and Trino need it (D83). |
 | `dsn` | builds the connection string the Go driver takes, for a host port |
 | `url` | builds the dburl URL, where it differs from the DSN |
-| `users` | the ordinary users that `init` creates, as `Principal` values with their own DSN, which `dsn --json` prints after the administrator (D102) |
+| `users` | the ordinary users that the setup, the start command or the image creates, as `Principal` values with their own DSN, which `dsn --json` prints after the administrator (D102) |
 
 ## Readiness checks and setups that went wrong
 
@@ -203,6 +223,7 @@ Then run the checks in `AGENTS.md` under Before you commit.
 | --- | --- |
 | `TestEveryProductIsEvaluated` | a product has no row in `EVALUATION.md` |
 | `TestWorkflowReadsTheList` | the workflow stopped reading the list |
+| `TestEveryServerNamesItsPrincipals` | a server does not name its administrator, or an ordinary user's DSN does not hold that user's name |
 | `TestWorkflowImagesAreQualified` | an image in the workflow has no registry written out |
 | `TestWorkflowImagesAreInTheList` | the workflow names an image that the list does not |
 | `TestTheReadmeNamesEveryTier` | the list has a tier that `README.md` does not explain |

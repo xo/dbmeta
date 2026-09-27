@@ -108,6 +108,10 @@ const (
 type Server struct {
 	// Dialect selects the model that reads this server.
 	Dialect dbmeta.Dialect
+	// Also is every other dialect the server answers. InfluxDB 3 answers
+	// SQL as influxdb and InfluxQL as influxql, and one container serves
+	// both. See D114.
+	Also []dbmeta.Dialect
 	// Product is the name the server reports for itself, such as MariaDB.
 	// Two products share a dialect where they are wire compatible.
 	Product string
@@ -350,7 +354,7 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j, ArangoDB, InfluxDB, CrateDB, Rqlite, LibSQL, TDengine, Pinot, Databend, Avatica, Phoenix, Druid)
 }
 
 // AtTier returns the servers tested at t.
@@ -365,11 +369,12 @@ func AtTier(t Tier) []Server {
 }
 
 // ForDialect returns the servers one model reads. Two products share a
-// dialect, so this returns both of them.
+// dialect, so this returns both of them, and a server that also answers the
+// dialect is one of them too.
 func ForDialect(d dbmeta.Dialect) []Server {
 	var out []Server
 	for _, s := range All() {
-		if s.Dialect == d {
+		if s.Dialect == d || slices.Contains(s.Also, d) {
 			out = append(out, s)
 		}
 	}
@@ -388,6 +393,7 @@ func Releases(servers []Server) []string {
 // The three products, as the parts that do not change per release.
 type product struct {
 	dialect dbmeta.Dialect
+	also    []dbmeta.Dialect
 	name    string
 	image   string
 	// major turns a release into the name a person uses for it. Nil means
@@ -432,6 +438,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 		}
 		l = append(l, Server{
 			Dialect:   p.dialect,
+			Also:      p.also,
 			Product:   p.name,
 			Release:   v,
 			Major:     major,
