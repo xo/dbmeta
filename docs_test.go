@@ -21,7 +21,7 @@ import (
 var markdownLink = regexp.MustCompile(`\]\((?:\./)?([^)#:]+\.md)(#[^)]*)?\)`)
 
 // decisionRef matches a bare reference to a decision, such as D47.
-var decisionRef = regexp.MustCompile(`\bD([1-9][0-9]?)\b`)
+var decisionRef = regexp.MustCompile(`\bD([1-9][0-9]*)\b`)
 
 // bareMention matches a document named in running text, which is how a Go
 // comment points at one, as in: See docs/NULLS.md for the rule.

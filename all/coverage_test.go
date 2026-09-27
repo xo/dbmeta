@@ -60,6 +60,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "hive", dialect: dbmeta.Hive},
 		{name: "exasol", dialect: dbmeta.Exasol},
 		{name: "vertica", dialect: dbmeta.Vertica},
+		{name: "couchbase", dialect: dbmeta.Couchbase},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -89,6 +90,7 @@ var displayNames = map[string]string{
 	"ClickHouse": "clickhouse", "Trino": "trino", "Presto": "presto",
 	"Firebird": "firebird", "SAP HANA": "hana", "Apache Hive": "hive",
 	"Exasol": "exasol", "Vertica": "vertica", "ScyllaDB": "scylla",
+	"Couchbase": "couchbase",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -252,6 +254,7 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"clickhouse": "ClickHouse", "trino": "Trino", "presto": "Presto",
 			"firebird": "Firebird", "hana": "SAP HANA", "hive": "Apache Hive",
 			"exasol": "Exasol", "vertica": "Vertica", "scylla": "ScyllaDB",
+			"couchbase": "Couchbase",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -289,6 +292,7 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"clickhouse": "ClickHouse", "trino": "Trino", "presto": "Presto",
 			"firebird": "Firebird", "hana": "SAP HANA", "hive": "Apache Hive",
 			"exasol": "Exasol", "vertica": "Vertica", "scylla": "ScyllaDB",
+			"couchbase": "Couchbase",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+

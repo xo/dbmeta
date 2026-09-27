@@ -14,6 +14,7 @@ import (
 	"github.com/xo/dbmeta"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
+	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
@@ -108,6 +109,17 @@ func conformTargets() []conformTarget {
 			name: "cassandra", dialect: dbmeta.Cassandra,
 			open: openCassandra, schema: cafixture.Everything.Schema,
 			build: setupCassandra,
+		},
+		{
+			name: "couchbase", dialect: dbmeta.Couchbase,
+			open: openCouchbase, schema: cbfixture.Everything.Schema,
+			// Below 7.6 every query is too old, so there is nothing to
+			// compare. TestCouchbaseTooOldBelowTheFloor covers that release.
+			build: func(t *testing.T, db *sql.DB) *dbmeta.Meta {
+				m := setupCouchbase(t, db)
+				skipBelowFloor(t, m)
+				return m
+			},
 		},
 		{
 			name: "clickhouse", dialect: dbmeta.ClickHouse,
@@ -243,8 +255,14 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 	sort.Strings(tables)
 	out = append(out, tables...)
 
-	// columns, canonically
+	// columns, canonically. A database with no column catalog contributes no
+	// column lines. Couchbase is the case: a document has no fixed shape, so
+	// no statement lists the fields of a collection.
 	var cols []string
+	if dbmeta.Columns.Support(m) != dbmeta.Supported {
+		t.Logf("no column lines: columns is %v", dbmeta.Columns.Support(m))
+		return out
+	}
 	for v, err := range dbmeta.Columns.All(ctx, m, db, args) {
 		if err != nil {
 			t.Fatalf("reading columns: %v", err)
@@ -547,6 +565,9 @@ var agreementExcluded = map[string]string{
 		" materialized view is in another catalog table and CQL has no UNION," +
 		" and its column ordinal is a position within the primary key because" +
 		" the catalog keeps no declaration order",
+	"couchbase": "not relational: a document has no fixed shape, so there is" +
+		" no column catalog and no constraint, and the section holds the four" +
+		" collections alone",
 	"clickhouse": "no constraint catalog: there is no primary key constraint," +
 		" no foreign key and no unique constraint, and system.constraints holds" +
 		" the expression a CHECK asserts rather than the columns behind it, so" +

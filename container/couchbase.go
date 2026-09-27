@@ -135,7 +135,7 @@ func couchbaseDSN(user string) func(port int) string {
 
 // Couchbase is every Couchbase Server release dbmeta is tested against.
 //
-// 7.2.9 and 8.0.3 on every push, because they are the two ends. 7.6.12 runs
-// nightly.
-var Couchbase = list{}.add(couchbase, Tested, "7.2.9", "8.0.3").
-	add(couchbase, Nightly, "7.6.12")
+// All three run on every push. 7.2.9 and 8.0.3 are the two ends of the range
+// that the dbimp driver supports. 7.6.12 is the floor of the dbmeta model, and
+// 7.2.9 proves that the model reports it too old. See D104.
+var Couchbase = list{}.add(couchbase, Tested, "7.2.9", "7.6.12", "8.0.3")

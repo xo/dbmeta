@@ -13,6 +13,7 @@ import (
 	"github.com/xo/dbmeta"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
+	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
@@ -208,6 +209,21 @@ func parityTargets() []parityTarget {
 				// the superuser and there is everybody else.
 				name:       "same",
 				principals: []parityPrincipal{{name: "grantee", make: makeCassandraGrantee}},
+			}},
+		},
+		{
+			dialect: dbmeta.Couchbase, driver: "couchbase", env: "DBMETA_COUCHBASE",
+			open: openCouchbase, build: setupCouchbase,
+			schema: cbfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Couchbase has no containment. A user belongs to the
+				// cluster and holds roles on buckets, scopes and
+				// collections. SQL++ cannot create a user, so the lesser
+				// principal is the ordinary user the dbrun setup makes,
+				// with select, insert, update and delete on the bucket and
+				// the system catalog role.
+				name:       "same",
+				principals: []parityPrincipal{{name: "user", make: makeCouchbaseUser}},
 			}},
 		},
 		{

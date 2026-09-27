@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 24 of them amend or replace an earlier
+Read the status before the decision. 25 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -158,9 +158,9 @@ records the argument.
 | [D91](#d91-scylladb-is-a-flavor-of-the-cassandra-model-amends-d66-amended-by-d92) | ScyllaDB is a flavor of the Cassandra model | Amends D66, amended by D92 |
 | [D92](#d92-a-second-version-statement-reads-the-scylladb-release-amends-d91) | A second version statement reads the ScyllaDB release | Amends D91 |
 | [D93](#d93-the-cql-tests-use-githubcomxocql-which-reports-a-null-amends-d62) | The cql tests use github.com/xo/cql, which reports a NULL | Amends D62 |
-| [D94](#d94-couchbase-runs-under-dbrun-and-its-model-waits-for-the-n1ql-rewrite-amends-d66-amended-by-d95-and-d96) | Couchbase runs under dbrun, and its model waits for the n1ql rewrite | Amends D66, amended by D95 and D96 |
-| [D95](#d95-the-couchbase-model-waits-for-the-dbimp-driver-amends-d94-amended-by-d101) | The Couchbase model waits for the dbimp driver | Amends D94, amended by D101 |
-| [D96](#d96-couchbase-gets-an-ordinary-user-and-starts-again-after-a-stop-amends-d94) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94 |
+| [D94](#d94-couchbase-runs-under-dbrun-and-its-model-waits-for-the-n1ql-rewrite-amends-d66-amended-by-d95-d96-and-d104) | Couchbase runs under dbrun, and its model waits for the n1ql rewrite | Amends D66, amended by D95, D96 and D104 |
+| [D95](#d95-the-couchbase-model-waits-for-the-dbimp-driver-amends-d94-amended-by-d101-and-d104) | The Couchbase model waits for the dbimp driver | Amends D94, amended by D101 and D104 |
+| [D96](#d96-couchbase-gets-an-ordinary-user-and-starts-again-after-a-stop-amends-d94-amended-by-d104) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94, amended by D104 |
 | [D97](#d97-dbrun-is-documented-for-its-users-in-dbrun-and-containers-decided) | dbrun is documented for its users, in DBRUN and CONTAINERS | Decided |
 | [D98](#d98-a-server-has-an-owner-and-dbrun-acts-only-on-the-callers-own-amends-d75-amended-by-d102) | A server has an owner, and dbrun acts only on the caller's own | Amends D75, amended by D102 |
 | [D99](#d99-dburl-names-the-product-that-a-scheme-drives-decided) | dburl names the product that a scheme drives | Decided |
@@ -168,6 +168,7 @@ records the argument.
 | [D101](#d101-couchbase-is-the-dialect-couchbase-read-through-the-dbimp-driver-amends-d95) | Couchbase is the dialect couchbase, read through the dbimp driver | Amends D95 |
 | [D102](#d102-dbrun-prints-every-principal-of-a-server-amends-d98) | dbrun prints every principal of a server | Amends D98 |
 | [D103](#d103-surrealdb-runs-under-dbrun-for-the-dbimp-driver-decided) | SurrealDB runs under dbrun, for the dbimp driver | Decided |
+| [D104](#d104-the-couchbase-model-reads-76-and-later-amends-d94-d95-and-d96) | The Couchbase model reads 7.6 and later | Amends D94, D95 and D96 |
 
 ## Decisions
 
@@ -7201,7 +7202,7 @@ The parity record changed wording and nothing else: the new driver writes
 "running query:" where the old one wrote "RowData error:", and every refusal
 is the same refusal. The conformance record did not change.
 
-### D94. Couchbase runs under dbrun, and its model waits for the n1ql rewrite. Amends D66, amended by D95 and D96.
+### D94. Couchbase runs under dbrun, and its model waits for the n1ql rewrite. Amends D66, amended by D95, D96 and D104.
 
 Ken asked on 2026-09-27 whether a Couchbase dialect can be built, or at least
 whether `dbrun` can start Couchbase for the tests of the n1ql rewrite. The
@@ -7260,7 +7261,7 @@ It has three faults, and any one of them breaks a model:
 moves `usql` with it, the way D93 moved the cql tests. The three faults went
 to the `n1ql` session as requirements.
 
-### D95. The Couchbase model waits for the dbimp driver. Amends D94, amended by D101.
+### D95. The Couchbase model waits for the dbimp driver. Amends D94, amended by D101 and D104.
 
 D94 tied the Couchbase model to a rewrite of `xo/n1ql`. Ken decided on
 2026-09-27 that the first driver in `github.com/xo/dbimp` is a new Couchbase
@@ -7295,7 +7296,7 @@ today, such as the ones for ClickHouse, Trino, Presto and DynamoDB, to cut
 `usql`'s dependencies. Each such switch means that dbmeta measures the model
 again on the new driver. Nothing changes here until `usql` switches.
 
-### D96. Couchbase gets an ordinary user, and starts again after a stop. Amends D94.
+### D96. Couchbase gets an ordinary user, and starts again after a stop. Amends D94, amended by D104.
 
 dbimp asked on 2026-09-27 for an ordinary Couchbase user, so that its driver
 is tested as more than the administrator. Ken accepted that for dbimp in its
@@ -7676,6 +7677,65 @@ A database user signs in only with `Surreal-Auth-NS` and `Surreal-Auth-DB`,
 and root is refused with 401 when it sends them, so the driver is told the
 level rather than trying both. The administrator's URL has no key, because
 `auth=root` is the default.
+
+### D104. The Couchbase model reads 7.6 and later. Amends D94, D95 and D96.
+
+`models/couchbase` is written, on the dbimp driver that D101 swapped in. It
+answers 12 of the 55, and `docs/COVERAGE.md` holds what it answers and why.
+
+#### The floor is 7.6
+
+D95 left the model three choices for 7.2, which sends the fields of a result
+in name order. Ken chose on 2026-09-27 to raise the floor to 7.6. Every Scan
+reads a column by its position, and 7.6 keeps the order the statement
+selects. The other two choices were to name every column so that name order
+and field order agree, or to read 7.2 by name. The first bends every query to
+one old release, and the second is a second way of scanning for one product.
+
+So every fragment gates on 7.6, and a 7.2 server reports `ErrVersionTooOld`
+for every query. `TestCouchbaseTooOldBelowTheFloor` holds that on 7.2.9.
+Measured on 7.2.9, the order is not the only difference: the signature of the
+result is in name order too. Sequences also arrived in 7.6.
+
+#### The tiers
+
+D94 made 7.2.9 and 8.0.3 Tested and 7.6.12 Nightly. That put the floor of the
+model in the nightly run alone, so CI on every push checked the model only on
+8.0.3. 7.6.12 is now Tested as well. 7.2.9 stays Tested, because the dbimp
+driver supports it, and the push run proves that the model refuses it.
+
+#### What differs between 7.6 and 8.0
+
+8.0 reserves the word `roles`, which 7.6 does not, so `u.roles` is a syntax
+error there. The model quotes it, and it quoted `role` already. The refusal
+message a lesser principal gets from `system:user_info` names a different
+role on 8.0, so parity has a section `couchbase@8`.
+
+#### The one lesser principal
+
+D96 expected parity to want an owner as well as a grantee, made with
+`bucket_admin` on the bucket. Couchbase has no containment and no object
+owner. A collection, an index and a function belong to a scope and not to a
+user, so `bucket_admin` is more roles rather than another kind of principal.
+Rule 16 asks for every lesser kind, and Couchbase has one, which is
+`dbmeta_user` from D96. SQL++ cannot create a user, so the parity target
+connects as that user and makes nobody.
+
+The user is refused `Roles`, `RoleGrants` and `Privileges`, and sees no
+function. `system:functions` shows only the functions a user can run or
+manage, and the user holds no function role.
+
+#### The version statement
+
+`usql` runs `SELECT RAW ds_version()` and prints "Couchbase" before it, and
+dbmeta runs the same statement and names the product the same way.
+`docs/USQL.md` has the row.
+
+#### The decision index regular expression
+
+The test that checks references to decisions matched two digits alone, so a
+reference to D100 or later went unchecked. It now matches any number, and
+this is the first reference it caught before its decision existed.
 
 ## Open questions for Ken
 

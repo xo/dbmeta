@@ -158,6 +158,7 @@ reading code.
 | SAP HANA | 11/11 | 5/5 | nothing |
 | MySQL | 11/11 | 4/5 | the sequence section: MySQL has no sequence |
 | ClickHouse | 11/11 | 2/5 | the sequence, trigger and constraint column sections |
+| Couchbase | 11/11 | 2/5 | the trigger, constraint and constraint column sections. `\d NAME` also needs Columns to print anything, and a collection has no columns, so it prints nothing |
 | Oracle | 10/11 | 5/5 | `\l`: Oracle has one database per instance and no list to read |
 | Firebird | 10/11 | 5/5 | `\dn`: Firebird has no schemas before 6.0 |
 | DuckDB | 10/11 | 3/5 | `\dp`, and the index column and trigger sections |
@@ -332,6 +333,7 @@ a case where `usql` has no answer at all.
 | Apache Hive | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement, and Hive has the function, so the fallback works |
 | SAP HANA | `SELECT VERSION FROM SYS.M_DATABASE` | the same statement, lower cased | the same answer, and `usql` prefixes the words SAP HANA |
 | Vertica | `SELECT version()` | the same | same, measured on 7.2.1, 9.1.0, 10.1.1 and 25.1.0 on 2026-09-27 |
+| Couchbase | `SELECT RAW ds_version()` | the same, through the dbimp driver since `usql` commit 8407785 | the same answer, and both print the word Couchbase before it, measured on 7.6.12 and 8.0.3 on 2026-09-27 |
 | Exasol | `SELECT PARAM_VALUE FROM EXA_METADATA WHERE PARAM_NAME = 'databaseProductVersion'` | the same statement, lower cased | the same answer, and `usql` prefixes the word Exasol. A user granted nothing but `CREATE SESSION` reads it on 2025.2.1 and 2026.2.0, measured on 2026-09-27 |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and **`usql` fails for everybody else** |

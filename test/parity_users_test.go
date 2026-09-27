@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/xo/dbmeta/container"
 )
 
 // The principals, one maker per product.
@@ -241,6 +243,22 @@ func makeClickHouseGrantee(t *testing.T, db *sql.DB, dsn, schema string) string 
 	//nolint:unqueryvet // GRANT ... ON db.* is the CREATE GRANT syntax
 	exec(t, db, `GRANT SELECT ON `+schema+`.* TO dbmeta_parity`)
 	return replaceUser(t, dsn, "dbmeta_parity", parityPassword)
+}
+
+// makeCouchbaseUser connects as the ordinary user the dbrun setup makes.
+//
+// SQL++ has no statement that creates a user, and the setup already makes
+// one with the roles a grantee has: select, insert, update and delete on the
+// bucket, and the role that reads the system catalog. So becoming it is a
+// change to the credentials of the URL.
+func makeCouchbaseUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.UserPassword(container.CouchbaseUser, container.Password)
+	return u.String()
 }
 
 // makeTrinoPrincipal names a different principal on the connection.

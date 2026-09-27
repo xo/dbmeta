@@ -20,6 +20,22 @@ role_grants refused: code: 497, message: dbmeta_parity: Not enough privileges. T
 roles refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users
 tablespaces refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies
 
+[couchbase/same/user]
+current_user the same rows with different values
+functions fewer rows than the administrator
+privileges refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
+role_grants refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
+roles refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
+routine_parameters fewer rows than the administrator
+
+[couchbase@8/same/user]
+current_user the same rows with different values
+functions fewer rows than the administrator
+privileges refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
+role_grants refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
+roles refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
+routine_parameters fewer rows than the administrator
+
 [cql/same/grantee]
 privileges refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
 role_grants refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents

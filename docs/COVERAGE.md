@@ -43,6 +43,7 @@ rather than reading one.
 | `models/hive` | 16 | 55 | Apache Hive 4.2 |
 | `models/exasol` | 25 | 55 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
 | `models/vertica` | 26 | 55 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
+| `models/couchbase` | 12 | 55 | Couchbase 7.6.12 and 8.0.3 |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -1825,6 +1826,151 @@ On 10.1 `Privileges` is refused to both, because a lesser principal cannot read
 `access_policy`, which the query joins for its policies. 25.1 serves it. Before
 10.1 the query does not read that view.
 
+## Couchbase
+
+`models/couchbase` answers 12 of the 55 on 7.6 and 8.0. It was run against
+7.6.12 and 8.0.3 through `github.com/xo/dbimp/couchbase`, the driver `usql`
+uses. 7.2.9 reports that it is too old, and D104 says why.
+
+### It reads the system keyspaces
+
+Couchbase has no `information_schema`. Its catalog is the `system` namespace,
+which SQL++ reads like any other keyspace. Every query is one statement over
+`system:buckets`, `system:all_scopes`, `system:all_keyspaces`,
+`system:indexes`, `system:functions`, `system:sequences`, `system:user_info`
+or `system:applicable_roles`.
+
+A bucket is the database, a scope is the schema and a collection is the
+table. So a table's catalog is its bucket and its schema is its scope. The
+default collection of a bucket is reported as the scope `_default` and the
+collection `_default`, which is how Couchbase addresses it.
+
+Four things about writing SQL++ for it, all measured:
+
+1. A field that is absent from a document is MISSING, and SQL++ leaves it out
+   of the row. It does not write it as null. A driver takes its columns from
+   the row, so a row that drops a key drops a column. Every expression that can
+   be MISSING is written `IFMISSING(x, NULL)`. `docs/NULLS.md` has the rule.
+2. `REGEXP_LIKE` matches the whole string. `REGEXP_CONTAINS` finds a
+   substring. The descending flag of an index key uses the second.
+3. `REGEXP_REPLACE` has no backreference such as `$1`. An index key loses its
+   backticks through `TRIM(x, '`')`.
+4. The reserved words differ between releases. `role` is reserved on 7.6 and
+   8.0, and 8.0 also reserves `roles`. Both are quoted with backticks.
+
+### What it answers
+
+Databases, schemas, tables, indexes, index columns, functions, routine
+parameters, sequences, roles, role grants, privileges and the current user.
+
+Five answer with an analogue:
+
+| Kind | Couchbase | Why it is a fair answer |
+| --- | --- | --- |
+| `Roles` | users | a Couchbase user is the principal that logs in and holds grants. A Couchbase role, such as `query_select` on a bucket, is a privilege, and `Privileges` returns those |
+| `RoleGrants` | groups | a user is a member of groups and has their roles. SQL++ has no catalog of groups, so a group appears only as what a user is a member of |
+| `Privileges` | `system:applicable_roles` | one row for each object, with each role held on it. The object is a bucket, a scope or a collection, and nothing for a role on the whole cluster |
+| `Functions` | SQL++ user defined functions | a function is inline, with one expression as its body, or JavaScript, whose body is in a library. Its parameters have names and no types |
+| `Sequences` | `system:sequences` | 7.6 added sequences. The catalog names a sequence by its scope and loses its bucket, so the bucket is not reported |
+
+A variadic function has no `parameters` field at all, and a function with no
+parameters has the empty list. So a missing list is reported as the one
+parameter `...`, which is how CREATE FUNCTION writes it.
+
+### What it cannot answer
+
+43 kinds. Most are absent from the product: views, constraints of any kind,
+domains, enumerated types, casts, operators, operator classes and families,
+collations, conversions, large objects, triggers, event triggers, extensions,
+extended statistics, publications, subscriptions, text search objects, access
+methods, tablespaces, partitioned tables, foreign data wrappers, foreign
+servers, foreign tables, user mappings, default privileges, languages,
+aggregates, comments and the current schema.
+
+Five are present in some form and rejected, which is a different thing.
+
+`Columns` has no answer. A document has no fixed shape, so a collection has no
+columns. INFER samples documents and guesses a schema from them. That is a
+guess about the data and not a fact of the catalog. It is also one statement
+per collection, and on 7.6 it cannot be a subquery at all, so it fails the
+cost test of D47.
+
+`ColumnStats` has no answer. UPDATE STATISTICS keeps its results in the
+internal collection `_system._query` of each bucket, with each histogram as
+base64 JSON. A statement names the bucket it reads in FROM, so no one
+statement covers every bucket. The records of a dropped collection also stay
+behind. `system:dictionary`, which is the view of that data, fails with a
+server panic on 7.6.12 and 8.0.3, before and after UPDATE STATISTICS.
+
+`Settings` has no answer. 8.0 adds `system:bucket_info`, which holds the
+configuration of each bucket, and `system:aus`, which holds the configuration
+of automatic statistics. Neither is the configuration of the server. The
+query service keeps its own on a REST endpoint that SQL++ cannot read.
+
+`RoleSettings` has no answer. A user carries its roles and no setting.
+
+`Triggers` has no answer. The Eventing service runs a function when a document
+changes, and SQL++ has no catalog of Eventing functions.
+
+### What a second opinion found
+
+Gemini and DeepSeek were both asked about the 43 kinds, with the system
+keyspaces named. Both answers were short, and neither gave a lead that the
+table above did not already reject. The leads they named:
+
+| Lead | What the server says |
+| --- | --- |
+| `Columns` from INFER | it works, and it is a sample. On 7.6 it cannot be a subquery, and on 8.0 it takes only a fixed keyspace, so one statement cannot read every collection |
+| `ColumnStats` from `system:dictionary` | the keyspace exists and every read of it fails with a server panic |
+| `CurrentSchema` from `CURRENT_SCOPE()` | there is no such function on either release |
+| `Settings` from `system:settings` | there is no such keyspace |
+| `Settings` from `system:bucket_info` | it exists on 8.0 only, and it holds bucket configuration |
+| `RoleSettings` from `system:user_info` | it holds the user's roles, which `Privileges` already reads |
+| `Views` from `system:views` | there is no such keyspace |
+
+The statistics in `_system._query` were found here, while checking the
+`system:dictionary` lead.
+
+### What the fixture builds, and what it cannot build
+
+The fixture builds a scope, `dbmeta_fixture`, in the bucket `dbmeta` that the
+`dbrun` setup makes. SQL++ can create a scope and cannot create a bucket. The
+scope holds the four core collections, a primary index, `book_published`, an
+index with a descending key and an index over an array, an inline function
+with two parameters, a variadic function, a sequence, and a grant to the
+ordinary user on one collection.
+
+A collection that CREATE COLLECTION made is not visible to the next statement
+for a moment, so the test tries such a step again until it succeeds.
+
+It cannot build a group or a user, because SQL++ has no statement for either,
+so `RoleGrants` is verified to run and returns no fixture row. It cannot
+build a JavaScript function, because the library that holds its body is
+managed through REST.
+
+### What the conformance test says
+
+The `couchbase` section holds the four core collections and nothing else.
+There is no column catalog and no constraint, so the relational lines have no
+Couchbase answer, and `agreementExcluded` says so.
+
+### Which answers depend on who is asking
+
+Couchbase has no containment and no object owner. A user belongs to the
+cluster and holds roles, so there is one lesser kind of principal. It is
+`dbmeta_user`, which the `dbrun` setup makes with select, insert, update and
+delete on the bucket, and `query_system_catalog`.
+
+`Roles`, `RoleGrants` and `Privileges` are refused to the user, because each
+reads `system:user_info` or `system:applicable_roles`. The error names a
+different role on each release, so 8.0 has a section of its own,
+`couchbase@8`.
+
+`Functions` and `RoutineParameters` return no rows to the user.
+`system:functions` shows only the functions a user can run or manage, and the
+user holds no function role. Measured with a scope function and a global one,
+both of which the administrator sees and the user does not.
+
 ## Which answers depend on who is asking
 
 Every query has been asked as the administrator and as each lesser kind of
@@ -1859,6 +2005,7 @@ that varies is what kind of principal they are.
 | Vertica 25.1 | grantee | the same, plus `comments`, `functions`, `privileges` and `sequences` |
 | Vertica 10.1 | both | `privileges` is refused, because a lesser principal cannot read `access_policy` |
 | Vertica 7.2, 9.1 | both | the same as 25.1 without `role_settings`, and a grantee sees fewer rows in `privileges` rather than different values |
+| Couchbase 7.6, 8.0 | ordinary user | `functions`, `privileges`, `role_grants`, `roles`, `routine_parameters` |
 
 `current_user` and `current_schema` are left out of the table and are in the
 file. They answer a question about the connection, so a run where they agreed
@@ -1875,9 +2022,10 @@ DuckDB are the products with no reason to have one: neither has a user.
 
 ### One release answers differently
 
-`test/testdata/parity.txt` has a section per product, and five releases have
-one of their own: `postgres@10`, `postgres@11`, `postgres@12`, `postgres@13`
-and `mariadb@10`. A section named for a release wins over the shared one, and
+`test/testdata/parity.txt` has a section per product, and ten releases have
+one of their own: `postgres@10`, `postgres@11`, `postgres@12`, `postgres@13`,
+`mariadb@10`, `exasol@2025`, `vertica@7`, `vertica@9`, `vertica@10` and
+`couchbase@8`. A section named for a release wins over the shared one, and
 a name carrying a minor wins over one carrying only the major.
 
 PostgreSQL restricts a column of `pg_subscription` from an ordinary role. The
