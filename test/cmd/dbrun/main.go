@@ -4,7 +4,8 @@
 // a rule nobody can follow is a rule that gets broken: the shell script it
 // replaces could start a server, test it and throw it away, and nothing else,
 // so anybody who wanted to keep one reached for podman and named it whatever
-// they were thinking. docs/RUNNER.md is the design.
+// they were thinking. docs/DBRUN.md says how to use it, and D70 is the
+// design.
 //
 // It lives in the test module rather than at the repository root, because
 // version opens a connection, which needs a driver, which hard rule 1 keeps

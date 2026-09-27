@@ -16,7 +16,7 @@ bound as a parameter. It takes no database and runs nothing, so everything
 ## Which document to read
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
-the most to learn. `docs/PLAN.md` holds every decision, with a table of all 96
+the most to learn. `docs/PLAN.md` holds every decision, with a table of all 97
 at the top. Read the status, because 20 of them amend or replace an earlier
 one. Do not decide an open question on your own. They are at the end of
 `docs/PLAN.md`. Ask Ken.
@@ -39,8 +39,9 @@ Then by what you are doing:
 | designing the object set | `docs/QUERIES.md`, the survey of psql against information_schema |
 | adding a release to CI | `container/container.go`, which is the only copy of that list |
 | adding an old SQL Server that needs a Windows VM | `docs/DIALECT.md` for where the steps differ, then `docs/WINDOWS.md`, `container/windows.go` and D57 |
-| starting a database for any reason | `dbrun`, and nothing else. `cd test && go run ./cmd/dbrun help`. See D68 and `docs/RUNNER.md` |
-| changing how a database is started | `docs/RUNNER.md`, the design of that command |
+| starting a database for any reason | `dbrun`, and nothing else. `docs/DBRUN.md` holds its use and the rules for a shared machine. Read those rules first |
+| adding a container or a machine that dbrun starts | `docs/CONTAINERS.md`, every step in order |
+| changing how a database is started | D68, D70, D75, D86 and D97 in `docs/PLAN.md`, then `docs/DBRUN.md` |
 | provisioning a Windows machine | `docs/WINDOWS.md`, then `container/windows.go` and D57 |
 | testing against Cassandra | `test/cmd/dbrun/image/cassandra.Containerfile`. `dbrun` embeds it and builds it when the image is missing |
 | changing the CI workflow | D69. It reads the release list from `dbrun list --json` and names no image of its own |
@@ -196,7 +197,8 @@ something is written down, it is not written down, and it is an open question.
    this project uses, and every container is named `<product>-<release>`, such
    as `postgres-18` or `clickhouse-26.9`. Run
    `cd test && go run ./cmd/dbrun help`, which lists every command, and
-   `docs/RUNNER.md` holds the same table. It takes `all` or a tier name
+   `docs/DBRUN.md` holds the same table, and the rules for sharing this
+   machine with other sessions. It takes `all` or a tier name
    where it takes a server. The commands most often wanted are `start`,
    `stop`, `remove`, `status`, `version`, `dsn`, `usql` and `test`. The rest
    are in that table and this file does not repeat them.

@@ -475,7 +475,7 @@ model's answer, and step 2 of the procedure above still has to be run.
 | Db2 | `icr.io/db2_community/db2` | 50000, 55000 | `LICENSE=accept`, `DB2INSTANCE=db2inst1`, `DB2INST1_PASSWORD`, `DBNAME=testdb`, and a volume at `/database` |
 | Flight SQL | `docker.io/voltrondata/flight-sql` | 31337 | `FLIGHT_PASSWORD` |
 | H2 | `docker.io/buildo/h2database` | 8082, 9092 | none |
-| Apache Ignite | `docker.io/usql/ignite` | 10800 | host networking, and the cluster activated after it starts with `control.sh --activate --user ignite --password ignite` inside the container |
+| Apache Ignite | `docker.io/usql/ignite` | 10800 | host networking, and the cluster activated after it starts with `control.sh --activate --user ignite --password ignite` inside the container. usql removed its Ignite driver on 2026-09-27 and dburl v0.31.0 dropped the scheme, so no consumer reads it now |
 | YDB | `cr.yandex/yc/yandex-docker-local-ydb` | 2135, 2136, 8765 | `GRPC_TLS_PORT=2135`, `GRPC_PORT=2136`, `MON_PORT=8765`, `YDB_DEFAULT_LOG_LEVEL=NOTICE`, the host name `localhost`, and volumes at `/ydb_certs` and `/ydb_data` |
 
 Three of these need a word before anybody starts one.

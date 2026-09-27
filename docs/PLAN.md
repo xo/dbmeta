@@ -161,6 +161,7 @@ records the argument.
 | [D94](#d94-couchbase-runs-under-dbrun-and-its-model-waits-for-the-n1ql-rewrite-amends-d66-amended-by-d95-and-d96) | Couchbase runs under dbrun, and its model waits for the n1ql rewrite | Amends D66, amended by D95 and D96 |
 | [D95](#d95-the-couchbase-model-waits-for-the-dbimp-driver-amends-d94) | The Couchbase model waits for the dbimp driver | Amends D94 |
 | [D96](#d96-couchbase-gets-an-ordinary-user-and-starts-again-after-a-stop-amends-d94) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94 |
+| [D97](#d97-dbrun-is-documented-for-its-users-in-dbrun-and-containers-decided) | dbrun is documented for its users, in DBRUN and CONTAINERS | Decided |
 
 ## Decisions
 
@@ -4752,7 +4753,8 @@ one more name for the same thing, and the workflow and the documents were the
 only callers. `tool/servers`, `tool/vms` and `tool/version` are gone with it,
 and so is `test/vm/provision.sh`.
 
-`docs/RUNNER.md` is the design and this records what the design decided.
+The design document of `dbrun` held the design, and this records what it
+decided. D97 later folded that document into `DBRUN.md` and `CONTAINERS.md`.
 
 #### Why a language
 
@@ -7331,13 +7333,76 @@ The index is updated after a write, not with it. On 7.6.12 a SELECT straight
 after an UPSERT returned no rows. A test that writes and then reads asks for
 `scan_consistency=request_plus`.
 
+### D97. dbrun is documented for its users, in DBRUN and CONTAINERS. Decided.
+
+Ken asked on 2026-09-27 for better documentation of `dbrun`: how to add a
+container or a machine, and how to use the command on a machine that several
+people and coding agents share. It is written for a coding agent and for a
+developer alike.
+
+#### Two documents, by task
+
+`docs/DBRUN.md` is for anybody who starts a database. It opens with the rules
+for a shared machine, then gives the common tasks, then the reference: the
+commands, selectors, names, ports, credentials, output, exit status, the
+environment and what `dbrun` does not do. `docs/CONTAINERS.md` is for the
+rarer task of adding a server, with its rules, one procedure for each kind of
+entry, the fields, the readiness faults that were really made, and the tests
+that catch a skipped step.
+
+The `usql` and `dbimp` sessions were asked, and both chose these two names
+and this split. A reader looks for the command by its own name, and a reader
+who starts a database never needs to add an entry. `TESTING.md` was offered
+and rejected, because both read it as how dbmeta tests itself. Gemini and
+DeepSeek both proposed two documents with the rules first. Gemini also
+proposed paired wrong and right examples, which `CONTAINERS.md` has as the
+table of real faults.
+
+#### What happened to the design document
+
+`docs/RUNNER.md` held the design of `dbrun`, and its name no longer said what
+it held. Its instructions moved into the two documents. Its reasons were
+already decisions: D68 for one command and one name, D70 for Go, for the
+command line over a client library, for the Oracle mirror, for `--render` and
+for the selector `--releases`, D75 for the limit of four, D82 for the prebuilt
+test binary, and D86 for machines. The reasons that no decision held are
+kept here:
+
+- Bare `dbrun` prints the help. The shell script it replaced started every
+  release of every database and tested each one when it was run bare, which
+  is half an hour of containers that nobody who typed the bare command meant.
+- A bare product names its newest release. That is what somebody who is
+  looking at one thing wants, it does not go stale when a release ships, and
+  it keeps one server on the machine rather than six. The command prints
+  which release it picked, because a silent default is the part that bites.
+- `status` opens a connection to a machine before it prints a URL, and trusts
+  a container that runs. `start` does not return until a container answers,
+  but a Windows machine runs for the whole hour that it installs itself, and
+  the first version printed a URL that refused every connection.
+- A port is the place of a server in the list, so a release added earlier
+  moves the port of every server after it. Adding Trino 476 left the running
+  Trino 483 on its old port, and every test failed with connection refused
+  against a server that `podman ps` showed as up. `start` rebuilds such a
+  container and `status` reports it.
+
+#### The rules for a shared machine, and what they cannot yet say
+
+The rules in `DBRUN.md` ask each session to start only what it tests, to keep
+the machine at four servers, to leave another session's servers alone, and to
+leave the machine as it found it. `dbrun` itself cannot yet keep the third
+rule. A server carries no owner, and D75 stops the longest running server of
+any session when a start brings the count to five. That stopped a Couchbase
+server that another session was using on 2026-09-27. So the rules tell a session not
+to start a fifth server when any of the four is not its own. The open
+question at the end of this file asks what `dbrun` does about it.
+
 ## Open questions for Ken
 
 An open question lives here until it is answered, and then it becomes a
 decision above. The argument behind a decision belongs with the decision, which
 is why there is no separate document for it. See D50.
 
-One question is open, at the end of this section. None of the older ones are.
+Two questions are open, at the end of this section. None of the older ones are.
 The floor question that the upstream change reopened has been answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
 asked for in exchange.
@@ -7405,3 +7470,41 @@ that nobody proposes it a second time without reading why.
 
 Ken decides. The first is the one this session would pick, and it is a change
 to `dburl` rather than to anything here.
+
+### Open. How does dbrun share one machine between sessions?
+
+D75 lets `dbrun` stop the longest running server when a start brings the
+count to five, and it stops a server whatever session started it. Several coding agents now
+use this machine at once, and one agent's fifth start stopped a Couchbase
+server that another agent was using, on 2026-09-27. `DBRUN.md` asks each
+session to avoid that by hand. The `usql` and `dbimp` sessions both asked for
+`dbrun` to keep the rule itself, and proposed these changes:
+
+- Each server carries an owner, as a container label naming the session or
+  the repository. `status` and `list --json` print it, with when it started.
+- `stop`, `remove` and the limit act only on the servers of the owner, unless
+  a flag forces them. A fifth start refuses, and names who holds the four,
+  rather than stopping another owner's server.
+- A server can be pinned, so that it is never stopped to make room. A long
+  measurement, a design session and a server Ken started for his own work
+  span many turns.
+- A start reuses a running server of the same name, so that two sessions
+  testing one release share it, and only its owner stops it.
+
+They also asked for smaller changes, which are faults in the output rather
+than design:
+
+- `status --json` and `version --json` print text, although the help says
+  that both print JSON.
+- A plain `dsn` prints the name and the URL rather than the bare URL, so
+  `$(dbrun dsn postgres-18)` does not work.
+- Every failure exits 1, so a script cannot tell an unknown name from a
+  server that did not start.
+- `dsn` prints only the administrator. `dbimp` tests Couchbase as its
+  ordinary user too, and `usql` asked for another scheme on the same server,
+  such as `pgx://` beside `postgres://`.
+
+D75 considered a refusal in place of stopping a server and rejected it,
+because a refusal turns `dbrun test all` into an error at the fifth server. An
+owner answers that: a run that owns all four servers stops its own oldest one,
+as it does now.

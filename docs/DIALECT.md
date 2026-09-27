@@ -71,6 +71,10 @@ grep was step 3 until D80 and it answered Oracle wrongly.
 
 ### 4. Write the container entry
 
+[`CONTAINERS.md`](CONTAINERS.md) holds every step of this one, with the field
+reference and the readiness faults that were really made. What follows is the
+short form.
+
 Add `container/<product>.go`. One file per database, holding the product, its
 release list and any helper only it needs. Give the product var a doc comment.
 
@@ -136,7 +140,7 @@ cd test && go run ./cmd/dbrun start <product>-<release>
 ```
 
 Never start a container any other way. D68 says why, and
-[`RUNNER.md`](RUNNER.md) is the design of the command. `dbrun usql <name>` opens
+[`DBRUN.md`](DBRUN.md) says how to use the command. `dbrun usql <name>` opens
 a shell on it and `dbrun dsn <name>` prints the URL.
 
 ### Three kinds of database, and which steps change

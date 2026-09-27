@@ -21,7 +21,7 @@
 //
 // It takes the list from github.com/xo/dbmeta/container, which is where a
 // release is added. Nothing else starts a container, which is D68, and
-// docs/RUNNER.md is the design.
+// docs/DBRUN.md says how to use it.
 //
 // `go test ./...` in the root module does not reach here, because the go
 // command does not descend into a directory that has its own go.mod.
