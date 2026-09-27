@@ -2,9 +2,9 @@
 
 Every step needed to add a database to `dbmeta`, in the order to do them.
 
-Read this before you start. The rules themselves live in `CLAUDE.md` and the
-reasoning lives in `PLAN.md`, which is large. This file is the checklist, and
-it points at both.
+Read this before you start. The rules themselves live in `AGENTS.md`, and the
+reasoning lives in `decisions/`, one file per decision. This file is the
+checklist, and it points at both.
 
 Read [`NULLS.md`](NULLS.md) before you write the first query. It is 139 lines,
 it is the shortest document here, and it cost three rounds of real bugs to
@@ -20,7 +20,7 @@ once, by you, on one server, as one user.
 
 ### 1. Check it is the one to do next
 
-`PLAN.md` D66 holds the order and D67 amends it. Do not start a database out of
+D66 in `decisions/` holds the order and D67 amends it. Do not start a database out of
 order without asking Ken.
 
 ### 2. Choose the version range
@@ -474,7 +474,7 @@ no foreign key, so there are no relationships for `dbtpl` to follow.
 
 Say which of the two it is and why, in the product's own terms.
 
-Add a decision to `PLAN.md` for anything that had to be decided rather than
+Add a decision to `decisions/` for anything that had to be decided rather than
 discovered. Put the status in the heading and say so in both headings when it
 changes an earlier decision. See D50.
 
@@ -513,7 +513,7 @@ Trino is the same shape in miniature: its function list exists only behind
 `SHOW FUNCTIONS`, so Functions is unanswered while everything with a table
 behind it is answered.
 
-Write the decision in `PLAN.md`, amend D66 if the order changes, and put the
+Write the decision in `decisions/`, amend D66 if the order changes, and put the
 evidence in it. A later reader will ask why the product is missing.
 
 ## The tests that tell you what you forgot
@@ -537,7 +537,7 @@ Reading the list is faster than rediscovering them one at a time:
 | `TestEveryTestNameInTheDocsExists` | a document names a test that was renamed or removed |
 | `TestTheCountsInProseAreRight` | the decision count or the hard rule count went stale |
 | `TestTheCountsInProseMatchTheModels` | a count written in a sentence is not what the model answers |
-| `TestEveryDocumentIsInBothTables` | a document in `docs/` is missing from `CLAUDE.md` or `README.md` |
+| `TestEveryDocumentIsInBothTables` | a document in `docs/` is missing from `AGENTS.md` or `README.md` |
 | `TestNoSectionHeadingIsRepeated` | a section landed under the wrong product |
 | `TestTheReadmeNamesEveryTier` | the list grew a tier that `README.md` does not explain |
 | `TestTheReadmeTierTablesMatchTheList` | `README.md` puts a release in a tier the list does not |

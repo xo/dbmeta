@@ -97,7 +97,7 @@ that the ports moved.
    creates an ordinary user, declare it in `users`, so that `dsn --json`
    prints it. `container/couchbase.go` does this.
 9. Run the checks under Check it.
-10. Write a decision in `PLAN.md` for anything you chose rather than found,
+10. Write a decision in `decisions/` for anything you chose rather than found,
     such as a setting you turned on or a user you created.
 
 ## An image this repository builds
@@ -195,7 +195,7 @@ go run ./cmd/dbrun test <name>
 go run ./cmd/dbrun remove <name>
 ```
 
-Then run the checks in `CLAUDE.md` under Before you commit.
+Then run the checks in `AGENTS.md` under Before you commit.
 
 ## The tests that catch a skipped step
 

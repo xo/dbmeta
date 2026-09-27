@@ -18,7 +18,7 @@ able to tell them apart: an empty result means the server holds none of that
 object, and `ErrNotSupported` means the server has no such object at all.
 
 Read `COMMANDS.md` for the `psql` command that each Go value answers. Read
-`PLAN.md` D43 for the rule about finding these analogues in the first place.
+D43 in `decisions/` for the rule about finding these analogues in the first place.
 
 Adding a database means adding a section here. [`DIALECT.md`](DIALECT.md) holds
 every step and this is one of them, so read that first if you are adding one

@@ -5,7 +5,7 @@ support, and how to make the same decision for a database that is not yet
 covered.
 
 Read it before you propose adding a database or changing a floor. The decisions
-themselves live in `PLAN.md`. This file holds the method and the evidence.
+themselves live in `decisions/`. This file holds the method and the evidence.
 
 This is one step of adding a database. [`DIALECT.md`](DIALECT.md) holds all of
 them, and this is its step 2.
@@ -333,7 +333,7 @@ Linux host on 2026-09-24. It became ready in four seconds and answered `\d` and
 
 Record each database here as it is evaluated. Answer all five.
 
-1. Is it the model, or an ordinary database? Ordinary, unless `PLAN.md` says
+1. Is it the model, or an ordinary database? Ordinary, unless `decisions/` says
    otherwise.
 2. Image evidence. The registry, the oldest release still rebuilt, the date
    checked, and whether `linux/amd64` is published. `linux/amd64` is required,

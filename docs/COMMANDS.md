@@ -219,7 +219,7 @@ driver, so `URL.Driver` names the driver: `pgx`, `moderncsqlite` or `godror`,
 and from dburl's D22 `pgx` for `postgres://` too. None of those is a dialect
 here. `URL.Dialect` is `postgres`, `sqlite3` or `oracle` for each of them,
 because dburl holds that taxonomy and hard rule 1 keeps it out of `dbmeta`.
-D99 in [`PLAN.md`](PLAN.md) has it.
+D99 in [`decisions/`](decisions/README.md) has it.
 
 The flavor needs nothing. `dbmeta` reads it from the server rather than from
 the URL: `models/mysql` sets the `mariadb` key when `SELECT VERSION()` carries

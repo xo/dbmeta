@@ -1,6 +1,7 @@
 package dbmeta_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -61,10 +62,9 @@ func TestEveryMarkdownLinkResolves(t *testing.T) {
 // reader ends up trusting a rule that does not exist.
 func TestEveryDecisionReferenceExists(t *testing.T) {
 	t.Parallel()
-	plan := read(t, filepath.Join("docs", "PLAN.md"))
 	written := make(map[string]bool)
-	for _, m := range regexp.MustCompile(`(?m)^### D(\d+)\.`).FindAllStringSubmatch(plan, -1) {
-		written[m[1]] = true
+	for _, d := range decisions(t) {
+		written[d.num] = true
 	}
 	if len(written) < 50 {
 		t.Fatalf("expected at least 50 decisions, found %d", len(written))
@@ -72,7 +72,7 @@ func TestEveryDecisionReferenceExists(t *testing.T) {
 	for _, path := range repoFiles(t, ".md", ".go") {
 		for _, m := range decisionRef.FindAllStringSubmatch(read(t, path), -1) {
 			if !written[m[1]] {
-				t.Errorf("%s: refers to D%s, which is not in docs/PLAN.md", path, m[1])
+				t.Errorf("%s: refers to D%s, which is not in docs/decisions", path, m[1])
 			}
 		}
 	}
@@ -84,7 +84,7 @@ func TestEveryDecisionReferenceExists(t *testing.T) {
 // A rule here is usually paired with the test that enforces it, and the pair
 // is what makes the rule credible. Renaming the test breaks that silently:
 // TestWorkflowReadsTheList
-// was TestWorkflowMatchesTheList until D69 renamed it, and CLAUDE.md went on
+// was TestWorkflowMatchesTheList until D69 renamed it, and CLAUDE.md, now AGENTS.md, went on
 // naming the old one.
 func TestEveryTestNameInTheDocsExists(t *testing.T) {
 	t.Parallel()
@@ -115,22 +115,85 @@ func TestEveryTestNameInTheDocsExists(t *testing.T) {
 	}
 }
 
-// TestTheDecisionIndexIsComplete checks the table at the top of docs/PLAN.md
-// against the decisions below it. D50 keeps the log in one file on the
-// condition that the index makes it navigable, so a missing entry undoes that.
+// decision is one file in docs/decisions.
+type decision struct {
+	num    string
+	title  string
+	status string
+	file   string
+}
+
+// decisionFile names a decision file: D, the number in three digits, and the
+// title in lower case words joined by hyphens.
+var decisionFile = regexp.MustCompile(`^D(\d{3})-[a-z0-9-]+\.md$`)
+
+// decisions reads every decision in docs/decisions, in order. D111 moved them
+// there from one file, and each opens with its number, its title and its
+// status:
+//
+//	# D89. Agent skills are committed as copies
+//
+//	Status: Decided.
+func decisions(t *testing.T) []decision {
+	t.Helper()
+	dir := filepath.Join("docs", "decisions")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := regexp.MustCompile(`\A# D(\d+)\. (.+)\n\nStatus: (.+)\.\n`)
+	var out []decision
+	for _, e := range entries {
+		if e.Name() == "README.md" {
+			continue
+		}
+		name := decisionFile.FindStringSubmatch(e.Name())
+		if name == nil {
+			t.Errorf("%s: a decision file is named D, three digits, a hyphen and the"+
+				" title in lower case words, such as D089-agent-skills.md", e.Name())
+			continue
+		}
+		m := head.FindStringSubmatch(read(t, filepath.Join(dir, e.Name())))
+		if m == nil {
+			t.Errorf("%s: a decision opens with \"# D<n>. <title>\", a blank line and"+
+				" \"Status: <status>.\"", e.Name())
+			continue
+		}
+		if n, _ := strconv.Atoi(name[1]); strconv.Itoa(n) != m[1] {
+			t.Errorf("%s holds D%s. The file name and the heading name one decision.", e.Name(), m[1])
+		}
+		out = append(out, decision{num: m[1], title: m[2], status: m[3], file: e.Name()})
+	}
+	if len(out) < 50 {
+		t.Fatalf("expected at least 50 decisions in %s, found %d", dir, len(out))
+	}
+	return out
+}
+
+// TestTheDecisionIndexIsComplete checks the table in docs/decisions/README.md
+// against the decision files. A reader finds a decision by its number in that
+// table, so a missing row or a stale status there hides it.
 func TestTheDecisionIndexIsComplete(t *testing.T) {
 	t.Parallel()
-	plan := read(t, filepath.Join("docs", "PLAN.md"))
-	indexed := make(map[string]bool)
-	for _, m := range regexp.MustCompile(`(?m)^\| \[D(\d+)\]\(#([^)]+)\)`).FindAllStringSubmatch(plan, -1) {
-		indexed[m[1]] = true
-		if !strings.HasPrefix(m[2], "d"+m[1]+"-") {
-			t.Errorf("D%s: the index anchor %q does not point at it", m[1], m[2])
+	index := read(t, filepath.Join("docs", "decisions", "README.md"))
+	rows := make(map[string]string)
+	for _, m := range regexp.MustCompile(`(?m)^\| \[D(\d+)\]\(.*$`).FindAllStringSubmatch(index, -1) {
+		rows[m[1]] = m[0]
+	}
+	written := make(map[string]bool)
+	for _, d := range decisions(t) {
+		written[d.num] = true
+		want := fmt.Sprintf("| [D%s](%s) | %s | %s |", d.num, d.file, d.title, d.status)
+		switch got, ok := rows[d.num]; {
+		case !ok:
+			t.Errorf("D%s has no row in docs/decisions/README.md. Add:\n%s", d.num, want)
+		case got != want:
+			t.Errorf("D%s: the row in docs/decisions/README.md is\n%s\nand the file says\n%s", d.num, got, want)
 		}
 	}
-	for _, m := range regexp.MustCompile(`(?m)^### D(\d+)\.`).FindAllStringSubmatch(plan, -1) {
-		if !indexed[m[1]] {
-			t.Errorf("D%s is written and is not in the index at the top of docs/PLAN.md", m[1])
+	for num := range rows {
+		if !written[num] {
+			t.Errorf("docs/decisions/README.md has a row for D%s, and no file holds it", num)
 		}
 	}
 }
@@ -141,16 +204,20 @@ func TestTheDecisionIndexIsComplete(t *testing.T) {
 // A number written in prose goes stale the next time somebody adds one, and
 // the decision count had gone stale in two documents at once. It is cheaper to
 // check than to remember. There are two such numbers: how many decisions
-// docs/PLAN.md holds, and how many hard rules CLAUDE.md holds.
+// docs/PLAN.md holds, and how many hard rules AGENTS.md holds.
 func TestTheCountsInProseAreRight(t *testing.T) {
 	t.Parallel()
-	plan := read(t, filepath.Join("docs", "PLAN.md"))
-	decisions := len(regexp.MustCompile(`(?m)^### D(\d+)\.`).FindAllString(plan, -1))
+	all := decisions(t)
+	decisions := len(all)
 	// A decision that amends or replaces an earlier one says so in its own
-	// heading, in the active voice. The one it names says it back, which
+	// status, in the active voice. The one it names says it back, which
 	// TestAnAmendmentPointsBothWays checks, so counting one side counts both.
-	amending := len(regexp.MustCompile(`(?mi)^### D\d+\..*\b(?:amends|supersedes) D\d+`).
-		FindAllString(plan, -1))
+	var amending int
+	for _, d := range all {
+		if regexp.MustCompile(`(?i)\b(?:amends|supersedes) D\d+`).MatchString(d.title + ". " + d.status) {
+			amending++
+		}
+	}
 	rules := len(regexp.MustCompile(`(?m)^(\d+)\. `).
 		FindAllString(hardRules(t), -1))
 	if decisions == 0 || rules == 0 || amending == 0 {
@@ -167,18 +234,19 @@ func TestTheCountsInProseAreRight(t *testing.T) {
 	}{
 		{"decisions", decisions, regexp.MustCompile(`a table of all (\d+)`)},
 		{"decisions", decisions, regexp.MustCompile(`[Ee]very decision, (\d+) of them`)},
-		{"decisions", decisions, regexp.MustCompile(`table at the top lists all (\d+)`)},
+		{"decisions", decisions, regexp.MustCompile(`lists all (\d+) with their`)},
 		{"hard rules", rules, regexp.MustCompile(`holds the rules: (\d+) of them`)},
 		{"amending decisions", amending,
 			regexp.MustCompile(`(\d+) (?:of them )?amend or replace`)},
 	} {
 		var found bool
-		// docs/PLAN.md quotes the amendment count in its own introduction and
-		// was the one place this test did not look, so that number went stale
-		// while the three it did look at stayed right.
+		// The index quotes the amendment count in its own introduction. When
+		// it was the top of docs/PLAN.md it was the one place this test did
+		// not look, so that number went stale while the three it did look at
+		// stayed right.
 		for _, name := range []string{
-			"README.md", "CLAUDE.md", "CONTRIBUTING.md",
-			filepath.Join("docs", "PLAN.md"),
+			"README.md", "AGENTS.md", "CONTRIBUTING.md",
+			filepath.Join("docs", "decisions", "README.md"),
 		} {
 			for _, m := range c.phrase.FindAllStringSubmatch(read(t, name), -1) {
 				found = true
@@ -195,33 +263,35 @@ func TestTheCountsInProseAreRight(t *testing.T) {
 	}
 }
 
-// hardRules returns the numbered list of hard rules from CLAUDE.md.
+// hardRules returns the numbered list of hard rules from AGENTS.md.
 func hardRules(t *testing.T) string {
 	t.Helper()
-	_, rest, ok := strings.Cut(read(t, "CLAUDE.md"), "\n## Hard rules\n")
+	_, rest, ok := strings.Cut(read(t, "AGENTS.md"), "\n## Hard rules\n")
 	if !ok {
-		t.Fatal("CLAUDE.md has no Hard rules section")
+		t.Fatal("AGENTS.md has no Hard rules section")
 	}
 	// Everything up to the next heading, or the rest of the file.
 	rules, _, _ := strings.Cut(rest, "\n## ")
 	return rules
 }
 
-// TestTheRootHoldsThreeDocuments holds the layout D50 decided. A document that
-// appears in the root is one nobody filed.
-func TestTheRootHoldsThreeDocuments(t *testing.T) {
+// TestTheRootHoldsFourDocuments holds the layout D50 decided and D110
+// amended. A document that appears in the root is one nobody filed.
+func TestTheRootHoldsFourDocuments(t *testing.T) {
 	t.Parallel()
 	entries, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowed := map[string]bool{"README.md": true, "CLAUDE.md": true, "CONTRIBUTING.md": true}
+	allowed := map[string]bool{
+		"README.md": true, "AGENTS.md": true, "CLAUDE.md": true, "CONTRIBUTING.md": true,
+	}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
 		}
 		if !allowed[e.Name()] {
-			t.Errorf("%s is in the repository root. Only README, CLAUDE and CONTRIBUTING belong there, "+
+			t.Errorf("%s is in the repository root. Only README, AGENTS, CLAUDE and CONTRIBUTING belong there, "+
 				"and everything else goes in docs/. See D50.", e.Name())
 		}
 	}
@@ -229,6 +299,26 @@ func TestTheRootHoldsThreeDocuments(t *testing.T) {
 		if _, err := os.Stat(name); err != nil {
 			t.Errorf("expected %s in the repository root", name)
 		}
+	}
+}
+
+// TestClaudeImportsAgents holds D110. AGENTS.md holds the rules, because
+// Codex and the other agents read it, and CLAUDE.md imports it, so that
+// Claude Code reads the same rules. A rule written in CLAUDE.md would reach
+// Claude Code alone. A symbolic link would not do, because a Windows checkout
+// writes a link as a small text file, as D89 found for the skills.
+func TestClaudeImportsAgents(t *testing.T) {
+	t.Parallel()
+	info, err := os.Lstat("CLAUDE.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("CLAUDE.md is a symbolic link. Make it a file that holds @AGENTS.md. See D110")
+	}
+	if got := strings.TrimSpace(read(t, "CLAUDE.md")); got != "@AGENTS.md" {
+		t.Errorf("CLAUDE.md holds %q. It holds only @AGENTS.md, and the rules go in"+
+			" AGENTS.md. See D110", got)
 	}
 }
 
@@ -258,10 +348,10 @@ func TestNoSectionHeadingIsRepeated(t *testing.T) {
 }
 
 // TestEveryDocumentIsInBothTables checks that a document in docs/ is named in
-// the table at the top of CLAUDE.md and in the one in README.md.
+// the table at the top of AGENTS.md and in the one in README.md.
 //
 // Both documents say to do this and neither could tell you whether it had
-// been done. CLAUDE.md goes further and says a document that is not in that
+// been done. AGENTS.md goes further and says a document that is not in that
 // table does not exist, which is only true if something holds it. See D50.
 func TestEveryDocumentIsInBothTables(t *testing.T) {
 	t.Parallel()
@@ -270,7 +360,7 @@ func TestEveryDocumentIsInBothTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	tables := map[string]string{
-		"CLAUDE.md": read(t, "CLAUDE.md"),
+		"AGENTS.md": read(t, "AGENTS.md"),
 		"README.md": read(t, "README.md"),
 	}
 	var found int
@@ -291,22 +381,23 @@ func TestEveryDocumentIsInBothTables(t *testing.T) {
 	}
 }
 
-// TestAnAmendmentPointsBothWays is the guard that makes one file worth keeping.
+// TestAnAmendmentPointsBothWays is the guard that made splitting the decision
+// log safe.
 //
-// D50 rejected splitting the decision log because an amendment would live in a
-// different file from the decision it amends, so a reader landing on the older
-// one would get a rule that no longer holds. One file does not fix that by
-// itself. The status of both decisions has to say so, and the index makes the
-// status the first thing anyone reads.
+// D50 rejected splitting it because an amendment would live in a different
+// file from the decision it amends, so a reader landing on the older one would
+// get a rule that no longer holds. One file never fixed that by itself. The
+// status of both decisions has to say so, and each file opens with its status,
+// so the status is the first thing anyone reads. D111 split the log on that
+// ground.
 //
 // The index found the first case the moment it existed: D48 said it amends
 // D26, and D26 said "Decided".
 func TestAnAmendmentPointsBothWays(t *testing.T) {
 	t.Parallel()
-	plan := read(t, filepath.Join("docs", "PLAN.md"))
 	status := make(map[string]string)
-	for _, m := range regexp.MustCompile(`(?m)^### D(\d+)\. (.+)$`).FindAllStringSubmatch(plan, -1) {
-		status[m[1]] = m[2]
+	for _, d := range decisions(t) {
+		status[d.num] = d.title + ". " + d.status
 	}
 	// "Amends D26" and "Superseded by D24" both name another decision, and
 	// that decision has to name this one back.

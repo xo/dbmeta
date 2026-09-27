@@ -285,7 +285,8 @@ Everything else is in [`docs/`](docs/):
 
 | Document | What it holds |
 | --- | --- |
-| [`PLAN.md`](docs/PLAN.md) | Every decision, 109 of them, with the reasoning and what was rejected. A table at the top lists them with their status, because 28 amend or replace an earlier one. |
+| [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 111 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 30 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -296,10 +297,12 @@ Everything else is in [`docs/`](docs/):
 | [`DBTPL.md`](docs/DBTPL.md) | The same measurement for `dbtpl`. |
 | [`DBRUN.md`](docs/DBRUN.md) | How to use `dbrun`, the command that starts the databases the tests run against, and the rules for sharing one machine. |
 | [`CONTAINERS.md`](docs/CONTAINERS.md) | How to add a container or a virtual machine that `dbrun` can start. |
+| [`BACKLOG.md`](docs/BACKLOG.md) | Work that is known and not done, with the decision or the measurement that found each item. |
 | [`WINDOWS.md`](docs/WINDOWS.md) | The Windows machines that host the SQL Server releases with no Linux container, and why each of them is awkward. |
 
-[`CLAUDE.md`](CLAUDE.md) holds the rules for writing code here, with a table
-saying which document to read for which task.
+[`AGENTS.md`](AGENTS.md) holds the rules for writing code here, for a coding
+agent, with a table saying which document to read for which task.
+[`CLAUDE.md`](CLAUDE.md) imports it, so that Claude Code reads the same rules.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) is the same for a person, and shorter.
 
 # Testing
@@ -357,7 +360,7 @@ a client can take the parts it needs.
 
 # Contributing
 
-Read [`CLAUDE.md`](CLAUDE.md) first. It holds the rules, including the ones
+Read [`AGENTS.md`](AGENTS.md) first. It holds the rules, including the ones
 that are not obvious: the standard library only, no cgo in anything a consumer
 builds, no build constraint on an operating system or an architecture, and a
 context on every function that reads from a database.

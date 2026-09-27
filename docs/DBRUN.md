@@ -9,7 +9,7 @@ Read the rules first. Then find your task under Common tasks, and use the
 reference sections below them when you need a detail. To add a release, a
 product or a virtual machine to what `dbrun` can start, read
 [`CONTAINERS.md`](CONTAINERS.md) instead. The reasons behind the design are in
-`PLAN.md`: D68, D69, D75, D82, D86 and D97.
+`decisions/`: D68, D69, D75, D82, D86 and D97.
 
 Run every command from the `test` directory of a dbmeta checkout:
 
