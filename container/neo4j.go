@@ -3,6 +3,8 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The Neo4j releases dbmeta is tested against.
@@ -57,6 +59,7 @@ func neo4jShell(user, database string) string {
 
 // neo4j is the Neo4j Enterprise image.
 var neo4j = product{
+	dialect:   dbmeta.Neo4j,
 	name:      "neo4j",
 	image:     "docker.io/library/neo4j",
 	tagSuffix: "-enterprise",
@@ -90,8 +93,12 @@ var neo4j = product{
 		neo4jShell("neo4j", "system") + " 'GRANT ROLE publisher TO " + Neo4jUser + "'\n" +
 		neo4jShell(Neo4jUser, neo4jDatabase) + " 'RETURN 1'\n",
 	},
-	dsn:   neo4jHTTP("neo4j"),
-	users: []Principal{{Role: User, User: Neo4jUser, dsn: neo4jHTTP(Neo4jUser)}},
+	dsn: neo4jHTTP("neo4j"),
+	url: neo4jURL("neo4j"),
+	users: []Principal{{
+		Role: User, User: Neo4jUser,
+		dsn: neo4jHTTP(Neo4jUser), url: neo4jURL(Neo4jUser),
+	}},
 }
 
 // neo4jHTTP is the address of the HTTP API, with one user's credentials.
@@ -101,6 +108,21 @@ func neo4jHTTP(user string) func(port int) string {
 			Scheme: "http",
 			User:   url.UserPassword(user, Password),
 			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		}
+		return u.String()
+	}
+}
+
+// neo4jURL is the URL that the dbimp Neo4j driver takes and dburl parses. The
+// path names the database, and the port is the HTTP port. dbimp settled the
+// form in its D60 and D61. See D109.
+func neo4jURL(user string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: "neo4j",
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+			Path:   "/" + neo4jDatabase,
 		}
 		return u.String()
 	}

@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 26 of them amend or replace an earlier
+Read the status before the decision. 28 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -139,7 +139,7 @@ records the argument.
 | [D72](#d72-trino-reads-system-jdbc-and-a-catalog-is-a-real-level-decided) | Trino reads system.jdbc, and a catalog is a real level | Decided |
 | [D73](#d73-presto-is-its-own-dialect-and-not-a-flavor-of-trino-decided) | Presto is its own dialect, and not a flavor of Trino | Decided |
 | [D74](#d74-firebird-has-no-schemas-and-none-is-invented-decided) | Firebird has no schemas, and none is invented | Decided |
-| [D75](#d75-every-container-is-bounded-and-four-run-at-once-amended-by-d98) | Every container is bounded, and four run at once | Amended by D98 |
+| [D75](#d75-every-container-is-bounded-and-four-run-at-once-amended-by-d98-and-d108) | Every container is bounded, and four run at once | Amended by D98 and D108 |
 | [D76](#d76-sap-hana-reads-sys-and-answers-more-than-anything-but-postgresql-decided) | SAP HANA reads SYS, and answers more than anything but PostgreSQL | Decided |
 | [D77](#d77-exasol-will-not-run-here-and-hive-goes-ahead-of-it-amends-d66) | Exasol will not run here, and Hive goes ahead of it | Amends D66 |
 | [D78](#d78-hive-reads-sys-and-is-a-model-decided) | Hive reads sys, and is a model | Decided |
@@ -162,7 +162,7 @@ records the argument.
 | [D95](#d95-the-couchbase-model-waits-for-the-dbimp-driver-amends-d94-amended-by-d101-and-d104) | The Couchbase model waits for the dbimp driver | Amends D94, amended by D101 and D104 |
 | [D96](#d96-couchbase-gets-an-ordinary-user-and-starts-again-after-a-stop-amends-d94-amended-by-d104) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94, amended by D104 |
 | [D97](#d97-dbrun-is-documented-for-its-users-in-dbrun-and-containers-decided) | dbrun is documented for its users, in DBRUN and CONTAINERS | Decided |
-| [D98](#d98-a-server-has-an-owner-and-dbrun-acts-only-on-the-callers-own-amends-d75-amended-by-d102) | A server has an owner, and dbrun acts only on the caller's own | Amends D75, amended by D102 |
+| [D98](#d98-a-server-has-an-owner-and-dbrun-acts-only-on-the-callers-own-amends-d75-amended-by-d102-and-d108) | A server has an owner, and dbrun acts only on the caller's own | Amends D75, amended by D102 and D108 |
 | [D99](#d99-dburl-names-the-product-that-a-scheme-drives-decided) | dburl names the product that a scheme drives | Decided |
 | [D100](#d100-the-vertica-images-live-in-usqlvertica-and-the-older-ones-wait-for-admintools-amends-d88) | The Vertica images live in usql/vertica, and the older ones wait for admintools | Amends D88 |
 | [D101](#d101-couchbase-is-the-dialect-couchbase-read-through-the-dbimp-driver-amends-d95) | Couchbase is the dialect couchbase, read through the dbimp driver | Amends D95 |
@@ -170,8 +170,10 @@ records the argument.
 | [D103](#d103-surrealdb-runs-under-dbrun-for-the-dbimp-driver-decided) | SurrealDB runs under dbrun, for the dbimp driver | Decided |
 | [D104](#d104-the-couchbase-model-reads-76-and-later-amends-d94-d95-and-d96) | The Couchbase model reads 7.6 and later | Amends D94, D95 and D96 |
 | [D105](#d105-dbrun-runs-a-setup-again-after-a-failure-and-prints-the-log-of-a-server-that-never-answered-amended-by-d107) | dbrun runs a setup again after a failure, and prints the log of a server that never answered | Amended by D107 |
-| [D106](#d106-neo4j-enterprise-runs-under-dbrun-under-the-evaluation-agreement-decided) | Neo4j Enterprise runs under dbrun, under the evaluation agreement | Decided |
+| [D106](#d106-neo4j-enterprise-runs-under-dbrun-under-the-evaluation-agreement-amended-by-d109) | Neo4j Enterprise runs under dbrun, under the evaluation agreement | Amended by D109 |
 | [D107](#d107-the-hive-setup-runs-from-a-copy-that-is-safe-to-run-twice-amends-d105) | The Hive setup runs from a copy that is safe to run twice | Amends D105 |
+| [D108](#d108-eight-servers-run-at-once-and-a-stopped-container-belongs-to-nobody-amends-d75-and-d98) | Eight servers run at once, and a stopped container belongs to nobody | Amends D75 and D98 |
+| [D109](#d109-neo4j-is-the-dialect-neo4j-and-its-url-names-the-database-amends-d106) | Neo4j is the dialect neo4j, and its URL names the database | Amends D106 |
 
 ## Decisions
 
@@ -5651,7 +5653,7 @@ That is the closest any model has come to the reference, and it is worth
 saying after two query engines that could answer neither a constraint nor an
 index.
 
-### D75. Every container is bounded, and four run at once. Amended by D98.
+### D75. Every container is bounded, and four run at once. Amended by D98 and D108.
 
 `container.MemoryLimit` is `4g` and every container this project starts is
 given it. `dbrun` starts a fifth server by stopping the one that has been
@@ -7406,7 +7408,7 @@ server that another session was using on 2026-09-27. So the rules tell a session
 to start a fifth server when any of the four is not its own. The open
 question at the end of this file asks what `dbrun` does about it.
 
-### D98. A server has an owner, and dbrun acts only on the caller's own. Amends D75, amended by D102.
+### D98. A server has an owner, and dbrun acts only on the caller's own. Amends D75, amended by D102 and D108.
 
 Ken decided on 2026-09-27, answering the question D97 raised. Several coding
 agents use this machine at once, and D75 let one agent's fifth start stop a
@@ -7776,7 +7778,7 @@ A settle, as D83 gave Presto and Trino, was rejected. A settle waits for the
 readiness check to keep passing, and Hive's readiness check passed. It was a
 DDL statement that failed.
 
-### D106. Neo4j Enterprise runs under dbrun, under the evaluation agreement. Decided.
+### D106. Neo4j Enterprise runs under dbrun, under the evaluation agreement. Amended by D109.
 
 dbimp asked on 2026-09-27 for a `dbrun` entry for Neo4j, which Ken named as
 its third driver that day. dbimp's D59 chose the Enterprise Edition. Ken
@@ -7877,6 +7879,66 @@ The SerDeException, "proto.class has to be set", is still not explained. It
 comes from one of the `PROTO_` tables at the end of the script, which dbmeta
 does not read. Now that the script is safe to run twice, the retry of D105 can
 get past it.
+
+### D108. Eight servers run at once, and a stopped container belongs to nobody. Amends D75 and D98.
+
+Ken asked on 2026-09-27 for two changes to `dbrun`.
+
+#### Eight servers, not four
+
+D75 allowed four running servers. Ken raised it to eight. Each container is
+limited to 4 GB, so eight use 32 GB at most, and the machine has 60 GB and 32
+cores. A start that brings the count to nine stops the caller's own oldest
+server, as D98 does for five today.
+
+#### A stopped container belongs to nobody
+
+D98 made a start of a stopped server refuse when another owner created it.
+A container's owner is a label, and a label cannot change on a container that
+exists. So a server that stopped when the computer restarted, or when its
+session ended, kept an owner that no longer existed. Every command refused it,
+and an agent then tested an older release that was free. Ken said that most
+testing belongs on the newest release, not on whichever one is free.
+
+Now ownership counts only while a container runs:
+
+- A start of a stopped container that another owner created removes it and
+  creates it again, with the caller as the owner. It loses what was in it,
+  and the setup and the tests build that again. A container takes about a
+  minute.
+- `remove` of a stopped container acts, whoever created it. So does the
+  rebuild of a stopped container whose port moved.
+- A running server keeps its owner. A start of it still shares it, and a
+  `stop` or `remove` of it still refuses.
+- A stopped machine keeps its owner, because it takes an hour to create
+  again. A machine is Verified and a person starts it.
+
+`DBRUN.md` now says to test on the newest release unless the task names
+another, and never to move to an older release because the newest is taken.
+
+`TestClaimable` holds the rule. It was measured with two owners named by
+`DBMETA_OWNER` on `postgres-18`. A container that the first owner started and
+stopped was created again under the second when the second started it. The
+first owner was then refused a stop of the running server, and after the
+second owner stopped it, the first owner removed it.
+
+### D109. Neo4j is the dialect neo4j, and its URL names the database. Amends D106.
+
+Ken accepted dbimp's D60 and D61 on 2026-09-27, which D106 waited for. The
+dialect and the dburl scheme are `neo4j`, so `dbmeta.Neo4j` is `neo4j`, as
+`dbmeta.SurrealDB` was added for dbimp's SurrealDB driver. dbmeta has no
+Neo4j model.
+
+The URL is `neo4j://user:password@host:port/<database>`. The port is the HTTP
+port that `dbrun` maps from 7474, and the path names the database. `dbrun`
+prints `neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` as the `url` of the
+administrator, and the same with `dbmeta_user` for the ordinary user. dbimp's
+CI reads the `url` field and the `url` of the principal whose role is `user`.
+The `dsn` stays the plain `http://` address.
+
+The test variable is still `DBMETA_NEO4J`, and it now comes from the dialect.
+D106 named it for the product, because the server had no dialect, and that
+fallback in `dbrun` is gone, because no server needs it.
 
 ## Open questions for Ken
 

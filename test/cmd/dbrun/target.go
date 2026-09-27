@@ -221,7 +221,7 @@ func targets() []target {
 			Kind:       kindContainer,
 			Tier:       s.Tier,
 			Dialect:    s.Dialect,
-			Env:        envFor(s.Dialect, s.Product),
+			Env:        envFor(s.Dialect),
 			DSN:        s.DSN(port),
 			URL:        s.URL(port),
 			Principals: principalsOf(s, port),
@@ -242,7 +242,7 @@ func targets() []target {
 			Kind:    kindMachine,
 			Tier:    m.Tier,
 			Dialect: m.Dialect,
-			Env:     envFor(m.Dialect, m.Product),
+			Env:     envFor(m.Dialect),
 			DSN:     m.DSN(),
 			URL:     m.URL(),
 			Viewer:  m.Viewer,
@@ -281,14 +281,7 @@ func rebuildCost(m container.Machine) string {
 
 // envFor names the variable the integration tests read a connection string
 // from. One per dialect, because one test run reaches one server per dialect.
-//
-// A server that no dialect reads yet is named for its product. Neo4j is
-// listed for a dbimp driver before dburl has a scheme for it, and the dialect
-// waits for that name.
-func envFor(d dbmeta.Dialect, product string) string {
-	if d == "" {
-		return "DBMETA_" + strings.ToUpper(product)
-	}
+func envFor(d dbmeta.Dialect) string {
 	return "DBMETA_" + strings.ToUpper(string(d))
 }
 

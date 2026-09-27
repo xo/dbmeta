@@ -49,6 +49,7 @@ const (
 	Hive       Dialect = "hive"
 	HANA       Dialect = "hdb"
 	MySQL      Dialect = "mysql"
+	Neo4j      Dialect = "neo4j"
 	Oracle     Dialect = "oracle"
 	Presto     Dialect = "presto"
 	PostgreSQL Dialect = "postgres"

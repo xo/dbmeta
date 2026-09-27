@@ -98,3 +98,28 @@ func TestMayTouch(t *testing.T) {
 		t.Errorf("a session is shortened to its first part: got %q", got)
 	}
 }
+
+// TestClaimable checks that a stopped container belongs to nobody, and that a
+// running container and a stopped machine keep their owner. See D108.
+func TestClaimable(t *testing.T) {
+	t.Parallel()
+	const me, them = "user:ken", "claude-code:bbbb"
+	container, machine := target{Kind: kindContainer}, target{Kind: kindMachine}
+	for _, test := range []struct {
+		name    string
+		t       target
+		owner   string
+		running bool
+		want    bool
+	}{
+		{"your running container", container, me, true, true},
+		{"their running container", container, them, true, false},
+		{"their stopped container", container, them, false, true},
+		{"their running machine", machine, them, true, false},
+		{"their stopped machine", machine, them, false, false},
+	} {
+		if got := claimable(test.t, test.owner, me, false, test.running); got != test.want {
+			t.Errorf("%s: got %v, want %v", test.name, got, test.want)
+		}
+	}
+}

@@ -76,6 +76,14 @@ func mayTouch(owner, me string, force bool) bool {
 	return force || owner == "" || owner == me
 }
 
+// claimable reports whether the caller may remove or rebuild a server with
+// this owner. It is mayTouch, and also any stopped container, because a
+// stopped container belongs to nobody. A machine keeps its owner when it
+// stops, because it takes an hour to create again. See D108.
+func claimable(t target, owner, me string, force, running bool) bool {
+	return mayTouch(owner, me, force) || (t.Kind == kindContainer && !running)
+}
+
 // notYours is the error for a server that belongs to somebody else.
 func notYours(owner string) error {
 	return fmt.Errorf("it belongs to %s. Ask them, or pass --force to act on it anyway",

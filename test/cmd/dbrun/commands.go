@@ -36,7 +36,10 @@ const (
 // Starting one when this many are already up stops the one that has been
 // running longest. That is the right one to lose: the server in use is the
 // one most recently started, and starting is a minute for a container.
-const maxRunning = 4
+//
+// It was 4 until Ken raised it to 8 (D108). Eight at 4 GB is 32 GB, and the
+// machine has 60.
+const maxRunning = 8
 
 // makeRoom stops the longest running servers of the caller until starting
 // one more keeps the count at or below maxRunning.
@@ -267,7 +270,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	me := currentOwner()
 	owner := r.owner(ctx, t.Name)
 	if have, ok := r.hostPorts(ctx, t.Name); ok && !t.portsMatch(have) {
-		if !mayTouch(owner, me, o.force) {
+		if !claimable(t, owner, me, o.force, r.running(ctx, t.Name)) {
 			return fmt.Errorf("it publishes %v and the list now says %v, and %w",
 				have, t.wantPorts(), notYours(owner))
 		}
@@ -291,8 +294,20 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		fmt.Printf("  %-20s already up%s: %s=%s\n", t.Name, note, t.Env, t.DSN)
 		return nil
 	}
+	// A stopped container belongs to nobody. Its owner can be a session that
+	// ended, or one whose server stopped when the computer restarted, and a
+	// refusal sent the next agent to an older release. A label cannot change
+	// on a container that exists, so it is created again under the caller.
+	// A machine keeps its owner, because it takes an hour to create. See D108.
 	if r.exists(ctx, t.Name) && !mayTouch(owner, me, o.force) {
-		return fmt.Errorf("it is stopped, and %w", notYours(owner))
+		if t.Kind == kindMachine {
+			return fmt.Errorf("it is stopped, and %w", notYours(owner))
+		}
+		fmt.Printf("  %-20s stopped, and created by %s. Creating it again as yours\n",
+			t.Name, showOwner(owner))
+		if !r.quiet(ctx, t.Remove...) {
+			return errors.New("the stopped container would not be removed")
+		}
 	}
 	// An image this repository builds is made here, so that start and test
 	// both get it and neither caller has to remember.
@@ -419,7 +434,7 @@ func doRemove(ctx context.Context, r runner, t target, o options) error {
 		fmt.Printf("  removed %s\n", t.DSN)
 		return nil
 	}
-	if owner := r.owner(ctx, t.Name); !mayTouch(owner, currentOwner(), o.force) {
+	if owner := r.owner(ctx, t.Name); !claimable(t, owner, currentOwner(), o.force, r.running(ctx, t.Name)) {
 		return notYours(owner)
 	}
 	if t.Kind == kindMachine && !o.yes {

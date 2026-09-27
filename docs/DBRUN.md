@@ -33,17 +33,23 @@ work of another. They apply to a person and to a coding agent alike.
    `podman unshare sh -c 'podman image mount <image>'`, which starts nothing.
 2. Run `dbrun status` before you start anything, so that you know what is
    already running.
-3. Start only the releases your task tests, by their exact names, such as
-   `postgres-18`. Use a tier or `all` only when the task is a release run.
-4. Keep the machine at four running servers or fewer. The four include the
+3. Test on the newest release of a product, unless the task names another
+   release. `dbrun start <product>`, such as `dbrun start postgres`, starts
+   the newest. Do not move to an older release because the newest is taken.
+   If the newest runs for another owner, `dbrun` shares it. If it is stopped,
+   `dbrun` creates it again as yours. Use a tier or `all` only when the task
+   is a release run.
+4. Keep the machine at eight running servers or fewer. The eight include the
    servers of every session. `dbrun` keeps the limit for containers: a start
-   that brings the count to five stops your own oldest server, and refuses
-   when none of the four is yours. A virtual machine is not counted by
+   that brings the count to nine stops your own oldest server, and refuses
+   when none of the eight is yours. A virtual machine is not counted by
    `dbrun`, so count it yourself.
-5. Never stop, remove or restart a server that another owner started.
+5. Never stop or restart a running server that another owner started.
    `dbrun` refuses to, and `--force` overrides the refusal. Pass `--force`
-   only when the person tells you to. Treat a server with no owner as
-   somebody else's too, although `dbrun` lets you stop it (D98).
+   only when the person tells you to. Treat a running server with no owner as
+   somebody else's too, although `dbrun` lets you stop it (D98). A stopped
+   container belongs to nobody, because its owner may be a session that ended
+   or a computer that restarted (D108).
 6. When your task ends, leave the machine as you found it. Stop or remove each
    server that you started. Leave running each server that was running before
    you began. If you stopped one of those by mistake, start it again.
@@ -71,7 +77,8 @@ The owner changes what a command does:
 | --- | --- | --- | --- |
 | you | starts or shares it | acts | removes it at the end, unless `--keep` |
 | another owner, running | shares it, and says whose it is | refuses | shares it, and keeps it |
-| another owner, stopped | refuses | refuses | refuses |
+| another owner, stopped container | creates it again as yours | `remove` acts | creates it again as yours, and removes it at the end |
+| another owner, stopped machine | refuses | refuses | refuses |
 | nobody | starts or shares it | acts | removes it at the end only if the test started it |
 
 A start that needs room stops only your own oldest server. It never stops a
@@ -80,6 +87,13 @@ server of another owner or a server with no owner, unless you pass `--force`.
 A server has no owner when it was created before owners existed. A label
 cannot be added to a container that exists, and rebuilding one loses what is
 in it, so it keeps no owner until you remove it and start it again.
+
+A stopped container has no owner that counts. A session that ends leaves its
+stopped servers behind, and so does a restart of the computer, and a refusal
+on those sent agents to an older release. So a start of a stopped container
+that another owner created removes it and creates it again, with you as its
+owner. It loses what was in it, and the setup and the tests build that again.
+A stopped machine keeps its owner, because it takes an hour to create (D108).
 
 Two sessions that test one release share one server. The first session's
 `start` creates it, and the second session's `start` finds it running and
@@ -242,7 +256,9 @@ with these fields:
 The `dsn` and `url` fields can differ. The `dsn` field is what `sql.Open`
 takes for the driver that dbmeta tests with, and the `url` field is what
 `dburl` parses. On MySQL and Cassandra the driver takes a form that is not a
-URL. On Couchbase both are the same `couchbase://` URL.
+URL. On Couchbase both are the same `couchbase://` URL. On SurrealDB and Neo4j
+the `dsn` is the plain `http://` address, and the `url` names the database in
+its path, such as `neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` (D109).
 
 A plain `dsn` prints the name and the URL on one line, separated by spaces. It
 does not print the bare URL. Use `dsn --json` in a script.
@@ -338,7 +354,7 @@ and the work happens in a dbmeta session or goes to Ken.
 
 usql's own container tests, in `drivers` and `drivers/metadata`, start their
 own containers through dockertest. Those containers run outside `dbrun`, and
-outside its limit of four.
+outside its limit of eight.
 
 ## When something goes wrong
 
@@ -348,7 +364,7 @@ outside its limit of four.
 - A server runs and every connection is refused. Run `dbrun status`. If it
   says the server runs on another port than the list asks for, run
   `dbrun start <name>`, which rebuilds the container.
-- A start is refused because four servers run and none is yours. Stop one of
+- A start is refused because eight servers run and none is yours. Stop one of
   your own servers, or ask the owner of one. `dbrun` names each server and its
   owner in the refusal.
 - A `stop` or `remove` is refused because the server belongs to another owner.
