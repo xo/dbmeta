@@ -75,9 +75,12 @@ var surrealdb = product{
 		"DEFINE DATABASE IF NOT EXISTS " + surrealDBName + ";\n" +
 		"DEFINE USER OVERWRITE " + SurrealDBUser + " ON DATABASE PASSWORD '" + Password +
 		"' ROLES EDITOR;\n",
-	dsn:   surrealDBHTTP("root"),
-	url:   surrealDBURL("root"),
-	users: []Principal{{Role: User, User: SurrealDBUser, dsn: surrealDBHTTP(SurrealDBUser), url: surrealDBURL(SurrealDBUser)}},
+	dsn: surrealDBHTTP("root"),
+	url: surrealDBURL("root", ""),
+	users: []Principal{{
+		Role: User, User: SurrealDBUser,
+		dsn: surrealDBHTTP(SurrealDBUser), url: surrealDBURL(SurrealDBUser, "database"),
+	}},
 }
 
 // surrealDBHTTP is the HTTP address of the server, with one user's
@@ -96,13 +99,21 @@ func surrealDBHTTP(user string) func(port int) string {
 // surrealDBURL is the URL that github.com/xo/dbimp/surrealdb takes and dburl
 // parses: the namespace and the database are the two segments of the path.
 // dbimp settled the form in its D47 and D48.
-func surrealDBURL(user string) func(port int) string {
+//
+// auth names the level the user is defined at, and is empty for root, which
+// is the default. A database user sends Surreal-Auth-NS and Surreal-Auth-DB
+// to sign in, and root is refused with 401 when it sends them, so the driver
+// is told the level rather than trying both. dbimp's D51 settled that.
+func surrealDBURL(user, auth string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
 			Scheme: "surrealdb",
 			User:   url.UserPassword(user, Password),
 			Host:   fmt.Sprintf("127.0.0.1:%d", port),
 			Path:   "/" + surrealDBName + "/" + surrealDBName,
+		}
+		if auth != "" {
+			u.RawQuery = url.Values{"auth": {auth}}.Encode()
 		}
 		return u.String()
 	}

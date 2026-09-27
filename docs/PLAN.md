@@ -7667,6 +7667,16 @@ that `Init` ran twice:
 
 3.1.6 and 3.2.4 started and served the ordinary user's sign in.
 
+#### The ordinary user's URL names its level
+
+dbimp's D51, which Ken decided the same day, adds `?auth=database` to the URL
+of `dbmeta_user`, so that its principal reads
+`surrealdb://dbmeta_user:<password>@127.0.0.1:<port>/dbmeta/dbmeta?auth=database`.
+A database user signs in only with `Surreal-Auth-NS` and `Surreal-Auth-DB`,
+and root is refused with 401 when it sends them, so the driver is told the
+level rather than trying both. The administrator's URL has no key, because
+`auth=root` is the default.
+
 ## Open questions for Ken
 
 An open question lives here until it is answered, and then it becomes a
