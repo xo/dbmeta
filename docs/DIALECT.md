@@ -220,7 +220,8 @@ rebuilt, so each `Tag` carries its `@sha256:` digest as well as its name. A
 push to the same tag would otherwise change what was tested without a line
 changing here. D88 is the decision, and it says what to check before taking
 such an image: whose build it is, and whether the binary reports the release
-the tag claims.
+the tag claims. D100 copied all four into `docker.io/usql/vertica`, because
+the Docker on GitHub's runners refuses the schema 1 manifest of one of them.
 
 A frozen baseline is the point of both. The machine exists so that a release
 nobody can run in CI is still measured before a release, rather than being

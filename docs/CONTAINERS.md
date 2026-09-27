@@ -45,6 +45,12 @@ session or through Ken.
 12. Before you finish, start the server, stop it, start it again, and remove
     it. A second start is a different path from the first. It found two
     faults in the Couchbase entry (D96).
+13. Check the manifest format of an image that somebody other than the
+    vendor pushed. CI runs docker, and the Docker on GitHub's runners refuses
+    a Docker image manifest of schema 1, which podman still pulls. Such an
+    image is copied into `docker.io/usql` with
+    `podman push --format v2s2`, which Ken does, because it needs his login
+    (D100).
 
 ## A new release of a product
 

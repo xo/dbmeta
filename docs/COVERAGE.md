@@ -42,7 +42,7 @@ rather than reading one.
 | `models/hana` | 32 | 55 | SAP HANA 2.0 SPS 08 |
 | `models/hive` | 16 | 55 | Apache Hive 4.2 |
 | `models/exasol` | 25 | 55 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
-| `models/vertica` | 26 | 55 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on community images |
+| `models/vertica` | 26 | 55 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers eleven: tables, schemas, columns,
@@ -1669,7 +1669,8 @@ the difference is in what the machine holds and not in the query.
 `models/vertica` answers 26 of the 55 on 25.1 and 24 on the three older
 releases, which have no triggers and no per user settings to read. It was run
 against 7.2.1, 9.1.0, 10.1.1 and 25.1.0, all four community images, and D88
-records why those.
+records why those. The images are copies in `docker.io/usql/vertica`, which
+D100 records.
 
 ### It reads v_catalog
 

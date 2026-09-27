@@ -40,11 +40,26 @@ import (
 //	10.1.1  docker.io/saadmairaj/vertica, built 2021-05-22
 //	25.1.0  docker.io/ratiopbc/vertica-ce, built 2024-12-17
 //
-// Every one is pinned by digest as well as by tag, for the reason above.
+// # One repository, docker.io/usql/vertica
+//
+// All four are copies in docker.io/usql/vertica, which the usql organization
+// owns, tagged by release. The 7.2 image was pushed in the Docker image
+// manifest schema 1, which the Docker on GitHub's runners refuses to pull, so
+// vertica-7.2 had never run in CI. Ken chose to push every image to one place
+// with proper tags, and podman wrote each as schema 2. See D100.
+//
+// Each tag is the release, such as 7.2 and 7.2.1, and each is pinned by the
+// digest of the copy. The layers are the originals, so a copy is the same
+// image with a new manifest. Where each came from:
+//
+//	7.2   colemantw/vertica:latest       @sha256:9b4f896536b49433f8fb10417f04be04dc140109496740dda00b0bbc2c97bdd7
+//	9.1   iamamr/vertica:9.1.0-0         @sha256:bfa9ff9c947d1f53f28839aed3fa30da9247335ce570f6398d1994c9a9143f72
+//	10.1  saadmairaj/vertica:10.1.1-RHEL6 @sha256:2d638b1e38b7139ab4ac64bb7ecd9748ae7c264b2cb1c173b50d4a578e54f182
+//	25.1  ratiopbc/vertica-ce:v25.1.0-0  @sha256:0753e11d9413c1e8ed4394ac5b820f919e40ed1ca70220e7dad2e3bd92d446a8
 var vertica = product{
 	dialect: dbmeta.Vertica,
 	name:    "vertica",
-	image:   "docker.io/ratiopbc/vertica-ce",
+	image:   "docker.io/usql/vertica",
 	port:    5433,
 	env: map[string]string{
 		// The entrypoint creates this user with PSEUDOSUPERUSER and sets its
@@ -83,6 +98,7 @@ var vertica = product{
 var verticaLegacy = product{
 	dialect: dbmeta.Vertica,
 	name:    "vertica",
+	image:   "docker.io/usql/vertica",
 	port:    5433,
 	// dbadmin over the local socket, which needs no password on these
 	// images. The database is built into the image, so this answers within
@@ -90,7 +106,18 @@ var verticaLegacy = product{
 	ready: []string{"/opt/vertica/bin/vsql", "-U", "dbadmin", "-d", "docker", "-c", "SELECT 1"},
 	// Safe to run twice, because start runs it every time: it creates the
 	// user only when there is none.
-	init: []string{"sh", "-c", `v="/opt/vertica/bin/vsql -U dbadmin -d docker -At"` +
+	//
+	// It waits first for admintools to finish. The entrypoint's create_db
+	// installs Vertica's function packages after the database already
+	// answers, and LISTAGG is in one of them. CI ran the tests the moment
+	// the server answered and 10.1 refused LISTAGG as a function that does
+	// not exist, which it did for about twenty seconds. The pattern is
+	// written [a]dmintools so that pgrep does not match this shell, whose own
+	// command line holds the word.
+	init: []string{"sh", "-c", `i=0; while pgrep -f "[a]dmintools -t" >/dev/null; do` +
+		` i=$((i + 1)); [ "$i" -gt 300 ] && { echo "admintools never finished"; exit 1; };` +
+		` sleep 1; done;` +
+		` v="/opt/vertica/bin/vsql -U dbadmin -d docker -At"` +
 		` && [ "$($v -c "SELECT COUNT(*) FROM users WHERE user_name = 'dbmeta'")" = 1 ]` +
 		` || $v -c "CREATE USER dbmeta IDENTIFIED BY '` + Password + `';` +
 		` GRANT PSEUDOSUPERUSER TO dbmeta; ALTER USER dbmeta DEFAULT ROLE ALL;"`},
@@ -108,20 +135,16 @@ var verticaLegacy = product{
 // connects to today, and they are large.
 var Vertica = list{}.add(vertica, Tested, "25.1").
 	add(verticaLegacy, Nightly, "7.2", "9.1", "10.1").
-	// The tag is the release with a v and a hotfix number, and the digest is
-	// the one image ever pushed under it.
+	// The tag is the release, and the digest is the copy in usql/vertica.
 	on("25.1", func(s *Server) {
-		s.Tag = "v25.1.0-0@sha256:0753e11d9413c1e8ed4394ac5b820f919e40ed1ca70220e7dad2e3bd92d446a8"
+		s.Tag = "25.1@sha256:8092461075f6a7cefaa9c82af95a7234f410363a2a431ffc011e4ffad2500215"
 	}).
 	on("7.2", func(s *Server) {
-		s.Image = "docker.io/colemantw/vertica"
-		s.Tag = "latest@sha256:9b4f896536b49433f8fb10417f04be04dc140109496740dda00b0bbc2c97bdd7"
+		s.Tag = "7.2@sha256:7f96183169cfb94d343c808e1af2732e8c175579cb83c8e04e304a2673d8dbad"
 	}).
 	on("9.1", func(s *Server) {
-		s.Image = "docker.io/iamamr/vertica"
-		s.Tag = "9.1.0-0@sha256:bfa9ff9c947d1f53f28839aed3fa30da9247335ce570f6398d1994c9a9143f72"
+		s.Tag = "9.1@sha256:8c13f644dd8c11ae7400db0a3b1f1fd247531862e70853b651c5c9e573263fed"
 	}).
 	on("10.1", func(s *Server) {
-		s.Image = "docker.io/saadmairaj/vertica"
-		s.Tag = "10.1.1-RHEL6@sha256:2d638b1e38b7139ab4ac64bb7ecd9748ae7c264b2cb1c173b50d4a578e54f182"
+		s.Tag = "10.1@sha256:e315cbd613fa4797dec9d0f5a0a7998cdb1c0ccabeafa7d5334c599f4ec4ba73"
 	})

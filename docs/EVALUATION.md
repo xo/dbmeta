@@ -364,7 +364,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Firebird | 3.0 | 5.0 | Criteria 2 and 3 agree, which is rare enough to record |
 | SAP HANA | 2.00.076 | 2.00.088 | Criterion 3. SAP publishes an express edition of 2.0 only |
 | Apache Hive | 4.0 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
-| Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images Ken chose so that a gate has something older to answer against, and D88 records why |
+| Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images Ken chose so that a gate has something older to answer against, and D88 records why. The images are copies in `docker.io/usql/vertica` (D100) |
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
 | Couchbase | 7.2.9 | 8.0.3 | Criterion 2. 7.2 is the oldest line the image still rebuilds, and 7.0 and 7.1 stopped in November 2024. There is no model yet, and D94 says why the releases are listed anyway |
@@ -422,8 +422,9 @@ Vertica had no image outside Kubernetes once `vertica/vertica-ce` was
 withdrawn, which D66 recorded. A community copy of that image at 25.1 starts,
 and three older community images start too, so Vertica has four releases, a
 row above and a model. D88 records the decision, and it is the first product
-here whose release range is set by community images. Every one is pinned by
-digest.
+here whose release range is set by community images. All four are now copies
+in `docker.io/usql/vertica`, tagged by release and pinned by digest, which
+D100 records.
 
 Exasol's `exasol/docker-db` would not initialize under rootless podman, which
 is D77, and Exasol now publishes `exasol/nano`, which starts unprivileged on

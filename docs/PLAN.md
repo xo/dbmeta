@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 21 of them amend or replace an earlier
+Read the status before the decision. 22 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -152,7 +152,7 @@ records the argument.
 | [D85](#d85-exasol-is-the-nano-containers-and-one-frozen-virtual-machine-decided) | Exasol is the nano containers and one frozen virtual machine | Decided |
 | [D86](#d86-a-machine-is-one-list-with-a-spec-for-how-it-is-built-decided) | A machine is one list, with a spec for how it is built | Decided |
 | [D87](#d87-exasol-is-a-model-read-from-the-exa_all-views-decided) | Exasol is a model, read from the EXA_ALL views | Decided |
-| [D88](#d88-vertica-is-a-model-on-four-community-images-amends-d66) | Vertica is a model, on four community images | Amends D66 |
+| [D88](#d88-vertica-is-a-model-on-four-community-images-amends-d66-amended-by-d100) | Vertica is a model, on four community images | Amends D66, amended by D100 |
 | [D89](#d89-agent-skills-are-committed-as-copies-and-one-command-installs-them-decided) | Agent skills are committed as copies, and one command installs them | Decided |
 | [D90](#d90-a-database-qualifies-when-it-is-free-to-run-for-development-and-testing-decided) | A database qualifies when it is free to run for development and testing | Decided |
 | [D91](#d91-scylladb-is-a-flavor-of-the-cassandra-model-amends-d66-amended-by-d92) | ScyllaDB is a flavor of the Cassandra model | Amends D66, amended by D92 |
@@ -164,6 +164,7 @@ records the argument.
 | [D97](#d97-dbrun-is-documented-for-its-users-in-dbrun-and-containers-decided) | dbrun is documented for its users, in DBRUN and CONTAINERS | Decided |
 | [D98](#d98-a-server-has-an-owner-and-dbrun-acts-only-on-the-callers-own-amends-d75) | A server has an owner, and dbrun acts only on the caller's own | Amends D75 |
 | [D99](#d99-dburl-names-the-product-that-a-scheme-drives-decided) | dburl names the product that a scheme drives | Decided |
+| [D100](#d100-the-vertica-images-live-in-usqlvertica-and-the-older-ones-wait-for-admintools-amends-d88) | The Vertica images live in usql/vertica, and the older ones wait for admintools | Amends D88 |
 
 ## Decisions
 
@@ -4423,7 +4424,7 @@ In this order, and the order is what the native catalog adds over
 | --- | --- | --- | --- |
 | 3 | Trino | `trinodb/trino` | federated engine, wide use, connector and session metadata |
 | 4 | Presto | `prestodb/presto` | probably a flavor key on the Trino model rather than a model |
-| 5 | Vertica | `ratiopbc/vertica-ce` and three older community images | `v_catalog` is rich and nothing else reaches it. Done, see D88. The image this row first named was withdrawn, see below |
+| 5 | Vertica | `usql/vertica`, copies of four community images | `v_catalog` is rich and nothing else reaches it. Done, see D88 and D100. The image this row first named was withdrawn, see below |
 | 6 | SAP HANA | `saplabs/hanaexpress` | enterprise install base, deep `SYS` catalog. Done, see D76 |
 | 7 | Firebird | `firebirdsql/firebird` | the `RDB$` catalog answers more than most of this list. Done, see D74 |
 | 8 | Exasol | `exasol/nano` | `EXA_` catalog, analytic install base. Done, see D87, and D85 for the two tracks |
@@ -6773,7 +6774,7 @@ a semicolon is left out, because an Exasol DSN separates its pairs with a
 semicolon and escapes one with a backslash, and that is the driver's quirk
 rather than this model's. Ken decided that. The statement itself handles it.
 
-### D88. Vertica is a model, on four community images. Amends D66.
+### D88. Vertica is a model, on four community images. Amends D66, amended by D100.
 
 D66 put Vertica fifth and then recorded that it could not be started: the
 official image was withdrawn, the maintained one runs only under the
@@ -7493,6 +7494,53 @@ every later consumer the same three again, and two copies drift. `dbmeta`
 accepting the alias is what hard rule 1 forbids. dburl holding the fact
 answers every consumer at once, and it is the same kind of fact as
 `GoPackage`, which D80 welcomed.
+
+### D100. The Vertica images live in usql/vertica, and the older ones wait for admintools. Amends D88.
+
+The nightly run on 2026-09-27 failed on vertica-7.2 and vertica-10.1, for two
+different reasons, and both were only ever measured on this machine with
+podman.
+
+#### 7.2 never ran in CI
+
+`docker.io/colemantw/vertica`, the only 7.2 image, was pushed in 2016 with a
+Docker image manifest of schema 1. The Docker on GitHub's runners refuses to
+pull schema 1, and podman still pulls it, so `docker run` failed in the first
+second and vertica-7.2 had never run in CI. The other three images are schema
+2.
+
+Ken chose to copy all four into one repository that the usql organization
+owns, `docker.io/usql/vertica`, with proper tags, rather than to move 7.2 to
+Verified or to special case podman in `dbrun`. Ken logged in and podman
+pushed each image with `--format v2s2`. Every release has two tags, the
+release as `dbrun` names it and the full release, such as `7.2` and `7.2.1`.
+The registry reports every manifest as schema 2.
+
+The layers are the originals, so each copy is the same image with a new
+manifest, and D88's checks on whose build each is still hold. Each entry pins
+the digest of the copy. `container/vertica.go` records each source image and
+its digest. A tag that the usql organization owns can still be pushed again,
+so the pin stays for D88's reason.
+
+The rule for next time is in `CONTAINERS.md`: check the manifest format of an
+image that somebody other than the vendor pushed.
+
+#### 10.1 answered before its functions existed
+
+The entrypoint of the three older images runs `admintools -t create_db`,
+which installs Vertica's function packages after the database already
+answers. LISTAGG is in one of them. CI ran the tests the moment the server
+answered, and 10.1 refused LISTAGG as a function that does not exist.
+Measured here: LISTAGG is absent when `start` returns and present twenty
+seconds later.
+
+The `Init` of the three older images now waits until no `admintools` process
+is left, and then creates the user. The pattern is written `[a]dmintools`,
+because a plain `pgrep -f admintools` matched the shell that ran it, whose own
+command line holds the word. LISTAGG answers the moment `start` returns now.
+
+All four releases pass the whole test module through `dbrun test` on the
+`usql/vertica` images, and 7.2 was pulled from the registry by digest.
 
 ## Open questions for Ken
 
