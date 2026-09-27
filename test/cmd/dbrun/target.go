@@ -70,6 +70,10 @@ type target struct {
 	// a URL.
 	DSN string `json:"dsn,omitempty"`
 	URL string `json:"url,omitempty"`
+	// Principals is every user a test reaches the server as, the
+	// administrator first, with the connection string of each. It is empty
+	// for a machine and an embedded database. See D102.
+	Principals []principal `json:"principals,omitempty"`
 
 	// Run, Ready and Remove are the runner's arguments, for a container.
 	Run    []string `json:"-"`
@@ -208,21 +212,22 @@ func targets() []target {
 	for i, s := range servers {
 		port := basePort + i
 		out = append(out, target{
-			Name:    s.Name(),
-			Product: s.Product,
-			Release: s.Release,
-			Kind:    kindContainer,
-			Tier:    s.Tier,
-			Dialect: s.Dialect,
-			Env:     envFor(s.Dialect),
-			DSN:     s.DSN(port),
-			URL:     s.URL(port),
-			Run:     s.RunArgs(s.Name(), port),
-			Ready:   s.ReadyArgs(s.Name()),
-			Init:    s.InitArgs(s.Name()),
-			Startup: s.Startup,
-			Settle:  s.Settle,
-			Remove:  s.RemoveArgs(s.Name()),
+			Name:       s.Name(),
+			Product:    s.Product,
+			Release:    s.Release,
+			Kind:       kindContainer,
+			Tier:       s.Tier,
+			Dialect:    s.Dialect,
+			Env:        envFor(s.Dialect),
+			DSN:        s.DSN(port),
+			URL:        s.URL(port),
+			Principals: principalsOf(s, port),
+			Run:        s.RunArgs(s.Name(), port),
+			Ready:      s.ReadyArgs(s.Name()),
+			Init:       s.InitArgs(s.Name()),
+			Startup:    s.Startup,
+			Settle:     s.Settle,
+			Remove:     s.RemoveArgs(s.Name()),
 		})
 	}
 	for _, m := range container.Machines() {
@@ -242,6 +247,23 @@ func targets() []target {
 		})
 	}
 	out = append(out, embedded...)
+	return out
+}
+
+// principal is one user of a server, as list and dsn print it.
+type principal struct {
+	Role string `json:"role"`
+	User string `json:"user,omitempty"`
+	DSN  string `json:"dsn"`
+	URL  string `json:"url"`
+}
+
+// principalsOf lists every principal of a container server on its host port.
+func principalsOf(s container.Server, port int) []principal {
+	var out []principal
+	for _, p := range s.Principals() {
+		out = append(out, principal{Role: p.Role, User: p.User, DSN: p.DSN(port), URL: p.URL(port)})
+	}
 	return out
 }
 

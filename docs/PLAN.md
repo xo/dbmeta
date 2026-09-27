@@ -58,7 +58,7 @@ Every decision is in this file and this file is append only. The index is
 here so that reading one decision does not mean loading all of them: find the
 number, then jump to it.
 
-Read the status before the decision. 22 of them amend or replace an earlier
+Read the status before the decision. 24 of them amend or replace an earlier
 one, and a decision read without its amendment is worse than no decision. That
 is the reason this is one file rather than one file per decision, and D50
 records the argument.
@@ -159,12 +159,14 @@ records the argument.
 | [D92](#d92-a-second-version-statement-reads-the-scylladb-release-amends-d91) | A second version statement reads the ScyllaDB release | Amends D91 |
 | [D93](#d93-the-cql-tests-use-githubcomxocql-which-reports-a-null-amends-d62) | The cql tests use github.com/xo/cql, which reports a NULL | Amends D62 |
 | [D94](#d94-couchbase-runs-under-dbrun-and-its-model-waits-for-the-n1ql-rewrite-amends-d66-amended-by-d95-and-d96) | Couchbase runs under dbrun, and its model waits for the n1ql rewrite | Amends D66, amended by D95 and D96 |
-| [D95](#d95-the-couchbase-model-waits-for-the-dbimp-driver-amends-d94) | The Couchbase model waits for the dbimp driver | Amends D94 |
+| [D95](#d95-the-couchbase-model-waits-for-the-dbimp-driver-amends-d94-amended-by-d101) | The Couchbase model waits for the dbimp driver | Amends D94, amended by D101 |
 | [D96](#d96-couchbase-gets-an-ordinary-user-and-starts-again-after-a-stop-amends-d94) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94 |
 | [D97](#d97-dbrun-is-documented-for-its-users-in-dbrun-and-containers-decided) | dbrun is documented for its users, in DBRUN and CONTAINERS | Decided |
-| [D98](#d98-a-server-has-an-owner-and-dbrun-acts-only-on-the-callers-own-amends-d75) | A server has an owner, and dbrun acts only on the caller's own | Amends D75 |
+| [D98](#d98-a-server-has-an-owner-and-dbrun-acts-only-on-the-callers-own-amends-d75-amended-by-d102) | A server has an owner, and dbrun acts only on the caller's own | Amends D75, amended by D102 |
 | [D99](#d99-dburl-names-the-product-that-a-scheme-drives-decided) | dburl names the product that a scheme drives | Decided |
 | [D100](#d100-the-vertica-images-live-in-usqlvertica-and-the-older-ones-wait-for-admintools-amends-d88) | The Vertica images live in usql/vertica, and the older ones wait for admintools | Amends D88 |
+| [D101](#d101-couchbase-is-the-dialect-couchbase-read-through-the-dbimp-driver-amends-d95) | Couchbase is the dialect couchbase, read through the dbimp driver | Amends D95 |
+| [D102](#d102-dbrun-prints-every-principal-of-a-server-amends-d98) | dbrun prints every principal of a server | Amends D98 |
 
 ## Decisions
 
@@ -7257,7 +7259,7 @@ It has three faults, and any one of them breaks a model:
 moves `usql` with it, the way D93 moved the cql tests. The three faults went
 to the `n1ql` session as requirements.
 
-### D95. The Couchbase model waits for the dbimp driver. Amends D94.
+### D95. The Couchbase model waits for the dbimp driver. Amends D94, amended by D101.
 
 D94 tied the Couchbase model to a rewrite of `xo/n1ql`. Ken decided on
 2026-09-27 that the first driver in `github.com/xo/dbimp` is a new Couchbase
@@ -7399,7 +7401,7 @@ server that another session was using on 2026-09-27. So the rules tell a session
 to start a fifth server when any of the four is not its own. The open
 question at the end of this file asks what `dbrun` does about it.
 
-### D98. A server has an owner, and dbrun acts only on the caller's own. Amends D75.
+### D98. A server has an owner, and dbrun acts only on the caller's own. Amends D75, amended by D102.
 
 Ken decided on 2026-09-27, answering the question D97 raised. Several coding
 agents use this machine at once, and D75 let one agent's fifth start stop a
@@ -7541,6 +7543,73 @@ command line holds the word. LISTAGG answers the moment `start` returns now.
 
 All four releases pass the whole test module through `dbrun test` on the
 `usql/vertica` images, and 7.2 was pulled from the registry by digest.
+
+### D101. Couchbase is the dialect couchbase, read through the dbimp driver. Amends D95.
+
+dbimp v0.1.0 shipped its Couchbase driver, `github.com/xo/dbimp/couchbase`, on
+2026-09-27, and Ken asked for it to be swapped in. D95 held the Couchbase
+model for this driver.
+
+#### The dialect is renamed
+
+dburl v0.33.0 points its Couchbase scheme at the new driver. The scheme is now
+`couchbase`, with `n1ql` and `n1` as aliases, and its `Dialect` is
+`couchbase`. `dbmeta.Dialect` is the dburl driver name, so `dbmeta.N1QL`,
+which was `n1ql`, is now `dbmeta.Couchbase`, which is `couchbase`. It is the
+same kind of fix as D81, which renamed the Cassandra dialect to `cql` for the
+same reason. Nothing read the old constant but the container entry, because
+dbmeta has no Couchbase model yet. The environment variable of the tests is
+`DBMETA_COUCHBASE`, which follows from the name.
+
+#### The connection string
+
+The driver takes `couchbase://user:password@host:8093/`, which is also the
+dburl form, so the DSN and the URL of a Couchbase server are one string. The
+`http://` DSN that `go_n1ql` took is gone. `dbrun` now has a driver for the
+dialect, so `version` and a readiness probe from the host can reach it.
+
+Measured on 8.0.3 through the driver, as the administrator and as
+`dbmeta_user`: a query of `system:keyspaces` returns its columns in the order
+the statement selects them, a field that is missing arrives as NULL, and
+`SELECT RAW ds_version()` scans into a string as `8.0.3-5933-enterprise`.
+Those are the three faults of `go_n1ql` that D94 found, and none is left.
+dbimp's own measurement is that 7.2.9 sends columns in name order, which no
+driver can undo, and D95 holds the three choices that leaves the model.
+
+`usql` still imports `go_n1ql`, and hard rule 10 asks for the package `usql`
+uses. dburl already names the new one, and `usql` moves to it the way it moves
+to `xo/cql`, as D93 recorded for Cassandra.
+
+### D102. dbrun prints every principal of a server. Amends D98.
+
+Ken decided on 2026-09-27 that `dsn --json` and `list --json` print every
+principal of a server, which D98 had left out. dbimp tests Couchbase as its
+ordinary user too, and it built that user's connection string by hand.
+
+Each server now has `Principals`, in the `container` package: the
+administrator first, whose name is read from the server's URL, and then each
+ordinary user that the server's setup creates, declared beside the setup that
+makes it. Each carries its role, its name and its connection string. `dbrun`
+prints them as the `principals` field. Couchbase is the one server with an
+ordinary user today, `dbmeta_user`, and the next one that makes such a user
+declares it the same way.
+
+A user that a parity test makes and drops is not a principal of the server.
+It exists only during that test.
+
+`TestEveryServerNamesItsPrincipals` checks that every server names its
+administrator and that each ordinary user's connection string holds its own
+name.
+
+#### test keeps a server it found running
+
+Measuring this change found a gap in D98. `dbrun test` removed
+`couchbase-8.0.3` when the test ended. The server had no owner, because it
+predated owners, and D98 let a command act on such a server as before. But
+the test had not started it, and it was up before the test began, so removing
+it took away a server that was in use. It was started again at once. `test`
+now keeps a server that was running when it began, unless the server is the
+caller's own. A run as another owner against that server passed and kept it.
 
 ## Open questions for Ken
 

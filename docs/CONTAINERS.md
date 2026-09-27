@@ -92,7 +92,9 @@ that the ports moved.
 7. If the product has no shell to run a readiness check, leave `ready` empty.
    `dbrun` then connects from the host through the driver in the `drivers`
    map in `test/cmd/dbrun/test.go`, which needs an entry for the dialect.
-8. Add the administrator to the credentials table in `DBRUN.md`.
+8. Add the administrator to the credentials table in `DBRUN.md`. If `init`
+   creates an ordinary user, declare it in `users`, so that `dsn --json`
+   prints it. `container/couchbase.go` does this.
 9. Run the checks under Check it.
 10. Write a decision in `PLAN.md` for anything you chose rather than found,
     such as a setting you turned on or a user you created.
@@ -156,6 +158,7 @@ into each release:
 | `settle` | how long `ready` has to keep passing. Presto and Trino need it (D83). |
 | `dsn` | builds the connection string the Go driver takes, for a host port |
 | `url` | builds the dburl URL, where it differs from the DSN |
+| `users` | the ordinary users that `init` creates, as `Principal` values with their own DSN, which `dsn --json` prints after the administrator (D102) |
 
 ## Readiness checks and setups that went wrong
 

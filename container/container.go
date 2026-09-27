@@ -204,6 +204,10 @@ type Server struct {
 	// nothing joins them.
 	Args []string
 
+	// users are the ordinary users the setup creates, which
+	// [Server.Principals] lists after the administrator.
+	users []Principal
+
 	// dsn builds a connection string for a port on the host.
 	dsn func(port int) string
 	// url is the dburl style URL a person types, where that differs from the
@@ -397,6 +401,8 @@ type product struct {
 	// url is the dburl style URL, where it differs from the DSN. See
 	// [Server.URL].
 	url func(port int) string
+	// users are the ordinary users the setup creates. See [Principal].
+	users []Principal
 }
 
 // list is a slice of servers under construction, so that the declarations
@@ -430,6 +436,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			Settle:   p.settle,
 			dsn:      p.dsn,
 			url:      p.url,
+			users:    p.users,
 		})
 	}
 	slices.SortStableFunc(l, func(a, b Server) int { return compareRelease(a.Release, b.Release) })

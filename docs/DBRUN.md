@@ -72,7 +72,7 @@ The owner changes what a command does:
 | you | starts or shares it | acts | removes it at the end, unless `--keep` |
 | another owner, running | shares it, and says whose it is | refuses | shares it, and keeps it |
 | another owner, stopped | refuses | refuses | refuses |
-| nobody | starts or shares it | acts | as for your own |
+| nobody | starts or shares it | acts | removes it at the end only if the test started it |
 
 A start that needs room stops only your own oldest server. It never stops a
 server of another owner or a server with no owner, unless you pass `--force`.
@@ -206,9 +206,10 @@ password in `container.Password`:
 
 One product also has an ordinary user that its setup creates. On Couchbase it
 is `container.CouchbaseUser`, which is `dbmeta_user`, with
-`container.Password` (D96). Every other ordinary user is created by the test
-that needs it and dropped when that test ends. `dsn` prints only the
-administrator's connection string.
+`container.Password` (D96). `dsn --json` prints it in the `principals` field,
+after the administrator, with its own connection string (D102). Every other
+ordinary user is created by the test that needs it and dropped when that test
+ends.
 
 ## Output
 
@@ -226,16 +227,17 @@ with these fields:
 | `release` | the release, such as `8.0.3`. An embedded database has none. |
 | `kind` | `container`, `machine` or `embedded` |
 | `tier` | `tested`, `nightly` or `verified` |
-| `dialect` | the dbmeta dialect, which is the dburl driver name, such as `n1ql` |
-| `env` | the environment variable that dbmeta's tests read the DSN from, such as `DBMETA_N1QL` |
+| `dialect` | the dbmeta dialect, which is the dburl driver name, such as `couchbase` |
+| `env` | the environment variable that dbmeta's tests read the DSN from, such as `DBMETA_COUCHBASE` |
 | `dsn` | the connection string that the Go driver takes |
 | `url` | the dburl URL, which is what `usql` takes |
 | `viewer` | for a machine, the port of its screen viewer |
+| `principals` | every user a test reaches the server as, the administrator first. Each has `role`, which is `administrator` or `user`, `user`, `dsn` and `url` |
 
 The `dsn` and `url` fields can differ. The `dsn` field is what `sql.Open`
 takes for the driver that dbmeta tests with, and the `url` field is what
-`dburl` parses. On Couchbase the `dsn` is an `http://` address of the query
-service and the `url` uses `couchbase://`.
+`dburl` parses. On MySQL and Cassandra the driver takes a form that is not a
+URL. On Couchbase both are the same `couchbase://` URL.
 
 A plain `dsn` prints the name and the URL on one line, separated by spaces. It
 does not print the bare URL. Use `dsn --json` in a script.
@@ -309,7 +311,7 @@ under `$XDG_DATA_HOME/dbmeta/embedded` and stays after a test, so that
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
 | `DBMETA_ORACLE_STATE` | Where the Oracle 19c checkout and installer archive live. |
 | `DBMETA_EMBEDDED_STATE` | Where the SQLite and DuckDB files live. |
-| `DBMETA_<DIALECT>` | The DSN that dbmeta's tests read, such as `DBMETA_N1QL`. `dbrun test` sets it, and a test skips when it is not set. |
+| `DBMETA_<DIALECT>` | The DSN that dbmeta's tests read, such as `DBMETA_COUCHBASE`. `dbrun test` sets it, and a test skips when it is not set. |
 
 ## Using dbrun from another repository
 
@@ -366,6 +368,6 @@ Ken chose on 2026-09-27 to leave these as they are for now (D98):
 
 - Every failure exits 1.
 - A plain `dsn` prints two columns rather than the bare URL.
-- `dsn` prints only the administrator, and one scheme for each product.
+- `dsn` prints one scheme for each product.
 - A server cannot be pinned against being stopped for room. Only its owner
   stops it, which covers most of the need.

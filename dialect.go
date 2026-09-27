@@ -36,18 +36,19 @@ type Dialect string
 // the `dburl` session checked all thirteen of these against the registry:
 // cassandra is an alias of the cql scheme, and cql is what the driver passes
 // to sql.Register, both github.com/xo/cql and the go-cql-driver it replaced,
-// so nothing answers to the old value. Read these as constants and never as
-// literals.
+// so nothing answers to the old value. Couchbase was n1ql until dburl v0.33.0
+// renamed its scheme couchbase, when the driver moved to github.com/xo/dbimp
+// (D101). Read these as constants and never as literals.
 const (
 	Cassandra  Dialect = "cql"
 	ClickHouse Dialect = "clickhouse"
+	Couchbase  Dialect = "couchbase"
 	DuckDB     Dialect = "duckdb"
 	Exasol     Dialect = "exasol"
 	Firebird   Dialect = "firebirdsql"
 	Hive       Dialect = "hive"
 	HANA       Dialect = "hdb"
 	MySQL      Dialect = "mysql"
-	N1QL       Dialect = "n1ql"
 	Oracle     Dialect = "oracle"
 	Presto     Dialect = "presto"
 	PostgreSQL Dialect = "postgres"

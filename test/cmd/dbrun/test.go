@@ -23,6 +23,7 @@ import (
 	_ "github.com/trinodb/trino-go-client/trino"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cql"
+	_ "github.com/xo/dbimp/couchbase"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
@@ -47,6 +48,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Hive:       "hive",
 	dbmeta.Exasol:     "exasol",
 	dbmeta.Vertica:    "vertica",
+	dbmeta.Couchbase:  "couchbase",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the
@@ -129,6 +131,11 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 	}
 	fmt.Printf("=== %s ===\n", t.Name)
 
+	// A server that was already up when the test began is somebody's, and
+	// the test only borrows it, unless it is the caller's own. A server with
+	// no owner was removed here once, when it predated owners and another
+	// session had started it. See D98.
+	wasUp := r.running(ctx, t.Name)
 	if err := doStart(ctx, r, t, o); err != nil {
 		return err
 	}
@@ -141,9 +148,11 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 		keep = false
 	}
 	// A test never removes a server it may not touch, which is one another
-	// session started and this test only shared. See D98.
+	// session started and this test only shared, nor one that was up before
+	// it began and is not the caller's. See D98.
 	owner := r.owner(ctx, t.Name)
-	shared := !mayTouch(owner, currentOwner(), o.force)
+	shared := !mayTouch(owner, currentOwner(), o.force) ||
+		(wasUp && owner != currentOwner() && !o.force)
 	defer func() {
 		if shared {
 			fmt.Printf("  kept %s, which belongs to %s\n", t.Name, showOwner(owner))

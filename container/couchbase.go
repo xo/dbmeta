@@ -9,11 +9,9 @@ import (
 
 // The Couchbase Server releases dbmeta is tested against.
 //
-// dbmeta has no Couchbase model yet. The releases are here so that dbrun can
-// start a server for the tests of a Couchbase driver. That driver is now the
-// first one in github.com/xo/dbimp, and the model waits for it. See D95. A
-// model follows the steps in docs/DIALECT.md, and it reads this list when it
-// does.
+// The tests reach it through github.com/xo/dbimp/couchbase, the driver that
+// usql moves to, and the dialect is couchbase, which is its dburl driver name.
+// See D101. A model follows the steps in docs/DIALECT.md.
 //
 // # The floor, by the docs/EVALUATION.md procedure
 //
@@ -47,13 +45,12 @@ import (
 //
 // Ready and Init both run inside the container against 8091, the cluster
 // manager, which is never published. Only 8093, the query service, is
-// published, and the DSN names it. go_n1ql, the driver usql uses, tries a
-// DSN as a cluster address first and then as a query address, and a cluster
-// address would hand back the container's own address for the query service.
+// published, and the DSN names it. The driver speaks to the query service and
+// nothing else.
 //
 // The administrator is Administrator with [Password]. Init also makes
 // [CouchbaseUser], an ordinary user with the same password, for a driver's
-// tests and for parity (D61). It can run SELECT, INSERT, UPDATE and DELETE on
+// tests and for parity (D61), and [Server.Principals] lists it (D102). It can run SELECT, INSERT, UPDATE and DELETE on
 // the dbmeta bucket and read the system: catalog, and it cannot administer the
 // cluster. user-manage --set makes the user or resets it, so it is safe on
 // every start.
@@ -68,7 +65,7 @@ const couchbaseCLI = `/opt/couchbase/bin/couchbase-cli`
 
 // couchbase is the Couchbase Server image.
 var couchbase = product{
-	dialect: dbmeta.N1QL,
+	dialect: dbmeta.Couchbase,
 	name:    "couchbase",
 	image:   "docker.io/library/couchbase",
 	port:    8093,
@@ -117,18 +114,23 @@ wait() {
 wait 'SELECT 1'
 wait 'CREATE PRIMARY INDEX IF NOT EXISTS ON dbmeta'
 wait 'SELECT RAW COUNT(*) FROM dbmeta'`},
-	dsn: func(port int) string {
+	dsn:   couchbaseDSN("Administrator"),
+	users: []Principal{{Role: User, User: CouchbaseUser, dsn: couchbaseDSN(CouchbaseUser)}},
+}
+
+// couchbaseDSN builds the URL that github.com/xo/dbimp/couchbase takes, for
+// one user with [Password], on the query service. It is the dburl form too,
+// so a server's URL and its DSN are one string.
+func couchbaseDSN(user string) func(port int) string {
+	return func(port int) string {
 		u := url.URL{
-			Scheme: "http",
-			User:   url.UserPassword("Administrator", Password),
+			Scheme: "couchbase",
+			User:   url.UserPassword(user, Password),
 			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+			Path:   "/",
 		}
 		return u.String()
-	},
-	url: func(port int) string {
-		return fmt.Sprintf("couchbase://Administrator:%s@127.0.0.1:%d/",
-			url.QueryEscape(Password), port)
-	},
+	}
 }
 
 // Couchbase is every Couchbase Server release dbmeta is tested against.
