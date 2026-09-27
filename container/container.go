@@ -167,6 +167,11 @@ type Server struct {
 	//
 	// It must be safe to run twice, because start runs it every time.
 	Init []string
+	// InitInput is sent to Init on its standard input, for an image with no
+	// shell to hold the statements itself. SurrealDB's image is only its
+	// binary, and its import command reads statements from a file, which
+	// /dev/stdin is. Empty means Init reads nothing.
+	InitInput string
 	// Memory is what this server is allowed, where MemoryLimit is not
 	// enough. Empty means MemoryLimit.
 	Memory string
@@ -277,6 +282,10 @@ func (s Server) InitArgs(name string) []string {
 	if len(s.Init) == 0 {
 		return nil
 	}
+	if s.InitInput != "" {
+		// -i keeps standard input open, so that InitInput reaches Init.
+		return append([]string{"exec", "-i", name}, s.Init...)
+	}
 	return append([]string{"exec", name}, s.Init...)
 }
 
@@ -341,7 +350,7 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB)
 }
 
 // AtTier returns the servers tested at t.
@@ -384,6 +393,9 @@ type product struct {
 	// major turns a release into the name a person uses for it. Nil means
 	// they are the same, which is true of every product but Oracle.
 	major func(release string) string
+	// tagPrefix is put before the release to make the tag, and is usually
+	// empty. SurrealDB tags a release with a v, as in v3.3.0.
+	tagPrefix string
 	// tagSuffix is appended to the release to make the tag, and is usually
 	// empty. Microsoft publishes no bare release tag for SQL Server: the tag
 	// is 2017-latest and there is no 2017.
@@ -392,6 +404,7 @@ type product struct {
 	env       map[string]string
 	ready     []string
 	init      []string
+	initInput string
 	runFlags  []string
 	args      []string
 	memory    string
@@ -418,25 +431,26 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			major = p.major(v)
 		}
 		l = append(l, Server{
-			Dialect:  p.dialect,
-			Product:  p.name,
-			Release:  v,
-			Major:    major,
-			Tier:     tier,
-			Image:    p.image,
-			Tag:      v + p.tagSuffix,
-			Port:     p.port,
-			Env:      p.env,
-			Ready:    p.ready,
-			Init:     p.init,
-			RunFlags: p.runFlags,
-			Args:     p.args,
-			Memory:   p.memory,
-			Startup:  p.startup,
-			Settle:   p.settle,
-			dsn:      p.dsn,
-			url:      p.url,
-			users:    p.users,
+			Dialect:   p.dialect,
+			Product:   p.name,
+			Release:   v,
+			Major:     major,
+			Tier:      tier,
+			Image:     p.image,
+			Tag:       p.tagPrefix + v + p.tagSuffix,
+			Port:      p.port,
+			Env:       p.env,
+			Ready:     p.ready,
+			Init:      p.init,
+			InitInput: p.initInput,
+			RunFlags:  p.runFlags,
+			Args:      p.args,
+			Memory:    p.memory,
+			Startup:   p.startup,
+			Settle:    p.settle,
+			dsn:       p.dsn,
+			url:       p.url,
+			users:     p.users,
 		})
 	}
 	slices.SortStableFunc(l, func(a, b Server) int { return compareRelease(a.Release, b.Release) })

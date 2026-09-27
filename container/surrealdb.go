@@ -1,0 +1,116 @@
+package container
+
+import (
+	"fmt"
+	"net/url"
+
+	"github.com/xo/dbmeta"
+)
+
+// The SurrealDB releases dbmeta is tested against.
+//
+// dbmeta has no SurrealDB model. The releases are here so that dbrun can
+// start a server for the tests of github.com/xo/dbimp/surrealdb, which is the
+// driver dbimp writes next. See D103.
+//
+// # The range, by the docs/EVALUATION.md procedure
+//
+// Step 2 decides it. On docker.io/surrealdb/surrealdb, checked on 2026-09-27,
+// 2.7.0 was rebuilt on 2026-09-23 and 3.3.0 on 2026-09-24, and between them
+// 3.1.6 on 2026-09-01 and 3.2.4 on 2026-08-03. 1.5.6 was last rebuilt in
+// November 2024, and 2.6.5 and 3.0.5 in March 2026. Every one has a
+// linux/amd64 build, and each tag is the release with a v, such as v3.3.0.
+//
+// # Storage
+//
+// The server keeps its data in RocksDB under /tmp/dbmeta, in the container's
+// own layer, so that the users and the data survive a stop and a start. The
+// image runs as a user that cannot write /data, and RocksDB refused to start
+// there. Memory would lose the ordinary user at every stop.
+//
+// # The setup has no shell
+//
+// The image is the surreal binary and nothing else: no shell, no curl. Init
+// runs surreal import on /dev/stdin, and dbrun sends it the statements as
+// [Server.InitInput]. surreal import exits 1 when a statement fails, and
+// surreal sql exits 0 whatever happens, which is why it is import. Import
+// wants OPTION IMPORT as its first statement.
+//
+// The statements make the namespace and the database dbmeta if they are
+// missing, and make [SurrealDBUser] or reset its password, so they are safe on
+// every start. The user holds the role EDITOR on that database: it can define
+// and change tables and records there, and it is refused defining a user.
+//
+// The administrator is root with [Password], which the start command sets.
+
+// SurrealDBUser is the ordinary user that Init makes on every SurrealDB
+// release, on the database dbmeta in the namespace dbmeta. Its password is
+// [Password].
+const SurrealDBUser = "dbmeta_user"
+
+// surrealDBName is the namespace and the database that Init makes.
+const surrealDBName = "dbmeta"
+
+// surrealdb is the SurrealDB image.
+var surrealdb = product{
+	dialect:   dbmeta.SurrealDB,
+	name:      "surrealdb",
+	image:     "docker.io/surrealdb/surrealdb",
+	tagPrefix: "v",
+	port:      8000,
+	args: []string{
+		"start", "--bind", "0.0.0.0:8000",
+		"--user", "root", "--pass", Password,
+		"rocksdb:/tmp/dbmeta",
+	},
+	ready: []string{"/surreal", "isready", "--endpoint", "http://127.0.0.1:8000"},
+	init: []string{
+		"/surreal", "import", "--endpoint", "http://127.0.0.1:8000",
+		"--username", "root", "--password", Password,
+		"--namespace", surrealDBName, "--database", surrealDBName,
+		"/dev/stdin",
+	},
+	initInput: "OPTION IMPORT;\n" +
+		"DEFINE NAMESPACE IF NOT EXISTS " + surrealDBName + ";\n" +
+		"DEFINE DATABASE IF NOT EXISTS " + surrealDBName + ";\n" +
+		"DEFINE USER OVERWRITE " + SurrealDBUser + " ON DATABASE PASSWORD '" + Password +
+		"' ROLES EDITOR;\n",
+	dsn:   surrealDBHTTP("root"),
+	url:   surrealDBURL("root"),
+	users: []Principal{{Role: User, User: SurrealDBUser, dsn: surrealDBHTTP(SurrealDBUser), url: surrealDBURL(SurrealDBUser)}},
+}
+
+// surrealDBHTTP is the HTTP address of the server, with one user's
+// credentials.
+func surrealDBHTTP(user string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: "http",
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		}
+		return u.String()
+	}
+}
+
+// surrealDBURL is the URL that github.com/xo/dbimp/surrealdb takes and dburl
+// parses: the namespace and the database are the two segments of the path.
+// dbimp settled the form in its D47 and D48.
+func surrealDBURL(user string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: "surrealdb",
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+			Path:   "/" + surrealDBName + "/" + surrealDBName,
+		}
+		return u.String()
+	}
+}
+
+// SurrealDB is every SurrealDB release dbmeta is tested against.
+//
+// 2.7.0 and 3.3.0 on every push, because they are the two ends of two major
+// lines whose HTTP interfaces differ. 3.1.6 and 3.2.4 run nightly.
+var SurrealDB = list{}.add(surrealdb, Tested, "2.7.0", "3.3.0").
+	add(surrealdb, Nightly, "3.1.6", "3.2.4")

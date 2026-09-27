@@ -200,16 +200,18 @@ password in `container.Password`:
 | Exasol | `sys` | `exasol`, the vendor default, on the nano image and on the Community Edition machine |
 | Vertica | `dbmeta`, a pseudo superuser | `container.Password` |
 | Couchbase | `Administrator` | `container.Password` |
+| SurrealDB | `root` | `container.Password` |
 | Cassandra, ScyllaDB | `cassandra` | `cassandra` |
 | Apache Hive | `hive` | none. The image configures no authentication. |
 | Trino, Presto | `trino`, `presto` | none |
 
-One product also has an ordinary user that its setup creates. On Couchbase it
-is `container.CouchbaseUser`, which is `dbmeta_user`, with
-`container.Password` (D96). `dsn --json` prints it in the `principals` field,
-after the administrator, with its own connection string (D102). Every other
-ordinary user is created by the test that needs it and dropped when that test
-ends.
+Two products also have an ordinary user that their setup creates, both named
+`dbmeta_user` with `container.Password`. On Couchbase it is
+`container.CouchbaseUser` (D96). On SurrealDB it is `container.SurrealDBUser`,
+a user on the database `dbmeta` in the namespace `dbmeta` (D103). `dsn --json`
+prints each in the `principals` field, after the administrator, with its own
+connection string (D102). Every other ordinary user is created by the test
+that needs it and dropped when that test ends.
 
 ## Output
 

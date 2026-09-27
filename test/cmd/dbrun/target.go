@@ -83,6 +83,9 @@ type target struct {
 	// whose catalog is not there until it is. Empty for every product but
 	// Apache Hive.
 	Init []string `json:"-"`
+	// InitInput is sent to Init on its standard input. See
+	// container.Server.InitInput.
+	InitInput string `json:"-"`
 
 	// Viewer is the port a machine's screen is on, so that somebody can
 	// watch an install that is not finishing.
@@ -225,6 +228,7 @@ func targets() []target {
 			Run:        s.RunArgs(s.Name(), port),
 			Ready:      s.ReadyArgs(s.Name()),
 			Init:       s.InitArgs(s.Name()),
+			InitInput:  s.InitInput,
 			Startup:    s.Startup,
 			Settle:     s.Settle,
 			Remove:     s.RemoveArgs(s.Name()),

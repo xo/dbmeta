@@ -146,11 +146,13 @@ into each release:
 | `name` | the product, the first half of every server name |
 | `image` | the image without its tag, with the registry written out, such as `docker.io/library/postgres` |
 | `major` | turns a release into the name a person uses. Only Oracle needs it. |
+| `tagPrefix` | text before the release in the tag, such as `v` for SurrealDB |
 | `tagSuffix` | text after the release in the tag, such as `-latest` for SQL Server |
 | `port` | the port inside the container that the tests connect to |
 | `env` | the environment the image needs, such as its password |
 | `ready` | a command, run inside the container, that exits 0 once the server answers |
 | `init` | a command, run inside the container on every start after `ready` passes |
+| `initInput` | text sent to `init` on its standard input, for an image with no shell, such as SurrealDB's |
 | `runFlags` | flags for the run command, before the image name |
 | `args` | arguments for the entrypoint of the image, after the image name |
 | `memory` | a memory limit above `MemoryLimit`, with its measurement |
@@ -173,6 +175,8 @@ Each of these was a real fault. The right form is what the entry does now.
 | ScyllaDB's salted password was passed as it is | The entrypoint writes its arguments into a file that a shell reads, and the shell took each `$` as a variable. | Escape each `$` once. |
 | SAP HANA ran with `--ulimit nofile=1048576:1048576` | Rootless podman refuses a limit above the host's hard limit, and the container already had it. | No flag. |
 | ScyllaDB 2026.3 was expected to create `cassandra` | It creates no default superuser. | Name the superuser at start with `--auth-superuser-name`. |
+| SurrealDB stored its data in `/data` | The image runs as a user that cannot write `/data`, and RocksDB refused to start. | Store it in `/tmp`, in the container's own layer, which keeps it across a stop. |
+| SurrealDB's setup was going to run `surreal sql` | It exits 0 when a statement fails, so a failed setup reads as a success. | Run `surreal import` on `/dev/stdin`, which exits 1. |
 
 ## Check it
 

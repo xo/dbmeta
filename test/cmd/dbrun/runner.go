@@ -86,6 +86,17 @@ func (r runner) output(ctx context.Context, args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
+// outputIn runs the runner with input on its standard input, and returns what
+// it said. An empty input sends nothing, the same as output.
+func (r runner) outputIn(ctx context.Context, input string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, r.name, args...)
+	if input != "" {
+		cmd.Stdin = strings.NewReader(input)
+	}
+	out, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(out)), err
+}
+
 // quiet runs the runner and reports only whether it worked.
 func (r runner) quiet(ctx context.Context, args ...string) bool {
 	_, err := r.output(ctx, args...)

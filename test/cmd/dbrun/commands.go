@@ -334,7 +334,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		// The output is kept on failure, because the exit status alone says
 		// nothing. A Hive run failed in CI with "exit status 2" and no way
 		// to tell which statement beeline refused.
-		if out, err := r.output(ctx, t.Init...); err != nil {
+		if out, err := r.outputIn(ctx, t.InitInput, t.Init...); err != nil {
 			return fmt.Errorf("installing the catalog: %w\n%s", err, lastLines(out, 10))
 		}
 	}

@@ -54,6 +54,7 @@ const (
 	PostgreSQL Dialect = "postgres"
 	SQLite3    Dialect = "sqlite3"
 	SQLServer  Dialect = "sqlserver"
+	SurrealDB  Dialect = "surrealdb"
 	Trino      Dialect = "trino"
 	Vertica    Dialect = "vertica"
 )
