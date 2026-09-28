@@ -99,8 +99,12 @@ var influxdb1 = product{
 	init: []string{"sh", "-c", "set -e\n" +
 		influx1("SET PASSWORD FOR "+InfluxDBUser+" = '"+Password+"'") + "\n" +
 		influx1("GRANT READ ON "+influxDatabase+" TO "+InfluxDBUser) + "\n"},
-	dsn:   influxHTTP(influxAdmin, Password),
-	users: []Principal{{Role: User, User: InfluxDBUser, dsn: influxHTTP(InfluxDBUser, Password)}},
+	dsn: influxHTTP(influxAdmin, Password),
+	url: influxURL(influxAdmin, Password),
+	users: []Principal{{
+		Role: User, User: InfluxDBUser,
+		dsn: influxHTTP(InfluxDBUser, Password), url: influxURL(InfluxDBUser, Password),
+	}},
 }
 
 // influx1 runs one statement in the influx shell of InfluxDB 1 as the admin.
@@ -140,9 +144,13 @@ var influxdb2 = product{
 	// server again, so the check asks for the bucket with the token.
 	ready: []string{"sh", "-c", "influx bucket list --name " + influxDatabase +
 		" --token \"$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN\" > /dev/null"},
-	init:  []string{"sh", "-c", influx2Setup},
-	dsn:   influxHTTP(influxTokenName, InfluxDBToken),
-	users: []Principal{{Role: User, User: InfluxDBUser, dsn: influxHTTP(InfluxDBUser, Password)}},
+	init: []string{"sh", "-c", influx2Setup},
+	dsn:  influxHTTP(influxTokenName, InfluxDBToken),
+	url:  influxURL(influxTokenName, InfluxDBToken),
+	users: []Principal{{
+		Role: User, User: InfluxDBUser,
+		dsn: influxHTTP(InfluxDBUser, Password), url: influxURL(InfluxDBUser, Password),
+	}},
 }
 
 // influxServe writes the token file and starts the server.
@@ -176,6 +184,24 @@ var influxdb = product{
 	-d '{"db":"` + influxDatabase + `"}' http://127.0.0.1:8181/api/v3/configure/database)
 [ "$code" = 200 ] || [ "$code" = 409 ] || { echo "creating the database answered $code"; exit 1; }`},
 	dsn: influxHTTP(influxTokenName, InfluxDBToken),
+	url: influxURL(influxTokenName, InfluxDBToken),
+}
+
+// influxURL is the address of the database dbmeta as one user, in the form
+// dbimp's influxdb driver takes and dburl parses. The scheme is influxdb for
+// both dialects, because the driver registers one name, and it reads which
+// release answers from /ping, so the URL needs no query. dbimp's D82 holds
+// the form, and dbimp measured it on all seven releases.
+func influxURL(user, password string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: "influxdb",
+			User:   url.UserPassword(user, password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+			Path:   "/dbmeta",
+		}
+		return u.String()
+	}
 }
 
 // influxHTTP is the address of the HTTP API, with one user and password.
