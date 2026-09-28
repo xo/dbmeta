@@ -1,4 +1,4 @@
-// Command dbrun starts the databases dbmeta is tested against.
+// Command dbrun starts the databases this project uses.
 //
 // It is the only thing that starts one. D68 says so, and this exists because
 // a rule nobody can follow is a rule that gets broken: the shell script it
@@ -197,7 +197,7 @@ func splitArgs(args []string) ([]string, []string) {
 //
 //nolint:dupword // a help text names each command twice on purpose,
 func usage(w *os.File) {
-	fmt.Fprint(w, `dbrun starts the databases dbmeta is tested against.
+	fmt.Fprint(w, `dbrun starts the databases this project uses.
 
 It is the only thing that starts one, which is D68. The list of releases lives
 in the Go package github.com/xo/dbmeta/container, so this command and the CI
