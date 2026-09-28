@@ -59,6 +59,9 @@ func makeRoom(ctx context.Context, r runner, keep string, o options) error {
 		}
 	}
 	names := r.runningSince(ctx, known)
+	// One inspect reads the owner of every running server, rather than
+	// three calls for each.
+	r.load(ctx, names)
 	up := make([]holder, len(names))
 	for i, name := range names {
 		up[i] = holder{name: name, owner: r.owner(ctx, name), who: r.who(ctx, name)}
@@ -147,6 +150,13 @@ func printJSON(picked []target, o options) error {
 func withRunner(ctx context.Context, command string, picked []target, o options) error {
 	r, err := newRunner()
 	if err != nil {
+		return err
+	}
+	// One listing says which targets have no container, which is most of
+	// them. status and version only read, so one inspect of the rest answers
+	// them too. A command that acts inspects each one it reaches.
+	readOnly := command == "status" || command == "version"
+	if r, err = r.remember(ctx, picked, readOnly); err != nil {
 		return err
 	}
 	if o.asJSON {
@@ -493,6 +503,12 @@ func doRemove(ctx context.Context, r runner, t target, o options) error {
 			fmt.Printf("  kept %s\n", t.Name)
 			return nil
 		}
+	}
+	// A container that is not there has nothing to remove, and saying
+	// removed would be false. It costs no call, because the listing already
+	// said so.
+	if !r.exists(ctx, t.Name) {
+		return nil
 	}
 	if t.Kind == kindMachine {
 		r.quiet(ctx, "rm", "--force", t.Name)

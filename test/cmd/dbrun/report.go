@@ -23,7 +23,8 @@ type statusEntry struct {
 	Owner     string `json:"owner"`
 	OwnerName string `json:"ownerName,omitempty"`
 	Mine      bool   `json:"mine"`
-	// Started is when the server last started, as the runner writes it.
+	// Started is when the server last started, in RFC 3339, as inspect
+	// writes it in JSON under both runners.
 	Started string `json:"started,omitempty"`
 }
 

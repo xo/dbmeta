@@ -31,7 +31,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 121. Read the status, because 36
+`docs/decisions/README.md` is a table of all 122. Read the status, because 36
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -59,6 +59,7 @@ Then by what you are doing:
 | running a product that needs a licence file, such as Stardog | `docs/DBRUN.md`, under Licence files, and D118. Never sign up for one or download one yourself |
 | adding an entry for a product dbimp or usql reaches | D118, which holds the rules the entries follow and what each one cost to measure |
 | changing how a database is started | D68, D70, D75, D86, D97, D98, D105, D108 and D115 in `docs/decisions/`, then `docs/DBRUN.md` |
+| changing how dbrun calls podman or docker | D122. Read JSON, name many containers in one call, and do not ask twice |
 | provisioning a Windows machine | `docs/WINDOWS.md`, then `container/windows.go` and D57 |
 | testing against Cassandra | `test/cmd/dbrun/image/cassandra.Containerfile`. `dbrun` embeds it and builds it when the image is missing |
 | changing the CI workflow | D69. It reads the release list from `dbrun list --json` and names no image of its own |

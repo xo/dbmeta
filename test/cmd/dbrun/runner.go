@@ -10,12 +10,146 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
 // runner is the container command, podman unless DBMETA_RUNNER says otherwise.
 type runner struct {
 	name string
+
+	// seen is what the runner said about each container, so that a command
+	// asks once rather than once for each fact. It is nil where nothing
+	// filled it, and every read then asks the runner. See [runner.remember].
+	seen *seen
+}
+
+// seen holds what inspect said about each container, keyed by name. A name
+// that maps to nil is one the runner does not have.
+type seen struct {
+	mu     sync.Mutex
+	byName map[string]*seenContainer
+}
+
+// seenContainer is what inspect says about one container.
+type seenContainer struct {
+	status  string
+	started string
+	labels  map[string]string
+	ports   map[string]string
+}
+
+// remember fills what the runner knows about the targets picked, in at most
+// two calls, where every fact used to be a call of its own. A status of every
+// target was some 160 targets and several calls each, and it took ten
+// seconds. ps lists the containers that exist, and a target it does not list
+// is remembered as absent, which is the answer for most targets. With all,
+// one inspect of the ones that exist reads the rest, which is what status
+// and version want. Without it, each one that exists is inspected once, when
+// a command first asks about it.
+//
+// A container a command acts on is forgotten when it acts, so that the next
+// read asks the runner again. See [runner.forget].
+func (r runner) remember(ctx context.Context, picked []target, all bool) (runner, error) {
+	r.seen = &seen{byName: map[string]*seenContainer{}}
+	out, err := r.output(ctx, "ps", "--all", "--format", "{{.Names}}")
+	if err != nil {
+		return r, fmt.Errorf("listing the containers: %w: %s", err, out)
+	}
+	exist := map[string]bool{}
+	for name := range strings.FieldsSeq(out) {
+		exist[name] = true
+	}
+	var present []string
+	for _, t := range picked {
+		switch {
+		case t.Kind != kindContainer && t.Kind != kindMachine:
+		case exist[t.Name]:
+			present = append(present, t.Name)
+		default:
+			r.seen.byName[t.Name] = nil
+		}
+	}
+	if all {
+		r.load(ctx, present)
+	}
+	return r, nil
+}
+
+// load inspects several containers in one call and remembers each. A name
+// the runner no longer has, because it was removed after the listing, makes
+// the call fail, and then nothing is remembered and each is asked for alone.
+func (r runner) load(ctx context.Context, names []string) {
+	if r.seen == nil || len(names) == 0 {
+		return
+	}
+	cmd := exec.CommandContext(ctx, r.name, append([]string{"inspect"}, names...)...)
+	body, err := cmd.Output()
+	if err != nil {
+		return
+	}
+	got, err := parseInspect(body)
+	if err != nil {
+		return
+	}
+	r.seen.mu.Lock()
+	defer r.seen.mu.Unlock()
+	for name, c := range got {
+		r.seen.byName[name] = &c
+	}
+}
+
+// look is what the runner says about one container, and false when it has
+// no such container. It asks the runner only for a container it has not
+// remembered, and remembers the answer.
+func (r runner) look(ctx context.Context, name string) (seenContainer, bool) {
+	if r.seen != nil {
+		r.seen.mu.Lock()
+		c, known := r.seen.byName[name]
+		r.seen.mu.Unlock()
+		if known {
+			if c == nil {
+				return seenContainer{}, false
+			}
+			return *c, true
+		}
+	}
+	body, err := exec.CommandContext(ctx, r.name, "inspect", name).Output()
+	var got map[string]seenContainer
+	if err == nil {
+		got, err = parseInspect(body)
+	}
+	c, ok := got[name]
+	if err != nil || !ok {
+		// Absent, or the runner would not say. Neither is remembered,
+		// because a failure is not proof that the container is gone.
+		return seenContainer{}, false
+	}
+	if r.seen != nil {
+		r.seen.mu.Lock()
+		r.seen.byName[name] = &c
+		r.seen.mu.Unlock()
+	}
+	return c, true
+}
+
+// forget drops what is remembered about every container a runner command
+// names, before the command runs. start, stop, rm, run and exec change what
+// is true of the container or can see it change, so the next read asks the
+// runner. inspect and ps only read, and change nothing.
+func (r runner) forget(args []string) {
+	if r.seen == nil || len(args) == 0 {
+		return
+	}
+	switch args[0] {
+	case "inspect", "ps", "image", "build":
+		return
+	}
+	r.seen.mu.Lock()
+	defer r.seen.mu.Unlock()
+	for _, a := range args {
+		delete(r.seen.byName, a)
+	}
 }
 
 // newRunner finds the container command.
@@ -81,6 +215,7 @@ func sortedKeys(m map[string]string) []string {
 
 // output runs the runner and returns what it said, stdout and stderr together.
 func (r runner) output(ctx context.Context, args ...string) (string, error) {
+	r.forget(args)
 	cmd := exec.CommandContext(ctx, r.name, args...)
 	out, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(out)), err
@@ -89,6 +224,7 @@ func (r runner) output(ctx context.Context, args ...string) (string, error) {
 // outputIn runs the runner with input on its standard input, and returns what
 // it said. An empty input sends nothing, the same as output.
 func (r runner) outputIn(ctx context.Context, input string, args ...string) (string, error) {
+	r.forget(args)
 	cmd := exec.CommandContext(ctx, r.name, args...)
 	if input != "" {
 		cmd.Stdin = strings.NewReader(input)
@@ -103,14 +239,51 @@ func (r runner) quiet(ctx context.Context, args ...string) bool {
 	return err == nil
 }
 
+// parseInspect reads what inspect writes for several containers, keyed by
+// name. podman and docker write the same JSON, except that docker writes the
+// name with a leading slash.
+func parseInspect(body []byte) (map[string]seenContainer, error) {
+	var all []struct {
+		Name  string `json:"Name"`
+		State struct {
+			Status    string `json:"Status"`
+			StartedAt string `json:"StartedAt"`
+		} `json:"State"`
+		Config struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+		NetworkSettings struct {
+			Ports map[string][]struct {
+				HostPort string `json:"HostPort"`
+			} `json:"Ports"`
+		} `json:"NetworkSettings"`
+	}
+	if err := json.Unmarshal(body, &all); err != nil {
+		return nil, fmt.Errorf("reading what inspect said: %w", err)
+	}
+	seen := make(map[string]seenContainer, len(all))
+	for _, c := range all {
+		ports := make(map[string]string, len(c.NetworkSettings.Ports))
+		for port, binds := range c.NetworkSettings.Ports {
+			if len(binds) != 0 {
+				ports[strings.TrimSuffix(port, "/tcp")] = binds[0].HostPort
+			}
+		}
+		seen[strings.TrimPrefix(c.Name, "/")] = seenContainer{
+			status:  c.State.Status,
+			started: c.State.StartedAt,
+			labels:  c.Config.Labels,
+			ports:   ports,
+		}
+	}
+	return seen, nil
+}
+
 // state is what the runner says about a container, which is "running",
 // "created", "exited" or empty when there is no such container.
 func (r runner) state(ctx context.Context, name string) string {
-	out, err := r.output(ctx, "inspect", "--format", "{{.State.Status}}", name)
-	if err != nil {
-		return ""
-	}
-	return out
+	c, _ := r.look(ctx, name)
+	return c.status
 }
 
 func (r runner) running(ctx context.Context, name string) bool {
@@ -128,23 +301,8 @@ func (r runner) exists(ctx context.Context, name string) bool {
 // Both runners report the same shape: {"8080/tcp":[{"HostIp":"...",
 // "HostPort":"55038"}]}.
 func (r runner) hostPorts(ctx context.Context, name string) (map[string]string, bool) {
-	out, err := r.output(ctx, "inspect", "--format", "{{json .NetworkSettings.Ports}}", name)
-	if err != nil {
-		return nil, false
-	}
-	var raw map[string][]struct {
-		HostPort string `json:"HostPort"`
-	}
-	if err := json.Unmarshal([]byte(out), &raw); err != nil {
-		return nil, false
-	}
-	ports := make(map[string]string, len(raw))
-	for port, binds := range raw {
-		if len(binds) != 0 {
-			ports[strings.TrimSuffix(port, "/tcp")] = binds[0].HostPort
-		}
-	}
-	return ports, true
+	c, ok := r.look(ctx, name)
+	return c.ports, ok
 }
 
 // create starts a container that does not exist yet.

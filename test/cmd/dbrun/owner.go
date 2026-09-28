@@ -64,12 +64,8 @@ func withOwner(args []string, owner, name string) []string {
 // label reads one label of a container, and is empty when it has none or
 // there is no such container.
 func (r runner) label(ctx context.Context, name, label string) string {
-	out, err := r.output(ctx, "inspect", "--format",
-		`{{index .Config.Labels "`+label+`"}}`, name)
-	if err != nil || out == "<no value>" {
-		return ""
-	}
-	return out
+	c, _ := r.look(ctx, name)
+	return c.labels[label]
 }
 
 // who says who owns a server, for a person to read: the friendly name and
@@ -90,11 +86,8 @@ func (r runner) owner(ctx context.Context, name string) string {
 
 // startedAt reads when a container last started, as the runner writes it.
 func (r runner) startedAt(ctx context.Context, name string) string {
-	out, err := r.output(ctx, "inspect", "--format", "{{.State.StartedAt}}", name)
-	if err != nil {
-		return ""
-	}
-	return out
+	c, _ := r.look(ctx, name)
+	return c.started
 }
 
 // mayTouch reports whether the caller may stop, remove, restart or rebuild a

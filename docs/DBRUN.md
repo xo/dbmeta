@@ -10,8 +10,8 @@ Read the rules first. Then find your task under Common tasks, and use the
 reference sections below them when you need a detail. To add a release, a
 product or a virtual machine to what `dbrun` can start, read
 [`CONTAINERS.md`](CONTAINERS.md) instead. The reasons behind the design are in
-`decisions/`: D68, D69, D75, D82, D86, D97, D98, D105, D108, D115, D116, D117, D118 and
-D119.
+`decisions/`: D68, D69, D75, D82, D86, D97, D98, D105, D108, D115, D116, D117, D118,
+D119, D120 and D122.
 
 Run every command from the `test` directory of a dbmeta checkout:
 
@@ -22,6 +22,12 @@ cd test && go run ./cmd/dbrun help
 To run it from anywhere, build it once with
 `go build -o ~/bin/dbrun ./cmd/dbrun`. The examples below write `dbrun` for
 either form.
+
+The built program is faster. `go run` compiles dbrun on every command, which
+takes a second or more, and that is more than a status of every target now
+costs (D122). If you run many commands, build it once and run the program.
+Build it again after you pull, because a program built earlier holds the list
+of releases it was built with.
 
 ## Rules for a shared machine
 
@@ -349,7 +355,7 @@ more. With `-a`, it prints the stopped servers too.
 | `owner` | who started the server, and empty when it has no owner |
 | `ownerName` | the friendly name the owner gave itself with `DBMETA_OWNER_NAME`, when it gave one |
 | `mine` | whether the owner is you |
-| `started` | when the server last started, as the container runner writes it |
+| `started` | when the server last started, in RFC 3339, as `inspect` writes it in JSON under podman and docker |
 
 `version --json` prints one object for each running server, with `name`,
 `display` for the line a person reads, and `versions`, which maps each key
