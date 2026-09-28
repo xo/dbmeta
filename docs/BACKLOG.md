@@ -66,6 +66,29 @@ requests were built by hand (D113). Build them with the Go driver
 apache/calcite-avatica-go instead, and find whether HSQLDB then checks the
 user. If it does, the entry can make one.
 
+### Take the dburl release after v0.35.0
+
+dburl commit 62a1de0 on main changes three URLs that dbrun hands out. It is
+not tagged yet. When it is tagged, move the test module to it and change
+these:
+
+1. Spanner (dburl D35). The URL is now
+   `spanner://host:port/project/instance/database`, and a query option passes
+   to the driver. `container/spanner.go` prints the old form,
+   `spanner://admin@dbmeta/dbmeta/dbmeta`, which the release refuses. Print
+   `spanner://127.0.0.1:<port>/dbmeta/dbmeta/dbmeta?usePlainText=true`, which
+   reaches the emulator without `SPANNER_EMULATOR_HOST`.
+2. GizmoSQL (dburl D36). `gizmosql://` has the dialect `gizmosql` and opens
+   the flightsql driver, on the default port 31337. `container/gizmosql.go`
+   prints `flightsql://` today.
+3. QuestDB (dburl D36). `questdb://` has the dialect `questdb` and opens pgx
+   on 8812, the PostgreSQL port of QuestDB. `container/questdb.go` publishes
+   only 9000, the HTTP port, so dbrun cannot give a `questdb://` URL until it
+   publishes 8812 too.
+
+`cratedb://` no longer adds the port 5432, so pgx reads `PGPORT` when a URL
+names no port. dbrun always names the port, so nothing changes for it.
+
 ## Consumers
 
 ### usql reads metadata through dbmeta
