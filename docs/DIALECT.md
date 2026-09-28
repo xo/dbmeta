@@ -83,7 +83,11 @@ Add `container/<product>.go`. One file per database, holding the product, its
 release list and any helper only it needs. Give the product var a doc comment.
 
 The list names every release and its tier. Read D40 for the tiers and D42 for
-what runs on a push against what runs nightly.
+what runs on a push against what runs nightly. If the product already has a
+Staged entry, because dbrun started it for dbimp or for a flavor before the
+model existed, move its releases to Tested or Nightly in the change that adds
+the model. `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` fails until you do
+(D119).
 
 Add the product to `All()` in `container/container.go`. Do this before anything
 else that needs a server, because D68 means nothing else may start one.
@@ -182,7 +186,9 @@ What changes for an embedded database:
 - The test opens a file in `t.TempDir()` rather than reading a DSN from the
   environment, and never skips for a missing server.
 - CI runs them in the same matrix as the servers, and `dbrun test` starts
-  nothing for them. Nothing to add.
+  nothing for them. An embedded database that `dbrun` knew before its model,
+  such as chai, is Staged until the model arrives, and then it is Tested
+  with no change to `dbrun` (D116, D119).
 - They go in `parityExempt` with the reason, not in `parityTargets`. A file on
   disk has no user, so there is no second principal to be, and hard rule 16
   cannot reach them. That is an exemption for the only reason an exemption is

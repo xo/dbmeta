@@ -542,14 +542,16 @@ fail, and a failure is a finding to record rather than a fault to hide.
 
 ### Which combinations to run
 
-Every release sits in one of four tiers (D40, D42). Tested runs in CI on every
-push, and Nightly runs once a night. Verified runs on a development machine
-before a release and never in CI. Archived has no tests. `container/` holds
+Every release sits in one of five tiers (D40, D42, D119). Tested runs in CI on
+every push, and Nightly runs once a night. Verified runs on a development
+machine before a release and never in CI. Staged is a release that `dbrun`
+starts and no model reads yet, and CI never runs it. Archived has no tests. `container/` holds
 the list, and the workflow reads it through `dbrun list --json --names`
 (D69). CI compiles the tests once and every job runs the binary (D82). The
 embedded databases run in the same matrix and start nothing. A separate job
-compares MariaDB with MySQL (D44). CockroachDB, Redshift and TiDB have no
-entry yet.
+compares MariaDB with MySQL (D44). CockroachDB and TiDB have Staged entries,
+which move when the models detect them, and Redshift is a hosted service
+(D117, D118).
 
 The Verified tier must run before a release (D64).
 

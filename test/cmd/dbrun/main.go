@@ -59,6 +59,7 @@ type options struct {
 	force       bool
 	follow      bool
 	all         bool
+	reveal      bool
 	render      bool
 	watch       bool
 	timeout     time.Duration
@@ -91,6 +92,7 @@ func run(args []string) error {
 	fs.BoolVar(&o.follow, "f", false, "follow the log")
 	fs.BoolVar(&o.all, "a", false, "with status, also show the stopped servers")
 	fs.BoolVar(&o.all, "all", false, "with status, also show the stopped servers")
+	fs.BoolVar(&o.reveal, "reveal", false, "with dsn, print a hosted service's connection string with its secret")
 	fs.BoolVar(&o.render, "render", false,
 		"with provision, write the OEM folder and stop, without downloading or starting anything")
 	fs.BoolVar(&o.watch, "watch", false,
@@ -214,7 +216,7 @@ Commands:
   test        run the integration tests against it
   logs        show what the server said
   list        show what a selector expands to, without touching anything
-  build       build the images this repository makes, for Cassandra and Oracle 19c
+  build       build the images this repository makes, such as Cassandra's
   provision   build a Windows machine, which takes about an hour, or import
               an appliance from the file you downloaded, which takes minutes
   help        this
@@ -227,6 +229,7 @@ Selectors:
   tested          the releases CI runs on every push
   nightly         the releases CI runs at night
   verified        the releases a person runs before a release, never in CI
+  staged          the releases no model reads yet, which CI never runs
   all             every release of every product
 
 Flags:
@@ -244,12 +247,21 @@ Flags:
   --from          with provision, the appliance image you downloaded
   -f              follow the log
   -a, --all       with status, also show the stopped servers and who made them
+  --reveal        with dsn, print a hosted service's secret rather than masking it
 
 Environment:
   DBMETA_RUNNER         podman by default, set to docker to use that instead
   DBMETA_OWNER          who you are, which dbrun labels each server it creates
                         with. It defaults to the coding agent's session, or to
                         your login name
+  DBMETA_<NAME>_DSN     the connection string of a hosted service, such as
+                        DBMETA_SNOWFLAKE_DSN. The service appears only while
+                        it, a file in $XDG_CONFIG_HOME/dbmeta/credentials or a
+                        dbmeta-credential-<name> helper has one
+  DBMETA_<PRODUCT>_LICENSE
+                        the licence file of a product that needs one, such as
+                        DBMETA_STARDOG_LICENSE. The product appears only while
+                        it or a file in $XDG_CONFIG_HOME/dbmeta/licenses has one
   DBMETA_OWNER_NAME     your friendly name, such as dbimp, which status shows
                         beside the owner. A coding agent sets it to the name
                         of its session

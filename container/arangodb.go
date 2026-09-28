@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-// The ArangoDB releases dbmeta is tested against.
+// The ArangoDB releases dbrun starts.
 //
 // dbmeta has no ArangoDB model. The release is here so that dbrun can start a
 // server for the tests of the ArangoDB driver in github.com/xo/dbimp. No
@@ -89,7 +89,8 @@ func arangoHTTP(user string) func(port int) string {
 	}
 }
 
-// ArangoDB is every ArangoDB release dbmeta is tested against.
+// ArangoDB is every ArangoDB release dbrun starts.
 //
-// One release on every push, because only the 3.12 line is still built.
-var ArangoDB = list{}.add(arangodb, Tested, "3.12.12")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var ArangoDB = list{}.add(arangodb, Staged, "3.12.12")

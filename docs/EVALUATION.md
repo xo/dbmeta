@@ -71,8 +71,8 @@ The floor is the oldest release whose image is still rebuilt.
 
 Some publishers never rebuild a tag. They build each release once, on the
 day it is released, and only a new release gets a new build. Databend,
-rqlite, libSQL, TDengine, Apache Pinot, Avatica and Apache Druid work this
-way. For such a product,
+rqlite, libSQL, TDengine, Apache Pinot, Avatica, Apache Druid and most of
+the products D118 added work this way. For such a product,
 the floor is the newest release of the line before the newest, and the
 ceiling is the newest release. A product with one line has one release. Ken
 chose this rule on 2026-09-27 (D112).
@@ -379,17 +379,50 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Neo4j | 5.26.31 | 2026.09.0 | Criterion 2. 4.4.48, 5.26.31 and 2026.09.0 were rebuilt on 2026-09-26, and a monthly release stops being rebuilt when the next one arrives. 4.4 is out, because its Enterprise image starts only with the commercial licence. The ceiling moves each month. There is no dbmeta model, and the entry is for dbimp's driver (D106) |
 | SurrealDB | 2.7.0 | 3.3.0 | Criterion 2. 2.7.0 was rebuilt on 2026-09-23 and 3.3.0 on 2026-09-24, and between them 3.1.6 on 2026-09-01 and 3.2.4 on 2026-08-03. 1.5.6 was last rebuilt in November 2024, and 2.6.5 and 3.0.5 in March 2026. There is no dbmeta model, and the entry is for dbimp's driver |
 | ArangoDB | 3.12.12 | 3.12.12 | Criterion 2. Only the 3.12 line is still built: 3.12.12 was rebuilt on 2026-09-24, and 3.11.14 was last built on 2025-05-24. The release moves with each patch. The entry is for dbimp's driver (D112) |
-| InfluxDB | 1.11.8 | 3.11.5 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. Ken chose the tiers in dbimp's D79: the newest of 1 and 2 Tested and the oldest Nightly, and 3.9.13 and 3.11.5 Tested. The entries are for dbimp's driver (D112, D114) |
+| InfluxDB | 1.11.8 | 3.11.5 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. Ken chose the releases in dbimp's D79. The entries are for dbimp's driver, and no model reads them, so they are Staged (D112, D114, D119) |
 | CrateDB | 6.3.7 | 6.4.5 | Criterion 2. 6.4.5 and 6.3.7 were rebuilt in September 2026, and 6.2 last on 2026-07-09. The entry is for dbimp's driver (D112) |
 | TDengine | 3.3.8.8 | 3.4.2.8 | The rule for an image that is never rebuilt: the newest release of each of the last two lines (D112). The entry is for dbimp's driver |
 | Apache Pinot | 1.4.0 | 1.5.1 | The rule for an image that is never rebuilt (D112). Apache supports only the newest release. The entry is for dbimp's driver |
-| Databend | 1.2.881 | 1.2.948-nightly | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. The entry is for dbimp's driver |
+| Databend | 1.2.881 | 1.2.948 | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. The entry is for dbimp's driver |
 | rqlite | 9.4.5 | 10.3.6 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver |
 | libSQL | 0.24.33 | 0.24.33 | The rule for an image that is never rebuilt (D112). libSQL has one line, and its newest release was built on 2025-12-19. The entry is for dbimp's driver |
 | chai, csvq, ql, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
 | Avatica | 1.28.0 | 1.29.0 | The rule for an image that is never rebuilt (D112). The standalone server over HSQLDB, which the Calcite project builds. The entry is for dbimp's Avatica driver (D113) |
 | Apache Phoenix | 2.0-5.0 | 2.0-5.0 | An exception to step 2, which Ken made (D113). The Phoenix project publishes no image, and the only one that runs in one container, boostport/hbase-phoenix-all-in-one, was last pushed on 2023-03-14. The entry is for dbimp's Avatica driver |
 | Apache Druid | 36.0.0 | 37.0.0 | The rule for an image that is never rebuilt (D112). 38.0.0-rc1 is a candidate. The entry is for dbimp's Avatica driver (D113) |
+| Qdrant | 1.18.3 | 1.19.1 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| Chroma | 1.4.1 | 1.5.9 | The rule for an image that is never rebuilt (D112). The 1.5.10.dev tags are development builds. The entry is for dbimp's driver (D118) |
+| Weaviate | 1.38.17 | 1.39.7 | The rule for an image that is never rebuilt (D112). An older line still gets releases. The entry is for dbimp's driver (D118) |
+| CouchDB | 3.4.3 | 3.5.2 | Criterion 2. 3.5.2 and 3.4.3 were rebuilt on 2026-09-19, and 3.3.3 last on 2025-04-29. The entry is for dbimp's driver (D118) |
+| QuestDB | 9.4.3 | 10.0.1 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| Meilisearch | 1.53.2 | 1.54.0 | The rule for an image that is never rebuilt (D112). A minor release arrives about every two weeks, so the ceiling moves fast. The entry is for dbimp's driver (D118) |
+| Typesense | 29.1 | 30.2 | The rule for an image that is never rebuilt (D112). 31.0 is a release candidate. The entry is for dbimp's driver (D118) |
+| TerminusDB | 11.1.17 | 12.0.7 | The rule for an image that is never rebuilt (D112). 12.1-rc is a release candidate. The entry is for dbimp's driver (D118) |
+| CockroachDB | 24.3.36 | 26.3.2 | The rule for an image that is never rebuilt (D112) gives 26.2.7 and 26.3.2. 24.3.36 is kept too, because 24.3 is the oldest line with long term support still patched. No dialect until models/postgres detects it (D118) |
+| TiDB | 7.5.8 | 8.5.8 | Criterion 2. A tag is rebuilt while its line is maintained, and 7.5 is the oldest line with long term support still maintained. 8.1.2 is between them. No dialect until models/mysql detects it (D118) |
+| MongoDB | 7.0.43 | 8.3.11 | Criterion 2. 8.3.11, 8.0.32 and 7.0.43 were rebuilt in September 2026, and 6.0 last in May. 8.0.32, the line with long term support, is between them. The entry is for dbimp's driver (D118) |
+| Elasticsearch | 8.19.22 | 9.5.3 | Each tag is built once, and 8.19 is still patched, so it is the floor. 9.4.6 is between them. The entry is for dbimp's driver (D118) |
+| Dgraph | 25.3.8 | 25.4.1 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| YDB | 26.2.1.14 | 26.3.1.17 | The rule for an image that is never rebuilt (D112). usql reaches it with ydb-go-sdk, and dbmeta has no model yet (D118) |
+| Spanner | 1.5.58 | 1.5.58 | The rule for an image that is never rebuilt (D112). The emulator has one line. The image is built here, because Google's has no shell (D118) |
+| BigQuery | 0.7.2 | 0.8.1 | The rule for an image that is never rebuilt (D112). A community emulator, with a smaller INFORMATION_SCHEMA than the service (D118) |
+| GizmoSQL | 1.38.5 | 1.39.0 | The rule for an image that is never rebuilt (D112). The maintained Arrow Flight SQL server, for usql's flightsql driver (D118) |
+| Virtuoso | 7.2.17 | 7.2.17 | Criterion 2. 7.2.17 was rebuilt on 2026-08-05 and 7.2.16 last on 2025-10-15. The entry is for dbimp's SPARQL driver (D118) |
+| Alternator | 2025.1 | 2026.3 | The scylla entry's range, which D90 chose. The DynamoDB interface of ScyllaDB (D118) |
+| Vitess | 23.0.6 | 24.0.3 | The rule for an image that is never rebuilt (D112). No dialect until models/mysql detects it (D118) |
+| Milvus | 2.6.24 | 3.0.2 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| OpenSearch | 2.19.6 | 3.8.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| DynamoDB | 3.2.0 | 3.3.1 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary licence Ken accepted (D118) |
+| Cosmos | EN20260907 | EN20260907 | The vNext emulator is a dated build each month, built once, so the rule in D112 gives the newest. A Microsoft licence Ken accepted (D118) |
+| Stardog | 12.0.4 | 12.1.4 | The rule for an image that is never rebuilt (D112). Needs a licence file, and not yet measured (D118) |
+| GraphDB | 11.4.3 | 11.5.1 | The rule for an image that is never rebuilt (D112). GraphDB 11 needs a licence file, and not yet measured (D118) |
+| VoltDB | 14.1.0 | 15.2.0 | The rule for an image that is never rebuilt (D112). The developer edition needs a licence file, and not yet measured (D118) |
+| Solr | 9.9.0 | 10.0.0 | Criterion 2. 10.0.0, 9.10.1 and 9.9.0 were rebuilt on 2026-09-26. 9.10.1 is between them. The entry is for dbimp's driver (D118) |
+| Drill | 1.21.2 | 1.22.0 | The rule for an image that is never rebuilt (D112). The Java of 1.22.0 fails on a current host unless its container support is off (D118) |
+| H2 | 2.4.240 | 2.5.252 | The rule for an image that is never rebuilt (D112), applied to the jars on Maven Central. The image is built here (D118) |
+| Fuseki | 6.1.0 | 6.2.0 | The rule for an image that is never rebuilt (D112), applied to the jars on Maven Central. The image is built here (D118) |
+| PostgREST | 14.18 | 16.4 | The rule for an image that is never rebuilt (D112). There is no 15. The image is built here, on PostgreSQL 18 (D118) |
+| ksqlDB | 8.2.4 | 8.3.2 | The rule for an image that is never rebuilt (D112), from Confluent Platform's image, because confluentinc/ksqldb-server stopped in 2023. The image is built here, with the Kafka broker (D118) |
 | SQLite3 | none | none | No server. The release is whichever the driver embeds |
 | DuckDB | none | none | No server. The release is whichever the driver embeds |
 
@@ -432,9 +465,10 @@ recorded in `container/container.go` rather than in a script.
 
 ## What is still unevaluated
 
-Nothing that runs. Apache Druid, Apache Phoenix and Avatica were the last
-through the procedure (D113), and every product in `container.All` has a row
-in the table above. `TestEveryProductIsEvaluated` fails when one does not.
+Nothing that runs. The products D118 added were the last through the
+procedure, and every product in `container.All` has a row in the table above.
+Most of them are Staged, because no model reads them (D119). The tier does not
+change the range, which each row above still records. `TestEveryProductIsEvaluated` fails when one does not.
 The products `usql` ran that have no entry in `container/` are listed under
 "Candidates carried over from usql" below.
 
@@ -481,37 +515,20 @@ above.
 `usql` kept a podman configuration per database in `contrib/`, started by
 `podman-run.sh`. The products dbmeta already has a model for are started by
 `dbrun` from `container/`, and that list is the one copy of their images,
-ports, environment and passwords, so nothing of theirs was carried over. The
-six below have no entry in `container/`. A product gets one when dbmeta writes
-its model, or when dbimp needs a server for one of its drivers (D103, D112),
-so their container facts are recorded here instead, as `usql` had them on
-2026-09-27, and the next evaluation starts from them rather than from
-nothing.
+ports, environment and passwords, so nothing of theirs was carried over.
+CockroachDB, Flight SQL, H2 and YDB have Staged entries now, which D118 added
+from the vendors' current images rather than from these. Apache Ignite is
+gone: usql removed its driver on 2026-09-27 and dburl v0.31.0 dropped the
+scheme, and a product nothing reads is removed (D118).
 
-None of these was started by dbmeta. They are leads, the same as an AI
-model's answer, and step 2 of the procedure above still has to be run.
+The one below has no entry in `container/`. Its container facts are recorded
+here, as `usql` had them on 2026-09-27, so that its evaluation starts from them
+rather than from nothing. dbmeta did not start it. It is a lead, the same as an
+AI model's answer, and step 2 of the procedure above still has to be run.
 
 | Product | Image | Ports | Environment and setup |
 | --- | --- | --- | --- |
-| CockroachDB | `docker.io/cockroachdb/cockroach:latest` | 26257 | `COCKROACH_DATABASE`, `COCKROACH_USER`, `COCKROACH_PASSWORD`, and the command `start-single-node` |
 | Db2 | `icr.io/db2_community/db2` | 50000, 55000 | `LICENSE=accept`, `DB2INSTANCE=db2inst1`, `DB2INST1_PASSWORD`, `DBNAME=testdb`, and a volume at `/database` |
-| Flight SQL | `docker.io/voltrondata/flight-sql` | 31337 | `FLIGHT_PASSWORD` |
-| H2 | `docker.io/buildo/h2database` | 8082, 9092 | none |
-| Apache Ignite | `docker.io/usql/ignite` | 10800 | host networking, and the cluster activated after it starts with `control.sh --activate --user ignite --password ignite` inside the container. usql removed its Ignite driver on 2026-09-27 and dburl v0.31.0 dropped the scheme, so no consumer reads it now |
-| YDB | `cr.yandex/yc/yandex-docker-local-ydb` | 2135, 2136, 8765 | `GRPC_TLS_PORT=2135`, `GRPC_PORT=2136`, `MON_PORT=8765`, `YDB_DEFAULT_LOG_LEVEL=NOTICE`, the host name `localhost`, and volumes at `/ydb_certs` and `/ydb_data` |
-
-Two of these need a word before anybody starts one.
-
-CockroachDB speaks the PostgreSQL wire protocol, and `dburl` overrides its
-driver to `postgres`, so it is a flavor of the PostgreSQL model rather than a
-model of its own, the way MySQL is a flavor of MariaDB's. D14 and D44 hold
-what that means.
-
-Ignite needs a step after the container starts, and it is one command, which
-fits `container.Server.Init`. Couchbase was on this list and needed the same:
-`usql` recorded it as a person in a browser, and `couchbase-cli`, which ships
-in the image, makes the cluster and the bucket from `Init` instead. It has an
-entry and a model now (D94, D104).
 
 Two more `usql` targets are covered here and differ from what `usql` ran,
 which is worth knowing when comparing the two.

@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-// The CrateDB releases dbmeta is tested against.
+// The CrateDB releases dbrun starts.
 //
 // dbmeta has no CrateDB model. The releases are here so that dbrun can start a
 // server for the tests of the CrateDB driver in github.com/xo/dbimp, which
@@ -91,7 +91,8 @@ func crateHTTP(user string, password bool) func(port int) string {
 	}
 }
 
-// CrateDB is every CrateDB release dbmeta is tested against.
+// CrateDB is every CrateDB release dbrun starts.
 //
-// Both on every push, because they are the two ends.
-var CrateDB = list{}.add(cratedb, Tested, "6.3.7", "6.4.5")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var CrateDB = list{}.add(cratedb, Staged, "6.3.7", "6.4.5")

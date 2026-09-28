@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// The standalone Avatica releases dbmeta is tested against.
+// The standalone Avatica releases dbrun starts.
 //
 // Avatica is the wire protocol of Apache Calcite: JDBC calls over HTTP, in
 // protobuf or JSON. dbmeta has no Avatica model. The releases are here so that
@@ -95,7 +95,8 @@ func avaticaHTTP(user string) func(port int) string {
 	}
 }
 
-// Avatica is every standalone Avatica release dbmeta is tested against.
+// Avatica is every standalone Avatica release dbrun starts.
 //
-// Both on every push, because they are the newest of the last two lines.
-var Avatica = list{}.add(avatica, Tested, "1.28.0", "1.29.0")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var Avatica = list{}.add(avatica, Staged, "1.28.0", "1.29.0")

@@ -1,6 +1,6 @@
 # D106. Neo4j Enterprise runs under dbrun, under the evaluation agreement
 
-Status: Amended by D109.
+Status: Amended by D109 and D119.
 
 dbimp asked on 2026-09-27 for a `dbrun` entry for Neo4j, which Ken named as
 its third driver that day. dbimp's D59 chose the Enterprise Edition. Ken

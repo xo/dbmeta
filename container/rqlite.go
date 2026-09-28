@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-// The rqlite releases dbmeta is tested against.
+// The rqlite releases dbrun starts.
 //
 // dbmeta has no rqlite model. The releases are here so that dbrun can start a
 // server for the tests of the rqlite driver in github.com/xo/dbimp, which
@@ -68,7 +68,8 @@ func rqliteHTTP(user string) func(port int) string {
 	}
 }
 
-// Rqlite is every rqlite release dbmeta is tested against.
+// Rqlite is every rqlite release dbrun starts.
 //
-// Both on every push, because they are the newest of the last two lines.
-var Rqlite = list{}.add(rqlite, Tested, "9.4.5", "10.3.6")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var Rqlite = list{}.add(rqlite, Staged, "9.4.5", "10.3.6")

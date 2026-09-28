@@ -1,4 +1,5 @@
-// Package container names the database servers dbmeta is tested against.
+// Package container names the database servers that dbrun starts: the ones
+// dbmeta is tested against, and the Staged ones that no model reads yet.
 //
 // It holds data and nothing else. It starts no container, runs no command and
 // imports nothing outside the standard library. A caller reads the list and
@@ -9,6 +10,11 @@
 // terminal. Three copies drift, and the one that drifts quietly is the one
 // that decides which releases a release was tested against. Now there is one
 // copy and the others are checked against it.
+//
+// A release's Tier says how thoroughly it is tested, and a Staged release is
+// not tested by dbmeta at all. It is here so that dbrun can start it for a
+// sister project, such as dbimp, or for a flavor a model does not detect yet.
+// See D119.
 //
 // A downstream project reads this to run the same servers. dbtpl generates
 // against a live database and needs one of each. usql tests a metacommand
@@ -102,6 +108,12 @@ const (
 	// Verified means a person runs this release before a release, with
 	// dbrun, and CI does not.
 	Verified Tier = "verified"
+	// Staged means dbrun starts this release and no dbmeta model reads it
+	// yet, so CI does not run it. Each one was measured through dbrun when
+	// it was added: it starts, answers, sets up, and its users do what its
+	// file says. That is all the tier promises. A release moves to another
+	// tier when its model arrives. See D119.
+	Staged Tier = "staged"
 )
 
 // Server is one database release, and the container image that holds it.
@@ -179,6 +191,12 @@ type Server struct {
 	// Memory is what this server is allowed, where MemoryLimit is not
 	// enough. Empty means MemoryLimit.
 	Memory string
+	// License is the path inside the container where the product reads its
+	// licence file, for a product that does not start without one that a
+	// person downloads. Empty means the product needs none. The file is not
+	// here and must not be: a caller finds it on the host and mounts it, and
+	// dbrun lists such a server only while it finds the file. See D118.
+	License string
 	// Startup is how long this server needs before it answers, where the
 	// usual budget is not enough. Zero means the caller's default.
 	//
@@ -251,7 +269,10 @@ func (s Server) Ref() string { return s.Image + ":" + s.Tag }
 //
 // The container is named rather than left anonymous, because [Server.ReadyArgs]
 // and the command that removes it both need the name.
-func (s Server) RunArgs(name string, hostPort int) []string {
+//
+// flags are more flags for the run command, after the server's own, such as
+// the mount of a licence file.
+func (s Server) RunArgs(name string, hostPort int, flags ...string) []string {
 	args := []string{"run", "--detach", "--name", name}
 	for _, e := range s.Environ() {
 		args = append(args, "--env", e)
@@ -259,6 +280,7 @@ func (s Server) RunArgs(name string, hostPort int) []string {
 	args = append(args, "--publish", fmt.Sprintf("%d:%d", hostPort, s.Port))
 	args = append(args, "--memory", s.MemoryOrDefault())
 	args = append(args, s.RunFlags...)
+	args = append(args, flags...)
 	args = append(args, s.Ref())
 	return append(args, s.Args...)
 }
@@ -354,7 +376,12 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j, ArangoDB, InfluxDB, CrateDB, Rqlite, LibSQL, TDengine, Pinot, Databend, Avatica, Phoenix, Druid)
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j, ArangoDB, InfluxDB, CrateDB, Rqlite, LibSQL, TDengine, Pinot, Databend, Avatica, Phoenix, Druid, Qdrant,
+		Chroma, Weaviate, CouchDB, QuestDB, Meilisearch, Typesense, TerminusDB,
+		CockroachDB, TiDB, MongoDB, Elasticsearch, Dgraph, YDB,
+		Spanner, BigQuery, GizmoSQL, Virtuoso, Alternator, Vitess, Milvus,
+		OpenSearch, DynamoDB, Cosmos, Stardog, GraphDB, VoltDB,
+		Solr, Drill, H2, Fuseki, PostgREST, KsqlDB)
 }
 
 // AtTier returns the servers tested at t.
@@ -414,6 +441,7 @@ type product struct {
 	runFlags  []string
 	args      []string
 	memory    string
+	license   string
 	startup   time.Duration
 	settle    time.Duration
 	dsn       func(port int) string
@@ -453,6 +481,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			RunFlags:  p.runFlags,
 			Args:      p.args,
 			Memory:    p.memory,
+			License:   p.license,
 			Startup:   p.startup,
 			Settle:    p.settle,
 			dsn:       p.dsn,

@@ -73,7 +73,7 @@ func makeRoom(ctx context.Context, r runner, keep string, o options) error {
 		if !r.quiet(ctx, "stop", name) {
 			continue
 		}
-		fmt.Printf("  %-20s stopped to stay within %d running\n", name, maxRunning)
+		fmt.Printf("  %-*s stopped to stay within %d running\n", nameWidth(), name, maxRunning)
 	}
 	return nil
 }
@@ -94,18 +94,28 @@ func cmdList(picked []target, o options) error {
 		return printJSON(picked, o)
 	}
 	for _, t := range picked {
-		fmt.Printf("%-20s %-10s %-9s %s\n", t.Name, t.Kind, t.Tier, t.Dialect)
+		// A server with no dialect yet ends the row at its tier, with no
+		// blanks after it.
+		fmt.Println(strings.TrimRight(fmt.Sprintf("%-*s %-10s %-9s %s", nameWidth(), t.Name, t.Kind, t.Tier, t.Dialect), " "))
 	}
 	return nil
 }
 
-// cmdDSN prints the URL a person pastes, running or not.
+// cmdDSN prints the URL a person pastes, running or not. The secret of a
+// hosted service is masked unless --reveal asks for it (D117).
 func cmdDSN(picked []target, o options) error {
+	if o.reveal {
+		for i, t := range picked {
+			if t.Kind == kindHosted {
+				picked[i].DSN, picked[i].URL = t.secret, t.secret
+			}
+		}
+	}
 	if o.asJSON {
 		return printJSON(picked, o)
 	}
 	for _, t := range picked {
-		fmt.Printf("%-20s %s\n", t.Name, t.URL)
+		fmt.Printf("%-*s %s\n", nameWidth(), t.Name, t.URL)
 	}
 	return nil
 }
@@ -190,6 +200,14 @@ func one(ctx context.Context, r runner, command string, t target, o options) err
 // connections. A container needs no such probe, because start does not return
 // until the server has answered.
 func doStatus(ctx context.Context, r runner, t target, o options) error {
+	if t.Kind == kindHosted {
+		// A hosted service is a target only while its connection string
+		// resolves, so status shows it with where the string came from. It
+		// is not probed, because the drivers of the hosted services are not
+		// in the test module. See D117.
+		fmt.Printf("  %-*s %s  (hosted, %s)\n", nameWidth(), t.Name, t.URL, t.Credential)
+		return nil
+	}
 	if t.Kind == kindEmbedded {
 		// A library has a file rather than a server, and the file is the
 		// thing a person connects to, so status says where it is. The marker
@@ -202,20 +220,20 @@ func doStatus(ctx context.Context, r runner, t target, o options) error {
 			// failure to report the state.
 			note = "(embedded, no file yet)"
 		}
-		fmt.Printf("  %-20s %s  %s\n", t.Name, t.URL, note)
+		fmt.Printf("  %-*s %s  %s\n", nameWidth(), t.Name, t.URL, note)
 		return nil
 	}
 	if !r.running(ctx, t.Name) {
 		// A stopped server is shown only when asked for, the way podman ps
 		// -a shows it, with who made it. See D115.
 		if o.all && r.exists(ctx, t.Name) {
-			fmt.Printf("  %-20s %s  (stopped, %s)\n", t.Name, t.URL, r.who(ctx, t.Name))
+			fmt.Printf("  %-*s %s  (stopped, %s)\n", nameWidth(), t.Name, t.URL, r.who(ctx, t.Name))
 		}
 		return nil
 	}
 	if have, ok := r.hostPorts(ctx, t.Name); ok && !t.portsMatch(have) {
-		fmt.Printf("  %-20s running on %v, and the list now says %v."+
-			" Run: dbrun start %s\n", t.Name, have, t.wantPorts(), t.Name)
+		fmt.Printf("  %-*s running on %v, and the list now says %v."+
+			" Run: dbrun start %s\n", nameWidth(), t.Name, have, t.wantPorts(), t.Name)
 		return nil
 	}
 	if t.Kind == kindMachine {
@@ -224,15 +242,15 @@ func doStatus(ctx context.Context, r runner, t target, o options) error {
 			probe = o.timeout
 		}
 		if !answered(ctx, t, probe) {
-			fmt.Printf("  %-20s %-*s  screen http://127.0.0.1:%d\n",
+			fmt.Printf("  %-*s %-*s  screen http://127.0.0.1:%d\n", nameWidth(),
 				t.Name, len(t.URL), "starting, not answering yet", t.Viewer)
 			return nil
 		}
-		fmt.Printf("  %-20s %s  screen http://127.0.0.1:%d%s\n",
+		fmt.Printf("  %-*s %s  screen http://127.0.0.1:%d%s\n", nameWidth(),
 			t.Name, t.URL, t.Viewer, whose(ctx, r, t))
 		return nil
 	}
-	fmt.Printf("  %-20s %s%s\n", t.Name, t.URL, whose(ctx, r, t))
+	fmt.Printf("  %-*s %s%s\n", nameWidth(), t.Name, t.URL, whose(ctx, r, t))
 	return nil
 }
 
@@ -257,6 +275,10 @@ func whose(ctx context.Context, r runner, t target) string {
 // because building one takes an hour and dbrun will not do that by accident.
 func doStart(ctx context.Context, r runner, t target, o options) error {
 	switch t.Kind {
+	case kindHosted:
+		// Nothing to start. The service runs somewhere else.
+		fmt.Printf("  %-*s hosted: %s=%s  (%s)\n", nameWidth(), t.Name, t.Env, t.DSN, t.Credential)
+		return nil
 	case kindEmbedded:
 		// Nothing to start, and the file is made by whatever opens it. A
 		// database that starts from sample files gets them. Print the same
@@ -264,7 +286,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if err := extractSamples(t); err != nil {
 			return err
 		}
-		fmt.Printf("  %-20s embedded: %s=%s\n", t.Name, t.Env, t.DSN)
+		fmt.Printf("  %-*s embedded: %s=%s\n", nameWidth(), t.Name, t.Env, t.DSN)
 		return nil
 	case kindMachine:
 		if !r.exists(ctx, t.Name) {
@@ -289,7 +311,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 					" Remove it and provision again, and %s",
 				have, t.wantPorts(), t.Rebuild)
 		}
-		fmt.Printf("  %-20s published %v and the list now says %v, rebuilding\n",
+		fmt.Printf("  %-*s published %v and the list now says %v, rebuilding\n", nameWidth(),
 			t.Name, have, t.wantPorts())
 		r.quiet(ctx, t.Remove...)
 	}
@@ -300,7 +322,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if owner != me {
 			note = ", started by " + r.who(ctx, t.Name)
 		}
-		fmt.Printf("  %-20s already up%s: %s=%s\n", t.Name, note, t.Env, t.DSN)
+		fmt.Printf("  %-*s already up%s: %s=%s\n", nameWidth(), t.Name, note, t.Env, t.DSN)
 		return nil
 	}
 	// A stopped container belongs to nobody. Its owner can be a session that
@@ -312,7 +334,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if t.Kind == kindMachine {
 			return fmt.Errorf("it is stopped, and %w", notYours(r.who(ctx, t.Name)))
 		}
-		fmt.Printf("  %-20s stopped, and created by %s. Creating it again as yours\n",
+		fmt.Printf("  %-*s stopped, and created by %s. Creating it again as yours\n", nameWidth(),
 			t.Name, r.who(ctx, t.Name))
 		if !r.quiet(ctx, t.Remove...) {
 			return errors.New("the stopped container would not be removed")
@@ -365,9 +387,9 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 			return err
 		}
 	}
-	fmt.Printf("  %-20s up: %s=%s\n", t.Name, t.Env, t.DSN)
+	fmt.Printf("  %-*s up: %s=%s\n", nameWidth(), t.Name, t.Env, t.DSN)
 	for _, e := range t.AlsoEnv {
-		fmt.Printf("  %-20s also: %s=%s\n", "", e, t.DSN)
+		fmt.Printf("  %-*s also: %s=%s\n", nameWidth(), "", e, t.DSN)
 	}
 	return nil
 }
@@ -402,7 +424,7 @@ func (r runner) install(ctx context.Context, t target, pause time.Duration) erro
 		if attempt == initAttempts {
 			break
 		}
-		fmt.Printf("  %-20s attempt %d of %d failed, trying again in %s: %v\n",
+		fmt.Printf("  %-*s attempt %d of %d failed, trying again in %s: %v\n", nameWidth(),
 			t.Name, attempt, initAttempts, pause, err)
 		select {
 		case <-ctx.Done():
@@ -414,7 +436,7 @@ func (r runner) install(ctx context.Context, t target, pause time.Duration) erro
 }
 
 func doStop(ctx context.Context, r runner, t target, o options) error {
-	if t.Kind == kindEmbedded {
+	if t.Kind == kindEmbedded || t.Kind == kindHosted {
 		return nil
 	}
 	if !r.running(ctx, t.Name) {
@@ -434,6 +456,11 @@ func doStop(ctx context.Context, r runner, t target, o options) error {
 // one is an hour and the command that deletes it is one letter from the one
 // that stops it.
 func doRemove(ctx context.Context, r runner, t target, o options) error {
+	if t.Kind == kindHosted {
+		// A hosted service is not dbrun's to remove.
+		fmt.Printf("  %-*s hosted, there is nothing to remove\n", nameWidth(), t.Name)
+		return nil
+	}
 	if t.Kind == kindEmbedded {
 		// The file is the database, so this is what removing one means. It is
 		// kept by everything else, including test, the same way a machine is.
@@ -489,8 +516,12 @@ func confirm(question string) (bool, error) {
 // doLogs shows what the server said, which is the first thing somebody wants
 // when one will not come up.
 func doLogs(ctx context.Context, r runner, t target, o options) error {
+	if t.Kind == kindHosted {
+		fmt.Printf("  %-*s hosted, there is no log here\n", nameWidth(), t.Name)
+		return nil
+	}
 	if t.Kind == kindEmbedded {
-		fmt.Printf("  %-20s embedded, there is no log. The file is %s\n", t.Name, t.DSN)
+		fmt.Printf("  %-*s embedded, there is no log. The file is %s\n", nameWidth(), t.Name, t.DSN)
 		return nil
 	}
 	if !r.exists(ctx, t.Name) {
@@ -507,6 +538,9 @@ func doLogs(ctx context.Context, r runner, t target, o options) error {
 
 // doUsql opens a shell on the server.
 func doUsql(ctx context.Context, r runner, t target, _ options) error {
+	if t.Kind == kindHosted {
+		return usqlHosted(ctx, t)
+	}
 	if t.Kind != kindEmbedded && !r.running(ctx, t.Name) {
 		return fmt.Errorf("it is not running. Start it with: dbrun start %s", t.Name)
 	}

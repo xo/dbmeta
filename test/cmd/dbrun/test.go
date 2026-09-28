@@ -59,17 +59,17 @@ var drivers = map[dbmeta.Dialect]string{
 // number.
 func doVersion(ctx context.Context, r runner, t target) error {
 	if t.Kind == kindEmbedded {
-		fmt.Printf("  %-20s embedded, whatever the driver links\n", t.Name)
+		fmt.Printf("  %-*s embedded, whatever the driver links\n", nameWidth(), t.Name)
 		return nil
 	}
-	if !r.running(ctx, t.Name) {
+	if t.Kind != kindHosted && !r.running(ctx, t.Name) {
 		return nil
 	}
 	versions, err := readVersion(ctx, t)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("  %-20s %s\n", t.Name, versions)
+	fmt.Printf("  %-*s %s\n", nameWidth(), t.Name, versions)
 	return nil
 }
 
@@ -80,7 +80,7 @@ func readVersion(ctx context.Context, t target) (dbmeta.VersionSet, error) {
 	if !ok {
 		return dbmeta.VersionSet{}, fmt.Errorf("no driver for %s", t.Dialect)
 	}
-	db, err := sql.Open(driver, t.DSN)
+	db, err := sql.Open(driver, t.connectDSN())
 	if err != nil {
 		return dbmeta.VersionSet{}, fmt.Errorf("opening: %w", err)
 	}
@@ -106,6 +106,12 @@ func readVersion(ctx context.Context, t target) (dbmeta.VersionSet, error) {
 // one happened rather than to pick the wrong default for one of them.
 // --keep and --remove override it.
 func doTest(ctx context.Context, r runner, t target, o options) error {
+	if t.Kind == kindHosted {
+		// Nothing to start or remove. The tests read the connection string
+		// from their environment, where no process list shows it.
+		fmt.Printf("=== %s ===\n", t.Name)
+		return goTest(ctx, t.env()...)
+	}
 	if t.Kind == kindEmbedded {
 		fmt.Printf("=== %s ===\n", t.Name)
 		// The file is named the same way a server's DSN is, so the tests put

@@ -7,7 +7,7 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// The InfluxDB releases dbmeta is tested against.
+// The InfluxDB releases dbrun starts.
 //
 // dbmeta has no InfluxDB model. The releases are here so that dbrun can start
 // a server for the tests of the InfluxDB driver in github.com/xo/dbimp. The
@@ -21,10 +21,8 @@ import (
 // Every line is still rebuilt on docker.io/library/influxdb, so step 2 of
 // docs/EVALUATION.md applies. Checked on 2026-09-28, 1.13.1, 1.11.8, 2.9.1 and
 // 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.11.5,
-// 3.10.6 and 3.9.13 between 2026-09-16 and 2026-09-18. Ken chose the tiers in
-// dbimp's D79: InfluxDB 1 and 2 are in maintenance, so the newest of each is
-// Tested and the oldest Nightly, and InfluxDB 3 changes fast, so its floor and
-// its ceiling are both Tested.
+// 3.10.6 and 3.9.13 between 2026-09-16 and 2026-09-18. Ken chose the releases
+// in dbimp's D79. No model reads InfluxDB, so all of them are Staged (D119).
 //
 // The InfluxDB 3 tag is the release with -core, such as 3.11.5-core. InfluxDB 3
 // Enterprise is not here: its free licence and its trial both need a person to
@@ -192,10 +190,10 @@ func influxHTTP(user, password string) func(port int) string {
 	}
 }
 
-// InfluxDB is every InfluxDB release dbmeta is tested against.
-var InfluxDB = list{}.add(influxdb1, Tested, "1.13.1").
-	add(influxdb1, Nightly, "1.11.8").
-	add(influxdb2, Tested, "2.9.1").
-	add(influxdb2, Nightly, "2.8.0").
-	add(influxdb, Tested, "3.9.13", "3.11.5").
-	add(influxdb, Nightly, "3.10.6")
+// InfluxDB is every InfluxDB release dbrun starts.
+//
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var InfluxDB = list{}.add(influxdb1, Staged, "1.11.8", "1.13.1").
+	add(influxdb2, Staged, "2.8.0", "2.9.1").
+	add(influxdb, Staged, "3.9.13", "3.10.6", "3.11.5")

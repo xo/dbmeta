@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// The Apache Phoenix releases dbmeta is tested against.
+// The Apache Phoenix releases dbrun starts.
 //
 // The Phoenix Query Server speaks Avatica, the wire protocol of Apache
 // Calcite, in front of Phoenix on HBase. dbmeta has no Phoenix model. The
@@ -40,13 +40,14 @@ var phoenix = product{
 	dsn: avaticaHTTP("phoenix"),
 }
 
-// Phoenix is every Apache Phoenix release dbmeta is tested against.
+// Phoenix is every Apache Phoenix release dbrun starts.
 //
-// One release on every push, because the image has one line that runs. The
-// image is somebody other than the vendor's, so it is pinned by digest as well
-// as by tag, as docs/CONTAINERS.md asks (D88): a push to the same tag would
-// otherwise change what is tested with nothing here saying so.
-var Phoenix = list{}.add(phoenix, Tested, "2.0-5.0").
+// Staged, because dbmeta has no model that reads Phoenix, so CI runs none
+// of them. The image is somebody other than the vendor's, so it is pinned by
+// digest as well as by tag, as docs/CONTAINERS.md asks (D88). A push to the
+// same tag would otherwise change what dbrun starts with nothing here saying
+// so. See D119.
+var Phoenix = list{}.add(phoenix, Staged, "2.0-5.0").
 	on("2.0-5.0", func(s *Server) {
 		s.Tag = "2.0-5.0@sha256:0360b932974ef41a278b0dab14c80a865bdb702eb806b8c1b8a1d28ce1207625"
 	})

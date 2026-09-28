@@ -7,14 +7,17 @@ to use `dbrun` once the entry exists, and its rules for a shared machine apply
 to every step here.
 
 A server that `dbrun` starts is data in the Go package `container`. It is the
-only list of the releases that dbmeta is tested against. `dbrun` and the CI
+only list of the releases that `dbrun` starts, whether dbmeta is tested
+against them or they are Staged. `dbrun` and the CI
 workflow both read it, and tests fail when either one drifts from it (D42,
 D69). The package starts nothing and imports no container client.
 
 Adding a server is one step of adding a database. [`DIALECT.md`](DIALECT.md)
 holds the rest, and its step 4 points here. Another repository that needs a
 server, such as `dbimp` or a driver, gets its entry here too, through a dbmeta
-session or through Ken.
+session or through Ken. Such an entry is Staged while no model reads it, so
+dbmeta's CI does not run it, and the other repository runs it with
+`dbrun test staged` or by name (D119).
 
 ## Rules
 
@@ -25,8 +28,11 @@ session or through Ken.
    needs (D112, D113). D90 says which products qualify.
 3. Choose the releases with [`EVALUATION.md`](EVALUATION.md), and record the
    floor, the ceiling and which step decided in the doc comment of the file.
-4. Name every release in one of the tiers `Tested`, `Nightly` or `Verified`.
-   CI runs the first two, and a person runs the third before a release.
+4. Name every release in one of the tiers `Tested`, `Nightly`, `Verified` or
+   `Staged`. CI runs the first two, and a person runs the third before a
+   release. A release that no model reads is `Staged`, and CI never runs it.
+   `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` holds that a release is
+   Staged exactly when no model reads it (D119).
 5. Publish one port, the one the tests connect to. A second interface of the
    same server, such as Couchbase Analytics, is not reachable from the host.
 6. Use `container.Password` for the administrator. Use another password only
@@ -114,14 +120,22 @@ that the ports moved.
 Build an image only when the published one cannot do what the tests need and
 no setting or argument can change it. Cassandra's image refuses a user
 defined function, a materialized view and a role, and Oracle publishes no free
-19c image, so both are built.
+19c image, so both are built. D118 added more: an image with no shell, such as
+the Cloud Spanner emulator's, a product that publishes a jar and no image,
+such as H2 and Fuseki, and two programs that must run in one container, such
+as PostgREST with PostgreSQL and ksqlDB with Kafka.
 
-1. Write `test/cmd/dbrun/image/<product>.Containerfile`. Check the result in
-   the build itself, as the Cassandra file does, because a `sed` that matches
-   nothing changes nothing and reports nothing.
-2. Embed it and add the product to `buildFor` in `test/cmd/dbrun/build.go`.
-3. Name the image `localhost/dbmeta/<product>` in the entry. Oracle 19c keeps
-   `localhost/oracle/database`, the name Oracle's build script gives it.
+1. Write `test/cmd/dbrun/image/<product>.Containerfile`. It takes the release
+   as the build argument `RELEASE`. Check the result in the build itself, as
+   the Cassandra file does, because a `sed` that matches nothing changes
+   nothing and reports nothing.
+2. Name the image `localhost/dbmeta/<product>` in the entry. `dbrun` embeds
+   every file in that directory and builds the one named for the product,
+   so nothing else changes. `TestEveryContainerfileHasItsImage` fails when a
+   file and its entry disagree. Oracle 19c keeps `localhost/oracle/database`,
+   the name Oracle's build script gives it, and has its own build.
+3. Keep the password out of the Containerfile. Package the program there,
+   and configure it in the entry's command, where `container.Password` is.
 
 `start` and `test` build a missing image. `dbrun build <name>` builds it again,
 which is what you run after you change the file.
@@ -230,4 +244,6 @@ Then run the checks in `AGENTS.md` under Before you commit.
 | `TestTheReadmeTierTablesMatchTheList` | `README.md` puts a release in a tier the list does not |
 | `TestEveryVerifiedReleaseIsDocumented` | a Verified release is not named in `COVERAGE.md` |
 | `TestEveryMachineIsUsable` | a machine shares a name or a port with another server, lacks its dialect, product or release, or is not Verified |
+| `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` | a release that no model reads is not Staged, or one that a model reads is (D119) |
+| `TestEveryContainerfileHasItsImage` | a Containerfile and the entry that names its image disagree (D118) |
 | `TestEveryWindowsMachineIsUsable` | a Windows machine is missing what its install needs |

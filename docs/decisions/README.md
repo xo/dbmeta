@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-33 of them amend or replace an earlier one, and a decision read without its
+34 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -58,7 +58,7 @@ file.
 | [D37](D037-a-version-is-a-list-of-numbers-with-a-name-and.md) | A version is a list of numbers with a name, and there can be several | Decided |
 | [D38](D038-dbmeta-holds-the-version-query-and-will-run-it.md) | dbmeta holds the version query, and will run it on request | Amended in place |
 | [D39](D039-queries-are-listed-described-and-rendered-for.md) | Queries are listed, described, and rendered for the client to run | Decided |
-| [D40](D040-three-support-tiers-and-a-trigger-that-can.md) | Three support tiers, and a trigger that can remove a version | Decided |
+| [D40](D040-three-support-tiers-and-a-trigger-that-can.md) | Three support tiers, and a trigger that can remove a version | Amended by D119 |
 | [D41](D041-every-model-ships-its-fixtures-beside-its.md) | Every model ships its fixtures beside its queries | Decided |
 | [D42](D042-four-releases-per-push-every-release-nightly.md) | Four releases per push, every release nightly | Supersedes D24, amended by D69 |
 | [D43](D043-ask-several-models-before-a-dialect-is-declared.md) | Ask several models before a dialect is declared finished | Decided |
@@ -121,17 +121,20 @@ file.
 | [D100](D100-the-vertica-images-live-in-usql-vertica-and-the.md) | The Vertica images live in usql/vertica, and the older ones wait for admintools | Amends D88 |
 | [D101](D101-couchbase-is-the-dialect-couchbase-read-through.md) | Couchbase is the dialect couchbase, read through the dbimp driver | Amends D95 |
 | [D102](D102-dbrun-prints-every-principal-of-a-server.md) | dbrun prints every principal of a server | Amends D98 |
-| [D103](D103-surrealdb-runs-under-dbrun-for-the-dbimp-driver.md) | SurrealDB runs under dbrun, for the dbimp driver | Decided |
+| [D103](D103-surrealdb-runs-under-dbrun-for-the-dbimp-driver.md) | SurrealDB runs under dbrun, for the dbimp driver | Amended by D119 |
 | [D104](D104-the-couchbase-model-reads-7-6-and-later.md) | The Couchbase model reads 7.6 and later | Amends D94, D95 and D96 |
 | [D105](D105-dbrun-runs-a-setup-again-after-a-failure-and.md) | dbrun runs a setup again after a failure, and prints the log of a server that never answered | Amended by D107 |
-| [D106](D106-neo4j-enterprise-runs-under-dbrun-under-the.md) | Neo4j Enterprise runs under dbrun, under the evaluation agreement | Amended by D109 |
+| [D106](D106-neo4j-enterprise-runs-under-dbrun-under-the.md) | Neo4j Enterprise runs under dbrun, under the evaluation agreement | Amended by D109 and D119 |
 | [D107](D107-the-hive-setup-runs-from-a-copy-that-is-safe-to.md) | The Hive setup runs from a copy that is safe to run twice | Amends D105 |
 | [D108](D108-eight-servers-run-at-once-and-a-stopped.md) | Eight servers run at once, and a stopped container belongs to nobody | Amends D75 and D98 |
 | [D109](D109-neo4j-is-the-dialect-neo4j-and-its-url-names-the.md) | Neo4j is the dialect neo4j, and its URL names the database | Amends D106, amended by D112 |
 | [D110](D110-every-xo-repository-is-set-up-for-agents-alike.md) | Every xo repository is set up for coding agents the same way | Amends D50 and D89 |
 | [D111](D111-a-large-project-keeps-one-file-per-decision.md) | A large project keeps one file per decision | Amends D50 |
-| [D112](D112-eight-servers-run-under-dbrun-for-dbimp.md) | Eight more servers run under dbrun for dbimp's drivers | Amends D109, amended by D114 |
-| [D113](D113-three-avatica-servers-run-under-dbrun.md) | Three Avatica servers run under dbrun for dbimp's driver | Decided |
-| [D114](D114-a-server-can-answer-more-than-one-dialect.md) | A server can answer more than one dialect | Amends D112 |
+| [D112](D112-eight-servers-run-under-dbrun-for-dbimp.md) | Eight more servers run under dbrun for dbimp's drivers | Amends D109, amended by D114 and D119 |
+| [D113](D113-three-avatica-servers-run-under-dbrun.md) | Three Avatica servers run under dbrun for dbimp's driver | Amended by D119 |
+| [D114](D114-a-server-can-answer-more-than-one-dialect.md) | A server can answer more than one dialect | Amends D112, amended by D119 |
 | [D115](D115-a-server-shows-its-owners-name-and-status-a-shows.md) | A server shows its owner's name, and status -a shows the stopped ones | Amends D98 |
-| [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Decided |
+| [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 |
+| [D117](D117-a-hosted-service-appears-in-dbrun-when-its-credential-does.md) | A hosted service appears in dbrun when its credential does | Decided |
+| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Decided |
+| [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116 |

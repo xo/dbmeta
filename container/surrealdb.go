@@ -7,7 +7,7 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// The SurrealDB releases dbmeta is tested against.
+// The SurrealDB releases dbrun starts.
 //
 // dbmeta has no SurrealDB model. The releases are here so that dbrun can
 // start a server for the tests of github.com/xo/dbimp/surrealdb, which is the
@@ -119,9 +119,8 @@ func surrealDBURL(user, auth string) func(port int) string {
 	}
 }
 
-// SurrealDB is every SurrealDB release dbmeta is tested against.
+// SurrealDB is every SurrealDB release dbrun starts.
 //
-// 2.7.0 and 3.3.0 on every push, because they are the two ends of two major
-// lines whose HTTP interfaces differ. 3.1.6 and 3.2.4 run nightly.
-var SurrealDB = list{}.add(surrealdb, Tested, "2.7.0", "3.3.0").
-	add(surrealdb, Nightly, "3.1.6", "3.2.4")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var SurrealDB = list{}.add(surrealdb, Staged, "2.7.0", "3.1.6", "3.2.4", "3.3.0")

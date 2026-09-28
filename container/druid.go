@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// The Apache Druid releases dbmeta is tested against.
+// The Apache Druid releases dbrun starts.
 //
 // Druid speaks Avatica, the wire protocol of Apache Calcite, on its Router at
 // /druid/v2/sql/avatica-protobuf/. dbmeta has no Druid model. The releases are
@@ -128,7 +128,8 @@ func druidHTTP(user string) func(port int) string {
 	}
 }
 
-// Druid is every Apache Druid release dbmeta is tested against.
+// Druid is every Apache Druid release dbrun starts.
 //
-// Both on every push, because they are the newest of the last two lines.
-var Druid = list{}.add(druid, Tested, "36.0.0", "37.0.0")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var Druid = list{}.add(druid, Staged, "36.0.0", "37.0.0")

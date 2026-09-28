@@ -7,7 +7,7 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// The Neo4j releases dbmeta is tested against.
+// The Neo4j releases dbrun starts.
 //
 // dbmeta has no Neo4j model. The releases are here so that dbrun can start a
 // server for the tests of the Neo4j driver in github.com/xo/dbimp, which is
@@ -128,8 +128,8 @@ func neo4jURL(user string) func(port int) string {
 	}
 }
 
-// Neo4j is every Neo4j release dbmeta is tested against.
+// Neo4j is every Neo4j release dbrun starts.
 //
-// Both on every push, because they are the two ends: the LTS line and the
-// newest monthly release.
-var Neo4j = list{}.add(neo4j, Tested, "5.26.31", "2026.09.0")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var Neo4j = list{}.add(neo4j, Staged, "5.26.31", "2026.09.0")

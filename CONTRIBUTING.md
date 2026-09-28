@@ -13,8 +13,8 @@ imports it, for Claude Code.
 
 [`docs/decisions/`](docs/decisions/) holds every decision this project has made,
 one file each, with the reasoning and what was rejected. The index in
-[`docs/decisions/README.md`](docs/decisions/README.md) lists all 116 with their
-status. Read the status: 33 of them amend or replace an earlier one.
+[`docs/decisions/README.md`](docs/decisions/README.md) lists all 119 with their
+status. Read the status: 34 of them amend or replace an earlier one.
 
 Do not decide an open question on your own. The open questions are at the end
 of `docs/PLAN.md`. Ask Ken.
@@ -39,10 +39,12 @@ cd test && go run ./cmd/dbrun test tested
 
 That runs the integration tests against every entry CI tests on every push. It
 starts a container for each server, one at a time, and removes it after, and
-it starts nothing for the six embedded databases. The list also holds servers
-that are there only for dbimp's drivers, so to test one product, name it, as
-in `dbrun test postgres`. `dbrun test all` runs every supported release of
-every product, which is what has to pass before a release.
+it starts nothing for the embedded databases. To test one product, name it, as
+in `dbrun test postgres`. `dbrun test all` runs every release of every
+product, which is what has to pass before a release. The list also holds
+Staged servers, which no model reads, and which are there for dbimp's drivers
+and for the flavors usql reaches. CI never runs them, and `dbrun test staged`
+measures them again (D119).
 
 `dbrun` does everything to a database: `start` one and leave it up, `stop` it,
 `status` to see what is running, `dsn` for a URL to paste, `usql` for a shell

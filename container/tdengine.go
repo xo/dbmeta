@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-// The TDengine releases dbmeta is tested against.
+// The TDengine releases dbrun starts.
 //
 // dbmeta has no TDengine model. The releases are here so that dbrun can start
 // a server for the tests of the TDengine driver in github.com/xo/dbimp, which
@@ -94,7 +94,8 @@ func tdHTTP(user string) func(port int) string {
 	}
 }
 
-// TDengine is every TDengine release dbmeta is tested against.
+// TDengine is every TDengine release dbrun starts.
 //
-// Both on every push, because they are the newest of the last two lines.
-var TDengine = list{}.add(tdengine, Tested, "3.3.8.8", "3.4.2.8")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var TDengine = list{}.add(tdengine, Staged, "3.3.8.8", "3.4.2.8")

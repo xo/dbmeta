@@ -1,6 +1,6 @@
 # D113. Three Avatica servers run under dbrun for dbimp's driver
 
-Status: Decided.
+Status: Amended by D119.
 
 dbimp asked on 2026-09-28 for `dbrun` entries for its Avatica driver, which
 Ken placed ninth in dbimp's order (dbimp D74). Avatica is the wire protocol of

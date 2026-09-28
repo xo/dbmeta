@@ -2755,3 +2755,20 @@ written.
 instance, and the nearest list is the pluggable databases, which no `ALL_`
 view carries: `ALL_PDBS` does not exist on any release here. `DBA_PDBS` and
 `V$DATABASE` do, and D60 decided against reading either.
+
+## Releases that need a licence file
+
+Stardog, GraphDB and Volt Active Data do not start without a licence file
+that a person downloads, and `dbrun` lists them only while it finds the file.
+dbmeta has no model for any of them, so every release of the three is Staged,
+and CI never runs one. See D118 and D119.
+
+| Product | Releases | Measured |
+| --- | --- | --- |
+| Stardog | 12.0.4, 12.1.4 | Not yet. No licence file is provisioned |
+| GraphDB | 11.4.3, 11.5.1 | Not yet. No licence file is provisioned |
+| Volt Active Data | 14.1.0, 15.2.0 | Not yet. No licence file is provisioned |
+
+Put each file at `$XDG_CONFIG_HOME/dbmeta/licenses/<product>`, where the
+product is `stardog`, `graphdb` or `voltdb`, or name its path in
+`DBMETA_<PRODUCT>_LICENSE`. `docs/DBRUN.md` says the same under Licence files.

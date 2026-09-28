@@ -20,10 +20,15 @@
 # the release it claims and the release that is true, and that window cannot be
 # predicted.
 #
-# The embedded databases, SQLite, DuckDB and the four of D116, have no server:
+# The embedded databases, SQLite, DuckDB and moderncsqlite, have no server:
 # each is a library, and the version is whichever one the pinned driver ships.
 # They run in the same matrix as the servers, and dbrun starts nothing for
 # them. SQLite runs against both of its drivers. See D42 and D48.
+#
+# A Staged release is in neither matrix. No model reads it, so a job would
+# start it and test nothing. That is the servers dbrun starts for dbimp's
+# drivers and for the flavors usql reaches, and the embedded chai, csvq and
+# ql. See D119.
 #
 # MariaDB and MySQL are two products sharing one dialect and one model, so each
 # has its own job and a third compares them. The compare job builds the same

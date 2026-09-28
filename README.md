@@ -206,7 +206,7 @@ projects can generate against it.
 
 # Version Support
 
-Every version sits in one of four tiers. Read the tier before you rely on a
+Every version sits in one of five tiers. Read the tier before you rely on a
 version.
 
 | Tier     | What it means                                                      |
@@ -214,11 +214,17 @@ version.
 | Tested   | Tests run on every change, in CI                                     |
 | Nightly  | Tests run once a night, in CI                                        |
 | Verified | Tests run on a development machine before a release, and not in CI   |
+| Staged   | dbrun starts it, and it was measured when it was added. No model reads it yet, so nothing runs it in CI |
 | Archived | The queries exist and were checked once, and nothing runs them now   |
 
-D40 set three of these and D42 added Nightly. The first three are values of
-`container.Tier`. Archived is not, because an archived release is one the
-list does not name at all.
+D40 set three of these, D42 added Nightly and D119 added Staged. The first four
+are values of `container.Tier`. Archived is not, because an archived release is
+one the list does not name at all.
+
+A Staged release is not supported by dbmeta. It is there so that dbrun can
+start a server for a sister project, such as dbimp's drivers, or for a flavor
+that a model does not detect yet. It moves to Tested, Nightly or Verified in
+the change that adds its model.
 
 ## PostgreSQL
 
@@ -287,7 +293,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 116 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 33 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 119 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 34 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -309,8 +315,10 @@ agent, with a table saying which document to read for which task.
 # Testing
 
 `container/` names every server release that `dbrun` starts, as Go data, one
-file per product, and `container.All` joins them. A few are there only for
-dbimp's drivers and have no model. Each entry holds the image, the tag, the environment, the readiness
+file per product, and `container.All` joins them. Many are there only for
+dbimp's drivers, for the flavors usql reaches, or as emulators of hosted
+services, and no model reads them. Those are Staged, and CI does not run them
+(D119). Each entry holds the image, the tag, the environment, the readiness
 command and the connection string, and it starts nothing: a caller brings its
 own podman, docker or Go client, and `dbmeta` depends on none of them.
 

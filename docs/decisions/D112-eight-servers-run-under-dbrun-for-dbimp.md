@@ -1,6 +1,6 @@
 # D112. Eight more servers run under dbrun for dbimp's drivers
 
-Status: Amends D109, amended by D114.
+Status: Amends D109, amended by D114 and D119.
 
 Ken asked on 2026-09-27 for `dbrun` entries for ArangoDB, Databend, InfluxDB,
 CrateDB, TDengine, Apache Pinot, rqlite and libSQL. All eight are drivers that

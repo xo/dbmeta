@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// The Apache Pinot releases dbmeta is tested against.
+// The Apache Pinot releases dbrun starts.
 //
 // dbmeta has no Pinot model. The releases are here so that dbrun can start a
 // server for the tests of the Pinot driver in github.com/xo/dbimp, which reads
@@ -100,7 +100,8 @@ func pinotHTTP(user string) func(port int) string {
 	}
 }
 
-// Pinot is every Apache Pinot release dbmeta is tested against.
+// Pinot is every Apache Pinot release dbrun starts.
 //
-// Both on every push, because they are the newest of the last two lines.
-var Pinot = list{}.add(pinot, Tested, "1.4.0", "1.5.1")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var Pinot = list{}.add(pinot, Staged, "1.4.0", "1.5.1")

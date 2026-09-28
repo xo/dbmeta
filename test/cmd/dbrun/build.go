@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
-	_ "embed"
+	"embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-// Two images are built here rather than pulled, and the reason differs.
+// Some images are built here rather than pulled, and the reason differs.
 //
 // Cassandra's published image refuses three things the queries read: a user
 // defined function, a materialized view and a role. The Containerfile beside
@@ -24,9 +24,14 @@ import (
 // installer archive that a person downloads once under the developer licence,
 // and the image is built from those.
 //
-// Both were shell scripts. The orchestration is Go now, because it is the
-// part with the digest check and the error handling in it. What stays shell
-// is Oracle's own build script, which is theirs and which we call.
+// The rest have a published image that cannot run what dbrun needs inside
+// it, such as one with no shell, or no image at all, and each Containerfile
+// says which. D118 has the list.
+//
+// Both of the first two were shell scripts. The orchestration is Go now,
+// because it is the part with the digest check and the error handling in it.
+// What stays shell is Oracle's own build script, which is theirs and which we
+// call.
 
 // buildSpec says how to make one image.
 type buildSpec struct {
@@ -36,19 +41,33 @@ type buildSpec struct {
 	Build func(context.Context, runner, target) error
 }
 
+// images are the Containerfiles this repository builds, one for each product
+// that has one, named <product>.Containerfile. Each is built with its
+// release as the build argument RELEASE.
+//
+//go:embed image/*.Containerfile
+var images embed.FS
+
+// containerfile is the Containerfile of a product, and false when it has
+// none.
+func containerfile(product string) ([]byte, bool) {
+	b, err := images.ReadFile("image/" + product + ".Containerfile")
+	return b, err == nil
+}
+
 // buildFor returns how to build this target's image, and whether it needs
 // building at all. Most targets pull a published image and need none.
 func buildFor(t target) (buildSpec, bool) {
-	switch {
-	case t.Product == "cassandra":
-		return buildSpec{
-			Ref:   "localhost/dbmeta/cassandra:" + t.Release,
-			Build: buildCassandra,
-		}, true
-	case t.Product == "oracle" && t.Release == "19.3.0":
+	if t.Product == "oracle" && t.Release == "19.3.0" {
 		return buildSpec{
 			Ref:   "localhost/oracle/database:19.3.0-ee",
 			Build: buildOracle19c,
+		}, true
+	}
+	if _, ok := containerfile(t.Product); ok && t.Kind == kindContainer {
+		return buildSpec{
+			Ref:   "localhost/dbmeta/" + t.Product + ":" + t.Release,
+			Build: buildContainerfile,
 		}, true
 	}
 	return buildSpec{}, false
@@ -86,34 +105,27 @@ func cmdBuild(ctx context.Context, picked []target) error {
 	}
 	if built == 0 {
 		return errors.New("none of those has an image to build." +
-			" Only Cassandra and Oracle 19c do")
+			" Only Oracle 19c and a product with a file in image/ do")
 	}
 	return nil
 }
 
-// cassandraContainerfile is built into dbrun, so that the command works from
-// any directory and a person who has the binary has the build.
+// buildContainerfile builds a product's image from its Containerfile.
 //
-//go:embed image/cassandra.Containerfile
-var cassandraContainerfile []byte
-
-// buildCassandra turns on what the published image refuses.
-//
-// The Containerfile edits cassandra.yaml and then checks the result, because
-// the key names changed between releases and a sed that matches nothing
-// changes nothing and says so to nobody.
-//
-// It copies nothing in, so the build context is an empty directory and the
-// Containerfile written into it is the whole input.
-func buildCassandra(ctx context.Context, r runner, t target) error {
+// The Containerfile is built into dbrun, so that the command works from any
+// directory and a person who has the binary has the build. It copies nothing
+// in, so the build context is an empty directory and the Containerfile
+// written into it is the whole input.
+func buildContainerfile(ctx context.Context, r runner, t target) error {
 	spec, _ := buildFor(t)
-	dir, err := os.MkdirTemp("", "dbmeta-cassandra-")
+	b, _ := containerfile(t.Product)
+	dir, err := os.MkdirTemp("", "dbmeta-"+t.Product+"-")
 	if err != nil {
 		return fmt.Errorf("making a build directory: %w", err)
 	}
 	defer os.RemoveAll(dir)
 	file := filepath.Join(dir, "Containerfile")
-	if err := os.WriteFile(file, cassandraContainerfile, 0o644); err != nil {
+	if err := os.WriteFile(file, b, 0o644); err != nil {
 		return fmt.Errorf("writing %s: %w", file, err)
 	}
 	return r.build(ctx, spec.Ref, file, dir,

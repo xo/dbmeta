@@ -41,7 +41,7 @@ change.
 
 ### Find why Databend's first start can fail
 
-The first start of `databend-1.2.948-nightly` after the pull of the image did
+The first start of `databend-1.2.948` after the pull of the image did
 not answer. The image's bootstrap script starts the query server one second
 after the metadata server, and the metadata server was still waiting to become
 the leader, so the query server gave up with "cannot connect to

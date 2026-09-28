@@ -38,6 +38,10 @@ func statusJSON(ctx context.Context, r runner, picked []target, all bool) error 
 			out = append(out, statusEntry{target: t, State: "embedded", Mine: true})
 			continue
 		}
+		if t.Kind == kindHosted {
+			out = append(out, statusEntry{target: t, State: "hosted", Mine: true})
+			continue
+		}
 		state := "running"
 		if !r.running(ctx, t.Name) {
 			if !all || !r.exists(ctx, t.Name) {
@@ -89,7 +93,7 @@ func versionJSON(ctx context.Context, r runner, picked []target) error {
 	out := []versionEntry{}
 	var failed []string
 	for _, t := range picked {
-		if t.Kind == kindEmbedded || !r.running(ctx, t.Name) {
+		if t.Kind == kindEmbedded || (t.Kind != kindHosted && !r.running(ctx, t.Name)) {
 			continue
 		}
 		e := versionEntry{Name: t.Name}

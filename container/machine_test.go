@@ -21,11 +21,14 @@ func TestEveryMachineIsUsable(t *testing.T) {
 		// sqlserver-2016 and sqlserver-2017 sit in one list. A name in both
 		// would make a selector mean two things.
 		names[s.Name()] = true
-		// A machine must not collide with a container either. Those publish
-		// from 55000 up, and nothing but this keeps the machines out of that
-		// range.
-		ports[s.Port] = s.Name()
 	}
+	// A machine must not collide with a container either. dbrun publishes
+	// the container at index i on port 55000 + i, its basePort, and nothing
+	// but this keeps the machines out of that range. The port inside a
+	// container is not on the host, so Typesense's 8108 and the viewer of
+	// sqlserver-2014 on 8108 do not collide.
+	const basePort = 55000
+	published := func(p int) bool { return p >= basePort && p < basePort+len(container.All()) }
 	for _, m := range container.Machines() {
 		if names[m.Name()] {
 			t.Errorf("%s is listed twice, or is both a machine and a container", m.Name())
@@ -45,6 +48,9 @@ func TestEveryMachineIsUsable(t *testing.T) {
 			if p == 0 {
 				t.Errorf("%s has no port for the database or the viewer", m.Name())
 				continue
+			}
+			if published(p) {
+				t.Errorf("%s wants port %d, which dbrun publishes a container on", m.Name(), p)
 			}
 			if other, ok := ports[p]; ok {
 				t.Errorf("%s wants port %d, which %s already uses", m.Name(), p, other)

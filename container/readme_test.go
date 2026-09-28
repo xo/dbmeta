@@ -53,7 +53,7 @@ func readmeText(t *testing.T) string {
 func TestTheReadmeNamesEveryTier(t *testing.T) {
 	t.Parallel()
 	body := readmeText(t)
-	for _, tier := range []container.Tier{container.Tested, container.Nightly, container.Verified} {
+	for _, tier := range []container.Tier{container.Tested, container.Nightly, container.Verified, container.Staged} {
 		name := strings.ToUpper(string(tier)[:1]) + string(tier)[1:]
 		if !strings.Contains(body, "| "+name+" ") {
 			t.Errorf("README.md has no row for the %s tier, and the list can hold one", name)
@@ -163,7 +163,7 @@ func TestEveryTierHasAName(t *testing.T) {
 	for _, s := range container.All() {
 		seen[s.Tier] = true
 	}
-	known := []container.Tier{container.Tested, container.Nightly, container.Verified}
+	known := []container.Tier{container.Tested, container.Nightly, container.Verified, container.Staged}
 	for tier := range seen {
 		if !slices.Contains(known, tier) {
 			t.Errorf("the list holds the tier %q, which this test does not know about."+

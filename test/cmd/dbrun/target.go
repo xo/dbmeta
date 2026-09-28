@@ -1,15 +1,20 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
+	"github.com/xo/dbmeta/hosted"
 )
 
 // kind is what sort of thing a target is, which decides how it starts and
@@ -27,6 +32,10 @@ const (
 	// kindEmbedded is a library with no server at all. There is nothing to
 	// start and the tests run against whatever the driver links.
 	kindEmbedded
+	// kindHosted is a service that runs somewhere else, reached with a
+	// connection string that a person provisions. There is nothing to start,
+	// and it exists only while its connection string resolves. See D117.
+	kindHosted
 )
 
 // MarshalJSON writes the name rather than the number, because --json is for
@@ -45,6 +54,8 @@ func (k kind) String() string {
 		return "machine"
 	case kindEmbedded:
 		return "embedded"
+	case kindHosted:
+		return "hosted"
 	}
 	return "unknown"
 }
@@ -79,6 +90,16 @@ type target struct {
 	// a URL.
 	DSN string `json:"dsn,omitempty"`
 	URL string `json:"url,omitempty"`
+	// Credential says where a hosted service's connection string came from,
+	// such as env DBMETA_SNOWFLAKE_DSN, and never holds the secret. DSN and
+	// URL hold the connection string with its secret masked, and secret
+	// holds it whole, for the commands that connect. See D117.
+	Credential string `json:"credential,omitempty"`
+	// License is the licence file on the host that dbrun mounts, for a
+	// product that does not start without one. See D118.
+	License string `json:"license,omitempty"`
+	secret  string
+
 	// Principals is every user a test reaches the server as, the
 	// administrator first, with the connection string of each. It is empty
 	// for a machine and an embedded database. See D102.
@@ -158,9 +179,16 @@ func embeddedTargets() []target {
 	}
 	for _, e := range unmodeled {
 		path := filepath.Join(stateDir("DBMETA_EMBEDDED_STATE", "embedded"), e.name+e.ext)
+		// A library that a model reads, such as moderncsqlite, which the
+		// sqlite3 model reads, is tested in CI. The rest are Staged, as a
+		// server is that no model reads. See D119.
+		tier := container.Staged
+		if _, read := e.dialect.Info(); read {
+			tier = container.Tested
+		}
 		out = append(out, target{
 			Name: e.name, Product: e.name, Kind: kindEmbedded,
-			Tier: container.Tested, Dialect: e.dialect, Directory: e.ext == "",
+			Tier: tier, Dialect: e.dialect, Directory: e.ext == "",
 			Env: "DBMETA_" + strings.ToUpper(e.name),
 			DSN: path, URL: e.name + ":" + path,
 		})
@@ -242,13 +270,26 @@ func (t target) portsMatch(have map[string]string) bool {
 	return true
 }
 
-// targets returns every target dbrun knows, in a stable order.
+// targets returns every target dbrun knows, in the order sortTargets gives.
 func targets() []target {
 	servers := container.All()
 	embedded := embeddedTargets()
 	out := make([]target, 0, len(servers)+len(container.Machines())+len(embedded))
 	for i, s := range servers {
 		port := basePort + i
+		var flags []string
+		license := ""
+		if s.License != "" {
+			p, ok, err := resolveLicense(s.Product)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "dbrun:", s.Name(), "is not available:", err)
+			}
+			if !ok {
+				continue
+			}
+			license = p
+			flags = licenseMount(p, s.License)
+		}
 		out = append(out, target{
 			Name:       s.Name(),
 			Product:    s.Product,
@@ -262,7 +303,8 @@ func targets() []target {
 			DSN:        s.DSN(port),
 			URL:        s.URL(port),
 			Principals: principalsOf(s, port),
-			Run:        s.RunArgs(s.Name(), port),
+			Run:        s.RunArgs(s.Name(), port, flags...),
+			License:    license,
 			Ready:      s.ReadyArgs(s.Name()),
 			Init:       s.InitArgs(s.Name()),
 			InitInput:  s.InitInput,
@@ -288,7 +330,18 @@ func targets() []target {
 		})
 	}
 	out = append(out, embedded...)
+	out = append(out, hostedTargets()...)
+	sortTargets(out)
 	return out
+}
+
+// connectDSN is the connection string a command connects with. It is the
+// secret one for a hosted service, and the DSN for everything else.
+func (t target) connectDSN() string {
+	if t.Kind == kindHosted {
+		return t.secret
+	}
+	return t.DSN
 }
 
 // principal is one user of a server, as list and dsn print it.
@@ -340,9 +393,9 @@ func alsoEnv(ds []dbmeta.Dialect) []string {
 
 // env is every variable the tests read for this target, each set to its DSN.
 func (t target) env() []string {
-	out := []string{t.Env + "=" + t.DSN}
+	out := []string{t.Env + "=" + t.connectDSN()}
 	for _, e := range t.AlsoEnv {
-		out = append(out, e+"="+t.DSN)
+		out = append(out, e+"="+t.connectDSN())
 	}
 	return out
 }
@@ -386,7 +439,7 @@ func resolve(all []target, args []string, allReleases bool) ([]target, []string,
 			}
 			continue
 		case arg == string(container.Tested), arg == string(container.Nightly),
-			arg == string(container.Verified):
+			arg == string(container.Verified), arg == string(container.Staged):
 			for _, t := range all {
 				if string(t.Tier) == arg {
 					add(t)
@@ -444,3 +497,53 @@ func newestOf(product []target) target {
 	})
 	return sorted[len(sorted)-1]
 }
+
+// kindRank orders the kinds in a listing: the libraries first, then the
+// servers, whether a container or a machine runs one, and the hosted services
+// last.
+func kindRank(k kind) int {
+	switch k {
+	case kindEmbedded:
+		return 0
+	case kindHosted:
+		return 2
+	}
+	return 1
+}
+
+// sortTargets orders targets by kind, as kindRank says, then by product in
+// alphabetical order, then by release, oldest first. A release is compared by
+// its numbers, so that postgres-9.6 comes before postgres-10. The host port of
+// a server does not depend on this order, because it is fixed by the server's
+// place in container.All.
+func sortTargets(ts []target) {
+	slices.SortStableFunc(ts, func(a, b target) int {
+		return cmp.Or(
+			cmp.Compare(kindRank(a.Kind), kindRank(b.Kind)),
+			cmp.Compare(a.Product, b.Product),
+			dbmeta.ParseVersion(a.Release).Compare(dbmeta.ParseVersion(b.Release)),
+			cmp.Compare(a.Name, b.Name),
+		)
+	})
+}
+
+// nameWidth is the width of the name column in what dbrun prints: the
+// longest name among the servers, the machines, the libraries and the hosted
+// services, and at least 20. Every command pads to it, so that the columns
+// line up whichever targets it prints.
+var nameWidth = sync.OnceValue(func() int {
+	w := 20
+	for _, s := range container.All() {
+		w = max(w, len(s.Name()))
+	}
+	for _, m := range container.Machines() {
+		w = max(w, len(m.Name()))
+	}
+	for _, t := range embeddedTargets() {
+		w = max(w, len(t.Name))
+	}
+	for _, s := range hosted.All() {
+		w = max(w, len(s.Name))
+	}
+	return w
+})

@@ -1,6 +1,7 @@
 # dbrun
 
-`dbrun` starts, stops and removes the databases that dbmeta is tested against.
+`dbrun` starts, stops and removes the databases this project uses: the ones
+dbmeta is tested against, and the Staged ones that no model reads yet (D119).
 It is the only thing that starts one (D68). This document tells you how to use
 it and how to share the machine with the other people and coding agents that
 use it at the same time.
@@ -9,7 +10,8 @@ Read the rules first. Then find your task under Common tasks, and use the
 reference sections below them when you need a detail. To add a release, a
 product or a virtual machine to what `dbrun` can start, read
 [`CONTAINERS.md`](CONTAINERS.md) instead. The reasons behind the design are in
-`decisions/`: D68, D69, D75, D82, D86, D97, D98, D105, D108, D115 and D116.
+`decisions/`: D68, D69, D75, D82, D86, D97, D98, D105, D108, D115, D116, D117, D118 and
+D119.
 
 Run every command from the `test` directory of a dbmeta checkout:
 
@@ -178,7 +180,7 @@ dbrun logs postgres-18
 | `usql` | Runs the `usql` on your `PATH` with the URL of the server, and nothing else. | no |
 | `test` | Runs dbmeta's integration tests against the server, starting and removing it around them. | yes |
 | `logs` | Prints what the server wrote. `-f` follows it. | no |
-| `list` | Prints what a selector names, and touches nothing. | no |
+| `list` | Prints what a selector names, and touches nothing. The embedded libraries come first, then the servers, containers and machines together, then the hosted services, each by product and then by release, oldest first. | no |
 | `build` | Builds the images this repository makes, which are for Cassandra and Oracle 19c. `start` and `test` build one when it is missing. | yes |
 | `provision` | Builds a Windows machine, which takes about an hour, or imports a vendor appliance with `--from`. | yes |
 | `help` | Prints the help. Running `dbrun` with no command does the same. | no |
@@ -196,6 +198,7 @@ A command acts on the servers that its selectors name. Every command except
 | `tested` | every release that CI runs on each push |
 | `nightly` | every release that CI runs once a night |
 | `verified` | every release that a person runs before a release |
+| `staged` | every release that no model reads yet, which CI never runs (D119) |
 | `all` | every release of every product |
 | `sqlite3`, `duckdb`, `moderncsqlite`, `ql`, `chai`, `csvq` | an embedded database, which is a file or a directory and not a server |
 
@@ -237,6 +240,23 @@ password in `container.Password`:
 | InfluxDB 2 and 3 | the admin token `_admin` | `container.InfluxDBToken`, which is `apiv3_` and `container.Password`. `/query` takes it as the password |
 | CrateDB | `crate` | none. CrateDB takes no password for its superuser. |
 | Apache Druid | `admin` | `container.Password` |
+| CouchDB, QuestDB, TerminusDB | `admin` | `container.Password` |
+| Qdrant, Weaviate, Meilisearch, Typesense | `admin`, a name for the administrator's key | `container.Password`, which is the key. None of the four has users, and each checks a key |
+| Chroma | `admin` | none. The server of Chroma 1 checks nothing, and the name is checked by nothing. |
+| CockroachDB, TiDB, YDB | `root` | `container.Password`, which Init sets |
+| MongoDB | `admin`, in the database `admin` | `container.Password` |
+| Elasticsearch | `elastic` | `container.Password` |
+| Dgraph | `groot` | `container.Password`, which Init sets |
+| GizmoSQL | `admin` | `container.Password` |
+| Virtuoso | `dba` | `container.Password` |
+| Milvus | `root` | `container.Password` |
+| Alternator | `cassandra`, the access key | the salted hash of `cassandra`, which is the secret key |
+| Spanner, BigQuery, Vitess | `admin`, `admin`, `root` | none. The two emulators and vttestserver check nothing, and the name is checked by nothing. `dbrun usql spanner` needs `SPANNER_EMULATOR_HOST` set to the published address, because dburl drops the host |
+| OpenSearch | `admin` | `container.Password`. The first start uses a stronger one that the installer accepts, and replaces it before the server starts (D118) |
+| DynamoDB, Cosmos | `dbmeta`, the account key | none checked. Cosmos has the key `container.CosmosKey`, which Microsoft publishes |
+| Solr, Drill, Fuseki, ksqlDB, H2 | `admin`, and `sa` on H2 | `container.Password` |
+| PostgREST | `dbmeta_admin`, a role a token names | a signed token, which the DSN carries as the password. There is no anonymous role |
+| Stardog, GraphDB, VoltDB | `admin` | `container.Password`. Each appears only with its licence file |
 | Avatica, Apache Phoenix | `SA`, `phoenix` | none. Neither checks a user, and the name is checked by nothing. |
 | Cassandra, ScyllaDB | `cassandra` | `cassandra` |
 | Apache Hive | `hive` | none. The image configures no authentication. |
@@ -252,10 +272,37 @@ Apache Pinot and Apache Druid have one too, and D112 and D113 say what each
 may do. InfluxDB 1 and 2
 have `container.InfluxDBUser`, who may only read `dbmeta` (D114). InfluxDB 3
 Core and libSQL have none, because neither can make a principal with fewer
-rights than its administrator. `dsn --json`
+rights than its administrator. CouchDB and TerminusDB have `dbmeta_user`,
+who may read `dbmeta` and not change its design. Qdrant, Weaviate,
+Meilisearch and Typesense have a key that may only read, which goes by the
+name `dbmeta_user` in the DSN. CockroachDB and TiDB have `dbmeta_owner`,
+who owns `dbmeta`, and `dbmeta_user`, who may only read it. MongoDB,
+Elasticsearch and Dgraph have `dbmeta_user`, who may only read. YDB has
+`dbmetauser`, because YDB allows no underscore in a user name. Virtuoso, Milvus, Alternator, OpenSearch, Solr, Drill, H2,
+Fuseki, PostgREST, Stardog, GraphDB and VoltDB have `dbmeta_user`, who may
+only read. QuestDB, Chroma, GizmoSQL, Spanner, BigQuery, Vitess, DynamoDB,
+Cosmos and ksqlDB have none, and D118 says why. `dsn --json`
 prints each in the `principals` field, after the administrator, with its own
 connection string (D102). Every other ordinary user is created by the test
 that needs it and dropped when that test ends.
+
+## Licence files
+
+Stardog, GraphDB and Volt Active Data do not start without a licence file
+that a person downloads, and each vendor gives one only after a signup. A
+coding agent never signs up or downloads one. Ken provisions each file, the
+same way he provisions a hosted credential.
+
+`dbrun` finds a product's file in the first of two places that has one:
+
+1. The path in `DBMETA_<PRODUCT>_LICENSE`, such as `DBMETA_STARDOG_LICENSE`.
+2. The file `<product>` in `$XDG_CONFIG_HOME/dbmeta/licenses`, such as
+   `~/.config/dbmeta/licenses/stardog`.
+
+`dbrun` lists the product's releases only while it finds the file, and mounts
+the file read only where the product reads it. No model reads any of the
+three, so every release of them is Staged, and CI has no file for any of them
+either. See D118 and D119.
 
 ## Output
 
@@ -273,7 +320,7 @@ with these fields:
 | `release` | the release, such as `8.0.3`. An embedded database has none. |
 | `kind` | `container`, `machine` or `embedded` |
 | `directory` | true for an embedded database that is a directory, chai and csvq (D116) |
-| `tier` | `tested`, `nightly` or `verified` |
+| `tier` | `tested`, `nightly`, `verified` or `staged` |
 | `dialect` | the dbmeta dialect, which is the dburl driver name, such as `couchbase`. It is empty until dbimp settles the name, as for ArangoDB (D112) |
 | `env` | the environment variable that dbmeta's tests read the DSN from, such as `DBMETA_COUCHBASE` |
 | `also`, `alsoEnv` | every other dialect the server answers, and the variable of each, which dbrun sets to the same DSN. InfluxDB 3 answers `influxql` beside `influxdb` (D114) |
@@ -344,12 +391,12 @@ and then reads asks for `scan_consistency=request_plus` (D96).
 
 ## Lifecycle
 
-| | container | machine | embedded |
-| --- | --- | --- | --- |
-| `start` | creates or resumes it | starts the provisioned machine | prints where the file will be, and gives csvq its sample files |
-| `stop` | stops it and keeps it | stops it and keeps it | nothing to do |
-| `remove` | deletes it | deletes it, after asking | deletes the file |
-| after `test` | removed, unless `--keep` | kept, because it takes an hour to rebuild, unless `--remove` | kept, unless `--remove` |
+| | container | machine | embedded | hosted |
+| --- | --- | --- | --- | --- |
+| `start` | creates or resumes it | starts the provisioned machine | prints where the file will be, and gives csvq its sample files | prints where the connection string came from |
+| `stop` | stops it and keeps it | stops it and keeps it | nothing to do | nothing to do |
+| `remove` | deletes it | deletes it, after asking | deletes the file | nothing to do |
+| after `test` | removed, unless `--keep` | kept, because it takes an hour to rebuild, unless `--remove` | kept, unless `--remove` | nothing to keep |
 
 An embedded database runs in the process that opens it and has no server.
 SQLite and DuckDB have dbmeta models. moderncsqlite, ql, chai and csvq have
@@ -365,12 +412,47 @@ sample files in it: `author.csv`, `book.csv`, `region.csv` and
 `dbrun remove csvq` deletes the directory, and the next command gives the
 samples again.
 
+## Hosted services
+
+A hosted service runs somewhere else, such as Snowflake, BigQuery or Neon, and
+`dbrun` reaches it with a connection string that you provision. `hosted/`
+names every service `dbrun` knows, with the form of its connection string.
+A service appears in `list`, `status` and every other command only while its
+connection string resolves, and a person without an account never sees it
+(D117).
+
+`dbrun` reads the connection string from the first of these that has one:
+
+1. The variable `DBMETA_<NAME>_DSN`, such as `DBMETA_SNOWFLAKE_DSN`.
+2. The file `<name>` in `$XDG_CONFIG_HOME/dbmeta/credentials`. Make it
+   readable by you alone, with `chmod 600`, or `dbrun` refuses it.
+3. The program `dbmeta-credential-<name>` on your path, which prints the
+   connection string. Write one to read a password manager.
+
+If the driver reads a secret by itself, as BigQuery and Spanner read the key
+file that `GOOGLE_APPLICATION_CREDENTIALS` names, the connection string holds
+no secret.
+
+`dsn` masks the secret, and `dsn --reveal` prints it. `usql` passes the
+connection string in a temporary usql configuration file rather than on the
+command line, so that no process list shows it. `test` sets `DBMETA_<NAME>`,
+named for the service rather than its dialect. A hosted service that a
+model reads, such as Neon, is Verified, and the rest are Staged, so CI never
+runs one (D119). Cloud Spanner, DynamoDB, BigQuery and Cosmos
+DB also have an emulator that runs as a container.
+
+Do not put a connection string in a file in this repository, and do not paste
+one into a command that others can see.
+
 ## Environment variables
 
 | Variable | What it does |
 | --- | --- |
 | `DBMETA_RUNNER` | `podman` or `docker`. Without it, `dbrun` uses podman, and docker when podman is absent. CI sets `docker`. |
 | `DBMETA_OWNER` | Who you are, for the owner label of each server you create. Without it, `dbrun` uses the session of a coding agent, and then the login name. |
+| `DBMETA_<NAME>_DSN` | The connection string of a hosted service, such as `DBMETA_SNOWFLAKE_DSN`. The service appears only while it is set, or while its credential file or helper has one (D117). |
+| `DBMETA_<PRODUCT>_LICENSE` | The path of the licence file of a product that needs one, such as `DBMETA_STARDOG_LICENSE`. The product appears only while it or `$XDG_CONFIG_HOME/dbmeta/licenses/<product>` names a file (D118). |
+| `XDG_CONFIG_HOME` | Where `dbmeta/credentials` lives, the directory of credential files for the hosted services. It defaults to `~/.config`. |
 | `DBMETA_OWNER_NAME` | The friendly name of your session, such as `dbimp`, which `status` shows beside the owner. A coding agent sets it on every command (D115). |
 | `DBMETA_TEST_BINARY` | A test binary built with `go test -c`. `dbrun test` runs it instead of compiling the tests. CI sets it (D82). |
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
@@ -385,7 +467,9 @@ in the same way. Check out dbmeta, run `dbrun` from its `test` directory, and
 read the connection string from `dsn --json`. A CI workflow checks out a pinned
 dbmeta commit from `main`. A server that dbmeta's list does not name yet gets
 its entry in dbmeta first. [`CONTAINERS.md`](CONTAINERS.md) holds the steps,
-and the work happens in a dbmeta session or goes to Ken.
+and the work happens in a dbmeta session or goes to Ken. A server that no
+dbmeta model reads is Staged, so dbmeta's CI never runs it. Select it by
+name, or with the selector `staged` (D119).
 
 `dbrun usql` runs the `usql` on your `PATH` and passes only the URL. To run a
 `usql` that you built, or to pass it flags, read the URL yourself:

@@ -31,7 +31,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 116. Read the status, because 33
+`docs/decisions/README.md` is a table of all 119. Read the status, because 34
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -55,6 +55,9 @@ Then by what you are doing:
 | adding an old SQL Server that needs a Windows VM | `docs/DIALECT.md` for where the steps differ, then `docs/WINDOWS.md`, `container/windows.go` and D57 |
 | starting a database for any reason | `dbrun`, and nothing else. `docs/DBRUN.md` holds its use and the rules for a shared machine. Read those rules first |
 | adding a container or a machine that dbrun starts | `docs/CONTAINERS.md`, every step in order |
+| reaching a hosted service, such as Snowflake | `docs/DBRUN.md`, under Hosted services, and D117. Never enter a credential yourself |
+| running a product that needs a licence file, such as Stardog | `docs/DBRUN.md`, under Licence files, and D118. Never sign up for one or download one yourself |
+| adding an entry for a product dbimp or usql reaches | D118, which holds the rules the entries follow and what each one cost to measure |
 | changing how a database is started | D68, D70, D75, D86, D97, D98, D105, D108 and D115 in `docs/decisions/`, then `docs/DBRUN.md` |
 | provisioning a Windows machine | `docs/WINDOWS.md`, then `container/windows.go` and D57 |
 | testing against Cassandra | `test/cmd/dbrun/image/cassandra.Containerfile`. `dbrun` embeds it and builds it when the image is missing |
@@ -115,13 +118,16 @@ something is written down, it is not written down, and it is an open question.
    `Gate{Key: MariaDB, Min: V(10, 2)}`. Set a key only for a product you
    detected. See D44.
 4. Stay backward compatible within reason. An old database keeps working when
-   support for a new one arrives. Every version sits in one of four tiers:
+   support for a new one arrives. Every version sits in one of five tiers:
    Tested in CI on every push, Nightly in CI once a night, Verified on a
-   development machine before a release and never in CI, or Archived with no
-   tests at all. Never call a version supported without naming its tier.
-   D40 set three and D42 added Nightly. The first three are values of
-   `container.Tier` and Archived is not, because an archived release is one
-   `container.All` does not name. See D40 and D42.
+   development machine before a release and never in CI, Staged when no
+   model reads it yet, or Archived with no tests at all. Never call a version
+   supported without naming its tier, and never call a Staged one supported
+   at all. D40 set three, D42 added Nightly and D119 added Staged. The first
+   four are values of `container.Tier` and Archived is not, because an
+   archived release is one `container.All` does not name. A release is Staged
+   exactly when no model reads it, and it leaves Staged in the change that
+   adds its model. See D40, D42 and D119.
 5. A query translated from a source tree that upstream no longer ships records
    the release and commit of that tree beside the query. PostgreSQL 9.6 is the
    case: `psql` dropped it in release 20, so there is nothing current to check
@@ -268,13 +274,18 @@ something is written down, it is not written down, and it is an open question.
 - `container/` names every database release the tests run against, as Go data.
   It starts no container and imports no container client. `test/cmd/dbrun` and
   the CI workflow both read it, and a test fails when they drift.
+- `hosted/` names the hosted services, such as Snowflake and BigQuery, as Go
+  data. It holds no secret. `dbrun` resolves each one's connection string at
+  run time, and a service exists in `dbrun` only while it resolves. See D117.
 - `test/cmd/dbrun` is the only thing that starts a database, container or
   virtual machine alike. `container/machine.go` holds the machine list, and
   `container/windows.go` holds the Windows machines in it. `dbrun provision`
   builds a Windows machine from the payload it embeds in
   `test/cmd/dbrun/oem/`, and imports an appliance from the file a person
   downloaded. Read `docs/WINDOWS.md`. See D57, D68 and D86.
-- `test/cmd/dbrun/image/` holds the Containerfiles this repository builds.
+- `test/cmd/dbrun/image/` holds the Containerfiles this repository builds,
+  one for each product whose image dbrun builds. `dbrun` embeds them all and
+  builds `<product>.Containerfile` as `localhost/dbmeta/<product>`. See D118.
   The Apache Cassandra image cannot be configured from the outside for what
   the queries read, so the settings are baked in. `dbrun` embeds the file and
   builds the image when it is missing.
@@ -442,8 +453,10 @@ Read `golangci-lint run` output as a list of questions, not a list of tasks.
 
 `container/` names every server release that `dbrun` starts, as Go data, one
 file per product, and `container.All` in `container/container.go` joins them.
-Most are what dbmeta is tested against. The rest are there for dbimp's
-drivers and have no model (D103, D106, D112, D113). The package starts
+Most are what dbmeta is tested against. The rest are Staged, because no model
+reads them: they are there for dbimp's drivers, for the flavors usql reaches,
+and for the emulators of hosted services, and CI does not run them (D118,
+D119). The package starts
 nothing and imports no container client, and it must not: a consumer brings
 its own podman, docker or Go client and picks its own version of it, the same
 way it brings its own driver.
@@ -451,8 +464,9 @@ way it brings its own driver.
 An embedded database is not in there and must not be. SQLite3, DuckDB,
 moderncsqlite, ql, chai and csvq have no server and no container, and the
 release is whichever one the pinned Go driver ships. `dbrun` knows them
-itself (D116), and CI tests them in the same matrix as the servers, where
-`dbrun` starts nothing for them. See D42.
+itself (D116), and CI tests the ones a model reads in the same matrix as the
+servers, where `dbrun` starts nothing for them. ql, chai and csvq have no
+model yet, so they are Staged (D119). See D42.
 
 That list is the only copy. `test/cmd/dbrun` reads it, the CI workflow builds
 its matrix from `dbrun list --json --names`, and
@@ -504,8 +518,8 @@ list with:
 cd test && go run ./cmd/dbrun list --json --names tested
 ```
 
-That command adds the six embedded databases, which are not in
-`container.AtTier` at all, and `dbrun` starts nothing for them. D42 keeps an
+That command adds the embedded databases that a model reads, which are not
+in `container.AtTier` at all, and `dbrun` starts nothing for them. D42 keeps an
 embedded database out of the release list, and `dbrun` puts them back because
 a person asking for the tier wants to run them too. The Nightly tier runs
 once a night.

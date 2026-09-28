@@ -6,7 +6,7 @@ import (
 	"net/url"
 )
 
-// The libSQL releases dbmeta is tested against.
+// The libSQL releases dbrun starts.
 //
 // dbmeta has no libSQL model. The release is here so that dbrun can start a
 // server for the tests of the libSQL driver in github.com/xo/dbimp, which
@@ -68,7 +68,8 @@ func libsqlHTTP(port int) string {
 	return u.String()
 }
 
-// LibSQL is every libSQL release dbmeta is tested against.
+// LibSQL is every libSQL release dbrun starts.
 //
-// One release on every push, because libSQL has one line.
-var LibSQL = list{}.add(libsql, Tested, "0.24.33")
+// Staged, because dbmeta has no model that reads it, so CI runs none of
+// them. See D119.
+var LibSQL = list{}.add(libsql, Staged, "0.24.33")

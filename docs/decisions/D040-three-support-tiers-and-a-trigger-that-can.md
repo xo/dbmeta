@@ -1,6 +1,6 @@
 # D40. Three support tiers, and a trigger that can remove a version
 
-Status: Decided.
+Status: Amended by D119.
 
 D20 keeps PostgreSQL back to 9.6, which is one release below what `psql`
 supports. Both external reviews accepted that only on two conditions, and both

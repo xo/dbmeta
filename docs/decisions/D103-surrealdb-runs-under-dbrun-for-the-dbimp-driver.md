@@ -1,6 +1,6 @@
 # D103. SurrealDB runs under dbrun, for the dbimp driver
 
-Status: Decided.
+Status: Amended by D119.
 
 Ken agreed on 2026-09-27 to a `dbrun` entry for SurrealDB, which is the next
 driver in dbimp. dbmeta has no SurrealDB model, and the entry is there for

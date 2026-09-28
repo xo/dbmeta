@@ -1,6 +1,6 @@
 # D114. A server can answer more than one dialect
 
-Status: Amends D112.
+Status: Amends D112, amended by D119.
 
 Ken accepted dbimp's D78 on 2026-09-28. dbimp's InfluxDB driver has two
 dialects: `influxdb`, which is SQL on InfluxDB 3 and later, and `influxql`,
