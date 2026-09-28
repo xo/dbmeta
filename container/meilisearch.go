@@ -82,5 +82,6 @@ var meilisearch = product{
 // Meilisearch is every Meilisearch release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Meilisearch = list{}.add(meilisearch, Staged, "1.53.2", "1.54.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Meilisearch = list{}.staged(meilisearch, Tested, "1.53.2", "1.54.0")

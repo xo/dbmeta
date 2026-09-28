@@ -85,8 +85,8 @@ release list and any helper only it needs. Give the product var a doc comment.
 The list names every release and its tier. Read D40 for the tiers and D42 for
 what runs on a push against what runs nightly. If the product already has a
 Staged entry, because dbrun started it for dbimp or for a flavor before the
-model existed, move its releases to Tested or Nightly in the change that adds
-the model. `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` fails until you do
+model existed, change its `staged` calls to `add` in the change that adds the
+model, and keep the cadence each release records as its tier (D120). `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` fails until you do
 (D119).
 
 Add the product to `All()` in `container/container.go`. Do this before anything

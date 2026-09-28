@@ -131,5 +131,6 @@ func neo4jURL(user string) func(port int) string {
 // Neo4j is every Neo4j release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Neo4j = list{}.add(neo4j, Staged, "5.26.31", "2026.09.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Neo4j = list{}.staged(neo4j, Tested, "5.26.31", "2026.09.0")

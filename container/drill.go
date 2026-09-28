@@ -79,5 +79,6 @@ var drill = product{
 // Drill is every Apache Drill release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Drill = list{}.add(drill, Staged, "1.21.2", "1.22.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Drill = list{}.staged(drill, Tested, "1.21.2", "1.22.0")

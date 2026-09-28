@@ -105,5 +105,6 @@ var postgrest = product{
 // PostgREST is every PostgREST release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var PostgREST = list{}.add(postgrest, Staged, "14.18", "16.4")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var PostgREST = list{}.staged(postgrest, Tested, "14.18", "16.4")

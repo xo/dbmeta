@@ -92,5 +92,6 @@ func arangoHTTP(user string) func(port int) string {
 // ArangoDB is every ArangoDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var ArangoDB = list{}.add(arangodb, Staged, "3.12.12")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var ArangoDB = list{}.staged(arangodb, Tested, "3.12.12")

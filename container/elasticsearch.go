@@ -59,5 +59,7 @@ var elasticsearch = product{
 // Elasticsearch is every Elasticsearch release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Elasticsearch = list{}.add(elasticsearch, Staged, "8.19.22", "9.4.6", "9.5.3")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Elasticsearch = list{}.staged(elasticsearch, Tested, "8.19.22", "9.5.3").
+	staged(elasticsearch, Nightly, "9.4.6")

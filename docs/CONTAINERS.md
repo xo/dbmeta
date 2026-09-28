@@ -31,6 +31,10 @@ dbmeta's CI does not run it, and the other repository runs it with
 4. Name every release in one of the tiers `Tested`, `Nightly`, `Verified` or
    `Staged`. CI runs the first two, and a person runs the third before a
    release. A release that no model reads is `Staged`, and CI never runs it.
+   Add it with `staged` rather than `add`, and give it the cadence it would
+   have if a model read it, `Tested`, `Nightly` or `Verified`. dbimp runs its
+   Staged releases by that cadence, and it becomes the tier when the model
+   arrives (D120).
    `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` holds that a release is
    Staged exactly when no model reads it (D119).
 5. Publish one port, the one the tests connect to. A second interface of the

@@ -42,5 +42,6 @@ var dynamodb = product{
 // DynamoDB is every DynamoDB Local release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var DynamoDB = list{}.add(dynamodb, Staged, "3.2.0", "3.3.1")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var DynamoDB = list{}.staged(dynamodb, Tested, "3.2.0", "3.3.1")

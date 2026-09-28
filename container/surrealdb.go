@@ -122,5 +122,7 @@ func surrealDBURL(user, auth string) func(port int) string {
 // SurrealDB is every SurrealDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var SurrealDB = list{}.add(surrealdb, Staged, "2.7.0", "3.1.6", "3.2.4", "3.3.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var SurrealDB = list{}.staged(surrealdb, Tested, "2.7.0", "3.3.0").
+	staged(surrealdb, Nightly, "3.1.6", "3.2.4")

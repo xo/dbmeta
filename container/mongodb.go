@@ -79,5 +79,7 @@ func mongoURL(user, source string) func(port int) string {
 // MongoDB is every MongoDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var MongoDB = list{}.add(mongodb, Staged, "7.0.43", "8.0.32", "8.3.11")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var MongoDB = list{}.staged(mongodb, Tested, "7.0.43", "8.3.11").
+	staged(mongodb, Nightly, "8.0.32")

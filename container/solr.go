@@ -115,5 +115,7 @@ var solr = product{
 // Solr is every Apache Solr release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Solr = list{}.add(solr, Staged, "9.9.0", "9.10.1", "10.0.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Solr = list{}.staged(solr, Tested, "9.9.0", "10.0.0").
+	staged(solr, Nightly, "9.10.1")

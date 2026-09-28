@@ -52,5 +52,6 @@ var gizmosql = product{
 // GizmoSQL is every GizmoSQL release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var GizmoSQL = list{}.add(gizmosql, Staged, "1.38.5", "1.39.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var GizmoSQL = list{}.staged(gizmosql, Tested, "1.38.5", "1.39.0")

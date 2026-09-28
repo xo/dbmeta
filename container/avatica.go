@@ -98,5 +98,6 @@ func avaticaHTTP(user string) func(port int) string {
 // Avatica is every standalone Avatica release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Avatica = list{}.add(avatica, Staged, "1.28.0", "1.29.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Avatica = list{}.staged(avatica, Tested, "1.28.0", "1.29.0")

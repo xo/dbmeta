@@ -71,5 +71,6 @@ func rqliteHTTP(user string) func(port int) string {
 // Rqlite is every rqlite release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Rqlite = list{}.add(rqlite, Staged, "9.4.5", "10.3.6")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Rqlite = list{}.staged(rqlite, Tested, "9.4.5", "10.3.6")

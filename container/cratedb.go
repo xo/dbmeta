@@ -94,5 +94,6 @@ func crateHTTP(user string, password bool) func(port int) string {
 // CrateDB is every CrateDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var CrateDB = list{}.add(cratedb, Staged, "6.3.7", "6.4.5")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var CrateDB = list{}.staged(cratedb, Tested, "6.3.7", "6.4.5")

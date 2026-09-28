@@ -1,6 +1,6 @@
 # D119. A release that no model reads is Staged
 
-Status: Amends D40, D103, D106, D112, D113, D114 and D116.
+Status: Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120.
 
 ## The problem
 
@@ -44,9 +44,9 @@ Stardog, GraphDB and Volt Active Data are Staged too, although each also needs
 a licence file. The missing model is the reason CI does not run them, and it
 would be the reason even if CI had the files.
 
-A release moves out of Staged in the change that adds its model. That change
-sets the tier to Tested, Nightly or Verified, and the test above fails until
-it does. The range of releases does not change, because each product's file
+A release moves out of Staged in the change that adds its model, and the test
+above fails until it does. D120 later gave each Staged release the cadence it
+would have, and the cadence becomes its tier. The range of releases does not change, because each product's file
 already records it by the rules in `docs/EVALUATION.md`.
 
 ## What it changed

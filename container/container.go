@@ -111,8 +111,9 @@ const (
 	// Staged means dbrun starts this release and no dbmeta model reads it
 	// yet, so CI does not run it. Each one was measured through dbrun when
 	// it was added: it starts, answers, sets up, and its users do what its
-	// file says. That is all the tier promises. A release moves to another
-	// tier when its model arrives. See D119.
+	// file says. That is all the tier promises. [Server.Cadence] says how
+	// often it would be tested, and it becomes the tier when the model
+	// arrives. See D119 and D120.
 	Staged Tier = "staged"
 )
 
@@ -137,6 +138,12 @@ type Server struct {
 	Major string
 	// Tier is how often this release is tested.
 	Tier Tier
+	// Cadence is how often a Staged release would be tested if a model
+	// read it: Tested, Nightly or Verified. A project that runs Staged
+	// releases, such as dbimp, runs the Tested ones on each push and the
+	// Nightly ones at night. When the model arrives, the cadence becomes the
+	// tier. It is empty for a release that is not Staged. See D120.
+	Cadence Tier
 
 	// Image is the container image, fully qualified and without the tag, as
 	// in "docker.io/library/postgres". The registry is always written out:
@@ -457,6 +464,18 @@ type product struct {
 // names its tier, including the first, because which release sits in which
 // tier is the one thing this package exists to state.
 type list []Server
+
+// staged adds releases that no model reads yet, at the cadence each would
+// have if one did. See D119 and D120.
+func (l list) staged(p product, cadence Tier, versions ...string) list {
+	l = l.add(p, Staged, versions...)
+	for i := range l {
+		if l[i].Tier == Staged && l[i].Cadence == "" {
+			l[i].Cadence = cadence
+		}
+	}
+	return l
+}
 
 func (l list) add(p product, tier Tier, versions ...string) list {
 	for _, v := range versions {

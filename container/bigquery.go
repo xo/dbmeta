@@ -40,5 +40,6 @@ var bigquery = product{
 // BigQuery is every BigQuery emulator release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var BigQuery = list{}.add(bigquery, Staged, "0.7.2", "0.8.1")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var BigQuery = list{}.staged(bigquery, Tested, "0.7.2", "0.8.1")

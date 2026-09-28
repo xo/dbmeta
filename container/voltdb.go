@@ -89,5 +89,6 @@ func voltURL(user string) func(port int) string {
 // VoltDB is every Volt Active Data release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads VoltDB, so CI runs none
-// of them. Each also needs a licence file that CI does not have. See D119.
-var VoltDB = list{}.add(voltdb, Staged, "14.1.0", "15.2.0")
+// of them. Each also needs a licence file that CI does not have,
+// so its cadence is Verified. See D119 and D120.
+var VoltDB = list{}.staged(voltdb, Verified, "14.1.0", "15.2.0")

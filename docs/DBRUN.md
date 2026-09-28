@@ -321,6 +321,7 @@ with these fields:
 | `kind` | `container`, `machine` or `embedded` |
 | `directory` | true for an embedded database that is a directory, chai and csvq (D116) |
 | `tier` | `tested`, `nightly`, `verified` or `staged` |
+| `cadence` | for a Staged release only, `tested`, `nightly` or `verified`: how often it would be tested if a model read it. A project that runs Staged releases, such as dbimp, runs the tested ones on each push and the nightly ones at night (D120) |
 | `dialect` | the dbmeta dialect, which is the dburl driver name, such as `couchbase`. It is empty until dbimp settles the name, as for ArangoDB (D112) |
 | `env` | the environment variable that dbmeta's tests read the DSN from, such as `DBMETA_COUCHBASE` |
 | `also`, `alsoEnv` | every other dialect the server answers, and the variable of each, which dbrun sets to the same DSN. InfluxDB 3 answers `influxql` beside `influxdb` (D114) |
@@ -469,7 +470,9 @@ dbmeta commit from `main`. A server that dbmeta's list does not name yet gets
 its entry in dbmeta first. [`CONTAINERS.md`](CONTAINERS.md) holds the steps,
 and the work happens in a dbmeta session or goes to Ken. A server that no
 dbmeta model reads is Staged, so dbmeta's CI never runs it. Select it by
-name, or with the selector `staged` (D119).
+name, or with the selector `staged` (D119). To run the ones you need on each
+push and the rest at night, filter `dbrun list --json staged` on `cadence`,
+as dbimp does (D120).
 
 `dbrun usql` runs the `usql` on your `PATH` and passes only the URL. To run a
 `usql` that you built, or to pass it flags, read the URL yourself:

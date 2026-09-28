@@ -58,5 +58,6 @@ var vitess = product{
 // Vitess is every Vitess release dbrun starts.
 //
 // Staged until models/mysql detects Vitess and gives it a version key of
-// its own, so CI runs none of them. See D118 and D119.
-var Vitess = list{}.add(vitess, Staged, "23.0.6", "24.0.3")
+// its own, so CI runs none of them. Each keeps the cadence it would have,
+// and takes it as its tier when the model arrives. See D118, D119 and D120.
+var Vitess = list{}.staged(vitess, Tested, "23.0.6", "24.0.3")

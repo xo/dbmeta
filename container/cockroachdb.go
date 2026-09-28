@@ -89,5 +89,7 @@ func cockroachURL(scheme, user string) func(port int) string {
 // CockroachDB is every CockroachDB release dbrun starts.
 //
 // Staged until models/postgres detects CockroachDB and gives it a version
-// key of its own, so CI runs none of them. See D118 and D119.
-var CockroachDB = list{}.add(cockroachdb, Staged, "24.3.36", "26.2.7", "26.3.2")
+// key of its own, so CI runs none of them. Each keeps the cadence it would have, and
+// takes it as its tier when the model arrives. See D118, D119 and D120.
+var CockroachDB = list{}.staged(cockroachdb, Tested, "26.2.7", "26.3.2").
+	staged(cockroachdb, Nightly, "24.3.36")

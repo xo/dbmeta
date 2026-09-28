@@ -65,5 +65,6 @@ var virtuoso = product{
 // Virtuoso is every Virtuoso release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Virtuoso = list{}.add(virtuoso, Staged, "7.2.17")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Virtuoso = list{}.staged(virtuoso, Tested, "7.2.17")

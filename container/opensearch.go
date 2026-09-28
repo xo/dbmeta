@@ -94,5 +94,6 @@ api=http://127.0.0.1:9200/_plugins/_security/api
 // OpenSearch is every OpenSearch release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var OpenSearch = list{}.add(opensearch, Staged, "2.19.6", "3.8.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var OpenSearch = list{}.staged(opensearch, Tested, "2.19.6", "3.8.0")

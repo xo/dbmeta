@@ -84,5 +84,6 @@ var milvus = product{
 // Milvus is every Milvus release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Milvus = list{}.add(milvus, Staged, "2.6.24", "3.0.2")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Milvus = list{}.staged(milvus, Tested, "2.6.24", "3.0.2")

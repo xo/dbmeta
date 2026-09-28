@@ -68,5 +68,6 @@ func h2DSN(user string) func(port int) string {
 // H2 is every H2 release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var H2 = list{}.add(h2, Staged, "2.4.240", "2.5.252")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var H2 = list{}.staged(h2, Tested, "2.4.240", "2.5.252")

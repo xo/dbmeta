@@ -70,5 +70,6 @@ var weaviate = product{
 // Weaviate is every Weaviate release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Weaviate = list{}.add(weaviate, Staged, "1.38.17", "1.39.7")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Weaviate = list{}.staged(weaviate, Tested, "1.38.17", "1.39.7")

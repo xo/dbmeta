@@ -72,5 +72,6 @@ var fuseki = product{
 // Fuseki is every Apache Jena Fuseki release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Fuseki = list{}.add(fuseki, Staged, "6.1.0", "6.2.0")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Fuseki = list{}.staged(fuseki, Tested, "6.1.0", "6.2.0")

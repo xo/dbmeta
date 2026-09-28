@@ -13,8 +13,8 @@ imports it, for Claude Code.
 
 [`docs/decisions/`](docs/decisions/) holds every decision this project has made,
 one file each, with the reasoning and what was rejected. The index in
-[`docs/decisions/README.md`](docs/decisions/README.md) lists all 119 with their
-status. Read the status: 34 of them amend or replace an earlier one.
+[`docs/decisions/README.md`](docs/decisions/README.md) lists all 120 with their
+status. Read the status: 35 of them amend or replace an earlier one.
 
 Do not decide an open question on your own. The open questions are at the end
 of `docs/PLAN.md`. Ask Ken.
@@ -44,7 +44,8 @@ in `dbrun test postgres`. `dbrun test all` runs every release of every
 product, which is what has to pass before a release. The list also holds
 Staged servers, which no model reads, and which are there for dbimp's drivers
 and for the flavors usql reaches. CI never runs them, and `dbrun test staged`
-measures them again (D119).
+measures them again (D119). Each records the cadence it would have, which
+becomes its tier when its model arrives (D120).
 
 `dbrun` does everything to a database: `start` one and leave it up, `stop` it,
 `status` to see what is running, `dsn` for a URL to paste, `usql` for a shell

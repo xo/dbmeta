@@ -103,5 +103,6 @@ func pinotHTTP(user string) func(port int) string {
 // Pinot is every Apache Pinot release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Pinot = list{}.add(pinot, Staged, "1.4.0", "1.5.1")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Pinot = list{}.staged(pinot, Tested, "1.4.0", "1.5.1")

@@ -80,5 +80,6 @@ func keyHTTP(user, key string) func(port int) string {
 // Qdrant is every Qdrant release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Qdrant = list{}.add(qdrant, Staged, "1.18.3", "1.19.1")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Qdrant = list{}.staged(qdrant, Tested, "1.18.3", "1.19.1")

@@ -193,7 +193,11 @@ func influxHTTP(user, password string) func(port int) string {
 // InfluxDB is every InfluxDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var InfluxDB = list{}.add(influxdb1, Staged, "1.11.8", "1.13.1").
-	add(influxdb2, Staged, "2.8.0", "2.9.1").
-	add(influxdb, Staged, "3.9.13", "3.10.6", "3.11.5")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var InfluxDB = list{}.staged(influxdb1, Tested, "1.13.1").
+	staged(influxdb1, Nightly, "1.11.8").
+	staged(influxdb2, Tested, "2.9.1").
+	staged(influxdb2, Nightly, "2.8.0").
+	staged(influxdb, Tested, "3.9.13", "3.11.5").
+	staged(influxdb, Nightly, "3.10.6")

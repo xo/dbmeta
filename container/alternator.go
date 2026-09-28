@@ -101,5 +101,6 @@ func dynamoURL(key, secret string) func(port int) string {
 // Alternator is every ScyllaDB Alternator release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Alternator = list{}.add(alternator, Staged, "2025.1", "2026.3")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Alternator = list{}.staged(alternator, Tested, "2025.1", "2026.3")

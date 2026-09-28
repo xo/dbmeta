@@ -28,6 +28,17 @@ func TestAReleaseIsStagedExactlyWhenNoModelReadsIt(t *testing.T) {
 				s.Name(), s.Tier)
 		}
 	}
+	for _, s := range container.All() {
+		switch {
+		case s.Tier == container.Staged && s.Cadence != container.Tested &&
+			s.Cadence != container.Nightly && s.Cadence != container.Verified:
+			t.Errorf("%s is Staged with the cadence %q. It must be tested, nightly or verified (D120)",
+				s.Name(), s.Cadence)
+		case s.Tier != container.Staged && s.Cadence != "":
+			t.Errorf("%s is %s and has the cadence %s, which only a Staged release has (D120)",
+				s.Name(), s.Tier, s.Cadence)
+		}
+	}
 	for _, m := range container.Machines() {
 		if _, read := m.Dialect.Info(); !read {
 			t.Errorf("%s is a machine, and no model reads %s", m.Name(), m.Dialect)

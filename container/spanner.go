@@ -64,5 +64,6 @@ var spanner = product{
 // Spanner is every Cloud Spanner emulator release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Spanner = list{}.add(spanner, Staged, "1.5.58")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Spanner = list{}.staged(spanner, Tested, "1.5.58")

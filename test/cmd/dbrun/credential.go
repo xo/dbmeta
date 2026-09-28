@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xo/dbmeta/container"
 	"github.com/xo/dbmeta/hosted"
 )
 
@@ -146,8 +147,14 @@ func resolveHosted(ctx context.Context, services []hosted.Service) ([]target, []
 			continue
 		}
 		masked := maskDSN(c.dsn)
+		// CI never runs a hosted service, so a Staged one would be Verified
+		// if a model read it (D120).
+		var cadence container.Tier
+		if s.Tier == container.Staged {
+			cadence = container.Verified
+		}
 		out = append(out, target{
-			Name: s.Name, Product: s.Name, Kind: kindHosted, Tier: s.Tier, Dialect: s.Dialect,
+			Name: s.Name, Product: s.Name, Kind: kindHosted, Tier: s.Tier, Cadence: cadence, Dialect: s.Dialect,
 			Env:        "DBMETA_" + strings.ToUpper(s.Name),
 			DSN:        masked,
 			URL:        masked,

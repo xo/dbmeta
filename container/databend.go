@@ -115,6 +115,7 @@ func databendDSN(user, database string) func(port int) string {
 // Databend is every Databend release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var Databend = list{}.add(databend, Staged, "1.2.881", "1.2.948").
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var Databend = list{}.staged(databend, Tested, "1.2.881", "1.2.948").
 	on("1.2.948", func(s *Server) { s.Tag = "v1.2.948-nightly" })

@@ -68,5 +68,6 @@ var graphdb = product{
 // GraphDB is every GraphDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads GraphDB, so CI runs none
-// of them. Each also needs a licence file that CI does not have. See D119.
-var GraphDB = list{}.add(graphdb, Staged, "11.4.3", "11.5.1")
+// of them. Each also needs a licence file that CI does not have,
+// so its cadence is Verified. See D119 and D120.
+var GraphDB = list{}.staged(graphdb, Verified, "11.4.3", "11.5.1")

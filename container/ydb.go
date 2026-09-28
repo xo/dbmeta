@@ -80,5 +80,6 @@ func ydbURL(scheme, user string) func(port int) string {
 // YDB is every YDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var YDB = list{}.add(ydb, Staged, "26.2.1.14", "26.3.1.17")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var YDB = list{}.staged(ydb, Tested, "26.2.1.14", "26.3.1.17")

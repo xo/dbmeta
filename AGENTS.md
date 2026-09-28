@@ -31,7 +31,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 119. Read the status, because 34
+`docs/decisions/README.md` is a table of all 120. Read the status, because 35
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -126,8 +126,9 @@ something is written down, it is not written down, and it is an open question.
    at all. D40 set three, D42 added Nightly and D119 added Staged. The first
    four are values of `container.Tier` and Archived is not, because an
    archived release is one `container.All` does not name. A release is Staged
-   exactly when no model reads it, and it leaves Staged in the change that
-   adds its model. See D40, D42 and D119.
+   exactly when no model reads it. A Staged release records the cadence it
+   would have, Tested, Nightly or Verified, and takes it as its tier in the
+   change that adds its model. See D40, D42, D119 and D120.
 5. A query translated from a source tree that upstream no longer ships records
    the release and commit of that tree beside the query. PostgreSQL 9.6 is the
    case: `psql` dropped it in release 20, so there is nothing current to check

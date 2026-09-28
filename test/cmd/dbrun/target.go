@@ -71,6 +71,10 @@ type target struct {
 	Release string         `json:"release,omitempty"`
 	Kind    kind           `json:"kind"`
 	Tier    container.Tier `json:"tier"`
+	// Cadence is how often a Staged target would be tested if a model read
+	// it, and is empty for any other. dbimp runs the tested ones on each
+	// push and the nightly ones at night. See D120.
+	Cadence container.Tier `json:"cadence,omitempty"`
 	Dialect dbmeta.Dialect `json:"dialect"`
 
 	// Directory says an embedded database is a directory rather than a
@@ -182,13 +186,13 @@ func embeddedTargets() []target {
 		// A library that a model reads, such as moderncsqlite, which the
 		// sqlite3 model reads, is tested in CI. The rest are Staged, as a
 		// server is that no model reads. See D119.
-		tier := container.Staged
+		tier, cadence := container.Staged, container.Tested
 		if _, read := e.dialect.Info(); read {
-			tier = container.Tested
+			tier, cadence = container.Tested, ""
 		}
 		out = append(out, target{
 			Name: e.name, Product: e.name, Kind: kindEmbedded,
-			Tier: tier, Dialect: e.dialect, Directory: e.ext == "",
+			Tier: tier, Cadence: cadence, Dialect: e.dialect, Directory: e.ext == "",
 			Env: "DBMETA_" + strings.ToUpper(e.name),
 			DSN: path, URL: e.name + ":" + path,
 		})
@@ -296,6 +300,7 @@ func targets() []target {
 			Release:    s.Release,
 			Kind:       kindContainer,
 			Tier:       s.Tier,
+			Cadence:    s.Cadence,
 			Dialect:    s.Dialect,
 			Env:        envFor(s.Dialect, s.Product),
 			Also:       s.Also,

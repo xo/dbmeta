@@ -43,5 +43,6 @@ var questdb = product{
 // QuestDB is every QuestDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. See D119.
-var QuestDB = list{}.add(questdb, Staged, "9.4.3", "10.0.1")
+// them. Each keeps the cadence it would have if a model read it, which is
+// what dbimp runs on each push and at night. See D119 and D120.
+var QuestDB = list{}.staged(questdb, Tested, "9.4.3", "10.0.1")

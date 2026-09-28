@@ -86,5 +86,7 @@ func tidbURL(user string) func(port int) string {
 // TiDB is every TiDB release dbrun starts.
 //
 // Staged until models/mysql detects TiDB and gives it a version key of its
-// own, so CI runs none of them. See D118 and D119.
-var TiDB = list{}.add(tidb, Staged, "7.5.8", "8.1.2", "8.5.8")
+// own, so CI runs none of them. Each keeps the cadence it would have, and
+// takes it as its tier when the model arrives. See D118, D119 and D120.
+var TiDB = list{}.staged(tidb, Tested, "7.5.8", "8.5.8").
+	staged(tidb, Nightly, "8.1.2")

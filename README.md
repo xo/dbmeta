@@ -224,7 +224,10 @@ one the list does not name at all.
 A Staged release is not supported by dbmeta. It is there so that dbrun can
 start a server for a sister project, such as dbimp's drivers, or for a flavor
 that a model does not detect yet. It moves to Tested, Nightly or Verified in
-the change that adds its model.
+the change that adds its model, and takes as its tier the cadence it already
+records: Tested, Nightly or Verified. `dbrun list --json` prints the cadence,
+and dbimp runs the tested ones on each push and the nightly ones at night
+(D120).
 
 ## PostgreSQL
 
@@ -293,7 +296,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 119 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 34 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 120 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 35 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
