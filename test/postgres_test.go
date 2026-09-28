@@ -619,14 +619,14 @@ func TestNotNullIsNotAConstraintRow(t *testing.T) {
 	})
 }
 
-// TestQuerierIsOneMethod holds the other half of D49. The interface is the
+// TestQueryerIsOneMethod holds the other half of D49. The interface is the
 // whole of what dbmeta asks a database to do, and a type with only
 // QueryContext has to be enough.
-func TestQuerierIsOneMethod(t *testing.T) {
+func TestQueryerIsOneMethod(t *testing.T) {
 	eachPostgres(t, func(t *testing.T, db *sql.DB, m *dbmeta.Meta) {
 		// onlyQuery has one method and nothing else, so this fails to compile if
 		// anything in dbmeta reaches for Exec, Prepare or QueryRow.
-		var q dbmeta.Querier = onlyQuery{db}
+		var q dbmeta.Queryer = onlyQuery{db}
 
 		versions, err := dbmeta.PostgreSQL.Version(t.Context(), q)
 		if err != nil {

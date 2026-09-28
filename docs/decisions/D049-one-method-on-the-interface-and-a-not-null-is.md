@@ -1,13 +1,13 @@
 # D49. One method on the interface, and a NOT NULL is not a constraint row
 
-Status: Decided.
+Status: Amended by D121.
 
 Two answers, both unanimous between Gemini and DeepSeek, both recorded in full
 in this file, under each decision, before they were taken.
 
-## Querier has one method
+## Queryer has one method
 
-`DB` is gone. `Querier` replaces it and declares `QueryContext` and nothing
+`DB` is gone. `Queryer` replaces it and declares `QueryContext` and nothing
 else.
 
 The old interface declared four methods and `dbmeta` called two. One of the
@@ -20,8 +20,9 @@ costs four lines and removes a method from the contract.
 `database/sql.Stmt` satisfies neither this nor the old four, because its
 `QueryContext` takes no statement.
 
-The name changed with the shape. It is a querier, not a database, and calling
-it `DB` invited the reading that it stands in for `sql.DB`.
+The name changed with the shape. It is a queryer, not a database, and calling
+it `DB` invited the reading that it stands in for `sql.DB`. D121 later changed
+the spelling to `Queryer`, which is how Go's own packages spell it.
 
 ## The interface is documentation, not a seam for a mock
 

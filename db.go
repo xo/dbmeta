@@ -5,7 +5,10 @@ import (
 	"database/sql"
 )
 
-// Querier runs a query. It is the whole of what dbmeta asks a database to do.
+// Queryer runs a query. It is the whole of what dbmeta asks a database to do.
+//
+// The name follows Go's own: database/sql/driver names the same method on
+// [database/sql/driver.QueryerContext]. It was Querier until D121.
 //
 // [database/sql.DB], [database/sql.Tx] and [database/sql.Conn] all satisfy it.
 // [database/sql.Stmt] does not, because its QueryContext takes no statement.
@@ -36,6 +39,6 @@ import (
 // [database/sql.Register]. That is what dbmeta does: see examplefake_test.go,
 // which replays recorded rows and needs no database. The driver interface is
 // the seam Go provides, and it is a smaller thing to implement than it looks.
-type Querier interface {
+type Queryer interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }

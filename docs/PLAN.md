@@ -30,7 +30,7 @@ The module has two layers.
 The root package `dbmeta` gives consumers one driver agnostic API. Driver
 agnostic means the caller asks for tables without knowing which database
 answers. This layer holds the object types, the `Query` values, the one
-method `Querier` interface, the `Args` filter and the error values.
+method `Queryer` interface, the `Args` filter and the error values.
 
 The package `dbmeta/models/<driver>` holds the code for one driver. For
 example, `dbmeta/models/sqlite3` holds the SQLite3 queries and the structs that
@@ -609,7 +609,7 @@ stopped being it.
 
 D4 and question 4 as it was: whether `dbmeta` exports interfaces at all, and
 under what names. It waited for D13 to deliver the models, and D13 delivered
-eight. The root package exports `Querier` and `AnyQuery` and no per object
+eight. The root package exports `Queryer` and `AnyQuery` and no per object
 interface, an object kind is a `Query` value, and D49 settled the one that
 remained. D4 says so and points at the decisions that hold the current shape.
 

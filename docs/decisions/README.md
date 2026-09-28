@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-35 of them amend or replace an earlier one, and a decision read without its
+36 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -67,7 +67,7 @@ file.
 | [D46](D046-five-object-kinds-are-missing-and-two-consumers.md) | Five object kinds are missing, and two consumers say which | Decided |
 | [D47](D047-dbmeta-supplies-the-data-the-consumer-decides.md) | dbmeta supplies the data. The consumer decides what to show | Decided |
 | [D48](D048-cgo-is-allowed-in-the-test-module-and-nowhere.md) | cgo is allowed in the test module, and nowhere else | Amends D26, D29 and D35 |
-| [D49](D049-one-method-on-the-interface-and-a-not-null-is.md) | One method on the interface, and a NOT NULL is not a constraint row | Decided |
+| [D49](D049-one-method-on-the-interface-and-a-not-null-is.md) | One method on the interface, and a NOT NULL is not a constraint row | Amended by D121 |
 | [D50](D050-documentation-lives-in-docs-and-the-decision-log.md) | Documentation lives in docs, and the decision log stays one file | Amended by D110 and D111 |
 | [D51](D051-there-is-no-alias-for-a-nullable-type.md) | There is no alias for a nullable type | Decided |
 | [D52](D052-a-test-driver-is-the-one-usql-uses-or-it-is-the.md) | A test driver is the one usql uses, or it is the wrong driver | Amended by D59 |
@@ -139,3 +139,4 @@ file.
 | [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Decided |
 | [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 |
 | [D120](D120-a-staged-release-keeps-its-cadence.md) | A Staged release keeps its cadence | Amends D119 |
+| [D121](D121-the-interface-is-named-queryer.md) | The interface is named Queryer | Amends D49 |

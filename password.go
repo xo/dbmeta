@@ -112,7 +112,7 @@ func (d Dialect) ParseQuoting(cols []string) (Quoting, error) {
 // and [Dialect.ParseQuoting].
 //
 // A product with no such state returns the zero value and no error.
-func (d Dialect) Quoting(ctx context.Context, db Querier) (Quoting, error) {
+func (d Dialect) Quoting(ctx context.Context, db Queryer) (Quoting, error) {
 	query, n, ok := d.QuotingQuery()
 	if !ok {
 		if _, built := d.Info(); !built {

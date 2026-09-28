@@ -22,7 +22,7 @@ D13 delivered eight. The shape they produced is the one this decision hoped
 for, and the code is now the record of it.
 
 The root package exports two interfaces and neither is per object.
-`Querier` declares `QueryContext` and nothing else, which is D49.
+`Queryer` declares `QueryContext` and nothing else, which is D49.
 `AnyQuery` is what lets a caller hold queries of different row types in one
 list. There is no `TableReader`, no `ColumnReader` and no composition by type
 assertion, which is what D18 rejected.
@@ -43,5 +43,5 @@ D39 has how a query is listed, described and rendered. D33 has why a result
 streams as an iterator rather than arriving as a slice. D34 has what happens
 when a database cannot answer. D47 has the cost test for whether a field
 belongs here at all, and why a child of an object is its own kind with flat
-rows rather than a slice on the parent. D49 has `Querier` and why the
+rows rather than a slice on the parent. D49 has `Queryer` and why the
 interface is documentation rather than a seam for a mock.

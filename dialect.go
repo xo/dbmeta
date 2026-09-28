@@ -296,7 +296,7 @@ func (d Dialect) ParseFollowUp(s VersionSet, cols []string) (VersionSet, error) 
 //
 // A database that reports no version returns an unknown version and no error.
 // An unknown version selects the newest fragment of every piece.
-func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
+func (d Dialect) Version(ctx context.Context, db Queryer) (VersionSet, error) {
 	query, n, ok := d.VersionQuery()
 	if !ok {
 		if _, built := d.Info(); !built {
@@ -346,8 +346,8 @@ func (d Dialect) Version(ctx context.Context, db Querier) (VersionSet, error) {
 // facts a caller has to tell apart. Here the result is a version line shown to
 // a person or a session setting read as a word, and absent and empty mean the
 // same thing to both.
-func readRow(ctx context.Context, db Querier, d Dialect, query string, n int) ([]string, error) {
-	// QueryContext rather than QueryRowContext, so that Querier needs one
+func readRow(ctx context.Context, db Queryer, d Dialect, query string, n int) ([]string, error) {
+	// QueryContext rather than QueryRowContext, so that Queryer needs one
 	// method. The cost is closing the rows by hand, which is four lines.
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {

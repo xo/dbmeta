@@ -107,7 +107,7 @@ type cancelAfterFirst struct {
 	asked  int
 }
 
-// QueryContext satisfies Querier.
+// QueryContext satisfies Queryer.
 func (q *cancelAfterFirst) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
 	q.asked++
 	if q.asked == 2 {

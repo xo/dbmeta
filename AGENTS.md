@@ -31,7 +31,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 120. Read the status, because 35
+`docs/decisions/README.md` is a table of all 121. Read the status, because 36
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -261,7 +261,7 @@ something is written down, it is not written down, and it is an open question.
 ## Layout
 
 - `/` is the root package `dbmeta`. It holds the driver agnostic API: the
-  object types, the `Query` values, the one method `Querier` interface, the
+  object types, the `Query` values, the one method `Queryer` interface, the
   `Args` filter, and the error values. External projects use this package.
 - `models/<driver>` holds one model, written by hand. One package covers every
   supported version of that database. For example, `models/sqlite3`. A model
