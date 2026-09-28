@@ -75,8 +75,28 @@ relations and functions of `pg_catalog` that it lacks, such as `pg_cast`,
 `pg_operator`, `pg_trigger` and `pg_get_viewdef`. pgx works for the extended
 protocol, parameters, prepared statements, pipelined batches and the types
 measured. Transactions do not work on either driver, because CrateDB does not
-parse ROLLBACK and lib/pq's BEGIN fails. COPY and LISTEN are refused. Its
-model is the next piece of work, and it stays Staged until then.
+parse ROLLBACK and lib/pq's BEGIN fails. COPY and LISTEN are refused.
+
+Of those 11, 3 answer correctly on both releases and are shared: settings,
+role grants and the current user. The others answer wrongly or fail on 6.3. A
+schema's owner reads "unknown (OID=0)", the system filter does not hide `sys`
+and `blob`, a generated column reads as an ordinary one, and 6.3 has no
+`pg_get_constraintdef`. So `models/cratedb` reads
+CrateDB's own catalog for 23 statements, from `information_schema`,
+`pg_catalog` and `sys`. It answers 26 of the 55 on 6.4.5 and 25 on 6.3.7,
+which has no collation view. `docs/COVERAGE.md` says what each lacks and why
+the other 29 are not answered.
+
+A statement of the model's own gates on the key `cratedb`, because both
+releases claim PostgreSQL 14.0. `constraints` reads a definition from 6.4,
+which added `pg_get_constraintdef`, and `collations` answers from 6.4.
+
+The fixture builds every object on both releases. Conformance agrees with the
+relational databases, except for the foreign keys and the unique constraint
+that CrateDB does not have. Parity found that a user who is not a superuser is
+refused the `sys` schema, so `roles` reads `pg_roles`, and `privileges` is
+refused for that user, which `docs/COVERAGE.md` records. The entry takes the
+dialect, and both releases keep their cadence as their tier, Tested (D120).
 
 ## Rejected
 

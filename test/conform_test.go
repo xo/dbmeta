@@ -15,6 +15,7 @@ import (
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
+	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
@@ -87,6 +88,10 @@ func conformTargets() []conformTarget {
 		{
 			name: "cockroachdb", dialect: dbmeta.CockroachDB,
 			open: openCockroachDB, schema: pgFamilies[1].fixture.Schema, build: setupCockroachDB,
+		},
+		{
+			name: "cratedb", dialect: dbmeta.CrateDB,
+			open: openCrateDB, schema: crfixture.Everything.Schema, build: setupCrateDB,
 		},
 		{
 			name: "mysql", dialect: dbmeta.MySQL,
@@ -576,6 +581,11 @@ var agreementExcluded = map[string]string{
 		" no foreign key and no unique constraint, and system.constraints holds" +
 		" the expression a CHECK asserts rather than the columns behind it, so" +
 		" the section has no constraint lines at all",
+	"cratedb": "no foreign key and no unique constraint: CrateDB has neither" +
+		" on any release, so the two foreign keys and the unique constraint on" +
+		" book.title the relational databases agree on cannot be built. A check" +
+		" constraint is in pg_constraint with no columns behind it in" +
+		" key_column_usage, so the check on book.title has no line either",
 	"exasol": "no unique constraint: Exasol refuses UNIQUE and CHECK as not" +
 		" supported on every release, so the unique constraint on book.title" +
 		" the relational databases agree on cannot be built. It agrees on the" +

@@ -14,6 +14,7 @@ import (
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
+	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
@@ -248,6 +249,20 @@ func parityTargets() []parityTarget {
 				// and a database is only a grant scope.
 				name:       "same",
 				principals: []parityPrincipal{{name: "grantee", make: makeClickHouseGrantee}},
+			}},
+		},
+		{
+			dialect: dbmeta.CrateDB, driver: "pgx", env: "DBMETA_CRATEDB",
+			open: openCrateDB, build: setupCrateDB, schema: crfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// CrateDB has no containment, because a user belongs to the
+				// cluster, and it has no owner either. The nearest to an
+				// owner is a user holding every privilege on the schema.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "all", make: makeCrateDBHolder("ALL PRIVILEGES")},
+					{name: "grantee", make: makeCrateDBHolder("DQL")},
+				},
 			}},
 		},
 		{

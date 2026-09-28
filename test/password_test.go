@@ -339,3 +339,50 @@ func TestChangePasswordVertica(t *testing.T) {
 	}
 	login(t, "vertica", replaceUser(t, base, user, next), `SELECT CURRENT_USER()`, user)
 }
+
+// TestChangePasswordCrateDB sets each password and logs in with it, and then
+// has the user change its own password.
+//
+// CrateDB reads a string literal the way PostgreSQL does with
+// standard_conforming_strings on, and it reports the setting, so the quoting
+// state comes from the server as it does for PostgreSQL. A user may change
+// its own password without naming the current one.
+func TestChangePasswordCrateDB(t *testing.T) {
+	db := openCrateDB(t)
+	q, err := dbmeta.CrateDB.Quoting(t.Context(), db)
+	if err != nil {
+		t.Fatalf("reading the quoting state: %v", err)
+	}
+	if !q.BackslashEscapes.Valid {
+		t.Fatal("expected the server to report standard_conforming_strings")
+	}
+	const user = "dbmeta_pw"
+	exec(t, db, `DROP USER IF EXISTS `+user)
+	exec(t, db, `CREATE USER `+user+` WITH (password = 'Start-P4ss!x')`)
+	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS `+user) })
+	base := dsnOf(t, "DBMETA_CRATEDB")
+	current := "Start-P4ss!x"
+	for _, c := range hostilePasswords {
+		t.Run(c.name, func(t *testing.T) {
+			stmt, err := dbmeta.CrateDB.ChangePassword(
+				dbmeta.PasswordChange{User: user, Password: c.password}, q)
+			if err != nil {
+				t.Fatalf("building the statement: %v", err)
+			}
+			exec(t, db, stmt)
+			login(t, "pgx", replaceUser(t, base, user, c.password), `SELECT current_user`, user)
+			current = c.password
+		})
+	}
+
+	self := openAt(t, "pgx", replaceUser(t, base, user, current))
+	const next = `Next-P4ss!x"'\`
+	stmt, err := dbmeta.CrateDB.ChangePassword(dbmeta.PasswordChange{User: user, Password: next}, q)
+	if err != nil {
+		t.Fatalf("building the statement: %v", err)
+	}
+	if _, err := self.ExecContext(t.Context(), stmt); err != nil {
+		t.Fatalf("changing its own password: %v", err)
+	}
+	login(t, "pgx", replaceUser(t, base, user, next), `SELECT current_user`, user)
+}

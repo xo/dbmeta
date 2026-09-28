@@ -246,6 +246,20 @@ func makeClickHouseGrantee(t *testing.T, db *sql.DB, dsn, schema string) string 
 	return replaceUser(t, dsn, "dbmeta_parity", parityPassword)
 }
 
+// makeCrateDBHolder returns a principal maker for a user holding privileges
+// on the fixture schema and nothing else. CrateDB grants on a schema cover
+// every table in it, including the ones made later.
+func makeCrateDBHolder(privileges string) func(*testing.T, *sql.DB, string, string) string {
+	return func(t *testing.T, db *sql.DB, dsn, schema string) string {
+		t.Helper()
+		cleanup(t, db, `DROP USER IF EXISTS dbmeta_parity`)
+		exec(t, db, `CREATE USER dbmeta_parity WITH (password = '`+parityPassword+`')`)
+		t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS dbmeta_parity`) })
+		exec(t, db, `GRANT `+privileges+` ON SCHEMA `+schema+` TO dbmeta_parity`)
+		return replaceUser(t, dsn, "dbmeta_parity", parityPassword)
+	}
+}
+
 // makeCouchbaseUser connects as the ordinary user the dbrun setup makes.
 //
 // SQL++ has no statement that creates a user, and the setup already makes

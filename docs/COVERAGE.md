@@ -45,6 +45,7 @@ rather than reading one.
 | `models/vertica` | 26 | 55 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
 | `models/couchbase` | 12 | 55 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
 | `models/cockroachdb` | 54 | 55 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 48 of its statements are the postgres model's (D123) |
+| `models/cratedb` | 26 | 55 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -2811,6 +2812,98 @@ lists the 110 to 117 virtual tables of `crdb_internal`. No column of
 `pg_namespace` or `pg_class` marks a schema that CockroachDB keeps for itself,
 and only its name does. That is what `psql` shows on CockroachDB, which hard
 rule 2 follows, and whether to hide it is a question for Ken (D123).
+
+## CrateDB
+
+`models/cratedb` answers 26 of the 55 on 6.4.5 and 25 on 6.3.7, which has no
+`information_schema.collations`. It was measured on 2026-09-29 with pgx, on
+the PostgreSQL port, which is what dburl opens for `cratedb://`. The main
+version is the PostgreSQL release that CrateDB claims, 14.0 on both, and
+CrateDB's own release is under the key `cratedb`. See D123.
+
+CrateDB speaks PostgreSQL's protocol and keeps a catalog of its own. Its
+`pg_catalog` holds part of PostgreSQL's, and many of the functions that the
+postgres model calls are absent. So only 3 statements are shared: settings,
+role grants and the current user. The other 23 read `information_schema`,
+`pg_catalog` and `sys` directly.
+
+### What each answer lacks
+
+| Query | What differs |
+| --- | --- |
+| schemas, current_schema | `owner` is empty. CrateDB keeps no owner for a schema, and `pg_namespace` says "unknown (OID=0)" |
+| tables, views, privileges | a foreign table has the type `foreign table`. There is no comment on anything, because CrateDB has no COMMENT statement |
+| columns | a generated column reads `s`, as a stored one does on PostgreSQL. `identity` is always empty. The column of a foreign table has the ordinal -1, which is what CrateDB reports |
+| indexes, index_columns | the only index is the one behind each primary key, and CrateDB reports it as not unique. A full text index is in no catalog, only in SHOW CREATE TABLE. `type` is empty, because `pg_am` is empty |
+| constraints | `definition` is NULL on 6.3, which has no `pg_get_constraintdef` and keeps a check expression in no catalog. There is no foreign key and no unique constraint on any release |
+| constraint_columns | a primary key only. A check constraint has no row in `key_column_usage` |
+| partitioned_tables | the strategy is `LIST`, because a partition holds one value of each partition column |
+| functions | a JavaScript function, from `information_schema.routines`. `id` is `specific_name`, which holds the argument types. `volatility` is `immutable` for a deterministic function and `volatile` for the rest. `owner`, `security` and `parallel` are empty |
+| types | every type is built in and in `pg_catalog`, so the query answers only with `with_system` |
+| collations | from 6.4. CrateDB has one collation, in `pg_catalog`, so it too answers only with `with_system` |
+| roles | from `pg_roles`, because a user who is not a superuser is refused `sys.users` and `sys.roles`. `create_db` and `bypass_rls` are false, because CrateDB has no database to create and no row security |
+| privileges | from `sys.privileges`, a grant on a table as `grantee=type/grantor`, with `denied` after a DENY. A grant on a schema or on the cluster is not a privilege on the table and is not shown |
+| databases | CrateDB has one database, `crate`. `owner` is empty and `size` is empty |
+| foreign_servers, foreign_tables, user_mappings | the options are aggregated from the three `*_options` views. The only wrapper is `jdbc` |
+| publications | `truncate` and `via_root` are false, because CrateDB replicates neither |
+| subscriptions | the fixture builds none. A subscription connects to another cluster, and the tests start only one |
+
+### What it does not answer
+
+CrateDB has none of these: tablespaces, access methods, conversions, casts,
+large objects, event triggers, domains, operators, role settings, default
+privileges, extensions and the objects in them, extended statistics,
+comments, triggers, sequences, enum values, and the four kinds of operator
+class and family. `pg_tablespace`, `pg_am`, `pg_enum`, `pg_description` and
+`pg_event_trigger` are there and empty.
+
+These are left unanswered, although CrateDB holds something like them:
+
+- Aggregates. `pg_proc` holds 178 of them, with `prokind` a, and each names a
+  `pronamespace` that is in no row of `pg_namespace`. An answer would have to
+  invent the schema.
+- Languages and foreign data wrappers. JavaScript and `jdbc` are the only
+  ones, and no view lists them. A distinct `routine_body` or
+  `foreign_data_wrapper_name` lists only the ones in use.
+- Routine parameters. There is no `information_schema.parameters`, and a
+  JavaScript function is not in `pg_proc`. Only `specific_name` holds the
+  argument types, with no names.
+- The four text search kinds. `information_schema.routines` lists analyzers,
+  tokenizers, token filters and char filters, which do the work of a text
+  search configuration, a parser and a dictionary. An analyzer has no schema,
+  and a built-in one records no tokenizer, so a configuration would have no
+  parser. Whether to answer them is a question for Ken (docs/PLAN.md).
+
+### What the fixture builds
+
+`models/cratedb/fixture` builds the five core tables and the view, a
+partitioned table with a generated column, a JavaScript function, a role, a
+user, a grant and a denial, a publication, a foreign server with a user
+mapping and a foreign table, and rows with statistics over them. It builds
+every step on both releases. The conformance report has no foreign key, no
+unique constraint and no check, for the reasons above, and D53's agreement
+count leaves CrateDB out with that reason.
+
+### Which answers depend on who is asking
+
+Parity asks as `crate` and as two users, one with every privilege on the
+fixture schema and one with DQL only. Both answer the same way on both
+releases. `privileges` is refused, because a user who is not a superuser is
+refused the `sys` schema: "Schema 'sys' unknown". `schemas` lists only the
+schemas the user has a privilege in. `foreign_servers`, `user_mappings`,
+`publications` and `publication_tables` list fewer rows.
+`information_schema.role_table_grants` answers for any user, and it lists only
+the grants to the user who asks, so it is not a substitute.
+
+### What a second opinion found
+
+DeepSeek and Gemini were asked about each gap, as hard rule 14 requires, on
+2026-09-29. Both called the kinds in the first list absent. Both named
+`pg_proc` for aggregates, `information_schema.routines` for the text search
+kinds, and the distinct wrapper names in `information_schema.foreign_servers`
+for foreign data wrappers. Gemini also named `routine_body` for languages.
+Each lead was run against 6.4.5, and each is left unanswered for the reason
+written above.
 
 ## Releases that need a licence file
 

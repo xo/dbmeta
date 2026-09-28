@@ -20,6 +20,16 @@ role_grants refused: code: 497, message: dbmeta_parity: Not enough privileges. T
 roles refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users
 tablespaces refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies
 
+[cockroachdb/same/grantee]
+current_user the same rows with different values
+databases the same rows with different values
+settings the same rows with different values
+
+[cockroachdb/same/owner]
+current_user the same rows with different values
+databases the same rows with different values
+settings the same rows with different values
+
 [cockroachdb@24.3/same/grantee]
 current_user the same rows with different values
 settings the same rows with different values
@@ -34,16 +44,6 @@ settings the same rows with different values
 
 [cockroachdb@26.2/same/owner]
 current_user the same rows with different values
-settings the same rows with different values
-
-[cockroachdb/same/grantee]
-current_user the same rows with different values
-databases the same rows with different values
-settings the same rows with different values
-
-[cockroachdb/same/owner]
-current_user the same rows with different values
-databases the same rows with different values
 settings the same rows with different values
 
 [couchbase/same/user]
@@ -67,6 +67,24 @@ privileges refused: running query: User dbmeta_grantee has no SELECT permission 
 role_grants refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
 roles refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
 settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
+
+[cratedb/same/all]
+current_user the same rows with different values
+foreign_servers fewer rows than the administrator
+privileges refused: ERROR: Schema 'sys' unknown (SQLSTATE 3F000)
+publication_tables fewer rows than the administrator
+publications fewer rows than the administrator
+schemas fewer rows than the administrator
+user_mappings fewer rows than the administrator
+
+[cratedb/same/grantee]
+current_user the same rows with different values
+foreign_servers fewer rows than the administrator
+privileges refused: ERROR: Schema 'sys' unknown (SQLSTATE 3F000)
+publication_tables fewer rows than the administrator
+publications fewer rows than the administrator
+schemas fewer rows than the administrator
+user_mappings fewer rows than the administrator
 
 [exasol/same/grantee]
 current_schema fewer rows than the administrator

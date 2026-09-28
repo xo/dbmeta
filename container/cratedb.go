@@ -3,6 +3,8 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The CrateDB releases dbrun starts.
@@ -11,9 +13,7 @@ import (
 // pgx, as dburl's cratedb:// scheme opens it from v0.35.0. There is no driver
 // of its own: Ken decided on 2026-09-29 that dbimp writes none, because the
 // HTTP interface builds each whole result in memory and has no paging. It has
-// a dialect of its own, cratedb, and a model of its own is the next piece of
-// work (D123). Until that model exists, the entry names no dialect and is
-// Staged.
+// a dialect of its own, cratedb, and a model of its own (D123).
 //
 // CrateDB answers SHOW server_version with 14.0, as if it were PostgreSQL
 // 14, and only version() says CrateDB. It has no transactions: ROLLBACK is a
@@ -59,9 +59,10 @@ func crateShell(stmt string) string {
 
 // cratedb is the CrateDB image.
 var cratedb = product{
-	name:  "cratedb",
-	image: "docker.io/library/crate",
-	port:  5432,
+	name:    "cratedb",
+	dialect: dbmeta.CrateDB,
+	image:   "docker.io/library/crate",
+	port:    5432,
 	// Half of the memory of the container is the vendor's advice for the heap,
 	// and the limit is 4 GB.
 	env: map[string]string{"CRATE_HEAP_SIZE": "1g"},
@@ -111,9 +112,6 @@ func cratePG(user string, password bool) func(port int) string {
 	}
 }
 
-// CrateDB is every CrateDB release dbrun starts.
-//
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var CrateDB = list{}.staged(cratedb, Tested, "6.3.7", "6.4.5")
+// CrateDB is every CrateDB release dbrun starts. Both are Tested, which is
+// the cadence they kept while they were Staged (D120).
+var CrateDB = list{}.add(cratedb, Tested, "6.3.7", "6.4.5")
