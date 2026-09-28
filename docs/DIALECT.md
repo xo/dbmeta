@@ -309,6 +309,14 @@ The package doc states how many of the 55 the model answers.
 Each object kind is a `Binding` registered from `init`, carrying the statement
 as `Stmt`, the `Fields` it returns, the `Params` it takes and a `Scan`.
 
+If the product imitates another product's catalog, as CockroachDB imitates
+PostgreSQL's, do not copy that model's statements. Import the model and share
+each binding that answers with `Query.Share`, and register a statement of
+your own only where the shared one does not answer. Set the main version to
+the release of the other product that yours claims, so that the shared
+fragments gate on it, and put your product's own release under a key of its
+own for the fragments you write. `models/cockroachdb` is the example (D123).
+
 Four rules decide most of the detail, and the first one is the one that has
 cost this project the most.
 

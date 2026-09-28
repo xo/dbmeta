@@ -20,3 +20,17 @@ func TestEveryStagedTargetHasACadence(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryModelledServerHasADriver holds that dbrun version can read every
+// server a model reads. A dialect missing from drivers answered "no driver
+// for cockroachdb" the day its model arrived.
+func TestEveryModelledServerHasADriver(t *testing.T) {
+	for _, s := range container.All() {
+		if _, read := s.Dialect.Info(); !read {
+			continue
+		}
+		if _, ok := drivers[s.Dialect]; !ok {
+			t.Errorf("%s: a model reads %s and dbrun has no driver to open it with", s.Name(), s.Dialect)
+		}
+	}
+}

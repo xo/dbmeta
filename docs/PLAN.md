@@ -549,9 +549,10 @@ starts and no model reads yet, and CI never runs it. Archived has no tests. `con
 the list, and the workflow reads it through `dbrun list --json --names`
 (D69). CI compiles the tests once and every job runs the binary (D82). The
 embedded databases run in the same matrix and start nothing. A separate job
-compares MariaDB with MySQL (D44). CockroachDB and TiDB have Staged entries,
-which move when the models detect them, and Redshift is a hosted service
-(D117, D118).
+compares MariaDB with MySQL (D44). CockroachDB has a model of its own, which
+shares most of the postgres model's statements. CrateDB is next, TiDB has a
+Staged entry that waits for the mysql model to detect it, and Redshift is a
+hosted service (D117, D118, D123).
 
 The Verified tier must run before a release (D64).
 
@@ -595,7 +596,24 @@ An open question lives here until it is answered, and then it becomes a
 decision in `decisions/` (D111). The argument behind a decision belongs with
 the decision, which is why there is no separate document for it.
 
-No question is open. None of the older ones are.
+Three questions are open.
+
+1. Does the CockroachDB model hide `crdb_internal` when `with_system` is off?
+   The statements it shares with the postgres model hide `pg_*` and
+   `information_schema`, as `psql` does, so `tables` lists the 110 to 117
+   virtual tables of `crdb_internal` as a user's. Hiding it means CockroachDB
+   statements of its own for every query that filters by schema, about thirty,
+   because no catalog column marks the schema, and only its name does. Keeping
+   it is what `psql` shows on CockroachDB, which hard rule 2 follows (D123).
+2. D66 says a product whose only local option is an emulator is Archived on
+   arrival, and that chai, csvq and ql get no model at all. D119 made all of
+   them Staged, which means waiting for a model. Either D66 is amended to say
+   they wait for one, or chai, csvq and ql leave dbrun.
+3. Db2 is the one database usql supports that has no entry. Its Go driver needs
+   IBM's client libraries, which is the reason godror is ruled out (D48). Is it
+   out of scope for the same reason?
+
+None of the older questions is open.
 The floor question that the upstream change reopened has been answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
 asked for in exchange.

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
 )
 
@@ -537,4 +538,91 @@ func makeVerticaGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	exec(t, db, `GRANT USAGE ON SCHEMA `+schema+` TO dbmeta_grantee`)
 	exec(t, db, `GRANT SELECT ON ALL TABLES IN SCHEMA `+schema+` TO dbmeta_grantee`)
 	return replaceUser(t, dsn, "dbmeta_grantee", parityPassword)
+}
+
+// openCockroachDB returns the administrator connection to the server named by
+// DBMETA_COCKROACHDB, or skips.
+func openCockroachDB(t *testing.T) *sql.DB {
+	t.Helper()
+	return openFamilyWith(t, pgFamilies[1], "pgx")
+}
+
+// setupCockroachDB builds the CockroachDB fixture and returns the meta.
+func setupCockroachDB(t *testing.T, db *sql.DB) *dbmeta.Meta {
+	t.Helper()
+	return setupFamily(t, pgFamilies[1], db)
+}
+
+// makeCockroachDBOwner makes a role that owns the schema and every relation
+// the fixture built in it, as makePostgresOwner does. The relations are found
+// and changed from Go rather than in a DO block, so that nothing here depends
+// on CockroachDB's PL/pgSQL.
+//
+// CockroachDB refuses to change the owner of a sequence that a serial column
+// owns, as PostgreSQL does, so those are left to follow their table.
+func makeCockroachDBOwner(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	dropCockroachDBRole(t, db, "dbmeta_owner")
+	exec(t, db, `CREATE ROLE dbmeta_owner LOGIN PASSWORD '`+parityPassword+`'`)
+	t.Cleanup(func() { dropCockroachDBRole(t, db, "dbmeta_owner") })
+	exec(t, db, `ALTER SCHEMA `+schema+` OWNER TO dbmeta_owner`)
+	for _, s := range cockroachDBOwnerChanges(t, db, schema) {
+		exec(t, db, s)
+	}
+	return replaceUser(t, dsn, "dbmeta_owner", parityPassword)
+}
+
+// cockroachDBOwnerChanges lists the statements that give dbmeta_owner every
+// relation of the schema.
+func cockroachDBOwnerChanges(t *testing.T, db *sql.DB, schema string) []string {
+	t.Helper()
+	rows, err := db.QueryContext(t.Context(), `SELECT c.relname, c.relkind FROM pg_catalog.pg_class c
+	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+	WHERE n.nspname = $1 AND c.relkind IN ('r', 'v', 'm', 'S')
+	AND NOT (c.relkind = 'S' AND EXISTS (
+		SELECT 1 FROM pg_catalog.pg_depend d
+		WHERE d.objid = c.oid AND d.deptype IN ('a', 'i')))`, schema)
+	if err != nil {
+		t.Fatalf("listing the relations of %s: %v", schema, err)
+	}
+	defer rows.Close()
+	var stmts []string
+	for rows.Next() {
+		var name, kind string
+		if err := rows.Scan(&name, &kind); err != nil {
+			t.Fatalf("reading a relation of %s: %v", schema, err)
+		}
+		what := map[string]string{"r": "TABLE", "v": "VIEW", "m": "MATERIALIZED VIEW", "S": "SEQUENCE"}[kind]
+		stmts = append(stmts, `ALTER `+what+` `+schema+`.`+name+` OWNER TO dbmeta_owner`)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("listing the relations of %s: %v", schema, err)
+	}
+	return stmts
+}
+
+// makeCockroachDBGrantee makes a role that can read the schema and owns
+// nothing, as makePostgresGrantee does.
+func makeCockroachDBGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	dropCockroachDBRole(t, db, "dbmeta_grantee")
+	exec(t, db, `CREATE ROLE dbmeta_grantee LOGIN PASSWORD '`+parityPassword+`'`)
+	t.Cleanup(func() { dropCockroachDBRole(t, db, "dbmeta_grantee") })
+	exec(t, db, `GRANT USAGE ON SCHEMA `+schema+` TO dbmeta_grantee`)
+	exec(t, db, `GRANT SELECT ON ALL TABLES IN SCHEMA `+schema+` TO dbmeta_grantee`)
+	return replaceUser(t, dsn, "dbmeta_grantee", parityPassword)
+}
+
+// dropCockroachDBRole removes a role and whatever it owns, from Go rather
+// than in a DO block, before the role is made and after.
+func dropCockroachDBRole(t *testing.T, db *sql.DB, role string) {
+	t.Helper()
+	var n int
+	ctx := context.WithoutCancel(t.Context())
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname = $1`, role).Scan(&n); err != nil || n == 0 {
+		return
+	}
+	cleanup(t, db, `REASSIGN OWNED BY `+role+` TO current_user`)
+	cleanup(t, db, `DROP OWNED BY `+role)
+	cleanup(t, db, `DROP ROLE `+role)
 }

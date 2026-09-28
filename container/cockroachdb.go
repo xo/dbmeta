@@ -3,17 +3,17 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
-// The CockroachDB releases dbrun starts.
+// The CockroachDB releases dbmeta is tested against.
 //
 // CockroachDB speaks the PostgreSQL wire protocol, and usql reaches it with
-// the scheme cockroachdb, which dburl sends to pgx. The entry names no dialect
-// yet. models/postgres reads the version with SHOW server_version, which
-// CockroachDB answers with a PostgreSQL compatibility number, so the model
-// would read it as PostgreSQL 13. The entry takes the postgres dialect when
-// the model detects CockroachDB and sets its own version key, which is D44.
-// See D118.
+// the scheme cockroachdb, which dburl sends to pgx. It has a dialect of its
+// own, cockroachdb, from dburl v0.35.0, and models/cockroachdb reads it. The
+// model shares most of the postgres model's statements, because CockroachDB
+// imitates PostgreSQL's catalog. See D123.
 //
 // # The range
 //
@@ -49,6 +49,7 @@ const cockroachSQL = "cockroach sql --certs-dir=/cockroach/certs --host=127.0.0.
 
 // cockroachdb is the CockroachDB image.
 var cockroachdb = product{
+	dialect:   dbmeta.CockroachDB,
 	name:      "cockroachdb",
 	image:     "docker.io/cockroachdb/cockroach",
 	tagPrefix: "v",
@@ -86,10 +87,10 @@ func cockroachURL(scheme, user string) func(port int) string {
 	}
 }
 
-// CockroachDB is every CockroachDB release dbrun starts.
+// CockroachDB is every CockroachDB release dbmeta is tested against.
 //
-// Staged until models/postgres detects CockroachDB and gives it a version
-// key of its own, so CI runs none of them. Each keeps the cadence it would have, and
-// takes it as its tier when the model arrives. See D118, D119 and D120.
-var CockroachDB = list{}.staged(cockroachdb, Tested, "26.2.7", "26.3.2").
-	staged(cockroachdb, Nightly, "24.3.36")
+// The newest of the last two lines on every push, and the oldest line with
+// long term support at night. They were the cadence each had while it was
+// Staged (D120).
+var CockroachDB = list{}.add(cockroachdb, Tested, "26.2.7", "26.3.2").
+	add(cockroachdb, Nightly, "24.3.36")

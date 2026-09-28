@@ -149,6 +149,19 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
+			// CockroachDB has no containment either. The owner and the
+			// grantee are PostgreSQL's two (D123).
+			dialect: dbmeta.CockroachDB, driver: "pgx", env: "DBMETA_COCKROACHDB",
+			open: openCockroachDB, build: setupCockroachDB, schema: pgFamilies[1].fixture.Schema,
+			scenes: []parityScene{{
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "owner", make: makeCockroachDBOwner},
+					{name: "grantee", make: makeCockroachDBGrantee},
+				},
+			}},
+		},
+		{
 			dialect: dbmeta.MySQL, driver: "mysql", env: "DBMETA_MYSQL",
 			open: openMySQL, build: setupMySQL, schema: myfixture.Everything.Schema,
 			scenes: []parityScene{{
@@ -505,6 +518,11 @@ var parityFlavors = map[dbmeta.Dialect][]string{
 // a grantable privilege that GRANT ALL PRIVILEGES on a database carries, so
 // 13.0 serves the definition to the same principal. 10.6 has no such
 // privilege to grant.
+//
+// CockroachDB is the third. From 26.3 the databases query reports a size, and
+// a principal that may not connect to a database reads "no access" where the
+// administrator reads its size. 24.3 and 26.2 have no pg_size_pretty, so the
+// size is NULL for everybody and the answers agree.
 //
 // So a section may be written as product@major, and that one wins for a server
 // reporting that major. Everything else falls back to the shared section. The

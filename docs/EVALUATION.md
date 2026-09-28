@@ -398,7 +398,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Meilisearch | 1.53.2 | 1.54.0 | The rule for an image that is never rebuilt (D112). A minor release arrives about every two weeks, so the ceiling moves fast. The entry is for dbimp's driver (D118) |
 | Typesense | 29.1 | 30.2 | The rule for an image that is never rebuilt (D112). 31.0 is a release candidate. The entry is for dbimp's driver (D118) |
 | TerminusDB | 11.1.17 | 12.0.7 | The rule for an image that is never rebuilt (D112). 12.1-rc is a release candidate. The entry is for dbimp's driver (D118) |
-| CockroachDB | 24.3.36 | 26.3.2 | The rule for an image that is never rebuilt (D112) gives 26.2.7 and 26.3.2. 24.3.36 is kept too, because 24.3 is the oldest line with long term support still patched. No dialect until models/postgres detects it (D118) |
+| CockroachDB | 24.3.36 | 26.3.2 | The rule for an image that is never rebuilt (D112) gives 26.2.7 and 26.3.2. 24.3.36 is kept too, because 24.3 is the oldest line with long term support still patched. Read by models/cockroachdb (D123) |
 | TiDB | 7.5.8 | 8.5.8 | Criterion 2. A tag is rebuilt while its line is maintained, and 7.5 is the oldest line with long term support still maintained. 8.1.2 is between them. No dialect until models/mysql detects it (D118) |
 | MongoDB | 7.0.43 | 8.3.11 | Criterion 2. 8.3.11, 8.0.32 and 7.0.43 were rebuilt in September 2026, and 6.0 last in May. 8.0.32, the line with long term support, is between them. The entry is for dbimp's driver (D118) |
 | Elasticsearch | 8.19.22 | 9.5.3 | Each tag is built once, and 8.19 is still patched, so it is the floor. 9.4.6 is between them. The entry is for dbimp's driver (D118) |

@@ -154,6 +154,7 @@ call and filter in the loop.
 | Exasol     | native             | 25      | In progress |
 | Vertica    | native             | 26      | In progress |
 | Couchbase  | native             | 12      | In progress |
+| CockroachDB | native            | 54      | In progress |
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.

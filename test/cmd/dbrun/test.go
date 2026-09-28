@@ -36,19 +36,21 @@ import (
 // there is no connection for dbrun to make: their tests open their own file.
 var drivers = map[dbmeta.Dialect]string{
 	dbmeta.PostgreSQL: "pgx",
-	dbmeta.MySQL:      "mysql",
-	dbmeta.SQLServer:  "sqlserver",
-	dbmeta.Oracle:     "oracle",
-	dbmeta.Cassandra:  "cql",
-	dbmeta.ClickHouse: "clickhouse",
-	dbmeta.Trino:      "trino",
-	dbmeta.Presto:     "presto",
-	dbmeta.Firebird:   "firebirdsql",
-	dbmeta.HANA:       "hdb",
-	dbmeta.Hive:       "hive",
-	dbmeta.Exasol:     "exasol",
-	dbmeta.Vertica:    "vertica",
-	dbmeta.Couchbase:  "couchbase",
+	// cockroachdb:// opens pgx, as dburl v0.35.0 says.
+	dbmeta.CockroachDB: "pgx",
+	dbmeta.MySQL:       "mysql",
+	dbmeta.SQLServer:   "sqlserver",
+	dbmeta.Oracle:      "oracle",
+	dbmeta.Cassandra:   "cql",
+	dbmeta.ClickHouse:  "clickhouse",
+	dbmeta.Trino:       "trino",
+	dbmeta.Presto:      "presto",
+	dbmeta.Firebird:    "firebirdsql",
+	dbmeta.HANA:        "hdb",
+	dbmeta.Hive:        "hive",
+	dbmeta.Exasol:      "exasol",
+	dbmeta.Vertica:     "vertica",
+	dbmeta.Couchbase:   "couchbase",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the

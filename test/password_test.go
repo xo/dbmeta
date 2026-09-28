@@ -33,39 +33,46 @@ var hostilePasswords = []struct{ name, password string }{
 	{"a double quote", `a"b-P4ss!x`},
 }
 
-// TestChangePasswordPostgres sets each password and logs in with it.
+// TestChangePasswordPostgres sets each password and logs in with it, on each
+// product of the PostgreSQL family. CockroachDB takes the postgres model's
+// statement (D123), and this is what proves it parses there.
 func TestChangePasswordPostgres(t *testing.T) {
-	db := open(t)
-	ctx := t.Context()
-	q, err := dbmeta.PostgreSQL.Quoting(ctx, db)
-	if err != nil {
-		t.Fatalf("reading the quoting state: %v", err)
-	}
-	if !q.BackslashEscapes.Valid {
-		t.Fatal("expected PostgreSQL to report standard_conforming_strings")
-	}
-	t.Logf("standard_conforming_strings gives BackslashEscapes=%v", q.BackslashEscapes.V)
-
-	const user = "dbmeta_pw"
-	exec(t, db, `DROP ROLE IF EXISTS `+user)
-	exec(t, db, `CREATE ROLE `+user+` LOGIN`)
-	t.Cleanup(func() { cleanup(t, db, `DROP ROLE IF EXISTS `+user) })
-
-	for _, c := range hostilePasswords {
-		t.Run(c.name, func(t *testing.T) {
-			stmt, err := dbmeta.PostgreSQL.ChangePassword(
-				dbmeta.PasswordChange{User: user, Password: c.password}, q)
+	for _, f := range pgFamilies {
+		t.Run(f.name, func(t *testing.T) {
+			db := openFamilyWith(t, f, f.drivers[0])
+			ctx := t.Context()
+			q, err := f.dialect.Quoting(ctx, db)
 			if err != nil {
-				t.Fatalf("building the statement: %v", err)
+				t.Fatalf("reading the quoting state: %v", err)
 			}
-			exec(t, db, stmt)
-			// The statement ran. Now prove it set what was asked, by using it.
-			dsn := replaceUser(t, dsnOf(t, "DBMETA_POSTGRES"), user, c.password)
-			// Both drivers, because a password is escaped into a statement
-			// here and then parsed out of a DSN by the driver, and the two
-			// parse a DSN differently.
-			for _, driver := range postgresDrivers {
-				login(t, driver, dsn, `SELECT current_user`, user)
+			if !q.BackslashEscapes.Valid {
+				t.Fatal("expected the server to report standard_conforming_strings")
+			}
+			t.Logf("standard_conforming_strings gives BackslashEscapes=%v", q.BackslashEscapes.V)
+
+			const user = "dbmeta_pw"
+			exec(t, db, `DROP ROLE IF EXISTS `+user)
+			exec(t, db, `CREATE ROLE `+user+` LOGIN`)
+			t.Cleanup(func() { cleanup(t, db, `DROP ROLE IF EXISTS `+user) })
+
+			for _, c := range hostilePasswords {
+				t.Run(c.name, func(t *testing.T) {
+					stmt, err := f.dialect.ChangePassword(
+						dbmeta.PasswordChange{User: user, Password: c.password}, q)
+					if err != nil {
+						t.Fatalf("building the statement: %v", err)
+					}
+					exec(t, db, stmt)
+					// The statement ran. Now prove it set what was asked, by
+					// using it.
+					dsn := replaceUser(t, dsnOf(t, f.env), user, c.password)
+					// Every driver of the product, because a password is
+					// escaped into a statement here and then parsed out of a
+					// DSN by the driver, and drivers parse a DSN differently.
+					for _, driver := range f.drivers {
+						login(t, driver, dsn, `SELECT current_user`, user)
+					}
+				})
 			}
 		})
 	}

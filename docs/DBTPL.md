@@ -78,6 +78,7 @@ than from memory.
 | Exasol | 8 | `RoutineParameters`: Exasol keeps the parameters of a function or a script only inside its text, and no catalog view lists them |
 | Vertica | 8 | `RoutineParameters`: a routine's arguments are one comma separated list of types on its own row, and the named parameters a library function declares are options rather than arguments |
 | Couchbase | 5 | `TableColumns`, `TableSequences`, `TableForeignKeys` and `Schema`: a document has no fixed shape, so there is no column and no key, and SQL++ has no expression for the current scope |
+| CockroachDB | 9 | nothing. It shares the postgres model's statements for all nine |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
 Five answer all nine: PostgreSQL, the MySQL dialect, SQL Server, Oracle and
@@ -115,6 +116,7 @@ dialect is added.
 | Vertica | no | yes, without parameter names. Every table, key and foreign key is there, and an index is a projection, which a generator can emit or leave out |
 | Exasol | no | partly: every table, key and foreign key is there to follow, and a routine has no parameters to read. The indexes are the engine's own, built and dropped as queries need them and named by object id, so a generator that emits an index would emit a different set on another day |
 | Couchbase | no | **no**. A collection has no columns, so there is no field to generate |
+| CockroachDB | no | yes, all nine. A parameter declared integer reads as bigint, because CockroachDB makes integer 64 bits |
 
 Trino is the first that is a clear no, and it is not the same as answering few
 of the nine. `dbtpl` generates typed access from a schema and follows a foreign

@@ -44,6 +44,7 @@ rather than reading one.
 | `models/exasol` | 25 | 55 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
 | `models/vertica` | 26 | 55 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
 | `models/couchbase` | 12 | 55 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
+| `models/cockroachdb` | 54 | 55 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 48 of its statements are the postgres model's (D123) |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -2755,6 +2756,61 @@ written.
 instance, and the nearest list is the pluggable databases, which no `ALL_`
 view carries: `ALL_PDBS` does not exist on any release here. `DBA_PDBS` and
 `V$DATABASE` do, and D60 decided against reading either.
+
+## CockroachDB
+
+`models/cockroachdb` answers 54 of the 55, on 24.3.36, 26.2.7 and 26.3.2. It
+was measured on 2026-09-29, with pgx, which is the driver dburl opens for
+`cockroachdb://`. CockroachDB imitates PostgreSQL's catalog, so 48 of its
+statements are the postgres model's, shared with `Query.Share`. The version
+set's main version is the PostgreSQL release that CockroachDB claims, 13.0.0
+on 24.3 and 26.2 and 18.0.0 on 26.3, so a shared statement takes the fragments
+of that release. CockroachDB's own release is under the key `cockroachdb`.
+See D123.
+
+Six statements are its own, because the postgres model's call a function or
+a type that CockroachDB lacks:
+
+| Query | What differs |
+| --- | --- |
+| databases | `size` is NULL before 26.3, which has no `pg_database_size` or `pg_size_pretty` |
+| tablespaces | `location` and `size` are always NULL. CockroachDB keeps no tablespace on a path, and `pg_tablespace` holds `pg_default` and `pg_global` for compatibility |
+| triggers | `definition` is NULL before 26.2, which has no `pg_get_triggerdef`. 24.3 accepts `CREATE TRIGGER` and records nothing in `pg_trigger` or `information_schema.triggers`, so it answers no rows |
+| index_columns | `descending` reads bit 1 of `indoption`, because there is no `pg_index_column_has_property` |
+| extension_objects | `description` is always NULL, because there is no `pg_describe_object`. `pg_extension` is empty, and `CREATE EXTENSION` does nothing |
+| operator_family_operators | the operator is written from `pg_operator`, because there is no `regoperator` type. `pg_amop` is empty |
+
+`column_stats` is not answered. CockroachDB keeps `pg_stats` empty even after
+ANALYZE, so the shared statement would say that no column has statistics,
+which is false. Its statistics are in `SHOW STATISTICS FOR TABLE`, which names
+the table in the statement rather than taking it as a bind parameter.
+`system.table_statistics` holds them too, and 26.3 refuses to read it:
+"Access to crdb_internal and system is restricted".
+
+A parameter declared `integer` reads as `bigint`, because CockroachDB makes
+`integer` 64 bits. The fixture builds 29 of the PostgreSQL fixture's 33 steps
+on 26.3, and 26 on 24.3 and 26.2, which have no domain and cannot comment on
+a sequence or a function. It leaves out the revoke, the two partitioning steps
+and the publication, and `models/cockroachdb/fixture` says why. The
+conformance report is line for line PostgreSQL's on all three releases.
+
+Parity finds what PostgreSQL finds, with one difference by release. From 26.3
+a principal that may not connect to a database reads "no access" as its size.
+
+Gemini and DeepSeek were asked about each gap, as hard rule 14 requires, on
+2026-09-29. Both called tablespace paths, extensions and operator families
+absent from CockroachDB. DeepSeek named `crdb_internal.column_statistics`,
+`crdb_internal.table_sizes`, `crdb_internal.create_statements` and a flag for
+system schemas. None of them exists, or 26.3 refuses to read it, as measured.
+Gemini's trigger statement from `information_schema.triggers` has nothing to
+read on 24.3.
+
+With `with_system` off, the shared statements hide `pg_*` and
+`information_schema`, as `psql` does, and not `crdb_internal`. So `tables`
+lists the 110 to 117 virtual tables of `crdb_internal`. No column of
+`pg_namespace` or `pg_class` marks a schema that CockroachDB keeps for itself,
+and only its name does. That is what `psql` shows on CockroachDB, which hard
+rule 2 follows, and whether to hide it is a question for Ken (D123).
 
 ## Releases that need a licence file
 

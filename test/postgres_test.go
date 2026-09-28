@@ -13,6 +13,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/xo/dbmeta"
+	crfixture "github.com/xo/dbmeta/models/cockroachdb/fixture"
 	_ "github.com/xo/dbmeta/models/postgres"
 	"github.com/xo/dbmeta/models/postgres/fixture"
 )
@@ -28,6 +29,54 @@ import (
 // path. That is where this project's faults live. See D48 and D52.
 var postgresDrivers = []string{"pgx", "postgres"}
 
+// pgFamily is one product that speaks PostgreSQL's protocol and has a model
+// of its own. The tests in this file run against each one that has a server,
+// so that CockroachDB is held to what PostgreSQL is held to (D123).
+type pgFamily struct {
+	name    string
+	env     string
+	dialect dbmeta.Dialect
+	fixture fixture.Fixture
+	// drivers are the drivers usql reaches the product with. cockroachdb://
+	// opens pgx.
+	drivers []string
+	// left says why the product's fixture has no step of a name that the
+	// PostgreSQL fixture has, and is empty when it has one.
+	left func(step string) string
+}
+
+var pgFamilies = []pgFamily{
+	{
+		name: "postgres", env: "DBMETA_POSTGRES", dialect: dbmeta.PostgreSQL,
+		fixture: fixture.Everything, drivers: postgresDrivers,
+		left: func(string) string { return "" },
+	},
+	{
+		name: "cockroachdb", env: "DBMETA_COCKROACHDB", dialect: dbmeta.CockroachDB,
+		fixture: crfixture.Everything, drivers: []string{"pgx"},
+		left: crfixture.Left,
+	},
+}
+
+// familyOf is the product a meta was built for.
+func familyOf(m *dbmeta.Meta) pgFamily {
+	for _, f := range pgFamilies {
+		if f.dialect == m.Dialect() {
+			return f
+		}
+	}
+	panic("no PostgreSQL family for " + string(m.Dialect()))
+}
+
+// needStep skips a test that reads what a fixture step builds, on a product
+// whose fixture leaves the step out, and says why.
+func needStep(t *testing.T, m *dbmeta.Meta, step string) {
+	t.Helper()
+	if why := familyOf(m).left(step); why != "" {
+		t.Skipf("%s builds no %q: %s", m.Dialect(), step, why)
+	}
+}
+
 // open returns a connection to the server named by DBMETA_POSTGRES, or skips.
 //
 // It uses the first driver. A test that wants both calls [eachPostgres].
@@ -38,9 +87,14 @@ func open(t *testing.T) *sql.DB {
 
 func openPostgresWith(t *testing.T, driver string) *sql.DB {
 	t.Helper()
-	dsn := os.Getenv("DBMETA_POSTGRES")
+	return openFamilyWith(t, pgFamilies[0], driver)
+}
+
+func openFamilyWith(t *testing.T, f pgFamily, driver string) *sql.DB {
+	t.Helper()
+	dsn := os.Getenv(f.env)
 	if dsn == "" {
-		t.Skip("set DBMETA_POSTGRES to run against a real server")
+		t.Skipf("set %s to run against a real server", f.env)
 	}
 	db, err := sql.Open(driver, dsn)
 	if err != nil {
@@ -53,14 +107,18 @@ func openPostgresWith(t *testing.T, driver string) *sql.DB {
 	return db
 }
 
-// eachPostgres runs fn once per driver, as a subtest named for it, with the
-// fixture already built.
+// eachPostgres runs fn once per product of the PostgreSQL family and once per
+// driver of it, as a subtest named for both, with the fixture already built.
 func eachPostgres(t *testing.T, fn func(t *testing.T, db *sql.DB, m *dbmeta.Meta)) {
 	t.Helper()
-	for _, driver := range postgresDrivers {
-		t.Run(driver, func(t *testing.T) {
-			db := openPostgresWith(t, driver)
-			fn(t, db, setup(t, db))
+	for _, f := range pgFamilies {
+		t.Run(f.name, func(t *testing.T) {
+			for _, driver := range f.drivers {
+				t.Run(driver, func(t *testing.T) {
+					db := openFamilyWith(t, f, driver)
+					fn(t, db, setupFamily(t, f, db))
+				})
+			}
 		})
 	}
 }
@@ -73,11 +131,17 @@ func eachPostgres(t *testing.T, fn func(t *testing.T, db *sql.DB, m *dbmeta.Meta
 // refused on the same release.
 func setup(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	t.Helper()
-	versions, err := dbmeta.PostgreSQL.Version(t.Context(), db)
+	return setupFamily(t, pgFamilies[0], db)
+}
+
+// setupFamily builds the fixture of one product of the family.
+func setupFamily(t *testing.T, f pgFamily, db *sql.DB) *dbmeta.Meta {
+	t.Helper()
+	versions, err := f.dialect.Version(t.Context(), db)
 	if err != nil {
 		t.Fatalf("reading the version: %v", err)
 	}
-	m, err := dbmeta.New(dbmeta.PostgreSQL, versions)
+	m, err := dbmeta.New(f.dialect, versions)
 	if err != nil {
 		t.Fatalf("building the meta: %v", err)
 	}
@@ -95,11 +159,11 @@ func setup(t *testing.T, db *sql.DB) *dbmeta.Meta {
 			}
 		}
 	}
-	down, err := fixture.Everything.ResolveTeardown(versions)
+	down, err := f.fixture.ResolveTeardown(versions)
 	if err != nil {
 		t.Fatalf("resolving the teardown: %v", err)
 	}
-	up, err := fixture.Everything.ResolveSetup(versions)
+	up, err := f.fixture.ResolveSetup(versions)
 	if err != nil {
 		t.Fatalf("resolving the setup: %v", err)
 	}
@@ -177,7 +241,7 @@ func TestEveryQueryRuns(t *testing.T) {
 // against the text of the statement.
 func TestPaddedFieldsAreNull(t *testing.T) {
 	eachPostgres(t, func(t *testing.T, db *sql.DB, m *dbmeta.Meta) {
-		server := m.Version().Main()
+		server := m.Version()
 
 		var checked int
 		for _, q := range dbmeta.Queries() {
@@ -190,7 +254,7 @@ func TestPaddedFieldsAreNull(t *testing.T) {
 			}
 			var padded []int
 			for i, f := range fields {
-				if !f.Min.IsZero() && !server.AtLeast(f.Min) {
+				if !f.Present(server) {
 					padded = append(padded, i)
 				}
 			}
@@ -205,7 +269,7 @@ func TestPaddedFieldsAreNull(t *testing.T) {
 				for _, i := range padded {
 					if raw[i] != nil {
 						t.Errorf("%s: %q arrived in %s and the server is %s, so it must be NULL, got %q",
-							q.Name(), fields[i].Name, fields[i].Min, server, raw[i])
+							q.Name(), fields[i].Name, fields[i].Min, server.Main(), raw[i])
 					}
 				}
 				checked++
@@ -273,6 +337,7 @@ func TestScanningWorks(t *testing.T) {
 // different answers and the API must keep them apart.
 func TestNullAccessDiffersFromEmpty(t *testing.T) {
 	eachPostgres(t, func(t *testing.T, db *sql.DB, m *dbmeta.Meta) {
+		needStep(t, m, "revoke")
 		got := map[string]sql.Null[string]{}
 		for v, err := range dbmeta.Privileges.All(t.Context(), m, db, args()) {
 			if err != nil {
@@ -376,8 +441,14 @@ func TestRoutineParametersCoverEveryMode(t *testing.T) {
 			if got.Ordinal != int64(i+1) {
 				t.Errorf("parameter %d: expected ordinal %d, got %d", i+1, i+1, got.Ordinal)
 			}
-			if got.DataType != "integer" {
-				t.Errorf("parameter %d: expected integer, got %q", i+1, got.DataType)
+			// CockroachDB makes integer 64 bits by default, so a parameter
+			// declared integer is a bigint there (D123).
+			want := "integer"
+			if m.Dialect() == dbmeta.CockroachDB {
+				want = "bigint"
+			}
+			if got.DataType != want {
+				t.Errorf("parameter %d: expected %s, got %q", i+1, want, got.DataType)
 			}
 		}
 		// The routine id is what a caller groups by, because PostgreSQL overloads
@@ -460,6 +531,11 @@ func TestViewsCarryTheirDefinition(t *testing.T) {
 func TestColumnStatsNeedAnalyze(t *testing.T) {
 	eachPostgres(t, func(t *testing.T, db *sql.DB, m *dbmeta.Meta) {
 		ctx := t.Context()
+		if dbmeta.ColumnStats.Support(m) != dbmeta.Supported {
+			// CockroachDB keeps pg_stats empty even after ANALYZE, so its
+			// model does not answer this (D123).
+			t.Skipf("%s does not answer column_stats", m.Dialect())
+		}
 
 		byTable := make(map[string]int)
 		var rating dbmeta.ColumnStat

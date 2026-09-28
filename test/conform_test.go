@@ -85,6 +85,10 @@ func conformTargets() []conformTarget {
 			open: open, schema: pgfixture.Everything.Schema, build: setup,
 		},
 		{
+			name: "cockroachdb", dialect: dbmeta.CockroachDB,
+			open: openCockroachDB, schema: pgFamilies[1].fixture.Schema, build: setupCockroachDB,
+		},
+		{
 			name: "mysql", dialect: dbmeta.MySQL,
 			open: openMySQL, schema: myfixture.Everything.Schema, build: setupMySQL,
 		},
