@@ -244,7 +244,7 @@ password in `container.Password`:
 | rqlite, libSQL, Apache Pinot | `admin` | `container.Password` |
 | InfluxDB 1 | `admin` | `container.Password` |
 | InfluxDB 2 and 3 | the admin token `_admin` | `container.InfluxDBToken`, which is `apiv3_` and `container.Password`. `/query` takes it as the password |
-| CrateDB | `crate` | none. CrateDB takes no password for its superuser. |
+| CrateDB | `crate` | none. CrateDB takes no password for its superuser, and its URL writes an empty one, `crate:@`. Before dburl v0.35.0, usql read `crate@` as the user `postgres` (D123). |
 | Apache Druid | `admin` | `container.Password` |
 | CouchDB, QuestDB, TerminusDB | `admin` | `container.Password` |
 | Qdrant, Weaviate, Meilisearch, Typesense | `admin`, a name for the administrator's key | `container.Password`, which is the key. None of the four has users, and each checks a key |

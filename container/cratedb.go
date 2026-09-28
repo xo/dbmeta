@@ -7,10 +7,18 @@ import (
 
 // The CrateDB releases dbrun starts.
 //
-// dbmeta has no CrateDB model. The releases are here so that dbrun can start a
-// server for the tests of the CrateDB driver in github.com/xo/dbimp, which
-// reads the HTTP interface. No dialect is named yet, because dbimp settles the
-// name with the driver. See D112.
+// CrateDB speaks the PostgreSQL wire protocol on 5432, and it is reached with
+// pgx, as dburl's cratedb:// scheme opens it from v0.35.0. There is no driver
+// of its own: Ken decided on 2026-09-29 that dbimp writes none, because the
+// HTTP interface builds each whole result in memory and has no paging. It has
+// a dialect of its own, cratedb, and a model of its own is the next piece of
+// work (D123). Until that model exists, the entry names no dialect and is
+// Staged.
+//
+// CrateDB answers SHOW server_version with 14.0, as if it were PostgreSQL
+// 14, and only version() says CrateDB. It has no transactions: ROLLBACK is a
+// parse error, so database/sql's Rollback fails, and lib/pq's BEGIN fails
+// too. COPY and LISTEN are refused. D123 holds what was measured.
 //
 // # The range, by the docs/EVALUATION.md procedure
 //
@@ -28,6 +36,9 @@ import (
 // password would check nothing.
 //
 // # The setup
+//
+// The entry publishes 5432, the PostgreSQL port. The HTTP interface on 4200
+// is still there inside the container, and the check and Init use it.
 //
 // Init runs crash, the CrateDB shell in the image, as crate. It makes
 // [CrateDBUser] or resets its password, and grants it DQL, DML and DDL on the
@@ -50,7 +61,7 @@ func crateShell(stmt string) string {
 var cratedb = product{
 	name:  "cratedb",
 	image: "docker.io/library/crate",
-	port:  4200,
+	port:  5432,
 	// Half of the memory of the container is the vendor's advice for the heap,
 	// and the limit is 4 GB.
 	env: map[string]string{"CRATE_HEAP_SIZE": "1g"},
@@ -71,18 +82,27 @@ var cratedb = product{
 		"{ " + crateShell("CREATE USER "+CrateDBUser+" WITH (password = '"+Password+"')") + " || " +
 		crateShell("ALTER USER "+CrateDBUser+" SET (password = '"+Password+"')") + "; } > /dev/null\n" +
 		crateShell("GRANT DQL, DML, DDL ON SCHEMA "+crateSchema+" TO "+CrateDBUser) + "\n"},
-	dsn:   crateHTTP("crate", false),
-	users: []Principal{{Role: User, User: CrateDBUser, dsn: crateHTTP(CrateDBUser, true)}},
+	dsn:   cratePG("crate", false),
+	users: []Principal{{Role: User, User: CrateDBUser, dsn: cratePG(CrateDBUser, true)}},
 }
 
-// crateHTTP is the address of the HTTP interface as one user. crate has no
-// password.
-func crateHTTP(user string, password bool) func(port int) string {
+// cratePG is the address of the PostgreSQL port as one user, in the form
+// pgx, lib/pq and dburl all take. The database in the path is doc, the schema
+// CrateDB uses when none is named.
+//
+// crate has no password, and the address says so with an empty one, as
+// crate:@. usql read postgres://crate@ with no colon as the user postgres,
+// measured on 2026-09-29, because dburl's passfile package put the user of a
+// passfile entry in place of the URL's. dburl's D31 fixed that in v0.35.0,
+// and the empty password reads the same everywhere, before the fix or after.
+func cratePG(user string, password bool) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
-			Scheme: "http",
-			User:   url.User(user),
-			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+			Scheme:   "postgres",
+			User:     url.UserPassword(user, ""),
+			Host:     fmt.Sprintf("127.0.0.1:%d", port),
+			Path:     "/doc",
+			RawQuery: "sslmode=disable",
 		}
 		if password {
 			u.User = url.UserPassword(user, Password)
