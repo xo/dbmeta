@@ -1,6 +1,6 @@
 # D118. Every database that usql or dbimp reaches gets an entry
 
-Status: Decided.
+Status: Amended by D123.
 
 Ken asked on 2026-09-28 for a `dbrun` entry for every database that `usql`
 supports and has none yet, such as CockroachDB, and for every target in

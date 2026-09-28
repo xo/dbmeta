@@ -324,8 +324,13 @@ var (
 	twinMixedQuery = NewQuery[Table]("twin_mixed")
 )
 
+// shareDialect answers with twinDialect's binding, as a product that
+// imitates another's catalog does. See D123.
+const shareDialect Dialect = "sharedb"
+
 func init() {
 	RegisterDialect(twinDialect, &Info{Placeholder: func(int) string { return "?" }})
+	RegisterDialect(shareDialect, &Info{Placeholder: func(int) string { return "?" }})
 	twinQuery.Register(twinDialect, &Binding[Table]{
 		Stmt: Stmt{
 			{
@@ -494,4 +499,46 @@ func TestVersionSetHasAndKeys(t *testing.T) {
 	if !s.Get("mysql").Unknown {
 		t.Error("expected an absent key to read as unknown")
 	}
+}
+
+func init() {
+	if !twinQuery.Share(twinDialect, shareDialect) {
+		panic("twinDialect registers twinQuery, and Share said it does not")
+	}
+}
+
+// TestShareRegistersTheSameBinding holds that a shared binding answers for
+// the dialect it was shared to exactly as for the one it came from, that
+// sharing from a dialect with no binding says so, and that sharing onto a
+// dialect that has one panics, as a second Register does.
+func TestShareRegistersTheSameBinding(t *testing.T) {
+	t.Parallel()
+	var set VersionSet
+	set.Set("", V(1))
+	set.Set("alpha", V(11))
+	from, err := New(twinDialect, set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := New(shareDialect, set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _, errA := twinQuery.Build(from, nil)
+	b, _, errB := twinQuery.Build(to, nil)
+	if errA != nil || errB != nil || a != b {
+		t.Errorf("the shared binding built %q and %v, and the original %q and %v", b, errB, a, errA)
+	}
+	if twinOnlyQuery.Support(to) != NotSupported {
+		t.Errorf("a query that was not shared answers for %s", shareDialect)
+	}
+	if twinOnlyQuery.Share(Dialect("nothing"), shareDialect) {
+		t.Error("Share from a dialect with no binding said it shared one")
+	}
+	defer func() {
+		if recover() == nil {
+			t.Error("sharing onto a dialect that has a binding did not panic")
+		}
+	}()
+	twinQuery.Share(twinDialect, twinDialect)
 }

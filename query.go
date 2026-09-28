@@ -298,6 +298,31 @@ func (q *Query[T]) Register(d Dialect, b *Binding[T]) {
 	q.bindings[d] = b
 }
 
+// Share registers for the dialect to the binding that the dialect from
+// registered, and reports whether from had one. A model for a product that
+// speaks another product's protocol, and whose catalog imitates that
+// product's, answers with the other product's statement where the statement
+// answers. It registers a binding of its own, with [Query.Register], where
+// the statement does not answer. CockroachDB shares most of PostgreSQL's
+// statements this way. See D123.
+//
+// It panics when to already has a binding, as Register does. A model shares
+// from its init, after the model it shares from has registered, which its
+// import of that model guarantees.
+func (q *Query[T]) Share(from, to Dialect) bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	b, ok := q.bindings[from]
+	if !ok {
+		return false
+	}
+	if _, dup := q.bindings[to]; dup {
+		panic("dbmeta: query " + q.name + " registered twice for dialect " + string(to))
+	}
+	q.bindings[to] = b
+	return true
+}
+
 // Support says whether this query can be asked of m.
 type Support int
 

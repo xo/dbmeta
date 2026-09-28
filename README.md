@@ -296,7 +296,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 122 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 36 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 123 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 37 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

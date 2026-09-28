@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-36 of them amend or replace an earlier one, and a decision read without its
+37 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -130,14 +130,15 @@ file.
 | [D109](D109-neo4j-is-the-dialect-neo4j-and-its-url-names-the.md) | Neo4j is the dialect neo4j, and its URL names the database | Amends D106, amended by D112 |
 | [D110](D110-every-xo-repository-is-set-up-for-agents-alike.md) | Every xo repository is set up for coding agents the same way | Amends D50 and D89 |
 | [D111](D111-a-large-project-keeps-one-file-per-decision.md) | A large project keeps one file per decision | Amends D50 |
-| [D112](D112-eight-servers-run-under-dbrun-for-dbimp.md) | Eight more servers run under dbrun for dbimp's drivers | Amends D109, amended by D114 and D119 |
+| [D112](D112-eight-servers-run-under-dbrun-for-dbimp.md) | Eight more servers run under dbrun for dbimp's drivers | Amends D109, amended by D114, D119 and D123 |
 | [D113](D113-three-avatica-servers-run-under-dbrun.md) | Three Avatica servers run under dbrun for dbimp's driver | Amended by D119 |
 | [D114](D114-a-server-can-answer-more-than-one-dialect.md) | A server can answer more than one dialect | Amends D112, amended by D119 |
 | [D115](D115-a-server-shows-its-owners-name-and-status-a-shows.md) | A server shows its owner's name, and status -a shows the stopped ones | Amends D98 |
 | [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 |
 | [D117](D117-a-hosted-service-appears-in-dbrun-when-its-credential-does.md) | A hosted service appears in dbrun when its credential does | Decided |
-| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Decided |
+| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123 |
 | [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 |
 | [D120](D120-a-staged-release-keeps-its-cadence.md) | A Staged release keeps its cadence | Amends D119 |
 | [D121](D121-the-interface-is-named-queryer.md) | The interface is named Queryer | Amends D49 |
 | [D122](D122-dbrun-calls-the-runner-as-few-times-as-it-can.md) | dbrun calls the runner as few times as it can | Decided |
+| [D123](D123-cockroachdb-and-cratedb-have-dialects-of-their-own.md) | CockroachDB and CrateDB have dialects of their own | Amends D112 and D118 |

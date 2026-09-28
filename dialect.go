@@ -16,9 +16,11 @@ import (
 // and sqlite3, godror and oracle. Each pair has one Dialect. dbmeta holds no
 // such list, because hard rule 1 keeps that taxonomy in dburl. See D99.
 //
-// A wire compatible scheme, such as cockroachdb, redshift, memsql, tidb or
-// vitess, has the Dialect of the product it speaks, and URL.UnaliasedDriver is
-// where the flavor shows.
+// A wire compatible scheme, such as redshift, memsql, tidb or vitess, has the
+// Dialect of the product it speaks, and URL.UnaliasedDriver is where the
+// flavor shows. CockroachDB and CrateDB speak PostgreSQL's protocol and have
+// dialects of their own, because their catalogs differ from PostgreSQL's
+// (dburl D30, D123).
 //
 // A dialect names the family and never the release. A release arrives as a
 // [VersionSet] value, because D8 resolves version differences at run time. See
@@ -45,8 +47,13 @@ const (
 	Cassandra  Dialect = "cql"
 	Chai       Dialect = "chai"
 	ClickHouse Dialect = "clickhouse"
-	Couchbase  Dialect = "couchbase"
-	Cosmos     Dialect = "cosmos"
+	// CockroachDB speaks PostgreSQL's protocol, and pgx reaches it.
+	CockroachDB Dialect = "cockroachdb"
+	Couchbase   Dialect = "couchbase"
+	Cosmos      Dialect = "cosmos"
+	// CrateDB speaks PostgreSQL's protocol on its port 5432, and pgx reaches
+	// it.
+	CrateDB    Dialect = "cratedb"
 	CSVQ       Dialect = "csvq"
 	Databricks Dialect = "databricks"
 	Databend   Dialect = "databend"
