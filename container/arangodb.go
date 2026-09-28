@@ -73,8 +73,28 @@ var arangodb = product{
 if (!db._databases().includes("` + arangoDatabase + `")) { db._createDatabase("` + arangoDatabase + `"); }
 if (u.exists("` + ArangoDBUser + `")) { u.update("` + ArangoDBUser + `", "` + Password + `"); } else { u.save("` + ArangoDBUser + `", "` + Password + `"); }
 u.grantDatabase("` + ArangoDBUser + `", "` + arangoDatabase + `", "rw");`),
-	dsn:   arangoHTTP("root"),
-	users: []Principal{{Role: User, User: ArangoDBUser, dsn: arangoHTTP(ArangoDBUser)}},
+	dsn: arangoHTTP("root"),
+	url: arangoURL("root"),
+	users: []Principal{{
+		Role: User, User: ArangoDBUser,
+		dsn: arangoHTTP(ArangoDBUser), url: arangoURL(ArangoDBUser),
+	}},
+}
+
+// arangoURL is the address of the database dbmeta as one user, in the form
+// dbimp's arangodb driver takes, which is dbimp's D93. The path is the
+// database: with none, the driver uses _system, which dbmeta_user may not
+// read.
+func arangoURL(user string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: "arangodb",
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+			Path:   "/dbmeta",
+		}
+		return u.String()
+	}
 }
 
 // arangoHTTP is the address of the HTTP API, with one user's credentials.
