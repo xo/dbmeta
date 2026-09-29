@@ -93,20 +93,31 @@ var databend = product{
 		databendSQL("CREATE OR REPLACE USER "+DatabendUser+" IDENTIFIED BY '"+Password+
 			"' WITH DEFAULT_ROLE = '"+databendRole+"'") + "\n" +
 		databendSQL("GRANT ROLE "+databendRole+" TO "+DatabendUser) + "\n"},
-	dsn:   databendDSN("root", "default"),
-	users: []Principal{{Role: User, User: DatabendUser, dsn: databendDSN(DatabendUser, databendDatabase)}},
+	dsn: databendDSN("root", "default", "sslmode=disable"),
+	url: databendDSN("root", "default", ""),
+	users: []Principal{{
+		Role: User, User: DatabendUser,
+		dsn: databendDSN(DatabendUser, databendDatabase, "sslmode=disable"),
+		url: databendDSN(DatabendUser, databendDatabase, ""),
+	}},
 }
 
-// databendDSN is the URL that github.com/datafuselabs/databend-go takes, and
-// the dburl form, for one user on one database.
-func databendDSN(user, database string) func(port int) string {
+// databendDSN is the address of one user on one database, with the query
+// given.
+//
+// The DSN is the form github.com/datafuselabs/databend-go takes, which usql's
+// driver uses, with sslmode=disable. The URL has no query at all, because
+// dbimp's databend driver takes only the keys tls, auth, cancel and timezone
+// and refuses every other one, sslmode too (dbimp D117). dbimp reads the URL,
+// as it does for the ArangoDB and InfluxDB entries.
+func databendDSN(user, database, query string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
 			Scheme:   "databend",
 			User:     url.UserPassword(user, Password),
 			Host:     fmt.Sprintf("127.0.0.1:%d", port),
 			Path:     "/" + database,
-			RawQuery: "sslmode=disable",
+			RawQuery: query,
 		}
 		return u.String()
 	}
