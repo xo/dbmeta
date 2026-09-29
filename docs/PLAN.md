@@ -599,31 +599,8 @@ An open question lives here until it is answered, and then it becomes a
 decision in `decisions/` (D111). The argument behind a decision belongs with
 the decision, which is why there is no separate document for it.
 
-Four questions are open.
-
-1. Does the CockroachDB model hide `crdb_internal` when `with_system` is off?
-   The statements it shares with the postgres model hide `pg_*` and
-   `information_schema`, as `psql` does, so `tables` lists the 110 to 117
-   virtual tables of `crdb_internal` as a user's. Hiding it means CockroachDB
-   statements of its own for every query that filters by schema, about thirty,
-   because no catalog column marks the schema, and only its name does. Keeping
-   it is what `psql` shows on CockroachDB, which hard rule 2 follows (D123).
-2. D66 says a product whose only local option is an emulator is Archived on
-   arrival, and that chai, csvq and ql get no model at all. D119 made all of
-   them Staged, which means waiting for a model. Either D66 is amended to say
-   they wait for one, or chai, csvq and ql leave dbrun.
-3. Db2 is the one database usql supports that has no entry. Its Go driver needs
-   IBM's client libraries, which is the reason godror is ruled out (D48). Is it
-   out of scope for the same reason?
-4. Does the CrateDB model answer the text search kinds? CrateDB's
-   `information_schema.routines` lists analyzers, tokenizers and token
-   filters, which do the work of a text search configuration, a parser and a
-   dictionary. An analyzer has no schema, and a built-in analyzer records no
-   tokenizer, so `TextSearchConfig.Parser` has no source for 45 of them.
-   Answering means a schema of `''` and either a parser that may be empty or
-   a field that may be NULL. Leaving them out is what the model does now,
-   because hard rule 14 leaves an analogue that is a stretch unsupported.
-   docs/COVERAGE.md has the measurement.
+No question is open. The four that were are answered in D128, D129, D130 and
+D131.
 
 None of the older questions is open.
 The floor question that the upstream change reopened has been answered:

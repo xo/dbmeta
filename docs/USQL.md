@@ -487,3 +487,18 @@ Exasol's is new rather than moved, because `usql`'s Exasol driver declares no
 `ChangePassword` at all. Exasol takes a password as a quoted identifier rather
 than as a string literal, so the only escaping is a doubled double quote and
 there is no session state to read. D87 has the rest.
+
+Every product whose driver in `usql` changes a password has a statement here,
+except Netezza, which has no model yet. Each one is tested by setting every
+password in `hostilePasswords` on a real server and logging in with it (D127).
+
+| Product | Statement | Quoting |
+| --- | --- | --- |
+| PostgreSQL, CockroachDB, CrateDB | `ALTER USER "<user>" PASSWORD '<password>'`, and `SET (password = ...)` on CrateDB | a string literal, with a backslash doubled when `standard_conforming_strings` is off |
+| MySQL and MariaDB | `ALTER USER '<user>'@'<host>' IDENTIFIED BY '<password>'` | a string literal, with a backslash doubled unless `sql_mode` has `NO_BACKSLASH_ESCAPES` |
+| SQL Server | `ALTER LOGIN [<login>] WITH PASSWORD = N'<password>'`, and `OLD_PASSWORD` when given | a string literal, and `]` doubled in the login |
+| Oracle | `ALTER USER "<USER>" IDENTIFIED BY "<password>"`, and `REPLACE` when given | a quoted identifier. A plain name folds to upper case, and a double quote is refused |
+| Vertica | `ALTER USER "<user>" IDENTIFIED BY '<password>'`, and `REPLACE` when given | as PostgreSQL |
+| Exasol | `ALTER USER "<user>" IDENTIFIED BY "<password>"`, and `REPLACE` when given | a quoted identifier, with a double quote doubled |
+| ClickHouse | ``ALTER USER `<user>` IDENTIFIED BY '<password>'`` | a backslash always doubled, in the literal and in the name |
+| Cassandra and ScyllaDB | `ALTER ROLE "<role>" WITH PASSWORD = '<password>'` | a string literal with no backslash escape |

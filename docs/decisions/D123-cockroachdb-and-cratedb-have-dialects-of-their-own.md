@@ -56,8 +56,7 @@ report is PostgreSQL's line for line, and parity finds what PostgreSQL finds.
 
 With `with_system` off, the shared statements hide what PostgreSQL keeps for
 itself and not `crdb_internal`, so CockroachDB's virtual tables are listed.
-That is what `psql` shows. Whether to hide them is open, and it is at the end
-of `docs/PLAN.md`.
+That is what `psql` shows, and D128 keeps it that way.
 
 The entry takes the dialect, and each release its cadence as its tier (D120):
 26.2.7 and 26.3.2 on every push, and 24.3.36 at night.

@@ -50,8 +50,6 @@
 package oracle
 
 import (
-	"database/sql"
-	"fmt"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -85,6 +83,7 @@ func init() {
 		VersionQuery:   versionQuery,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
+		ChangePassword: changePassword,
 	})
 	registerRelations()
 	registerColumns()
@@ -156,35 +155,4 @@ func itoa(n int) string {
 		b = append([]byte{byte('0' + n%10)}, b...)
 	}
 	return string(b)
-}
-
-// empty scans a text column into a plain string, reading NULL as the empty
-// string.
-//
-// Oracle stores the empty string as NULL, so a statement that selects ” for
-// a field that is empty, or wraps a column in NVL(x, ”), gets NULL back, and
-// a NULL cannot be scanned into a string. A plain string field whose value
-// can be empty goes through this. Exasol has the same property and the same
-// helper (D87).
-//
-// This is not the COALESCE docs/NULLS.md forbids. A field whose type is
-// sql.Null keeps its NULL. A plain string field is one the object model says
-// is never absent, and on Oracle NULL is the only way to write it empty.
-func empty(p *string) sql.Scanner { return emptyString{p} }
-
-type emptyString struct{ p *string }
-
-// Scan satisfies sql.Scanner.
-func (e emptyString) Scan(v any) error {
-	switch t := v.(type) {
-	case nil:
-		*e.p = ""
-	case string:
-		*e.p = t
-	case []byte:
-		*e.p = string(t)
-	default:
-		*e.p = fmt.Sprint(t)
-	}
-	return nil
 }

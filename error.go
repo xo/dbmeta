@@ -48,8 +48,9 @@ const (
 	// and guessing it can let the password escape its own literal. See D56.
 	ErrQuotingUnknown Error = "quoting unknown"
 	// ErrInvalidPassword is the invalid password error. A password or a user
-	// name holds a character no product can carry in a statement, which today
-	// means a NUL.
+	// name holds a character the product cannot carry in the statement: a NUL
+	// on every product, and a double quote on Oracle, which takes both
+	// between double quotes and has no escape for one.
 	ErrInvalidPassword Error = "invalid password"
 	// ErrAmbiguousFragment is the ambiguous fragment error. Two alternatives
 	// of one choice name different versions and the server reports both, so

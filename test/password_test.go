@@ -3,10 +3,13 @@ package test
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xo/dbmeta"
 )
@@ -385,4 +388,125 @@ func TestChangePasswordCrateDB(t *testing.T) {
 		t.Fatalf("changing its own password: %v", err)
 	}
 	login(t, "pgx", replaceUser(t, base, user, next), `SELECT current_user`, user)
+}
+
+// TestChangePasswordClickHouse sets each password and logs in with it, and
+// then sets one for a user whose name holds a backslash and a backtick.
+//
+// A backslash escapes the next character in a ClickHouse string literal and
+// inside backticks, whatever the session says, so the model doubles it in
+// both. A name that ends in a backslash is the case that would escape its own
+// closing backtick.
+func TestChangePasswordClickHouse(t *testing.T) {
+	db := openClickHouse(t)
+	base := dsnOf(t, "DBMETA_CLICKHOUSE")
+	for _, u := range []struct{ name, create string }{
+		{"dbmeta_pw", "`dbmeta_pw`"},
+		{"dbmeta`pw\\", "`dbmeta``pw\\\\`"},
+	} {
+		t.Run(u.name, func(t *testing.T) {
+			exec(t, db, `DROP USER IF EXISTS `+u.create)
+			exec(t, db, `CREATE USER `+u.create+` IDENTIFIED BY 'Start-P4ss!x'`)
+			t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS `+u.create) })
+			for _, c := range hostilePasswords {
+				t.Run(c.name, func(t *testing.T) {
+					stmt, err := dbmeta.ClickHouse.ChangePassword(
+						dbmeta.PasswordChange{User: u.name, Password: c.password}, dbmeta.Quoting{})
+					if err != nil {
+						t.Fatalf("building the statement: %v", err)
+					}
+					exec(t, db, stmt)
+					login(t, "clickhouse", replaceUser(t, base, u.name, c.password), `SELECT currentUser()`, u.name)
+				})
+			}
+		})
+	}
+}
+
+// TestChangePasswordCassandra sets each password and logs in with it.
+//
+// CQL has no backslash escape, so only the quote is doubled, and CQL has no
+// function that names the current role, so a login is proved by a read.
+//
+// Cassandra 5 refuses to change a role's password within five seconds of
+// the last change, and counts from when the role was made. So each password
+// gets a role of its own, all of them are made first, and the test waits
+// once before it changes any.
+func TestChangePasswordCassandra(t *testing.T) {
+	db := openCassandra(t)
+	base := dsnOf(t, "DBMETA_CQL")
+	users := make([]string, len(hostilePasswords))
+	for i := range hostilePasswords {
+		users[i] = fmt.Sprintf("dbmeta_pw%d", i)
+		cleanup(t, db, `DROP ROLE IF EXISTS `+users[i])
+		exec(t, db, `CREATE ROLE `+users[i]+` WITH PASSWORD = 'Start-P4ss!x' AND LOGIN = true`)
+		t.Cleanup(func() { cleanup(t, db, `DROP ROLE IF EXISTS `+users[i]) })
+	}
+	time.Sleep(6 * time.Second)
+	for i, c := range hostilePasswords {
+		t.Run(c.name, func(t *testing.T) {
+			stmt, err := dbmeta.Cassandra.ChangePassword(
+				dbmeta.PasswordChange{User: users[i], Password: c.password}, dbmeta.Quoting{})
+			if err != nil {
+				t.Fatalf("building the statement: %v", err)
+			}
+			exec(t, db, stmt)
+			login(t, "cql", cqlUser(t, base, users[i], c.password), `SELECT release_version FROM system.local`, "")
+		})
+	}
+}
+
+// TestChangePasswordOracle sets each password and logs in with it, for a user
+// named plainly and one named in lower case between double quotes, and then
+// has the plain user change its own password with the current one.
+//
+// Oracle takes the password between double quotes and has no escape for one,
+// so the password that holds one is refused rather than set.
+func TestChangePasswordOracle(t *testing.T) {
+	db := openOracle(t)
+	base := dsnOf(t, "DBMETA_ORACLE")
+	for _, u := range []struct{ name, create, stored string }{
+		{"dbmeta_pw", "dbmeta_pw", "DBMETA_PW"},
+		{`"dbmeta_qpw"`, `"dbmeta_qpw"`, "dbmeta_qpw"},
+	} {
+		t.Run(u.stored, func(t *testing.T) {
+			cleanup(t, db, `DROP USER `+u.create)
+			exec(t, db, `CREATE USER `+u.create+` IDENTIFIED BY "Start-P4ss!x"`)
+			t.Cleanup(func() { cleanup(t, db, `DROP USER `+u.create) })
+			exec(t, db, `GRANT CREATE SESSION TO `+u.create)
+			current := "Start-P4ss!x"
+			for _, c := range hostilePasswords {
+				t.Run(c.name, func(t *testing.T) {
+					stmt, err := dbmeta.Oracle.ChangePassword(
+						dbmeta.PasswordChange{User: u.name, Password: c.password}, dbmeta.Quoting{})
+					if strings.Contains(c.password, `"`) {
+						if !errors.Is(err, dbmeta.ErrInvalidPassword) {
+							t.Errorf("expected %v for a double quote, got %v", dbmeta.ErrInvalidPassword, err)
+						}
+						return
+					}
+					if err != nil {
+						t.Fatalf("building the statement: %v", err)
+					}
+					exec(t, db, stmt)
+					// A login names the user the way a statement does, so a
+					// name in lower case is between double quotes there too.
+					login(t, "oracle", replaceUser(t, base, u.name, c.password), `SELECT USER FROM dual`, u.stored)
+					current = c.password
+				})
+			}
+			// The user changing its own password, with the current one.
+			self := openAt(t, "oracle", replaceUser(t, base, u.name, current))
+			const next = `Next-P4ss!x'\`
+			stmt, err := dbmeta.Oracle.ChangePassword(
+				dbmeta.PasswordChange{User: u.name, Password: next, Old: current}, dbmeta.Quoting{})
+			if err != nil {
+				t.Fatalf("building the statement: %v", err)
+			}
+			if _, err := self.ExecContext(t.Context(), stmt); err != nil {
+				t.Fatalf("changing its own password: %v", err)
+			}
+			login(t, "oracle", replaceUser(t, base, u.name, next), `SELECT USER FROM dual`, u.stored)
+		})
+	}
 }

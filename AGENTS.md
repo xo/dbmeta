@@ -13,6 +13,10 @@ statement and its escaping are per product knowledge and a password cannot be
 bound as a parameter. It takes no database and runs nothing, so everything
 `dbmeta` executes is still a read. Do not widen that. See D56.
 
+Every quoting rule lives here, and none in a consumer. A rule two products
+share goes in the root package, as `QuoteLiteral` and `QuoteIdentifier` do,
+and a product's own goes beside its model. See D127.
+
 ## Standing rules
 
 These hold in every `xo` repository, for every coding agent (D110).
@@ -31,7 +35,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 126. Read the status, because 39
+`docs/decisions/README.md` is a table of all 131. Read the status, because 41
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 

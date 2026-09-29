@@ -1,6 +1,6 @@
 # D66. The order the remaining dialects are written in
 
-Status: Amended by D67, D77, D88, D91 and D94.
+Status: Amended by D67, D77, D88, D91, D94 and D129.
 
 Impala first, then ClickHouse, then the products that run in a container,
 then the ones that need an account. A product that cannot be started cannot be

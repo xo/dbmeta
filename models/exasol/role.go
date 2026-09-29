@@ -60,9 +60,9 @@ func registerRoles() {
 		Params: nameOnly("principal"),
 		Scan: func(rows *sql.Rows) (dbmeta.Role, error) {
 			var v dbmeta.Role
-			err := rows.Scan(empty(&v.Name), &v.Superuser, &v.CreateRole, &v.CreateDB,
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), &v.Superuser, &v.CreateRole, &v.CreateDB,
 				&v.CanLogin, &v.Replication, &v.BypassRLS, &v.Inherit, &v.ConnLimit,
-				&v.ValidUntil, empty(&v.MemberOf), &v.Comment)
+				&v.ValidUntil, dbmeta.NullAsEmpty(&v.MemberOf), &v.Comment)
 			return v, err
 		},
 	})
@@ -96,7 +96,7 @@ func registerRoles() {
 		Params: nameOnly("grantee"),
 		Scan: func(rows *sql.Rows) (dbmeta.RoleGrant, error) {
 			var v dbmeta.RoleGrant
-			err := rows.Scan(empty(&v.Role), empty(&v.MemberOf), &v.Grantor, &v.Admin, &v.Inherit, &v.Set)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Role), dbmeta.NullAsEmpty(&v.MemberOf), &v.Grantor, &v.Admin, &v.Inherit, &v.Set)
 			return v, err
 		},
 	})
@@ -133,7 +133,7 @@ func registerRoles() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {
 			var v dbmeta.Privilege
-			err := rows.Scan(&v.Schema, empty(&v.Name), empty(&v.Type), &v.Access, &v.ColumnAccess, &v.Policies)
+			err := rows.Scan(&v.Schema, dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type), &v.Access, &v.ColumnAccess, &v.Policies)
 			return v, err
 		},
 	})

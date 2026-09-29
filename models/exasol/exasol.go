@@ -70,7 +70,6 @@ package exasol
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/xo/dbmeta"
 )
@@ -123,21 +122,6 @@ func like(col, param string) string {
 	return `(` + param + ` IS NULL OR ` + col + ` LIKE ` + param + `)`
 }
 
-// empty scans a text column into a plain string, reading NULL as the empty
-// string.
-//
-// Exasol cannot store an empty string. It reads one as NULL, so a statement
-// that selects an empty string for a field that is always empty gets NULL
-// back, and a NULL cannot be scanned into a string. Every plain string field
-// goes through this.
-//
-// This is not the COALESCE docs/NULLS.md forbids. That rule protects a NULL
-// that means something different from the empty string, and a field whose
-// type is sql.Null keeps its NULL here. A plain string field is one the
-// object model says is never absent, and on Exasol NULL is the only way to
-// write it empty. The package doc says so.
-func empty(p *string) sql.Scanner { return emptyString{p} }
-
 // present scans a nullable text column whose value is the empty string where
 // the statement selected an empty string.
 //
@@ -153,27 +137,10 @@ type presentString struct{ p *sql.Null[string] }
 // Scan satisfies sql.Scanner.
 func (e presentString) Scan(v any) error {
 	var s string
-	if err := (emptyString{&s}).Scan(v); err != nil {
+	if err := dbmeta.NullAsEmpty(&s).Scan(v); err != nil {
 		return err
 	}
 	*e.p = sql.Null[string]{V: s, Valid: true}
-	return nil
-}
-
-type emptyString struct{ p *string }
-
-// Scan satisfies sql.Scanner.
-func (e emptyString) Scan(v any) error {
-	switch t := v.(type) {
-	case nil:
-		*e.p = ""
-	case string:
-		*e.p = t
-	case []byte:
-		*e.p = string(t)
-	default:
-		*e.p = fmt.Sprint(t)
-	}
 	return nil
 }
 

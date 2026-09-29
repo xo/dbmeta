@@ -59,9 +59,9 @@ var functionFields = []dbmeta.Field{
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
-	err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Name), &v.ID, empty(&v.Kind),
-		&v.ResultType, &v.ArgTypes, empty(&v.Volatility), empty(&v.Parallel), &v.Owner,
-		empty(&v.Security), &v.Access, empty(&v.Language), &v.Source, &v.Comment)
+	err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), &v.ID, dbmeta.NullAsEmpty(&v.Kind),
+		&v.ResultType, &v.ArgTypes, dbmeta.NullAsEmpty(&v.Volatility), dbmeta.NullAsEmpty(&v.Parallel), &v.Owner,
+		dbmeta.NullAsEmpty(&v.Security), &v.Access, dbmeta.NullAsEmpty(&v.Language), &v.Source, &v.Comment)
 	return v, err
 }
 
@@ -180,8 +180,8 @@ func registerTypes() {
 		Params: nameOnly("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Name), empty(&v.Internal), empty(&v.Kind),
-				empty(&v.Elements), &v.Owner, &v.Access, &v.Comment)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Internal), dbmeta.NullAsEmpty(&v.Kind),
+				dbmeta.NullAsEmpty(&v.Elements), &v.Owner, &v.Access, &v.Comment)
 			return v, err
 		},
 	})
@@ -244,8 +244,8 @@ func registerLanguages() {
 		Params: nameOnly("language"),
 		Scan: func(rows *sql.Rows) (dbmeta.Language, error) {
 			var v dbmeta.Language
-			err := rows.Scan(empty(&v.Name), empty(&v.Owner), &v.Trusted, &v.Internal, empty(&v.Handler),
-				empty(&v.Validator), empty(&v.Inline), &v.Access, &v.Comment)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Owner), &v.Trusted, &v.Internal, dbmeta.NullAsEmpty(&v.Handler),
+				dbmeta.NullAsEmpty(&v.Validator), dbmeta.NullAsEmpty(&v.Inline), &v.Access, &v.Comment)
 			return v, err
 		},
 	})

@@ -29,8 +29,8 @@ community edition all qualify.
 
 Many of the databases here are commercial and qualify this way. SQL Server
 runs as the Developer and evaluation editions, Oracle as Free and XE, SAP HANA
-as the express edition, Exasol as the Community Edition, Vertica as the
-community edition, and Db2 as the Community image.
+as the express edition, Exasol as the Community Edition, and Vertica as the
+community edition.
 
 If a release needs an account, a signup or an accepted license, record that in
 its decision. D85 records the Exasol signup, and D76 records the SAP license
@@ -516,21 +516,15 @@ above.
 `podman-run.sh`. The products dbmeta already has a model for are started by
 `dbrun` from `container/`, and that list is the one copy of their images,
 ports, environment and passwords, so nothing of theirs was carried over.
-CockroachDB, Flight SQL, H2 and YDB have Staged entries now, which D118 added
-from the vendors' current images rather than from these. Apache Ignite is
+CockroachDB has a model now (D123), and Flight SQL, H2 and YDB have Staged
+entries, which D118 added from the vendors' current images rather than from
+these. Apache Ignite is
 gone: usql removed its driver on 2026-09-27 and dburl v0.31.0 dropped the
 scheme, and a product nothing reads is removed (D118).
 
-The one below has no entry in `container/`. Its container facts are recorded
-here, as `usql` had them on 2026-09-27, so that its evaluation starts from them
-rather than from nothing. dbmeta did not start it. It is a lead, the same as an
-AI model's answer, and step 2 of the procedure above still has to be run.
+Db2 was the one `usql` target with no entry, and it is out of scope (D130).
 
-| Product | Image | Ports | Environment and setup |
-| --- | --- | --- | --- |
-| Db2 | `icr.io/db2_community/db2` | 50000, 55000 | `LICENSE=accept`, `DB2INSTANCE=db2inst1`, `DB2INST1_PASSWORD`, `DBNAME=testdb`, and a volume at `/database` |
-
-Two more `usql` targets are covered here and differ from what `usql` ran,
+Two `usql` targets are covered here and differ from what `usql` ran,
 which is worth knowing when comparing the two.
 
 `usql` started Oracle Enterprise 21.3.0.0 from `container-registry.oracle.com`,
@@ -542,7 +536,3 @@ from `gvenzl/oracle-xe`, and builds 19c Enterprise itself. D54 has the list.
 which is D77, and dbmeta runs `exasol/nano` instead. The second was
 withdrawn, which D66 records, and dbmeta runs a community copy of the same
 image at 25.1 and three older releases, which D88 records.
-
-The Db2 notes in `usql` are about installing IBM's ODBC client, which is
-`usql`'s concern and stays there. The container itself needs nothing beyond
-the table above.

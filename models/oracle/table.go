@@ -132,7 +132,7 @@ func registerTables() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.EventTrigger, error) {
 			var v dbmeta.EventTrigger
-			err := rows.Scan(&v.Name, &v.Event, &v.Owner, &v.Enabled, empty(&v.Function),
+			err := rows.Scan(&v.Name, &v.Event, &v.Owner, &v.Enabled, dbmeta.NullAsEmpty(&v.Function),
 				&v.Tags, &v.Comment)
 			return v, err
 		},
@@ -185,8 +185,8 @@ func registerTables() {
 			Params: schemaNameSystem("table"),
 			Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 				var v dbmeta.PartitionedTable
-				err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, empty(&v.Parent),
-					&v.Strategy, empty(&v.Expression), &v.Comment)
+				err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, dbmeta.NullAsEmpty(&v.Parent),
+					&v.Strategy, dbmeta.NullAsEmpty(&v.Expression), &v.Comment)
 				return v, err
 			},
 		})

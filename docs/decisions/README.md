@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-39 of them amend or replace an earlier one, and a decision read without its
+41 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -74,7 +74,7 @@ file.
 | [D53](D053-one-canonical-expectation-checked-in-that-every.md) | One canonical expectation, checked in, that every database must meet | Decided |
 | [D54](D054-sql-server-covers-every-release-that-ships-a.md) | SQL Server covers every release that ships a Linux container | Amended by D63 |
 | [D55](D055-the-current-user-moves-here-changing-a-password.md) | The current user moves here. Changing a password does not | Decided |
-| [D56](D056-the-password-statement-is-built-here-and-run-by.md) | The password statement is built here and run by the caller | Amends D5 |
+| [D56](D056-the-password-statement-is-built-here-and-run-by.md) | The password statement is built here and run by the caller | Amends D5, amended by D127 |
 | [D57](D057-a-windows-machine-is-how-a-pre-2017-sql-server.md) | A Windows machine is how a pre 2017 SQL Server gets tested, and it is Verified | Decided |
 | [D58](D058-one-gitignore-in-the-repository-root.md) | One .gitignore, in the repository root | Decided |
 | [D59](D059-oracle-is-tested-with-go-ora-v2-until-v3-tags.md) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52 |
@@ -84,7 +84,7 @@ file.
 | [D63](D063-support-says-when-a-release-is-too-old.md) | Support says when a release is too old | Amends D54 |
 | [D64](D064-the-verified-tier-is-checked-against-the.md) | The Verified tier is checked against the document | Decided |
 | [D65](D065-a-windows-machine-rearms-its-evaluation-before.md) | A Windows machine rearms its evaluation before it expires | Decided |
-| [D66](D066-the-order-the-remaining-dialects-are-written-in.md) | The order the remaining dialects are written in | Amended by D67, D77, D88, D91 and D94 |
+| [D66](D066-the-order-the-remaining-dialects-are-written-in.md) | The order the remaining dialects are written in | Amended by D67, D77, D88, D91, D94 and D129 |
 | [D67](D067-impala-cannot-be-a-dbmeta-model-and-clickhouse.md) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
 | [D68](D068-every-container-is-started-by-the-runner-and.md) | Every container is started by the runner and named product-release | Amended by D70 and D124 |
 | [D69](D069-the-workflow-builds-its-matrix-from-the-go-list.md) | The workflow builds its matrix from the Go list | Amends D42 |
@@ -145,3 +145,8 @@ file.
 | [D124](D124-a-server-can-publish-a-second-port.md) | A server can publish a second port | Amends D68 |
 | [D125](D125-each-wire-compatible-product-has-a-dialect-of-its-own.md) | Each wire compatible product has a dialect of its own | Amends D19, D80, D99 and D117 |
 | [D126](D126-a-version-query-waits-for-the-product-s-model.md) | A version query waits for the product's model | Decided |
+| [D127](D127-quoting-rules-live-in-dbmeta.md) | Quoting rules live in dbmeta | Amends D56 |
+| [D128](D128-cockroachdb-lists-crdb-internal.md) | CockroachDB lists crdb_internal | Decided |
+| [D129](D129-an-embedded-product-waits-for-a-model.md) | An embedded product waits for a model | Amends D66 |
+| [D130](D130-db2-is-out-of-scope.md) | Db2 is out of scope | Decided |
+| [D131](D131-cratedb-answers-no-text-search-kind.md) | CrateDB answers no text search kind | Decided |

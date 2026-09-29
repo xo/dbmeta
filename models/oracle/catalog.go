@@ -50,7 +50,7 @@ func registerCatalog() {
 		Params: schemaNameSystem("object"),
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {
 			var v dbmeta.Privilege
-			err := rows.Scan(&v.Schema, &v.Name, empty(&v.Type), &v.Access,
+			err := rows.Scan(&v.Schema, &v.Name, dbmeta.NullAsEmpty(&v.Type), &v.Access,
 				&v.ColumnAccess, &v.Policies)
 			return v, err
 		},
@@ -136,7 +136,7 @@ func registerCatalog() {
 		Params: schemaNameSystem("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.ForeignTable, error) {
 			var v dbmeta.ForeignTable
-			err := rows.Scan(&v.Schema, &v.Name, empty(&v.Server), &v.Options, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, dbmeta.NullAsEmpty(&v.Server), &v.Options, &v.Comment)
 			return v, err
 		},
 	})

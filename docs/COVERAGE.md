@@ -2828,7 +2828,7 @@ With `with_system` off, the shared statements hide `pg_*` and
 lists the 110 to 117 virtual tables of `crdb_internal`. No column of
 `pg_namespace` or `pg_class` marks a schema that CockroachDB keeps for itself,
 and only its name does. That is what `psql` shows on CockroachDB, which hard
-rule 2 follows, and whether to hide it is a question for Ken (D123).
+rule 2 follows, and D128 keeps it.
 
 ## CrateDB
 
@@ -2889,7 +2889,7 @@ These are left unanswered, although CrateDB holds something like them:
   tokenizers, token filters and char filters, which do the work of a text
   search configuration, a parser and a dictionary. An analyzer has no schema,
   and a built-in one records no tokenizer, so a configuration would have no
-  parser. Whether to answer them is a question for Ken (docs/PLAN.md).
+  parser. D131 leaves them out.
 
 ### What the fixture builds
 

@@ -33,6 +33,7 @@ package clickhouse
 
 import (
 	"database/sql"
+	"strings"
 
 	"github.com/xo/dbmeta"
 )
@@ -60,8 +61,17 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 // behaviour is not a server setting here the way it is in MySQL.
 func changePassword(c dbmeta.PasswordChange, _ dbmeta.Quoting) (string, error) {
 	backslashes := dbmeta.Quoting{BackslashEscapes: sql.Null[bool]{V: true, Valid: true}}
-	return "ALTER USER " + dbmeta.QuoteIdentifier(c.User, "`", "`") +
+	return "ALTER USER " + quoteName(c.User) +
 		" IDENTIFIED BY " + dbmeta.QuoteLiteral(c.Password, backslashes), nil
+}
+
+// quoteName returns a name between backticks. A backslash escapes the next
+// character inside backticks as it does inside a string literal, so it is
+// doubled as well as the backtick. dbmeta.QuoteIdentifier doubles only the
+// closing character, and a name that ends in a backslash would then escape
+// its own closing backtick.
+func quoteName(name string) string {
+	return "`" + strings.NewReplacer(`\`, `\\`, "`", "``").Replace(name) + "`"
 }
 
 func init() {

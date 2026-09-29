@@ -44,7 +44,7 @@ func registerForeign() {
 		Params: nameOnly("adapter script"),
 		Scan: func(rows *sql.Rows) (dbmeta.ForeignDataWrapper, error) {
 			var v dbmeta.ForeignDataWrapper
-			err := rows.Scan(empty(&v.Name), empty(&v.Owner), &v.Handler, &v.Validator, &v.Access,
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Owner), &v.Handler, &v.Validator, &v.Access,
 				&v.Options, &v.Comment)
 			return v, err
 		},
@@ -84,7 +84,7 @@ func registerForeign() {
 		Params: nameOnly("virtual schema"),
 		Scan: func(rows *sql.Rows) (dbmeta.ForeignServer, error) {
 			var v dbmeta.ForeignServer
-			err := rows.Scan(empty(&v.Name), empty(&v.Owner), empty(&v.Wrapper), &v.Type, &v.Version,
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Owner), dbmeta.NullAsEmpty(&v.Wrapper), &v.Type, &v.Version,
 				&v.Access, &v.Options, &v.Comment)
 			return v, err
 		},
@@ -113,7 +113,7 @@ func registerForeign() {
 		Params: nameOnly("grantee"),
 		Scan: func(rows *sql.Rows) (dbmeta.UserMapping, error) {
 			var v dbmeta.UserMapping
-			err := rows.Scan(empty(&v.Server), &v.Name, &v.Options)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Server), &v.Name, &v.Options)
 			return v, err
 		},
 	})
@@ -144,7 +144,7 @@ func registerForeign() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.ForeignTable, error) {
 			var v dbmeta.ForeignTable
-			err := rows.Scan(empty(&v.Schema), empty(&v.Name), empty(&v.Server), &v.Options, &v.Comment)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Server), &v.Options, &v.Comment)
 			return v, err
 		},
 	})

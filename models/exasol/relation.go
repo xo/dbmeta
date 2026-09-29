@@ -46,7 +46,7 @@ func registerTables() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var v dbmeta.Schema
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Name), empty(&v.Owner), &v.Comment)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Owner), &v.Comment)
 			return v, err
 		},
 	})
@@ -88,7 +88,7 @@ func registerTables() {
 		Params: schemaAndName("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Name), empty(&v.Type), &v.Comment)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type), &v.Comment)
 			return v, err
 		},
 	})
@@ -124,7 +124,7 @@ func registerTables() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.View, error) {
 			var v dbmeta.View
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Name), &v.Definition,
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), &v.Definition,
 				&v.CheckOption, &v.Updatable, &v.Insertable, &v.Comment)
 			return v, err
 		},
@@ -169,8 +169,8 @@ func registerTables() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 			var v dbmeta.PartitionedTable
-			err := rows.Scan(empty(&v.Schema), empty(&v.Name), empty(&v.Owner), empty(&v.Type), empty(&v.Parent),
-				empty(&v.Strategy), empty(&v.Expression), &v.Comment)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Owner), dbmeta.NullAsEmpty(&v.Type), dbmeta.NullAsEmpty(&v.Parent),
+				dbmeta.NullAsEmpty(&v.Strategy), dbmeta.NullAsEmpty(&v.Expression), &v.Comment)
 			return v, err
 		},
 	})
@@ -207,7 +207,7 @@ func registerTables() {
 		Params: nameOnly("object"),
 		Scan: func(rows *sql.Rows) (dbmeta.Comment, error) {
 			var v dbmeta.Comment
-			err := rows.Scan(empty(&v.Schema), empty(&v.Name), empty(&v.Type), empty(&v.Comment))
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type), dbmeta.NullAsEmpty(&v.Comment))
 			return v, err
 		},
 	})
@@ -278,8 +278,8 @@ func registerColumns() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Table), empty(&v.Name), &v.Ordinal,
-				empty(&v.DataType), &v.Nullable, &v.Default, &v.PrimaryKey, present(&v.Identity),
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Table), dbmeta.NullAsEmpty(&v.Name), &v.Ordinal,
+				dbmeta.NullAsEmpty(&v.DataType), &v.Nullable, &v.Default, &v.PrimaryKey, present(&v.Identity),
 				present(&v.Generated), &v.Comment)
 			return v, err
 		},
@@ -319,7 +319,7 @@ func registerIndexes() {
 		Params: parentAndName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Table), empty(&v.Name), empty(&v.Type),
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Table), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type),
 				&v.Unique, &v.Primary, &v.Comment)
 			return v, err
 		},
@@ -377,7 +377,7 @@ func registerIndexColumns() {
 		Params: parentAndName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
-			err := rows.Scan(empty(&v.Schema), empty(&v.Table), empty(&v.Index), &v.Name,
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Table), dbmeta.NullAsEmpty(&v.Index), &v.Name,
 				&v.Ordinal, &v.Expression, &v.Descending)
 			return v, err
 		},
@@ -415,7 +415,7 @@ func registerConstraints() {
 		Params: parentAndName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
-			err := rows.Scan(empty(&v.Schema), empty(&v.Table), empty(&v.Name), empty(&v.Type), &v.Definition,
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Table), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type), &v.Definition,
 				&v.Deferrable, &v.Deferred, &v.Comment)
 			return v, err
 		},
@@ -458,7 +458,7 @@ func registerConstraints() {
 		Params: parentAndName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.ConstraintColumn, error) {
 			var v dbmeta.ConstraintColumn
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Table), empty(&v.Constraint), empty(&v.Name),
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Table), dbmeta.NullAsEmpty(&v.Constraint), dbmeta.NullAsEmpty(&v.Name),
 				&v.Ordinal, &v.ForeignCatalog, &v.ForeignSchema, &v.ForeignTable, &v.ForeignName)
 			// The statement selects '' for a foreign key's catalog, and Exasol
 			// reads that as NULL, so every row arrives with it absent. A row

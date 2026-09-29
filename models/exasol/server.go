@@ -45,7 +45,7 @@ func registerDatabases() {
 		Params: nameOnly("database"),
 		Scan: func(rows *sql.Rows) (dbmeta.Database, error) {
 			var v dbmeta.Database
-			err := rows.Scan(empty(&v.Name), empty(&v.Owner), empty(&v.Encoding), empty(&v.Collate), empty(&v.CType),
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Owner), dbmeta.NullAsEmpty(&v.Encoding), dbmeta.NullAsEmpty(&v.Collate), dbmeta.NullAsEmpty(&v.CType),
 				&v.Access, &v.Tablespace, &v.Size, &v.Comment)
 			return v, err
 		},
@@ -83,7 +83,7 @@ func registerSettings() {
 		Params: nameOnly("parameter"),
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(empty(&v.Name), &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), &v.Value, &v.Type, &v.Context, &v.Access)
 			return v, err
 		},
 	})
@@ -111,7 +111,7 @@ func registerCurrent() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var v dbmeta.Schema
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Name), empty(&v.Owner), &v.Comment)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Owner), &v.Comment)
 			return v, err
 		},
 	})
@@ -128,7 +128,7 @@ func registerCurrent() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
 			var v dbmeta.User
-			err := rows.Scan(empty(&v.Name), &v.Session)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), &v.Session)
 			return v, err
 		},
 	})

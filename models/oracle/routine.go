@@ -197,7 +197,7 @@ func registerRoutines() {
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				empty(&v.Elements), &v.Owner, &v.Access, &v.Comment)
+				dbmeta.NullAsEmpty(&v.Elements), &v.Owner, &v.Access, &v.Comment)
 			return v, err
 		},
 	})
@@ -248,8 +248,8 @@ func registerRoutines() {
 		Params: schemaNameSystem("domain"),
 		Scan: func(rows *sql.Rows) (dbmeta.Domain, error) {
 			var v dbmeta.Domain
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, empty(&v.DataType), empty(&v.Collation),
-				&v.Nullable, &v.Default, empty(&v.Constraints), &v.Access, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, dbmeta.NullAsEmpty(&v.DataType), dbmeta.NullAsEmpty(&v.Collation),
+				&v.Nullable, &v.Default, dbmeta.NullAsEmpty(&v.Constraints), &v.Access, &v.Comment)
 			return v, err
 		},
 	})
@@ -291,8 +291,8 @@ func registerRoutines() {
 		Params: schemaNameSystem("operator"),
 		Scan: func(rows *sql.Rows) (dbmeta.Operator, error) {
 			var v dbmeta.Operator
-			err := rows.Scan(&v.Schema, &v.Name, empty(&v.LeftType), empty(&v.RightType),
-				empty(&v.ResultType), &v.Function, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, dbmeta.NullAsEmpty(&v.LeftType), dbmeta.NullAsEmpty(&v.RightType),
+				dbmeta.NullAsEmpty(&v.ResultType), &v.Function, &v.Comment)
 			return v, err
 		},
 	})

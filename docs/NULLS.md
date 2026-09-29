@@ -120,7 +120,8 @@ string.
 
 On Oracle it found that every `''` and every `NVL(x, '')` arrived as NULL,
 which is the Exasol case below. So the Oracle model now scans a plain string
-field through the same helper.
+field through the same helper, `dbmeta.NullAsEmpty`, which is in the root
+package because two models need it (D127).
 
 It found two type faults as well. An Oracle sequence has 28 digits and an
 int64 holds 19, so the default maximum, 9999999999999999999999999999, did
@@ -144,8 +145,8 @@ Exasol is Oracle's case with a twist the driver adds. It reads `''` as NULL,
 so a filter written `? = ''` is never true and matched nothing at all, and a
 statement that selects `''` for a field that is always empty gets NULL back,
 which a plain Go string cannot scan. The Exasol model tests a filter with
-`IS NULL`, scans a plain string field through a helper that reads NULL as
-empty, and restores the three fields where the empty string means something,
+`IS NULL`, scans a plain string field through `dbmeta.NullAsEmpty`, which
+reads NULL as empty, and restores the three fields where the empty string means something,
 such as a column that is not an identity, from the row. A field typed
 `sql.Null` keeps its NULL. That is not the COALESCE above: on Exasol NULL is
 the only way to write the empty string. D87 has it.

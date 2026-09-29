@@ -1,6 +1,6 @@
 # D56. The password statement is built here and run by the caller
 
-Status: Amends D5.
+Status: Amends D5, amended by D127.
 
 D55 audited `usql` for database specific SQL and found `ChangePassword`, and
 refused to move it because `dbmeta` reads. That refusal is reversed. The
