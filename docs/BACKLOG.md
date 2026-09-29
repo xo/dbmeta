@@ -89,6 +89,25 @@ these:
 `cratedb://` no longer adds the port 5432, so pgx reads `PGPORT` when a URL
 names no port. dbrun always names the port, so nothing changes for it.
 
+### Follow dburl's D37, which gives each wire compatible product a dialect
+
+Ken approved dburl's D37 on 2026-09-29. It is staged in dburl and not
+tagged. It removes `Scheme.Override`, so `memsql://`, `tidb://`, `vitess://`
+and `redshift://` report the dialects `memsql`, `tidb`, `vitess` and
+`redshift`, and no longer `mysql` or `postgres`. It also removes
+`URL.UnaliasedDriver` and `URL.GoDriver`. `URL.SchemeName` names the scheme,
+and `URL.Driver` is always the name that `sql.Open` takes. No other scheme
+changes its dialect. When dburl tags it:
+
+1. Change hard rule 1 in `AGENTS.md`, the comment at `dialect.go:20` and
+   `docs/COMMANDS.md`, which name `URL.UnaliasedDriver` and `Override`.
+2. Record a decision that amends D19, D80 and D99, which describe both.
+3. Add the dialects `memsql`, `tidb`, `vitess` and `redshift`. The Redshift
+   entry in `hosted/` names the postgres dialect today.
+4. Change the plan in `container/tidb.go`. TiDB gets a model of its own that
+   shares from the mysql model (D123), and the mysql model does not detect it.
+   Vitess is the same.
+
 ### Find why Oracle 11g reads its catalog slowly
 
 With the system objects included, Oracle 11g XE took more than a minute each
