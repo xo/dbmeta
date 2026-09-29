@@ -39,7 +39,9 @@ var drivers = map[dbmeta.Dialect]string{
 	// cockroachdb:// opens pgx, as dburl v0.35.0 says.
 	dbmeta.CockroachDB: "pgx",
 	// cratedb:// opens pgx too.
-	dbmeta.CrateDB:    "pgx",
+	dbmeta.CrateDB: "pgx",
+	// questdb:// opens pgx too, on QuestDB's PostgreSQL interface.
+	dbmeta.QuestDB:    "pgx",
 	dbmeta.MySQL:      "mysql",
 	dbmeta.SQLServer:  "sqlserver",
 	dbmeta.Oracle:     "oracle",

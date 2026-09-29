@@ -287,8 +287,9 @@ who owns `dbmeta`, and `dbmeta_user`, who may only read it. MongoDB,
 Elasticsearch and Dgraph have `dbmeta_user`, who may only read. YDB has
 `dbmetauser`, because YDB allows no underscore in a user name. Virtuoso, Milvus, Alternator, OpenSearch, Solr, Drill, H2,
 Fuseki, PostgREST, Stardog, GraphDB and VoltDB have `dbmeta_user`, who may
-only read. QuestDB, Chroma, GizmoSQL, Spanner, BigQuery, Vitess, DynamoDB,
-Cosmos and ksqlDB have none, and D118 says why. `dsn --json`
+only read. QuestDB has `container.QuestDBUser`, the user of its PostgreSQL
+interface that may only read. Chroma, GizmoSQL, Spanner, BigQuery, Vitess,
+DynamoDB, Cosmos and ksqlDB have none, and D118 says why. `dsn --json`
 prints each in the `principals` field, after the administrator, with its own
 connection string (D102). Every other ordinary user is created by the test
 that needs it and dropped when that test ends.

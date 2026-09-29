@@ -80,6 +80,7 @@ than from memory.
 | Couchbase | 5 | `TableColumns`, `TableSequences`, `TableForeignKeys` and `Schema`: a document has no fixed shape, so there is no column and no key, and SQL++ has no expression for the current scope |
 | CockroachDB | 9 | nothing. It shares the postgres model's statements for all nine |
 | CrateDB | 8 | `RoutineParameters`: a JavaScript function is not in `pg_proc`, and `information_schema` has no `parameters` view. Only `specific_name` holds the argument types, with no names |
+| QuestDB | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: a symbol index is listed only one table at a time, a built in function's arguments are one text, and QuestDB has no key of any kind. `Procs` lists the built in functions, and only with the system objects |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
 Five answer all nine: PostgreSQL, the MySQL dialect, SQL Server, Oracle and
@@ -119,6 +120,7 @@ dialect is added.
 | Couchbase | no | **no**. A collection has no columns, so there is no field to generate |
 | CockroachDB | no | yes, all nine. A parameter declared integer reads as bigint, because CockroachDB makes integer 64 bits |
 | CrateDB | no | partly: no foreign key to follow and no parameter names. Every table, column and primary key is there |
+| QuestDB | no | **no**. It has no key and no foreign key, so there is nothing to relate one table to another, and every column is nullable |
 
 Trino is the first that is a clear no, and it is not the same as answering few
 of the nine. `dbtpl` generates typed access from a schema and follows a foreign

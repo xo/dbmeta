@@ -23,6 +23,7 @@ import (
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
+	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
@@ -263,6 +264,17 @@ func parityTargets() []parityTarget {
 					{name: "all", make: makeCrateDBHolder("ALL PRIVILEGES")},
 					{name: "grantee", make: makeCrateDBHolder("DQL")},
 				},
+			}},
+		},
+		{
+			dialect: dbmeta.QuestDB, driver: "pgx", env: "DBMETA_QUESTDB",
+			open: openQuestDB, build: setupQuestDB, schema: qdfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// The open source edition has no roles and no grants. Its
+				// PostgreSQL interface has one more user, which may only
+				// read, and the entry turns it on.
+				name:       "same",
+				principals: []parityPrincipal{{name: "read-only", make: makeQuestDBReader}},
 			}},
 		},
 		{

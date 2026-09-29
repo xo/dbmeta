@@ -394,7 +394,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Chroma | 1.4.1 | 1.5.9 | The rule for an image that is never rebuilt (D112). The 1.5.10.dev tags are development builds. The entry is for dbimp's driver (D118) |
 | Weaviate | 1.38.17 | 1.39.7 | The rule for an image that is never rebuilt (D112). An older line still gets releases. The entry is for dbimp's driver (D118) |
 | CouchDB | 3.4.3 | 3.5.2 | Criterion 2. 3.5.2 and 3.4.3 were rebuilt on 2026-09-19, and 3.3.3 last on 2025-04-29. The entry is for dbimp's driver (D118) |
-| QuestDB | 9.4.3 | 10.0.1 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| QuestDB | 9.4.3 | 10.0.1 | The rule for an image that is never rebuilt (D112). `models/questdb` reads it on the PostgreSQL interface, and dbimp plans a driver for the HTTP one (D118, D124) |
 | Meilisearch | 1.53.2 | 1.54.0 | The rule for an image that is never rebuilt (D112). A minor release arrives about every two weeks, so the ceiling moves fast. The entry is for dbimp's driver (D118) |
 | Typesense | 29.1 | 30.2 | The rule for an image that is never rebuilt (D112). 31.0 is a release candidate. The entry is for dbimp's driver (D118) |
 | TerminusDB | 11.1.17 | 12.0.7 | The rule for an image that is never rebuilt (D112). 12.1-rc is a release candidate. The entry is for dbimp's driver (D118) |

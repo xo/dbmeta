@@ -156,6 +156,7 @@ call and filter in the loop.
 | Couchbase  | native             | 12      | In progress |
 | CockroachDB | native            | 54      | In progress |
 | CrateDB    | native             | 26      | In progress |
+| QuestDB    | native             | 11      | In progress |
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.

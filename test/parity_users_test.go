@@ -260,6 +260,15 @@ func makeCrateDBHolder(privileges string) func(*testing.T, *sql.DB, string, stri
 	}
 }
 
+// makeQuestDBReader connects as the user of the PostgreSQL interface that
+// may only read, which the dbrun entry turns on. QuestDB has no statement
+// that creates a user, so becoming it is a change to the credentials of the
+// DSN.
+func makeQuestDBReader(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	return replaceUser(t, dsn, container.QuestDBUser, container.Password)
+}
+
 // makeCouchbaseUser connects as the ordinary user the dbrun setup makes.
 //
 // SQL++ has no statement that creates a user, and the setup already makes

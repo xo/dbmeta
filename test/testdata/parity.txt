@@ -231,6 +231,11 @@ tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE
 [presto/same/other]
 current_user the same rows with different values
 
+[questdb/same/read-only]
+current_user the same rows with different values
+
+[questdb@9.4/same/read-only]
+
 [scylla/same/grantee]
 privileges refused: running query: User dbmeta_grantee has no SELECT permission on <table system.role_permissions> or any of its parents
 role_grants refused: running query: User dbmeta_grantee has no SELECT permission on <table system.role_members> or any of its parents

@@ -46,6 +46,7 @@ rather than reading one.
 | `models/couchbase` | 12 | 55 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
 | `models/cockroachdb` | 54 | 55 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 48 of its statements are the postgres model's (D123) |
 | `models/cratedb` | 26 | 55 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
+| `models/questdb` | 11 | 55 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -2920,6 +2921,93 @@ kinds, and the distinct wrapper names in `information_schema.foreign_servers`
 for foreign data wrappers. Gemini also named `routine_body` for languages.
 Each lead was run against 6.4.5, and each is left unanswered for the reason
 written above.
+
+## QuestDB
+
+`models/questdb` answers 11 of the 55 on 9.4.3 and 10.0.1. It was measured on
+2026-09-29 with pgx, on the PostgreSQL interface on 8812, which is what
+dburl opens for `questdb://` and what usql uses.
+
+### Which catalog it reads
+
+QuestDB's own catalog is a set of functions: `tables()`, `views()`,
+`materialized_views()`, `functions()` and `table_columns()`, which takes one
+table name as a constant. Its `information_schema` and `pg_catalog` imitate
+PostgreSQL's for the clients that read them, and hold a part of the same
+facts. The model reads whichever answers the question in one statement, and
+shares nothing with the postgres model, whose statements read catalogs and
+functions QuestDB does not have.
+
+The version is read from `SELECT build()`. `SHOW server_version` and
+`version()` answer PostgreSQL 12.3 on both releases, and only `build()` names
+QuestDB's.
+
+### What each answer lacks
+
+| Query | What differs |
+| --- | --- |
+| schemas, current_schema | QuestDB has no schemas. `pg_namespace` holds `public` and `pg_catalog`, and every table is in `public`. `owner` is empty |
+| tables | from `tables()`, where a table, a view and a materialized view each have a kind of one letter. QuestDB lists no system table there |
+| columns | from `information_schema.columns`, because `table_columns()` reads one table at a time. The type is the PostgreSQL type the wire protocol sends, so a SYMBOL reads character varying and a DECIMAL numeric. QuestDB counts the position from 0, and the model adds 1. Every column is nullable, and none has a default or is a key, because QuestDB has none of the three |
+| views | a view from `views()` and a materialized view from `materialized_views()`, with the text each was created with. Neither is updatable or insertable |
+| partitioned_tables | a table or a materialized view partitioned by its designated timestamp. The strategy is RANGE, and the expression names the interval and the column, as YEAR (published) |
+| databases | `qdb`, the one database. The encoding is UTF8, which is the only one QuestDB stores text in. There is no owner and no size |
+| settings | from `(SHOW PARAMETERS)`, which QuestDB lets a query select from. There is no type, and the context says whether a setting takes effect without a restart |
+| functions, aggregates | from `functions()`, one row per signature. Every function is built in, because QuestDB has no CREATE FUNCTION, so both answer only with `with_system`. A signature can be both an aggregate and a window function, so the id carries the kind |
+
+### What it does not answer
+
+QuestDB has none of these: tablespaces, access methods, languages,
+conversions, casts, collations, large objects, event triggers, domains,
+operators, roles, role settings, role grants, privileges, default privileges,
+foreign data wrappers, foreign servers, user mappings, foreign tables,
+publications, subscriptions, the four text search kinds, the four kinds of
+operator class and family, extended statistics, comments, constraints,
+constraint columns, triggers, sequences, enum values and column statistics.
+The open source edition has no roles or grants, and `pg_roles` is empty.
+
+These are left unanswered, although QuestDB holds something like them:
+
+- Indexes and index columns. A SYMBOL column can have an index, and only
+  `table_columns()` says so, one table at a time. `pg_index` is empty, and
+  `table_columns()` refuses a column as its argument, so no one statement
+  lists them.
+- Types. `pg_type` holds the 17 PostgreSQL types the wire protocol maps
+  QuestDB's to, and not QuestDB's own, such as SYMBOL and GEOHASH.
+- Extensions. `pg_extension` holds one row, which is QuestDB itself.
+- Routine parameters. A built in function's arguments are one text in
+  `functions()`, with no names. `split_part` takes only a constant index, so
+  one statement cannot split them into rows.
+- A deduplication key, which DEDUP UPSERT KEYS declares and which keeps rows
+  unique by it. It is not a constraint, and only `table_columns()` names its
+  columns, one table at a time.
+
+### What the fixture builds
+
+`models/questdb/fixture` builds the five core tables and the view, with book
+partitioned by year on its designated timestamp as a WAL table, a
+materialized view on book, and an indexed SYMBOL column on author. It builds
+every step on both releases. The conformance report has every column
+nullable, none a key and no constraint line, and D53's agreement count leaves
+QuestDB out with that reason.
+
+### Which answers depend on who is asking
+
+Parity asks as `admin` and as the user of the PostgreSQL interface that may
+only read. Every query answers the same way, except that 10.0.1 reports the
+reader's own name as the current user. 9.4.3 reports `admin` for the reader
+too, which is the one difference between the releases, and it has a parity
+section of its own.
+
+### What a second opinion found
+
+Gemini Pro and DeepSeek were asked about each gap, as hard rule 14 requires,
+on 2026-09-29. Both called the kinds in the first list absent. Both named
+`pg_type` for types and `pg_extension` for extensions, which hold something
+else, as above. Gemini named `table_columns()` for indexes, index columns,
+constraints and constraint columns, which reads one table at a time, and
+string parsing of `functions()` for routine parameters, which one statement
+cannot do. Each lead was run against 10.0.1.
 
 ## Releases that need a licence file
 

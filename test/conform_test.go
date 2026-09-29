@@ -25,6 +25,7 @@ import (
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
+	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
@@ -92,6 +93,10 @@ func conformTargets() []conformTarget {
 		{
 			name: "cratedb", dialect: dbmeta.CrateDB,
 			open: openCrateDB, schema: crfixture.Everything.Schema, build: setupCrateDB,
+		},
+		{
+			name: "questdb", dialect: dbmeta.QuestDB,
+			open: openQuestDB, schema: qdfixture.Everything.Schema, build: setupQuestDB,
 		},
 		{
 			name: "mysql", dialect: dbmeta.MySQL,
@@ -595,6 +600,10 @@ var agreementExcluded = map[string]string{
 		" trino. It also keeps no NOT NULL, because its memory connector refuses" +
 		" one on the newest release there is, so every column reads nullable" +
 		" where the relational databases agree",
+	"questdb": "no constraint and no NOT NULL: QuestDB has no primary key, no" +
+		" foreign key, no unique constraint, no check and no NOT NULL on any" +
+		" release, so every column reads nullable and none a key where the" +
+		" relational databases agree, and there are no constraint lines",
 	"trino": "a query engine rather than a store: it has no constraint of any" +
 		" kind at any release, so every column reads primary_key=false where" +
 		" the relational databases agree on the key, and there are no" +

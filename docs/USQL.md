@@ -163,6 +163,7 @@ reading code.
 | SAP HANA | 11/11 | 5/5 | nothing |
 | CockroachDB | 11/11 | 5/5 | nothing. It shares the postgres model's statements for all of them |
 | CrateDB | 11/11 | 3/5 | the sequence and trigger sections: CrateDB has neither |
+| QuestDB | 9/11 | 0/5 | `\di`, because a symbol index is listed only one table at a time, and `\dp`, because the open source edition has no privileges. Every section, because QuestDB has no index, constraint, trigger or sequence it can list |
 | MySQL | 11/11 | 4/5 | the sequence section: MySQL has no sequence |
 | ClickHouse | 11/11 | 2/5 | the sequence, trigger and constraint column sections |
 | Couchbase | 11/11 | 2/5 | the trigger, constraint and constraint column sections. `\d NAME` also needs Columns to print anything, and a collection has no columns, so it prints nothing |
@@ -349,6 +350,7 @@ a case where `usql` has no answer at all.
 | Exasol | `SELECT PARAM_VALUE FROM EXA_METADATA WHERE PARAM_NAME = 'databaseProductVersion'` | the same statement, lower cased | the same answer, and `usql` prefixes the word Exasol. A user granted nothing but `CREATE SESSION` reads it on 2025.2.1 and 2026.2.0, measured on 2026-09-27 |
 | CockroachDB | `SELECT pg_catalog.version(), pg_catalog.current_setting('server_version')` | `SELECT version()`, cut at the first bracket | the same release. `dbmeta` also reads the PostgreSQL release that CockroachDB claims, 13.0.0 or 18.0.0, and gates the statements it shares with the postgres model on it (D123). Measured on 24.3.36, 26.2.7 and 26.3.2 on 2026-09-29 |
 | CrateDB | `SELECT pg_catalog.version(), pg_catalog.current_setting('server_version')` | `SELECT version()`, cut before the first bracket | the same release. `dbmeta` also reads the PostgreSQL release that CrateDB claims, 14.0 on both releases, and gates the statements it shares with the postgres model on it (D123). `usql`'s cratedb driver has no metadata reader, because CrateDB refuses the pgx reader's queries. Measured on 6.3.7 and 6.4.5 on 2026-09-29 |
+| QuestDB | `SELECT build()` | no function, so the generic `SELECT version();` | different answers. `version()` gives PostgreSQL 12.3 on every release, so usql shows "PostgreSQL 12.3 (questdb)", and only `build()` names the QuestDB release. usql reads the version itself until it takes dbmeta's (D126). Measured on 9.4.3 and 10.0.1 on 2026-09-29 |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and **`usql` fails for everybody else** |
 
