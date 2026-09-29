@@ -243,8 +243,8 @@ neither keeps a catalog of them that the models read.
 
 Nothing, for the databases `dbmeta` models, except `\ss` on DuckDB and Trino.
 A migration of those two loses `\ss`, because neither model can answer it.
-CockroachDB and Redshift wait on what they answer through the PostgreSQL
-model, rather than on a missing kind.
+Redshift waits on a model of its own, because it has a dialect of its own
+from dburl v0.36.0 (D125).
 
 Two `usql` reader kinds have no `dbmeta` equivalent by design.
 ConstraintColumns replaces both ConstraintColumns and the column part of

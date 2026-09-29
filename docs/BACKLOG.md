@@ -66,48 +66,6 @@ requests were built by hand (D113). Build them with the Go driver
 apache/calcite-avatica-go instead, and find whether HSQLDB then checks the
 user. If it does, the entry can make one.
 
-### Take the dburl release after v0.35.0
-
-dburl commit 62a1de0 on main changes three URLs that dbrun hands out. It is
-not tagged yet. When it is tagged, move the test module to it and change
-these:
-
-1. Spanner (dburl D35). The URL is now
-   `spanner://host:port/project/instance/database`, and a query option passes
-   to the driver. `container/spanner.go` prints the old form,
-   `spanner://admin@dbmeta/dbmeta/dbmeta`, which the release refuses. Print
-   `spanner://127.0.0.1:<port>/dbmeta/dbmeta/dbmeta?usePlainText=true`, which
-   reaches the emulator without `SPANNER_EMULATOR_HOST`.
-2. GizmoSQL (dburl D36). `gizmosql://` has the dialect `gizmosql` and opens
-   the flightsql driver, on the default port 31337. `container/gizmosql.go`
-   prints `flightsql://` today.
-3. QuestDB (dburl D36). `questdb://` has the dialect `questdb` and opens pgx
-   on 8812, the PostgreSQL port of QuestDB. `container/questdb.go` publishes
-   only 9000, the HTTP port, so dbrun cannot give a `questdb://` URL until it
-   publishes 8812 too.
-
-`cratedb://` no longer adds the port 5432, so pgx reads `PGPORT` when a URL
-names no port. dbrun always names the port, so nothing changes for it.
-
-### Follow dburl's D37, which gives each wire compatible product a dialect
-
-Ken approved dburl's D37 on 2026-09-29. It is staged in dburl and not
-tagged. It removes `Scheme.Override`, so `memsql://`, `tidb://`, `vitess://`
-and `redshift://` report the dialects `memsql`, `tidb`, `vitess` and
-`redshift`, and no longer `mysql` or `postgres`. It also removes
-`URL.UnaliasedDriver` and `URL.GoDriver`. `URL.SchemeName` names the scheme,
-and `URL.Driver` is always the name that `sql.Open` takes. No other scheme
-changes its dialect. When dburl tags it:
-
-1. Change hard rule 1 in `AGENTS.md`, the comment at `dialect.go:20` and
-   `docs/COMMANDS.md`, which name `URL.UnaliasedDriver` and `Override`.
-2. Record a decision that amends D19, D80 and D99, which describe both.
-3. Add the dialects `memsql`, `tidb`, `vitess` and `redshift`. The Redshift
-   entry in `hosted/` names the postgres dialect today.
-4. Change the plan in `container/tidb.go`. TiDB gets a model of its own that
-   shares from the mysql model (D123), and the mysql model does not detect it.
-   Vitess is the same.
-
 ### Find why Oracle 11g reads its catalog slowly
 
 With the system objects included, Oracle 11g XE took more than a minute each

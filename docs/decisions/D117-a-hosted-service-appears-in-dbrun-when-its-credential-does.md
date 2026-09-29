@@ -1,6 +1,6 @@
 # D117. A hosted service appears in dbrun when its credential does
 
-Status: Decided.
+Status: Amended by D125.
 
 Ken asked on 2026-09-28 for the hosted services that `usql` and dbimp
 support to be reachable from `dbrun`: `dsn`, `usql`, `test` and the other

@@ -1,6 +1,6 @@
 # D99. dburl names the product that a scheme drives
 
-Status: Decided.
+Status: Amended by D125.
 
 Ken decided on 2026-09-27, answering the question that was open since D80,
 that dburl is where a consumer learns the dialect of a scheme. dburl already

@@ -23,12 +23,21 @@ func TestEveryMachineIsUsable(t *testing.T) {
 		names[s.Name()] = true
 	}
 	// A machine must not collide with a container either. dbrun publishes
-	// the container at index i on port 55000 + i, its basePort, and nothing
-	// but this keeps the machines out of that range. The port inside a
+	// the container at index i on port 55000 + i, its basePort, and a second
+	// port 1000 above that (D124). Nothing but this keeps the machines out
+	// of those ports. The port inside a
 	// container is not on the host, so Typesense's 8108 and the viewer of
 	// sqlserver-2014 on 8108 do not collide.
 	const basePort = 55000
-	published := func(p int) bool { return p >= basePort && p < basePort+len(container.All()) }
+	servers := container.All()
+	published := func(p int) bool {
+		for i, s := range servers {
+			if p == basePort+i || s.SecondPort != 0 && p == container.SecondHostPort(basePort+i) {
+				return true
+			}
+		}
+		return false
+	}
 	for _, m := range container.Machines() {
 		if names[m.Name()] {
 			t.Errorf("%s is listed twice, or is both a machine and a container", m.Name())

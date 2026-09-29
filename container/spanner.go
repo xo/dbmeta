@@ -31,10 +31,11 @@ import "fmt"
 //
 // # Reaching it
 //
-// dburl turns spanner://project/instance/database into the driver's form and
-// drops the host, so usql reaches the emulator only when
-// SPANNER_EMULATOR_HOST names it, as 127.0.0.1 and the published port. The DSN
-// the tests use names the host itself, with usePlainText.
+// From v0.36.0, dburl reads spanner://host:port/project/instance/database,
+// and passes a query option to the driver (dburl D35). So the URL names the
+// published port and usePlainText, and usql reaches the emulator with no
+// SPANNER_EMULATOR_HOST. The DSN the tests use is the driver's own form of
+// the same thing.
 
 // spannerREST posts to the REST interface of the emulator. Making a thing
 // that is there answers 409, and busybox wget has no way to accept one status
@@ -58,7 +59,9 @@ var spanner = product{
 	dsn: func(port int) string {
 		return fmt.Sprintf("127.0.0.1:%d/projects/dbmeta/instances/dbmeta/databases/dbmeta;usePlainText=true", port)
 	},
-	url: func(int) string { return "spanner://admin@dbmeta/dbmeta/dbmeta" },
+	url: func(port int) string {
+		return fmt.Sprintf("spanner://admin@127.0.0.1:%d/dbmeta/dbmeta/dbmeta?usePlainText=true", port)
+	},
 }
 
 // Spanner is every Cloud Spanner emulator release dbrun starts.

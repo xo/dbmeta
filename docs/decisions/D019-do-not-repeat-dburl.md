@@ -1,6 +1,6 @@
 # D19. Do not repeat dburl
 
-Status: Half decided, half overtaken by the code.
+Status: Half decided, half overtaken by the code, amended by D125.
 
 The half that stands: `dbmeta` must not carry its own list of schemes, its own
 aliases, its own flavor table, or its own connection string parser. That

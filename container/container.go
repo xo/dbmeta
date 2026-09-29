@@ -156,6 +156,12 @@ type Server struct {
 	Tag string
 	// Port is the port the server listens on inside the container.
 	Port int
+	// SecondPort is a second port inside the container that is published
+	// too, and zero when there is none. It is published on
+	// [SecondHostPort] of the first host port. QuestDB is the case: dbimp's
+	// driver reads its HTTP port, and dburl's questdb scheme reads its
+	// PostgreSQL port. See D124.
+	SecondPort int
 	// Env is what the image needs to start with a known password.
 	Env map[string]string
 	// Ready is a command that succeeds once the server accepts a connection.
@@ -285,12 +291,21 @@ func (s Server) RunArgs(name string, hostPort int, flags ...string) []string {
 		args = append(args, "--env", e)
 	}
 	args = append(args, "--publish", fmt.Sprintf("%d:%d", hostPort, s.Port))
+	if s.SecondPort != 0 {
+		args = append(args, "--publish", fmt.Sprintf("%d:%d", SecondHostPort(hostPort), s.SecondPort))
+	}
 	args = append(args, "--memory", s.MemoryOrDefault())
 	args = append(args, s.RunFlags...)
 	args = append(args, flags...)
 	args = append(args, s.Ref())
 	return append(args, s.Args...)
 }
+
+// SecondHostPort is the host port a server's [Server.SecondPort] is published
+// on, given its first host port. It is the first plus 1000, so that it is
+// fixed by the server's position the way the first is, and a URL can compute
+// it from the one port it is given. See D124.
+func SecondHostPort(hostPort int) int { return hostPort + 1000 }
 
 // ReadyArgs returns the arguments that ask the named container whether it
 // accepts connections yet. The command exits zero once it does, so a caller
@@ -441,6 +456,8 @@ type product struct {
 	// is 2017-latest and there is no 2017.
 	tagSuffix string
 	port      int
+	// second is a second port to publish. See [Server.SecondPort].
+	second    int
 	env       map[string]string
 	ready     []string
 	init      []string
@@ -484,28 +501,29 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			major = p.major(v)
 		}
 		l = append(l, Server{
-			Dialect:   p.dialect,
-			Also:      p.also,
-			Product:   p.name,
-			Release:   v,
-			Major:     major,
-			Tier:      tier,
-			Image:     p.image,
-			Tag:       p.tagPrefix + v + p.tagSuffix,
-			Port:      p.port,
-			Env:       p.env,
-			Ready:     p.ready,
-			Init:      p.init,
-			InitInput: p.initInput,
-			RunFlags:  p.runFlags,
-			Args:      p.args,
-			Memory:    p.memory,
-			License:   p.license,
-			Startup:   p.startup,
-			Settle:    p.settle,
-			dsn:       p.dsn,
-			url:       p.url,
-			users:     p.users,
+			Dialect:    p.dialect,
+			Also:       p.also,
+			Product:    p.name,
+			Release:    v,
+			Major:      major,
+			Tier:       tier,
+			Image:      p.image,
+			Tag:        p.tagPrefix + v + p.tagSuffix,
+			Port:       p.port,
+			SecondPort: p.second,
+			Env:        p.env,
+			Ready:      p.ready,
+			Init:       p.init,
+			InitInput:  p.initInput,
+			RunFlags:   p.runFlags,
+			Args:       p.args,
+			Memory:     p.memory,
+			License:    p.license,
+			Startup:    p.startup,
+			Settle:     p.settle,
+			dsn:        p.dsn,
+			url:        p.url,
+			users:      p.users,
 		})
 	}
 	slices.SortStableFunc(l, func(a, b Server) int { return compareRelease(a.Release, b.Release) })

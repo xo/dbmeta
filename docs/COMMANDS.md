@@ -226,9 +226,11 @@ D99 in [`decisions/`](decisions/README.md) has it.
 The flavor needs nothing. `dbmeta` reads it from the server rather than from
 the URL: `models/mysql` sets the `mariadb` key when `SELECT VERSION()` carries
 the suffix, so a caller passes the `mysql` dialect for both products and never
-has to say which. The five wire compatible schemes are already handled by
-`dburl` itself, because `cockroachdb`, `redshift`, `memsql`, `tidb` and
-`vitess` carry an `Override` and arrive as `postgres` or `mysql`.
+has to say which. A product that speaks another product's protocol is not a
+flavor. From dburl v0.36.0, `cockroachdb`, `cratedb`, `redshift`, `memsql`,
+`tidb` and `vitess` each arrive with a dialect of their own, and a model for
+one of them shares the statements of the model it imitates where they answer
+(D123, D125).
 
 `Query.Support` decides whether to offer a command. It returns `NotBuilt` when
 the model was left out of the binary by a build tag and `NotSupported` when the

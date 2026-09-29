@@ -219,8 +219,9 @@ The host port of a container is 55000 plus the place of the release in
 port into a script or a test. Read it from `dsn --json`, because a release
 added earlier in the list moves every port after it. When that happens,
 `start` rebuilds a container whose port no longer matches, and `status` says
-so. A virtual machine has a fixed port of its own, named in
-`container/machine.go` and `container/windows.go`.
+so. A container that publishes a second port, as QuestDB does, publishes it on
+the first host port plus 1000 (D124). A virtual machine has a fixed port of
+its own, named in `container/machine.go` and `container/windows.go`.
 
 The connection string holds the administrator of each product. Most use the
 password in `container.Password`:

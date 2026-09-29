@@ -3,16 +3,18 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The TiDB releases dbrun starts.
 //
 // TiDB speaks the MySQL wire protocol, and usql reaches it with the scheme
-// tidb. The entry names no dialect yet. models/mysql sets the version key of
-// MySQL for any VERSION() that does not say MariaDB, and TiDB answers
-// 8.0.11-TiDB-v8.5.8, so the model would read it as MySQL 8.0.11. The entry
-// takes the mysql dialect when the model detects TiDB and sets its own
-// version key, which is D44. See D118.
+// tidb. The dialect is tidb, which dburl gives it from v0.36.0 (dburl D37).
+// TiDB answers VERSION() with 8.0.11-TiDB-v8.5.8, and models/mysql would read
+// that as MySQL, so TiDB gets a model of its own that shares the mysql model's
+// statements where they answer, as CockroachDB does with PostgreSQL's (D123,
+// D125). No model reads it yet. See D118.
 //
 // # The range
 //
@@ -54,6 +56,7 @@ exec /tidb-server --store=unistore --path=/var/lib/tidb --initialize-sql-file=/t
 
 // tidb is the TiDB image.
 var tidb = product{
+	dialect:   dbmeta.TiDB,
 	name:      "tidb",
 	image:     "docker.io/pingcap/tidb",
 	tagPrefix: "v",
@@ -85,8 +88,8 @@ func tidbURL(user string) func(port int) string {
 
 // TiDB is every TiDB release dbrun starts.
 //
-// Staged until models/mysql detects TiDB and gives it a version key of its
-// own, so CI runs none of them. Each keeps the cadence it would have, and
-// takes it as its tier when the model arrives. See D118, D119 and D120.
+// Staged until a model reads the tidb dialect, so CI runs none of them.
+// Each keeps the cadence it would have, and takes it as its tier when the
+// model arrives. See D118, D119 and D120.
 var TiDB = list{}.staged(tidb, Tested, "7.5.8", "8.5.8").
 	staged(tidb, Nightly, "8.1.2")

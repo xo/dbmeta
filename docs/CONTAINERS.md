@@ -37,8 +37,12 @@ dbmeta's CI does not run it, and the other repository runs it with
    arrives (D120).
    `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` holds that a release is
    Staged exactly when no model reads it (D119).
-5. Publish one port, the one the tests connect to. A second interface of the
-   same server, such as Couchbase Analytics, is not reachable from the host.
+5. Publish one port, the one the tests connect to. If a client needs a second
+   interface of the same server, set `second` to its port inside the
+   container. dbrun publishes it on the first host port plus 1000, and the
+   URL computes it with `container.SecondHostPort`. QuestDB does this for its
+   PostgreSQL interface (D124). Any other interface, such as Couchbase
+   Analytics, is not reachable from the host.
 6. Use `container.Password` for the administrator. Use another password only
    when the product cannot take one at start, and say why in the file.
 7. Give the server `container.MemoryLimit`, which is 4 GB. Ask for more only

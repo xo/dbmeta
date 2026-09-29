@@ -27,9 +27,10 @@ type Service struct {
 	Name string
 	// Product is the name the vendor gives the service.
 	Product string
-	// Dialect is the dbmeta dialect, which is the dburl driver name. Two
-	// services can share one with a server product, as Redshift and Neon
-	// share postgres.
+	// Dialect is the dbmeta dialect, which is dburl's. A service can share
+	// one with a server product, as Neon shares postgres and PlanetScale
+	// shares mysql. Redshift speaks PostgreSQL's protocol and has a dialect
+	// of its own from dburl v0.36.0, because its catalog is its own (D125).
 	Dialect dbmeta.Dialect
 	// Tier is how thoroughly the service is tested. CI never runs a hosted
 	// service, because it costs money and needs a secret. A service that a
@@ -100,7 +101,7 @@ func All() []Service {
 			Form: "mysql://<user>:<password>@aws.connect.psdb.cloud/<database>?tls=true",
 		},
 		{
-			Name: "redshift", Product: "Amazon Redshift", Dialect: dbmeta.PostgreSQL,
+			Name: "redshift", Product: "Amazon Redshift", Dialect: dbmeta.Redshift,
 			Form: "redshift://<user>:<password>@<cluster>.<region>.redshift.amazonaws.com:5439/<database>",
 		},
 		{
@@ -110,7 +111,7 @@ func All() []Service {
 		},
 		{
 			Name: "spanner", Product: "Google Cloud Spanner", Dialect: dbmeta.Spanner,
-			Form:     "spanner://<project>/<instance>/<database>",
+			Form:     "spanner:///<project>/<instance>/<database>",
 			Native:   "GOOGLE_APPLICATION_CREDENTIALS, or gcloud application default credentials",
 			Emulator: "spanner",
 		},

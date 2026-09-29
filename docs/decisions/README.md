@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-37 of them amend or replace an earlier one, and a decision read without its
+39 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -37,7 +37,7 @@ file.
 | [D16](D016-user-facing-text-follows-the-simple-english.md) | User facing text follows the simple English rules | Decided |
 | [D17](D017-every-metadata-read-takes-a-context.md) | Every metadata read takes a context | Decided |
 | [D18](D018-the-whole-package-is-idiomatic-go.md) | The whole package is idiomatic Go | Decided |
-| [D19](D019-do-not-repeat-dburl.md) | Do not repeat dburl | Half decided, half overtaken by the code |
+| [D19](D019-do-not-repeat-dburl.md) | Do not repeat dburl | Half decided, half overtaken by the code, amended by D125 |
 | [D20](D020-postgresql-goes-back-to-9-6-every-other-database.md) | PostgreSQL goes back to 9.6. Every other database starts at the maintained floor | Decided |
 | [D21](D021-drop-a-server-version-on-a-rule-not-on-a.md) | Drop a server version on a rule, not on a judgment | Decided |
 | [D22](D022-test-every-supported-major-not-a-sample-of-them.md) | Test every supported major, not a sample of them | Superseded by D24 |
@@ -86,7 +86,7 @@ file.
 | [D65](D065-a-windows-machine-rearms-its-evaluation-before.md) | A Windows machine rearms its evaluation before it expires | Decided |
 | [D66](D066-the-order-the-remaining-dialects-are-written-in.md) | The order the remaining dialects are written in | Amended by D67, D77, D88, D91 and D94 |
 | [D67](D067-impala-cannot-be-a-dbmeta-model-and-clickhouse.md) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
-| [D68](D068-every-container-is-started-by-the-runner-and.md) | Every container is started by the runner and named product-release | Amended by D70 |
+| [D68](D068-every-container-is-started-by-the-runner-and.md) | Every container is started by the runner and named product-release | Amended by D70 and D124 |
 | [D69](D069-the-workflow-builds-its-matrix-from-the-go-list.md) | The workflow builds its matrix from the Go list | Amends D42 |
 | [D70](D070-the-runner-is-a-go-command-called-dbrun.md) | The runner is a Go command called dbrun | Amends D68 and D12 |
 | [D71](D071-nothing-here-is-generated-the-models-are-written.md) | Nothing here is generated. The models are written | Amends D2, D12 and D30, supersedes D11 |
@@ -98,7 +98,7 @@ file.
 | [D77](D077-exasol-will-not-run-here-and-hive-goes-ahead-of.md) | Exasol will not run here, and Hive goes ahead of it | Amends D66, amended by D84 |
 | [D78](D078-hive-reads-sys-and-is-a-model.md) | Hive reads sys, and is a model | Decided |
 | [D79](D079-a-dialect-that-cannot-bind-renders-its-values.md) | A dialect that cannot bind renders its values | Decided |
-| [D80](D080-the-driver-registry-is-dburl-s-and-reading-it-is.md) | The driver registry is dburl's, and reading it is not importing it | Decided |
+| [D80](D080-the-driver-registry-is-dburl-s-and-reading-it-is.md) | The driver registry is dburl's, and reading it is not importing it | Amended by D125 |
 | [D81](D081-the-cassandra-dialect-is-cql.md) | The Cassandra dialect is cql | Decided |
 | [D82](D082-ci-compiles-once-and-every-job-runs-the-binary.md) | CI compiles once and every job runs the binary | Decided |
 | [D83](D083-a-server-is-ready-when-it-can-run-a-query-and.md) | A server is ready when it can run a query, and keeps being able to | Decided |
@@ -117,7 +117,7 @@ file.
 | [D96](D096-couchbase-gets-an-ordinary-user-and-starts-again.md) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94, amended by D104 |
 | [D97](D097-dbrun-is-documented-for-its-users-in-dbrun-and.md) | dbrun is documented for its users, in DBRUN and CONTAINERS | Decided |
 | [D98](D098-a-server-has-an-owner-and-dbrun-acts-only-on-the.md) | A server has an owner, and dbrun acts only on the caller's own | Amends D75, amended by D102, D108 and D115 |
-| [D99](D099-dburl-names-the-product-that-a-scheme-drives.md) | dburl names the product that a scheme drives | Decided |
+| [D99](D099-dburl-names-the-product-that-a-scheme-drives.md) | dburl names the product that a scheme drives | Amended by D125 |
 | [D100](D100-the-vertica-images-live-in-usql-vertica-and-the.md) | The Vertica images live in usql/vertica, and the older ones wait for admintools | Amends D88 |
 | [D101](D101-couchbase-is-the-dialect-couchbase-read-through.md) | Couchbase is the dialect couchbase, read through the dbimp driver | Amends D95 |
 | [D102](D102-dbrun-prints-every-principal-of-a-server.md) | dbrun prints every principal of a server | Amends D98 |
@@ -135,10 +135,12 @@ file.
 | [D114](D114-a-server-can-answer-more-than-one-dialect.md) | A server can answer more than one dialect | Amends D112, amended by D119 |
 | [D115](D115-a-server-shows-its-owners-name-and-status-a-shows.md) | A server shows its owner's name, and status -a shows the stopped ones | Amends D98 |
 | [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 |
-| [D117](D117-a-hosted-service-appears-in-dbrun-when-its-credential-does.md) | A hosted service appears in dbrun when its credential does | Decided |
+| [D117](D117-a-hosted-service-appears-in-dbrun-when-its-credential-does.md) | A hosted service appears in dbrun when its credential does | Amended by D125 |
 | [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123 |
 | [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 |
 | [D120](D120-a-staged-release-keeps-its-cadence.md) | A Staged release keeps its cadence | Amends D119 |
 | [D121](D121-the-interface-is-named-queryer.md) | The interface is named Queryer | Amends D49 |
 | [D122](D122-dbrun-calls-the-runner-as-few-times-as-it-can.md) | dbrun calls the runner as few times as it can | Decided |
 | [D123](D123-cockroachdb-and-cratedb-have-dialects-of-their-own.md) | CockroachDB and CrateDB have dialects of their own | Amends D112 and D118 |
+| [D124](D124-a-server-can-publish-a-second-port.md) | A server can publish a second port | Amends D68 |
+| [D125](D125-each-wire-compatible-product-has-a-dialect-of-its-own.md) | Each wire compatible product has a dialect of its own | Amends D19, D80, D99 and D117 |

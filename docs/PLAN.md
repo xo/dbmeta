@@ -529,7 +529,9 @@ scheme carries the aliases `mariadb`, `maria`, `percona`, and `aurora`. The
 `oci`, `oci8`, `odpi`, and `odpi-c`.
 
 A wire compatible is a separate product that speaks another product's protocol.
-`dburl` records a parent for each one:
+Until v0.36.0, `dburl` recorded a parent for each one, and gave it the
+parent's dialect. From v0.36.0 each has a dialect of its own (dburl D37,
+D125). The parents were these:
 
 - `cockroachdb` and `redshift` have the parent `postgres`.
 - `memsql`, `tidb` and `vitess` have the parent `mysql`.
@@ -551,9 +553,9 @@ the list, and the workflow reads it through `dbrun list --json --names`
 embedded databases run in the same matrix and start nothing. A separate job
 compares MariaDB with MySQL (D44). CockroachDB and CrateDB have models of
 their own, and CockroachDB's shares most of the postgres model's statements.
-TiDB has a
-Staged entry that waits for the mysql model to detect it, and Redshift is a
-hosted service (D117, D118, D123).
+TiDB and Vitess
+have Staged entries that wait for models of their own, and Redshift is a
+hosted service with a dialect of its own (D117, D118, D123, D125).
 
 The Verified tier must run before a release (D64).
 

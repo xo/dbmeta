@@ -31,7 +31,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 123. Read the status, because 37
+`docs/decisions/README.md` is a table of all 125. Read the status, because 39
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -92,12 +92,12 @@ something is written down, it is not written down, and it is an open question.
    module. That taxonomy is `dburl`'s and repeating it is how two copies start
    disagreeing. A consumer that has a URL reads `dburl` itself:
    `URL.Dialect`, from dburl v0.32.0, is the dbmeta `Dialect` and selects the
-   model package, `URL.UnaliasedDriver` names a wire compatible product such
-   as `cockroachdb`, and `URL.OriginalScheme` holds an alias such as
-   `mariadb`. A flavor arrives on one of the last two, never on both, so a
-   consumer reads both. `URL.Driver` names the Go driver and never the
-   dialect: `pgx://` and `postgres://` both have the dialect `postgres`. See
-   D99.
+   model package, and `URL.OriginalScheme` holds an alias such as `mariadb`.
+   A product that speaks another product's protocol, such as `cockroachdb`
+   or `tidb`, has a `Dialect` of its own from dburl v0.36.0, so nothing else
+   names it. `URL.Driver` is the name `sql.Open` takes and never the dialect:
+   `pgx://` and `postgres://` both have the dialect `postgres`. See D99 and
+   D125.
 2. PostgreSQL is the primary model, and `psql` defines it. When two databases
    describe the same object differently, follow `psql`. This decides the shape
    of an answer. It does not require every database to answer every question.

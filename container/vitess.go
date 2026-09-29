@@ -1,15 +1,19 @@
 package container
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/xo/dbmeta"
+)
 
 // The Vitess releases dbrun starts.
 //
 // Vitess speaks the MySQL wire protocol, and usql reaches it with the scheme
-// vitess. The entry names no dialect yet. models/mysql sets the version key
-// of MySQL for any VERSION() that does not say MariaDB, and Vitess answers
-// 8.4.6-Vitess, so the model would read it as MySQL 8.4.6. The entry takes the
-// mysql dialect when the model detects Vitess and sets its own version key,
-// which is D44. See D118.
+// vitess. The dialect is vitess, which dburl gives it from v0.36.0 (dburl
+// D37). Vitess answers VERSION() with 8.4.6-Vitess, and models/mysql would
+// read that as MySQL, so Vitess gets a model of its own that shares the mysql
+// model's statements where they answer, as CockroachDB does with PostgreSQL's
+// (D123, D125). No model reads it yet. See D118.
 //
 // # The range
 //
@@ -34,6 +38,7 @@ import "fmt"
 
 // vitess is the vttestserver image.
 var vitess = product{
+	dialect:   dbmeta.Vitess,
 	name:      "vitess",
 	image:     "docker.io/vitess/vttestserver",
 	tagPrefix: "v",
@@ -57,7 +62,7 @@ var vitess = product{
 
 // Vitess is every Vitess release dbrun starts.
 //
-// Staged until models/mysql detects Vitess and gives it a version key of
-// its own, so CI runs none of them. Each keeps the cadence it would have,
-// and takes it as its tier when the model arrives. See D118, D119 and D120.
+// Staged until a model reads the vitess dialect, so CI runs none of them.
+// Each keeps the cadence it would have, and takes it as its tier when the
+// model arrives. See D118, D119 and D120.
 var Vitess = list{}.staged(vitess, Tested, "23.0.6", "24.0.3")

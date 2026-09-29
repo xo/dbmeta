@@ -1,11 +1,19 @@
 package container
 
+import (
+	"fmt"
+	"net/url"
+
+	"github.com/xo/dbmeta"
+)
+
 // The QuestDB releases dbrun starts.
 //
 // dbmeta has no QuestDB model. The releases are here so that dbrun can start
 // a server for the tests of the QuestDB driver in github.com/xo/dbimp, which
-// sends SQL to /exec on the HTTP interface. No dialect is named yet, because
-// dbimp settles the name with the driver. See D118.
+// sends SQL to /exec on the HTTP interface, and for usql, which reaches the
+// PostgreSQL interface with pgx through dburl's questdb scheme, from v0.36.0.
+// The dialect is questdb, which is dburl's. See D118.
 //
 // # The range
 //
@@ -19,14 +27,22 @@ package container
 //
 // The open source edition checks one user on the HTTP interface, admin with
 // [Password], and has no ordinary user there. Its PostgreSQL port has a user
-// that may only read, and dbrun publishes one port, which is the HTTP one.
-// QuestDB has no databases, so nothing is named dbmeta.
+// that may only read. QuestDB has no databases, so nothing is named dbmeta,
+// and the PostgreSQL interface takes the name qdb.
+//
+// # Two ports
+//
+// The entry publishes both interfaces. The DSN is the HTTP one on 9000, which
+// dbimp's driver takes. The URL is the PostgreSQL one on 8812, published on
+// the second host port, which is what usql takes. See D124.
 
 // questdb is the QuestDB image.
 var questdb = product{
-	name:  "questdb",
-	image: "docker.io/questdb/questdb",
-	port:  9000,
+	dialect: dbmeta.QuestDB,
+	name:    "questdb",
+	image:   "docker.io/questdb/questdb",
+	port:    9000,
+	second:  8812,
 	env: map[string]string{
 		"QDB_HTTP_USER":     "admin",
 		"QDB_HTTP_PASSWORD": Password,
@@ -38,6 +54,16 @@ var questdb = product{
 	ready: []string{"sh", "-c", "curl -sf -o /dev/null -u 'admin:" + Password +
 		"' -G --data-urlencode 'query=SELECT 1' http://127.0.0.1:9000/exec"},
 	dsn: keyHTTP("admin", Password),
+	url: func(port int) string {
+		u := url.URL{
+			Scheme:   "questdb",
+			User:     url.UserPassword("admin", Password),
+			Host:     fmt.Sprintf("127.0.0.1:%d", SecondHostPort(port)),
+			Path:     "/qdb",
+			RawQuery: "sslmode=disable",
+		}
+		return u.String()
+	},
 }
 
 // QuestDB is every QuestDB release dbrun starts.

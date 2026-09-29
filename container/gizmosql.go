@@ -3,12 +3,16 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The GizmoSQL releases dbrun starts.
 //
 // GizmoSQL is a server for Arrow Flight SQL, which usql reaches with the
-// scheme flightsql and the driver in github.com/apache/arrow-go. It holds a
+// driver in github.com/apache/arrow-go, through dburl's gizmosql scheme from
+// v0.36.0. The DSN is the driver's flightsql form, and the URL is the
+// gizmosql one. The dialect is gizmosql, which is dburl's. It holds a
 // DuckDB database. dbmeta has no Flight SQL model. The entry is the server
 // for that driver, because Flight SQL is a protocol and GizmoSQL is the server
 // of it that is maintained: voltrondata/flight-sql stopped in 2024, and
@@ -31,6 +35,7 @@ import (
 
 // gizmosql is the GizmoSQL image.
 var gizmosql = product{
+	dialect:   dbmeta.GizmoSQL,
 	name:      "gizmosql",
 	image:     "docker.io/gizmodata/gizmosql",
 	tagPrefix: "v",
@@ -46,6 +51,14 @@ var gizmosql = product{
 		"' gizmosql_client --host 127.0.0.1 --port 31337 --username admin --command 'SELECT 1'"},
 	dsn: func(port int) string {
 		return fmt.Sprintf("flightsql://admin:%s@127.0.0.1:%d", url.QueryEscape(Password), port)
+	},
+	url: func(port int) string {
+		u := url.URL{
+			Scheme: "gizmosql",
+			User:   url.UserPassword("admin", Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		}
+		return u.String()
 	},
 }
 

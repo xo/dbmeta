@@ -16,11 +16,12 @@ import (
 // and sqlite3, godror and oracle. Each pair has one Dialect. dbmeta holds no
 // such list, because hard rule 1 keeps that taxonomy in dburl. See D99.
 //
-// A wire compatible scheme, such as redshift, memsql, tidb or vitess, has the
-// Dialect of the product it speaks, and URL.UnaliasedDriver is where the
-// flavor shows. CockroachDB and CrateDB speak PostgreSQL's protocol and have
-// dialects of their own, because their catalogs differ from PostgreSQL's
-// (dburl D30, D123).
+// A product that speaks another product's wire protocol has a Dialect of its
+// own, as dburl gives it from v0.36.0. CockroachDB, CrateDB and Redshift speak
+// PostgreSQL's protocol, and SingleStore, TiDB and Vitess speak MySQL's, and
+// each has its own dialect, because its catalog is its own. A model for one
+// of them can share the statements of the product it imitates, as the
+// CockroachDB model does (dburl D30 and D37, D123, D125).
 //
 // A dialect names the family and never the release. A release arrives as a
 // [VersionSet] value, because D8 resolves version differences at run time. See
@@ -61,25 +62,39 @@ const (
 	DynamoDB   Dialect = "godynamo"
 	Exasol     Dialect = "exasol"
 	Firebird   Dialect = "firebirdsql"
+	// GizmoSQL serves Arrow Flight SQL, and the flightsql driver reaches it.
+	GizmoSQL   Dialect = "gizmosql"
 	Hive       Dialect = "hive"
 	HANA       Dialect = "hdb"
 	InfluxDB   Dialect = "influxdb"
 	InfluxQL   Dialect = "influxql"
 	MaxCompute Dialect = "maxcompute"
+	// MemSQL is SingleStore, which speaks MySQL's protocol. dburl names
+	// its scheme memsql, the name SingleStore had until 2020.
+	MemSQL     Dialect = "memsql"
 	MySQL      Dialect = "mysql"
 	Neo4j      Dialect = "neo4j"
 	Oracle     Dialect = "oracle"
 	Presto     Dialect = "presto"
 	PostgreSQL Dialect = "postgres"
 	QL         Dialect = "ql"
+	// QuestDB speaks PostgreSQL's protocol on its port 8812, and pgx
+	// reaches it.
+	QuestDB Dialect = "questdb"
+	// Redshift speaks PostgreSQL's protocol, and pgx reaches it.
+	Redshift   Dialect = "redshift"
 	Snowflake  Dialect = "snowflake"
 	Spanner    Dialect = "spanner"
 	SQLite3    Dialect = "sqlite3"
 	SQLServer  Dialect = "sqlserver"
 	SurrealDB  Dialect = "surrealdb"
 	Tablestore Dialect = "ots"
-	Trino      Dialect = "trino"
-	Vertica    Dialect = "vertica"
+	// TiDB speaks MySQL's protocol, and the mysql driver reaches it.
+	TiDB    Dialect = "tidb"
+	Trino   Dialect = "trino"
+	Vertica Dialect = "vertica"
+	// Vitess speaks MySQL's protocol, and the mysql driver reaches it.
+	Vitess Dialect = "vitess"
 )
 
 // Info is what a model declares about its database.
