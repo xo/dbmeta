@@ -366,8 +366,8 @@ func TestSQLiteIndexes(t *testing.T) {
 				if !v.Descending {
 					t.Errorf("expected a descending column, got %+v", v)
 				}
-				if v.Name != "title" {
-					t.Errorf("expected title, got %q", v.Name)
+				if v.Name.V != "title" {
+					t.Errorf("expected title, got %q", v.Name.V)
 				}
 				if v.Ordinal != 1 {
 					t.Errorf("expected ordinal 1, got %d", v.Ordinal)
@@ -443,7 +443,7 @@ func TestSQLiteFunctions(t *testing.T) {
 			}
 			seen[key] = true
 			kinds[v.Name] = v.Kind
-			args[key] = v.ArgTypes
+			args[key] = v.ArgTypes.V
 		}
 		if !seen["max/s"] && !seen["max/func"] {
 			t.Error("expected max to be listed as a plain function as well")
@@ -599,8 +599,8 @@ func TestSQLiteViews(t *testing.T) {
 		if v.Name != "recent" {
 			t.Errorf("expected recent, got %q", v.Name)
 		}
-		if !strings.HasPrefix(v.Definition, "CREATE VIEW") {
-			t.Errorf("expected the whole statement, got %q", v.Definition)
+		if !strings.HasPrefix(v.Definition.V, "CREATE VIEW") {
+			t.Errorf("expected the whole statement, got %q", v.Definition.V)
 		}
 		if v.Updatable.V || v.CheckOption.Valid {
 			t.Errorf("expected a read only view with no check option, got %+v", v)

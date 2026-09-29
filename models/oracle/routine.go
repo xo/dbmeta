@@ -197,7 +197,7 @@ func registerRoutines() {
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				empty(&v.Elements), &v.Owner, &v.Access, &v.Comment)
 			return v, err
 		},
 	})
@@ -248,8 +248,8 @@ func registerRoutines() {
 		Params: schemaNameSystem("domain"),
 		Scan: func(rows *sql.Rows) (dbmeta.Domain, error) {
 			var v dbmeta.Domain
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.DataType, &v.Collation,
-				&v.Nullable, &v.Default, &v.Constraints, &v.Access, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, empty(&v.DataType), empty(&v.Collation),
+				&v.Nullable, &v.Default, empty(&v.Constraints), &v.Access, &v.Comment)
 			return v, err
 		},
 	})
@@ -267,7 +267,7 @@ func registerRoutines() {
 			always(`  WHERE g.owner = b.owner AND g.operator_name = b.operator_name`),
 			always(`  AND g.binding# = b.binding# AND g.position = 2), '') AS "right_type"`),
 			always(`, NVL(b.return_type, '') AS "result_type"`),
-			always(`, NVL(b.function_name, '') AS "function"`),
+			always(`, b.function_name AS "function"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM all_operators o`),
 			always(`JOIN all_opbindings b ON b.owner = o.owner` +
@@ -291,8 +291,8 @@ func registerRoutines() {
 		Params: schemaNameSystem("operator"),
 		Scan: func(rows *sql.Rows) (dbmeta.Operator, error) {
 			var v dbmeta.Operator
-			err := rows.Scan(&v.Schema, &v.Name, &v.LeftType, &v.RightType,
-				&v.ResultType, &v.Function, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, empty(&v.LeftType), empty(&v.RightType),
+				empty(&v.ResultType), &v.Function, &v.Comment)
 			return v, err
 		},
 	})

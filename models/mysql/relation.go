@@ -48,7 +48,7 @@ func registerRelations() {
 			{{Query: `, s.default_collation_name AS "ctype"`}},
 			{{Query: `, NULL AS "access"`}},
 			{{Query: `, NULL AS "tablespace"`}},
-			{{Query: `, '' AS "size"`}},
+			{{Query: `, NULL AS "size"`}},
 			{{Query: `, NULL AS "comment"`}},
 			{{Query: `FROM information_schema.SCHEMATA s`}},
 			{{Query: `WHERE (@with_system OR s.schema_name NOT IN (` + systemSchemas + `))`}},
@@ -174,7 +174,9 @@ func registerRelations() {
 			// MariaDB's STATISTICS has no expression column: a functional
 			// index records only the column it was built from
 			{{Query: `, NULL AS "expression"`}},
-			{{Query: `, s.collation = 'D' AS "descending"`}},
+			// COLLATION is NULL for an index that keeps no order, such as a hash
+			// or a full text index, and no key of it is descending.
+			{{Query: `, s.collation <=> 'D' AS "descending"`}},
 			{{Query: `FROM information_schema.STATISTICS s`}},
 			{{Query: `WHERE (@with_system OR s.table_schema NOT IN (` + systemSchemas + `))`}},
 			{{Query: `AND (@schema = '' OR s.table_schema LIKE @schema)`}},

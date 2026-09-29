@@ -147,7 +147,7 @@ func registerPrivileges() {
 			always(`, COALESCE(LIST(CASE WHEN p.RDB$FIELD_NAME IS NOT NULL` +
 				` THEN TRIM(TRAILING FROM p.RDB$FIELD_NAME) || ':' || TRIM(TRAILING FROM p.RDB$USER) || '='` +
 				` || TRIM(TRAILING FROM p.RDB$PRIVILEGE) END, ', '), '') AS "column_access"`),
-			always(`, '' AS "policies"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "policies"`),
 			always(`FROM RDB$USER_PRIVILEGES p`),
 			always(`WHERE p.RDB$PRIVILEGE <> 'M'`),
 			always(`AND ` + systemName(`p.RDB$RELATION_NAME`)),
@@ -162,7 +162,7 @@ func registerPrivileges() {
 			{Name: "type", Desc: "from RDB$OBJECT_TYPE. Firebird grants on more kinds than a table, so this can say sequence, package or exception"},
 			{Name: "access", Desc: "grantee=privilege, comma separated. The privilege is Firebird's letter: S select, I insert, U update, D delete, R references, X execute. Absent where every grant on the object is a column grant"},
 			{Name: "column_access", Desc: "column:grantee=privilege, comma separated, and empty where there are none"},
-			{Name: "policies", Desc: "always empty: Firebird has no row level policy"},
+			{Name: "policies", Desc: "always absent: Firebird has no row level policy"},
 		},
 		Params: schemaAndName("object"),
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {

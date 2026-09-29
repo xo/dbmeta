@@ -330,7 +330,7 @@ func TestTrinoViewsCarryTheirDefinition(t *testing.T) {
 		if v.Name != "recent" {
 			continue
 		}
-		if v.Definition == "" {
+		if v.Definition.V == "" {
 			t.Error("expected the view definition")
 		}
 		if !v.Comment.Valid || v.Comment.V != "the newest books" {

@@ -23,8 +23,8 @@ func registerCatalog() {
 			always(`, `),
 			listagg("p.grantee || '=' || p.privilege", "p.grantee, p.privilege"),
 			always(`  AS "access"`),
-			always(`, '' AS "column_access"`),
-			always(`, '' AS "policies"`),
+			always(`, NULL AS "column_access"`),
+			always(`, NULL AS "policies"`),
 			always(`FROM all_tab_privs p`),
 			notSystem("WHERE", "p.table_schema"),
 			always(`AND (@schema IS NULL OR p.table_schema LIKE @schema)`),
@@ -38,19 +38,19 @@ func registerCatalog() {
 			{Name: "access", Desc: "the grants as grantee=privilege, one list per object"},
 			{
 				Name: "column_access",
-				Desc: "always empty: Oracle keeps a column grant in" +
+				Desc: "always absent: Oracle keeps a column grant in" +
 					" all_col_privs, which is a second statement",
 			},
 			{
 				Name: "policies",
-				Desc: "always empty: an Oracle row level policy is a" +
+				Desc: "always absent: an Oracle row level policy is a" +
 					" DBMS_RLS object rather than a grant",
 			},
 		},
 		Params: schemaNameSystem("object"),
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {
 			var v dbmeta.Privilege
-			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Access,
+			err := rows.Scan(&v.Schema, &v.Name, empty(&v.Type), &v.Access,
 				&v.ColumnAccess, &v.Policies)
 			return v, err
 		},
@@ -136,7 +136,7 @@ func registerCatalog() {
 		Params: schemaNameSystem("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.ForeignTable, error) {
 			var v dbmeta.ForeignTable
-			err := rows.Scan(&v.Schema, &v.Name, &v.Server, &v.Options, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, empty(&v.Server), &v.Options, &v.Comment)
 			return v, err
 		},
 	})

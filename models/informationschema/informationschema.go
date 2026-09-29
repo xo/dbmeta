@@ -462,10 +462,10 @@ func functions(p Profile) *dbmeta.Binding[dbmeta.Function] {
 			{{Query: `, r.data_type AS "result_type"`}},
 			// the standard keeps parameters in their own view, so a caller
 			// that wants them asks for the parameters of one routine
-			{{Query: `, '' AS "arg_types"`}},
+			{{Query: `, NULL AS "arg_types"`}},
 			{{Query: `, '' AS "volatility"`}},
 			{{Query: `, '' AS "parallel"`}},
-			{{Query: `, '' AS "owner"`}},
+			{{Query: `, NULL AS "owner"`}},
 			{{Query: `, LOWER(r.security_type) AS "security"`}},
 			{{Query: `, NULL AS "access"`}},
 			{{Query: `, r.external_language AS "language"`}},

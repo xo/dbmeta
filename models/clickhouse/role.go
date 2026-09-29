@@ -124,7 +124,7 @@ func registerRoles() {
 			// Enum16, so each is made a plain string before it is joined.
 			// system.grants keeps the grantee in two columns, one for a user
 			// and one for a role, and exactly one of them is set.
-			always(`SELECT ifNull(g.database, '') AS "schema"`),
+			always(`SELECT g.database AS "schema"`),
 			always(`, ifNull(g.table, '') AS "name"`),
 			always(`, 'table' AS "type"`),
 			always(`, arrayStringConcat(groupArray(concat(` +
@@ -132,7 +132,7 @@ func registerRoles() {
 				`), ', ') AS "access"`),
 			always(`, arrayStringConcat(groupArray(ifNull(g.column, '')), ', ')` +
 				` AS "column_access"`),
-			always(`, '' AS "policies"`),
+			always(`, NULL AS "policies"`),
 			always(`FROM system.grants g`),
 			always(`WHERE g.database IS NOT NULL`),
 			always(`AND ` + notSystem("g.database")),
@@ -149,7 +149,7 @@ func registerRoles() {
 			{Name: "column_access", Desc: "the columns named by a column level grant, where there is one"},
 			{
 				Name: "policies",
-				Desc: "always empty: a ClickHouse row policy is in system.row_policies" +
+				Desc: "always absent: a ClickHouse row policy is in system.row_policies" +
 					" and reaching it needs a second statement",
 			},
 		},
@@ -214,10 +214,10 @@ func registerRoles() {
 	dbmeta.Tablespaces.Register(dbmeta.ClickHouse, &dbmeta.Binding[dbmeta.Tablespace]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT p.policy_name AS "name"`),
-			always(`, '' AS "owner"`),
+			always(`, NULL AS "owner"`),
 			always(`, arrayStringConcat(p.disks, ', ') AS "location"`),
 			always(`, concat('volume=', p.volume_name, ', type=', p.volume_type) AS "options"`),
-			always(`, '' AS "size"`),
+			always(`, NULL AS "size"`),
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM system.storage_policies p`),
@@ -226,12 +226,12 @@ func registerRoles() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: "the storage policy, once per volume in it"},
-			{Name: "owner", Desc: "always empty: a policy records no owner"},
+			{Name: "owner", Desc: "always absent: a policy records no owner"},
 			{Name: "location", Desc: "the disks the volume is made of"},
 			{Name: "options", Desc: "the volume name and its type"},
 			{
 				Name: "size",
-				Desc: "always empty: a size would have to sum system.disks, which is" +
+				Desc: "always absent: a size would have to sum system.disks, which is" +
 					" a second statement",
 			},
 			{Name: "access", Desc: "always absent: a policy is not grantable"},
@@ -390,8 +390,8 @@ func functionStmt(aggregate string) dbmeta.Stmt {
 		always(`, f.name AS "name"`),
 		always(`, NULL AS "id"`),
 		always(`, if(f.is_aggregate, 'aggregate', 'function') AS "kind"`),
-		always(`, '' AS "result_type"`),
-		always(`, '' AS "arg_types"`),
+		always(`, NULL AS "result_type"`),
+		always(`, NULL AS "arg_types"`),
 		// system.functions.deterministic arrived with system.constraints and
 		// is absent on 25.8, so the older side pads. Both sides return one
 		// text column, which is what rule 3 asks.
@@ -400,7 +400,7 @@ func functionStmt(aggregate string) dbmeta.Stmt {
 			{Min: v268, Query: `, if(f.deterministic, 'immutable', 'volatile') AS "volatility"`},
 		},
 		always(`, '' AS "parallel"`),
-		always(`, '' AS "owner"`),
+		always(`, NULL AS "owner"`),
 		always(`, '' AS "security"`),
 		always(`, NULL AS "access"`),
 		always(`, f.origin AS "language"`),
@@ -423,10 +423,10 @@ func functionFields(kind string) []dbmeta.Field {
 		{Name: "kind"},
 		{
 			Name: "result_type",
-			Desc: "always empty: a ClickHouse " + kind + " is overloaded across" +
+			Desc: "always absent: a ClickHouse " + kind + " is overloaded across" +
 				" types and the catalog records no one return type",
 		},
-		{Name: "arg_types", Desc: "always empty, for the same reason as result_type"},
+		{Name: "arg_types", Desc: "always absent, for the same reason as result_type"},
 		{
 			Name: "volatility", Min: v268,
 			Desc: "immutable for a deterministic function and volatile otherwise," +
@@ -434,7 +434,7 @@ func functionFields(kind string) []dbmeta.Field {
 				" determinism",
 		},
 		{Name: "parallel", Desc: "always empty: ClickHouse has no parallel safety mark"},
-		{Name: "owner", Desc: "always empty: a built in function has no owner"},
+		{Name: "owner", Desc: "always absent: a built in function has no owner"},
 		{Name: "security", Desc: "always empty: ClickHouse has no SECURITY DEFINER"},
 		{Name: "access", Desc: "always absent: a grant on a function is in the privileges query"},
 		{

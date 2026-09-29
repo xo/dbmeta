@@ -48,7 +48,7 @@ func registerRelations() {
 			always(`, 'BINARY' AS "ctype"`),
 			always(`, NULL AS "access"`),
 			always(`, NULLIF(d.path, '') AS "tablespace"`),
-			always(`, '' AS "size"`),
+			always(`, NULL AS "size"`),
 			always(`, d.comment AS "comment"`),
 			always(`FROM duckdb_databases() d`),
 			always(`WHERE ` + internalOf("d")),
@@ -66,7 +66,7 @@ func registerRelations() {
 				Name: "tablespace",
 				Desc: "the file this database is stored in, absent for one held in memory",
 			},
-			{Name: "size", Desc: "always empty: DuckDB publishes no database size"},
+			{Name: "size", Desc: "always absent: DuckDB publishes no database size"},
 			{Name: "comment"},
 		},
 		Params: []dbmeta.Param{

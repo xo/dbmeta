@@ -74,6 +74,14 @@ var trino = product{
 	// The same settle as Presto, and for the same reason. See presto.go
 	// and D83.
 	settle: 12 * time.Second,
+	// The JVM does not see the container's memory limit here, so the
+	// heap that jvm.config gives as 80 percent of memory is 80 percent of
+	// the host's. Measured on 2026-09-29 on a 64 GB host: the maximum heap
+	// read 38 GB inside a container held to MemoryLimit, and 476 was killed
+	// for memory twice while the test module read every query with the
+	// system objects. An explicit heap size wins over the percentages, so
+	// the heap is held to 2.5 GB and the rest of the JVM fits in the limit.
+	env: map[string]string{"JAVA_TOOL_OPTIONS": "-Xms256m -Xmx2560m"},
 	dsn: func(port int) string {
 		return fmt.Sprintf("http://trino@127.0.0.1:%d?catalog=memory&schema=default", port)
 	},

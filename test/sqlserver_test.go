@@ -344,7 +344,7 @@ func TestSQLServerCatalogExtras(t *testing.T) {
 		}
 	case err != nil:
 		t.Fatalf("reading sequences: %v", err)
-	case !ok || seq.Name != "counter" || seq.Start.V != 10 || seq.Increment.V != 2:
+	case !ok || seq.Name != "counter" || seq.Start.V != "10" || seq.Increment.V != "2":
 		t.Errorf("expected the fixture sequence, got %+v ok=%v", seq, ok)
 	}
 
@@ -404,7 +404,7 @@ func TestSQLServerStats(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reading extended stats: %v", err)
 		}
-		if v.Name == "author_name_rating" {
+		if v.Name.V == "author_name_rating" {
 			extended = true
 			if !strings.Contains(v.Kinds, "name") || !strings.Contains(v.Kinds, "rating") {
 				t.Errorf("expected both columns in the kinds, got %q", v.Kinds)

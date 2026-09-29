@@ -226,7 +226,7 @@ func registerExtra() {
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
 			var v dbmeta.Sequence
 			err := rows.Scan(&v.Schema, &v.Name, &v.DataType, &v.Start, &v.Minimum,
-				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment)
+				&v.Maximum, &v.Increment, &v.Cycles, empty(&v.OwnedBy), &v.Comment)
 			return v, err
 		},
 	})

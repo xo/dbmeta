@@ -45,8 +45,8 @@ var functionFields = []dbmeta.Field{
 	{Name: "schema"}, {Name: "name"},
 	{Name: "id", Desc: "the object id. Exasol does not overload a name, so the name identifies the routine on its own"},
 	{Name: "kind", Desc: "function for a SQL function and for a UDF script, aggregate for a set UDF that returns one value, procedure for a scripting script run with EXECUTE SCRIPT, and adapter for the handler behind a virtual schema"},
-	{Name: "result_type", Desc: "setof record for a UDF that emits rows, and rowcount or table for a scripting script. Empty where the routine returns a single value, because Exasol keeps that type only in the text in source"},
-	{Name: "arg_types", Desc: "always empty: Exasol keeps the parameters only in the text in source"},
+	{Name: "result_type", Desc: "setof record for a UDF that emits rows, and rowcount or table for a scripting script. Absent where the routine returns a single value, because Exasol keeps that type only in the text in source"},
+	{Name: "arg_types", Desc: "always absent: Exasol keeps the parameters only in the text in source"},
 	{Name: "volatility", Desc: "always empty: Exasol marks no routine as deterministic or otherwise"},
 	{Name: "parallel", Desc: "always empty: Exasol marks no parallel safety. A UDF runs in parallel across the cluster by design"},
 	{Name: "owner"},
@@ -60,7 +60,7 @@ var functionFields = []dbmeta.Field{
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Name), &v.ID, empty(&v.Kind),
-		empty(&v.ResultType), empty(&v.ArgTypes), empty(&v.Volatility), empty(&v.Parallel), empty(&v.Owner),
+		&v.ResultType, &v.ArgTypes, empty(&v.Volatility), empty(&v.Parallel), &v.Owner,
 		empty(&v.Security), &v.Access, empty(&v.Language), &v.Source, &v.Comment)
 	return v, err
 }
@@ -89,8 +89,8 @@ func registerFunctions() {
 			always(`, f.FUNCTION_NAME AS "name"`),
 			always(`, CAST(f.FUNCTION_OBJECT_ID AS VARCHAR(20)) AS "id"`),
 			always(`, 'function' AS "kind"`),
-			always(`, '' AS "result_type"`),
-			always(`, '' AS "arg_types"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "result_type"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "arg_types"`),
 			always(`, '' AS "volatility"`),
 			always(`, '' AS "parallel"`),
 			always(`, f.FUNCTION_OWNER AS "owner"`),
@@ -122,8 +122,8 @@ func registerFunctions() {
 			always(`, s.SCRIPT_NAME AS "name"`),
 			always(`, CAST(s.SCRIPT_OBJECT_ID AS VARCHAR(20)) AS "id"`),
 			always(`, 'aggregate' AS "kind"`),
-			always(`, '' AS "result_type"`),
-			always(`, '' AS "arg_types"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "result_type"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "arg_types"`),
 			always(`, '' AS "volatility"`),
 			always(`, '' AS "parallel"`),
 			always(`, s.SCRIPT_OWNER AS "owner"`),
@@ -159,7 +159,7 @@ func registerTypes() {
 			always(`, CAST(t.TYPE_ID AS VARCHAR(20)) AS "internal"`),
 			always(`, 'base' AS "kind"`),
 			always(`, '' AS "elements"`),
-			always(`, '' AS "owner"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "owner"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "access"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "comment"`),
 			always(`FROM EXA_SQL_TYPES t`),
@@ -173,7 +173,7 @@ func registerTypes() {
 			{Name: "internal", Desc: "the JDBC type number Exasol reports for the type"},
 			{Name: "kind", Desc: "always base: every Exasol type is built in and there is no CREATE TYPE"},
 			{Name: "elements", Desc: "always empty: Exasol has no enumerated type"},
-			{Name: "owner", Desc: "always empty: a built in type has no owner"},
+			{Name: "owner", Desc: "always absent: a built in type has no owner"},
 			{Name: "access", Desc: "always absent: a type carries no grant"},
 			{Name: "comment", Desc: "always absent: the engine writes no description on its own types"},
 		},
@@ -181,7 +181,7 @@ func registerTypes() {
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Name), empty(&v.Internal), empty(&v.Kind),
-				empty(&v.Elements), empty(&v.Owner), &v.Access, &v.Comment)
+				empty(&v.Elements), &v.Owner, &v.Access, &v.Comment)
 			return v, err
 		},
 	})

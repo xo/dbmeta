@@ -27,13 +27,13 @@ func registerServer() {
 			always(`, f.name AS "id"`),
 			always(`, CASE f.type WHEN 's' THEN 'func' WHEN 'a' THEN 'agg'` +
 				` WHEN 'w' THEN 'window' ELSE f.type END AS "kind"`),
-			always(`, '' AS "result_type"`),
+			always(`, NULL AS "result_type"`),
 			// -1 means the function takes any number of arguments
 			always(`, GROUP_CONCAT(CASE WHEN f.narg < 0 THEN 'variadic'` +
 				` ELSE CAST(f.narg AS TEXT) END, ', ') AS "arg_types"`),
 			always(`, '' AS "volatility"`),
 			always(`, '' AS "parallel"`),
-			always(`, '' AS "owner"`),
+			always(`, NULL AS "owner"`),
 			always(`, '' AS "security"`),
 			always(`, NULL AS "access"`),
 			always(`, CASE f.builtin WHEN 1 THEN 'c' ELSE 'extension' END AS "language"`),
@@ -55,14 +55,14 @@ func registerServer() {
 				Name: "kind",
 				Desc: "func, agg, or window for one usable over a window. SQLite reports most of its aggregates as window, so this cannot separate sum from row_number",
 			},
-			{Name: "result_type", Desc: "always empty: SQLite functions have no declared result type"},
+			{Name: "result_type", Desc: "always absent: SQLite functions have no declared result type"},
 			{
 				Name: "arg_types",
 				Desc: "the argument counts this name accepts, or variadic, because SQLite does not name or type its arguments",
 			},
 			{Name: "volatility", Desc: "always empty: not published"},
 			{Name: "parallel", Desc: "always empty: SQLite has no parallel safety marking"},
-			{Name: "owner", Desc: "always empty: SQLite has no users"},
+			{Name: "owner", Desc: "always absent: SQLite has no users"},
 			{Name: "security", Desc: "always empty"},
 			{Name: "access", Desc: "always absent: SQLite has no grants"},
 			{Name: "language", Desc: "c for one built into the library, extension for one the caller registered"},

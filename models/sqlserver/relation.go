@@ -50,7 +50,7 @@ func registerRelations() {
 			always(`, COALESCE(d.collation_name, '') AS "ctype"`),
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "tablespace"`),
-			always(`, '' AS "size"`),
+			always(`, NULL AS "size"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM sys.databases d`),
 			always(`WHERE (@with_system = 1 OR d.database_id > 4)`),
@@ -68,7 +68,7 @@ func registerRelations() {
 			{Name: "ctype", Desc: "the same value: SQL Server has one collation rather than two"},
 			{Name: "access", Desc: "always absent: read privileges instead"},
 			{Name: "tablespace", Desc: "always absent: a filegroup belongs to a database rather than the other way round"},
-			{Name: "size", Desc: "always empty: a size needs sys.master_files and a per database read"},
+			{Name: "size", Desc: "always absent: a size needs sys.master_files and a per database read"},
 			{Name: "comment", Desc: "always absent"},
 		},
 		Params: []dbmeta.Param{

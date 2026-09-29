@@ -393,7 +393,7 @@ func registerRoutines() {
 				` WHEN 'd' THEN 'domain' WHEN 'e' THEN 'enum' WHEN 'p' THEN 'pseudo'` +
 				` WHEN 'r' THEN 'range' WHEN 'm' THEN 'multirange' ELSE t.typtype END AS "kind"`),
 			always(`, '' AS "elements"`),
-			always(`, '' AS "owner"`),
+			always(`, NULL AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM pg_catalog.pg_type t`),
@@ -429,7 +429,7 @@ func registerRoutines() {
 			always(`, regexp_replace(r.specific_name, '^[^(]*\((.*)\)$', '$1') AS "arg_types"`),
 			always(`, CASE WHEN r.is_deterministic THEN 'immutable' ELSE 'volatile' END AS "volatility"`),
 			always(`, '' AS "parallel"`),
-			always(`, '' AS "owner"`),
+			always(`, NULL AS "owner"`),
 			always(`, '' AS "security"`),
 			always(`, NULL AS "access"`),
 			always(`, r.routine_body AS "language"`),
@@ -508,8 +508,8 @@ func registerRoles() {
 				` || CASE p.state WHEN 'DENY' THEN ' denied' ELSE '' END), E'\n') END` +
 				` FROM sys.privileges p WHERE p.class = 'TABLE'` +
 				` AND p.ident = t.table_schema || '.' || t.table_name) AS "access"`),
-			always(`, '' AS "column_access"`),
-			always(`, '' AS "policies"`),
+			always(`, NULL AS "column_access"`),
+			always(`, NULL AS "policies"`),
 			always(`FROM information_schema.tables t`),
 			always(`WHERE ` + notSystem("t.table_schema")),
 			always(`AND (@schema = '' OR t.table_schema LIKE @schema)`),
@@ -519,8 +519,8 @@ func registerRoles() {
 		Fields: []dbmeta.Field{
 			{Name: "schema"}, {Name: "name"}, {Name: "type"},
 			{Name: "access", Desc: "grantee=type/grantor for each privilege granted on the table, one a line, and denied after a denied one"},
-			{Name: "column_access", Desc: "always empty: CrateDB grants no privilege on a column"},
-			{Name: "policies", Desc: "always empty: CrateDB has no row security"},
+			{Name: "column_access", Desc: "always absent: CrateDB grants no privilege on a column"},
+			{Name: "policies", Desc: "always absent: CrateDB has no row security"},
 		},
 		Params: schemaNameSystem("relation"),
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {
@@ -542,7 +542,7 @@ func registerServer() {
 			always(`, d.datctype AS "ctype"`),
 			always(`, array_to_string(d.datacl, E'\n') AS "access"`),
 			always(`, NULL AS "tablespace"`),
-			always(`, '' AS "size"`),
+			always(`, NULL AS "size"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM pg_catalog.pg_database d`),
 			always(`WHERE (@name = '' OR d.datname LIKE @name)`),

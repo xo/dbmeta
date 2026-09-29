@@ -41,7 +41,7 @@ func routineStmt(kindFilter string) dbmeta.Stmt {
 			` ORDER BY pr.parameter_id FOR XML PATH('')), 1, 2, ''), '') AS "arg_types"`),
 		always(`, '' AS "volatility"`),
 		always(`, '' AS "parallel"`),
-		always(`, COALESCE(p.name, '') AS "owner"`),
+		always(`, p.name AS "owner"`),
 		always(`, CASE WHEN m.execute_as_principal_id IS NULL THEN 'invoker' ELSE 'definer' END AS "security"`),
 		always(`, NULL AS "access"`),
 		always(`, CASE WHEN o.type IN ('FS', 'FT', 'PC') THEN 'clr' ELSE 'sql' END AS "language"`),
@@ -211,7 +211,7 @@ func registerTypes() {
 				` WHEN ty.is_assembly_type = 1 THEN 'assembly'` +
 				` WHEN ty.is_user_defined = 1 THEN 'alias' ELSE 'base' END AS "kind"`),
 			always(`, '' AS "elements"`),
-			always(`, COALESCE(p.name, '') AS "owner"`),
+			always(`, p.name AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM sys.types ty`),
@@ -508,11 +508,11 @@ func registerStorage() {
 	dbmeta.Tablespaces.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Tablespace]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT f.name AS "name"`),
-			always(`, '' AS "owner"`),
-			always(`, COALESCE((SELECT TOP 1 mf.physical_name FROM sys.database_files mf` +
-				` WHERE mf.data_space_id = f.data_space_id ORDER BY mf.file_id), '') AS "location"`),
+			always(`, NULL AS "owner"`),
+			always(`, (SELECT TOP 1 mf.physical_name FROM sys.database_files mf` +
+				` WHERE mf.data_space_id = f.data_space_id ORDER BY mf.file_id) AS "location"`),
 			always(`, CASE WHEN f.is_default = 1 THEN 'default' ELSE NULL END AS "options"`),
-			always(`, '' AS "size"`),
+			always(`, NULL AS "size"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM sys.filegroups f`),
 			always(`WHERE (@name = '' OR f.name LIKE @name)`),
@@ -520,13 +520,13 @@ func registerStorage() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"},
-			{Name: "owner", Desc: "always empty: a filegroup has no owner"},
+			{Name: "owner", Desc: "always absent: a filegroup has no owner"},
 			{
 				Name: "location",
 				Desc: "the path of the first file in the group. A filegroup may hold several",
 			},
 			{Name: "options", Desc: "default for the filegroup a table without a clause goes to"},
-			{Name: "size", Desc: "always empty: a size needs the file sizes summed"},
+			{Name: "size", Desc: "always absent: a size needs the file sizes summed"},
 			{Name: "comment", Desc: "always absent"},
 		},
 		Params: []dbmeta.Param{

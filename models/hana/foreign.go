@@ -22,7 +22,7 @@ func registerForeign() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT a.ADAPTER_NAME AS "name"`),
 			always(`, '' AS "owner"`),
-			always(`, '' AS "handler"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "handler"`),
 			always(`, '' AS "validator"`),
 			always(`, a.CONFIGURATION AS "options"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "access"`),
@@ -34,7 +34,7 @@ func registerForeign() {
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: "the adapter name, such as hanaodbc or odbc"},
 			{Name: "owner", Desc: "always empty: an adapter belongs to the server rather than to a user"},
-			{Name: "handler", Desc: "always empty: HANA names no handler function"},
+			{Name: "handler", Desc: "always absent: HANA names no handler function"},
 			{Name: "validator", Desc: "always empty, for the same reason"},
 			{Name: "options", Desc: "from CONFIGURATION, which is the adapter's own settings as text"},
 			{Name: "access", Desc: "always absent: Privileges reads the grants"},

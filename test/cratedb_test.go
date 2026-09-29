@@ -170,81 +170,10 @@ func TestCrateDBSmoke(t *testing.T) {
 }
 
 // TestCrateDBScansEveryQuery reads every query through its own Scan, which is
-// where a NULL arriving in a field that cannot hold one fails. The smoke test
-// reads column names only and cannot find that.
+// where a NULL arriving in a field that cannot hold one fails.
 func TestCrateDBScansEveryQuery(t *testing.T) {
 	db := openCrateDB(t)
-	m := setupCrateDB(t, db)
-	var read, skipped int
-	scan := func(name string, support dbmeta.Support, all func() (int, error)) {
-		t.Helper()
-		if support != dbmeta.Supported {
-			skipped++
-			return
-		}
-		n, err := all()
-		if err != nil {
-			t.Errorf("%s: %v", name, err)
-			return
-		}
-		read++
-		t.Logf("%-18s %d rows", name, n)
-	}
-	scan("schemas", dbmeta.Schemas.Support(m), func() (int, error) { return drain(t, dbmeta.Schemas, m, db) })
-	scan("current schema", dbmeta.CurrentSchema.Support(m), func() (int, error) { return drain(t, dbmeta.CurrentSchema, m, db) })
-	scan("current user", dbmeta.CurrentUser.Support(m), func() (int, error) { return drain(t, dbmeta.CurrentUser, m, db) })
-	scan("databases", dbmeta.Databases.Support(m), func() (int, error) { return drain(t, dbmeta.Databases, m, db) })
-	scan("tables", dbmeta.Tables.Support(m), func() (int, error) { return drain(t, dbmeta.Tables, m, db) })
-	scan("columns", dbmeta.Columns.Support(m), func() (int, error) { return drain(t, dbmeta.Columns, m, db) })
-	scan("column stats", dbmeta.ColumnStats.Support(m), func() (int, error) { return drain(t, dbmeta.ColumnStats, m, db) })
-	scan("views", dbmeta.Views.Support(m), func() (int, error) { return drain(t, dbmeta.Views, m, db) })
-	scan("partitioned tables", dbmeta.PartitionedTables.Support(m), func() (int, error) { return drain(t, dbmeta.PartitionedTables, m, db) })
-	// Every type and collation is CrateDB's own, so these two are read with
-	// the system objects or they read nothing.
-	scan("types", dbmeta.Types.Support(m), func() (int, error) { return drainSystem(t, dbmeta.Types, m, db) })
-	scan("collations", dbmeta.Collations.Support(m), func() (int, error) { return drainSystem(t, dbmeta.Collations, m, db) })
-	scan("indexes", dbmeta.Indexes.Support(m), func() (int, error) { return drain(t, dbmeta.Indexes, m, db) })
-	scan("index columns", dbmeta.IndexColumns.Support(m), func() (int, error) { return drain(t, dbmeta.IndexColumns, m, db) })
-	scan("constraints", dbmeta.Constraints.Support(m), func() (int, error) { return drain(t, dbmeta.Constraints, m, db) })
-	scan("constraint columns", dbmeta.ConstraintColumns.Support(m), func() (int, error) { return drain(t, dbmeta.ConstraintColumns, m, db) })
-	scan("functions", dbmeta.Functions.Support(m), func() (int, error) { return drain(t, dbmeta.Functions, m, db) })
-	scan("roles", dbmeta.Roles.Support(m), func() (int, error) { return drain(t, dbmeta.Roles, m, db) })
-	scan("role grants", dbmeta.RoleGrants.Support(m), func() (int, error) { return drain(t, dbmeta.RoleGrants, m, db) })
-	scan("privileges", dbmeta.Privileges.Support(m), func() (int, error) { return drain(t, dbmeta.Privileges, m, db) })
-	scan("settings", dbmeta.Settings.Support(m), func() (int, error) { return drain(t, dbmeta.Settings, m, db) })
-	scan("foreign servers", dbmeta.ForeignServers.Support(m), func() (int, error) { return drain(t, dbmeta.ForeignServers, m, db) })
-	scan("foreign tables", dbmeta.ForeignTables.Support(m), func() (int, error) { return drain(t, dbmeta.ForeignTables, m, db) })
-	scan("user mappings", dbmeta.UserMappings.Support(m), func() (int, error) { return drain(t, dbmeta.UserMappings, m, db) })
-	scan("publications", dbmeta.Publications.Support(m), func() (int, error) { return drain(t, dbmeta.Publications, m, db) })
-	scan("publication tables", dbmeta.PublicationTables.Support(m), func() (int, error) { return drain(t, dbmeta.PublicationTables, m, db) })
-	scan("subscriptions", dbmeta.Subscriptions.Support(m), func() (int, error) { return drain(t, dbmeta.Subscriptions, m, db) })
-	// Every query the model registers is in the list above, so a new one
-	// that is left out shows as a count that does not add up.
-	var registered int
-	for _, q := range dbmeta.Queries() {
-		if s := q.Support(m); s == dbmeta.Supported || s == dbmeta.TooOld {
-			registered++
-		}
-	}
-	if read+countTooOld(m) != registered {
-		t.Errorf("read %d queries and the model answers %d: add the missing one here",
-			read, registered)
-	}
-	t.Logf("%d read, %d not asked", read, skipped)
-}
-
-// drainSystem reads every row of q, the system objects included, and counts
-// them.
-func drainSystem[T any](t *testing.T, q *dbmeta.Query[T], m *dbmeta.Meta, db *sql.DB) (int, error) {
-	t.Helper()
-	n := 0
-	for _, err := range q.All(t.Context(), m, db, dbmeta.Args{WithSystem: true}.Map()) {
-		if err != nil {
-			return n, err
-		}
-		n++
-	}
-	return n, nil
+	scanEveryQuery(t, setupCrateDB(t, db), db)
 }
 
 // TestCrateDBFixtureObjects checks that the fixture built one of every object

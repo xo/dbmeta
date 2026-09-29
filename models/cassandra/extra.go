@@ -92,7 +92,8 @@ func registerExtra() {
 				&spare, pad{})
 			v.Ordinal = 1
 			col, call := indexTarget(textMap(options))
-			v.Name = col
+			// A target that names no column leaves the name absent.
+			v.Name = sql.Null[string]{V: col, Valid: col != ""}
 			if call != "" {
 				v.Expression = sql.Null[string]{V: call, Valid: true}
 			}
@@ -290,7 +291,7 @@ func registerExtra() {
 			always(`, type_name AS "internal"`),
 			fixed(", ", `(text)'composite'`, "keyspace_name", "kind"),
 			always(`, field_types AS "elements"`),
-			fixed(", ", `(text)''`, "keyspace_name", "owner"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "owner"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "access"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			always(`FROM system_schema.types`),
@@ -305,7 +306,7 @@ func registerExtra() {
 					" CQL lets anybody declare",
 			},
 			{Name: "elements", Desc: "the field types, in order, as one text"},
-			{Name: "owner", Desc: "always empty: a type has no owner in the catalog"},
+			{Name: "owner", Desc: "always absent: a type has no owner in the catalog"},
 			{Name: "access", Desc: "always absent: a grant is on a keyspace or a table"},
 			{Name: "comment", Desc: "always absent: a type carries no comment"},
 		},

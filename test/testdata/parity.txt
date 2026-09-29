@@ -133,7 +133,6 @@ functions the same rows with different values
 privileges fewer rows than the administrator
 role_grants fewer rows than the administrator
 roles fewer rows than the administrator
-sequences the same rows with different values
 settings fewer rows than the administrator
 triggers the same rows with different values
 views the same rows with different values

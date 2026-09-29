@@ -383,7 +383,7 @@ func TestCassandraFixtureObjects(t *testing.T) {
 			if err != nil {
 				return 0, err
 			}
-			if v.Schema == schema {
+			if v.Schema.V == schema {
 				n++
 			}
 		}

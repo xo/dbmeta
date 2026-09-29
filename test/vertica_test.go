@@ -307,7 +307,7 @@ func TestVerticaProjections(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reading projection columns: %v", err)
 		}
-		cols = append(cols, v.Name)
+		cols = append(cols, v.Name.V)
 	}
 	if strings.Join(cols, ",") != "book_id,published" {
 		t.Errorf("expected book_id,published, got %v", cols)
@@ -326,7 +326,7 @@ func TestVerticaPrivileges(t *testing.T) {
 			t.Fatalf("reading privileges: %v", err)
 		}
 		author = append(author, v.Access.V)
-		policies = append(policies, v.Policies)
+		policies = append(policies, v.Policies.V)
 	}
 	folded := m.Version().Main().Compare(dbmeta.V(10, 1)) >= 0
 	switch {

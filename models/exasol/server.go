@@ -25,7 +25,7 @@ func registerDatabases() {
 			always(`, '' AS "ctype"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "access"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "tablespace"`),
-			always(`, '' AS "size"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "size"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "comment"`),
 			always(`FROM EXA_METADATA m`),
 			always(`WHERE m.PARAM_NAME = 'databaseName'`),
@@ -39,14 +39,14 @@ func registerDatabases() {
 			{Name: "ctype", Desc: "always empty, for the same reason"},
 			{Name: "access", Desc: "always absent: Exasol grants nothing on a database"},
 			{Name: "tablespace", Desc: "always absent: Exasol has no tablespaces"},
-			{Name: "size", Desc: "always empty: the size is in the statistics tables per interval, and reading it is not one bounded statement"},
+			{Name: "size", Desc: "always absent: the size is in the statistics tables per interval, and reading it is not one bounded statement"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no database form"},
 		},
 		Params: nameOnly("database"),
 		Scan: func(rows *sql.Rows) (dbmeta.Database, error) {
 			var v dbmeta.Database
 			err := rows.Scan(empty(&v.Name), empty(&v.Owner), empty(&v.Encoding), empty(&v.Collate), empty(&v.CType),
-				&v.Access, &v.Tablespace, empty(&v.Size), &v.Comment)
+				&v.Access, &v.Tablespace, &v.Size, &v.Comment)
 			return v, err
 		},
 	})

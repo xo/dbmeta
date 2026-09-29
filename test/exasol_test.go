@@ -313,10 +313,10 @@ func TestExasolIndexColumns(t *testing.T) {
 			t.Fatalf("reading index columns: %v", err)
 		}
 		if int(v.Ordinal) != len(byIndex[v.Index])+1 {
-			t.Errorf("index %s: %s is at %d, expected %d", v.Index, v.Name, v.Ordinal,
+			t.Errorf("index %s: %s is at %d, expected %d", v.Index, v.Name.V, v.Ordinal,
 				len(byIndex[v.Index])+1)
 		}
-		byIndex[v.Index] = append(byIndex[v.Index], v.Name)
+		byIndex[v.Index] = append(byIndex[v.Index], v.Name.V)
 	}
 	if len(byIndex) == 0 {
 		t.Fatal("expected Exasol to have indexed the region key")
@@ -363,14 +363,16 @@ func TestExasolRoutines(t *testing.T) {
 			continue
 		}
 		seen[v.Name] = true
-		if v.Kind != w.kind || v.ResultType != w.result || v.Language != w.language {
+		if v.Kind != w.kind || v.ResultType.V != w.result || v.ResultType.Valid != (w.result != "") ||
+			v.Language != w.language {
 			t.Errorf("%s: got kind=%q result=%q language=%q, want %+v",
-				v.Name, v.Kind, v.ResultType, v.Language, w)
+				v.Name, v.Kind, v.ResultType.V, v.Language, w)
 		}
 		// Exasol keeps the parameters and the return type only in the text,
-		// so these are always empty. The text is there.
-		if v.ArgTypes != "" || v.Volatility != "" || v.Security != "" || !v.Source.Valid {
-			t.Errorf("%s: expected empty arg_types, volatility and security and a source, got %+v", v.Name, v)
+		// so arg_types is absent, and volatility and security are empty.
+		// The text is there.
+		if v.ArgTypes.Valid || v.Volatility != "" || v.Security != "" || !v.Source.Valid {
+			t.Errorf("%s: expected no arg_types, empty volatility and security, and a source, got %+v", v.Name, v)
 		}
 		if !v.ID.Valid || v.ID.V == "" {
 			t.Errorf("%s: expected an object id", v.Name)

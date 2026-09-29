@@ -51,7 +51,7 @@ func registerRelations() {
 			always(`, '' AS "ctype"`),
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "tablespace"`),
-			always(`, '' AS "size"`),
+			always(`, NULL AS "size"`),
 			always(`, nullIf(d.comment, '') AS "comment"`),
 			always(`FROM system.databases d`),
 			always(`WHERE ` + notSystem("d.name")),
@@ -76,7 +76,7 @@ func registerRelations() {
 			{Name: "tablespace", Desc: "always absent: storage is chosen per table by its policy"},
 			{
 				Name: "size",
-				Desc: "always empty: a size would have to sum system.parts, which is" +
+				Desc: "always absent: a size would have to sum system.parts, which is" +
 					" a scan that grows with the data rather than with the catalog",
 			},
 			{Name: "comment"},

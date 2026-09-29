@@ -27,7 +27,7 @@ func registerDatabases() {
 			always(`, '' AS "ctype"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "access"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "tablespace"`),
-			always(`, '' AS "size"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "size"`),
 			always(`, d.DESCRIPTION AS "comment"`),
 			always(`FROM SYS.M_DATABASES d`),
 			always(`WHERE ` + like(`d.DATABASE_NAME`, `@name`)),
@@ -41,7 +41,7 @@ func registerDatabases() {
 			{Name: "ctype", Desc: "always empty, for the same reason"},
 			{Name: "access", Desc: "always absent: HANA grants nothing on a database"},
 			{Name: "tablespace", Desc: "always absent: HANA has no tablespaces"},
-			{Name: "size", Desc: "always empty: the size is in the monitoring views per host and service rather than per database, and reading it is not one bounded statement"},
+			{Name: "size", Desc: "always absent: the size is in the monitoring views per host and service rather than per database, and reading it is not one bounded statement"},
 			{Name: "comment", Desc: "from DESCRIPTION"},
 		},
 		Params: []dbmeta.Param{
@@ -62,7 +62,7 @@ func registerDatabases() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT LOWER(t.TABLE_TYPE) || ' store' AS "name"`),
 			always(`, 'table' AS "type"`),
-			always(`, '' AS "handler"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "handler"`),
 			always(`, 'used by ' || CAST(COUNT(*) AS NVARCHAR(20)) || ' tables' AS "comment"`),
 			always(`FROM SYS.TABLES t`),
 			always(`WHERE ` + notSystem(`t.SCHEMA_NAME`)),
@@ -73,7 +73,7 @@ func registerDatabases() {
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: "row store or column store, which is how a HANA table is held"},
 			{Name: "type", Desc: "always table: the choice applies to a table"},
-			{Name: "handler", Desc: "always empty: HANA names no handler function"},
+			{Name: "handler", Desc: "always absent: HANA names no handler function"},
 			{Name: "comment", Desc: "how many tables use it. HANA has no catalog of storage kinds, so this counts the tables that name each one, and a kind nothing uses does not appear"},
 		},
 		Params: []dbmeta.Param{

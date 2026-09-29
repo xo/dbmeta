@@ -18,7 +18,7 @@ func registerRelations() {
 			always(`, '' AS "ctype"`),
 			always(`, CAST(NULL AS varchar) AS "access"`),
 			always(`, CAST(NULL AS varchar) AS "tablespace"`),
-			always(`, '' AS "size"`),
+			always(`, CAST(NULL AS varchar) AS "size"`),
 			// The connector is the one fact a catalog carries beyond its name,
 			// and it is what a person wants when asking what a catalog is.
 			always(`, c.connector_name AS "comment"`),
@@ -35,7 +35,7 @@ func registerRelations() {
 			{Name: "ctype", Desc: "always empty: a catalog has no character type"},
 			{Name: "access", Desc: "always absent: access is per table and Privileges reads it"},
 			{Name: "tablespace", Desc: "always absent: Presto stores nothing of its own"},
-			{Name: "size", Desc: "always empty: the size belongs to whatever the connector reaches"},
+			{Name: "size", Desc: "always absent: the size belongs to whatever the connector reaches"},
 			{Name: "comment", Desc: "the connector name, which is what a catalog is"},
 		},
 		Params: []dbmeta.Param{

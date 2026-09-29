@@ -111,8 +111,8 @@ func registerRoles() {
 			always(`, LOWER(p.OBJECT_TYPE) AS "type"`),
 			always(`, GROUP_CONCAT(p.GRANTEE || '=' || p.PRIVILEGE` +
 				` ORDER BY p.GRANTEE, p.PRIVILEGE SEPARATOR ', ') AS "access"`),
-			always(`, '' AS "column_access"`),
-			always(`, '' AS "policies"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "column_access"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "policies"`),
 			always(`FROM EXA_ALL_OBJ_PRIVS p`),
 			always(`WHERE ` + like(`p.OBJECT_SCHEMA`, `@schema`)),
 			always(`AND ` + like(`p.OBJECT_NAME`, `@name`)),
@@ -124,8 +124,8 @@ func registerRoles() {
 			{Name: "name"},
 			{Name: "type", Desc: "the kind of object, lower cased, such as table, view, function, script or schema"},
 			{Name: "access", Desc: "grantee=privilege, comma separated"},
-			{Name: "column_access", Desc: "always empty: Exasol grants on a whole object and has no column grant"},
-			{Name: "policies", Desc: "always empty: Exasol has no row level security"},
+			{Name: "column_access", Desc: "always absent: Exasol grants on a whole object and has no column grant"},
+			{Name: "policies", Desc: "always absent: Exasol has no row level security"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -133,7 +133,7 @@ func registerRoles() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {
 			var v dbmeta.Privilege
-			err := rows.Scan(empty(&v.Schema), empty(&v.Name), empty(&v.Type), &v.Access, empty(&v.ColumnAccess), empty(&v.Policies))
+			err := rows.Scan(&v.Schema, empty(&v.Name), empty(&v.Type), &v.Access, &v.ColumnAccess, &v.Policies)
 			return v, err
 		},
 	})

@@ -126,10 +126,13 @@ func registerTables() {
 			always(`SELECT q.SCHEMA_NAME AS "schema"`),
 			always(`, q.SEQUENCE_NAME AS "name"`),
 			always(`, 'BIGINT' AS "data_type"`),
-			always(`, q.START_NUMBER AS "start"`),
-			always(`, q.MIN_VALUE AS "minimum"`),
-			always(`, q.MAX_VALUE AS "maximum"`),
-			always(`, q.INCREMENT_BY AS "increment"`),
+			// The catalog keeps these as DECIMAL, which the driver hands over
+			// as a type that database/sql cannot scan into an int64. A HANA
+			// sequence is bounded by 4611686018427387903, so BIGINT holds it.
+			always(`, CAST(q.START_NUMBER AS BIGINT) AS "start"`),
+			always(`, CAST(q.MIN_VALUE AS BIGINT) AS "minimum"`),
+			always(`, CAST(q.MAX_VALUE AS BIGINT) AS "maximum"`),
+			always(`, CAST(q.INCREMENT_BY AS BIGINT) AS "increment"`),
 			always(`, ` + yes(`q.IS_CYCLED`) + ` AS "cycles"`),
 			always(`, '' AS "owned_by"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "comment"`),

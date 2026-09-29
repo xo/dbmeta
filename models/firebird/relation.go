@@ -279,7 +279,7 @@ func registerIndexes() {
 			always(`SELECT ` + noSchema),
 			always(`, TRIM(TRAILING FROM i.RDB$RELATION_NAME) AS "table"`),
 			always(`, TRIM(TRAILING FROM i.RDB$INDEX_NAME) AS "index"`),
-			always(`, TRIM(TRAILING FROM COALESCE(s.RDB$FIELD_NAME, '')) AS "name"`),
+			always(`, TRIM(TRAILING FROM s.RDB$FIELD_NAME) AS "name"`),
 			always(`, CAST(COALESCE(s.RDB$FIELD_POSITION, 0) + 1 AS BIGINT) AS "ordinal"`),
 			always(`, i.RDB$EXPRESSION_SOURCE AS "expression"`),
 			always(`, COALESCE(i.RDB$INDEX_TYPE, 0) = 1 AS "descending"`),
@@ -294,7 +294,7 @@ func registerIndexes() {
 		Fields: []dbmeta.Field{
 			{Name: "schema", Desc: schemaDesc},
 			{Name: "table"}, {Name: "index"},
-			{Name: "name", Desc: "empty for an expression index, which records an expression and no segment"},
+			{Name: "name", Desc: "absent for an expression index, which records an expression and no segment"},
 			{Name: "ordinal", Desc: "from RDB$FIELD_POSITION, which counts from zero, plus one"},
 			{Name: "expression", Desc: "the source text of an expression index, absent for an ordinary one"},
 			{Name: "descending", Desc: "from RDB$INDEX_TYPE, which is the whole index rather than the column: Firebird orders every segment the same way"},

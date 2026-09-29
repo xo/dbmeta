@@ -84,7 +84,7 @@ the release never had invents it.
 
 ## How this is caught
 
-Three layers, and only the last one found any of these.
+Four layers, and only the last two found any of these.
 
 `TestNoCoalesceOnCatalogColumns` in the model package reads the statement text
 and fails on a `COALESCE` around a column named `access`, `comment`, `default`
@@ -99,6 +99,35 @@ maintain, and `Field.Min` already declares what each of them should contain.
 
 Running the queries. Every fault above was invisible to a test that only
 assembled SQL.
+
+`scanEveryQuery` in the `test` module reads every query a model supports
+through its own Scan, with the system objects included. It found the other
+half of the problem on 2026-09-29: a field that was a plain `string` or
+`bool`, and a catalog that returns NULL for it. The CockroachDB databases and
+tablespaces queries failed on every row, and PostgreSQL 18 failed on a cast
+with no function and on the column of an expression index. Every other test
+passed, because none of them scanned those rows.
+
+Twenty two fields became `sql.Null`: a database's size, a tablespace's owner,
+location and size, a cast's function and leakproof flag, an index column's
+name, a collation's collate, ctype and deterministic flag, an access method's
+handler, a function's result type, argument types and owner, an extended
+statistic's name and owner, a view's definition, a type's owner, an
+operator's function, and a privilege's schema, column access and policies.
+HANA grants on a remote source, which has no schema. Where a model had no
+source for one of these fields, it now selects NULL rather than an empty
+string.
+
+On Oracle it found that every `''` and every `NVL(x, '')` arrived as NULL,
+which is the Exasol case below. So the Oracle model now scans a plain string
+field through the same helper.
+
+It found two type faults as well. An Oracle sequence has 28 digits and an
+int64 holds 19, so the default maximum, 9999999999999999999999999999, did
+not scan. A sequence's start, minimum, maximum and increment are decimal text
+now, on every database. HANA keeps those numbers as DECIMAL, and its driver
+hands a DECIMAL over as a value that database/sql cannot convert, so the HANA
+model casts them to BIGINT.
 
 ## For other databases
 

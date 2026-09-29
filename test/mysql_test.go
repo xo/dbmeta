@@ -417,8 +417,8 @@ func TestMySQLNewKinds(t *testing.T) {
 	if !ok || v.Name != "recent" {
 		t.Fatalf("expected the fixture view, got %q ok=%v", v.Name, ok)
 	}
-	if !strings.Contains(strings.ToLower(v.Definition), "select") {
-		t.Errorf("expected a select, got %q", v.Definition)
+	if !strings.Contains(strings.ToLower(v.Definition.V), "select") {
+		t.Errorf("expected a select, got %q", v.Definition.V)
 	}
 
 	// The current schema follows the connection, and the fixture connects

@@ -123,6 +123,14 @@ func eachPostgres(t *testing.T, fn func(t *testing.T, db *sql.DB, m *dbmeta.Meta
 	}
 }
 
+// TestPostgresScansEveryQuery reads every query through its own Scan, on
+// each product of the family and each of its drivers. See scanEveryQuery.
+func TestPostgresScansEveryQuery(t *testing.T) {
+	eachPostgres(t, func(t *testing.T, db *sql.DB, m *dbmeta.Meta) {
+		scanEveryQuery(t, m, db)
+	})
+}
+
 // setup builds the fixture and returns the meta for the server.
 //
 // The fixture lives in the model package rather than here, because it changes
@@ -515,8 +523,8 @@ func TestViewsCarryTheirDefinition(t *testing.T) {
 				t.Errorf("expected the view %q", name)
 				continue
 			}
-			if !strings.Contains(v.Definition, "SELECT") {
-				t.Errorf("%s: expected the defining statement, got %q", name, v.Definition)
+			if !strings.Contains(v.Definition.V, "SELECT") {
+				t.Errorf("%s: expected the defining statement, got %q", name, v.Definition.V)
 			}
 		}
 		if got := found["recent"]; got.CheckOption.V != "none" {

@@ -111,7 +111,7 @@ func registerRoles() {
 				" WHEN " + grantLevel + " = 3 THEN 'collection'" +
 				" WHEN " + grantLevel + " = 2 THEN 'scope' ELSE 'bucket' END AS `type`"),
 			from76(", CONCAT2(', ', ARRAY_SORT(ARRAY_AGG(a.grantee || '=' || a.`role`))) AS `access`"),
-			from76(", '' AS `column_access`"),
+			from76(", NULL AS `column_access`"),
 			from76(", '' AS `policies`"),
 			from76("FROM system:applicable_roles a"),
 			from76("GROUP BY a.bucket_name"),
@@ -124,8 +124,8 @@ func registerRoles() {
 			{Name: "name", Desc: "the scope, or the scope and the collection as scope.collection, and empty for a bucket"},
 			{Name: "type", Desc: "cluster, bucket, scope or collection"},
 			{Name: "access", Desc: "user=role for each role held on the object, as one text"},
-			{Name: "column_access", Desc: "always empty: a role is on a collection and not on a field"},
-			{Name: "policies", Desc: "always empty: Couchbase has no row level security"},
+			{Name: "column_access", Desc: "always absent: a role is on a collection and not on a field"},
+			{Name: "policies", Desc: "always absent: Couchbase has no row level security"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "bucket name pattern, empty for every bucket", Default: ""},

@@ -363,8 +363,8 @@ func TestHANAHasNoColumnGrant(t *testing.T) {
 		}
 		if strings.EqualFold(v.Name, "author") {
 			found = true
-			if v.ColumnAccess != "" {
-				t.Errorf("expected no column grant, got %q", v.ColumnAccess)
+			if v.ColumnAccess.V != "" {
+				t.Errorf("expected no column grant, got %q", v.ColumnAccess.V)
 			}
 			if !strings.Contains(strings.ToUpper(v.Access.V), "DBMETA_READER=SELECT") {
 				t.Errorf("expected the SELECT grant to the role, got %q", v.Access.V)

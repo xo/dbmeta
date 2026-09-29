@@ -110,7 +110,7 @@ func registerRoles() {
 			always(`, COALESCE(STRING_AGG(CASE WHEN p.COLUMN_NAME IS NOT NULL` +
 				` THEN p.COLUMN_NAME || ':' || p.GRANTEE || '=' || p.PRIVILEGE END, ', '` +
 				` ORDER BY p.COLUMN_NAME, p.GRANTEE), '') AS "column_access"`),
-			always(`, '' AS "policies"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "policies"`),
 			always(`FROM SYS.GRANTED_PRIVILEGES p`),
 			// A system privilege is granted on nothing, so it has no object
 			// and no schema. Those rows are a principal's rights rather
@@ -127,7 +127,7 @@ func registerRoles() {
 			{Name: "type", Desc: "the kind of object, lower cased. HANA grants on more kinds than a table, so this can say sequence, library or remote source"},
 			{Name: "access", Desc: "grantee=privilege, comma separated. Absent where every grant on the object names a column"},
 			{Name: "column_access", Desc: "column:grantee=privilege, comma separated, and empty where there are none"},
-			{Name: "policies", Desc: "always empty: HANA restricts rows with an analytic privilege, which is an object of its own rather than a policy on the table"},
+			{Name: "policies", Desc: "always absent: HANA restricts rows with an analytic privilege, which is an object of its own rather than a policy on the table"},
 		},
 		Params: schemaAndName("object"),
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {

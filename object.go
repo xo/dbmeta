@@ -100,17 +100,17 @@ type Database struct {
 	CType      string
 	Access     sql.Null[string]
 	Tablespace sql.Null[string]
-	Size       string
+	Size       sql.Null[string]
 	Comment    sql.Null[string]
 }
 
 // Tablespace is a location the server stores data in. psql lists them with \db.
 type Tablespace struct {
 	Name     string
-	Owner    string
-	Location string
+	Owner    sql.Null[string]
+	Location sql.Null[string]
 	Options  sql.Null[string]
-	Size     string
+	Size     sql.Null[string]
 	Access   sql.Null[string]
 	Comment  sql.Null[string]
 }
@@ -119,7 +119,7 @@ type Tablespace struct {
 type AccessMethod struct {
 	Name    string
 	Type    string
-	Handler string
+	Handler sql.Null[string]
 	Comment sql.Null[string]
 }
 
@@ -150,9 +150,9 @@ type Conversion struct {
 type Cast struct {
 	Source    string
 	Target    string
-	Function  string
+	Function  sql.Null[string]
 	Implicit  string
-	LeakProof bool
+	LeakProof sql.Null[bool]
 	Comment   sql.Null[string]
 }
 
@@ -161,10 +161,10 @@ type Collation struct {
 	Schema        string
 	Name          string
 	Provider      sql.Null[string]
-	Collate       string
-	CType         string
+	Collate       sql.Null[string]
+	CType         sql.Null[string]
 	Locale        sql.Null[string]
-	Deterministic bool
+	Deterministic sql.Null[bool]
 	Comment       sql.Null[string]
 }
 
@@ -231,11 +231,11 @@ type Function struct {
 	// database that does not overload reports it absent.
 	ID         sql.Null[string]
 	Kind       string
-	ResultType string
-	ArgTypes   string
+	ResultType sql.Null[string]
+	ArgTypes   sql.Null[string]
 	Volatility string
 	Parallel   string
-	Owner      string
+	Owner      sql.Null[string]
 	Security   string
 	Access     sql.Null[string]
 	Language   string
@@ -251,7 +251,7 @@ type Type struct {
 	Internal string
 	Kind     string
 	Elements string
-	Owner    string
+	Owner    sql.Null[string]
 	Access   sql.Null[string]
 	Comment  sql.Null[string]
 }
@@ -277,7 +277,7 @@ type Operator struct {
 	LeftType   string
 	RightType  string
 	ResultType string
-	Function   string
+	Function   sql.Null[string]
 	Comment    sql.Null[string]
 }
 
@@ -331,12 +331,12 @@ type RoleGrant struct {
 
 // Privilege is the grants on one object. psql lists them with \z and \dp.
 type Privilege struct {
-	Schema       string
+	Schema       sql.Null[string]
 	Name         string
 	Type         string
 	Access       sql.Null[string]
-	ColumnAccess string
-	Policies     string
+	ColumnAccess sql.Null[string]
+	Policies     sql.Null[string]
 }
 
 // DefaultACL is a default grant applied to objects created later. psql lists
@@ -558,8 +558,8 @@ type ExtensionObject struct {
 // with \dX.
 type ExtendedStat struct {
 	Schema  string
-	Name    string
-	Owner   string
+	Name    sql.Null[string]
+	Owner   sql.Null[string]
 	Table   string
 	Kinds   string
 	Comment sql.Null[string]
@@ -612,7 +612,7 @@ type IndexColumn struct {
 	Schema     string
 	Table      string
 	Index      string
-	Name       string
+	Name       sql.Null[string]
 	Ordinal    int64
 	Expression sql.Null[string]
 	Descending bool
@@ -647,14 +647,18 @@ type Trigger struct {
 
 // Sequence generates numbers. psql lists them with \ds and shows the detail
 // inside \d name.
+//
+// Start, Minimum, Maximum and Increment are decimal text, because an Oracle
+// sequence is bounded by 28 digits and an int64 holds 19. The default
+// maximum of an Oracle sequence is 9999999999999999999999999999.
 type Sequence struct {
 	Schema    string
 	Name      string
 	DataType  sql.Null[string]
-	Start     sql.Null[int64]
-	Minimum   sql.Null[int64]
-	Maximum   sql.Null[int64]
-	Increment sql.Null[int64]
+	Start     sql.Null[string]
+	Minimum   sql.Null[string]
+	Maximum   sql.Null[string]
+	Increment sql.Null[string]
 	Cycles    sql.Null[bool]
 	OwnedBy   string
 	Comment   sql.Null[string]
@@ -769,7 +773,7 @@ type View struct {
 	Catalog    string
 	Schema     string
 	Name       string
-	Definition string
+	Definition sql.Null[string]
 	// CheckOption is none, local or cascaded.
 	CheckOption sql.Null[string]
 	Updatable   sql.Null[bool]

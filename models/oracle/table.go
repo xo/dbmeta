@@ -61,7 +61,7 @@ func registerTables() {
 			// clause. The body is a LONG in the same view, and a LONG cannot
 			// be concatenated onto it. psql prints the same header, because
 			// pg_get_triggerdef stops at the function call too.
-			always(`, NVL(t.description, '') AS "definition"`),
+			always(`, t.description AS "definition"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM all_triggers t`),
 			always(`WHERE t.base_object_type IN ('TABLE', 'VIEW')`),
@@ -132,7 +132,7 @@ func registerTables() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.EventTrigger, error) {
 			var v dbmeta.EventTrigger
-			err := rows.Scan(&v.Name, &v.Event, &v.Owner, &v.Enabled, &v.Function,
+			err := rows.Scan(&v.Name, &v.Event, &v.Owner, &v.Enabled, empty(&v.Function),
 				&v.Tags, &v.Comment)
 			return v, err
 		},
@@ -185,8 +185,8 @@ func registerTables() {
 			Params: schemaNameSystem("table"),
 			Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 				var v dbmeta.PartitionedTable
-				err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, &v.Parent,
-					&v.Strategy, &v.Expression, &v.Comment)
+				err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, empty(&v.Parent),
+					&v.Strategy, empty(&v.Expression), &v.Comment)
 				return v, err
 			},
 		})

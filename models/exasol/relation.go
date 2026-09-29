@@ -124,7 +124,7 @@ func registerTables() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.View, error) {
 			var v dbmeta.View
-			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Name), empty(&v.Definition),
+			err := rows.Scan(empty(&v.Catalog), empty(&v.Schema), empty(&v.Name), &v.Definition,
 				&v.CheckOption, &v.Updatable, &v.Insertable, &v.Comment)
 			return v, err
 		},
@@ -377,7 +377,7 @@ func registerIndexColumns() {
 		Params: parentAndName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
-			err := rows.Scan(empty(&v.Schema), empty(&v.Table), empty(&v.Index), empty(&v.Name),
+			err := rows.Scan(empty(&v.Schema), empty(&v.Table), empty(&v.Index), &v.Name,
 				&v.Ordinal, &v.Expression, &v.Descending)
 			return v, err
 		},

@@ -17,7 +17,7 @@ func registerExtra() {
 			always(`, t.type_name AS "internal"`),
 			always(`, 'base' AS "kind"`),
 			always(`, '' AS "elements"`),
-			always(`, '' AS "owner"`),
+			always(`, CAST(NULL AS varchar) AS "owner"`),
 			always(`, CAST(NULL AS varchar) AS "access"`),
 			always(`, CAST(NULL AS varchar) AS "comment"`),
 			always(`FROM system.jdbc.types t`),
@@ -31,7 +31,7 @@ func registerExtra() {
 			{Name: "internal", Desc: "the same as name: Trino has no separate internal spelling"},
 			{Name: "kind", Desc: "always base: every Trino type is built in"},
 			{Name: "elements", Desc: "always empty: Trino has no enumerated type"},
-			{Name: "owner", Desc: "always empty: a built in type has no owner"},
+			{Name: "owner", Desc: "always absent: a built in type has no owner"},
 			{Name: "access", Desc: "always absent: a type carries no grant"},
 			{Name: "comment", Desc: "always absent: Trino stores no type comment"},
 		},
@@ -53,7 +53,7 @@ func registerExtra() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT c.connector_name AS "name"`),
 			always(`, 'table' AS "type"`),
-			always(`, '' AS "handler"`),
+			always(`, CAST(NULL AS varchar) AS "handler"`),
 			// One connector can back several catalogs, so the catalogs it
 			// backs are the useful thing to say about it.
 			always(`, array_join(array_agg(c.catalog_name ORDER BY c.catalog_name), ', ') AS "comment"`),
@@ -65,7 +65,7 @@ func registerExtra() {
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: "the connector name, such as memory or tpch"},
 			{Name: "type", Desc: "always table: a connector serves tables"},
-			{Name: "handler", Desc: "always empty: Trino names no handler function"},
+			{Name: "handler", Desc: "always absent: Trino names no handler function"},
 			{Name: "comment", Desc: "the catalogs this connector backs"},
 		},
 		Params: []dbmeta.Param{
@@ -180,8 +180,8 @@ func registerRoles() {
 			always(`, 'table' AS "type"`),
 			always(`, array_join(array_agg(p.grantee || '=' || p.privilege_type` +
 				` ORDER BY p.grantee, p.privilege_type), ', ') AS "access"`),
-			always(`, '' AS "column_access"`),
-			always(`, '' AS "policies"`),
+			always(`, CAST(NULL AS varchar) AS "column_access"`),
+			always(`, CAST(NULL AS varchar) AS "policies"`),
 			always(`FROM information_schema.table_privileges p`),
 			always(`WHERE ` + notSystem("p.table_catalog", "p.table_schema")),
 			always(`AND (@schema = '' OR p.table_schema LIKE @schema)`),
@@ -193,8 +193,8 @@ func registerRoles() {
 			{Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "always table: Trino grants on a table"},
 			{Name: "access", Desc: "grantee=privilege, comma separated, the way psql prints it"},
-			{Name: "column_access", Desc: "always empty: Trino grants no column privilege"},
-			{Name: "policies", Desc: "always empty: Trino has no row level policy of its own"},
+			{Name: "column_access", Desc: "always absent: Trino grants no column privilege"},
+			{Name: "policies", Desc: "always absent: Trino has no row level policy of its own"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},

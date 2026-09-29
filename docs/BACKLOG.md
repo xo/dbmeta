@@ -89,6 +89,14 @@ these:
 `cratedb://` no longer adds the port 5432, so pgx reads `PGPORT` when a URL
 names no port. dbrun always names the port, so nothing changes for it.
 
+### Find why Oracle 11g reads its catalog slowly
+
+With the system objects included, Oracle 11g XE took more than a minute each
+for tables, types, privileges and column_stats, measured on 2026-09-29.
+18c reads the same queries in seconds. Read the plans on 11g, and find
+whether one view or one join is the cost. docs/COVERAGE.md has the timings,
+under Oracle.
+
 ## Consumers
 
 ### usql reads metadata through dbmeta

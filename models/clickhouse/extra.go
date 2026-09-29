@@ -223,7 +223,7 @@ func registerExtra() {
 			always(`, f.name AS "internal"`),
 			always(`, 'base' AS "kind"`),
 			always(`, '' AS "elements"`),
-			always(`, '' AS "owner"`),
+			always(`, NULL AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, nullIf(f.alias_to, '') AS "comment"`),
 			always(`FROM system.data_type_families f`),
@@ -242,7 +242,7 @@ func registerExtra() {
 					" than declared",
 			},
 			{Name: "elements", Desc: "always empty: a parameterised type is written inline"},
-			{Name: "owner", Desc: "always empty: nobody owns a built in type"},
+			{Name: "owner", Desc: "always absent: nobody owns a built in type"},
 			{Name: "access", Desc: "always absent: a type is not grantable"},
 			{
 				Name: "comment",

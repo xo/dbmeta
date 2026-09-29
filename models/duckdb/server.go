@@ -28,11 +28,13 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 			` WHEN 'aggregate' THEN 'agg' WHEN 'table' THEN 'table'` +
 			` WHEN 'macro' THEN 'macro' WHEN 'pragma' THEN 'pragma'` +
 			` ELSE f.function_type END AS "kind"`),
-		always(`, COALESCE(f.return_type, '') AS "result_type"`),
-		always(`, COALESCE(LIST_REDUCE(f.parameter_types, (a, b) -> a || ', ' || b), '') AS "arg_types"`),
+		always(`, f.return_type AS "result_type"`),
+		// LIST_REDUCE refuses an empty list, which a function with no
+		// parameters has, so the list is joined with ARRAY_TO_STRING.
+		always(`, ARRAY_TO_STRING(f.parameter_types, ', ') AS "arg_types"`),
 		always(`, CASE WHEN f.has_side_effects THEN 'volatile' ELSE '' END AS "volatility"`),
 		always(`, '' AS "parallel"`),
-		always(`, '' AS "owner"`),
+		always(`, NULL AS "owner"`),
 		always(`, '' AS "security"`),
 		always(`, NULL AS "access"`),
 		always(`, CASE WHEN f.internal THEN 'c' ELSE 'sql' END AS "language"`),
@@ -57,7 +59,7 @@ func functionFields() []dbmeta.Field {
 		{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 		{Name: "id", Desc: "the function oid, because DuckDB overloads a name"},
 		{Name: "kind", Desc: "func, agg, table, macro or pragma"},
-		{Name: "result_type", Desc: "empty where DuckDB records none, which is normal for a macro"},
+		{Name: "result_type", Desc: "absent where DuckDB records none, which is normal for a macro"},
 		{
 			Name: "arg_types",
 			Desc: "the parameter types joined with a comma. RoutineParameters has them as rows",
@@ -67,7 +69,7 @@ func functionFields() []dbmeta.Field {
 			Desc: "volatile for a function with side effects, and empty otherwise. DuckDB records no finer grade",
 		},
 		{Name: "parallel", Desc: "always empty: DuckDB has no parallel safety marking"},
-		{Name: "owner", Desc: "always empty: DuckDB has no users"},
+		{Name: "owner", Desc: "always absent: DuckDB has no users"},
 		{Name: "security", Desc: "always empty, for the same reason"},
 		{Name: "access", Desc: "always absent: DuckDB has no grants"},
 		{Name: "language", Desc: "c for a function built into the library, sql for a macro"},
@@ -154,7 +156,7 @@ func registerTypes() {
 			always(`, y.type_name AS "internal"`),
 			always(`, LOWER(y.logical_type) AS "kind"`),
 			always(`, COALESCE(LIST_REDUCE(y.labels, (a, b) -> a || ', ' || b), '') AS "elements"`),
-			always(`, '' AS "owner"`),
+			always(`, NULL AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, y.comment AS "comment"`),
 			always(`FROM duckdb_types() y`),
@@ -168,7 +170,7 @@ func registerTypes() {
 			{Name: "internal", Desc: "the same as the name: DuckDB has no separate internal name"},
 			{Name: "kind", Desc: "the logical type, such as enum or struct"},
 			{Name: "elements", Desc: "the labels of an enum, joined. EnumValues has them as rows"},
-			{Name: "owner", Desc: "always empty: DuckDB has no users"},
+			{Name: "owner", Desc: "always absent: DuckDB has no users"},
 			{Name: "access", Desc: "always absent: DuckDB has no grants"},
 			{Name: "comment"},
 		},

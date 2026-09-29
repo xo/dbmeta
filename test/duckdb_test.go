@@ -312,7 +312,7 @@ func TestDuckDBCatalogExtras(t *testing.T) {
 	if !ok || seq.Name != "counter" {
 		t.Fatalf("expected the fixture sequence, got %q ok=%v", seq.Name, ok)
 	}
-	if seq.Start.V != 10 || seq.Increment.V != 2 || seq.Cycles.V {
+	if seq.Start.V != "10" || seq.Increment.V != "2" || seq.Cycles.V {
 		t.Errorf("expected start 10 increment 2 and no cycle, got %+v", seq)
 	}
 

@@ -124,14 +124,14 @@ func registerRoles() {
 	// object granted to several principals has a row for each.
 	dbmeta.Privileges.Register(dbmeta.Vertica, &dbmeta.Binding[dbmeta.Privilege]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT COALESCE(g.object_schema, '') AS "schema"`),
+			always(`SELECT g.object_schema AS "schema"`),
 			always(`, g.object_name AS "name"`),
 			always(`, LOWER(g.object_type) AS "type"`),
 			since(v101, `, LISTAGG(g.grantee || '=' || g.privileges_description`+
 				` USING PARAMETERS separator = ', ') AS "access"`,
 				`, g.grantee || '=' || g.privileges_description AS "access"`),
-			always(`, '' AS "column_access"`),
-			since(v101, `, COALESCE(a.policies, '') AS "policies"`, `, '' AS "policies"`),
+			always(`, CAST(NULL AS VARCHAR) AS "column_access"`),
+			since(v101, `, COALESCE(a.policies, '') AS "policies"`, `, CAST(NULL AS VARCHAR) AS "policies"`),
 			always(`FROM v_catalog.grants g`),
 			// Vertica refuses a subquery beside GROUP BY, so the policies
 			// are folded per table first and joined. A table's name here is
@@ -147,12 +147,12 @@ func registerRoles() {
 			always(`ORDER BY 1, 2`),
 		},
 		Fields: []dbmeta.Field{
-			{Name: "schema", Desc: "empty for an object that belongs to the database, such as a schema"},
+			{Name: "schema", Desc: "absent for an object that belongs to the database, such as a schema"},
 			{Name: "name"},
 			{Name: "type", Desc: "the kind of object, lower cased, such as table, view, schema, sequence or procedure"},
 			{Name: "access", Desc: "grantee=privileges, where an asterisk after a privilege means WITH GRANT OPTION. From 10.1 every grantee on an object is on one row, comma separated. Before 10.1 there is a row per grantee"},
-			{Name: "column_access", Desc: "always empty: Vertica grants on a whole object and has no column grant. A column access policy is in policies"},
-			{Name: "policies", Desc: "the access policies on a table, column: expression, separated by semicolons, from 10.1. A row policy names no column. Empty before 10.1, which has no string aggregate to fold them with"},
+			{Name: "column_access", Desc: "always absent: Vertica grants on a whole object and has no column grant. A column access policy is in policies"},
+			{Name: "policies", Min: v101, Desc: "the access policies on a table, column: expression, separated by semicolons, from 10.1. A row policy names no column. Absent before 10.1, which has no string aggregate to fold them with"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},

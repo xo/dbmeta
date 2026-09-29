@@ -157,22 +157,22 @@ func registerRoles() {
 			always(`, resource AS "name"`),
 			always(`, resource AS "type"`),
 			always(`, permissions AS "access"`),
-			fixed(", ", `(text)''`, "role", "column_access"),
-			fixed(", ", `(text)''`, "role", "policies"),
+			fixed(", ", `(text)NULL`, "role", "column_access"),
+			fixed(", ", `(text)NULL`, "role", "policies"),
 			{{Query: `FROM system_auth.role_permissions`}, scylla(`FROM system.role_permissions`)},
 		},
 		Fields: []dbmeta.Field{
-			{Name: "schema", Desc: "the keyspace named in the resource path, empty for a grant above one"},
+			{Name: "schema", Desc: "the keyspace named in the resource path, absent for a grant above one"},
 			{Name: "name", Desc: "the table named in the resource path, or the resource itself"},
 			{Name: "type", Desc: "the first part of the resource path, such as data, roles or functions"},
 			{Name: "access", Desc: "the permissions granted, as one text"},
 			{
 				Name: "column_access",
-				Desc: "always empty: Cassandra grants on a table and not on a column",
+				Desc: "always absent: Cassandra grants on a table and not on a column",
 			},
 			{
 				Name: "policies",
-				Desc: "always empty: Cassandra has no row level security policy",
+				Desc: "always absent: Cassandra has no row level security policy",
 			},
 		},
 		Params: filters("resource"),
@@ -186,7 +186,10 @@ func registerRoles() {
 				resource, spare1, spare2, acc any
 			)
 			err := rows.Scan(&resource, &spare1, &spare2, &acc, pad{}, pad{})
-			v.Schema, v.Name, v.Type = splitResource(toText(resource))
+			var schema string
+			schema, v.Name, v.Type = splitResource(toText(resource))
+			// A grant above a keyspace names none.
+			v.Schema = sql.Null[string]{V: schema, Valid: schema != ""}
 			if s := textList(acc); s != "" {
 				v.Access = sql.Null[string]{V: s, Valid: true}
 			}
@@ -258,7 +261,7 @@ func registerRoles() {
 			always(`, argument_types AS "arg_types"`),
 			fixed(", ", `(text)''`, "keyspace_name", "volatility"),
 			fixed(", ", `(text)''`, "keyspace_name", "parallel"),
-			fixed(", ", `(text)''`, "keyspace_name", "owner"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "owner"),
 			fixed(", ", `(text)''`, "keyspace_name", "security"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "access"),
 			always(`, language`),
@@ -284,7 +287,7 @@ func registerRoles() {
 			always(`, argument_types AS "arg_types"`),
 			fixed(", ", `(text)''`, "keyspace_name", "volatility"),
 			fixed(", ", `(text)''`, "keyspace_name", "parallel"),
-			fixed(", ", `(text)''`, "keyspace_name", "owner"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "owner"),
 			fixed(", ", `(text)''`, "keyspace_name", "security"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "access"),
 			always(`, state_func AS "language"`),
@@ -330,7 +333,7 @@ func routineFields(kind string) []dbmeta.Field {
 				" on null input and nothing about volatility",
 		},
 		{Name: "parallel", Desc: "always empty: Cassandra has no parallel safety mark"},
-		{Name: "owner", Desc: "always empty: a " + kind + " has no owner in the catalog"},
+		{Name: "owner", Desc: "always absent: a " + kind + " has no owner in the catalog"},
 		{Name: "security", Desc: "always empty: CQL has no SECURITY DEFINER"},
 		{Name: "access", Desc: "always absent: a grant is on the functions resource"},
 		{Name: "language"},
@@ -368,7 +371,7 @@ func scanRoutine(kind string) func(*sql.Rows) (dbmeta.Function, error) {
 			&args, pad{}, pad{}, pad{}, pad{}, pad{},
 			&v.Language, &v.Source, pad{})
 		v.Kind = kind
-		v.ArgTypes = textList(args)
+		v.ArgTypes = sql.Null[string]{V: textList(args), Valid: true}
 		return v, err
 	}
 }

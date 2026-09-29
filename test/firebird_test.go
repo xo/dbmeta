@@ -511,7 +511,7 @@ func TestFirebirdPrivileges(t *testing.T) {
 			t.Fatalf("reading privileges: %v", err)
 		}
 		if strings.EqualFold(v.Name, "author") {
-			access, columnAccess = v.Access.V, v.ColumnAccess
+			access, columnAccess = v.Access.V, v.ColumnAccess.V
 		}
 	}
 	if !strings.Contains(strings.ToUpper(access), "DBMETA_READER=S") {

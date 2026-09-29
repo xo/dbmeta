@@ -1213,16 +1213,22 @@ without a trigger, so there is no equivalent to follow.
 
 ### Which answers depend on who is asking
 
-Eleven queries answer differently for a user that is not the administrator,
+Ten queries answer differently for a user that is not the administrator,
 which is the most of any product here. That is HANA rather than the model:
 almost every SYS view filters itself by what the reader may see, so a grantee
 sees fewer collations, fewer databases, fewer adapters and fewer settings, as
 well as fewer roles and grants.
 
-Four of the eleven return the same number of rows with different values:
-functions, sequences, triggers and views. Those carry a definition, and HANA
-returns the row and withholds the text from a reader without the privilege.
-That is worth knowing before a consumer treats a definition as always present.
+Three of the ten return the same number of rows with different values:
+functions, triggers and views. Those carry a definition, and HANA returns the
+row and withholds the text from a reader without the privilege. That is worth
+knowing before a consumer treats a definition as always present.
+
+Sequences were recorded as a fourth until 2026-09-29, and that was wrong. The
+catalog keeps a sequence's numbers as DECIMAL, and the driver hands a DECIMAL
+over as a value that holds a pointer, so its text differed on every read.
+The query casts the numbers to BIGINT now, and both principals read the same
+rows.
 
 ## Apache Hive
 
@@ -2003,7 +2009,7 @@ that varies is what kind of principal they are.
 | PostgreSQL 10, 11, 12, 13 | both | each has a section of its own, and `subscriptions` is refused on some. One release answers differently, below, says why |
 | Firebird 3.0, 4.0, 5.0 | grantee | `roles`, `settings` |
 | Apache Hive 4.2 | other principal | none. The image configures no authorization, so every principal is allowed everything |
-| SAP HANA 2.0 SPS 08 | grantee | `collations`, `databases`, `foreign_data_wrappers`, `functions`, `privileges`, `role_grants`, `roles`, `sequences`, `settings`, `triggers`, `views` |
+| SAP HANA 2.0 SPS 08 | grantee | `collations`, `databases`, `foreign_data_wrappers`, `functions`, `privileges`, `role_grants`, `roles`, `settings`, `triggers`, `views` |
 | Exasol 2026.2.0 | schema owner | `current_schema`, `foreign_servers`, `role_grants`, `user_mappings` |
 | Exasol 2026.2.0 | grantee | `current_schema`, `foreign_servers`, `privileges`, `role_grants`, `user_mappings` |
 | Exasol 2025.2.1 | both | the same, plus `foreign_data_wrappers`, because the Community Edition ships adapter scripts that SYS owns |
@@ -2668,6 +2674,16 @@ before 18c, and `v$version.banner_full` likewise, so both are a parse error on
 11g. The banner also carries the name Oracle sells the release under, which
 nothing else does, and its number separates 23ai from 26ai.
 
+### 11g reads its whole catalog slowly
+
+11g XE reads four queries slowly when the system objects are included. Each
+took more than a minute on 2026-09-29, and was cancelled at a minute: tables,
+types, privileges and column_stats. Operators took 112 seconds once and no
+time at all the next time. The catalog holds 4,818 tables with the system
+objects, and 18c reads the same queries in seconds. The scan test in the
+`test` module reads 11g without the system objects for that reason, and
+every query then answers. Why the plans are slow is on docs/BACKLOG.md.
+
 ### The D43 pass, and what it found
 
 Eleven of 55 was too few for a dictionary this rich, so both models were asked
@@ -2838,12 +2854,12 @@ role grants and the current user. The other 23 read `information_schema`,
 | constraints | `definition` is NULL on 6.3, which has no `pg_get_constraintdef` and keeps a check expression in no catalog. There is no foreign key and no unique constraint on any release |
 | constraint_columns | a primary key only. A check constraint has no row in `key_column_usage` |
 | partitioned_tables | the strategy is `LIST`, because a partition holds one value of each partition column |
-| functions | a JavaScript function, from `information_schema.routines`. `id` is `specific_name`, which holds the argument types. `volatility` is `immutable` for a deterministic function and `volatile` for the rest. `owner`, `security` and `parallel` are empty |
+| functions | a JavaScript function, from `information_schema.routines`. `id` is `specific_name`, which holds the argument types. `volatility` is `immutable` for a deterministic function and `volatile` for the rest. `owner` is NULL, and `security` and `parallel` are empty |
 | types | every type is built in and in `pg_catalog`, so the query answers only with `with_system` |
 | collations | from 6.4. CrateDB has one collation, in `pg_catalog`, so it too answers only with `with_system` |
 | roles | from `pg_roles`, because a user who is not a superuser is refused `sys.users` and `sys.roles`. `create_db` and `bypass_rls` are false, because CrateDB has no database to create and no row security |
 | privileges | from `sys.privileges`, a grant on a table as `grantee=type/grantor`, with `denied` after a DENY. A grant on a schema or on the cluster is not a privilege on the table and is not shown |
-| databases | CrateDB has one database, `crate`. `owner` is empty and `size` is empty |
+| databases | CrateDB has one database, `crate`. `owner` is empty, and `size` is NULL, because a size is in `sys.shards`, which a user who is not a superuser cannot read |
 | foreign_servers, foreign_tables, user_mappings | the options are aggregated from the three `*_options` views. The only wrapper is `jdbc` |
 | publications | `truncate` and `via_root` are false, because CrateDB replicates neither |
 | subscriptions | the fixture builds none. A subscription connects to another cluster, and the tests start only one |

@@ -49,7 +49,7 @@ func registerRelations() {
 			always(`, 'BINARY' AS "ctype"`),
 			always(`, NULL AS "access"`),
 			always(`, NULLIF(d.file, '') AS "tablespace"`),
-			always(`, '' AS "size"`),
+			always(`, NULL AS "size"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM pragma_database_list d`),
 			always(`WHERE (@name = '' OR d.name LIKE @name)`),
@@ -66,7 +66,7 @@ func registerRelations() {
 				Name: "tablespace",
 				Desc: "the file this database is stored in, absent for one held in memory",
 			},
-			{Name: "size", Desc: "always empty: read page_count and page_size to compute it"},
+			{Name: "size", Desc: "always absent: read page_count and page_size to compute it"},
 			{Name: "comment", Desc: "always absent"},
 		},
 		Params: []dbmeta.Param{
@@ -233,7 +233,7 @@ func registerRelations() {
 			always(`, m.name AS "index"`),
 			// cid is -1 for the rowid and -2 for an expression, and the name
 			// is NULL for both.
-			always(`, COALESCE(x.name, '') AS "name"`),
+			always(`, x.name AS "name"`),
 			always(`, x.seqno + 1 AS "ordinal"`),
 			always(`, CASE WHEN x.cid = -2 THEN 'expression' ELSE NULL END AS "expression"`),
 			always(`, x.desc = 1 AS "descending"`),
@@ -250,7 +250,7 @@ func registerRelations() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "schema"}, {Name: "table"}, {Name: "index"},
-			{Name: "name", Desc: "empty for a column the index computes rather than stores"},
+			{Name: "name", Desc: "absent for a column the index computes rather than stores"},
 			{Name: "ordinal", Desc: "one based, where the pragma counts from zero"},
 			{
 				Name: "expression",
