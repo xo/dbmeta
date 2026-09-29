@@ -30,6 +30,14 @@ import (
 // that may only read. QuestDB has no databases, so nothing is named dbmeta,
 // and the PostgreSQL interface takes the name qdb.
 //
+// # The version
+//
+// SHOW server_version and version() both answer PostgreSQL 12.3, on the
+// PostgreSQL interface. Only SELECT build() names the release, as "Build
+// Information: QuestDB 10.0.1, JDK 25.0.2, Commit Hash ...". The usql session
+// measured it on 10.0.1 on 2026-09-29. The version query arrives with a
+// QuestDB model, and not before (D126).
+//
 // # Two ports
 //
 // The entry publishes both interfaces. The DSN is the HTTP one on 9000, which

@@ -144,3 +144,4 @@ file.
 | [D123](D123-cockroachdb-and-cratedb-have-dialects-of-their-own.md) | CockroachDB and CrateDB have dialects of their own | Amends D112 and D118 |
 | [D124](D124-a-server-can-publish-a-second-port.md) | A server can publish a second port | Amends D68 |
 | [D125](D125-each-wire-compatible-product-has-a-dialect-of-its-own.md) | Each wire compatible product has a dialect of its own | Amends D19, D80, D99 and D117 |
+| [D126](D126-a-version-query-waits-for-the-product-s-model.md) | A version query waits for the product's model | Decided |
