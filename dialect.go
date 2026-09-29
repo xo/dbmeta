@@ -63,9 +63,12 @@ const (
 	Exasol     Dialect = "exasol"
 	Firebird   Dialect = "firebirdsql"
 	// GizmoSQL serves Arrow Flight SQL, and the flightsql driver reaches it.
-	GizmoSQL   Dialect = "gizmosql"
-	Hive       Dialect = "hive"
-	HANA       Dialect = "hdb"
+	GizmoSQL Dialect = "gizmosql"
+	Hive     Dialect = "hive"
+	HANA     Dialect = "hdb"
+	// Impala is Apache Impala, which serves HiveServer2's protocol and has
+	// a catalog of its own. See D145.
+	Impala     Dialect = "impala"
 	InfluxDB   Dialect = "influxdb"
 	InfluxQL   Dialect = "influxql"
 	MaxCompute Dialect = "maxcompute"
@@ -77,7 +80,6 @@ const (
 	Oracle     Dialect = "oracle"
 	Presto     Dialect = "presto"
 	PostgreSQL Dialect = "postgres"
-	QL         Dialect = "ql"
 	// QuestDB speaks PostgreSQL's protocol on its port 8812, and pgx
 	// reaches it.
 	QuestDB Dialect = "questdb"
@@ -113,8 +115,8 @@ type Info struct {
 	//
 	// Hard rule 1 would normally send a fact about a scheme to dburl, and
 	// dburl carries this one from v0.29.0: it marks file, sqlite3,
-	// moderncsqlite, csvq, duckdb, chai and ql DeploymentEmbedded, which is
-	// the same statement about the same seven schemes. It is still declared
+	// moderncsqlite, csvq, duckdb and chai DeploymentEmbedded, which is the
+	// same statement about the same six schemes. It is still declared
 	// here, because dbmeta has no dependencies and never opens a connection,
 	// so a caller holding a Dialect has no URL to hand to dburl.
 	//
@@ -157,6 +159,17 @@ type Info struct {
 	// error for a type it does not know and for a string it cannot
 	// escape safely.
 	Literal func(v any) (string, error)
+	// BindValue converts one parameter value before it is bound, for a
+	// product whose drivers cannot bind every type a parameter here takes.
+	// Nil for every product but Oracle, and a nil BindValue binds the value
+	// as it is.
+	//
+	// Oracle is the case because it has no boolean before 23ai, and
+	// go-ora/v3 refuses a Go bool with "no parameter coder registered for
+	// go type bool". go-ora/v2 binds one as a number. The Oracle model
+	// compares with_system with 1, so it binds a bool as 1 or 0, which both
+	// drivers carry. usql found it on 2026-09-30. See D136.
+	BindValue func(v any) any
 
 	// VersionQuery reads the server version. An empty string means the database
 	// reports no version, and a caller uses an unknown version.
@@ -192,6 +205,24 @@ type Info struct {
 	// text and never runs anything. Nil when the product has no such
 	// statement, which is every embedded database here.
 	ChangePassword func(c PasswordChange, q Quoting) (string, error)
+	// OldPassword says ChangePassword needs PasswordChange.Old: the product
+	// refuses a user's own password change without the current one. SQL
+	// Server is the case. A caller asks for the old password when it is
+	// true. See D143.
+	OldPassword bool
+
+	// Syntax is the lexical forms the product's SQL has, for a client that
+	// splits text into statements. See D143.
+	Syntax Syntax
+	// Terminator says what the product does with a semicolon that ends a
+	// statement. The zero value keeps it. See D143.
+	Terminator Terminator
+	// Batches are the statements that open and close a batch, which a client
+	// sends as one statement with everything between them. See D143.
+	Batches []Batch
+	// Fold is what the product does to the case of a name that is not
+	// quoted. See [Dialect.FoldIdentifier] and D143.
+	Fold Fold
 }
 
 var (

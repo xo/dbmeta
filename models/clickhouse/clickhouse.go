@@ -76,6 +76,9 @@ func quoteName(name string) string {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.ClickHouse, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax: dbmeta.Syntax{BlockComments: true},
 		// clickhouse-go binds by position and writes a question mark.
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,
@@ -124,6 +127,23 @@ func schemaNameSystem(kind string) []dbmeta.Param {
 		{Name: "with_system", Desc: "include the databases ClickHouse keeps for itself", Default: false},
 	}
 }
+
+// childParams are the parameters of a kind whose objects belong to a table,
+// such as a column. parent filters the table, and name filters the object
+// itself, as in every other model.
+func childParams(kind string) []dbmeta.Param {
+	return []dbmeta.Param{
+		{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+		{Name: "schema", Desc: "database name pattern, empty for every database", Default: ""},
+		{Name: "name", Desc: kind + " name pattern, empty for every " + kind, Default: ""},
+		{Name: "with_system", Desc: "include the databases ClickHouse keeps for itself", Default: false},
+	}
+}
+
+// tableType is the word for a table's kind, which the engine decides.
+const tableType = `multiIf(t.engine = 'MaterializedView', 'materialized view'` +
+	`, t.engine IN (` + viewEngines + `), 'view'` +
+	`, t.is_temporary, 'temporary table', 'table')`
 
 // viewEngines are the table engines that make a table a view.
 //

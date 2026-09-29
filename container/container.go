@@ -158,9 +158,10 @@ type Server struct {
 	Port int
 	// SecondPort is a second port inside the container that is published
 	// too, and zero when there is none. It is published on
-	// [SecondHostPort] of the first host port. QuestDB is the case: dbimp's
+	// [SecondHostPort] of the first host port. QuestDB is one case: dbimp's
 	// driver reads its HTTP port, and dburl's questdb scheme reads its
-	// PostgreSQL port. See D124.
+	// PostgreSQL port. Pinot is the other: the DSN is the broker, and dbimp's
+	// tests load their tables through the controller. See D124.
 	SecondPort int
 	// Env is what the image needs to start with a known password.
 	Env map[string]string
@@ -398,12 +399,12 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j, ArangoDB, InfluxDB, CrateDB, Rqlite, LibSQL, TDengine, Pinot, Databend, Avatica, Phoenix, Druid, Qdrant,
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j, ArangoDB, InfluxDB, CrateDB, Rqlite, LibSQL, Pinot, Databend, Avatica, Phoenix, Druid, Qdrant,
 		Chroma, Weaviate, CouchDB, QuestDB, Meilisearch, Typesense, TerminusDB,
 		CockroachDB, TiDB, MongoDB, Elasticsearch, Dgraph, YDB,
 		Spanner, BigQuery, GizmoSQL, Virtuoso, Alternator, Vitess, Milvus,
 		OpenSearch, DynamoDB, Cosmos, Stardog, GraphDB, VoltDB,
-		Solr, Drill, H2, Fuseki, PostgREST, KsqlDB)
+		Solr, Drill, H2, Fuseki, PostgREST, KsqlDB, SingleStore, Impala)
 }
 
 // AtTier returns the servers tested at t.

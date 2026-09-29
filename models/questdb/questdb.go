@@ -35,6 +35,9 @@ const versionQuery = `SELECT build()`
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.QuestDB, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax:         dbmeta.Syntax{DollarQuotes: true, BlockComments: true},
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
 		VersionQuery:   versionQuery,
 		VersionColumns: 1,

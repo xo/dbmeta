@@ -23,7 +23,7 @@ const relationType = `CASE r.RDB$RELATION_TYPE` +
 	` WHEN 3 THEN 'virtual table'` +
 	` WHEN 4 THEN 'global temporary table'` +
 	` WHEN 5 THEN 'global temporary table'` +
-	` ELSE 'table' END AS "type"`
+	` ELSE 'table' END`
 
 func registerRelations() {
 	registerTables()
@@ -41,12 +41,14 @@ func registerTables() {
 			always(`SELECT '' AS "catalog"`),
 			always(`, ` + noSchema),
 			always(`, TRIM(TRAILING FROM r.RDB$RELATION_NAME) AS "name"`),
-			always(`, ` + relationType),
+			always(`, ` + relationType + ` AS "type"`),
 			always(`, r.RDB$DESCRIPTION AS "comment"`),
 			always(`FROM RDB$RELATIONS r`),
 			always(`WHERE ` + userObject(`r.RDB$SYSTEM_FLAG`)),
 			always(`AND ` + like(`''`, `@schema`) + ``),
-			always(`AND ` + like(`r.RDB$RELATION_NAME`, `@name`) + ``),
+			always(`AND ` + like(`r.RDB$RELATION_NAME`, `@name`)),
+			always(`AND (CAST(@types AS VARCHAR(255)) = '' OR ` +
+				dbmeta.InList(`CAST(@types AS VARCHAR(255))`, relationType) + `)`),
 			always(`ORDER BY r.RDB$RELATION_NAME`),
 		},
 		Fields: []dbmeta.Field{
@@ -56,7 +58,7 @@ func registerTables() {
 			{Name: "type", Desc: "table, view, external table, virtual table or global temporary table"},
 			{Name: "comment", Desc: "from RDB$DESCRIPTION, which COMMENT ON writes"},
 		},
-		Params: schemaAndName("table"),
+		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -194,6 +196,12 @@ func registerColumns() {
 			always(`, CASE WHEN f.RDB$COMPUTED_SOURCE IS NOT NULL` +
 				` THEN 'virtual' ELSE '' END AS "generated"`),
 			always(`, rf.RDB$DESCRIPTION AS "comment"`),
+			// The column's own collation, or its domain's, in the character set of
+			// the domain. A type that is not text has no character set and no
+			// collation.
+			always(`, (SELECT TRIM(TRAILING FROM co.RDB$COLLATION_NAME) FROM RDB$COLLATIONS co` +
+				` WHERE co.RDB$CHARACTER_SET_ID = f.RDB$CHARACTER_SET_ID` +
+				` AND co.RDB$COLLATION_ID = COALESCE(rf.RDB$COLLATION_ID, f.RDB$COLLATION_ID, 0)) AS "collation"`),
 			always(`FROM RDB$RELATION_FIELDS rf`),
 			always(`JOIN RDB$RELATIONS r ON r.RDB$RELATION_NAME = rf.RDB$RELATION_NAME`),
 			always(`JOIN RDB$FIELDS f ON f.RDB$FIELD_NAME = rf.RDB$FIELD_SOURCE`),
@@ -215,6 +223,7 @@ func registerColumns() {
 			{Name: "identity", Desc: "always or by default, and empty when the column is not an identity"},
 			{Name: "generated", Desc: "virtual for a COMPUTED BY column, and empty otherwise. Firebird computes such a column on read and never stores it"},
 			{Name: "comment"},
+			{Name: "collation", Desc: "the collation of a text column, which is named for its character set where the column chose none"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern. Firebird has no schemas", Default: ""},
@@ -225,7 +234,7 @@ func registerColumns() {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

@@ -13,6 +13,21 @@ func registerRelations() {
 	registerConstraints()
 }
 
+// tableType is the word for the kind of the table t.
+var tableType = text(`CASE WHEN t.is_temp_table THEN 'temporary table'` +
+	` WHEN t.table_definition <> '' THEN 'external table'` +
+	` WHEN t.is_flextable THEN 'flex table'` +
+	` ELSE 'table' END`)
+
+// viewType is the word for the kind of the view v.
+var viewType = text(`CASE WHEN v.is_system_view THEN 'system view' ELSE 'view' END`)
+
+// inTypes is the condition that item is one of the types in @types, and
+// holds when @types is empty.
+func inTypes(item string) string {
+	return `(@types = '' OR ` + dbmeta.InList(`@types`, item) + `)`
+}
+
 func registerTables() {
 	// \dn.
 	dbmeta.Schemas.Register(dbmeta.Vertica, &dbmeta.Binding[dbmeta.Schema]{
@@ -51,29 +66,29 @@ func registerTables() {
 			always(`SELECT '' AS "catalog"`),
 			always(`, t.table_schema AS "schema"`),
 			always(`, t.table_name AS "name"`),
-			always(`, ` + text(`CASE WHEN t.is_temp_table THEN 'temporary table'`+
-				` WHEN t.table_definition <> '' THEN 'external table'`+
-				` WHEN t.is_flextable THEN 'flex table'`+
-				` ELSE 'table' END`) + ` AS "type"`),
+			always(`, ` + tableType + ` AS "type"`),
 			always(`, ` + comment("TABLE", "t.table_schema", "t.table_name") + ` AS "comment"`),
 			always(`FROM v_catalog.tables t`),
 			always(`WHERE ` + notSystem(`t.table_schema`)),
 			always(`AND ` + like(`t.table_schema`, `@schema`)),
 			always(`AND ` + like(`t.table_name`, `@name`)),
+			always(`AND ` + inTypes(tableType)),
 			always(`UNION ALL`),
 			always(`SELECT '', v.table_schema, v.table_name`),
-			always(`, ` + text(`CASE WHEN v.is_system_view THEN 'system view' ELSE 'view' END`)),
+			always(`, ` + viewType),
 			always(`, ` + comment("VIEW", "v.table_schema", "v.table_name")),
 			always(`FROM v_catalog.views v`),
 			always(`WHERE ` + notSystem(`v.table_schema`)),
 			always(`AND ` + like(`v.table_schema`, `@schema`)),
 			always(`AND ` + like(`v.table_name`, `@name`)),
+			always(`AND ` + inTypes(viewType)),
 			always(`UNION ALL`),
 			always(`SELECT '', y.table_schema, y.table_name, 'system table', y.table_description`),
 			always(`FROM v_catalog.system_tables y`),
 			always(`WHERE @with_system`),
 			always(`AND ` + like(`y.table_schema`, `@schema`)),
 			always(`AND ` + like(`y.table_name`, `@name`)),
+			always(`AND ` + inTypes(`'system table'`)),
 			always(`ORDER BY 2, 3`),
 		},
 		Fields: []dbmeta.Field{
@@ -83,7 +98,7 @@ func registerTables() {
 			{Name: "type", Desc: "table, temporary table, external table, flex table, view, system view or system table. An external table reads its rows from files at query time, and a flex table stores semi structured data in a map"},
 			{Name: "comment", Desc: "from COMMENT ON TABLE or COMMENT ON VIEW, and the engine's own description for a system table"},
 		},
-		Params: schemaAndName("table"),
+		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -253,6 +268,7 @@ func registerColumns() {
 				` AND m.object_schema = c.table_schema AND m.object_name = c.table_name`+
 				` AND m.child_object = c.column_name) AS "comment"`,
 				`, CAST(NULL AS VARCHAR) AS "comment"`),
+			always(`, CAST(NULL AS VARCHAR) AS "collation"`),
 			always(`FROM v_catalog.columns c`),
 			always(`LEFT JOIN v_catalog.primary_keys k ON k.table_schema = c.table_schema` +
 				` AND k.table_name = c.table_name AND k.column_name = c.column_name`),
@@ -267,6 +283,7 @@ func registerColumns() {
 				` AND m.object_schema = w.table_schema AND m.object_name = w.table_name`+
 				` AND m.child_object = w.column_name)`,
 				`, CAST(NULL AS VARCHAR)`),
+			always(`, CAST(NULL AS VARCHAR)`),
 			always(`FROM v_catalog.view_columns w`),
 			always(`WHERE ` + notSystem(`w.table_schema`)),
 			always(`AND ` + like(`w.table_schema`, `@schema`)),
@@ -285,6 +302,7 @@ func registerColumns() {
 			{Name: "identity", Desc: "always for an IDENTITY or AUTO_INCREMENT column, which refuses an explicit value, and empty otherwise"},
 			{Name: "generated", Desc: "set using for a column Vertica refreshes from a query with SET USING, and empty otherwise. 7.2 has no such column, so it is empty there"},
 			{Name: "comment", Desc: "from COMMENT ON COLUMN. Before 10.1 a comment belongs to a projection column rather than to the table's, so it is absent here"},
+			{Name: "collation", Desc: "always absent: Vertica has no collation on a column"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -296,7 +314,7 @@ func registerColumns() {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

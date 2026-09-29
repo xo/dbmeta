@@ -30,19 +30,19 @@ func registerConstraintColumns() {
 	dbmeta.ConstraintColumns.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.ConstraintColumn]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT k.constraint_catalog AS "catalog"`}},
-			{{Query: `, k.table_schema AS "schema"`}},
+			schemaAs(`, `, "k.table_schema", "schema"),
 			{{Query: `, k.table_name AS "table"`}},
 			{{Query: `, k.constraint_name AS "constraint"`}},
 			{{Query: `, k.column_name AS "name"`}},
 			{{Query: `, k.ordinal_position AS "ordinal"`}},
 			{{Query: `, CASE WHEN k.referenced_table_name IS NULL THEN NULL` +
 				` ELSE k.constraint_catalog END AS "foreign_catalog"`}},
-			{{Query: `, k.referenced_table_schema AS "foreign_schema"`}},
+			schemaAs(`, `, "k.referenced_table_schema", "foreign_schema"),
 			{{Query: `, k.referenced_table_name AS "foreign_table"`}},
 			{{Query: `, k.referenced_column_name AS "foreign_name"`}},
 			{{Query: `FROM information_schema.KEY_COLUMN_USAGE k`}},
-			{{Query: `WHERE (@with_system OR k.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR k.table_schema LIKE @schema)`}},
+			notSystem("WHERE", "k.table_schema"),
+			schemaLike("schema", "k.table_schema"),
 			{{Query: `AND (@parent = '' OR k.table_name LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR k.constraint_name LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3, 4, 6`}},
@@ -75,7 +75,7 @@ func registerRoutineParameters() {
 	dbmeta.RoutineParameters.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.RoutineParameter]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT p.specific_catalog AS "catalog"`}},
-			{{Query: `, p.specific_schema AS "schema"`}},
+			schemaAs(`, `, "p.specific_schema", "schema"),
 			{{Query: `, p.specific_name AS "routine"`}},
 			{{Query: `, p.specific_name AS "routine_id"`}},
 			{{Query: `, p.parameter_name AS "name"`}},
@@ -90,8 +90,8 @@ func registerRoutineParameters() {
 			// for a column that is always empty.
 			{{Query: `, NULL AS "default"`}},
 			{{Query: `FROM information_schema.PARAMETERS p`}},
-			{{Query: `WHERE (@with_system OR p.specific_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR p.specific_schema LIKE @schema)`}},
+			notSystem("WHERE", "p.specific_schema"),
+			schemaLike("schema", "p.specific_schema"),
 			{{Query: `AND (@parent = '' OR p.specific_name LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR COALESCE(p.parameter_name, '') LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3, 6`}},
@@ -112,7 +112,7 @@ func registerRoutineParameters() {
 				Desc: "always absent: neither product lets a stored routine parameter have a default",
 			},
 		},
-		Params: schemaParentName("parameter"),
+		Params: schemaParentOf("routine", "parameter"),
 		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
 			var v dbmeta.RoutineParameter
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Routine, &v.RoutineID, &v.Name,
@@ -127,7 +127,7 @@ func registerViews() {
 	dbmeta.Views.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.View]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT v.table_catalog AS "catalog"`}},
-			{{Query: `, v.table_schema AS "schema"`}},
+			schemaAs(`, `, "v.table_schema", "schema"),
 			{{Query: `, v.table_name AS "name"`}},
 			{{Query: `, v.view_definition AS "definition"`}},
 			{{Query: `, LOWER(v.check_option) AS "check_option"`}},
@@ -135,12 +135,12 @@ func registerViews() {
 			// Neither product publishes whether a view accepts an INSERT.
 			// It is not the same as accepting an UPDATE.
 			{{Query: `, NULL AS "insertable"`}},
-			{{Query: `, NULLIF(t.table_comment, '') AS "comment"`}},
+			{{Query: `, NULL AS "comment"`}},
 			{{Query: `FROM information_schema.VIEWS v`}},
 			{{Query: `LEFT JOIN information_schema.TABLES t` +
 				` ON t.table_schema = v.table_schema AND t.table_name = v.table_name`}},
-			{{Query: `WHERE (@with_system OR v.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR v.table_schema LIKE @schema)`}},
+			notSystem("WHERE", "v.table_schema"),
+			schemaLike("schema", "v.table_schema"),
 			{{Query: `AND (@name = '' OR v.table_name LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
@@ -150,7 +150,7 @@ func registerViews() {
 			{Name: "check_option", Desc: "none, local or cascaded"},
 			{Name: "updatable"},
 			{Name: "insertable", Desc: "always absent: neither product publishes it"},
-			{Name: "comment", Desc: "MariaDB and MySQL write VIEW here for every view"},
+			{Name: "comment", Desc: "always absent: a view has no comment in MySQL or MariaDB, which write the word VIEW in its place"},
 		},
 		Params: schemaNameSystem("view"),
 		Scan: func(rows *sql.Rows) (dbmeta.View, error) {
@@ -260,7 +260,7 @@ func registerCurrentSchema() {
 	dbmeta.CurrentSchema.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT s.catalog_name AS "catalog"`}},
-			{{Query: `, s.schema_name AS "name"`}},
+			schemaAs(`, `, "s.schema_name", "name"),
 			{{Query: `, '' AS "owner"`}},
 			{{Query: `, NULL AS "comment"`}},
 			{{Query: `FROM information_schema.SCHEMATA s`}},

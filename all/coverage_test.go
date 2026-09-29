@@ -42,6 +42,10 @@ func answers(t *testing.T) map[string]int {
 		dialect dbmeta.Dialect
 		// key is the product key a shared dialect gates on. See D44.
 		key string
+		// also is a second key the version set carries, for a model that
+		// shares another model's statements and sets that model's key too,
+		// as TiDB sets mysql. See D133.
+		also string
 	}{
 		{name: "postgres", dialect: dbmeta.PostgreSQL},
 		{name: "mariadb", dialect: dbmeta.MySQL, key: "mariadb"},
@@ -64,6 +68,13 @@ func answers(t *testing.T) map[string]int {
 		{name: "cockroachdb", dialect: dbmeta.CockroachDB, key: "cockroachdb"},
 		{name: "cratedb", dialect: dbmeta.CrateDB, key: "cratedb"},
 		{name: "questdb", dialect: dbmeta.QuestDB},
+		{name: "tidb", dialect: dbmeta.TiDB, key: "tidb", also: "mysql"},
+		{name: "vitess", dialect: dbmeta.Vitess, key: "vitess", also: "mysql"},
+		{name: "databend", dialect: dbmeta.Databend},
+		{name: "singlestore", dialect: dbmeta.MemSQL, key: "memsql", also: "mysql"},
+		{name: "snowflake", dialect: dbmeta.Snowflake},
+		{name: "redshift", dialect: dbmeta.Redshift},
+		{name: "impala", dialect: dbmeta.Impala},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -71,6 +82,9 @@ func answers(t *testing.T) map[string]int {
 		set.Set("", dbmeta.V(9999))
 		if c.key != "" {
 			set.Set(c.key, dbmeta.V(9999))
+		}
+		if c.also != "" {
+			set.Set(c.also, dbmeta.V(9999))
 		}
 		m, err := dbmeta.New(c.dialect, set)
 		if err != nil {
@@ -94,7 +108,7 @@ var displayNames = map[string]string{
 	"Firebird": "firebird", "SAP HANA": "hana", "Apache Hive": "hive",
 	"Exasol": "exasol", "Vertica": "vertica", "ScyllaDB": "scylla",
 	"Couchbase": "couchbase", "CockroachDB": "cockroachdb", "CrateDB": "cratedb",
-	"QuestDB": "questdb",
+	"QuestDB": "questdb", "TiDB": "tidb", "Vitess": "vitess", "Databend": "databend", "SingleStore": "singlestore", "Snowflake": "snowflake", "Amazon Redshift": "redshift", "Apache Impala": "impala",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -259,7 +273,8 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"firebird": "Firebird", "hana": "SAP HANA", "hive": "Apache Hive",
 			"exasol": "Exasol", "vertica": "Vertica", "scylla": "ScyllaDB",
 			"couchbase": "Couchbase", "cockroachdb": "CockroachDB",
-			"cratedb": "CrateDB", "questdb": "QuestDB",
+			"cratedb": "CrateDB", "questdb": "QuestDB", "tidb": "TiDB",
+			"vitess": "Vitess", "databend": "Databend", "singlestore": "SingleStore", "snowflake": "Snowflake", "redshift": "Amazon Redshift", "impala": "Apache Impala",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -298,7 +313,8 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"firebird": "Firebird", "hana": "SAP HANA", "hive": "Apache Hive",
 			"exasol": "Exasol", "vertica": "Vertica", "scylla": "ScyllaDB",
 			"couchbase": "Couchbase", "cockroachdb": "CockroachDB",
-			"cratedb": "CrateDB", "questdb": "QuestDB",
+			"cratedb": "CrateDB", "questdb": "QuestDB", "tidb": "TiDB",
+			"vitess": "Vitess", "databend": "Databend", "singlestore": "SingleStore", "snowflake": "Snowflake", "redshift": "Amazon Redshift", "impala": "Apache Impala",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+

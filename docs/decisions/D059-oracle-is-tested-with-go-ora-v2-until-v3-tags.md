@@ -1,6 +1,6 @@
 # D59. Oracle is tested with go-ora v2 until v3 tags its fix
 
-Status: Amends D52.
+Status: Amends D52, amended by D136.
 
 D52 says a test driver is the one `usql` uses or it is the wrong driver.
 Oracle is the first exception, and it is not a preference.

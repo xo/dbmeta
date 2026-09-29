@@ -27,8 +27,8 @@
 #
 # A Staged release is in neither matrix. No model reads it, so a job would
 # start it and test nothing. That is the servers dbrun starts for dbimp's
-# drivers and for the flavors usql reaches, and the embedded chai, csvq and
-# ql. See D119.
+# drivers and for the flavors usql reaches, and the embedded chai and csvq.
+# See D119.
 #
 # MariaDB and MySQL are two products sharing one dialect and one model, so each
 # has its own job and a third compares them. The compare job builds the same

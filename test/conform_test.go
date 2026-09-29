@@ -16,20 +16,25 @@ import (
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
+	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
+	imfixture "github.com/xo/dbmeta/models/impala/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
 	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
+	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
+	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
+	vtfixture "github.com/xo/dbmeta/models/vitess/fixture"
 )
 
 // The cross family conformance test.
@@ -95,8 +100,28 @@ func conformTargets() []conformTarget {
 			open: openCrateDB, schema: crfixture.Everything.Schema, build: setupCrateDB,
 		},
 		{
+			name: "databend", dialect: dbmeta.Databend,
+			open: openDatabend, schema: dbfixture.Everything.Schema, build: setupDatabend,
+		},
+		{
+			name: "singlestore", dialect: dbmeta.MemSQL,
+			open: openSingleStore, schema: ssfixture.Everything.Schema, build: setupSingleStore,
+		},
+		{
+			name: "impala", dialect: dbmeta.Impala,
+			open: openImpala, schema: imfixture.Everything.Schema, build: setupImpala,
+		},
+		{
 			name: "questdb", dialect: dbmeta.QuestDB,
 			open: openQuestDB, schema: qdfixture.Everything.Schema, build: setupQuestDB,
+		},
+		{
+			name: "tidb", dialect: dbmeta.TiDB,
+			open: openTiDB, schema: tdfixture.Everything.Schema, build: setupTiDB,
+		},
+		{
+			name: "vitess", dialect: dbmeta.Vitess,
+			open: openVitess, schema: vtfixture.Everything.Schema, build: setupVitess,
 		},
 		{
 			name: "mysql", dialect: dbmeta.MySQL,
@@ -591,11 +616,18 @@ var agreementExcluded = map[string]string{
 		" book.title the relational databases agree on cannot be built. A check" +
 		" constraint is in pg_constraint with no columns behind it in" +
 		" key_column_usage, so the check on book.title has no line either",
+	"databend": "no key of any kind: Databend has no primary key, no foreign" +
+		" key and no unique constraint on any release, so no column reads a key" +
+		" where the relational databases agree, and the one constraint line is" +
+		" the CHECK on book.title",
 	"exasol": "no unique constraint: Exasol refuses UNIQUE and CHECK as not" +
 		" supported on every release, so the unique constraint on book.title" +
 		" the relational databases agree on cannot be built. It agrees on the" +
 		" other 22 lines, and it reports each NOT NULL as a named constraint" +
 		" of its own, which is how Exasol keeps them",
+	"impala": "no constraint Impala lists: a primary key and a foreign key are" +
+		" information Impala keeps and SHOW does not list, and a Parquet table" +
+		" refuses NOT NULL, so every column reads nullable and none a key",
 	"presto": "a query engine rather than a store, which is the same reason as" +
 		" trino. It also keeps no NOT NULL, because its memory connector refuses" +
 		" one on the newest release there is, so every column reads nullable" +
@@ -604,6 +636,9 @@ var agreementExcluded = map[string]string{
 		" foreign key, no unique constraint, no check and no NOT NULL on any" +
 		" release, so every column reads nullable and none a key where the" +
 		" relational databases agree, and there are no constraint lines",
+	"singlestore": "no foreign key: SingleStore refuses one on every release," +
+		" so the two foreign keys the relational databases agree on cannot be" +
+		" built. It agrees on the other 21 lines",
 	"trino": "a query engine rather than a store: it has no constraint of any" +
 		" kind at any release, so every column reads primary_key=false where" +
 		" the relational databases agree on the key, and there are no" +

@@ -54,8 +54,8 @@ type Service struct {
 //
 // Fauna and the MongoDB Atlas Data API are not here. Fauna shut down on
 // 2025-05-30, and MongoDB removed the Data API on 2025-09-30. SingleStore is
-// not here either. Its development image runs locally, and Ken chose to give
-// it no entry at all. See D117 and D118.
+// not here either. Its development image runs locally, and it has a container
+// entry. See D117 and D141.
 func All() []Service {
 	out := []Service{
 		{
@@ -123,7 +123,7 @@ func All() []Service {
 	for i := range out {
 		out[i].Tier = container.Staged
 		switch out[i].Dialect {
-		case dbmeta.PostgreSQL, dbmeta.MySQL:
+		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift:
 			out[i].Tier = container.Verified
 		}
 	}

@@ -67,7 +67,8 @@ func registerTables() {
 			always(`WHERE t.base_object_type IN ('TABLE', 'VIEW')`),
 			notSystem("AND", "t.table_owner"),
 			always(`AND (@schema IS NULL OR t.table_owner LIKE @schema)`),
-			always(`AND (@name IS NULL OR t.table_name LIKE @name)`),
+			always(`AND (@parent IS NULL OR t.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR t.trigger_name LIKE @name)`),
 			always(`ORDER BY t.table_owner, t.table_name, t.trigger_name`),
 		},
 		Fields: []dbmeta.Field{
@@ -79,7 +80,7 @@ func registerTables() {
 			},
 			{Name: "comment", Desc: "always absent: Oracle records no comment on a trigger"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("table", "trigger"),
 		Scan: func(rows *sql.Rows) (dbmeta.Trigger, error) {
 			var v dbmeta.Trigger
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Enabled,
@@ -219,7 +220,8 @@ func registerTables() {
 				` AND t.table_name = s.table_name`),
 			notSystem("WHERE", "s.owner"),
 			always(`AND (@schema IS NULL OR s.owner LIKE @schema)`),
-			always(`AND (@name IS NULL OR s.table_name LIKE @name)`),
+			always(`AND (@parent IS NULL OR s.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR s.column_name LIKE @name)`),
 			always(`ORDER BY s.owner, s.table_name, s.column_name`),
 		},
 		Fields: []dbmeta.Field{
@@ -245,7 +247,7 @@ func registerTables() {
 			},
 			{Name: "top_n_freqs", Desc: "always absent, for the same reason as top_n"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("table", "column"),
 		Scan: func(rows *sql.Rows) (dbmeta.ColumnStat, error) {
 			var v dbmeta.ColumnStat
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.AvgWidth,

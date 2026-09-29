@@ -206,7 +206,7 @@ A command acts on the servers that its selectors name. Every command except
 | `verified` | every release that a person runs before a release |
 | `staged` | every release that no model reads yet, which CI never runs (D119) |
 | `all` | every release of every product |
-| `sqlite3`, `duckdb`, `moderncsqlite`, `ql`, `chai`, `csvq` | an embedded database, which is a file or a directory and not a server |
+| `sqlite3`, `duckdb`, `moderncsqlite`, `chai`, `csvq` | an embedded database, which is a file or a directory and not a server |
 
 ## Names, ports and credentials
 
@@ -219,12 +219,20 @@ The host port of a container is 55000 plus the place of the release in
 port into a script or a test. Read it from `dsn --json`, because a release
 added earlier in the list moves every port after it. When that happens,
 `start` rebuilds a container whose port no longer matches, and `status` says
-so. A container that publishes a second port, as QuestDB does, publishes it on
-the first host port plus 1000 (D124). A virtual machine has a fixed port of
+so. A container that publishes a second port, as QuestDB and Pinot do,
+publishes it on the first host port plus 1000 (D124). `dsn --json` prints
+that address in the `secondAddress` field. A virtual machine has a fixed port of
 its own, named in `container/machine.go` and `container/windows.go`.
 
 The connection string holds the administrator of each product. Most use the
-password in `container.Password`:
+password in `container.Password`.
+
+The MariaDB and MySQL connection strings name no database, because the server
+has no database but its own. Before a client creates a table there, it must
+run `CREATE DATABASE`. The TiDB and Vitess connection strings name `dbmeta`,
+which each of them makes.
+
+The administrator of each product:
 
 | Product | Administrator | Password |
 | --- | --- | --- |
@@ -240,7 +248,7 @@ password in `container.Password`:
 | Couchbase | `Administrator` | `container.Password` |
 | SurrealDB | `root` | `container.Password` |
 | Neo4j | `neo4j` | `container.Password` |
-| ArangoDB, TDengine | `root` | `container.Password` |
+| ArangoDB | `root` | `container.Password` |
 | Databend | `root` | `container.Password` |
 | rqlite, libSQL, Apache Pinot | `admin` | `container.Password` |
 | InfluxDB 1 | `admin` | `container.Password` |
@@ -274,7 +282,7 @@ named `dbmeta_user` with `container.Password`. On Couchbase it is
 `container.CouchbaseUser` (D96). On SurrealDB it is `container.SurrealDBUser`,
 a user on the database `dbmeta` in the namespace `dbmeta` (D103). On Neo4j it
 is `container.Neo4jUser`, with the role `publisher`, and the setup also makes
-the database `dbmeta` (D106). ArangoDB, CrateDB, Databend, TDengine, rqlite,
+the database `dbmeta` (D106). ArangoDB, CrateDB, Databend, rqlite,
 Apache Pinot and Apache Druid have one too, and D112 and D113 say what each
 may do. InfluxDB 1 and 2
 have `container.InfluxDBUser`, who may only read `dbmeta` (D114). InfluxDB 3
@@ -408,7 +416,7 @@ and then reads asks for `scan_consistency=request_plus` (D96).
 | after `test` | removed, unless `--keep` | kept, because it takes an hour to rebuild, unless `--remove` | kept, unless `--remove` | nothing to keep |
 
 An embedded database runs in the process that opens it and has no server.
-SQLite and DuckDB have dbmeta models. moderncsqlite, ql, chai and csvq have
+SQLite and DuckDB have dbmeta models. moderncsqlite, chai and csvq have
 none yet, and `dbrun` knows them so that a test or `usql` can find them
 (D116). moderncsqlite is SQLite without cgo, with a file of its own beside
 the sqlite3 one. chai and csvq are a directory rather than a file.

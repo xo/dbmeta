@@ -1,6 +1,6 @@
 # D129. An embedded product waits for a model
 
-Status: Amends D66.
+Status: Amends D66, amended by D142.
 
 Ken decided on 2026-09-29 that chai, csvq and ql wait for a model, as every
 other Staged release does, and stay in dbrun.

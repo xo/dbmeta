@@ -167,15 +167,15 @@ func registerForeignData() {
 	// reads data this server does not hold.
 	dbmeta.ForeignTables.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.ForeignTable]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT t.table_schema AS "schema"`}},
+			schemaAs(`SELECT `, "t.table_schema", "schema"),
 			{{Query: `, t.table_name AS "name"`}},
 			{{Query: `, t.engine AS "server"`}},
 			{{Query: `, NULLIF(t.create_options, '') AS "options"`}},
 			{{Query: `, NULLIF(t.table_comment, '') AS "comment"`}},
 			{{Query: `FROM information_schema.TABLES t`}},
 			{{Query: `WHERE t.engine IN (` + foreignEngines + `)`}},
-			{{Query: `AND (@with_system OR t.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
+			notSystem("AND", "t.table_schema"),
+			schemaLike("schema", "t.table_schema"),
 			{{Query: `AND (@name = '' OR t.table_name LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2`}},
 		},

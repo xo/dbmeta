@@ -79,11 +79,17 @@ const Reference = "23.26.3.0.0"
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Oracle, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax:         dbmeta.Syntax{BlockComments: true},
+		Terminator:     dbmeta.TerminatorStrippedUnlessEnd,
+		Fold:           dbmeta.FoldUpper,
 		Placeholder:    func(n int) string { return ":" + itoa(n) },
 		VersionQuery:   versionQuery,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,
 		ChangePassword: changePassword,
+		BindValue:      bindValue,
 	})
 	registerRelations()
 	registerColumns()
@@ -91,6 +97,19 @@ func init() {
 	registerRoutines()
 	registerTables()
 	registerCatalog()
+}
+
+// bindValue binds a bool as 1 or 0. Oracle has no boolean before 23ai,
+// go-ora/v3 refuses a Go bool, and every statement here compares a flag with
+// 1. See D136.
+func bindValue(v any) any {
+	if b, ok := v.(bool); ok {
+		if b {
+			return 1
+		}
+		return 0
+	}
+	return v
 }
 
 // versionQuery reads the banner.

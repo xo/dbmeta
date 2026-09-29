@@ -15,6 +15,7 @@ import (
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
+	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
@@ -24,7 +25,9 @@ import (
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
 	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
+	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
+	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
 )
@@ -172,6 +175,33 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
+			dialect: dbmeta.TiDB, driver: "mysql", env: "DBMETA_TIDB",
+			open: openTiDB, build: setupTiDB, schema: tdfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// TiDB has no containment either, and the same two
+				// lesser principals as MySQL: one with every privilege on
+				// the schema, and one that may only read it.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "grantee", make: makeTiDBGrantee},
+					{name: "reader", make: makeTiDBReader},
+				},
+			}},
+		},
+		{
+			dialect: dbmeta.MemSQL, driver: "mysql", env: "DBMETA_MEMSQL",
+			open: openSingleStore, build: setupSingleStore, schema: ssfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// SingleStore has no containment, and takes MySQL's
+				// grants, so the principals are TiDB's.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "grantee", make: makeTiDBGrantee},
+					{name: "reader", make: makeTiDBReader},
+				},
+			}},
+		},
+		{
 			dialect: dbmeta.SQLServer, driver: "sqlserver", env: "DBMETA_SQLSERVER",
 			open: openSQLServer, build: setupSQLServer, schema: msfixture.Everything.Schema,
 			scenes: []parityScene{
@@ -263,6 +293,20 @@ func parityTargets() []parityTarget {
 				principals: []parityPrincipal{
 					{name: "all", make: makeCrateDBHolder("ALL PRIVILEGES")},
 					{name: "grantee", make: makeCrateDBHolder("DQL")},
+				},
+			}},
+		},
+		{
+			dialect: dbmeta.Databend, driver: "databend", env: "DBMETA_DATABEND",
+			open: openDatabend, build: setupDatabend, schema: dbfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Databend has no containment, so root, a user whose role
+				// holds every privilege on the fixture's database, and one
+				// whose role may only read it.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "grantee", make: makeDatabendHolder("ALL")},
+					{name: "reader", make: makeDatabendHolder("SELECT")},
 				},
 			}},
 		},
@@ -374,6 +418,14 @@ func parityTargets() []parityTarget {
 var parityExempt = map[dbmeta.Dialect]string{
 	dbmeta.SQLite3: "a file on disk. It has no user, so there is no second principal to be",
 	dbmeta.DuckDB:  "an embedded library. It has no user either",
+	dbmeta.Snowflake: "a hosted service, and no account is provisioned yet, so the model" +
+		" has not run and its principals are not measured. See D144",
+	dbmeta.Redshift: "a hosted service, and no cluster is provisioned yet, so the model" +
+		" has not run and its principals are not measured. See D144",
+	dbmeta.Impala: "the image configures no authentication, so every user is the same" +
+		" principal and nothing can be refused to one. See D146",
+	dbmeta.Vitess: "vttestserver starts vtcombo with no authentication and no table rules," +
+		" so every user is the same principal and nothing can be refused to one. See D135",
 	// Registered by informationschema_test.go so the shared model can run
 	// against a PostgreSQL server. It is not a product and has no server of
 	// its own, and the PostgreSQL target measures the same host.

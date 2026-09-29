@@ -65,6 +65,12 @@ type Column struct {
 	// generated. PostgreSQL gained it in release 12.
 	Generated sql.Null[string]
 	Comment   sql.Null[string]
+	// Collation is the name of the column's collation, and absent for a
+	// type that has none or a product that records none. It is here under
+	// D47, because psql prints it in \d and it is a column of the same
+	// catalog row. psql prints it only where it differs from the type's
+	// default, and a caller decides that. See D139.
+	Collation sql.Null[string]
 }
 
 // Index is an index on a table.

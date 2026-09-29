@@ -93,6 +93,9 @@ var (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Vertica, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax: dbmeta.Syntax{DollarQuotes: true, BlockComments: true},
 		// vertica-sql-go binds by position and writes a question mark.
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

@@ -98,6 +98,9 @@ func frag(g dbmeta.Gate, query string) dbmeta.Fragment {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.MySQL, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax:         dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true},
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   `SELECT VERSION()`,
 		VersionColumns: 1,
@@ -152,6 +155,91 @@ func IsMariaDB(versions dbmeta.VersionSet) bool {
 // systemSchemas are the schemas MariaDB keeps for itself.
 const systemSchemas = `'mysql', 'information_schema', 'performance_schema', 'sys'`
 
+// TiDB is the version key the TiDB model sets. The TiDB model shares these
+// statements, and the one thing in them that differs on TiDB is the list of
+// schemas the server keeps for itself, so the filter carries an alternative
+// under this key. No server this model reads reports it. See D133.
+const TiDB = "tidb"
+
+// tidbSystemSchemas are the schemas TiDB keeps for itself. TiDB spells three
+// of them in capitals and compares a schema name with the case it has, so
+// the list is written as TiDB spells it, and METRICS_SCHEMA is TiDB's own.
+const tidbSystemSchemas = `'mysql', 'INFORMATION_SCHEMA', 'PERFORMANCE_SCHEMA', 'METRICS_SCHEMA', 'sys'`
+
+// Vitess is the version key the Vitess model sets, for the same reason as
+// [TiDB]: the Vitess model shares these statements, and Vitess keeps one more
+// schema for itself, _vt. See D135.
+const Vitess = "vitess"
+
+// vitessSystemSchemas are the schemas Vitess keeps for itself: MySQL's, and
+// _vt, where Vitess keeps its own state.
+const vitessSystemSchemas = systemSchemas + `, '_vt'`
+
+// MemSQL is the version key the SingleStore model sets, for the same reason
+// as [TiDB]: the SingleStore model shares these statements, and SingleStore
+// keeps its own schemas. See D141.
+const MemSQL = "memsql"
+
+// memsqlSystemSchemas are the schemas SingleStore keeps for itself.
+const memsqlSystemSchemas = `'information_schema', 'memsql', 'cluster'`
+
+// notSystem is the filter that hides the schemas the server keeps for
+// itself unless the caller asks for them, for the column col, after the
+// keyword given.
+func notSystem(keyword, col string) dbmeta.Choice {
+	return dbmeta.Choice{
+		{Query: keyword + ` (@with_system OR ` + col + ` NOT IN (` + systemSchemas + `))`},
+		{Key: TiDB, Query: keyword + ` (@with_system OR ` + col + ` NOT IN (` + tidbSystemSchemas + `))`},
+		{Key: Vitess, Query: keyword + ` (@with_system OR ` + col + ` NOT IN (` + vitessSystemSchemas + `))`},
+		{Key: MemSQL, Query: keyword + ` (@with_system OR ` + col + ` NOT IN (` + memsqlSystemSchemas + `))`},
+	}
+}
+
+// Keyspace is the expression that names the keyspace whose shard stores the
+// database col. Vitess stores a keyspace in one MySQL database for each
+// shard, named vt_, the keyspace, an underscore and the shard, such as
+// vt_dbmeta_0 or vt_dbmeta_-80, and information_schema names that database.
+// vtgate refuses that name in a query and accepts the keyspace, so the model
+// reports the keyspace. A database that does not have that form is its own
+// name, such as mysql or _vt. The Vitess model uses it in the statements of
+// its own. See D135.
+func Keyspace(col string) string {
+	return `CASE WHEN LEFT(` + col + `, 3) = 'vt_' AND LOCATE('_', ` + col + `, 4) > 0` +
+		` THEN SUBSTRING(` + col + `, 4, CHAR_LENGTH(` + col + `) - 4` +
+		` - CHAR_LENGTH(SUBSTRING_INDEX(` + col + `, '_', -1)))` +
+		` ELSE ` + col + ` END`
+}
+
+// schemaAs selects the schema in col as the column alias, after the prefix
+// given, which is SELECT or a comma. On Vitess it selects the keyspace.
+func schemaAs(prefix, col, alias string) dbmeta.Choice {
+	return dbmeta.Choice{
+		{Query: prefix + col + ` AS "` + alias + `"`},
+		{Key: Vitess, Query: prefix + Keyspace(col) + ` AS "` + alias + `"`},
+	}
+}
+
+// schemaLike is the filter that matches the schema in col to the pattern in
+// the parameter param. On Vitess it matches the keyspace.
+func schemaLike(param, col string) dbmeta.Choice {
+	return dbmeta.Choice{
+		{Query: `AND (@` + param + ` = '' OR ` + col + ` LIKE @` + param + `)`},
+		{Key: Vitess, Query: `AND (@` + param + ` = '' OR ` + Keyspace(col) + ` LIKE @` + param + `)`},
+	}
+}
+
+// tableComment is the comment of the table t. MySQL and MariaDB write an
+// empty string for no comment, which is turned back into NULL, and the word
+// VIEW for every view, which cannot have a comment in either product.
+const tableComment = `CASE WHEN t.table_type = 'VIEW' THEN NULL ELSE NULLIF(t.table_comment, '') END`
+
+// tableType is the word for the kind of the table t.
+const tableType = `CASE t.table_type WHEN 'BASE TABLE' THEN 'table'` +
+	` WHEN 'VIEW' THEN 'view'` +
+	` WHEN 'SEQUENCE' THEN 'sequence'` +
+	` WHEN 'SYSTEM VIEW' THEN 'view'` +
+	` ELSE LOWER(t.table_type) END`
+
 func fields(names ...string) []dbmeta.Field { return dbmeta.Fields(names...) }
 
 func schemaNameSystem(kind string) []dbmeta.Param {
@@ -162,9 +250,17 @@ func schemaNameSystem(kind string) []dbmeta.Param {
 	}
 }
 
+// schemaParentName are the parameters of a kind whose objects belong to a
+// table, such as a column.
 func schemaParentName(kind string) []dbmeta.Param {
+	return schemaParentOf("table", kind)
+}
+
+// schemaParentOf are the parameters of a kind whose objects belong to the
+// object parent names, such as a parameter to its routine.
+func schemaParentOf(parent, kind string) []dbmeta.Param {
 	return append([]dbmeta.Param{
-		{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+		{Name: "parent", Desc: parent + " name pattern, empty for every " + parent, Default: ""},
 	}, schemaNameSystem(kind)...)
 }
 

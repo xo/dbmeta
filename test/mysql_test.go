@@ -144,6 +144,12 @@ func TestMySQLScanning(t *testing.T) {
 		if _, ok := want[v.Name]; ok {
 			want[v.Name] = true
 		}
+		// Both products write the word VIEW as the comment of every view,
+		// and a view cannot have a comment, so none is reported. usql found
+		// the word reported as a comment.
+		if v.Type == "view" && v.Comment.Valid {
+			t.Errorf("%s: a view has no comment, got %q", v.Name, v.Comment.V)
+		}
 		if v.Comment.Valid {
 			withComment++
 		} else {
@@ -419,6 +425,9 @@ func TestMySQLNewKinds(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(v.Definition.V), "select") {
 		t.Errorf("expected a select, got %q", v.Definition.V)
+	}
+	if v.Comment.Valid {
+		t.Errorf("a view has no comment, got %q", v.Comment.V)
 	}
 
 	// The current schema follows the connection, and the fixture connects

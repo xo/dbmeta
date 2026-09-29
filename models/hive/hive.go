@@ -74,6 +74,9 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Hive, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Fold: dbmeta.FoldLower,
 		// Hive has no placeholder, because it has no parameter. Literal
 		// is what this dialect uses and Placeholder is never called,
 		// but a nil one would be a trap for anything that reads Info

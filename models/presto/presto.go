@@ -88,6 +88,11 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Presto, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax:     dbmeta.Syntax{BlockComments: true},
+		Terminator: dbmeta.TerminatorStripped,
+		Fold:       dbmeta.FoldLower,
 		// presto-go-client binds by position and writes a question mark. It
 		// sends the statement through PREPARE and EXECUTE, and a parameter
 		// repeated in the text is repeated in the values, which is what every

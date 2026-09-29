@@ -39,6 +39,10 @@ var (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.PostgreSQL, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax:         dbmeta.Syntax{DollarQuotes: true, BlockComments: true},
+		Fold:           dbmeta.FoldLower,
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
 		VersionQuery:   `SHOW server_version`,
 		VersionColumns: 1,
@@ -110,6 +114,16 @@ func registerSchemas() {
 	})
 }
 
+// relationType is the word for a relation's kind, from pg_class.relkind.
+const relationType = `CASE c.relkind` +
+	` WHEN 'r' THEN 'table'` +
+	` WHEN 'p' THEN 'table'` +
+	` WHEN 'v' THEN 'view'` +
+	` WHEN 'm' THEN 'materialized view'` +
+	` WHEN 'S' THEN 'sequence'` +
+	` WHEN 'f' THEN 'foreign table'` +
+	` ELSE c.relkind::text END`
+
 // registerTables backs \dt, \dv, \dm and \ds.
 //
 // Translated from listTables. The relation kinds follow pg_class.relkind: r is
@@ -121,14 +135,7 @@ func registerTables() {
 			{{Query: `SELECT current_database() AS "catalog"`}},
 			{{Query: `, n.nspname AS "schema"`}},
 			{{Query: `, c.relname AS "name"`}},
-			{{Query: `, CASE c.relkind` +
-				` WHEN 'r' THEN 'table'` +
-				` WHEN 'p' THEN 'table'` +
-				` WHEN 'v' THEN 'view'` +
-				` WHEN 'm' THEN 'materialized view'` +
-				` WHEN 'S' THEN 'sequence'` +
-				` WHEN 'f' THEN 'foreign table'` +
-				` ELSE c.relkind::text END AS "type"`}},
+			{{Query: `, ` + relationType + ` AS "type"`}},
 			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
@@ -136,6 +143,7 @@ func registerTables() {
 			{{Query: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
+			{{Query: `AND (@types = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, relationType) + `)`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: []dbmeta.Field{
@@ -149,6 +157,7 @@ func registerTables() {
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
 			{Name: "name", Desc: "relation name pattern, empty for every relation", Default: ""},
 			{Name: "with_system", Desc: "include the relations PostgreSQL keeps for itself", Default: false},
+			dbmeta.TypesParam(),
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var t dbmeta.Table
@@ -194,11 +203,14 @@ func registerColumns() {
 				{Min: v12, Query: `, a.attgenerated AS "generated"`},
 			},
 			{{Query: `, pg_catalog.col_description(c.oid, a.attnum) AS "comment"`}},
+			// attcollation is zero for a type that cannot be collated.
+			{{Query: `, co.collname AS "collation"`}},
 			{{Query: `FROM pg_catalog.pg_attribute a`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = a.attrelid`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_index pk ON pk.indrelid = a.attrelid AND pk.indisprimary`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_collation co ON co.oid = a.attcollation`}},
 			{{Query: `WHERE a.attnum > 0 AND NOT a.attisdropped`}},
 			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@parent = '' OR c.relname LIKE @parent)`}},
@@ -218,6 +230,7 @@ func registerColumns() {
 			{Name: "identity", Desc: "identity kind, empty when the column is not an identity", Min: v11},
 			{Name: "generated", Desc: "generated kind, empty when the column is not generated", Min: v12},
 			{Name: "comment", Desc: "comment on the column"},
+			{Name: "collation", Desc: "the collation of the column, which is default where the column chose none, and absent for a type that cannot be collated"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -229,7 +242,7 @@ func registerColumns() {
 			err := rows.Scan(
 				&c.Catalog, &c.Schema, &c.Table, &c.Name, &c.Ordinal,
 				&c.DataType, &c.Nullable, &c.Default, &c.PrimaryKey,
-				&c.Identity, &c.Generated, &c.Comment,
+				&c.Identity, &c.Generated, &c.Comment, &c.Collation,
 			)
 			return c, err
 		},

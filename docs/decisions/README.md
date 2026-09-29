@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-41 of them amend or replace an earlier one, and a decision read without its
+47 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -65,7 +65,7 @@ file.
 | [D44](D044-a-version-key-names-the-product-a-number-alone.md) | A version key names the product. A number alone never does | Decided |
 | [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query may answer partially, once, and must say so | Decided |
 | [D46](D046-five-object-kinds-are-missing-and-two-consumers.md) | Five object kinds are missing, and two consumers say which | Decided |
-| [D47](D047-dbmeta-supplies-the-data-the-consumer-decides.md) | dbmeta supplies the data. The consumer decides what to show | Decided |
+| [D47](D047-dbmeta-supplies-the-data-the-consumer-decides.md) | dbmeta supplies the data. The consumer decides what to show | Amended by D146 |
 | [D48](D048-cgo-is-allowed-in-the-test-module-and-nowhere.md) | cgo is allowed in the test module, and nowhere else | Amends D26, D29 and D35 |
 | [D49](D049-one-method-on-the-interface-and-a-not-null-is.md) | One method on the interface, and a NOT NULL is not a constraint row | Amended by D121 |
 | [D50](D050-documentation-lives-in-docs-and-the-decision-log.md) | Documentation lives in docs, and the decision log stays one file | Amended by D110 and D111 |
@@ -77,7 +77,7 @@ file.
 | [D56](D056-the-password-statement-is-built-here-and-run-by.md) | The password statement is built here and run by the caller | Amends D5, amended by D127 |
 | [D57](D057-a-windows-machine-is-how-a-pre-2017-sql-server.md) | A Windows machine is how a pre 2017 SQL Server gets tested, and it is Verified | Decided |
 | [D58](D058-one-gitignore-in-the-repository-root.md) | One .gitignore, in the repository root | Decided |
-| [D59](D059-oracle-is-tested-with-go-ora-v2-until-v3-tags.md) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52 |
+| [D59](D059-oracle-is-tested-with-go-ora-v2-until-v3-tags.md) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52, amended by D136 |
 | [D60](D060-the-oracle-model-reads-all-views-and-there-is-no.md) | The Oracle model reads ALL_ views, and there is no DBA_ variant | Decided |
 | [D61](D061-every-dialect-is-measured-against-every.md) | Every dialect is measured against every principal the product has | Amended in place |
 | [D62](D062-cql-cannot-compute-so-the-cassandra-model.md) | CQL cannot compute, so the Cassandra model computes in Scan | Amended by D93 |
@@ -130,14 +130,14 @@ file.
 | [D109](D109-neo4j-is-the-dialect-neo4j-and-its-url-names-the.md) | Neo4j is the dialect neo4j, and its URL names the database | Amends D106, amended by D112 |
 | [D110](D110-every-xo-repository-is-set-up-for-agents-alike.md) | Every xo repository is set up for coding agents the same way | Amends D50 and D89 |
 | [D111](D111-a-large-project-keeps-one-file-per-decision.md) | A large project keeps one file per decision | Amends D50 |
-| [D112](D112-eight-servers-run-under-dbrun-for-dbimp.md) | Eight more servers run under dbrun for dbimp's drivers | Amends D109, amended by D114, D119 and D123 |
+| [D112](D112-eight-servers-run-under-dbrun-for-dbimp.md) | Eight more servers run under dbrun for dbimp's drivers | Amends D109, amended by D114, D119, D123 and D134 |
 | [D113](D113-three-avatica-servers-run-under-dbrun.md) | Three Avatica servers run under dbrun for dbimp's driver | Amended by D119 |
 | [D114](D114-a-server-can-answer-more-than-one-dialect.md) | A server can answer more than one dialect | Amends D112, amended by D119 |
 | [D115](D115-a-server-shows-its-owners-name-and-status-a-shows.md) | A server shows its owner's name, and status -a shows the stopped ones | Amends D98 |
-| [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 |
+| [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 and D142 |
 | [D117](D117-a-hosted-service-appears-in-dbrun-when-its-credential-does.md) | A hosted service appears in dbrun when its credential does | Amended by D125 |
-| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123 |
-| [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 |
+| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123, D141 and D145 |
+| [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 and D142 |
 | [D120](D120-a-staged-release-keeps-its-cadence.md) | A Staged release keeps its cadence | Amends D119 |
 | [D121](D121-the-interface-is-named-queryer.md) | The interface is named Queryer | Amends D49 |
 | [D122](D122-dbrun-calls-the-runner-as-few-times-as-it-can.md) | dbrun calls the runner as few times as it can | Decided |
@@ -147,7 +147,21 @@ file.
 | [D126](D126-a-version-query-waits-for-the-product-s-model.md) | A version query waits for the product's model | Decided |
 | [D127](D127-quoting-rules-live-in-dbmeta.md) | Quoting rules live in dbmeta | Amends D56 |
 | [D128](D128-cockroachdb-lists-crdb-internal.md) | CockroachDB lists crdb_internal | Decided |
-| [D129](D129-an-embedded-product-waits-for-a-model.md) | An embedded product waits for a model | Amends D66 |
+| [D129](D129-an-embedded-product-waits-for-a-model.md) | An embedded product waits for a model | Amends D66, amended by D142 |
 | [D130](D130-db2-is-out-of-scope.md) | Db2 is out of scope | Decided |
 | [D131](D131-cratedb-answers-no-text-search-kind.md) | CrateDB answers no text search kind | Decided |
 | [D132](D132-netezza-is-out-of-scope.md) | Netezza is out of scope | Decided |
+| [D133](D133-tidb-shares-the-mysql-model.md) | TiDB shares the mysql model | Decided |
+| [D134](D134-tdengine-is-removed.md) | TDengine is removed | Amends D112 |
+| [D135](D135-vitess-shares-the-mysql-model.md) | Vitess shares the mysql model and names a schema by its keyspace | Decided |
+| [D136](D136-oracle-binds-a-flag-as-a-number.md) | Oracle binds a flag as a number, and is tested on go-ora v3 too | Amends D59 |
+| [D137](D137-a-child-kind-takes-parent-for-its-owner.md) | A child kind takes parent for its owner and name for itself | Decided |
+| [D138](D138-tables-takes-types.md) | Tables takes types, bound as one string | Decided |
+| [D139](D139-a-column-has-a-collation.md) | A column has a collation | Decided |
+| [D140](D140-databend-reads-its-system-database.md) | Databend reads its system database | Decided |
+| [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no licence | Amends D118 |
+| [D142](D142-ql-is-removed.md) | ql is removed | Amends D116, D119 and D129 |
+| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided |
+| [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided |
+| [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
+| [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 |

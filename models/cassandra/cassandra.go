@@ -193,6 +193,11 @@ func changePassword(c dbmeta.PasswordChange, _ dbmeta.Quoting) (string, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Cassandra, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax:  dbmeta.Syntax{DollarQuotes: true, BlockComments: true, SlashComments: true},
+		Batches: []dbmeta.Batch{{Begin: "BEGIN BATCH", End: "APPLY BATCH"}},
+		Fold:    dbmeta.FoldLower,
 		// CQL binds by position and writes a question mark, the same as
 		// MySQL. The number is not used.
 		Placeholder:    func(int) string { return "?" },
@@ -251,6 +256,28 @@ func filters(kind string) []dbmeta.Param {
 			Default: false,
 		},
 	}
+}
+
+// tableFilters declares the filters of Tables, which narrow nothing either,
+// for the same reason as [filters]. types is declared because every other
+// model takes it.
+func tableFilters() []dbmeta.Param {
+	const why = ", which Cassandra ignores: CQL cannot express an optional" +
+		" filter, so every row is returned and the caller narrows it"
+	types := dbmeta.TypesParam()
+	types.Desc += why
+	return append(filters("table"), types)
+}
+
+// childFilters declares the filters of a kind whose objects belong to a
+// table, such as a column. They narrow nothing either, for the same reason as
+// [filters], and parent is declared because every other model takes it for
+// the table a child belongs to.
+func childFilters(kind string) []dbmeta.Param {
+	const why = ", which Cassandra ignores: CQL cannot express an optional" +
+		" filter, so every row is returned and the caller narrows it"
+	return append([]dbmeta.Param{{Name: "parent", Desc: "table name" + why, Default: ""}},
+		filters(kind)...)
 }
 
 // pad is the scan target for a column whose value Scan already knows: a

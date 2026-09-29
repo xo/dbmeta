@@ -81,6 +81,13 @@ than from memory.
 | CockroachDB | 9 | nothing. It shares the postgres model's statements for all nine |
 | CrateDB | 8 | `RoutineParameters`: a JavaScript function is not in `pg_proc`, and `information_schema` has no `parameters` view. Only `specific_name` holds the argument types, with no names |
 | QuestDB | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: a symbol index is listed only one table at a time, a built in function's arguments are one text, and QuestDB has no key of any kind. `Procs` lists the built in functions, and only with the system objects |
+| TiDB | 7 | `Procs` and `ProcParams`: TiDB has no stored function or procedure. Everything else is the mysql model's statement |
+| Vitess | 9 | nothing. Every one is the mysql model's statement |
+| Databend | 8 | `ProcParams`: a procedure's arguments are one text, such as addup(Int32,Int32) RETURN (Int32), and a function's are a variant |
+| SingleStore | 9 | nothing, although no foreign key is ever listed, because SingleStore has none |
+| Snowflake | 5 | not run (D144). `TableIndexes` and `IndexColumns`: Snowflake has no index. `TableForeignKeys` and `ProcParams`: information_schema has no KEY_COLUMN_USAGE and no parameters view |
+| Amazon Redshift | 5 | not run (D144). `TableIndexes` and `IndexColumns`: Redshift has no index. `TableForeignKeys` and `ProcParams` are not read |
+| Apache Impala | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Impala has no index, and SHOW lists no key and no parameter names |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
 Five answer all nine: PostgreSQL, the MySQL dialect, SQL Server, Oracle and
@@ -121,6 +128,13 @@ dialect is added.
 | CockroachDB | no | yes, all nine. A parameter declared integer reads as bigint, because CockroachDB makes integer 64 bits |
 | CrateDB | no | partly: no foreign key to follow and no parameter names. Every table, column and primary key is there |
 | QuestDB | no | **no**. It has no key and no foreign key, so there is nothing to relate one table to another, and every column is nullable |
+| TiDB | no | yes, without routines. Every table, key and foreign key is there, and TiDB enforces its foreign keys |
+| Vitess | no | yes, all nine. A schema is the keyspace, which is the name vtgate accepts in a query (D135) |
+| Databend | no | partly: no key and no foreign key to follow, because Databend has neither. Every table and column is there, and a CHECK and its columns |
+| SingleStore | no | partly: no foreign key to follow, because SingleStore refuses one. Every table, key, index and routine is there |
+| Snowflake | no | **no**, until it has run (D144), and then partly: no foreign key to follow |
+| Amazon Redshift | no | **no**, until it has run (D144), and then partly: no foreign key to follow |
+| Apache Impala | no | **no**. No key and no foreign key is listed, so there is nothing to relate one table to another, and every column is nullable |
 
 Trino is the first that is a clear no, and it is not the same as answering few
 of the nine. `dbtpl` generates typed access from a schema and follows a foreign

@@ -136,7 +136,7 @@ postgres, snowflake, sqlite3, sqlserver, trino.
 
 adodb, athena, avatica, bigquery, cassandra, chai, cosmos, couchbase, csvq,
 databricks, dynamodb, exasol, firebird, flightsql, godror, h2, hive, ignite,
-maxcompute, moderncsqlite, odbc, ots, presto, ql, sapase, saphana, spanner,
+maxcompute, moderncsqlite, odbc, ots, presto, sapase, saphana, spanner,
 vertica, voltdb, ydb.
 
 The 14 supported drivers are also split across two places. Five live under
@@ -551,11 +551,11 @@ starts and no model reads yet, and CI never runs it. Archived has no tests. `con
 the list, and the workflow reads it through `dbrun list --json --names`
 (D69). CI compiles the tests once and every job runs the binary (D82). The
 embedded databases run in the same matrix and start nothing. A separate job
-compares MariaDB with MySQL (D44). CockroachDB and CrateDB have models of
-their own, and CockroachDB's shares most of the postgres model's statements.
-TiDB and Vitess
-have Staged entries that wait for models of their own, and Redshift is a
-hosted service with a dialect of its own (D117, D118, D123, D125).
+compares MariaDB with MySQL (D44). CockroachDB, CrateDB, TiDB and Vitess
+have models of their own. CockroachDB's shares most of the postgres model's
+statements, and TiDB's and Vitess's most of the mysql model's. Redshift is a
+hosted service with a dialect of its own (D117, D118, D123, D125, D133,
+D135).
 
 The Verified tier must run before a release (D64).
 

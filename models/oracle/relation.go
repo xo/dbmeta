@@ -105,6 +105,21 @@ func schemaNameSystem(kind string) []dbmeta.Param {
 	}
 }
 
+// objectType is the word for the kind of the object o, a table or a view.
+const objectType = `CASE o.object_type WHEN 'VIEW' THEN 'view' ELSE 'table' END`
+
+// childParams are the parameters of a kind whose objects belong to another
+// object, such as a column to its table. parent filters the object it
+// belongs to, and name filters the object itself, as in every other model.
+func childParams(parent, kind string) []dbmeta.Param {
+	return []dbmeta.Param{
+		{Name: "parent", Desc: parent + " name pattern, empty for every " + parent, Default: ""},
+		{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
+		{Name: "name", Desc: kind + " name pattern, empty for every " + kind, Default: ""},
+		{Name: "with_system", Desc: "include the schemas Oracle keeps for itself", Default: false},
+	}
+}
+
 func registerRelations() {
 	// \dn. A schema is a user in Oracle, so this reads the users.
 	dbmeta.Schemas.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Schema]{
@@ -144,7 +159,7 @@ func registerRelations() {
 			always(`SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS "catalog"`),
 			always(`, o.owner AS "schema"`),
 			always(`, o.object_name AS "name"`),
-			always(`, CASE o.object_type WHEN 'VIEW' THEN 'view' ELSE 'table' END AS "type"`),
+			always(`, ` + objectType + ` AS "type"`),
 			always(`, c.comments AS "comment"`),
 			always(`FROM all_objects o`),
 			always(`LEFT JOIN all_tab_comments c`),
@@ -156,6 +171,7 @@ func registerRelations() {
 			notSystem("AND", "o.owner"),
 			always(`AND (@schema IS NULL OR o.owner LIKE @schema)`),
 			always(`AND (@name IS NULL OR o.object_name LIKE @name)`),
+			always(`AND (@types IS NULL OR ` + dbmeta.InList(`@types`, objectType) + `)`),
 			always(`ORDER BY o.owner, o.object_name`),
 		},
 		Fields: []dbmeta.Field{
@@ -163,7 +179,7 @@ func registerRelations() {
 			{Name: "type", Desc: "table or view"},
 			{Name: "comment", Desc: "the COMMENT ON TABLE, which Oracle keeps in its own view"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -202,6 +218,12 @@ func registerColumns() {
 			// reported from 11g on.
 			always(`, NULLIF(c.virtual_column, 'NO') AS "generated"`),
 			always(`, m.comments AS "comment"`),
+			// The collation of a column arrived in 12.2. A type that is not text
+			// has none.
+			dbmeta.Choice{
+				{Query: `, NULL AS "collation"`},
+				{Min: v122, Query: `, c.collation AS "collation"`},
+			},
 			always(`FROM all_tab_cols c`),
 			always(`LEFT JOIN all_col_comments m`),
 			always(`  ON m.owner = c.owner AND m.table_name = c.table_name` +
@@ -220,7 +242,8 @@ func registerColumns() {
 			always(`WHERE c.hidden_column = 'NO'`),
 			notSystem("AND", "c.owner"),
 			always(`AND (@schema IS NULL OR c.owner LIKE @schema)`),
-			always(`AND (@name IS NULL OR c.table_name LIKE @name)`),
+			always(`AND (@parent IS NULL OR c.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR c.column_name LIKE @name)`),
 			always(`ORDER BY c.owner, c.table_name, c.column_id`),
 		},
 		Fields: []dbmeta.Field{
@@ -234,13 +257,14 @@ func registerColumns() {
 			},
 			{Name: "generated", Desc: "set for a virtual column"},
 			{Name: "comment", Desc: "the COMMENT ON COLUMN"},
+			{Name: "collation", Min: v122, Desc: "the collation of a text column, absent before 12.2 where Oracle had none per column"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("table", "column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey,
-				&v.Identity, &v.Generated, &v.Comment)
+				&v.Identity, &v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

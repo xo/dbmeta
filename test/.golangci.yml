@@ -104,6 +104,8 @@ linters:
             - github.com/beltran/gohive
             - github.com/exasol/exasol-driver-go
             - github.com/vertica/vertica-sql-go
+            - github.com/snowflakedb/gosnowflake
+            - github.com/sclgo/impala-go
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:

@@ -94,6 +94,10 @@ type target struct {
 	// a URL.
 	DSN string `json:"dsn,omitempty"`
 	URL string `json:"url,omitempty"`
+	// SecondAddress is the host and port that a container's second port is
+	// published on, such as the controller of Pinot, and is empty when the
+	// container has no second port. See D124.
+	SecondAddress string `json:"secondAddress,omitempty"`
 	// Credential says where a hosted service's connection string came from,
 	// such as env DBMETA_SNOWFLAKE_DSN, and never holds the secret. DSN and
 	// URL hold the connection string with its secret masked, and secret
@@ -215,7 +219,6 @@ var unmodeled = []struct {
 	{name: "chai", dialect: dbmeta.Chai},
 	{name: "csvq", dialect: dbmeta.CSVQ},
 	{name: "moderncsqlite", dialect: dbmeta.SQLite3, ext: ".db"},
-	{name: "ql", dialect: dbmeta.QL, ext: ".ql"},
 }
 
 // embeddedExt is the file extension for a library's database.
@@ -295,27 +298,28 @@ func targets() []target {
 			flags = licenseMount(p, s.License)
 		}
 		out = append(out, target{
-			Name:       s.Name(),
-			Product:    s.Product,
-			Release:    s.Release,
-			Kind:       kindContainer,
-			Tier:       s.Tier,
-			Cadence:    s.Cadence,
-			Dialect:    s.Dialect,
-			Env:        envFor(s.Dialect, s.Product),
-			Also:       s.Also,
-			AlsoEnv:    alsoEnv(s.Also),
-			DSN:        s.DSN(port),
-			URL:        s.URL(port),
-			Principals: principalsOf(s, port),
-			Run:        s.RunArgs(s.Name(), port, flags...),
-			License:    license,
-			Ready:      s.ReadyArgs(s.Name()),
-			Init:       s.InitArgs(s.Name()),
-			InitInput:  s.InitInput,
-			Startup:    s.Startup,
-			Settle:     s.Settle,
-			Remove:     s.RemoveArgs(s.Name()),
+			Name:          s.Name(),
+			Product:       s.Product,
+			Release:       s.Release,
+			Kind:          kindContainer,
+			Tier:          s.Tier,
+			Cadence:       s.Cadence,
+			Dialect:       s.Dialect,
+			Env:           envFor(s.Dialect, s.Product),
+			Also:          s.Also,
+			AlsoEnv:       alsoEnv(s.Also),
+			DSN:           s.DSN(port),
+			URL:           s.URL(port),
+			SecondAddress: secondAddress(s, port),
+			Principals:    principalsOf(s, port),
+			Run:           s.RunArgs(s.Name(), port, flags...),
+			License:       license,
+			Ready:         s.ReadyArgs(s.Name()),
+			Init:          s.InitArgs(s.Name()),
+			InitInput:     s.InitInput,
+			Startup:       s.Startup,
+			Settle:        s.Settle,
+			Remove:        s.RemoveArgs(s.Name()),
 		})
 	}
 	for _, m := range container.Machines() {
@@ -364,6 +368,15 @@ func principalsOf(s container.Server, port int) []principal {
 		out = append(out, principal{Role: p.Role, User: p.User, DSN: p.DSN(port), URL: p.URL(port)})
 	}
 	return out
+}
+
+// secondAddress is the address a server's second port is published on, and
+// empty when it has none.
+func secondAddress(s container.Server, port int) string {
+	if s.SecondPort == 0 {
+		return ""
+	}
+	return fmt.Sprintf("127.0.0.1:%d", container.SecondHostPort(port))
 }
 
 // rebuildCost says what building a machine again costs.

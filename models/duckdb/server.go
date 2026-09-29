@@ -136,7 +136,7 @@ func registerFunctions() {
 			{Name: "data_type"},
 			{Name: "default", Desc: "always absent: DuckDB records no parameter default"},
 		},
-		Params: schemaParentName("parameter"),
+		Params: schemaParentOf("routine", "parameter"),
 		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
 			var v dbmeta.RoutineParameter
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Routine, &v.RoutineID, &v.Name,

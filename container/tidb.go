@@ -10,11 +10,8 @@ import (
 // The TiDB releases dbrun starts.
 //
 // TiDB speaks the MySQL wire protocol, and usql reaches it with the scheme
-// tidb. The dialect is tidb, which dburl gives it from v0.36.0 (dburl D37).
-// TiDB answers VERSION() with 8.0.11-TiDB-v8.5.8, and models/mysql would read
-// that as MySQL, so TiDB gets a model of its own that shares the mysql model's
-// statements where they answer, as CockroachDB does with PostgreSQL's (D123,
-// D125). No model reads it yet. See D118.
+// tidb, which dburl opens with the mysql driver. models/tidb reads it, and
+// shares the mysql model's statements where they answer (D123, D133).
 //
 // # The range
 //
@@ -86,10 +83,7 @@ func tidbURL(user string) func(port int) string {
 	}
 }
 
-// TiDB is every TiDB release dbrun starts.
-//
-// Staged until a model reads the tidb dialect, so CI runs none of them.
-// Each keeps the cadence it would have, and takes it as its tier when the
-// model arrives. See D118, D119 and D120.
-var TiDB = list{}.staged(tidb, Tested, "7.5.8", "8.5.8").
-	staged(tidb, Nightly, "8.1.2")
+// TiDB is every TiDB release dbmeta is tested against. Each takes the cadence
+// it kept while it was Staged as its tier (D120).
+var TiDB = list{}.add(tidb, Tested, "7.5.8", "8.5.8").
+	add(tidb, Nightly, "8.1.2")

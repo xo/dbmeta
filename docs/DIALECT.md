@@ -169,7 +169,7 @@ port, no password and no release to pin, because the release is whichever one
 the driver links. D42 keeps them out of `container/` and they must stay out.
 `dbrun` finds them through `Info.Embedded`, so that `dbrun test sqlite3` works
 and `dbrun status` says what they are. If the database is in `unmodeled` in
-`test/cmd/dbrun/target.go`, as chai, csvq, ql and moderncsqlite are, remove it
+`test/cmd/dbrun/target.go`, as chai, csvq and moderncsqlite are, remove it
 from there when the model registers (D116).
 
 What changes for an embedded database:

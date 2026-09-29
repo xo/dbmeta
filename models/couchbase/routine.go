@@ -99,7 +99,8 @@ func registerRoutines() {
 			from76("FROM system:functions f"),
 			from76("UNNEST ARRAY {\"pos\": i, \"name\": v} FOR i:v IN " + funcParams + " END AS p"),
 			from76("WHERE " + like(funcSchema, "@schema")),
-			from76("AND " + like("f.identity.name", "@name")),
+			from76("AND " + like("f.identity.name", "@parent")),
+			from76("AND " + like("p.name", "@name")),
 			from76("ORDER BY 1, 2, 3, 6"),
 		},
 		Fields: []dbmeta.Field{
@@ -114,8 +115,9 @@ func registerRoutines() {
 			{Name: "default", Desc: "always absent: a parameter has no default"},
 		},
 		Params: []dbmeta.Param{
+			{Name: "parent", Desc: "function name pattern, empty for every function", Default: ""},
 			{Name: "schema", Desc: "scope name pattern, empty for every scope", Default: ""},
-			{Name: "name", Desc: "function name pattern, empty for every function", Default: ""},
+			{Name: "name", Desc: "parameter name pattern, empty for every parameter", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
 			var v dbmeta.RoutineParameter

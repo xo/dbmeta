@@ -26,6 +26,14 @@ func registerRelations() {
 	registerConstraints()
 }
 
+// tableType is the word for a table's kind, from TBL_TYPE.
+const tableType = `CASE t.TBL_TYPE` +
+	` WHEN 'MANAGED_TABLE' THEN 'table'` +
+	` WHEN 'EXTERNAL_TABLE' THEN 'external table'` +
+	` WHEN 'VIRTUAL_VIEW' THEN 'view'` +
+	` WHEN 'MATERIALIZED_VIEW' THEN 'materialized view'` +
+	` ELSE LOWER(t.TBL_TYPE) END`
+
 func registerTables() {
 	// \dn. A Hive database is the only namespace there is, so it is the
 	// schema. There is no level above it in the metastore this reads.
@@ -64,17 +72,13 @@ func registerTables() {
 			always(`SELECT '' AS "catalog"`),
 			always(`, d.NAME AS "schema"`),
 			always(`, t.TBL_NAME AS "name"`),
-			always(`, CASE t.TBL_TYPE` +
-				` WHEN 'MANAGED_TABLE' THEN 'table'` +
-				` WHEN 'EXTERNAL_TABLE' THEN 'external table'` +
-				` WHEN 'VIRTUAL_VIEW' THEN 'view'` +
-				` WHEN 'MATERIALIZED_VIEW' THEN 'materialized view'` +
-				` ELSE LOWER(t.TBL_TYPE) END AS "type"`),
+			always(`, ` + tableType + ` AS "type"`),
 			always(`, ` + tableComment + ` AS "comment"`),
 			always(`FROM sys.TBLS t JOIN sys.DBS d ON d.DB_ID = t.DB_ID`),
 			always(`WHERE ` + notSystem),
 			always(`AND ` + like(`d.NAME`, `@schema`)),
 			always(`AND ` + like(`t.TBL_NAME`, `@name`)),
+			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, tableType) + `)`),
 			always(`ORDER BY d.NAME, t.TBL_NAME`),
 		},
 		Fields: []dbmeta.Field{
@@ -83,7 +87,7 @@ func registerTables() {
 			{Name: "type", Desc: "table, external table, view or materialized view. Hive records which in TBL_TYPE and an external table is a first class kind here"},
 			{Name: "comment", Desc: "from the table property named comment"},
 		},
-		Params: schemaAndName("table"),
+		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -209,6 +213,7 @@ func registerColumns() {
 			always(`, '' AS "identity"`),
 			always(`, '' AS "generated"`),
 			always(`, c.COMMENT AS "comment"`),
+			always(`, CAST(NULL AS STRING) AS "collation"`),
 			always(`FROM sys.TBLS t JOIN sys.DBS d ON d.DB_ID = t.DB_ID ` + tableColumns),
 			always(`LEFT JOIN ` + constraintOn(`nn`, 3)),
 			always(`LEFT JOIN ` + constraintOn(`df`, 4)),
@@ -230,6 +235,7 @@ func registerColumns() {
 			{Name: "identity", Desc: "always empty: Hive has no identity column"},
 			{Name: "generated", Desc: "always empty: Hive has no generated column"},
 			{Name: "comment", Desc: "from COLUMNS_V2.COMMENT, which is the one comment Hive stores on the row itself rather than as a property"},
+			{Name: "collation", Desc: "always absent: Hive has no collation"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "database name pattern, empty for every database", Default: ""},
@@ -241,7 +247,7 @@ func registerColumns() {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

@@ -143,7 +143,7 @@ func registerRoutines() {
 				Desc: "the default, which SQL Server records only for a CLR routine and leaves absent for a T-SQL one",
 			},
 		},
-		Params: schemaParentName("parameter"),
+		Params: schemaParentOf("routine", "parameter"),
 		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
 			var v dbmeta.RoutineParameter
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Routine, &v.RoutineID, &v.Name,

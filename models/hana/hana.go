@@ -67,6 +67,10 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.HANA, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax: dbmeta.Syntax{BlockComments: true},
+		Fold:   dbmeta.FoldUpper,
 		// go-hdb binds by position and writes a question mark. A parameter
 		// repeated in the statement is sent twice, which is what every
 		// filter here does, and HANA infers the type from the comparison

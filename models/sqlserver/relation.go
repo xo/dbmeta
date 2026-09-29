@@ -9,6 +9,17 @@ import (
 // Schemas, tables, columns, indexes, constraints, sequences, views and
 // triggers.
 
+// tableType is the word for the kind of the table t, from 2016, where
+// temporal_type and is_external arrived.
+const tableType = `CASE WHEN t.temporal_type = 2 THEN 'system versioned table'` +
+	` WHEN t.is_external = 1 THEN 'external table' ELSE 'table' END`
+
+// inTypes is the condition that item is one of the types in @types. It is
+// dbmeta.InList with +, which is how SQL Server joins strings.
+func inTypes(item string) string {
+	return `(',' + @types + ',') LIKE ('%,' + ` + item + ` + ',%')`
+}
+
 func registerRelations() {
 	dbmeta.Schemas.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
@@ -99,8 +110,7 @@ func registerRelations() {
 			// missing anything it could have reported.
 			{
 				{Query: `, 'table' AS "type"`},
-				{Min: v13, Query: `, CASE WHEN t.temporal_type = 2 THEN 'system versioned table'` +
-					` WHEN t.is_external = 1 THEN 'external table' ELSE 'table' END AS "type"`},
+				{Min: v13, Query: `, ` + tableType + ` AS "type"`},
 			},
 			always(`, ` + commentOn("t.object_id") + ` AS "comment"`),
 			always(`FROM sys.tables t`),
@@ -108,6 +118,10 @@ func registerRelations() {
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
 			always(`AND (@name = '' OR t.name LIKE @name)`),
+			{
+				{Query: `AND (@types = '' OR ` + inTypes(`'table'`) + `)`},
+				{Min: v13, Query: `AND (@types = '' OR ` + inTypes(tableType) + `)`},
+			},
 			always(`UNION ALL`),
 			always(`SELECT DB_NAME(), s.name, v.name, 'view', ` + commentOn("v.object_id")),
 			always(`FROM sys.views v`),
@@ -115,6 +129,7 @@ func registerRelations() {
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
 			always(`AND (@name = '' OR v.name LIKE @name)`),
+			always(`AND (@types = '' OR ` + inTypes(`'view'`) + `)`),
 			always(`ORDER BY 2, 3`),
 		},
 		Fields: []dbmeta.Field{
@@ -125,7 +140,7 @@ func registerRelations() {
 			},
 			{Name: "comment", Desc: "the MS_Description extended property, which is what SQL Server has instead of a comment"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -166,6 +181,7 @@ func registerRelations() {
 				` CASE WHEN cc.is_persisted = 1 THEN 'stored' ELSE 'virtual' END` +
 				` ELSE NULL END AS "generated"`),
 			always(`, ` + columnComment("c.object_id", "c.column_id") + ` AS "comment"`),
+			always(`, c.collation_name AS "collation"`),
 			always(`FROM sys.columns c`),
 			always(`JOIN sys.objects o ON o.object_id = c.object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -193,13 +209,14 @@ func registerRelations() {
 			{Name: "identity", Desc: "identity for an IDENTITY column, and absent otherwise"},
 			{Name: "generated", Desc: "stored for a persisted computed column, virtual for one computed on read"},
 			{Name: "comment"},
+			{Name: "collation", Desc: "the collation of a text column, and absent for any other"},
 		},
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

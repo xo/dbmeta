@@ -92,6 +92,7 @@ func registerRelations() {
 			from76("AND (@with_system OR k.`scope` != '" + system + "')"),
 			from76("AND " + like("k.`scope`", "@schema")),
 			from76("AND " + like("k.name", "@name")),
+			from76("AND (@types = '' OR " + dbmeta.InList("@types", "'collection'") + ")"),
 			from76("ORDER BY k.`bucket`, k.`scope`, k.name"),
 		},
 		Fields: []dbmeta.Field{
@@ -105,6 +106,7 @@ func registerRelations() {
 			{Name: "schema", Desc: "scope name pattern, empty for every scope", Default: ""},
 			{Name: "name", Desc: "collection name pattern, empty for every collection", Default: ""},
 			{Name: "with_system", Desc: "include the collections of _system", Default: false},
+			dbmeta.TypesParam(),
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
@@ -128,7 +130,8 @@ func registerRelations() {
 			from76(", NULL AS `comment`"),
 			from76("FROM system:indexes i"),
 			from76("WHERE " + like(indexSchema, "@schema")),
-			from76("AND " + like(indexTable, "@name")),
+			from76("AND " + like(indexTable, "@parent")),
+			from76("AND " + like("i.name", "@name")),
 			from76("ORDER BY 1, 2, 3, 4"),
 		},
 		Fields: []dbmeta.Field{
@@ -142,8 +145,9 @@ func registerRelations() {
 			{Name: "comment", Desc: "always absent: an index carries no comment"},
 		},
 		Params: []dbmeta.Param{
+			{Name: "parent", Desc: "collection name pattern, empty for every collection", Default: ""},
 			{Name: "schema", Desc: "scope name pattern, empty for every scope", Default: ""},
-			{Name: "name", Desc: "collection name pattern, empty for every collection", Default: ""},
+			{Name: "name", Desc: "index name pattern, empty for every index", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
@@ -170,7 +174,8 @@ func registerRelations() {
 			from76("FROM system:indexes i"),
 			from76("UNNEST ARRAY {\"pos\": p, \"key\": v} FOR p:v IN i.index_key END AS k"),
 			from76("WHERE " + like(indexSchema, "@schema")),
-			from76("AND " + like(indexTable, "@name")),
+			from76("AND " + like(indexTable, "@parent")),
+			from76("AND " + like("i.name", "@name")),
 			from76("ORDER BY 1, 2, 3, 5"),
 		},
 		Fields: []dbmeta.Field{
@@ -183,8 +188,9 @@ func registerRelations() {
 			{Name: "descending", Desc: "whether the key is DESC"},
 		},
 		Params: []dbmeta.Param{
+			{Name: "parent", Desc: "collection name pattern, empty for every collection", Default: ""},
 			{Name: "schema", Desc: "scope name pattern, empty for every scope", Default: ""},
-			{Name: "name", Desc: "collection name pattern, empty for every collection", Default: ""},
+			{Name: "name", Desc: "index name pattern, empty for every index", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn

@@ -35,7 +35,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 132. Read the status, because 41
+`docs/decisions/README.md` is a table of all 146. Read the status, because 47
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -180,9 +180,12 @@ something is written down, it is not written down, and it is an open question.
    one database, test both as subtests named for the driver: SQLite runs on
    `mattn/go-sqlite3` and `modernc.org/sqlite`, and PostgreSQL on
    `jackc/pgx/v5/stdlib` and `lib/pq`. There are two exceptions. Parity is
-   one, and D52 says why. Oracle is the other, and D59 says why: the `go-ora/v3` that `usql` pins panics rather than
-   connecting on 11g and 18c. It is fixed upstream and untagged, so Oracle uses
-   v2 until v3 tags the fix, and then goes back. The package is in the `dburl`
+   one, and D52 says why. Oracle is the other, and D59 says why: the
+   `go-ora/v3` that `usql` pins panics rather than connecting on 11g and 18c.
+   It is fixed upstream and untagged, so the Oracle tests use v2 until v3 tags
+   the fix, and then go back. `test/oraclev3` runs every Oracle query through
+   v3 at the commit that fixes it, because v3 binds a parameter differently
+   and refused every query once (D136). The package is in the `dburl`
    registry, from v0.29.0: `Scheme.GoPackage` is the import path and
    `Scheme.RequiresCGO` says whether it needs a C compiler. Read that first,
    and read `usql`'s `go.mod` for the version, because the registry does not
@@ -468,10 +471,10 @@ its own podman, docker or Go client and picks its own version of it, the same
 way it brings its own driver.
 
 An embedded database is not in there and must not be. SQLite3, DuckDB,
-moderncsqlite, ql, chai and csvq have no server and no container, and the
+moderncsqlite, chai and csvq have no server and no container, and the
 release is whichever one the pinned Go driver ships. `dbrun` knows them
 itself (D116), and CI tests the ones a model reads in the same matrix as the
-servers, where `dbrun` starts nothing for them. ql, chai and csvq have no
+servers, where `dbrun` starts nothing for them. chai and csvq have no
 model yet, so they are Staged (D119). See D42.
 
 That list is the only copy. `test/cmd/dbrun` reads it, the CI workflow builds

@@ -225,7 +225,7 @@ Selectors:
   postgres-18     that release
   postgres        the newest PostgreSQL, and only that one
   sqlite3         an embedded library, which has no server to start. The
-                  others are duckdb, moderncsqlite, ql, chai and csvq
+                  others are duckdb, moderncsqlite, chai and csvq
   tested          the releases CI runs on every push
   nightly         the releases CI runs at night
   verified        the releases a person runs before a release, never in CI

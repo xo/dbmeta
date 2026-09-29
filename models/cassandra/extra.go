@@ -34,7 +34,7 @@ func registerExtra() {
 			},
 			{Name: "comment", Desc: "always absent: an index carries no comment"},
 		},
-		Params: filters("table"),
+		Params: childFilters("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Name, &v.Type,
@@ -78,7 +78,7 @@ func registerExtra() {
 					" order that does is on the table",
 			},
 		},
-		Params: filters("table"),
+		Params: childFilters("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			// The options map is selected twice, once for each field it
 			// feeds, so that the query returns as many columns as it
@@ -157,7 +157,7 @@ func registerExtra() {
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: a key carries no comment"},
 		},
-		Params: filters("table"),
+		Params: childFilters("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, pad{}, &v.Definition,
@@ -203,7 +203,7 @@ func registerExtra() {
 				{Name: "foreign_table", Desc: "always absent, for the same reason"},
 				{Name: "foreign_name", Desc: "always absent, for the same reason"},
 			},
-			Params: filters("table"),
+			Params: childFilters("constraint"),
 			Scan: func(rows *sql.Rows) (dbmeta.ConstraintColumn, error) {
 				var v dbmeta.ConstraintColumn
 				err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Constraint,
@@ -238,7 +238,7 @@ func registerExtra() {
 			},
 			{Name: "comment", Desc: "always absent: a trigger carries no comment"},
 		},
-		Params: filters("table"),
+		Params: childFilters("trigger"),
 		Scan: func(rows *sql.Rows) (dbmeta.Trigger, error) {
 			var (
 				v       dbmeta.Trigger

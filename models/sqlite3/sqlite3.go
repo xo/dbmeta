@@ -56,6 +56,9 @@ const Reference = "3.50.4"
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.SQLite3, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax: dbmeta.Syntax{BlockComments: true, Backticks: true},
 		// SQLite is a library. There is no server, no port and no user.
 		Embedded:       true,
 		Placeholder:    func(int) string { return "?" },

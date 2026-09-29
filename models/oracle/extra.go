@@ -14,8 +14,18 @@ import (
 // and the constraint column query need the rule, and writing it twice is how
 // they came apart: ConstraintColumns dropped every check rather than only
 // these, so a real check had a row in one query and no columns in the other.
-const notGeneratedNotNull = `NOT (c.constraint_type = 'C'` +
-	` AND c.generated = 'GENERATED NAME' AND c.constraint_name LIKE 'SYS_C%')`
+//
+// A CHECK written without a name gets a generated name too, so the name alone
+// dropped it as well. From 12c the condition is text in search_condition_vc,
+// and only a condition of the form "COL" IS NOT NULL is excluded. Before
+// 12c the condition is a LONG, which a WHERE cannot read, so 11g still drops
+// an unnamed check. usql found an unnamed check missing on 2026-09-30.
+var notGeneratedNotNull = dbmeta.Choice{
+	{Query: `AND NOT (c.constraint_type = 'C'` +
+		` AND c.generated = 'GENERATED NAME' AND c.constraint_name LIKE 'SYS_C%')`},
+	{Min: v12, Query: `AND NOT (c.constraint_type = 'C'` +
+		` AND c.generated = 'GENERATED NAME' AND c.search_condition_vc LIKE '"%" IS NOT NULL')`},
+}
 
 func registerExtra() {
 	// \d NAME, the constraint section.
@@ -47,9 +57,10 @@ func registerExtra() {
 			always(`, NULL AS "comment"`),
 			always(`FROM all_constraints c`),
 			notSystem("WHERE", "c.owner"),
-			always(`AND ` + notGeneratedNotNull),
+			notGeneratedNotNull,
 			always(`AND (@schema IS NULL OR c.owner LIKE @schema)`),
-			always(`AND (@name IS NULL OR c.table_name LIKE @name)`),
+			always(`AND (@parent IS NULL OR c.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR c.constraint_name LIKE @name)`),
 			always(`ORDER BY c.owner, c.table_name, c.constraint_name`),
 		},
 		Fields: []dbmeta.Field{
@@ -59,7 +70,7 @@ func registerExtra() {
 			{Name: "deferrable"}, {Name: "deferred"},
 			{Name: "comment", Desc: "always absent: Oracle records no comment on a constraint"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("table", "constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
@@ -97,9 +108,10 @@ func registerExtra() {
 			always(`  AND rc.position = cc.position`),
 			notSystem("WHERE", "cc.owner"),
 			always(`AND c.constraint_type IN ('P', 'U', 'R', 'C')`),
-			always(`AND ` + notGeneratedNotNull),
+			notGeneratedNotNull,
 			always(`AND (@schema IS NULL OR cc.owner LIKE @schema)`),
-			always(`AND (@name IS NULL OR cc.table_name LIKE @name)`),
+			always(`AND (@parent IS NULL OR cc.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR cc.constraint_name LIKE @name)`),
 			always(`ORDER BY cc.owner, cc.table_name, cc.constraint_name, cc.position`),
 		},
 		Fields: []dbmeta.Field{
@@ -108,7 +120,7 @@ func registerExtra() {
 			{Name: "foreign_catalog"}, {Name: "foreign_schema"},
 			{Name: "foreign_table"}, {Name: "foreign_name"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("table", "constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.ConstraintColumn, error) {
 			var v dbmeta.ConstraintColumn
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Constraint,
@@ -137,7 +149,8 @@ func registerExtra() {
 			always(`  AND c.constraint_type = 'P'`),
 			notSystem("WHERE", "i.owner"),
 			always(`AND (@schema IS NULL OR i.owner LIKE @schema)`),
-			always(`AND (@name IS NULL OR i.table_name LIKE @name)`),
+			always(`AND (@parent IS NULL OR i.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR i.index_name LIKE @name)`),
 			always(`ORDER BY i.owner, i.table_name, i.index_name`),
 		},
 		Fields: []dbmeta.Field{
@@ -147,7 +160,7 @@ func registerExtra() {
 			{Name: "primary", Desc: "true when a primary key constraint uses this index"},
 			{Name: "comment", Desc: "always absent: Oracle records no comment on an index"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("table", "index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
@@ -174,7 +187,8 @@ func registerExtra() {
 			always(`  AND e.column_position = ic.column_position`),
 			notSystem("WHERE", "ic.index_owner"),
 			always(`AND (@schema IS NULL OR ic.index_owner LIKE @schema)`),
-			always(`AND (@name IS NULL OR ic.table_name LIKE @name)`),
+			always(`AND (@parent IS NULL OR ic.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR ic.index_name LIKE @name)`),
 			always(`ORDER BY ic.index_owner, ic.index_name, ic.column_position`),
 		},
 		Fields: []dbmeta.Field{
@@ -183,7 +197,7 @@ func registerExtra() {
 			{Name: "expression", Desc: "set for a function based index"},
 			{Name: "descending"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("table", "index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
 			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &v.Name, &v.Ordinal,

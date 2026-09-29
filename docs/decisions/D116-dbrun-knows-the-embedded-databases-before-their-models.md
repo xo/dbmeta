@@ -1,6 +1,6 @@
 # D116. dbrun knows the embedded databases before their models
 
-Status: Amended by D119.
+Status: Amended by D119 and D142.
 
 Ken asked on 2026-09-28 for `dbrun` to know the other embedded databases,
 before a dialect or a model is written for any of them. An embedded database

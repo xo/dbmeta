@@ -44,6 +44,13 @@ import (
 // The configuration has to exist before Java starts, and the image's
 // entrypoint is the Pinot command. So the entry starts sh instead, which
 // writes the file and then starts the Quickstart.
+//
+// # Two ports
+//
+// The first port is the broker, which the DSN and the check use. The
+// controller's port, 9000, is published on the second host port (D124). The
+// broker refuses every INSERT, UPDATE and DELETE, so dbimp's tests make their
+// own tables and load their rows through the controller, with no user.
 
 // PinotUser is the ordinary user of every Pinot release. Its password is
 // [Password].
@@ -69,9 +76,10 @@ exec bin/pinot-admin.sh QuickStart -type BATCH -configFile /tmp/dbmeta.conf \
 
 // pinot is the Apache Pinot image.
 var pinot = product{
-	name:  "pinot",
-	image: "docker.io/apachepinot/pinot",
-	port:  8000,
+	name:   "pinot",
+	image:  "docker.io/apachepinot/pinot",
+	port:   8000,
+	second: 9000,
 	// The image asks for a 4 GB heap, which is the whole limit of the
 	// container.
 	env:      map[string]string{"JAVA_OPTS": "-Xms1G -Xmx2G -Dpinot.admin.system.exit=false"},
@@ -84,15 +92,21 @@ var pinot = product{
 	// the pull of the image, on a development machine. A GitHub runner is
 	// slower, and one Java process starts four services.
 	startup: 5 * time.Minute,
-	dsn:     pinotHTTP(pinotAdmin),
-	users:   []Principal{{Role: User, User: PinotUser, dsn: pinotHTTP(PinotUser)}},
+	dsn:     pinotAt("http", pinotAdmin),
+	url:     pinotAt("pinot", pinotAdmin),
+	users: []Principal{{
+		Role: User, User: PinotUser,
+		dsn: pinotAt("http", PinotUser), url: pinotAt("pinot", PinotUser),
+	}},
 }
 
-// pinotHTTP is the address of the broker, with one user's credentials.
-func pinotHTTP(user string) func(port int) string {
+// pinotAt is the address of the broker, with one user's credentials, under
+// the scheme given: http for the DSN, and pinot for the URL that dbimp's
+// driver takes, which has no path and no query (dbimp D129).
+func pinotAt(scheme, user string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
-			Scheme: "http",
+			Scheme: scheme,
 			User:   url.UserPassword(user, Password),
 			Host:   fmt.Sprintf("127.0.0.1:%d", port),
 		}

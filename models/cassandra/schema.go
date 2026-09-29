@@ -60,7 +60,7 @@ func registerSchema() {
 			},
 			{Name: "comment"},
 		},
-		Params: filters("table"),
+		Params: tableFilters(),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(pad{}, &v.Schema, &v.Name, pad{}, &v.Comment)
@@ -90,6 +90,7 @@ func registerSchema() {
 			fixed(", ", `(text)NULL`, "keyspace_name", "identity"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "generated"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "collation"),
 			always(`FROM system_schema.columns`),
 		},
 		Fields: []dbmeta.Field{
@@ -115,8 +116,9 @@ func registerSchema() {
 			{Name: "identity", Desc: "always absent: CQL has no identity column"},
 			{Name: "generated", Desc: "always absent: CQL has no generated column"},
 			{Name: "comment", Desc: "always absent: Cassandra records no column comment"},
+			{Name: "collation", Desc: "always absent: Cassandra has no collation"},
 		},
-		Params: filters("table"),
+		Params: childFilters("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			// Both hold the column kind. The statement selects it twice,
 			// once under each name, so the names say which field each copy
@@ -127,7 +129,7 @@ func registerSchema() {
 			)
 			err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &nullKind, pad{}, &keyKind, pad{},
-				pad{}, pad{})
+				pad{}, pad{}, pad{})
 			v.Nullable = !isKey(nullKind)
 			v.PrimaryKey = isKey(keyKind)
 			return v, err

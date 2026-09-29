@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-sql-driver/mysql"
+
 	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
 )
@@ -91,6 +93,27 @@ func makeMySQLGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS `+who) })
 	exec(t, db, "GRANT ALL PRIVILEGES ON `"+schema+"`.* TO "+who)
 	return mysqlUser(t, dsn, "dbmeta_grantee", parityPassword)
+}
+
+// makeTiDBGrantee makes the MySQL grantee, and connects it to the fixture
+// schema, because the database the TiDB DSN names is one it may not use.
+func makeTiDBGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	return mysqlAt(t, makeMySQLGrantee(t, db, dsn, schema), "dbmeta_grantee", parityPassword, schema)
+}
+
+// makeTiDBReader makes a user that may only read the fixture schema.
+func makeTiDBReader(t *testing.T, db *sql.DB, dsn, schema string) string {
+	t.Helper()
+	const who = `'dbmeta_parity_reader'@'%'`
+	cleanup(t, db, `DROP USER IF EXISTS `+who)
+	exec(t, db, `CREATE USER `+who+` IDENTIFIED BY '`+parityPassword+`'`)
+	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS `+who) })
+	// The star is the grant's object list, every table in the schema, and
+	// not a select list. unqueryvet reads the two the same way.
+	//nolint:unqueryvet // GRANT ... ON db.* is the GRANT syntax
+	exec(t, db, "GRANT SELECT ON `"+schema+"`.* TO "+who)
+	return mysqlAt(t, dsn, "dbmeta_parity_reader", parityPassword, schema)
 }
 
 // makeSQLServerLogin makes a server login and maps it to a database user,
@@ -180,6 +203,19 @@ func mysqlUser(t *testing.T, dsn, user, password string) string {
 		t.Fatalf("no credentials in %s", dsn)
 	}
 	return user + ":" + password + dsn[at:]
+}
+
+// mysqlAt returns a go-sql-driver DSN for user on the database given, which
+// is empty for none. It parses the DSN with the driver's own parser rather
+// than by hand.
+func mysqlAt(t *testing.T, dsn, user, password, database string) string {
+	t.Helper()
+	cfg, err := mysql.ParseDSN(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	cfg.User, cfg.Passwd, cfg.DBName = user, password, database
+	return cfg.FormatDSN()
 }
 
 // replaceDatabase points a SQL Server DSN at another database.
@@ -648,4 +684,26 @@ func dropCockroachDBRole(t *testing.T, db *sql.DB, role string) {
 	cleanup(t, db, `REASSIGN OWNED BY `+role+` TO current_user`)
 	cleanup(t, db, `DROP OWNED BY `+role)
 	cleanup(t, db, `DROP ROLE `+role)
+}
+
+// makeDatabendHolder makes a user whose role holds privileges on the
+// fixture's database, and connects as it. Databend grants a privilege on a
+// database to a role and not to a user, so the user takes a role of its own
+// as its default.
+func makeDatabendHolder(privileges string) func(*testing.T, *sql.DB, string, string) string {
+	return func(t *testing.T, db *sql.DB, dsn, schema string) string {
+		t.Helper()
+		drop := func() {
+			cleanup(t, db, `DROP USER IF EXISTS dbmeta_parity`)
+			cleanup(t, db, `DROP ROLE IF EXISTS dbmeta_parity_role`)
+		}
+		drop()
+		exec(t, db, `CREATE ROLE dbmeta_parity_role`)
+		exec(t, db, `GRANT `+privileges+` ON `+schema+`.* TO ROLE dbmeta_parity_role`)
+		exec(t, db, `CREATE USER dbmeta_parity IDENTIFIED BY '`+parityPassword+
+			`' WITH DEFAULT_ROLE = 'dbmeta_parity_role'`)
+		exec(t, db, `GRANT ROLE dbmeta_parity_role TO dbmeta_parity`)
+		t.Cleanup(drop)
+		return replaceUser(t, dsn, "dbmeta_parity", parityPassword)
+	}
 }

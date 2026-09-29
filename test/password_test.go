@@ -84,9 +84,21 @@ func TestChangePasswordPostgres(t *testing.T) {
 // TestChangePasswordMySQL does the same on MariaDB or MySQL, which is the
 // product where quote doubling alone is not enough.
 func TestChangePasswordMySQL(t *testing.T) {
-	db := openMySQL(t)
+	changePasswordMySQLFamily(t, dbmeta.MySQL, openMySQL(t), "DBMETA_MYSQL")
+}
+
+// TestChangePasswordTiDB does the same on TiDB, which takes the mysql model's
+// statement and reads sql_mode the same way.
+func TestChangePasswordTiDB(t *testing.T) {
+	changePasswordMySQLFamily(t, dbmeta.TiDB, openTiDB(t), "DBMETA_TIDB")
+}
+
+// changePasswordMySQLFamily sets each password on a server that speaks
+// MySQL's protocol and logs in with it.
+func changePasswordMySQLFamily(t *testing.T, d dbmeta.Dialect, db *sql.DB, env string) {
+	t.Helper()
 	ctx := t.Context()
-	q, err := dbmeta.MySQL.Quoting(ctx, db)
+	q, err := d.Quoting(ctx, db)
 	if err != nil {
 		t.Fatalf("reading the quoting state: %v", err)
 	}
@@ -105,15 +117,15 @@ func TestChangePasswordMySQL(t *testing.T) {
 
 	for _, c := range hostilePasswords {
 		t.Run(c.name, func(t *testing.T) {
-			stmt, err := dbmeta.MySQL.ChangePassword(
+			stmt, err := d.ChangePassword(
 				dbmeta.PasswordChange{User: account, Password: c.password}, q)
 			if err != nil {
 				t.Fatalf("building the statement: %v", err)
 			}
 			exec(t, db, stmt)
-			base := dsnOf(t, "DBMETA_MYSQL")
-			at := strings.Index(base, "@")
-			dsn := "dbmeta_pw:" + c.password + base[at:]
+			// No database, because the one a TiDB DSN names is one the new
+			// user may not use.
+			dsn := mysqlAt(t, dsnOf(t, env), "dbmeta_pw", c.password, "")
 			login(t, "mysql", dsn, `SELECT CURRENT_USER()`, "dbmeta_pw")
 		})
 	}
@@ -509,4 +521,41 @@ func TestChangePasswordOracle(t *testing.T) {
 			login(t, "oracle", replaceUser(t, base, u.name, next), `SELECT USER FROM dual`, u.stored)
 		})
 	}
+}
+
+// TestChangePasswordDatabend sets each password and logs in with it. Databend
+// names a user with a string literal, and a backslash escapes the next
+// character in one, so a user whose name has a backslash is changed too.
+// Databend refuses a quote in a user name.
+func TestChangePasswordDatabend(t *testing.T) {
+	db := openDatabend(t)
+	base := dsnOf(t, "DBMETA_DATABEND")
+	for _, u := range []struct{ name, create string }{
+		{"dbmeta_pw", `'dbmeta_pw'`},
+		{`dbmeta\pw`, `'dbmeta\\pw'`},
+	} {
+		t.Run(u.name, func(t *testing.T) {
+			cleanup(t, db, `DROP USER IF EXISTS `+u.create)
+			exec(t, db, `CREATE USER `+u.create+` IDENTIFIED BY 'Start-P4ss!x'`)
+			t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS `+u.create) })
+			for _, c := range hostilePasswords {
+				t.Run(c.name, func(t *testing.T) {
+					stmt, err := dbmeta.Databend.ChangePassword(
+						dbmeta.PasswordChange{User: u.name, Password: c.password}, dbmeta.Quoting{})
+					if err != nil {
+						t.Fatalf("building the statement: %v", err)
+					}
+					exec(t, db, stmt)
+					login(t, "databend", replaceUser(t, base, u.name, c.password), `SELECT current_user()`, "pw")
+				})
+			}
+		})
+	}
+}
+
+// TestChangePasswordSingleStore sets each password and logs in with it.
+// SingleStore takes MySQL's statement, which the mysql model builds.
+func TestChangePasswordSingleStore(t *testing.T) {
+	db := openSingleStore(t)
+	changePasswordMySQLFamily(t, dbmeta.MemSQL, db, "DBMETA_MEMSQL")
 }

@@ -94,6 +94,7 @@ func registerRelations() {
 			always(`WHERE ` + internalOf("t")),
 			always(`AND (@schema = '' OR t.schema_name LIKE @schema)`),
 			always(`AND (@name = '' OR t.table_name LIKE @name)`),
+			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, `CASE WHEN t.temporary THEN 'temporary table' ELSE 'table' END`) + `)`),
 			always(`UNION ALL`),
 			always(`SELECT v.database_name, v.schema_name, v.view_name`),
 			always(`, CASE WHEN v.temporary THEN 'temporary view' ELSE 'view' END`),
@@ -102,6 +103,7 @@ func registerRelations() {
 			always(`WHERE ` + internalOf("v")),
 			always(`AND (@schema = '' OR v.schema_name LIKE @schema)`),
 			always(`AND (@name = '' OR v.view_name LIKE @name)`),
+			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, `CASE WHEN v.temporary THEN 'temporary view' ELSE 'view' END`) + `)`),
 			always(`ORDER BY 1, 2, 3`),
 		},
 		Fields: []dbmeta.Field{
@@ -109,7 +111,7 @@ func registerRelations() {
 			{Name: "type", Desc: "table or view, with temporary in front where it is one"},
 			{Name: "comment"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -137,6 +139,7 @@ func registerRelations() {
 			always(`, NULL AS "identity"`),
 			always(`, NULL AS "generated"`),
 			always(`, c.comment AS "comment"`),
+			always(`, CAST(NULL AS VARCHAR) AS "collation"`),
 			always(`FROM duckdb_columns() c`),
 			always(`WHERE ` + internalOf("c")),
 			always(`AND (@schema = '' OR c.schema_name LIKE @schema)`),
@@ -160,13 +163,14 @@ func registerRelations() {
 				Desc: "always absent: duckdb_columns does not say whether a column is generated",
 			},
 			{Name: "comment"},
+			{Name: "collation", Desc: "always absent: duckdb_columns does not record a collation"},
 		},
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

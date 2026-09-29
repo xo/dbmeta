@@ -12,7 +12,7 @@ func registerRoutines() {
 	dbmeta.Functions.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Function]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT r.routine_catalog AS "catalog"`}},
-			{{Query: `, r.routine_schema AS "schema"`}},
+			schemaAs(`, `, "r.routine_schema", "schema"),
 			{{Query: `, r.routine_name AS "name"`}},
 			// Neither product overloads a routine, so the specific name is
 			// the name. RoutineParameters joins on it all the same, because a
@@ -34,8 +34,8 @@ func registerRoutines() {
 			{{Query: `, r.routine_definition AS "source"`}},
 			{{Query: `, NULLIF(r.routine_comment, '') AS "comment"`}},
 			{{Query: `FROM information_schema.ROUTINES r`}},
-			{{Query: `WHERE (@with_system OR r.routine_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR r.routine_schema LIKE @schema)`}},
+			notSystem("WHERE", "r.routine_schema"),
+			schemaLike("schema", "r.routine_schema"),
 			{{Query: `AND (@name = '' OR r.routine_name LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
@@ -224,7 +224,13 @@ func registerServer() {
 			{{Query: `, u.repl_slave_priv = 'Y' AS "replication"`}},
 			{{Query: `, FALSE AS "bypass_rls"`}},
 			{{Query: `, TRUE AS "inherit"`}},
-			{{Query: `, CAST(u.max_user_connections AS SIGNED) AS "conn_limit"`}},
+			{
+				{Query: `, CAST(u.max_user_connections AS SIGNED) AS "conn_limit"`},
+				// TiDB has no limit per user before 8.5, and no column for one.
+				// 8.1.2 has none and 8.5.8 has it, measured on 2026-09-29.
+				{Key: TiDB, Min: dbmeta.V(8, 5), Query: `, CAST(u.max_user_connections AS SIGNED) AS "conn_limit"`},
+				{Key: TiDB, Query: `, 0 AS "conn_limit"`},
+			},
 			{{Query: `, NULL AS "valid_until"`}},
 			{{Query: `, '' AS "member_of"`}},
 			{{Query: `, NULL AS "comment"`}},
@@ -240,7 +246,7 @@ func registerServer() {
 			{Name: "replication"},
 			{Name: "bypass_rls", Desc: "always false: MariaDB has no row level security"},
 			{Name: "inherit", Desc: "always true: MariaDB has no other behaviour"},
-			{Name: "conn_limit"},
+			{Name: "conn_limit", Desc: "0 for no limit, which is every user on TiDB before 8.5, where there is no limit per user"},
 			{Name: "valid_until", Desc: "always absent: not recorded in mysql.user"},
 			{Name: "member_of", Desc: "always empty: read role_grants instead"},
 			{Name: "comment"},
@@ -306,15 +312,15 @@ func registerServer() {
 	// aggregate and the caller can do it.
 	dbmeta.Privileges.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Privilege]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT p.table_schema AS "schema"`}},
+			schemaAs(`SELECT `, "p.table_schema", "schema"),
 			{{Query: `, p.table_name AS "name"`}},
 			{{Query: `, 'table' AS "type"`}},
 			{{Query: `, CONCAT(p.grantee, '=', p.privilege_type) AS "access"`}},
 			{{Query: `, NULL AS "column_access"`}},
 			{{Query: `, NULL AS "policies"`}},
 			{{Query: `FROM information_schema.TABLE_PRIVILEGES p`}},
-			{{Query: `WHERE (@with_system OR p.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR p.table_schema LIKE @schema)`}},
+			notSystem("WHERE", "p.table_schema"),
+			schemaLike("schema", "p.table_schema"),
 			{{Query: `AND (@name = '' OR p.table_name LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2`}},
 		},

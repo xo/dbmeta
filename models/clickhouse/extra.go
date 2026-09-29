@@ -23,7 +23,8 @@ func registerExtra() {
 			always(`FROM system.data_skipping_indices i`),
 			always(`WHERE ` + notSystem("i.database")),
 			always(`AND (@schema = '' OR i.database LIKE @schema)`),
-			always(`AND (@name = '' OR i.table LIKE @name)`),
+			always(`AND (@parent = '' OR i.table LIKE @parent)`),
+			always(`AND (@name = '' OR i.name LIKE @name)`),
 			always(`ORDER BY i.database, i.table, i.name`),
 		},
 		Fields: []dbmeta.Field{
@@ -38,7 +39,7 @@ func registerExtra() {
 			},
 			{Name: "comment", Desc: "always absent: an index carries no comment"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
@@ -62,7 +63,8 @@ func registerExtra() {
 			always(`FROM system.data_skipping_indices i`),
 			always(`WHERE ` + notSystem("i.database")),
 			always(`AND (@schema = '' OR i.database LIKE @schema)`),
-			always(`AND (@name = '' OR i.table LIKE @name)`),
+			always(`AND (@parent = '' OR i.table LIKE @parent)`),
+			always(`AND (@name = '' OR i.name LIKE @name)`),
 			always(`ORDER BY i.database, i.table, i.name`),
 		},
 		Fields: []dbmeta.Field{
@@ -80,7 +82,7 @@ func registerExtra() {
 			{Name: "expression", Desc: "the same text, so a caller reading either finds it"},
 			{Name: "descending", Desc: "always false: a skipping index has no direction"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
 			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &v.Name, &v.Ordinal,
@@ -105,7 +107,8 @@ func registerExtra() {
 			{{Min: v268, Query: `FROM system.constraints c`}},
 			{{Min: v268, Query: `WHERE ` + notSystem("c.database")}},
 			{{Min: v268, Query: `AND (@schema = '' OR c.database LIKE @schema)`}},
-			{{Min: v268, Query: `AND (@name = '' OR c.table LIKE @name)`}},
+			{{Min: v268, Query: `AND (@parent = '' OR c.table LIKE @parent)`}},
+			{{Min: v268, Query: `AND (@name = '' OR c.name LIKE @name)`}},
 			{{Min: v268, Query: `ORDER BY c.database, c.table, c.name`}},
 		},
 		Fields: []dbmeta.Field{
@@ -120,7 +123,7 @@ func registerExtra() {
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: a constraint carries no comment"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,

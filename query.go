@@ -213,6 +213,16 @@ type Binding[T any] struct {
 	Params []Param
 	// Scan reads one row. A generator writes it, so no reflection is needed.
 	Scan func(*sql.Rows) (T, error)
+
+	// Walk answers the query with several statements, for a product whose
+	// catalog lists a kind only inside one parent at a time, as Impala lists
+	// tables only with SHOW TABLES IN one database. It runs its statements
+	// through db, each to its end before the next, so that it holds one
+	// connection at a time. args holds every parameter, with the defaults
+	// filled in. Nil for every model but Impala's. When it is set, Stmt and
+	// Scan are unused, and Build returns ErrSeveralStatements, because there
+	// is no one statement to return. See D146.
+	Walk func(ctx context.Context, db Queryer, args map[string]any) iter.Seq2[T, error]
 }
 
 // Fields declares result columns that no version gates, which is most of them.
@@ -425,12 +435,15 @@ func (q *Query[T]) Build(m *Meta, args map[string]any) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	if b.Walk != nil {
+		return "", nil, ErrSeveralStatements
+	}
 	info, _ := m.dialect.Info()
 	s, err := b.Stmt.Build(m.versions)
 	if err != nil {
 		return "", nil, err
 	}
-	return bind(s, info.Placeholder, info.Literal, b.Params, args)
+	return bind(s, info, b.Params, args)
 }
 
 // All runs the query against db and yields one value per row.
@@ -443,6 +456,19 @@ func (q *Query[T]) Build(m *Meta, args map[string]any) (string, []any, error) {
 func (q *Query[T]) All(ctx context.Context, m *Meta, db Queryer, args map[string]any) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var zero T
+		if b, err := q.lookup(m); err == nil && b.Walk != nil {
+			all, err := withDefaults(b.Params, args)
+			if err != nil {
+				yield(zero, err)
+				return
+			}
+			for v, err := range b.Walk(ctx, db, all) {
+				if !yield(v, err) || err != nil {
+					return
+				}
+			}
+			return
+		}
 		s, vals, err := q.Build(m, args)
 		if err != nil {
 			yield(zero, err)
@@ -501,7 +527,7 @@ func First[T any](seq iter.Seq2[T, error]) (T, bool, error) {
 
 // bind rewrites the named parameters of s into the placeholders the dialect
 // wants, and returns the values in matching order.
-func bind(s string, placeholder func(int) string, literal func(any) (string, error), params []Param, args map[string]any) (string, []any, error) {
+func bind(s string, info *Info, params []Param, args map[string]any) (string, []any, error) {
 	known := make(map[string]Param, len(params))
 	for _, p := range params {
 		known[p.Name] = p
@@ -544,6 +570,13 @@ func bind(s string, placeholder func(int) string, literal func(any) (string, err
 			}
 			v = p.Default
 		}
+		// A list is bound as one string, its items joined by commas, because
+		// no driver here binds a slice, and a statement matches one item by
+		// the commas either side of it. The only list is Args.Types, whose
+		// items are Table.Type values, which hold no comma. See D138.
+		if list, ok := v.([]string); ok {
+			v = strings.Join(list, ",")
+		}
 		// A repeated parameter gets a new placeholder and a repeated value,
 		// rather than reusing the first one. PostgreSQL would accept either,
 		// because $2 may appear twice, but MySQL writes ? and every ? consumes
@@ -552,16 +585,19 @@ func bind(s string, placeholder func(int) string, literal func(any) (string, err
 		// A dialect whose protocol cannot carry a parameter writes the
 		// value into the statement instead. It returns no values, so a
 		// caller passes none and the same call site serves both.
-		if literal != nil {
-			lit, err := literal(v)
+		if info.Literal != nil {
+			lit, err := info.Literal(v)
 			if err != nil {
 				return "", nil, err
 			}
 			out.WriteString(lit)
 			continue
 		}
+		if info.BindValue != nil {
+			v = info.BindValue(v)
+		}
 		vals = append(vals, v)
-		out.WriteString(placeholder(len(vals)))
+		out.WriteString(info.Placeholder(len(vals)))
 	}
 	return out.String(), vals, nil
 }

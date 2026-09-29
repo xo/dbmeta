@@ -137,7 +137,8 @@ func registerRoutines() {
 				always(`WHERE a.package_name IS NULL AND a.data_level = 0 AND a.position > 0`),
 				notSystem("AND", "a.owner"),
 				always(`AND (@schema IS NULL OR a.owner LIKE @schema)`),
-				always(`AND (@name IS NULL OR a.object_name LIKE @name)`),
+				always(`AND (@parent IS NULL OR a.object_name LIKE @parent)`),
+				always(`AND (@name IS NULL OR a.argument_name LIKE @name)`),
 				always(`ORDER BY a.owner, a.object_name, a.position`),
 			},
 			Fields: []dbmeta.Field{
@@ -147,7 +148,7 @@ func registerRoutines() {
 				{Name: "ordinal"}, {Name: "mode"}, {Name: "data_type"},
 				{Name: "default", Desc: "the DEFAULT text, which Oracle stores as a LONG"},
 			},
-			Params: schemaNameSystem("routine"),
+			Params: childParams("routine", "parameter"),
 			Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
 				var v dbmeta.RoutineParameter
 				err := rows.Scan(&v.Catalog, &v.Schema, &v.Routine, &v.RoutineID,

@@ -138,7 +138,7 @@ func registerRoutineParameters() {
 				Desc: "yes when the parameter has a default. PostgreSQL stores the expressions as one list and does not index it per parameter",
 			},
 		},
-		Params: schemaParentName("parameter"),
+		Params: schemaParentOf("routine", "parameter"),
 		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
 			var v dbmeta.RoutineParameter
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Routine, &v.RoutineID, &v.Name,

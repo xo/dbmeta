@@ -8,12 +8,11 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// The Databend releases dbrun starts.
+// The Databend releases dbmeta is tested against.
 //
-// dbmeta has no Databend model. The releases are here so that dbrun can start
-// a server for the tests of the Databend driver in github.com/xo/dbimp. The
-// dialect is databend, which dburl and the usql driver
-// github.com/datafuselabs/databend-go already name. See D112.
+// models/databend reads them, and the tests of the Databend driver in
+// github.com/xo/dbimp start them too. The dialect is databend, which dburl
+// names, and usql's databend driver is dbimp's (D112, D140).
 //
 // # The range
 //
@@ -93,40 +92,33 @@ var databend = product{
 		databendSQL("CREATE OR REPLACE USER "+DatabendUser+" IDENTIFIED BY '"+Password+
 			"' WITH DEFAULT_ROLE = '"+databendRole+"'") + "\n" +
 		databendSQL("GRANT ROLE "+databendRole+" TO "+DatabendUser) + "\n"},
-	dsn: databendDSN("root", "default", "sslmode=disable"),
-	url: databendDSN("root", "default", ""),
+	dsn: databendDSN("root", "default"),
+	url: databendDSN("root", "default"),
 	users: []Principal{{
 		Role: User, User: DatabendUser,
-		dsn: databendDSN(DatabendUser, databendDatabase, "sslmode=disable"),
-		url: databendDSN(DatabendUser, databendDatabase, ""),
+		dsn: databendDSN(DatabendUser, databendDatabase),
+		url: databendDSN(DatabendUser, databendDatabase),
 	}},
 }
 
-// databendDSN is the address of one user on one database, with the query
-// given.
+// databendDSN is the address of one user on one database.
 //
-// The DSN is the form github.com/datafuselabs/databend-go takes, which usql's
-// driver uses, with sslmode=disable. The URL has no query at all, because
-// dbimp's databend driver takes only the keys tls, auth, cancel and timezone
-// and refuses every other one, sslmode too (dbimp D117). dbimp reads the URL,
-// as it does for the ArangoDB and InfluxDB entries.
-func databendDSN(user, database, query string) func(port int) string {
+// The DSN and the URL are the same, with no query at all, because usql's
+// databend driver is dbimp's, which takes only the keys tls, auth, cancel and
+// timezone and refuses every other one, sslmode too (dbimp D117).
+func databendDSN(user, database string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
-			Scheme:   "databend",
-			User:     url.UserPassword(user, Password),
-			Host:     fmt.Sprintf("127.0.0.1:%d", port),
-			Path:     "/" + database,
-			RawQuery: query,
+			Scheme: "databend",
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+			Path:   "/" + database,
 		}
 		return u.String()
 	}
 }
 
-// Databend is every Databend release dbrun starts.
-//
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var Databend = list{}.staged(databend, Tested, "1.2.881", "1.2.948").
+// Databend is every Databend release dbmeta is tested against. Both are
+// Tested, which is the cadence they kept while they were Staged (D120).
+var Databend = list{}.add(databend, Tested, "1.2.881", "1.2.948").
 	on("1.2.948", func(s *Server) { s.Tag = "v1.2.948-nightly" })

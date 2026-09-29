@@ -84,6 +84,9 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Couchbase, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax: dbmeta.Syntax{BlockComments: true},
 		// The driver binds a positional value at $1, $2 and so on.
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
 		VersionQuery:   versionQuery,

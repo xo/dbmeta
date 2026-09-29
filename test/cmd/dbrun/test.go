@@ -19,11 +19,14 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/nakagami/firebirdsql"
 	_ "github.com/prestodb/presto-go-client/v2"
+	_ "github.com/sclgo/impala-go"
 	_ "github.com/sijms/go-ora/v2"
+	_ "github.com/snowflakedb/gosnowflake/v2"
 	_ "github.com/trinodb/trino-go-client/trino"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cql"
 	_ "github.com/xo/dbimp/couchbase"
+	_ "github.com/xo/dbimp/databend"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
@@ -40,9 +43,17 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.CockroachDB: "pgx",
 	// cratedb:// opens pgx too.
 	dbmeta.CrateDB: "pgx",
-	// questdb:// opens pgx too, on QuestDB's PostgreSQL interface.
-	dbmeta.QuestDB:    "pgx",
-	dbmeta.MySQL:      "mysql",
+	// questdb:// opens pgx too, on QuestDB's PostgreSQL interface, and
+	// redshift:// opens it on a Redshift cluster.
+	dbmeta.QuestDB:  "pgx",
+	dbmeta.Redshift: "pgx",
+	// snowflake:// opens gosnowflake, which usql uses.
+	dbmeta.Snowflake: "snowflake",
+	dbmeta.MySQL:     "mysql",
+	// tidb://, vitess:// and memsql:// open the mysql driver.
+	dbmeta.TiDB:       "mysql",
+	dbmeta.MemSQL:     "mysql",
+	dbmeta.Vitess:     "mysql",
 	dbmeta.SQLServer:  "sqlserver",
 	dbmeta.Oracle:     "oracle",
 	dbmeta.Cassandra:  "cql",
@@ -55,6 +66,8 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Exasol:     "exasol",
 	dbmeta.Vertica:    "vertica",
 	dbmeta.Couchbase:  "couchbase",
+	dbmeta.Databend:   "databend",
+	dbmeta.Impala:     "impala",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the

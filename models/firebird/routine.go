@@ -168,7 +168,8 @@ func registerRoutineParameters() {
 			always(`LEFT JOIN RDB$FIELDS f ON f.RDB$FIELD_NAME = a.RDB$FIELD_SOURCE`),
 			always(`WHERE ` + userObject(`fn.RDB$SYSTEM_FLAG`) + ` AND fn.RDB$PACKAGE_NAME IS NULL`),
 			always(`AND ` + like(`''`, `@schema`) + ``),
-			always(`AND ` + like(`fn.RDB$FUNCTION_NAME`, `@parent`) + ``),
+			always(`AND ` + like(`fn.RDB$FUNCTION_NAME`, `@parent`)),
+			always(`AND ` + like(`a.RDB$ARGUMENT_NAME`, `@name`)),
 			always(`UNION ALL`),
 			always(`SELECT '', ''`),
 			always(`, TRIM(TRAILING FROM pr.RDB$PROCEDURE_NAME)`),
@@ -184,7 +185,8 @@ func registerRoutineParameters() {
 			always(`JOIN RDB$FIELDS pf ON pf.RDB$FIELD_NAME = p.RDB$FIELD_SOURCE`),
 			always(`WHERE ` + userObject(`pr.RDB$SYSTEM_FLAG`) + ` AND pr.RDB$PACKAGE_NAME IS NULL`),
 			always(`AND ` + like(`''`, `@schema`) + ``),
-			always(`AND ` + like(`pr.RDB$PROCEDURE_NAME`, `@parent`) + ``),
+			always(`AND ` + like(`pr.RDB$PROCEDURE_NAME`, `@parent`)),
+			always(`AND ` + like(`p.RDB$PARAMETER_NAME`, `@name`)),
 			always(`ORDER BY 3, 6`),
 		},
 		Fields: []dbmeta.Field{
@@ -201,6 +203,7 @@ func registerRoutineParameters() {
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern. Firebird has no schemas", Default: ""},
 			{Name: "parent", Desc: "routine name pattern, empty for every routine", Default: ""},
+			{Name: "name", Desc: "parameter name pattern, empty for every parameter", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
 			var v dbmeta.RoutineParameter

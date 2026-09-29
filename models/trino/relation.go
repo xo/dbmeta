@@ -6,6 +6,9 @@ import (
 	"github.com/xo/dbmeta"
 )
 
+// tableType is the word for a table's kind. Trino has a table and a view.
+const tableType = `CASE t.table_type WHEN 'VIEW' THEN 'view' ELSE 'table' END`
+
 func registerRelations() {
 	// \l. A Trino catalog is a configured connector rather than a store, so
 	// this is the list of places the server can reach.
@@ -94,7 +97,7 @@ func registerRelations() {
 			always(`SELECT t.table_cat AS "catalog"`),
 			always(`, t.table_schem AS "schema"`),
 			always(`, t.table_name AS "name"`),
-			always(`, CASE t.table_type WHEN 'VIEW' THEN 'view' ELSE 'table' END AS "type"`),
+			always(`, ` + tableType + ` AS "type"`),
 			always(`, tc.comment AS "comment"`),
 			always(`FROM system.jdbc.tables t`),
 			always(`LEFT JOIN system.metadata.table_comments tc` +
@@ -105,6 +108,7 @@ func registerRelations() {
 			always(`AND (@catalog = '' OR t.table_cat LIKE @catalog)`),
 			always(`AND (@schema = '' OR t.table_schem LIKE @schema)`),
 			always(`AND (@name = '' OR t.table_name LIKE @name)`),
+			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, tableType) + `)`),
 			always(`ORDER BY t.table_cat, t.table_schem, t.table_name`),
 		},
 		Fields: []dbmeta.Field{
@@ -112,7 +116,7 @@ func registerRelations() {
 			{Name: "type", Desc: "table or view. Trino has no other kind of relation"},
 			{Name: "comment"},
 		},
-		Params: catalogSchemaName("table"),
+		Params: append(catalogSchemaName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -137,6 +141,7 @@ func registerRelations() {
 			always(`, CAST(NULL AS varchar) AS "identity"`),
 			always(`, CAST(NULL AS varchar) AS "generated"`),
 			always(`, c.remarks AS "comment"`),
+			always(`, CAST(NULL AS varchar) AS "collation"`),
 			always(`FROM system.jdbc.columns c`),
 			always(`WHERE ` + notSystem("c.table_cat", "c.table_schem")),
 			always(`AND (@catalog = '' OR c.table_cat LIKE @catalog)`),
@@ -159,6 +164,7 @@ func registerRelations() {
 			{Name: "identity", Desc: "always absent: Trino has no identity column"},
 			{Name: "generated", Desc: "always absent: Trino has no generated column"},
 			{Name: "comment"},
+			{Name: "collation", Desc: "always absent: Trino has no collation"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "catalog", Desc: "catalog name pattern, empty for every catalog", Default: ""},
@@ -171,7 +177,7 @@ func registerRelations() {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

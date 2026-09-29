@@ -204,8 +204,28 @@ func TestPlaceholders(t *testing.T) {
 	}
 	// a parameter named twice in the statement binds twice, because a
 	// placeholder style like MySQL's consumes one argument per placeholder
-	if len(args) != 5 {
-		t.Errorf("expected five arguments, got %v", args)
+	if len(args) != 7 {
+		t.Errorf("expected seven arguments, got %v", args)
+	}
+}
+
+// TestTypesBindAsOneString checks that a list of types binds as one string,
+// its items joined by commas, which is what every model's Tables matches
+// against. See D138.
+func TestTypesBindAsOneString(t *testing.T) {
+	t.Parallel()
+	_, args, err := dbmeta.Tables.Build(meta(t, "16.2"), dbmeta.Args{Types: []string{"table", "view"}}.Map())
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	var n int
+	for _, v := range args {
+		if v == "table,view" {
+			n++
+		}
+	}
+	if n != 2 {
+		t.Errorf("expected table,view bound twice, got %v", args)
 	}
 }
 

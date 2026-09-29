@@ -71,7 +71,7 @@ The floor is the oldest release whose image is still rebuilt.
 
 Some publishers never rebuild a tag. They build each release once, on the
 day it is released, and only a new release gets a new build. Databend,
-rqlite, libSQL, TDengine, Apache Pinot, Avatica, Apache Druid and most of
+rqlite, libSQL, Apache Pinot, Avatica, Apache Druid and most of
 the products D118 added work this way. For such a product,
 the floor is the newest release of the line before the newest, and the
 ceiling is the newest release. A product with one line has one release. Ken
@@ -381,12 +381,11 @@ and D40 make that distinction, and the table must not claim more than is true.
 | ArangoDB | 3.12.12 | 3.12.12 | Criterion 2. Only the 3.12 line is still built: 3.12.12 was rebuilt on 2026-09-24, and 3.11.14 was last built on 2025-05-24. The release moves with each patch. The entry is for dbimp's driver (D112) |
 | InfluxDB | 1.11.8 | 3.11.5 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. Ken chose the releases in dbimp's D79. The entries are for dbimp's driver, and no model reads them, so they are Staged (D112, D114, D119) |
 | CrateDB | 6.3.7 | 6.4.5 | Criterion 2. 6.4.5 and 6.3.7 were rebuilt in September 2026, and 6.2 last on 2026-07-09. Reached on the PostgreSQL port, with a dialect and a model of its own, cratedb (D112, D123) |
-| TDengine | 3.3.8.8 | 3.4.2.8 | The rule for an image that is never rebuilt: the newest release of each of the last two lines (D112). The entry is for dbimp's driver |
 | Apache Pinot | 1.4.0 | 1.5.1 | The rule for an image that is never rebuilt (D112). Apache supports only the newest release. The entry is for dbimp's driver |
-| Databend | 1.2.881 | 1.2.948 | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. The entry is for dbimp's driver |
+| Databend | 1.2.881 | 1.2.948 | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. `models/databend` reads it, and dbimp's driver tests against it (D140) |
 | rqlite | 9.4.5 | 10.3.6 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver |
 | libSQL | 0.24.33 | 0.24.33 | The rule for an image that is never rebuilt (D112). libSQL has one line, and its newest release was built on 2025-12-19. The entry is for dbimp's driver |
-| chai, csvq, ql, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
+| chai, csvq, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
 | Avatica | 1.28.0 | 1.29.0 | The rule for an image that is never rebuilt (D112). The standalone server over HSQLDB, which the Calcite project builds. The entry is for dbimp's Avatica driver (D113) |
 | Apache Phoenix | 2.0-5.0 | 2.0-5.0 | An exception to step 2, which Ken made (D113). The Phoenix project publishes no image, and the only one that runs in one container, boostport/hbase-phoenix-all-in-one, was last pushed on 2023-03-14. The entry is for dbimp's Avatica driver |
 | Apache Druid | 36.0.0 | 37.0.0 | The rule for an image that is never rebuilt (D112). 38.0.0-rc1 is a candidate. The entry is for dbimp's Avatica driver (D113) |
@@ -399,7 +398,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Typesense | 29.1 | 30.2 | The rule for an image that is never rebuilt (D112). 31.0 is a release candidate. The entry is for dbimp's driver (D118) |
 | TerminusDB | 11.1.17 | 12.0.7 | The rule for an image that is never rebuilt (D112). 12.1-rc is a release candidate. The entry is for dbimp's driver (D118) |
 | CockroachDB | 24.3.36 | 26.3.2 | The rule for an image that is never rebuilt (D112) gives 26.2.7 and 26.3.2. 24.3.36 is kept too, because 24.3 is the oldest line with long term support still patched. Read by models/cockroachdb (D123) |
-| TiDB | 7.5.8 | 8.5.8 | Criterion 2. A tag is rebuilt while its line is maintained, and 7.5 is the oldest line with long term support still maintained. 8.1.2 is between them. No dialect until models/mysql detects it (D118) |
+| TiDB | 7.5.8 | 8.5.8 | Criterion 2. A tag is rebuilt while its line is maintained, and 7.5 is the oldest line with long term support still maintained. 8.1.2 is between them. `models/tidb` reads it, and shares the mysql model (D133) |
 | MongoDB | 7.0.43 | 8.3.11 | Criterion 2. 8.3.11, 8.0.32 and 7.0.43 were rebuilt in September 2026, and 6.0 last in May. 8.0.32, the line with long term support, is between them. The entry is for dbimp's driver (D118) |
 | Elasticsearch | 8.19.22 | 9.5.3 | Each tag is built once, and 8.19 is still patched, so it is the floor. 9.4.6 is between them. The entry is for dbimp's driver (D118) |
 | Dgraph | 25.3.8 | 25.4.1 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
@@ -409,7 +408,9 @@ and D40 make that distinction, and the table must not claim more than is true.
 | GizmoSQL | 1.38.5 | 1.39.0 | The rule for an image that is never rebuilt (D112). The maintained Arrow Flight SQL server, for usql's flightsql driver (D118) |
 | Virtuoso | 7.2.17 | 7.2.17 | Criterion 2. 7.2.17 was rebuilt on 2026-08-05 and 7.2.16 last on 2025-10-15. The entry is for dbimp's SPARQL driver (D118) |
 | Alternator | 2025.1 | 2026.3 | The scylla entry's range, which D90 chose. The DynamoDB interface of ScyllaDB (D118) |
-| Vitess | 23.0.6 | 24.0.3 | The rule for an image that is never rebuilt (D112). No dialect until models/mysql detects it (D118) |
+| Vitess | 23.0.6 | 24.0.3 | The rule for an image that is never rebuilt (D112). `models/vitess` reads it, and shares the mysql model (D135) |
+| SingleStore | 9.0 | 9.1 | The newest two lines the development image serves, on image 0.2.85, which ships 9.1.1 and downloads 9.0 when it starts. It runs with no licence on a machine with at most 8 cores and 64 GB. Ken asked for it on 2026-09-30, which amends D118 |
+| Apache Impala | 4.4.1 | 4.5.2 | The rule for an image that is never rebuilt (D112). Apache publishes each daemon as an image of its own, and dbrun builds them into one (D145). Ken asked for it on 2026-09-30, which amends D118 |
 | Milvus | 2.6.24 | 3.0.2 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | OpenSearch | 2.19.6 | 3.8.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | DynamoDB | 3.2.0 | 3.3.1 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary licence Ken accepted (D118) |

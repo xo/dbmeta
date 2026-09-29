@@ -41,7 +41,8 @@ dbmeta's CI does not run it, and the other repository runs it with
    interface of the same server, set `second` to its port inside the
    container. dbrun publishes it on the first host port plus 1000, and the
    URL computes it with `container.SecondHostPort`. QuestDB does this for its
-   PostgreSQL interface (D124). Any other interface, such as Couchbase
+   PostgreSQL interface, and Pinot for its controller (D124). `dsn --json`
+   prints the address in the `secondAddress` field. Any other interface, such as Couchbase
    Analytics, is not reachable from the host.
 6. Use `container.Password` for the administrator. Use another password only
    when the product cannot take one at start, and say why in the file.

@@ -120,6 +120,7 @@ func registerRoutineParameters() {
 			always(`WHERE ` + notSystem(`p.SCHEMA_NAME`)),
 			always(`AND ` + like(`p.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`p.FUNCTION_NAME`, `@parent`)),
+			always(`AND ` + like(`p.PARAMETER_NAME`, `@name`)),
 			always(`UNION ALL`),
 			always(`SELECT '', q.SCHEMA_NAME, q.PROCEDURE_NAME`),
 			always(`, CAST(q.PROCEDURE_OID AS NVARCHAR(30))`),
@@ -132,6 +133,7 @@ func registerRoutineParameters() {
 			always(`WHERE ` + notSystem(`q.SCHEMA_NAME`)),
 			always(`AND ` + like(`q.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`q.PROCEDURE_NAME`, `@parent`)),
+			always(`AND ` + like(`q.PARAMETER_NAME`, `@name`)),
 			always(`ORDER BY 2, 3, 6`),
 		},
 		Fields: []dbmeta.Field{
@@ -147,6 +149,7 @@ func registerRoutineParameters() {
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
 			{Name: "parent", Desc: "routine name pattern, empty for every routine", Default: ""},
+			{Name: "name", Desc: "parameter name pattern, empty for every parameter", Default: ""},
 			{Name: "with_system", Desc: "include the schemas SAP HANA keeps for itself", Default: false},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {

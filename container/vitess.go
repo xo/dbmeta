@@ -6,14 +6,13 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// The Vitess releases dbrun starts.
+// The Vitess releases dbmeta is tested against.
 //
 // Vitess speaks the MySQL wire protocol, and usql reaches it with the scheme
 // vitess. The dialect is vitess, which dburl gives it from v0.36.0 (dburl
 // D37). Vitess answers VERSION() with 8.4.6-Vitess, and models/mysql would
-// read that as MySQL, so Vitess gets a model of its own that shares the mysql
-// model's statements where they answer, as CockroachDB does with PostgreSQL's
-// (D123, D125). No model reads it yet. See D118.
+// read that as MySQL, so Vitess has a model of its own, models/vitess, that
+// shares the mysql model's statements where they answer (D123, D125, D135).
 //
 // # The range
 //
@@ -60,9 +59,6 @@ var vitess = product{
 	},
 }
 
-// Vitess is every Vitess release dbrun starts.
-//
-// Staged until a model reads the vitess dialect, so CI runs none of them.
-// Each keeps the cadence it would have, and takes it as its tier when the
-// model arrives. See D118, D119 and D120.
-var Vitess = list{}.staged(vitess, Tested, "23.0.6", "24.0.3")
+// Vitess is every Vitess release dbmeta is tested against. Both are Tested,
+// which is the cadence they kept while they were Staged (D120).
+var Vitess = list{}.add(vitess, Tested, "23.0.6", "24.0.3")

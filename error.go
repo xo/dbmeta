@@ -37,6 +37,10 @@ const (
 	// ErrMissingParam is the missing parameter error. The statement names a
 	// parameter that the arguments do not supply.
 	ErrMissingParam Error = "missing parameter"
+	// ErrSeveralStatements is the several statements error. The query is
+	// answered with more than one statement, which Query.All runs, so Build
+	// has no one statement to return. See D146.
+	ErrSeveralStatements Error = "answered with several statements"
 	// ErrInvalidParam is the invalid parameter error. A value cannot be
 	// rendered into a statement by a dialect that has no way to bind one.
 	// Only Apache Hive can return it, because only Hive renders literals,

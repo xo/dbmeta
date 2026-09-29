@@ -47,6 +47,13 @@ rather than reading one.
 | `models/cockroachdb` | 54 | 55 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 48 of its statements are the postgres model's (D123) |
 | `models/cratedb` | 26 | 55 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
 | `models/questdb` | 11 | 55 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
+| `models/tidb` | 19 | 55 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 16 of its statements are the mysql model's (D133) |
+| `models/vitess` | 20 | 55 | Vitess 23.0.6 and 24.0.3, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
+| `models/databend` | 20 | 55 | Databend 1.2.881 and 1.2.948, from the system database, with dbimp's driver (D140) |
+| `models/singlestore` | 22 | 55 | SingleStore 9.0 and 9.1, on the development image with no licence. 16 of its statements are the mysql model's (D141) |
+| `models/snowflake` | 13 | 55 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
+| `models/redshift` | 11 | 55 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
+| `models/impala` | 11 | 55 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
 | `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -3008,6 +3015,325 @@ else, as above. Gemini named `table_columns()` for indexes, index columns,
 constraints and constraint columns, which reads one table at a time, and
 string parsing of `functions()` for routine parameters, which one statement
 cannot do. Each lead was run against 10.0.1.
+
+## TiDB
+
+`models/tidb` answers 19 of the 55 on 8.5.8, and 18 on 7.5.8 and 8.1.2,
+where privileges is too old. It was measured on 2026-09-29 with the mysql
+driver, which is what dburl opens for `tidb://` and what usql uses. TiDB
+imitates MySQL's information_schema, so 16 of its statements are the mysql
+model's, shared with `Query.Share`. The version set's main version is the
+MySQL release TiDB claims, 8.0.11 on every release, set under the `mysql`
+key too, and TiDB's own release is under the key `tidb`. See D133.
+
+### What differs from MySQL
+
+| Query | What differs |
+| --- | --- |
+| every query that filters by schema | TiDB spells INFORMATION_SCHEMA and PERFORMANCE_SCHEMA in capitals, compares a schema name with its case, and has METRICS_SCHEMA of its own, with 637 tables. The mysql model's filter carries an alternative for TiDB that names all five as TiDB spells them |
+| roles | `conn_limit` is 0 before 8.5, where `mysql.user` has no `max_user_connections` and TiDB has no limit per user |
+| settings | from `information_schema.variables_info`, TiDB's own, because TiDB has no `performance_schema.global_variables`. The context is the scope, such as session,global |
+| sequences | from `information_schema.sequences`, TiDB's own. A TiDB sequence is always a bigint |
+| privileges | from 8.5. Before it `information_schema.TABLE_PRIVILEGES` is empty although `mysql.tables_priv` holds the grant, so the query is too old there |
+| constraints | a CHECK constraint is not listed. TiDB accepts one and enforces it only with `tidb_enable_check_constraint`, and the mysql model lists a check only from MySQL 8.0.16, which TiDB does not claim |
+
+### What it does not answer
+
+TiDB has no stored function, procedure or trigger, and no foreign server, so
+functions, aggregates, routine parameters, triggers, foreign servers, user
+mappings and foreign tables are not answered. `information_schema.ENGINES`
+lists only InnoDB, which TiDB writes for compatibility, so access methods is
+not answered either, and neither is extensions. The rest are absent, as they
+are on MySQL.
+
+Two are left unanswered although TiDB holds something like them:
+
+- Column statistics. `mysql.stats_histograms` holds a distinct count and a
+  null count for each column, keyed by a column id that no catalog view
+  names. Matching it by position would be wrong after a column is dropped, and
+  only `SHOW STATS_HISTOGRAMS` gives the names, which a statement cannot read.
+- Extended statistics. `mysql.stats_extended` exists and is empty, because
+  extended statistics are experimental and off by default.
+
+### What the fixture builds
+
+`models/tidb/fixture` is the MySQL fixture less the function, the two
+procedures, the trigger and the foreign server, with a sequence, a role, a
+user and the grants between them added. It builds every step on the three
+releases. The conformance report is line for line what MySQL reports, less
+the check constraint, which TiDB does not list.
+
+### Which answers depend on who is asking
+
+Parity asks as root, as a user with every privilege on the fixture schema,
+and as one that may only read it. Both lesser users are refused roles and
+role grants, which read the mysql schema, as they are on MySQL, and see fewer
+schemas, databases and privileges. 8.5 refuses a column of `mysql.user` and
+`mysql.role_edges`, and 7.5 and 8.1 refuse the whole table, so 8.5 has a
+parity section of its own. The current schema differs because the DSN of root
+names the database dbmeta, which the lesser users may not use, so they connect
+to the fixture schema.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked about each gap, as hard rule 14 requires, on
+2026-09-29. Both called functions, triggers, routine parameters, foreign
+tables and extensions absent, and named `mysql.stats_extended` for extended
+statistics and `mysql.stats_histograms` for column statistics, which are
+above. Both called enum values derivable from `COLUMN_TYPE`, which the mysql
+model does not answer on MySQL either. DeepSeek named `ENGINES` for access
+methods, which is a list kept for compatibility.
+
+## Vitess
+
+`models/vitess` answers 20 of the 55 on 23.0.6 and 24.0.3. It was measured on
+2026-09-30 on vttestserver, with the mysql driver, which is what dburl opens
+for `vitess://` and what usql uses. vtgate passes a query of
+information_schema to the MySQL of one tablet, so 19 of its statements are
+the mysql model's, shared with `Query.Share`. The version set's main version
+is the MySQL release Vitess claims, 8.4.6 on both releases, set under the
+`mysql` key too. Vitess's own release is under the key `vitess`, read from
+`@@version_comment`. See D135.
+
+### A schema is a keyspace
+
+A keyspace is stored in one MySQL database for each shard, named
+`vt_<keyspace>_<shard>`. information_schema names that database and never the
+keyspace, and vtgate refuses that name in a query: a SELECT from
+`vt_dbmeta_q_0.t` failed with VT05003, unknown database, and a SELECT from
+`dbmeta_q.t` succeeded. So every statement reports the keyspace, which
+`mysql.Keyspace` reads from the name of the database, and a filter matches the
+keyspace. The current schema is the keyspace too. A test queries every table
+of the fixture under the name the model reports. See D135.
+
+### What differs from MySQL
+
+| Query | What differs |
+| --- | --- |
+| every query that filters by schema | `_vt` holds the state of the tablet. The mysql model's filter carries an alternative for Vitess that adds it to the system schemas |
+| every query that names a schema | the keyspace, read from the name of the shard's database, which is what information_schema holds |
+| sequences | Vitess's own. A sequence is a table with the comment `vitess_sequence` and the columns id, next_id and cache, which one statement over information_schema lists. The start, the bounds and whether it cycles are not recorded, so they are NULL. The increment is 1, measured with NEXT VALUE. The VSchema names the column a sequence fills, and information_schema does not, so the owner is empty |
+| settings, access methods and extensions | the variables, engines and plugins of the tablet's MySQL, which is the MySQL that stores the rows |
+
+### What it does not answer
+
+Roles, role grants and privileges are not answered, although the mysql
+model's statements run. They list the accounts of the tablet's MySQL, such as
+`vt_dba`, `vt_app` and `vt_repl`, which Vitess uses itself and no client of
+vtgate logs in as. vttestserver starts vtcombo with no authentication, so a
+Vitess user could not be measured either. vtgate refuses CREATE TRIGGER,
+CREATE FUNCTION and CREATE SERVER, so triggers, aggregates, foreign servers,
+user mappings and foreign tables are not answered. The rest are absent, as
+they are on MySQL.
+
+### What the fixture builds
+
+`models/vitess/fixture` is the MySQL fixture less the function, the trigger
+and the foreign server, with a sequence added. Both procedures are built. It
+builds every step on both releases. The conformance report is line for line
+what MySQL reports.
+
+### Which answers depend on who is asking
+
+Nothing. vttestserver starts vtcombo with no authentication and no table
+rules, so every user is the same principal, and Vitess is exempt from parity
+with that reason.
+
+### What a second opinion found
+
+Gemini was asked about each gap, as hard rule 14 requires, on 2026-09-30, and
+Gemini Pro about the ones it named. DeepSeek returned nothing twice, because
+its reasoning used every token it was given. Gemini named a table with the
+comment `vitess_sequence` for sequences, which is above.
+`information_schema.INNODB_TABLESPACES` for tablespaces,
+`COLUMN_STATISTICS` for column statistics, `mysql.func` for aggregates and
+`COLUMN_TYPE` for enum values are what the mysql model leaves unanswered on
+MySQL, for the reasons in the MySQL section. It named
+`information_schema.TRIGGERS`, which vtgate passes and which is empty,
+because vtgate refuses to create a trigger. It named `mysql.user`,
+`mysql.role_edges` and the privilege views for roles and privileges, which
+are the tablet's accounts, above. It named `_vt.vreplication` for
+subscriptions and said that vtgate does not pass the SELECT.
+
+## Databend
+
+`models/databend` answers 20 of the 55 on 1.2.881 and 1.2.948. It was
+measured on 2026-09-30 with dbimp's driver, which is what usql's databend
+scheme opens. It reads the system database, as the ClickHouse model does,
+and the table function show_sequences(). See D140.
+
+### Why not information_schema
+
+Databend's information_schema reports an ordinal position of 1 for every
+column, on both releases, and has no view of indexes, constraints,
+functions, sequences or roles. system has all of them. system.columns has no
+position either, so the model numbers a table's columns in the order
+system.columns lists them, which is the order they were declared in. The
+fixture test checks that order.
+
+### What differs
+
+| Query | What differs |
+| --- | --- |
+| schemas and databases | a database is the only namespace, so both read system.databases. A database Databend made has no owner |
+| tables | the type is read from the engine: table for FUSE, view, materialized view, system table, and the engine's name and table for any other |
+| columns | no primary key, identity or generated column is reported. Databend has no primary key, and system.columns does not say that a column is AUTOINCREMENT or computed |
+| indexes and index columns | an inverted, ngram or vector index belongs to a table and enforces nothing. The columns are read from the definition, such as book(a, b). An aggregating index belongs to a query and has no columns |
+| constraints and constraint columns | a CHECK is the only constraint, and system.constraints lists its columns |
+| functions and aggregates | a function or procedure a user made belongs to no database, so its schema is empty. The functions built into the server are listed with the system objects, in the schema system |
+| sequences | from show_sequences(), because system has no table of sequences. A sequence belongs to no database. The start, the bounds and the type are not recorded |
+| roles and role grants | a user and a role are both listed. A user or a role that holds account_admin is a superuser. The roles granted to each are one list joined by commas, which the role grants query splits |
+
+### What it does not answer
+
+Privileges are not answered, because show_grants lists the grants of one
+role or user at a time, and a statement cannot call it once for each. Routine
+parameters are not answered, because a procedure records its arguments as
+one text, such as addup(Int32,Int32) RETURN (Int32), and a function records
+them as a variant. Databend has no trigger, type, domain, collation,
+extension or partitioned table, and the rest are PostgreSQL's alone.
+
+A computed column needs an Enterprise licence on 1.2.881. 1.2.948 accepts
+one, and system.columns does not mark it as computed on either release.
+
+### What the fixture builds
+
+`models/databend/fixture` builds the core tables, with no key, a CHECK on
+book.title, an inverted and an ngram index, a view, a function, a procedure,
+a sequence, two roles and a user with the grants between them, and rows in
+author with statistics taken by ANALYZE TABLE. The function, the procedure,
+the sequence, the roles and the user belong to no database, so the teardown
+drops each by name.
+
+### Which answers depend on who is asking
+
+Parity asks as root, as a user whose role holds every privilege on the
+fixture's database, and as one whose role may only read it. Both lesser users
+are refused system.settings, system.engines, system.statistics and
+system.constraints, so settings, access methods, column statistics,
+constraints and constraint columns are refused to them, and they see fewer
+schemas and databases.
+
+### What a second opinion found
+
+Gemini and Gemini Pro were asked about each gap, as hard rule 14 requires, on
+2026-09-30. Both named the column list of system.constraints for constraint
+columns and the definition of system.indexes for index columns, which are
+above. The rest are stretches and are left out: a stage is a place files are
+read from, not a tablespace, a catalog is a source of tables rather than a
+server with options, a task runs on a schedule and not on a change, and a
+cluster key orders the rows of a table rather than partitioning it.
+
+## SingleStore
+
+`models/singlestore` answers 22 of the 55 on 9.0 and 9.1. It was measured on
+2026-09-30 on the development image, which runs with no licence on a machine
+with at most 8 cores and 64 GB, through the mysql driver, which is what
+dburl's memsql scheme opens and what usql uses. SingleStore imitates MySQL's
+information_schema, so 16 of its statements are the mysql model's, shared
+with `Query.Share`. The version set's main version is the MySQL release
+SingleStore claims, 5.7.32 on both releases, set under the `mysql` key too,
+and SingleStore's own release is under the key `memsql`, read from
+`@@memsql_version`. See D141.
+
+### What differs from MySQL
+
+| Query | What differs |
+| --- | --- |
+| every query that filters by schema | memsql and cluster are SingleStore's own schemas. The mysql model's filter carries an alternative for SingleStore that names them |
+| constraints | SingleStore reports the primary key of a columnstore table as UNIQUE, with the name PRIMARY. The mysql model's statement carries an alternative that reports it as the primary key |
+| index columns | a shard key is listed as an index of the type SHARD, and a key that is also the shard key is listed twice. The mysql model's statement carries an alternative that leaves out the second row |
+| settings | from GLOBAL_VARIABLES, because SingleStore has no performance_schema. The context is whether a variable can be set while the server runs |
+| roles | from USERS, ROLES and GROUPS, because SingleStore has no mysql database. A user can log in, and a role and a group cannot. A group's member_of is the roles it holds |
+| role grants | from GROUPS_ROLES, a role granted to a group. No view says which groups a user is in |
+| privileges | from ROLE_PRIVILEGES, because TABLE_PRIVILEGES and SCHEMA_PRIVILEGES are empty although a role holds a grant. A grant to a user is in no view |
+| aggregates | from AGGREGATE_FUNCTIONS, a user defined aggregate and the four functions that make it |
+| column statistics | from OPTIMIZER_STATISTICS, which ANALYZE TABLE fills. The bounds are only inside the histogram |
+
+### What it does not answer
+
+SingleStore refuses a foreign key, a trigger, a foreign server and PARTITION
+BY, and has no sequence, so those queries are not answered. PLUGINS is
+empty, so extensions is not answered. The rest are absent, as they are on
+MySQL.
+
+### What the fixture builds
+
+`models/singlestore/fixture` builds the core tables in SingleStore's own
+syntax, with no foreign key. book is a reference table, because a unique key
+of a sharded table must hold the shard key, and book_title_unique is on title
+alone. It adds a function, a procedure, an aggregate and the four functions
+behind it, a role granted to a group and the group to a user, a privilege,
+and rows with statistics.
+
+### Which answers depend on who is asking
+
+Parity asks as root, as a user with every privilege on the fixture schema,
+and as one that may only read it, as for MySQL. Both lesser users see fewer
+roles, role grants and privileges.
+
+### What a second opinion found
+
+Gemini and Gemini Pro were asked about each gap, as hard rule 14 requires, on
+2026-09-30. Every lead was a stretch or a view that exists for MySQL's
+clients and is empty: LINKS as foreign servers, EXTERNAL_TABLES as foreign
+tables, PIPELINES as subscriptions, RESOURCE_POOLS as role settings,
+DISTRIBUTED_PARTITIONS as partitioned tables, and an AUTO_INCREMENT column as
+a sequence. TRIGGERS and TABLESPACES are empty. Both named the histograms for
+extended statistics. PostgreSQL's extended statistics cover several columns,
+and CORRELATED_COLUMN_STATISTICS may, which docs/BACKLOG.md holds to measure.
+
+## Snowflake and Amazon Redshift
+
+`models/snowflake` answers 13 of the 55 and `models/redshift` answers 11.
+Neither has run. Ken chose on 2026-09-30 to write both from the vendors'
+documentation before an account or a cluster was provisioned, and hard rule
+9 says a query that has never run is not finished. Their tests skip until
+dbrun resolves a connection string for each (D117), and running them is what
+finishes the models. See D144.
+
+Snowflake reads the INFORMATION_SCHEMA of the database the connection is in.
+It has no KEY_COLUMN_USAGE, so no column is reported as a key, and no
+constraint's columns are listed. It has no index. The fold is upper case, as
+Snowflake documents.
+
+Redshift reads the pg_catalog tables that PostgreSQL 8.0 already had, from
+which Redshift was built, because the postgres model's statements need 9.6.
+Its roles, grants, and the collation of a column are in SVV views, which the
+model does not read yet.
+
+## Apache Impala
+
+`models/impala` answers 11 of the 55 on 4.4.1 and 4.5.2, measured on
+2026-09-30 in the one container dbrun builds (D145), with sclgo/impala-go,
+which is what usql uses.
+
+### A walk of SHOW statements
+
+Impala has no catalog a SELECT can read. Schemas, databases, tables, views,
+columns, column statistics, functions, aggregates and settings are each a
+walk (D146): SHOW DATABASES, and then SHOW TABLES IN and SHOW VIEWS IN each
+database, DESCRIBE FORMATTED each table for its type and comment, DESCRIBE
+and SHOW COLUMN STATS each table for its columns, SHOW CREATE VIEW each view,
+and SHOW FUNCTIONS IN each database. The metastore makes a new table
+external, so a table the fixture makes reads as an external table. A walk costs one statement for
+each database it reaches, and one for each table where it goes deeper. The
+caller's patterns are matched in Go, because a SHOW statement takes none.
+The current schema and the current user are one SELECT each.
+
+### What it does not answer
+
+A primary key and a foreign key are information Impala keeps and no SHOW
+statement lists, so constraints and constraint columns are not answered.
+Impala has no index, trigger or sequence, and authorization is off in the
+image, so roles and privileges are not answered. A function of a user's own
+needs a library file, and SHOW FUNCTIONS records no parameter names, so
+routine parameters are not answered.
+
+### Which answers depend on who is asking
+
+Nothing. The image configures no authentication, so every user is the same
+principal, and Impala is exempt from parity with that reason.
 
 ## Releases that need a licence file
 

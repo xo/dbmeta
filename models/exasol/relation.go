@@ -65,17 +65,20 @@ func registerTables() {
 			always(`FROM EXA_ALL_TABLES t`),
 			always(`WHERE ` + like(`t.TABLE_SCHEMA`, `@schema`)),
 			always(`AND ` + like(`t.TABLE_NAME`, `@name`)),
+			always(`AND (@types IS NULL OR ` + dbmeta.InList(`@types`, `CASE WHEN t.TABLE_IS_VIRTUAL THEN 'virtual table' ELSE 'table' END`) + `)`),
 			always(`UNION ALL`),
 			always(`SELECT '', v.VIEW_SCHEMA, v.VIEW_NAME, 'view', v.VIEW_COMMENT`),
 			always(`FROM EXA_ALL_VIEWS v`),
 			always(`WHERE ` + like(`v.VIEW_SCHEMA`, `@schema`)),
 			always(`AND ` + like(`v.VIEW_NAME`, `@name`)),
+			always(`AND (@types IS NULL OR ` + dbmeta.InList(`@types`, `'view'`) + `)`),
 			always(`UNION ALL`),
 			always(`SELECT '', c.SCHEMA_NAME, c.OBJECT_NAME, 'system table', c.OBJECT_COMMENT`),
 			always(`FROM EXA_SYSCAT c`),
 			always(`WHERE ` + system),
 			always(`AND ` + like(`c.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`c.OBJECT_NAME`, `@name`)),
+			always(`AND (@types IS NULL OR ` + dbmeta.InList(`@types`, `'system table'`) + `)`),
 			always(`ORDER BY 2, 3`),
 		},
 		Fields: []dbmeta.Field{
@@ -85,7 +88,7 @@ func registerTables() {
 			{Name: "type", Desc: "table, virtual table, view or system table. A virtual table belongs to a virtual schema and its rows come from an adapter"},
 			{Name: "comment", Desc: "from COMMENT ON TABLE, or the COMMENT IS clause of CREATE VIEW, which is the only way a view takes one. A system table carries the engine's own description"},
 		},
-		Params: schemaAndName("table"),
+		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type), &v.Comment)
@@ -236,6 +239,7 @@ func registerColumns() {
 				` ELSE '' END AS "identity"`),
 			always(`, '' AS "generated"`),
 			always(`, c.COLUMN_COMMENT AS "comment"`),
+			always(`, NULL AS "collation"`),
 			always(`FROM EXA_ALL_COLUMNS c`),
 			// Exasol refuses a correlated EXISTS in a select list, so the
 			// key columns are joined. A column is in at most one primary
@@ -250,7 +254,7 @@ func registerColumns() {
 			always(`SELECT '', s.COLUMN_SCHEMA, s.COLUMN_TABLE, s.COLUMN_NAME`),
 			always(`, CAST(s.COLUMN_ORDINAL_POSITION AS INTEGER), s.COLUMN_TYPE`),
 			always(`, CASE WHEN s.COLUMN_IS_NULLABLE = FALSE THEN FALSE ELSE TRUE END`),
-			always(`, s.COLUMN_DEFAULT, FALSE, '', '', s.COLUMN_COMMENT`),
+			always(`, s.COLUMN_DEFAULT, FALSE, '', '', s.COLUMN_COMMENT, NULL`),
 			always(`FROM EXA_SYS_COLUMNS s`),
 			always(`WHERE ` + system),
 			always(`AND ` + like(`s.COLUMN_SCHEMA`, `@schema`)),
@@ -269,6 +273,7 @@ func registerColumns() {
 			{Name: "identity", Desc: "by default for an IDENTITY column, which accepts an explicit value as well as generating one, and empty otherwise"},
 			{Name: "generated", Desc: "always empty: Exasol has no generated column"},
 			{Name: "comment", Desc: "from COMMENT ON COLUMN. A system table column carries the engine's own description"},
+			{Name: "collation", Desc: "always absent: Exasol has no collation on a column"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -280,7 +285,7 @@ func registerColumns() {
 			var v dbmeta.Column
 			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Table), dbmeta.NullAsEmpty(&v.Name), &v.Ordinal,
 				dbmeta.NullAsEmpty(&v.DataType), &v.Nullable, &v.Default, &v.PrimaryKey, present(&v.Identity),
-				present(&v.Generated), &v.Comment)
+				present(&v.Generated), &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

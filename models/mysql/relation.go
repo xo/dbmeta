@@ -17,13 +17,13 @@ func registerRelations() {
 	dbmeta.Schemas.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT s.catalog_name AS "catalog"`}},
-			{{Query: `, s.schema_name AS "name"`}},
+			schemaAs(`, `, "s.schema_name", "name"),
 			// MariaDB records no owner for a schema
 			{{Query: `, '' AS "owner"`}},
 			{{Query: `, NULL AS "comment"`}},
 			{{Query: `FROM information_schema.SCHEMATA s`}},
-			{{Query: `WHERE (@with_system OR s.schema_name NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@name = '' OR s.schema_name LIKE @name)`}},
+			notSystem("WHERE", "s.schema_name"),
+			schemaLike("name", "s.schema_name"),
 			{{Query: `ORDER BY 2`}},
 		},
 		Fields: []dbmeta.Field{
@@ -41,7 +41,7 @@ func registerRelations() {
 
 	dbmeta.Databases.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Database]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT s.schema_name AS "name"`}},
+			schemaAs(`SELECT `, "s.schema_name", "name"),
 			{{Query: `, '' AS "owner"`}},
 			{{Query: `, s.default_character_set_name AS "encoding"`}},
 			{{Query: `, s.default_collation_name AS "collate"`}},
@@ -51,8 +51,8 @@ func registerRelations() {
 			{{Query: `, NULL AS "size"`}},
 			{{Query: `, NULL AS "comment"`}},
 			{{Query: `FROM information_schema.SCHEMATA s`}},
-			{{Query: `WHERE (@with_system OR s.schema_name NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@name = '' OR s.schema_name LIKE @name)`}},
+			notSystem("WHERE", "s.schema_name"),
+			schemaLike("name", "s.schema_name"),
 			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "owner", "encoding", "collate", "ctype",
@@ -70,25 +70,25 @@ func registerRelations() {
 	// catalog of comments. MariaDB writes an empty string for no comment, not
 	// NULL, so the query turns that back into NULL: an absent comment and an
 	// empty one are different answers and docs/NULLS.md forbids collapsing them.
+	// Both products write the word VIEW there for every view, and neither lets
+	// a view have a comment, so a view's comment is absent. usql found a view
+	// reported with the comment VIEW on 2026-09-30.
 	dbmeta.Tables.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT t.table_catalog AS "catalog"`}},
-			{{Query: `, t.table_schema AS "schema"`}},
+			schemaAs(`, `, "t.table_schema", "schema"),
 			{{Query: `, t.table_name AS "name"`}},
-			{{Query: `, CASE t.table_type WHEN 'BASE TABLE' THEN 'table'` +
-				` WHEN 'VIEW' THEN 'view'` +
-				` WHEN 'SEQUENCE' THEN 'sequence'` +
-				` WHEN 'SYSTEM VIEW' THEN 'view'` +
-				` ELSE LOWER(t.table_type) END AS "type"`}},
-			{{Query: `, NULLIF(t.table_comment, '') AS "comment"`}},
+			{{Query: `, ` + tableType + ` AS "type"`}},
+			{{Query: `, ` + tableComment + ` AS "comment"`}},
 			{{Query: `FROM information_schema.TABLES t`}},
-			{{Query: `WHERE (@with_system OR t.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
+			notSystem("WHERE", "t.table_schema"),
+			schemaLike("schema", "t.table_schema"),
 			{{Query: `AND (@name = '' OR t.table_name LIKE @name)`}},
+			{{Query: `AND (@types = '' OR CONCAT(',', @types, ',') LIKE CONCAT('%,', ` + tableType + `, ',%'))`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: fields("catalog", "schema", "name", "type", "comment"),
-		Params: schemaNameSystem("table"),
+		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -102,7 +102,7 @@ func registerRelations() {
 	dbmeta.Columns.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Column]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT c.table_catalog AS "catalog"`}},
-			{{Query: `, c.table_schema AS "schema"`}},
+			schemaAs(`, `, "c.table_schema", "schema"),
 			{{Query: `, c.table_name AS "table"`}},
 			{{Query: `, c.column_name AS "name"`}},
 			{{Query: `, c.ordinal_position AS "ordinal"`}},
@@ -116,21 +116,22 @@ func registerRelations() {
 			{{Query: `, CASE WHEN c.extra LIKE '%auto_increment%' THEN 'a' ELSE NULL END AS "identity"`}},
 			{{Query: `, CASE WHEN c.extra LIKE '%GENERATED%' THEN 's' ELSE NULL END AS "generated"`}},
 			{{Query: `, NULLIF(c.column_comment, '') AS "comment"`}},
+			{{Query: `, c.collation_name AS "collation"`}},
 			{{Query: `FROM information_schema.COLUMNS c`}},
-			{{Query: `WHERE (@with_system OR c.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR c.table_schema LIKE @schema)`}},
+			notSystem("WHERE", "c.table_schema"),
+			schemaLike("schema", "c.table_schema"),
 			{{Query: `AND (@parent = '' OR c.table_name LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR c.column_name LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3, 5`}},
 		},
 		Fields: fields("catalog", "schema", "table", "name", "ordinal",
-			"data_type", "nullable", "default", "primary_key", "identity", "generated", "comment"),
+			"data_type", "nullable", "default", "primary_key", "identity", "generated", "comment", "collation"),
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated,
-				&v.Comment)
+				&v.Comment, &v.Collation)
 			return v, err
 		},
 	})
@@ -139,7 +140,7 @@ func registerRelations() {
 	dbmeta.Indexes.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Index]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT s.table_catalog AS "catalog"`}},
-			{{Query: `, s.table_schema AS "schema"`}},
+			schemaAs(`, `, "s.table_schema", "schema"),
 			{{Query: `, s.table_name AS "table"`}},
 			{{Query: `, s.index_name AS "name"`}},
 			{{Query: `, MIN(s.index_type) AS "type"`}},
@@ -147,8 +148,8 @@ func registerRelations() {
 			{{Query: `, MIN(s.index_name) = 'PRIMARY' AS "primary"`}},
 			{{Query: `, NULLIF(MIN(s.index_comment), '') AS "comment"`}},
 			{{Query: `FROM information_schema.STATISTICS s`}},
-			{{Query: `WHERE (@with_system OR s.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR s.table_schema LIKE @schema)`}},
+			notSystem("WHERE", "s.table_schema"),
+			schemaLike("schema", "s.table_schema"),
 			{{Query: `AND (@parent = '' OR s.table_name LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR s.index_name LIKE @name)`}},
 			{{Query: `GROUP BY 1, 2, 3, 4`}},
@@ -166,7 +167,7 @@ func registerRelations() {
 
 	dbmeta.IndexColumns.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.IndexColumn]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT s.table_schema AS "schema"`}},
+			schemaAs(`SELECT `, "s.table_schema", "schema"),
 			{{Query: `, s.table_name AS "table"`}},
 			{{Query: `, s.index_name AS "index"`}},
 			{{Query: `, s.column_name AS "name"`}},
@@ -178,10 +179,21 @@ func registerRelations() {
 			// or a full text index, and no key of it is descending.
 			{{Query: `, s.collation <=> 'D' AS "descending"`}},
 			{{Query: `FROM information_schema.STATISTICS s`}},
-			{{Query: `WHERE (@with_system OR s.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR s.table_schema LIKE @schema)`}},
+			notSystem("WHERE", "s.table_schema"),
+			schemaLike("schema", "s.table_schema"),
 			{{Query: `AND (@parent = '' OR s.table_name LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR s.index_name LIKE @name)`}},
+			// SingleStore lists a shard key as an index of the type SHARD,
+			// and a key that is also the shard key twice, once under each
+			// type. The second row of such a key is left out, and a shard key
+			// that is no other index keeps its rows. See D141.
+			{
+				{Query: ``},
+				{Key: MemSQL, Query: `AND (s.index_type <> 'SHARD' OR NOT EXISTS (SELECT 1` +
+					` FROM information_schema.STATISTICS o WHERE o.table_schema = s.table_schema` +
+					` AND o.table_name = s.table_name AND o.index_name = s.index_name` +
+					` AND o.index_type <> 'SHARD'))`},
+			},
 			{{Query: `ORDER BY 1, 2, 3, 5`}},
 		},
 		Fields: []dbmeta.Field{
@@ -205,10 +217,16 @@ func registerRelations() {
 	// source, so it is padded with NULL rather than an empty string.
 	dbmeta.Constraints.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Constraint]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT t.table_schema AS "schema"`}},
+			schemaAs(`SELECT `, "t.table_schema", "schema"),
 			{{Query: `, t.table_name AS "table"`}},
 			{{Query: `, t.constraint_name AS "name"`}},
-			{{Query: `, LOWER(t.constraint_type) AS "type"`}},
+			// SingleStore reports the primary key of a columnstore table as
+			// UNIQUE, with the name PRIMARY, measured on 9.1.1. See D141.
+			{
+				{Query: `, LOWER(t.constraint_type) AS "type"`},
+				{Key: MemSQL, Query: `, CASE WHEN t.constraint_name = 'PRIMARY' THEN 'primary key'` +
+					` ELSE LOWER(t.constraint_type) END AS "type"`},
+			},
 			{
 				{Query: `, NULL AS "definition"`},
 				frag(mariaCheck, `, k.check_clause AS "definition"`),
@@ -224,8 +242,8 @@ func registerRelations() {
 				frag(mariaCheck, mariaCheckJoin),
 				frag(mysqlCheck, mysqlCheckJoin),
 			},
-			{{Query: `WHERE (@with_system OR t.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
+			notSystem("WHERE", "t.table_schema"),
+			schemaLike("schema", "t.table_schema"),
 			{{Query: `AND (@parent = '' OR t.table_name LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR t.constraint_name LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2, 3`}},
@@ -253,7 +271,7 @@ func registerRelations() {
 
 	dbmeta.Triggers.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Trigger]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT t.trigger_schema AS "schema"`}},
+			schemaAs(`SELECT `, "t.trigger_schema", "schema"),
 			{{Query: `, t.event_object_table AS "table"`}},
 			{{Query: `, t.trigger_name AS "name"`}},
 			// a MariaDB trigger cannot be disabled
@@ -261,8 +279,8 @@ func registerRelations() {
 			{{Query: `, CONCAT(t.action_timing, ' ', t.event_manipulation, ' ', t.action_statement) AS "definition"`}},
 			{{Query: `, NULL AS "comment"`}},
 			{{Query: `FROM information_schema.TRIGGERS t`}},
-			{{Query: `WHERE (@with_system OR t.trigger_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR t.trigger_schema LIKE @schema)`}},
+			notSystem("WHERE", "t.trigger_schema"),
+			schemaLike("schema", "t.trigger_schema"),
 			{{Query: `AND (@parent = '' OR t.event_object_table LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR t.trigger_name LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2, 3`}},
@@ -322,7 +340,7 @@ func registerRelations() {
 
 	dbmeta.PartitionedTables.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.PartitionedTable]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT p.table_schema AS "schema"`}},
+			schemaAs(`SELECT `, "p.table_schema", "schema"),
 			{{Query: `, p.table_name AS "name"`}},
 			{{Query: `, '' AS "owner"`}},
 			{{Query: `, 'table' AS "type"`}},
@@ -332,8 +350,8 @@ func registerRelations() {
 			{{Query: `, NULL AS "comment"`}},
 			{{Query: `FROM information_schema.PARTITIONS p`}},
 			{{Query: `WHERE p.partition_name IS NOT NULL`}},
-			{{Query: `AND (@with_system OR p.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR p.table_schema LIKE @schema)`}},
+			notSystem("AND", "p.table_schema"),
+			schemaLike("schema", "p.table_schema"),
 			{{Query: `AND (@name = '' OR p.table_name LIKE @name)`}},
 			{{Query: `GROUP BY 1, 2`}},
 			{{Query: `ORDER BY 1, 2`}},
@@ -352,14 +370,14 @@ func registerRelations() {
 	// this gathers the ones that are set.
 	dbmeta.Comments.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Comment]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT t.table_schema AS "schema"`}},
+			schemaAs(`SELECT `, "t.table_schema", "schema"),
 			{{Query: `, t.table_name AS "name"`}},
 			{{Query: `, CASE t.table_type WHEN 'BASE TABLE' THEN 'table' ELSE LOWER(t.table_type) END AS "type"`}},
 			{{Query: `, t.table_comment AS "comment"`}},
 			{{Query: `FROM information_schema.TABLES t`}},
-			{{Query: `WHERE t.table_comment <> ''`}},
-			{{Query: `AND (@with_system OR t.table_schema NOT IN (` + systemSchemas + `))`}},
-			{{Query: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
+			{{Query: `WHERE t.table_comment <> '' AND t.table_type <> 'VIEW'`}},
+			notSystem("AND", "t.table_schema"),
+			schemaLike("schema", "t.table_schema"),
 			{{Query: `AND (@name = '' OR t.table_name LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2`}},
 		},

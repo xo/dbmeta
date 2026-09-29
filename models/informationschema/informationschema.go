@@ -156,6 +156,13 @@ const (
 	// which is one more subquery. MySQL has column_key and overrides it with
 	// a free expression, which is the case D47 describes.
 	ColumnPrimaryKey Clause = "columns.primary_key"
+	// ColumnCollation is the collation of a column. The standard names it
+	// collation_name.
+	ColumnCollation Clause = "columns.collation"
+	// TableTypeIn is the condition that a table's type is one of the types
+	// in @types. The standard joins strings with ||, and a database that
+	// joins them another way, such as MySQL or SQL Server, overrides it.
+	TableTypeIn Clause = "tables.type_in"
 )
 
 // standardClauses is what a database gets when it overrides nothing.
@@ -171,6 +178,8 @@ func standardClauses() map[Clause]string {
 		CurrentSchema:        "CURRENT_SCHEMA",
 		CurrentUser:          "CURRENT_USER",
 		SessionUser:          "SESSION_USER",
+		TableTypeIn:          dbmeta.InList("@types", "LOWER(t.table_type)"),
+		ColumnCollation:      "c.collation_name",
 		ColumnPrimaryKey: `EXISTS (SELECT 1 FROM information_schema.key_column_usage k` +
 			` JOIN information_schema.table_constraints tc` +
 			` ON tc.constraint_catalog = k.constraint_catalog` +
@@ -319,10 +328,11 @@ func tables(p Profile) *dbmeta.Binding[dbmeta.Table] {
 			{{Query: `WHERE (@with_system OR t.table_schema NOT IN (` + p.systemSchemas() + `))`}},
 			{{Query: `AND (@schema = '' OR t.table_schema LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR t.table_name LIKE @name)`}},
+			{{Query: `AND (@types = '' OR ` + p.clause(TableTypeIn) + `)`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: dbmeta.Fields("catalog", "schema", "name", "type", "comment"),
-		Params: schemaNameSystem("table"),
+		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -350,6 +360,7 @@ func columns(p Profile) *dbmeta.Binding[dbmeta.Column] {
 			{{Query: `, NULL AS "identity"`}},
 			{{Query: `, NULL AS "generated"`}},
 			{{Query: `, NULL AS "comment"`}},
+			{{Query: `, ` + p.clause(ColumnCollation) + ` AS "collation"`}},
 			{{Query: `FROM information_schema.columns c`}},
 			{{Query: `WHERE (@with_system OR c.table_schema NOT IN (` + p.systemSchemas() + `))`}},
 			{{Query: `AND (@schema = '' OR c.table_schema LIKE @schema)`}},
@@ -358,13 +369,13 @@ func columns(p Profile) *dbmeta.Binding[dbmeta.Column] {
 			{{Query: `ORDER BY 2, 3, 5`}},
 		},
 		Fields: dbmeta.Fields("catalog", "schema", "table", "name", "ordinal",
-			"data_type", "nullable", "default", "primary_key", "identity", "generated", "comment"),
+			"data_type", "nullable", "default", "primary_key", "identity", "generated", "comment", "collation"),
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	}
@@ -536,9 +547,15 @@ func schemaNameSystem(kind string) []dbmeta.Param {
 }
 
 func schemaParentName(kind string) []dbmeta.Param {
+	return schemaParentOf("table", kind)
+}
+
+// schemaParentOf is the parameter set for an object that belongs to the object
+// parent names, such as a parameter to its routine.
+func schemaParentOf(parent, kind string) []dbmeta.Param {
 	return append([]dbmeta.Param{
 		{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
-		{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+		{Name: "parent", Desc: parent + " name pattern, empty for every " + parent, Default: ""},
 	}, nameSystem(kind)...)
 }
 
@@ -624,7 +641,7 @@ func routineParameters(p Profile) *dbmeta.Binding[dbmeta.RoutineParameter] {
 			{Name: "name"}, {Name: "ordinal"}, {Name: "mode"}, {Name: "data_type"},
 			{Name: "default", Desc: "always absent: the standard records no parameter default"},
 		},
-		Params: schemaParentName("parameter"),
+		Params: schemaParentOf("routine", "parameter"),
 		Scan: func(rows *sql.Rows) (dbmeta.RoutineParameter, error) {
 			var v dbmeta.RoutineParameter
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Routine, &v.RoutineID, &v.Name,

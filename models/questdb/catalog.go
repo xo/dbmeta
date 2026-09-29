@@ -44,6 +44,10 @@ func register() {
 	registerRoutines()
 }
 
+// tableType is the word for a table's kind, from the letter tables() gives.
+const tableType = `CASE t.table_type WHEN 'T' THEN 'table' WHEN 'V' THEN 'view'` +
+	` WHEN 'M' THEN 'materialized view' ELSE lower(t.table_type) END`
+
 func registerRelations() {
 	// pg_namespace holds public and pg_catalog, which QuestDB imitates for a
 	// PostgreSQL client. Neither has an owner QuestDB keeps.
@@ -100,12 +104,14 @@ func registerRelations() {
 			always(`SELECT current_database() AS "catalog"`),
 			always(`, ` + public + ` AS "schema"`),
 			always(`, t.table_name AS "name"`),
-			always(`, CASE t.table_type WHEN 'T' THEN 'table' WHEN 'V' THEN 'view'` +
-				` WHEN 'M' THEN 'materialized view' ELSE lower(t.table_type) END AS "type"`),
+			always(`, ` + tableType + ` AS "type"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM tables() t`),
 			always(`WHERE ` + inPublic),
 			always(`AND (@name = '' OR t.table_name LIKE @name)`),
+			// QuestDB refuses a LIKE whose pattern is not a constant, so the
+			// list is searched with strpos.
+			always(`AND (@types = '' OR strpos(',' || CAST(@types AS varchar) || ',', ',' || ` + tableType + ` || ',') > 0)`),
 			always(`ORDER BY 3`),
 		},
 		Fields: []dbmeta.Field{
@@ -114,7 +120,7 @@ func registerRelations() {
 			{Name: "name"}, {Name: "type"},
 			{Name: "comment", Desc: "always absent: QuestDB has no COMMENT statement"},
 		},
-		Params: relationParams("relation"),
+		Params: append(relationParams("relation"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -144,6 +150,7 @@ func registerRelations() {
 			always(`, '' AS "identity"`),
 			always(`, '' AS "generated"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "collation"`),
 			always(`FROM information_schema.columns c`),
 			always(`WHERE (@schema = '' OR c.table_schema LIKE @schema)`),
 			always(`AND (@parent = '' OR c.table_name LIKE @parent)`),
@@ -160,6 +167,7 @@ func registerRelations() {
 			{Name: "identity", Desc: "always empty: QuestDB has no identity column"},
 			{Name: "generated", Desc: "always empty: QuestDB has no generated column"},
 			{Name: "comment", Desc: "always absent: QuestDB has no COMMENT statement"},
+			{Name: "collation", Desc: "always absent: QuestDB has no collation"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -169,7 +177,7 @@ func registerRelations() {
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal, &v.DataType,
-				&v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated, &v.Comment)
+				&v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

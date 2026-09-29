@@ -28,9 +28,15 @@ func accessMethodName(kind string) []dbmeta.Param {
 // schemaParentName is the parameter set for an object that belongs to a table:
 // narrow by schema, by the table, and by its own name.
 func schemaParentName(kind string) []dbmeta.Param {
+	return schemaParentOf("table", kind)
+}
+
+// schemaParentOf is the parameter set for an object that belongs to the object
+// parent names, such as a parameter to its routine.
+func schemaParentOf(parent, kind string) []dbmeta.Param {
 	return []dbmeta.Param{
 		{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
-		{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+		{Name: "parent", Desc: parent + " name pattern, empty for every " + parent, Default: ""},
 		{Name: "name", Desc: kind + " name pattern, empty for every " + kind, Default: ""},
 		{Name: "with_system", Desc: "include the objects PostgreSQL keeps for itself", Default: false},
 	}

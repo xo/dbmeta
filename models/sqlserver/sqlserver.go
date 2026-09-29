@@ -67,6 +67,10 @@ var (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.SQLServer, &dbmeta.Info{
+		// The syntax is usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143).
+		Syntax:         dbmeta.Syntax{BlockComments: true},
+		OldPassword:    true,
 		Placeholder:    func(n int) string { return "@p" + strconv.Itoa(n) },
 		VersionQuery:   versionQuery,
 		VersionColumns: 5,
@@ -205,9 +209,17 @@ func schemaNameSystem(kind string) []dbmeta.Param {
 	}
 }
 
+// schemaParentName are the parameters of a kind whose objects belong to a
+// table, such as a column.
 func schemaParentName(kind string) []dbmeta.Param {
+	return schemaParentOf("table", kind)
+}
+
+// schemaParentOf are the parameters of a kind whose objects belong to the
+// object parent names, such as a parameter to its routine.
+func schemaParentOf(parent, kind string) []dbmeta.Param {
 	return append([]dbmeta.Param{
-		{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+		{Name: "parent", Desc: parent + " name pattern, empty for every " + parent, Default: ""},
 	}, schemaNameSystem(kind)...)
 }
 

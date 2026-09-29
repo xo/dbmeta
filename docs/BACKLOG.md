@@ -74,7 +74,33 @@ for tables, types, privileges and column_stats, measured on 2026-09-29.
 whether one view or one join is the cost. docs/COVERAGE.md has the timings,
 under Oracle.
 
+### Measure SingleStore's correlated statistics
+
+Gemini and Gemini Pro named SingleStore's histograms for extended
+statistics (D141). PostgreSQL's extended statistics cover several columns,
+and CORRELATED_COLUMN_STATISTICS may too. Build correlated statistics in the
+SingleStore fixture, read the view, and decide whether it answers
+ExtendedStats.
+
+### Run the Snowflake and Redshift models
+
+`models/snowflake` and `models/redshift` were written from the vendors'
+documentation and have never run (D144). When a person provisions a
+connection string that dbrun resolves (D117), run their tests, fix each
+statement that fails, write their parity targets, and remove "Written, not
+run" from README.md and docs/COVERAGE.md.
+
 ## Consumers
+
+### Move the rules of the products with no model out of usql
+
+ODBC, csvq, Athena and Cosmos keep rules of their own in usql's drivers,
+such as ODBC's usql_trim, csvq's SHOW routing and the trailing semicolon
+Athena and Cosmos strip, and have no model here, so D143's Info fields do
+not reach them. Ken decided on 2026-09-30 that this waits for a larger
+restructuring of usql, whose aim is to strip every database specific helper
+out of usql/drivers. dbmeta then needs a form for a dialect with rules and
+no queries.
 
 ### usql reads metadata through dbmeta
 

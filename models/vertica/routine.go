@@ -170,6 +170,9 @@ func registerTriggers() {
 			always(`FROM v_catalog.stored_proc_triggers t`),
 			always(`WHERE ` + notSystem(`t.schema_name`)),
 			always(`AND ` + like(`t.schema_name`, `@schema`)),
+			// The table is always empty, so a filter on a table matches no
+			// trigger, which is the answer: none fires on that table.
+			always(`AND ` + like(`''`, `@parent`)),
 			always(`AND ` + like(`t.trigger_name`, `@name`)),
 			always(`ORDER BY 1, 3`),
 		},
@@ -182,6 +185,7 @@ func registerTriggers() {
 			{Name: "comment", Desc: "always absent: COMMENT ON has no trigger form"},
 		},
 		Params: []dbmeta.Param{
+			{Name: "parent", Desc: "table name pattern, empty for every table. A Vertica trigger names no table, so a pattern matches none", Default: ""},
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
 			{Name: "name", Desc: "trigger name pattern, empty for every one", Default: ""},
 			{Name: "with_system", Desc: "include the schemas Vertica keeps for itself", Default: false},

@@ -100,14 +100,15 @@ func registerRelations() {
 			always(`SELECT '' AS "catalog"`),
 			always(`, t.database AS "schema"`),
 			always(`, t.name AS "name"`),
-			always(`, multiIf(t.engine = 'MaterializedView', 'materialized view'` +
-				`, t.engine IN (` + viewEngines + `), 'view'` +
-				`, t.is_temporary, 'temporary table', 'table') AS "type"`),
+			always(`, ` + tableType + ` AS "type"`),
 			always(`, nullIf(t.comment, '') AS "comment"`),
 			always(`FROM system.tables t`),
 			always(`WHERE ` + notSystem("t.database")),
 			always(`AND (@schema = '' OR t.database LIKE @schema)`),
 			always(`AND (@name = '' OR t.name LIKE @name)`),
+			// ClickHouse refuses a LIKE whose pattern is not a constant, so
+			// the list is split and searched rather than matched.
+			always(`AND (@types = '' OR has(splitByChar(',', @types), ` + tableType + `))`),
 			always(`ORDER BY t.database, t.name`),
 		},
 		Fields: []dbmeta.Field{
@@ -119,7 +120,7 @@ func registerRelations() {
 			},
 			{Name: "comment"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -147,10 +148,12 @@ func registerRelations() {
 			always(`, nullIf(if(c.default_kind IN ('MATERIALIZED', 'ALIAS')` +
 				`, c.default_kind, ''), '') AS "generated"`),
 			always(`, nullIf(c.comment, '') AS "comment"`),
+			always(`, NULL AS "collation"`),
 			always(`FROM system.columns c`),
 			always(`WHERE ` + notSystem("c.database")),
 			always(`AND (@schema = '' OR c.database LIKE @schema)`),
-			always(`AND (@name = '' OR c.table LIKE @name)`),
+			always(`AND (@parent = '' OR c.table LIKE @parent)`),
+			always(`AND (@name = '' OR c.name LIKE @name)`),
 			always(`ORDER BY c.database, c.table, c.position`),
 		},
 		Fields: []dbmeta.Field{
@@ -175,13 +178,14 @@ func registerRelations() {
 					" one. A DEFAULT is a default and is in that field",
 			},
 			{Name: "comment"},
+			{Name: "collation", Desc: "always absent: ClickHouse has no collation on a column"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: childParams("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

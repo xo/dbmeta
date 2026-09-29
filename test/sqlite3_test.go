@@ -286,8 +286,10 @@ func TestSQLiteConstraints(t *testing.T) {
 				if !v.Definition.Valid || !strings.Contains(v.Definition.V, "author") {
 					t.Errorf("expected the book key to name author, got %v", v.Definition)
 				}
-				if !v.Deferred {
-					t.Error("expected ON DELETE CASCADE to report as acting")
+				// ON DELETE CASCADE is in the definition, and it does not
+				// make a key deferred, which SQLite does not report.
+				if v.Deferred {
+					t.Error("expected a key with ON DELETE CASCADE to report as not deferred")
 				}
 			case "shipment":
 				toRegion = true
@@ -295,12 +297,35 @@ func TestSQLiteConstraints(t *testing.T) {
 					t.Errorf("expected the shipment key to name region, got %v", v.Definition)
 				}
 				if v.Deferred {
-					t.Error("expected a key with no referential action to report as not acting")
+					t.Error("expected a key to report as not deferred")
 				}
 			}
 		}
 		if !toAuthor || !toRegion {
 			t.Errorf("expected both foreign keys, got author=%v region=%v", toAuthor, toRegion)
+		}
+		// A definition is SQL, as psql prints it, and a composite key is one
+		// row. pragma_foreign_key_list has a row for each column, and the
+		// key on shipment was once reported twice with the same name. usql
+		// found the definition written as a summary on 2026-09-30.
+		want := map[string]string{
+			"fk_book_0":     "FOREIGN KEY (author_id) REFERENCES author(author_id) ON DELETE CASCADE",
+			"fk_shipment_0": "FOREIGN KEY (country, area) REFERENCES region(country, area)",
+			"pk_sales":      "PRIMARY KEY (sold_on, region)",
+		}
+		seen := map[string]int{}
+		for _, vs := range byType {
+			for _, v := range vs {
+				seen[v.Name]++
+				if def, ok := want[v.Name]; ok && v.Definition.V != def {
+					t.Errorf("%s: expected %q, got %q", v.Name, def, v.Definition.V)
+				}
+			}
+		}
+		for name, n := range seen {
+			if n != 1 {
+				t.Errorf("%s: reported %d times", name, n)
+			}
 		}
 	})
 }

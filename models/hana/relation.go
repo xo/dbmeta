@@ -14,6 +14,13 @@ func registerRelations() {
 	registerTriggers()
 }
 
+// hanaTableType is the word for a table's kind. A HANA table is stored by row
+// or by column and the choice is per table, so the word says which rather
+// than saying table.
+const hanaTableType = `CASE WHEN t.IS_TEMPORARY = 'TRUE' THEN 'temporary table'` +
+	` WHEN t.TABLE_TYPE = 'COLUMN' THEN 'column table'` +
+	` ELSE 'row table' END`
+
 func registerTables() {
 	// \dn.
 	dbmeta.Schemas.Register(dbmeta.HANA, &dbmeta.Binding[dbmeta.Schema]{
@@ -53,20 +60,20 @@ func registerTables() {
 			always(`, t.TABLE_NAME AS "name"`),
 			// A HANA table is stored by row or by column and the choice is
 			// per table, so the word says which rather than saying table.
-			always(`, CASE WHEN t.IS_TEMPORARY = 'TRUE' THEN 'temporary table'` +
-				` WHEN t.TABLE_TYPE = 'COLUMN' THEN 'column table'` +
-				` ELSE 'row table' END AS "type"`),
+			always(`, ` + hanaTableType + ` AS "type"`),
 			always(`, t.COMMENTS AS "comment"`),
 			always(`FROM SYS.TABLES t`),
 			always(`WHERE ` + notSystem(`t.SCHEMA_NAME`)),
 			always(`AND ` + like(`t.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`t.TABLE_NAME`, `@name`)),
+			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, hanaTableType) + `)`),
 			always(`UNION ALL`),
 			always(`SELECT '', v.SCHEMA_NAME, v.VIEW_NAME, 'view', v.COMMENTS`),
 			always(`FROM SYS.VIEWS v`),
 			always(`WHERE ` + notSystem(`v.SCHEMA_NAME`)),
 			always(`AND ` + like(`v.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`v.VIEW_NAME`, `@name`)),
+			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, `'view'`) + `)`),
 			always(`ORDER BY 2, 3`),
 		},
 		Fields: []dbmeta.Field{
@@ -76,7 +83,7 @@ func registerTables() {
 			{Name: "type", Desc: "row table, column table, temporary table or view. HANA stores a table by row or by column and records which, so the word says which rather than saying table"},
 			{Name: "comment", Desc: "from COMMENTS, which COMMENT ON writes"},
 		},
-		Params: schemaAndName("table"),
+		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -238,6 +245,7 @@ func registerColumns() {
 			always(`, CASE WHEN c.GENERATED_ALWAYS_AS IS NOT NULL THEN 'stored'` +
 				` ELSE '' END AS "generated"`),
 			always(`, c.COMMENTS AS "comment"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "collation"`),
 			always(`FROM SYS.TABLE_COLUMNS c`),
 			always(`WHERE ` + notSystem(`c.SCHEMA_NAME`)),
 			always(`AND ` + like(`c.SCHEMA_NAME`, `@schema`)),
@@ -252,6 +260,7 @@ func registerColumns() {
 			always(`, ''`),
 			always(`, ''`),
 			always(`, w.COMMENTS`),
+			always(`, CAST(NULL AS NVARCHAR(1))`),
 			always(`FROM SYS.VIEW_COLUMNS w`),
 			always(`WHERE ` + notSystem(`w.SCHEMA_NAME`)),
 			always(`AND ` + like(`w.SCHEMA_NAME`, `@schema`)),
@@ -270,6 +279,7 @@ func registerColumns() {
 			{Name: "identity", Desc: "always or by default, and empty when the column is not an identity"},
 			{Name: "generated", Desc: "stored for a GENERATED ALWAYS AS column, and empty otherwise"},
 			{Name: "comment"},
+			{Name: "collation", Desc: "always absent: SAP HANA has no collation on a column"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -281,7 +291,7 @@ func registerColumns() {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

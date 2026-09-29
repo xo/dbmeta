@@ -94,10 +94,11 @@ func registerRelations() {
 			always(`WHERE ` + notSystem("t.table_schema")),
 			always(`AND (@schema = '' OR t.table_schema LIKE @schema)`),
 			always(`AND (@name = '' OR t.table_name LIKE @name)`),
+			always(`AND (@types = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, tableType) + `)`),
 			always(`ORDER BY 2, 3`),
 		},
 		Fields: fields("catalog", "schema", "name", "type", "comment"),
-		Params: schemaNameSystem("relation"),
+		Params: append(schemaNameSystem("relation"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -128,6 +129,7 @@ func registerRelations() {
 			// postgres model reports as s.
 			always(`, CASE c.is_generated WHEN 'ALWAYS' THEN 's' ELSE '' END AS "generated"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "collation"`),
 			always(`FROM information_schema.columns c`),
 			always(`WHERE c.table_schema NOT IN (` + systemSchemas + `)`),
 			always(`AND (@schema = '' OR c.table_schema LIKE @schema)`),
@@ -136,7 +138,7 @@ func registerRelations() {
 			always(`ORDER BY 2, 3, 5`),
 		},
 		Fields: fields("catalog", "schema", "table", "name", "ordinal", "data_type", "nullable", "default",
-			"primary_key", "identity", "generated", "comment"),
+			"primary_key", "identity", "generated", "comment", "collation"),
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
 			{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
@@ -145,7 +147,7 @@ func registerRelations() {
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal, &v.DataType,
-				&v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated, &v.Comment)
+				&v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})

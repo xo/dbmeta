@@ -83,6 +83,7 @@ var canonicalFields = map[string]string{
 	// by the tests of the databases that have them.
 	"Column.Identity":  "dropped: only PostgreSQL has an identity column",
 	"Column.Generated": "dropped: not every product reports a generated column",
+	"Column.Collation": "dropped: a collation name is per product, and most products have none (D139)",
 	// folded rather than dropped. The columns of a constraint become one
 	// joined string in the order the ordinals gave, and the referenced table
 	// and columns become one reference string, so that a constraint compares

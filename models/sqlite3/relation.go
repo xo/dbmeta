@@ -8,6 +8,11 @@ import (
 
 // Tables, columns, indexes, constraints and triggers.
 
+// tableType is the word for the kind of the entry m of sqlite_schema.
+const tableType = `CASE m.type WHEN 'view' THEN 'view'` +
+	` WHEN 'table' THEN CASE WHEN m.sql LIKE 'CREATE VIRTUAL TABLE%'` +
+	` THEN 'virtual' ELSE 'table' END ELSE m.type END`
+
 func registerRelations() {
 	// \dn and \l are the same answer here. An attached database is what
 	// SQLite calls a schema, and it is also the only thing it calls a
@@ -88,15 +93,14 @@ func registerRelations() {
 			always(`SELECT '' AS "catalog"`),
 			always(`, ` + mainSchema),
 			always(`, m.name AS "name"`),
-			always(`, CASE m.type WHEN 'view' THEN 'view'` +
-				` WHEN 'table' THEN CASE WHEN m.sql LIKE 'CREATE VIRTUAL TABLE%'` +
-				` THEN 'virtual' ELSE 'table' END ELSE m.type END AS "type"`),
+			always(`, ` + tableType + ` AS "type"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM sqlite_schema m`),
 			always(`WHERE m.type IN ('table', 'view')`),
 			always(`AND ` + notSystem),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@name = '' OR m.name LIKE @name)`),
+			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, tableType) + `)`),
 			always(`ORDER BY m.name`),
 		},
 		Fields: []dbmeta.Field{
@@ -109,7 +113,7 @@ func registerRelations() {
 			},
 			{Name: "comment", Desc: "always absent: SQLite records no comment on anything"},
 		},
-		Params: schemaNameSystem("table"),
+		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
@@ -146,6 +150,7 @@ func registerRelations() {
 			always(`, CASE c.hidden WHEN 2 THEN 'virtual' WHEN 3 THEN 'stored'` +
 				` ELSE NULL END AS "generated"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "collation"`),
 			always(`FROM sqlite_schema m JOIN pragma_table_xinfo(m.name) c`),
 			always(`WHERE m.type IN ('table', 'view')`),
 			always(`AND ` + notSystem),
@@ -170,13 +175,14 @@ func registerRelations() {
 			},
 			{Name: "generated", Desc: "virtual or stored for a generated column"},
 			{Name: "comment", Desc: "always absent"},
+			{Name: "collation", Desc: "always absent: pragma_table_xinfo does not report the COLLATE of a column, which SQLite keeps only in the DDL text"},
 		},
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment)
+				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
 	})
@@ -323,7 +329,9 @@ func registerConstraints() {
 			always(`, m.name AS "table"`),
 			always(`, 'pk_' || m.name AS "name"`),
 			always(`, 'primary key' AS "type"`),
-			always(`, GROUP_CONCAT(c.name, ', ') AS "definition"`),
+			always(`, 'PRIMARY KEY (' || (SELECT GROUP_CONCAT(x.name, ', ') FROM` +
+				` (SELECT k.name FROM pragma_table_xinfo(m.name) k WHERE k.pk > 0 ORDER BY k.pk) x)` +
+				` || ')' AS "definition"`),
 			always(`, FALSE AS "deferrable"`),
 			always(`, FALSE AS "deferred"`),
 			always(`, NULL AS "comment"`),
@@ -339,7 +347,8 @@ func registerConstraints() {
 			// or someone created it
 			always(`UNION ALL`),
 			always(`SELECT 'main', m.name, i.name, 'unique'`),
-			always(`, (SELECT GROUP_CONCAT(x.name, ', ') FROM pragma_index_xinfo(i.name) x WHERE x.key = 1)`),
+			always(`, 'UNIQUE (' || (SELECT GROUP_CONCAT(x.name, ', ') FROM` +
+				` (SELECT k.name FROM pragma_index_xinfo(i.name) k WHERE k.key = 1 ORDER BY k.seqno) x) || ')'`),
 			always(`, FALSE, FALSE, NULL`),
 			always(`FROM sqlite_schema m JOIN pragma_index_list(m.name) i`),
 			always(`WHERE m.type = 'table' AND i."unique" = 1 AND i.origin <> 'pk'`),
@@ -350,13 +359,23 @@ func registerConstraints() {
 
 			// every foreign key. SQLite does not name one, so the name is
 			// built from the table and the position, which is what it is
-			// reported by everywhere else.
+			// reported by everywhere else. pragma_foreign_key_list has a row
+			// for each column of a key, so the first column's row stands for
+			// the key, and the definition gathers the columns in order. A
+			// key that names no columns references the primary key, and
+			// its definition names none, as it was written.
 			always(`UNION ALL`),
 			always(`SELECT 'main', m.name, 'fk_' || m.name || '_' || f.id, 'foreign key'`),
-			always(`, f."from" || ' -> ' || f."table" || '(' || COALESCE(f."to", '') || ')'`),
-			always(`, FALSE, f.on_delete <> 'NO ACTION' OR f.on_update <> 'NO ACTION', NULL`),
+			always(`, 'FOREIGN KEY (' || (SELECT GROUP_CONCAT(x."from", ', ') FROM` +
+				` (SELECT k."from" FROM pragma_foreign_key_list(m.name) k WHERE k.id = f.id ORDER BY k.seq) x)` +
+				` || ') REFERENCES ' || f."table"` +
+				` || COALESCE('(' || (SELECT GROUP_CONCAT(x."to", ', ') FROM` +
+				` (SELECT k."to" FROM pragma_foreign_key_list(m.name) k WHERE k.id = f.id ORDER BY k.seq) x) || ')', '')` +
+				` || CASE WHEN f.on_update <> 'NO ACTION' THEN ' ON UPDATE ' || f.on_update ELSE '' END` +
+				` || CASE WHEN f.on_delete <> 'NO ACTION' THEN ' ON DELETE ' || f.on_delete ELSE '' END`),
+			always(`, FALSE, FALSE, NULL`),
 			always(`FROM sqlite_schema m JOIN pragma_foreign_key_list(m.name) f`),
-			always(`WHERE m.type = 'table'`),
+			always(`WHERE m.type = 'table' AND f.seq = 0`),
 			always(`AND ` + notSystem),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@parent = '' OR m.name LIKE @parent)`),
@@ -373,9 +392,9 @@ func registerConstraints() {
 				Name: "type",
 				Desc: "primary key, unique or foreign key. A check constraint is never listed: SQLite keeps it only as DDL text",
 			},
-			{Name: "definition", Desc: "the columns, or the reference for a foreign key"},
+			{Name: "definition", Desc: "the constraint as SQL, such as PRIMARY KEY (a, b) or FOREIGN KEY (a) REFERENCES t(b), as psql prints it"},
 			{Name: "deferrable", Desc: "always false: SQLite defers by connection, not by constraint"},
-			{Name: "deferred", Desc: "true when the foreign key acts on update or delete"},
+			{Name: "deferred", Desc: "always false: pragma_foreign_key_list does not report DEFERRABLE INITIALLY DEFERRED, which SQLite keeps only in the DDL text"},
 			{Name: "comment", Desc: "always absent"},
 		},
 		Params: schemaParentName("constraint"),

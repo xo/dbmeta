@@ -1,6 +1,6 @@
 # D47. dbmeta supplies the data. The consumer decides what to show
 
-Status: Decided.
+Status: Amended by D146.
 
 `dbmeta` returns the facts a database holds. It never withholds one, reorders
 one, or formats one so that somebody's output looks right. Deciding what to
