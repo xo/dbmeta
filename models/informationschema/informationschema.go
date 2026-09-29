@@ -25,7 +25,7 @@
 //
 // Which databases this serves, taken from what `usql` builds on the same
 // reader today: DuckDB, Microsoft SQL Server, MySQL and MariaDB, Snowflake,
-// Trino, Databend, Netezza, and PostgreSQL for the parts its native model does
+// Trino, Databend, and PostgreSQL for the parts its native model does
 // not cover. Oracle, SQLite3 and Cassandra have no information_schema at all
 // and need a native model.
 package informationschema

@@ -516,10 +516,8 @@ outside its limit of eight.
 
 - Products that are only a cloud service, such as Snowflake, BigQuery,
   Databricks, Athena and Spanner. There is no server to run.
-- Products that have no entry in `container/` yet, such as CockroachDB,
-  Flight SQL, H2, Impala, Netezza, VoltDB and YDB.
-  `EVALUATION.md` names the candidates, under Candidates carried over from
-  usql.
+- Products that are out of scope, which are Db2 and Netezza (D130, D132).
+  Neither can be tested here.
 - A product that needs two containers that work together, such as ksqlDB with
   Kafka. `dbrun` runs one container for each server.
 

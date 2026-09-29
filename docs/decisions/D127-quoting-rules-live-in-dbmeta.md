@@ -38,7 +38,7 @@ statement for seven products, and these are the gaps the rules found:
 
 The rest already matched: the refusal of a NUL, PostgreSQL, Vertica,
 Cassandra and SQL Server. Netezza and SAP ASE have no model. usql removed its
-SAP ASE driver, and Netezza is the next dialect to build.
+SAP ASE driver, and Netezza is out of scope (D132).
 
 ## What was measured
 

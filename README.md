@@ -174,7 +174,7 @@ same reason SQLite and Oracle do. It is the only one here that is not
 SQL, and CQL is narrower than the name suggests: it cannot compute, it cannot
 express an optional filter, and it cannot order across partitions. D62 holds
 what follows from that. `usql` builds on the shared reader today for
-Snowflake, Trino, Databend, Netezza and DuckDB, which is the evidence for who
+Snowflake, Trino, Databend and DuckDB, which is the evidence for who
 the shared model serves.
 
 SQL Server was on that list too. `usql` reads it through the shared reader with
@@ -299,7 +299,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 131 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 41 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 132 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 41 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

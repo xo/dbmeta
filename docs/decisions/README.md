@@ -150,3 +150,4 @@ file.
 | [D129](D129-an-embedded-product-waits-for-a-model.md) | An embedded product waits for a model | Amends D66 |
 | [D130](D130-db2-is-out-of-scope.md) | Db2 is out of scope | Decided |
 | [D131](D131-cratedb-answers-no-text-search-kind.md) | CrateDB answers no text search kind | Decided |
+| [D132](D132-netezza-is-out-of-scope.md) | Netezza is out of scope | Decided |
