@@ -49,17 +49,17 @@ settings the same rows with different values
 [couchbase/same/user]
 current_user the same rows with different values
 functions fewer rows than the administrator
-privileges refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
-role_grants refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
-roles refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
+privileges refused: reading the result: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
+role_grants refused: reading the result: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
+roles refused: reading the result: couchbase: 13014: User does not have credentials to run queries accessing user information. Add role admin to allow the statement to run.
 routine_parameters fewer rows than the administrator
 
 [couchbase@8/same/user]
 current_user the same rows with different values
 functions fewer rows than the administrator
-privileges refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
-role_grants refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
-roles refused: reading the result: result is incomplete: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
+privileges refused: reading the result: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
+role_grants refused: reading the result: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
+roles refused: reading the result: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
 routine_parameters fewer rows than the administrator
 
 [cql/same/grantee]
