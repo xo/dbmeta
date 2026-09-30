@@ -183,8 +183,9 @@ var influxdb = product{
 	-H "Authorization: Bearer $INFLUXDB_TOKEN" -H 'Content-Type: application/json' \
 	-d '{"db":"` + influxDatabase + `"}' http://127.0.0.1:8181/api/v3/configure/database)
 [ "$code" = 200 ] || [ "$code" = 409 ] || { echo "creating the database answered $code"; exit 1; }`},
-	dsn: influxHTTP(influxTokenName, InfluxDBToken),
-	url: influxURL(influxTokenName, InfluxDBToken),
+	// models/influxdb reads it through dbimp's driver, which takes only the
+	// influxdb:// form, so the dsn is the url (D152).
+	dsn: influxURL(influxTokenName, InfluxDBToken),
 }
 
 // influxURL is the address of the database dbmeta as one user, in the form
@@ -218,12 +219,14 @@ func influxHTTP(user, password string) func(port int) string {
 
 // InfluxDB is every InfluxDB release dbrun starts.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
+// models/influxdb reads InfluxDB 3, so its releases take the cadence each
+// recorded while it was Staged (D120, D152). InfluxDB 1 and 2 answer only
+// InfluxQL, which no model reads, so they stay Staged. Each keeps the
+// cadence it will have if a model reads it, which is what dbimp runs on each
+// push and at night. See D119.
 var InfluxDB = list{}.staged(influxdb1, Tested, "1.13.1").
 	staged(influxdb1, Nightly, "1.11.8").
 	staged(influxdb2, Tested, "2.9.1").
 	staged(influxdb2, Nightly, "2.8.0").
-	staged(influxdb, Tested, "3.9.13", "3.11.5").
-	staged(influxdb, Nightly, "3.10.6")
+	add(influxdb, Tested, "3.9.13", "3.11.5").
+	add(influxdb, Nightly, "3.10.6")

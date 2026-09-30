@@ -57,18 +57,18 @@ of this file.
 
 ## What exists today
 
-`models/` holds 26 native models: cassandra, clickhouse, cockroachdb,
+`models/` holds 27 native models: cassandra, clickhouse, cockroachdb,
 couchbase, cratedb, databend, duckdb, exasol, firebird, hana, hive, impala,
-mysql, oracle, postgres, presto, questdb, redshift, rqlite, singlestore,
-snowflake, sqlite3, sqlserver, tidb, trino and vertica. ScyllaDB is a flavor of the
+influxdb, mysql, oracle, postgres, presto, questdb, redshift, rqlite,
+singlestore, snowflake, sqlite3, sqlserver, tidb, trino and vertica. ScyllaDB is a flavor of the
 Cassandra model and MySQL a flavor of the MariaDB one. `models/informationschema` is the shared
 model for any database with a standard `information_schema`, and no native
 model builds on it. `COVERAGE.md` holds what each one answers.
 
 `container/` names every release the tests run against, and `dbrun` starts
 each one. `dbrun` also starts servers for dbimp's drivers that have no model:
-SurrealDB, Neo4j, the four products of D112 that have no model (ArangoDB,
-InfluxDB, Apache Pinot and libSQL) and the three Avatica servers of
+SurrealDB, Neo4j, the products of D112 that have no model (ArangoDB,
+InfluxDB 1 and 2, Apache Pinot and libSQL) and the three Avatica servers of
 D113. It knows the embedded databases too, including two, chai and csvq, that
 have no model yet (D116 and D119). `README.md` holds the support tiers.
 

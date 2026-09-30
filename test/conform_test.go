@@ -23,6 +23,7 @@ import (
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
 	imfixture "github.com/xo/dbmeta/models/impala/fixture"
+	ixfixture "github.com/xo/dbmeta/models/influxdb/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
@@ -132,6 +133,10 @@ func conformTargets() []conformTarget {
 			name: "sqlite3", dialect: dbmeta.SQLite3,
 			open:   func(t *testing.T) *sql.DB { return openSQLiteWith(t, "sqlite3") },
 			schema: sqfixture.Everything.Schema, build: setupSQLite,
+		},
+		{
+			name: "influxdb", dialect: dbmeta.InfluxDB,
+			open: openInfluxDB, schema: ixfixture.Everything.Schema, build: setupInfluxDB,
 		},
 		{
 			name: "rqlite", dialect: dbmeta.Rqlite,
@@ -605,6 +610,9 @@ func TestConformanceAgreementHolds(t *testing.T) {
 // against their own recorded sections, which is where a real regression in
 // either would show.
 var agreementExcluded = map[string]string{
+	"influxdb": "not relational: a measurement has no key, no constraint and no view, and" +
+		" every one has a time column, so the section holds the four measurements and" +
+		" their tags and fields alone",
 	"cassandra": "not relational: its Tables query returns no view, because a" +
 		" materialized view is in another catalog table and CQL has no UNION," +
 		" and its column ordinal is a position within the primary key because" +

@@ -54,7 +54,8 @@ rather than reading one.
 | `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
 | `models/redshift` | 11 | 56 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
-| `models/rqlite` | 14 | 56 | rqlite 9.4.5 and 10.3.6, through gorqlite until dbimp has a driver. Every statement is the sqlite3 model's (D148) |
+| `models/influxdb` | 8 | 56 | InfluxDB 3 Core 3.9.13, 3.10.6 and 3.11.5, from DataFusion's information_schema, with dbimp's driver (D152) |
+| `models/rqlite` | 14 | 56 | rqlite 9.4.5 and 10.3.6, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -3391,18 +3392,14 @@ principal, and Impala is exempt from parity with that reason.
 
 ## rqlite
 
-`models/rqlite` answers 14 of the 56 on 9.4.5 and 10.3.6, measured on
-2026-09-30 through the `database/sql` driver of `github.com/rqlite/gorqlite`.
-dbimp has no rqlite driver yet, and the tests move to it when it exists
-(D148). rqlite runs SQLite 3.53 behind an HTTP API, so every statement is the
+`models/rqlite` answers 14 of the 56 on 9.4.5 and 10.3.6. It was first
+measured on 2026-09-30 through the driver of `github.com/rqlite/gorqlite`
+(D148), and again on 2026-10-01 through dbimp's driver, which usql uses, from
+dbimp v0.8.0 (D151). rqlite runs SQLite 3.53 behind an HTTP API, so every statement is the
 sqlite3 model's, shared with `Query.Share`. It answers what SQLite answers,
 and the SQLite section above says why the rest is not answered. Every check
 the SQLite tests make runs on rqlite too, and the conformance report is line
 for line SQLite's.
-
-gorqlite decodes every number as a `float64`, and `database/sql` does not
-read a `float64` into a `bool`. So the sqlite3 model scans its boolean
-fields through `dbmeta.NumberAsBool`, which reads a bool or a number.
 
 ### What rqlite adds, and why none of it is an answer
 
@@ -3431,6 +3428,94 @@ each table and index, which is a size and not one of the 56.
 The entry declares `dbmeta_user`, who can query and execute and nothing else.
 rqlite has no grant on a table, so the user reads every answer the
 administrator reads, and the section in `test/testdata/parity.txt` is empty.
+
+## InfluxDB 3
+
+`models/influxdb` answers 8 of the 56 on InfluxDB 3 Core, measured on
+2026-10-01 on 3.11.5 through dbimp's influxdb driver, which is what dburl's
+influxdb scheme opens and what usql uses. InfluxDB 3 answers SQL with Apache
+DataFusion, and DataFusion keeps an information_schema, which the model
+reads. InfluxQL is the dialect influxql, which answers InfluxDB 1, 2 and 3,
+and no model reads it. See D152.
+
+### What it answers
+
+Schemas, the current schema, tables, columns, functions, aggregates, routine
+parameters and settings.
+
+A measurement is a table in the schema iox. Its tags and fields are its
+columns, and so is time, which is the only column that is NOT NULL. A tag
+reads `Dictionary(Int32, Utf8)`, which is how DataFusion keeps it, and a
+field reads its Arrow type. DataFusion counts a column's position from 0 and
+the model adds 1. The columns of a measurement come back in the order of
+their names, which is how InfluxDB 3 keeps them, and not in the order a point
+wrote them.
+
+There is no `current_schema()`. `df_settings` records the default catalog and
+the default schema, public and iox, and the current schema reads them.
+
+The functions are DataFusion's own, 300 names, and InfluxDB 3 has no CREATE
+FUNCTION, so they are listed only with the system objects. `routines` has one
+row for each name and return type, and `parameters` has one set of rows for
+each overload, numbered by `rid`, with the return type as its OUT row. So a
+function is one row for each overload, with the id `name(rid)`, such as
+`date_bin(1)`, which routine parameters carries too. A function with no
+parameter rows is one row for each return type, with no id. first_value,
+last_value and nth_value are both aggregates and window functions, and read
+agg.
+
+The version is the release of DataFusion, which `version()` returns, such as
+51.0.0. No SQL statement names the InfluxDB release, which only `GET /ping`
+reports, and usql reads it from there through the driver's raw connection.
+
+### What it cannot answer, and why
+
+48 kinds. InfluxDB 3's SQL writes nothing, so it has no CREATE of any kind,
+and most kinds are absent from the product: indexes, constraints, sequences,
+types, domains, collations, comments, roles and privileges among them.
+
+`Databases` is not answered. A query names its database in the request, and
+no SQL statement lists the others. Only `GET /api/v3/configure/database`
+does.
+
+`Views` is not answered. `information_schema.views` lists every table, the
+measurements included, with no definition, and InfluxDB 3 has no CREATE
+VIEW, so the only views are the server's own, `processing_engine_logs` and
+the views of information_schema.
+
+`Triggers` is a lead that stands and is not built. A processing engine
+trigger runs a Python plugin, and one whose specification is `table:<name>`
+runs on each write to that table, which is what a trigger is.
+`system.processing_engine_triggers` holds its name, plugin, specification
+and whether it is disabled. The entry configures no plugin directory, and
+the server refuses a trigger with HTTP 400 without one, so the fixture
+cannot build a trigger. `docs/BACKLOG.md` holds it.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked about the 48 kinds on 2026-10-01, as hard rule
+14 requires. Both named `system.processing_engine_triggers` as triggers, the
+lead above. Gemini named `schemata` for databases, `views` for views, the
+types of `columns` for types, the distinct and last value caches for indexes,
+and `parquet_files` for partitioned tables and column statistics. DeepSeek
+rejected the caches and `parquet_files`. `schemata` holds iox and system and
+not the databases. `views` lists the measurements. The Arrow type of a column
+is not a type catalog. A cache is not an index, and a Parquet file with a
+time range and a row count is neither a declared partition nor a column
+statistic. Each is a stretch, and D43 says to leave a stretch unanswered.
+
+### What the fixture builds
+
+`models/influxdb/fixture` writes four measurements, author, book, region and
+shipment, with the INSERT that dbimp's driver turns into line protocol, and a
+tag, an integer, a float, a string and a boolean among their columns.
+InfluxDB 3's SQL has no DROP, so the fixture has no teardown, and writing it
+again replaces its points.
+
+### Which answers depend on who is asking
+
+Nothing. InfluxDB 3 Core has one kind of token, the administrator's, so there
+is no lesser principal, and InfluxDB is exempt from parity with that reason.
 
 ## Releases that need a licence file
 

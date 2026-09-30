@@ -308,8 +308,7 @@ func makeQuestDBReader(t *testing.T, _ *sql.DB, dsn, _ string) string {
 // makeRqliteUser connects as the user the dbrun entry declares, who can
 // query and execute and nothing else. rqlite has no statement that makes a
 // user, because it reads its users from a file, so becoming the user is a
-// change to the credentials of the URL. gorqlite reads /status on open, which
-// the user cannot, so discovery is turned off.
+// change to the credentials of the URL.
 func makeRqliteUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
 	t.Helper()
 	u, err := url.Parse(dsn)
@@ -317,9 +316,6 @@ func makeRqliteUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
 		t.Fatalf("parsing %s: %v", dsn, err)
 	}
 	u.User = url.UserPassword(container.RqliteUser, container.Password)
-	q := u.Query()
-	q.Set("disableClusterDiscovery", "true")
-	u.RawQuery = q.Encode()
 	return u.String()
 }
 

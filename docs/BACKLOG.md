@@ -10,16 +10,6 @@ anything that was decided on the way (D110).
 
 ## Drivers
 
-### Move the rqlite tests to the dbimp driver
-
-The test module reads rqlite through `github.com/rqlite/gorqlite`, because
-dbimp has no rqlite driver yet, and Ken chose that driver on 2026-09-30
-(D148). dbimp started its driver the same day. When it exists, move the
-tests and dbrun to it, drop gorqlite from `test/go.mod` and from the
-depguard list in `test/.golangci.yml`, and run both releases again. dbimp's
-entry takes a url of the form `rqlite://user:password@host:port`. Hard rule
-10 asks for the package that `usql` uses, and usql will import dbimp's.
-
 ### Move the Cassandra tests to the dbimp driver
 
 The test module reads Cassandra and ScyllaDB through `github.com/xo/cql`
@@ -75,6 +65,33 @@ through the server was then not found by a second connection, and the
 requests were built by hand (D113). Build them with the Go driver
 apache/calcite-avatica-go instead, and find whether HSQLDB then checks the
 user. If it does, the entry can make one.
+
+### Answer Triggers on InfluxDB 3
+
+A processing engine trigger whose specification is `table:<name>` runs on
+each write to that table, and `system.processing_engine_triggers` lists it
+(D152). The influxdb entry configures no plugin directory, and the server
+refuses a trigger with HTTP 400 without one. Give the entry a plugin
+directory and a plugin that does nothing, make a trigger in its setup, and
+measure whether the model can answer Triggers from the view.
+
+### Build the Apache Druid model
+
+Ken asked for a Druid dialect on 2026-10-01 and chose to wait. dburl has no
+druid scheme, and nothing decides whether Druid is reached as avatica
+through calcite-avatica-go, or by a driver of dbimp's own on Druid's SQL
+API (dbimp D74). When Ken and dbimp settle the name and the driver, build
+the model. dbrun starts Druid 36.0.0 and 37.0.0 already (D113).
+
+### Build the Apache Pinot model
+
+Pinot 1.4 and 1.5 keep their catalog only in the Controller's REST API. The
+Broker's SQL has no information_schema, no SHOW and no DESCRIBE, and the
+Controller of 1.5.1 has no /sql/ddl, measured on 2026-10-01. dbimp's driver
+would have to answer metadata statements such as SHOW TABLES and DESCRIBE
+from the Controller, and its DSN does not name the Controller today (dbimp
+D129). Ken has not decided that work in dbimp. When a release of the driver
+has such statements, build a model that walks them, as Impala's does (D146).
 
 ### Run the Snowflake and Redshift models
 

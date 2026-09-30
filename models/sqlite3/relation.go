@@ -181,8 +181,7 @@ func registerRelations() {
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
-				&v.DataType, dbmeta.NumberAsBool(&v.Nullable), &v.Default,
-				dbmeta.NumberAsBool(&v.PrimaryKey), &v.Identity,
+				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
 				&v.Generated, &v.Comment, &v.Collation)
 			return v, err
 		},
@@ -224,7 +223,7 @@ func registerRelations() {
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				dbmeta.NumberAsBool(&v.Unique), dbmeta.NumberAsBool(&v.Primary), &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment)
 			return v, err
 		},
 	})
@@ -269,7 +268,7 @@ func registerRelations() {
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
 			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &v.Name, &v.Ordinal,
-				&v.Expression, dbmeta.NumberAsBool(&v.Descending))
+				&v.Expression, &v.Descending)
 			return v, err
 		},
 	})
@@ -402,7 +401,7 @@ func registerConstraints() {
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				dbmeta.NumberAsBool(&v.Deferrable), dbmeta.NumberAsBool(&v.Deferred), &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment)
 			return v, err
 		},
 	})

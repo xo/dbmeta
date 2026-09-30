@@ -61,8 +61,4 @@ const (
 	// nothing decides between them. It is a fault in the model, not in the
 	// database or the call. See D44.
 	ErrAmbiguousFragment Error = "ambiguous fragment"
-	// ErrInvalidBool is the invalid bool error. A column read through
-	// [NumberAsBool] held NULL, or a value that is neither a bool nor a
-	// number.
-	ErrInvalidBool Error = "invalid bool"
 )

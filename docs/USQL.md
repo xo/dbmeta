@@ -179,6 +179,7 @@ reading code.
 | DuckDB | 10/11 | 3/5 | `\dp`, and the index column and trigger sections |
 | SQLite | 10/11 | 4/5 | `\dp`, and the sequence section |
 | rqlite | 10/11 | 4/5 | the same as SQLite, whose statements it shares (D148) |
+| InfluxDB 3 | 8/11 | 0/5 | `\l`, because a query names its database and no SQL lists them, `\di`, because InfluxDB 3 has no index, and `\dp`, because Core has one token. Every section: no key, constraint, trigger or sequence (D152) |
 | Cassandra | 10/11 | 4/5 | `\l`, and the sequence section |
 | ScyllaDB | 10/11 | 4/5 | the same as Cassandra |
 | Trino | 8/11 | 0/5 | `\df`, `\da`, `\di` and every section: a query engine has no index, no constraint and no table valued function list |
@@ -348,7 +349,8 @@ a case where `usql` has no answer at all.
 | --- | --- | --- | --- |
 | PostgreSQL | `SHOW server_version` | the same | same |
 | SQLite | `SELECT sqlite_version()` | the same | same |
-| rqlite | `SELECT sqlite_version()` | no driver: `usql` reaches no rqlite yet | not compared. `dbmeta` reads the SQLite release the server runs, and no SQL statement names the rqlite release, which only the HTTP API reports. Measured on 9.4.5 and 10.3.6 on 2026-09-30 |
+| InfluxDB 3 | `SELECT version()` | `GET /ping`, through the driver's raw connection, which no SQL statement reaches | different answers. `version()` names the release of DataFusion, such as 51.0.0, which the statements depend on, and only `/ping` names InfluxDB's. Measured on 3.11.5 on 2026-10-01 |
+| rqlite | `SELECT sqlite_version()` | none of its own: the driver declares no `Version`, and usql reads dbmeta's | the same statement. `dbmeta` reads the SQLite release the server runs, and no SQL statement names the rqlite release, which only the HTTP API reports. Measured on 9.4.5 and 10.3.6 on 2026-10-01 |
 | Cassandra | `SELECT JSON * FROM system.local WHERE key = 'local'`, the whole row as one text | three columns from `system.local` | different statement, same answer |
 | ScyllaDB | the same statement as Cassandra | the same three columns | `usql` names the wrong product. It prints "Cassandra 3.0.8", which is the Cassandra release that ScyllaDB keeps compatible with. `dbmeta` finds ScyllaDB by the `supported_features` column, then runs `SELECT version FROM system.versions WHERE key = 'local'` for the ScyllaDB release, and prints both. A caller that runs the statements itself asks `Dialect.FollowUpQuery` for the second one. See D92. Measured on 2025.1 and 2026.3 on 2026-09-27 |
 | MariaDB | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |

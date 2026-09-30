@@ -438,6 +438,8 @@ var parityExempt = map[dbmeta.Dialect]string{
 		" principal and nothing can be refused to one. See D146",
 	dbmeta.Vitess: "vttestserver starts vtcombo with no authentication and no table rules," +
 		" so every user is the same principal and nothing can be refused to one. See D135",
+	dbmeta.InfluxDB: "InfluxDB 3 Core has one kind of token, the administrator's, so there is" +
+		" no principal with fewer rights to be. See D152",
 	// Registered by informationschema_test.go so the shared model can run
 	// against a PostgreSQL server. It is not a product and has no server of
 	// its own, and the PostgreSQL target measures the same host.

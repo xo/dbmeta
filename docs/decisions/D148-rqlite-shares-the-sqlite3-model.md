@@ -1,6 +1,6 @@
 # D148. rqlite shares the sqlite3 model
 
-Status: Decided.
+Status: Amended by D151.
 
 ## The decision
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/rqlite/gorqlite/stdlib"
+	_ "github.com/xo/dbimp/rqlite"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/rqlite"
@@ -16,8 +16,7 @@ import (
 )
 
 // openRqlite returns a connection to the server named by DBMETA_RQLITE, with
-// the database/sql driver of github.com/rqlite/gorqlite. dbimp has no rqlite
-// driver yet, and Ken chose this one until it does.
+// dbimp's rqlite driver, which is what usql uses (D151).
 func openRqlite(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_RQLITE")
@@ -27,17 +26,9 @@ func openRqlite(t *testing.T) *sql.DB {
 	return openRqliteAt(t, dsn)
 }
 
-// openRqliteAt opens dsn. gorqlite reads /status on open to find the other
-// nodes, which an ordinary user may not read, so discovery is turned off.
+// openRqliteAt opens dsn.
 func openRqliteAt(t *testing.T, dsn string) *sql.DB {
 	t.Helper()
-	if !strings.Contains(dsn, "disableClusterDiscovery") {
-		sep := "?"
-		if strings.Contains(dsn, "?") {
-			sep = "&"
-		}
-		dsn += sep + "disableClusterDiscovery=true"
-	}
 	db, err := sql.Open("rqlite", dsn)
 	if err != nil {
 		t.Fatalf("opening: %v", err)

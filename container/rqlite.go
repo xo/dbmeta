@@ -11,7 +11,8 @@ import (
 //
 // rqlite is SQLite behind an HTTP API, and models/rqlite shares the sqlite3
 // model's statements (D148). The releases were here first for the tests of
-// the rqlite driver in github.com/xo/dbimp (D112), which dbimp is writing.
+// the rqlite driver in github.com/xo/dbimp (D112), which the tests here use
+// from dbimp v0.8.0 (D151).
 //
 // # The range
 //
@@ -54,24 +55,20 @@ var rqlite = product{
 	// the administrator, so it passes only when a login works.
 	ready: []string{"sh", "-c", "wget -q -O- 'http://" + rqliteAdmin + ":" + Password +
 		"@127.0.0.1:4001/db/query?q=SELECT%201' | grep -q '\"values\"'"},
-	dsn: rqliteAt("http", rqliteAdmin),
 	// dbimp's driver takes rqlite:// with no path and no query, and refuses
-	// http:// (dbimp D141). gorqlite, which the tests use until then, takes
-	// the dsn.
-	url: rqliteAt("rqlite", rqliteAdmin),
+	// http:// (dbimp D141).
+	dsn: rqliteAt(rqliteAdmin),
 	users: []Principal{{
 		Role: User, User: RqliteUser,
-		dsn: rqliteAt("http", RqliteUser),
-		url: rqliteAt("rqlite", RqliteUser),
+		dsn: rqliteAt(RqliteUser),
 	}},
 }
 
-// rqliteAt is the address of the HTTP API under one scheme, with one user's
-// credentials.
-func rqliteAt(scheme, user string) func(port int) string {
+// rqliteAt is the address of the HTTP API, with one user's credentials.
+func rqliteAt(user string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
-			Scheme: scheme,
+			Scheme: "rqlite",
 			User:   url.UserPassword(user, Password),
 			Host:   fmt.Sprintf("127.0.0.1:%d", port),
 		}
