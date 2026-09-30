@@ -36,8 +36,10 @@ import (
 // and that every other column agrees.
 var productSpecific = map[string][]string{
 	// MariaDB keeps the display width of an integer, so int(11) against int,
-	// and bigint(21) against bigint.
-	"columns": {"data_type", "default"},
+	// and bigint(21) against bigint. Each product has its own default
+	// collation, which a text column takes: utf8mb4_uca1400_ai_ci on MariaDB
+	// from 11.4, and utf8mb4_0900_ai_ci on MySQL from 8.0.
+	"columns": {"data_type", "default", "collation"},
 	// MariaDB records the check clause as written. MySQL rewrites it with the
 	// character set introducer, so `title` <> '' becomes (`title` <> _utf8mb4'').
 	"constraints": {"definition"},

@@ -130,13 +130,18 @@ scan on MariaDB. The cross product test found that.
 ### What the two products answer the same way, and what they spell differently
 
 `TestMySQLAgainstMariaDB` builds the same fixture on one server of each product
-and compares every query that narrows to one schema. Eleven queries compare,
-and every column agrees except two.
+and compares every query that narrows to one schema. Fourteen queries compare,
+measured on 2026-10-01, and every column agrees except the ones below.
 
 `Columns.DataType` and `Columns.Default`. MariaDB keeps the display width of an
 integer and MySQL dropped it, so a column reads `int(11)` on one and `int` on
 the other. MariaDB quotes a string default and MySQL does not, so the same
 default reads `'red'` and `red`.
+
+`Columns.Collation`. Each product has its own default collation, and a text
+column that names none takes it: `utf8mb4_uca1400_ai_ci` on MariaDB from
+11.4, and `utf8mb4_0900_ai_ci` on MySQL from 8.0. The compare job in CI
+failed on it from the change that added the field until it was named.
 
 `Constraints.Definition`. MariaDB records the check clause as written and MySQL
 rewrites it with the character set introducer, so ``` `title` <> '' ``` becomes
