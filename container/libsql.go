@@ -1,5 +1,10 @@
 package container
 
+import (
+	"fmt"
+	"net/url"
+)
+
 // The libSQL releases dbrun starts.
 //
 // dbmeta has no libSQL model. The release is here so that dbrun can start a
@@ -68,8 +73,30 @@ var libsql = product{
 exec 3<>/dev/tcp/127.0.0.1/8080 &&
 printf 'POST /v2/pipeline HTTP/1.0\r\nHost: 127.0.0.1\r\nAuthorization: Bearer ` + LibSQLAdminToken + `\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s' ${#b} "$b" >&3 &&
 grep -q '"type":"ok"' <&3`},
-	dsn:   keyHTTP(libsqlAdmin, LibSQLAdminToken),
-	users: []Principal{{Role: User, User: LibSQLUser, dsn: keyHTTP(LibSQLUser, LibSQLUserToken)}},
+	dsn: keyHTTP(libsqlAdmin, LibSQLAdminToken),
+	url: libsqlURL(libsqlAdmin, LibSQLAdminToken),
+	users: []Principal{{
+		Role: User, User: LibSQLUser,
+		dsn: keyHTTP(LibSQLUser, LibSQLUserToken),
+		url: libsqlURL(LibSQLUser, LibSQLUserToken),
+	}},
+}
+
+// libsqlURL is the address in the form dbimp's libSQL driver takes (dbimp
+// D148). TLS is on by default for a libsql:// URL, so the local server needs
+// tls=false, and with it the URL names a port. The token is the password,
+// which the driver sends as Bearer. The dsn stays http:// for dbimp's
+// recorder.
+func libsqlURL(user, token string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme:   "libsql",
+			User:     url.UserPassword(user, token),
+			Host:     fmt.Sprintf("127.0.0.1:%d", port),
+			RawQuery: "tls=false",
+		}
+		return u.String()
+	}
 }
 
 // LibSQL is every libSQL release dbrun starts.

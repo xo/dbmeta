@@ -22,6 +22,11 @@ or `dbmeta_user`, as every key and token entry does (D102). sqld reads no
 user name, and dbimp's driver sends only the password, as Bearer (dbimp D94).
 The ready check sends the administrator's token.
 
+Ken decided the driver's URL the same day (dbimp D148). Each principal's url
+is `libsql://<user>:<token>@127.0.0.1:<port>?tls=false`. TLS is on by default
+for a libsql:// URL, so the local server needs `tls=false`, and with it the
+URL names a port. The dsn stays `http://`, which dbimp's recorder takes.
+
 ## What was measured
 
 On 0.24.33, on 2026-10-01, a SELECT worked with both tokens, CREATE TABLE
