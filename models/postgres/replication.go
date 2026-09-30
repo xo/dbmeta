@@ -13,6 +13,7 @@ func init() {
 	registerPublicationTables()
 	registerSubscriptions()
 	registerTextSearch()
+	registerTextSearchConfigMaps()
 	registerOperatorFamilies()
 	registerExtensions()
 	registerComments()
@@ -215,18 +216,56 @@ func registerTextSearch() {
 			{{Query: `, c.cfgname AS "name"`}},
 			{{Query: `, p.prsname AS "parser"`}},
 			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_ts_config') AS "comment"`}},
+			{{Query: `, pn.nspname AS "parser_schema"`}},
 			{{Query: `FROM pg_catalog.pg_ts_config c`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.cfgnamespace`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_ts_parser p ON p.oid = c.cfgparser`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace pn ON pn.oid = p.prsnamespace`}},
 			{{Query: `WHERE (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR c.cfgname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2`}},
 		},
-		Fields: fields("schema", "name", "parser", "comment"),
+		Fields: fields("schema", "name", "parser", "comment", "parser_schema"),
 		Params: schemaNameSystem("configuration"),
 		Scan: func(rows *sql.Rows) (dbmeta.TextSearchConfig, error) {
 			var v dbmeta.TextSearchConfig
-			err := rows.Scan(&v.Schema, &v.Name, &v.Parser, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Parser, &v.Comment, &v.ParserSchema)
+			return v, err
+		},
+	})
+}
+
+// registerTextSearchConfigMaps backs \dF+, from describeOneTSConfig. psql
+// joins the dictionaries for a token into one line, and this returns one row
+// for each of them.
+func registerTextSearchConfigMaps() {
+	dbmeta.TextSearchConfigMaps.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.TextSearchConfigMap]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, c.cfgname AS "config"`}},
+			{{Query: `, t.alias AS "token"`}},
+			{{Query: `, m.mapseqno AS "position"`}},
+			{{Query: `, dn.nspname AS "dictionary_schema"`}},
+			{{Query: `, d.dictname AS "dictionary"`}},
+			{{Query: `FROM pg_catalog.pg_ts_config_map m`}},
+			{{Query: `JOIN pg_catalog.pg_ts_config c ON c.oid = m.mapcfg`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.cfgnamespace`}},
+			{{Query: `JOIN pg_catalog.pg_ts_dict d ON d.oid = m.mapdict`}},
+			{{Query: `JOIN pg_catalog.pg_namespace dn ON dn.oid = d.dictnamespace`}},
+			{{Query: `JOIN LATERAL pg_catalog.ts_token_type(c.cfgparser) t ON t.tokid = m.maptokentype`}},
+			{{Query: `WHERE (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR c.cfgname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2, 3, 4`}},
+		},
+		Fields: fields("schema", "config", "token", "position", "dictionary_schema", "dictionary"),
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
+			{Name: "name", Desc: "configuration name pattern, empty for every configuration", Default: ""},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.TextSearchConfigMap, error) {
+			var v dbmeta.TextSearchConfigMap
+			err := rows.Scan(&v.Schema, &v.Config, &v.Token, &v.Position,
+				&v.DictionarySchema, &v.Dictionary)
 			return v, err
 		},
 	})
@@ -243,6 +282,8 @@ func registerOperatorFamilies() {
 			{{Query: `, c.opcdefault AS "default"`}},
 			{{Query: `, f.opfname AS "family"`}},
 			{{Query: `, pg_catalog.pg_get_userbyid(c.opcowner) AS "owner"`}},
+			{{Query: `, CASE WHEN c.opckeytype <> 0 AND c.opckeytype <> c.opcintype` +
+				` THEN pg_catalog.format_type(c.opckeytype, NULL) END AS "storage_type"`}},
 			{{Query: `FROM pg_catalog.pg_opclass c`}},
 			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = c.opcmethod`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.opcnamespace`}},
@@ -251,12 +292,13 @@ func registerOperatorFamilies() {
 			{{Query: `AND (@name = '' OR c.opcname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2, 3`}},
 		},
-		Fields: fields("access_method", "schema", "name", "input_type", "default", "family", "owner"),
+		Fields: fields("access_method", "schema", "name", "input_type", "default", "family", "owner",
+			"storage_type"),
 		Params: accessMethodName("operator class"),
 		Scan: func(rows *sql.Rows) (dbmeta.OperatorClass, error) {
 			var v dbmeta.OperatorClass
 			err := rows.Scan(&v.AccessMethod, &v.Schema, &v.Name, &v.InputType,
-				&v.Default, &v.Family, &v.Owner)
+				&v.Default, &v.Family, &v.Owner, &v.StorageType)
 			return v, err
 		},
 	})
@@ -267,6 +309,9 @@ func registerOperatorFamilies() {
 			{{Query: `, n.nspname AS "schema"`}},
 			{{Query: `, f.opfname AS "name"`}},
 			{{Query: `, pg_catalog.pg_get_userbyid(f.opfowner) AS "owner"`}},
+			{{Query: `, (SELECT pg_catalog.string_agg(pg_catalog.format_type(c.opcintype, NULL), ', '` +
+				` ORDER BY pg_catalog.format_type(c.opcintype, NULL))` +
+				` FROM pg_catalog.pg_opclass c WHERE c.opcfamily = f.oid) AS "applies_to"`}},
 			{{Query: `FROM pg_catalog.pg_opfamily f`}},
 			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = f.opfmethod`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = f.opfnamespace`}},
@@ -274,11 +319,11 @@ func registerOperatorFamilies() {
 			{{Query: `AND (@name = '' OR f.opfname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2, 3`}},
 		},
-		Fields: fields("access_method", "schema", "name", "owner"),
+		Fields: fields("access_method", "schema", "name", "owner", "applies_to"),
 		Params: accessMethodName("operator family"),
 		Scan: func(rows *sql.Rows) (dbmeta.OperatorFamily, error) {
 			var v dbmeta.OperatorFamily
-			err := rows.Scan(&v.AccessMethod, &v.Schema, &v.Name, &v.Owner)
+			err := rows.Scan(&v.AccessMethod, &v.Schema, &v.Name, &v.Owner, &v.AppliesTo)
 			return v, err
 		},
 	})
@@ -384,6 +429,21 @@ func registerExtensions() {
 			{{Min: v10, Query: `, c.relname AS "table"`}},
 			{{Min: v10, Query: `, pg_catalog.array_to_string(s.stxkind, ', ') AS "kinds"`}},
 			{{Min: v10, Query: `, pg_catalog.obj_description(s.oid, 'pg_statistic_ext') AS "comment"`}},
+			// release 14 added statistics on expressions, and the function
+			// that prints them. Below it psql names the columns itself.
+			{
+				{Min: v10, Query: `, pg_catalog.format('%s FROM %s', (SELECT pg_catalog.string_agg(pg_catalog.quote_ident(a.attname), ', ')` +
+					` FROM pg_catalog.unnest(s.stxkeys) k(attnum)` +
+					` JOIN pg_catalog.pg_attribute a ON a.attrelid = s.stxrelid AND a.attnum = k.attnum AND NOT a.attisdropped),` +
+					` s.stxrelid::pg_catalog.regclass) AS "definition"`},
+				{Min: v14, Query: `, pg_catalog.format('%s FROM %s', pg_catalog.pg_get_statisticsobjdef_columns(s.oid),` +
+					` s.stxrelid::pg_catalog.regclass) AS "definition"`},
+			},
+			{{Min: v10, Query: `, 'd' = ANY(s.stxkind) AS "ndistinct"`}},
+			{{Min: v10, Query: `, 'f' = ANY(s.stxkind) AS "dependencies"`}},
+			// the kind arrived in release 12. Below it no object has one, so
+			// false is the answer and not a stand in.
+			{{Min: v10, Query: `, 'm' = ANY(s.stxkind) AS "mcv"`}},
 			{{Min: v10, Query: `FROM pg_catalog.pg_statistic_ext s`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_class c ON c.oid = s.stxrelid`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_namespace n ON n.oid = s.stxnamespace`}},
@@ -394,11 +454,15 @@ func registerExtensions() {
 		Fields: []dbmeta.Field{
 			{Name: "schema", Min: v10}, {Name: "name", Min: v10}, {Name: "owner", Min: v10},
 			{Name: "table", Min: v10}, {Name: "kinds", Min: v10}, {Name: "comment", Min: v10},
+			{Name: "definition", Desc: "columns and expressions the object covers, and their table", Min: v10},
+			{Name: "ndistinct", Min: v10}, {Name: "dependencies", Min: v10},
+			{Name: "mcv", Desc: "whether the object holds most common values. Always false below release 12, which had no such kind", Min: v10},
 		},
 		Params: schemaNameSystem("statistics object"),
 		Scan: func(rows *sql.Rows) (dbmeta.ExtendedStat, error) {
 			var v dbmeta.ExtendedStat
-			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment,
+				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV)
 			return v, err
 		},
 	})

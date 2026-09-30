@@ -251,7 +251,7 @@ supported without naming it.
 
 ### 7. Survey the catalog yourself first
 
-List every metadata source the product has and map it against the 55 object
+List every metadata source the product has and map it against the 56 object
 kinds. Run the statements. Read the columns back. A source that looks right in
 the documentation and returns nothing on a real server is not a source.
 
@@ -303,7 +303,7 @@ The package file holds the doc comment, the version query, `parseVersion`, the
 across files by what they describe, the way `relation.go`, `role.go` and
 `extra.go` do elsewhere.
 
-The package doc states how many of the 55 the model answers.
+The package doc states how many of the 56 the model answers.
 `TestEveryPackageCommentStatesItsCount` checks the number.
 
 Each object kind is a `Binding` registered from `init`, carrying the statement

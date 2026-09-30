@@ -20,6 +20,7 @@ func registerExtra() {
 			always(`, CAST(NULL AS varchar) AS "owner"`),
 			always(`, CAST(NULL AS varchar) AS "access"`),
 			always(`, CAST(NULL AS varchar) AS "comment"`),
+			always(`, CAST(NULL AS varchar) AS "size"`),
 			always(`FROM system.jdbc.types t`),
 			always(`WHERE (@name = '' OR t.type_name LIKE @name)`),
 			always(`ORDER BY t.type_name`),
@@ -34,6 +35,7 @@ func registerExtra() {
 			{Name: "owner", Desc: "always absent: a built in type has no owner"},
 			{Name: "access", Desc: "always absent: a type carries no grant"},
 			{Name: "comment", Desc: "always absent: Trino stores no type comment"},
+			{Name: "size", Desc: "always absent: Trino records no internal length for a type"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "type name pattern, empty for every type", Default: ""},
@@ -41,7 +43,7 @@ func registerExtra() {
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})

@@ -31,6 +31,7 @@ func registerOwn() {
 			always(`, CASE WHEN v.is_settable_at_runtime THEN 'runtime'` +
 				` WHEN v.is_settable_at_startup THEN 'startup' ELSE 'none' END AS "context"`),
 			always(`, NULL AS "access"`),
+			always(`, NULL AS "display"`),
 			always(`FROM information_schema.GLOBAL_VARIABLES v`),
 			always(`WHERE ` + like("LOWER(v.variable_name)", "@name")),
 			always(`ORDER BY 1`),
@@ -41,13 +42,14 @@ func registerOwn() {
 			{Name: "type", Desc: "always absent: GLOBAL_VARIABLES records no type"},
 			{Name: "context", Desc: "runtime for a variable that can be set while the server runs, startup for one set only when it starts, and none otherwise"},
 			{Name: "access", Desc: "always absent: a variable has no grant of its own"},
+			{Name: "display", Desc: "always absent: SingleStore shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "variable name pattern, empty for every variable", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})
@@ -203,6 +205,7 @@ func registerOwn() {
 			always(`, CONCAT('INITIALIZE WITH ', a.initialize_function, ' ITERATE WITH ', a.iterate_function,` +
 				` ' MERGE WITH ', a.merge_function, ' TERMINATE WITH ', a.terminate_function) AS "source"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "definition"`),
 			always(`FROM information_schema.AGGREGATE_FUNCTIONS a`),
 			always(`WHERE (@with_system OR a.aggregate_schema NOT IN (` + systemSchemas + `))`),
 			always(`AND ` + like("a.aggregate_schema", "@schema")),
@@ -223,6 +226,7 @@ func registerOwn() {
 			{Name: "language", Desc: "always psql, SingleStore's procedural language, in which the four functions are written"},
 			{Name: "source", Desc: "the four functions that make the aggregate"},
 			{Name: "comment", Desc: "always absent: an aggregate takes no comment"},
+			{Name: "definition", Desc: "always absent: AGGREGATE_FUNCTIONS keeps the four functions, which are source, and no CREATE statement"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -233,7 +237,7 @@ func registerOwn() {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-				&v.Language, &v.Source, &v.Comment)
+				&v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})

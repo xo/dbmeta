@@ -16,7 +16,7 @@
 //
 // # What it answers
 //
-// 26 of the 55. Tables, schemas, columns, views, indexes, index columns,
+// 26 of the 56. Tables, schemas, columns, views, indexes, index columns,
 // constraints, constraint columns, sequences, partitioned tables, comments,
 // functions, aggregates, types, triggers, roles, role settings, role grants,
 // privileges, databases, tablespaces, settings, foreign servers, foreign

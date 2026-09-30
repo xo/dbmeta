@@ -82,6 +82,7 @@ func registerFunctions() {
 			always(`, ` + routineLanguage("fn") + ` AS "language"`),
 			always(`, fn.RDB$FUNCTION_SOURCE AS "source"`),
 			always(`, fn.RDB$DESCRIPTION AS "comment"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "definition"`),
 			always(`FROM RDB$FUNCTIONS fn`),
 			always(`WHERE ` + userObject(`fn.RDB$SYSTEM_FLAG`) + ` AND fn.RDB$PACKAGE_NAME IS NULL`),
 			always(`AND ` + like(`''`, `@schema`) + ``),
@@ -111,6 +112,7 @@ func registerFunctions() {
 			always(`, ` + routineLanguage("pr")),
 			always(`, pr.RDB$PROCEDURE_SOURCE`),
 			always(`, pr.RDB$DESCRIPTION`),
+			always(`, CAST(NULL AS VARCHAR(1))`),
 			always(`FROM RDB$PROCEDURES pr`),
 			always(`WHERE ` + userObject(`pr.RDB$SYSTEM_FLAG`) + ` AND pr.RDB$PACKAGE_NAME IS NULL`),
 			always(`AND ` + like(`''`, `@schema`) + ``),
@@ -133,13 +135,14 @@ func registerFunctions() {
 			{Name: "language", Desc: "PSQL for a routine written in Firebird's own language, the engine name for an external one such as UDR, and UDF for a legacy external function"},
 			{Name: "source", Desc: "the body, absent for an external routine, which has no body in the database"},
 			{Name: "comment"},
+			{Name: "definition", Desc: "always absent: Firebird keeps the body, which is source, and no CREATE statement"},
 		},
 		Params: schemaAndName("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind,
 				&v.ResultType, &v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner,
-				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})
@@ -280,6 +283,7 @@ func registerTypes() {
 			always(`, CAST(NULL AS VARCHAR(1)) AS "owner"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "access"`),
 			always(`, t.RDB$DESCRIPTION AS "comment"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "size"`),
 			always(`FROM RDB$TYPES t`),
 			always(`WHERE t.RDB$FIELD_NAME = 'RDB$FIELD_TYPE'`),
 			always(`AND ` + like(`''`, `@schema`) + ``),
@@ -296,12 +300,13 @@ func registerTypes() {
 			{Name: "owner", Desc: "always absent: a built in type has no owner"},
 			{Name: "access", Desc: "always absent: a type carries no grant"},
 			{Name: "comment", Desc: "always absent in practice: the engine writes no description on its own rows"},
+			{Name: "size", Desc: "always absent: RDB$TYPES records no length"},
 		},
 		Params: schemaAndName("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})

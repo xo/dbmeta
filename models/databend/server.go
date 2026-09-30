@@ -15,6 +15,7 @@ func registerServer() {
 			always(`, lower(s.type) AS "type"`),
 			always(`, lower(s.level) AS "context"`),
 			always(`, NULL AS "access"`),
+			always(`, NULL AS "display"`),
 			always(`FROM system.settings s`),
 			always(`WHERE ` + like("s.name", "@name")),
 			always(`ORDER BY 1`),
@@ -24,13 +25,14 @@ func registerServer() {
 			{Name: "type", Desc: "the type of the value, such as uint64 or string"},
 			{Name: "context", Desc: "where the value was set: default, session or global"},
 			{Name: "access", Desc: "always absent: a setting has no grant of its own"},
+			{Name: "display", Desc: "always absent: Databend shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "setting name pattern, empty for every setting", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})

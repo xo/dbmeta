@@ -398,6 +398,8 @@ func registerRoutines() {
 			always(`, NULL AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "comment"`),
+			always(`, CASE WHEN t.typrelid <> 0 THEN 'tuple' WHEN t.typlen < 0 THEN 'var'` +
+				` ELSE CAST(t.typlen AS text) END AS "size"`),
 			always(`FROM pg_catalog.pg_type t`),
 			always(`JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`),
 			// leave out the array type that every scalar type creates
@@ -407,12 +409,12 @@ func registerRoutines() {
 			always(`AND (@name = '' OR t.typname LIKE @name OR pg_catalog.format_type(t.oid, NULL) LIKE @name)`),
 			always(`ORDER BY 2, 3`),
 		},
-		Fields: fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment"),
+		Fields: fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment", "size"),
 		Params: schemaNameSystem("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})
@@ -437,6 +439,7 @@ func registerRoutines() {
 			always(`, r.routine_body AS "language"`),
 			always(`, r.routine_definition AS "source"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "definition"`),
 			always(`FROM information_schema.routines r`),
 			always(`WHERE r.routine_type = 'FUNCTION'`),
 			always(`AND ` + notSystem("r.routine_schema")),
@@ -444,13 +447,17 @@ func registerRoutines() {
 			always(`AND (@name = '' OR r.routine_name LIKE @name)`),
 			always(`ORDER BY 2, 3, 4`),
 		},
-		Fields: fields("catalog", "schema", "name", "id", "kind", "result_type", "arg_types", "volatility",
-			"parallel", "owner", "security", "access", "language", "source", "comment"),
+		Fields: append(fields("catalog", "schema", "name", "id", "kind", "result_type", "arg_types", "volatility",
+			"parallel", "owner", "security", "access", "language", "source", "comment"), dbmeta.Field{
+			Name: "definition",
+			Desc: "always absent: information_schema keeps the body, which is source, and no CREATE statement",
+		}),
 		Params: schemaNameSystem("function"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType, &v.ArgTypes,
-				&v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access, &v.Language, &v.Source, &v.Comment,
+				&v.Definition)
 			return v, err
 		},
 	})
@@ -572,17 +579,20 @@ func registerServer() {
 			{{Key: Release, Min: v64, Query: `, NULL AS "locale"`}},
 			{{Key: Release, Min: v64, Query: `, true AS "deterministic"`}},
 			{{Key: Release, Min: v64, Query: `, NULL AS "comment"`}},
+			{{Key: Release, Min: v64, Query: `, NULL AS "rules"`}},
 			{{Key: Release, Min: v64, Query: `FROM information_schema.collations c`}},
 			{{Key: Release, Min: v64, Query: `WHERE ` + notSystem("c.collation_schema")}},
 			{{Key: Release, Min: v64, Query: `AND (@schema = '' OR c.collation_schema LIKE @schema)`}},
 			{{Key: Release, Min: v64, Query: `AND (@name = '' OR c.collation_name LIKE @name)`}},
 			{{Key: Release, Min: v64, Query: `ORDER BY 1, 2`}},
 		},
-		Fields: fields("schema", "name", "provider", "collate", "ctype", "locale", "deterministic", "comment"),
+		Fields: append(fields("schema", "name", "provider", "collate", "ctype", "locale", "deterministic", "comment"),
+			dbmeta.Field{Name: "rules", Desc: "always absent: CrateDB has no tailoring rules"}),
 		Params: schemaNameSystem("collation"),
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
-			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType, &v.Locale, &v.Deterministic, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType, &v.Locale, &v.Deterministic, &v.Comment,
+				&v.Rules)
 			return v, err
 		},
 	})

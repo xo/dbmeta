@@ -212,6 +212,7 @@ func registerRoles() {
 			{{Min: v40, Query: `, (text)NULL AS "type"`}, scylla(`, type`)},
 			{{Min: v40, Query: `, (text)NULL AS "context"`}, scylla(`, name AS "context"`)},
 			{{Min: v40, Query: `, (text)NULL AS "access"`}, scylla(`, name AS "access"`)},
+			{{Min: v40, Query: `, (text)NULL AS "display"`}, scylla(`, name AS "display"`)},
 			{{Min: v40, Query: `FROM system_views.settings`}, scylla(`FROM system.config`)},
 		},
 		Fields: []dbmeta.Field{
@@ -236,6 +237,7 @@ func registerRoles() {
 				Desc: "always absent: whether a setting can be changed at runtime" +
 					" is not in the table",
 			},
+			{Name: "display", Desc: "always absent: neither product shows a value in one form, which is value"},
 		},
 		Params: filters("setting"),
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
@@ -244,7 +246,7 @@ func registerRoles() {
 			// the padded NULL, which github.com/xo/cql reports as one, so
 			// the field is absent there by itself.
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, pad{}, pad{})
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, pad{}, pad{}, pad{})
 			return v, err
 		},
 	})
@@ -267,6 +269,7 @@ func registerRoles() {
 			always(`, language`),
 			always(`, body AS "source"`),
 			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "definition"),
 			always(`FROM system_schema.functions`),
 		},
 		Fields: routineFields("function"),
@@ -293,6 +296,7 @@ func registerRoles() {
 			always(`, state_func AS "language"`),
 			always(`, final_func AS "source"`),
 			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "definition"),
 			always(`FROM system_schema.aggregates`),
 		},
 		Fields: aggregateFields(),
@@ -339,6 +343,11 @@ func routineFields(kind string) []dbmeta.Field {
 		{Name: "language"},
 		{Name: "source"},
 		{Name: "comment", Desc: "always absent: a " + kind + " carries no comment"},
+		{
+			Name: "definition",
+			Desc: "always absent: the catalog keeps the parts of a " + kind +
+				" and DESCRIBE builds the statement",
+		},
 	}
 }
 
@@ -369,7 +378,7 @@ func scanRoutine(kind string) func(*sql.Rows) (dbmeta.Function, error) {
 		)
 		err := rows.Scan(pad{}, &v.Schema, &v.Name, pad{}, pad{}, &v.ResultType,
 			&args, pad{}, pad{}, pad{}, pad{}, pad{},
-			&v.Language, &v.Source, pad{})
+			&v.Language, &v.Source, pad{}, pad{})
 		v.Kind = kind
 		v.ArgTypes = sql.Null[string]{V: textList(args), Valid: true}
 		return v, err

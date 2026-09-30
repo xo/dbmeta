@@ -124,7 +124,7 @@ that does that, and it is deliberate.
 ### It does not raise the command count for PostgreSQL
 
 PostgreSQL already answers 11 of 11. What changes there is the number of object
-kinds: 14 against 55. `COMMANDS.md` maps every `psql` metadata command to the
+kinds: 14 against 56. `COMMANDS.md` maps every `psql` metadata command to the
 Go value that answers it, and 37 of them have no reader interface in `usql`
 today. Tablespaces, types, domains, operators, text search, publications,
 extensions, roles, access methods and the rest are all readable from `dbmeta`

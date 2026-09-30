@@ -171,6 +171,7 @@ func registerRoles() {
 			always(`, s.type AS "type"`),
 			always(`, if(s.readonly = 0, 'user', 'internal') AS "context"`),
 			always(`, if(s.readonly = 0, 'rw', 'r') AS "access"`),
+			always(`, NULL AS "display"`),
 			always(`FROM system.settings s`),
 			always(`WHERE (@name = '' OR s.name LIKE @name)`),
 			always(`ORDER BY s.name`),
@@ -180,13 +181,14 @@ func registerRoles() {
 			{Name: "type", Desc: "the declared type of the setting"},
 			{Name: "context", Desc: "user for a setting a session can change, internal otherwise"},
 			{Name: "access", Desc: "rw for a setting a session can change, r otherwise"},
+			{Name: "display", Desc: "always absent: ClickHouse shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "setting name pattern, empty for every one", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})
@@ -406,6 +408,7 @@ func functionStmt(aggregate string) dbmeta.Stmt {
 		always(`, f.origin AS "language"`),
 		always(`, nullIf(f.create_query, '') AS "source"`),
 		always(`, nullIf(f.description, '') AS "comment"`),
+		always(`, nullIf(f.create_query, '') AS "definition"`),
 		always(`FROM system.functions f`),
 		always(`WHERE f.is_aggregate = ` + aggregate),
 		always(`AND (@name = '' OR f.name LIKE @name)`),
@@ -444,6 +447,7 @@ func functionFields(kind string) []dbmeta.Field {
 		},
 		{Name: "source", Desc: "the CREATE FUNCTION for a user defined one, absent for a built in"},
 		{Name: "comment", Desc: "the server's own description of the " + kind},
+		{Name: "definition", Desc: "the CREATE FUNCTION, the same text as source"},
 	}
 }
 
@@ -452,6 +456,6 @@ func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 		&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-		&v.Language, &v.Source, &v.Comment)
+		&v.Language, &v.Source, &v.Comment, &v.Definition)
 	return v, err
 }

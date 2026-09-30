@@ -36,6 +36,12 @@ var left = map[string]string{
 	"partition":         "PARTITION OF is not CockroachDB syntax",
 	// CockroachDB has changefeeds and no publications.
 	"publication": "CockroachDB has no publications",
+	// CREATE STATISTICS takes columns and no expression.
+	"expression statistics": "CockroachDB has no statistics on an expression",
+	// CockroachDB refuses CREATE TEXT SEARCH CONFIGURATION and CREATE
+	// COLLATION.
+	"text search configuration": "CockroachDB cannot create a text search configuration",
+	"collation with rules":      "CockroachDB cannot create a collation",
 }
 
 // since gates a PostgreSQL step on a CockroachDB release, so that an older

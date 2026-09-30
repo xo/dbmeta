@@ -67,6 +67,7 @@ func scanEveryQueryWith(t *testing.T, m *dbmeta.Meta, db *sql.DB, system bool) {
 		dbmeta.TextSearchDictionaries.Name():  scanOne(t, all, dbmeta.TextSearchDictionaries, m, db),
 		dbmeta.TextSearchTemplates.Name():     scanOne(t, all, dbmeta.TextSearchTemplates, m, db),
 		dbmeta.TextSearchConfigs.Name():       scanOne(t, all, dbmeta.TextSearchConfigs, m, db),
+		dbmeta.TextSearchConfigMaps.Name():    scanOne(t, all, dbmeta.TextSearchConfigMaps, m, db),
 		dbmeta.OperatorClasses.Name():         scanOne(t, all, dbmeta.OperatorClasses, m, db),
 		dbmeta.OperatorFamilies.Name():        scanOne(t, all, dbmeta.OperatorFamilies, m, db),
 		dbmeta.OperatorFamilyOperators.Name(): scanOne(t, all, dbmeta.OperatorFamilyOperators, m, db),

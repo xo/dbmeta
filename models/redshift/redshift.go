@@ -18,7 +18,7 @@
 // tests in the test module run when dbrun resolves a connection string for
 // Redshift (D117). See D144.
 //
-// It answers 11 of the 55 questions.
+// It answers 11 of the 56 questions.
 package redshift
 
 import (

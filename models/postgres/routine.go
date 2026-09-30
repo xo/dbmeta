@@ -56,6 +56,12 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		{{Query: `, l.lanname AS "language"`}},
 		{{Query: `, CASE WHEN l.lanname IN ('internal', 'c') THEN p.prosrc END AS "source"`}},
 		{{Query: `, pg_catalog.obj_description(p.oid, 'pg_proc') AS "comment"`}},
+		// pg_get_functiondef refuses an aggregate, so an aggregate has no
+		// definition. psql's \sf refuses one too.
+		{
+			{Query: `, CASE WHEN NOT p.proisagg THEN pg_catalog.pg_get_functiondef(p.oid) END AS "definition"`},
+			{Min: v11, Query: `, CASE WHEN p.prokind <> 'a' THEN pg_catalog.pg_get_functiondef(p.oid) END AS "definition"`},
+		},
 		{{Query: `FROM pg_catalog.pg_proc p`}},
 		{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
 		{{Query: `LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang`}},
@@ -76,14 +82,15 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 
 func functionFields() []dbmeta.Field {
 	return fields("catalog", "schema", "name", "id", "kind", "result_type", "arg_types",
-		"volatility", "parallel", "owner", "security", "access", "language", "source", "comment")
+		"volatility", "parallel", "owner", "security", "access", "language", "source", "comment",
+		"definition")
 }
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType, &v.ArgTypes,
 		&v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access, &v.Language,
-		&v.Source, &v.Comment)
+		&v.Source, &v.Comment, &v.Definition)
 	return v, err
 }
 
@@ -126,6 +133,8 @@ func registerTypes() {
 			{{Query: `, pg_catalog.pg_get_userbyid(t.typowner) AS "owner"`}},
 			{{Query: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
 			{{Query: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
+			{{Query: `, CASE WHEN t.typrelid <> 0 THEN 'tuple' WHEN t.typlen < 0 THEN 'var'` +
+				` ELSE t.typlen::text END AS "size"`}},
 			{{Query: `FROM pg_catalog.pg_type t`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
 			// leave out the composite types that back a table, and the array
@@ -137,12 +146,12 @@ func registerTypes() {
 			{{Query: `AND (@name = '' OR t.typname LIKE @name OR pg_catalog.format_type(t.oid, NULL) LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
-		Fields: fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment"),
+		Fields: fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment", "size"),
 		Params: schemaNameSystem("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})

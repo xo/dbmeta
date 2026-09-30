@@ -47,6 +47,7 @@ func procedureStmt(aggregate string) dbmeta.Stmt {
 		always(`, CASE p.interface WHEN 'YES' THEN 'EXTERNAL' ELSE 'PL/SQL' END AS "language"`),
 		always(`, NULL AS "source"`),
 		always(`, NULL AS "comment"`),
+		always(`, NULL AS "definition"`),
 		always(`FROM all_procedures p`),
 		always(`WHERE p.procedure_name IS NULL`),
 		always(`AND p.object_type IN ('FUNCTION', 'PROCEDURE')`),
@@ -84,6 +85,11 @@ func procedureFields() []dbmeta.Field {
 				" row per line, which no single column can hold",
 		},
 		{Name: "comment", Desc: "always absent: Oracle records no comment on a routine"},
+		{
+			Name: "definition",
+			Desc: "always absent, for the same reason as source. DBMS_METADATA.GET_DDL" +
+				" builds it, and it is a call for each row",
+		},
 	}
 }
 
@@ -92,7 +98,7 @@ func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 		&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-		&v.Language, &v.Source, &v.Comment)
+		&v.Language, &v.Source, &v.Comment, &v.Definition)
 	return v, err
 }
 
@@ -172,6 +178,7 @@ func registerRoutines() {
 			always(`, t.owner AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "size"`),
 			always(`FROM all_types t`),
 			notSystem("WHERE", "t.owner"),
 			always(`AND (@schema IS NULL OR t.owner LIKE @schema)`),
@@ -193,12 +200,13 @@ func registerRoutines() {
 					" privileges query returns",
 			},
 			{Name: "comment", Desc: "always absent: Oracle records no comment on a type"},
+			{Name: "size", Desc: "always absent: all_types records no length for a type"},
 		},
 		Params: schemaNameSystem("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				dbmeta.NullAsEmpty(&v.Elements), &v.Owner, &v.Access, &v.Comment)
+				dbmeta.NullAsEmpty(&v.Elements), &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})

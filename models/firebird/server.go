@@ -70,6 +70,7 @@ func registerDatabases() {
 			from4(`, CAST(NULL AS VARCHAR(1)) AS "type"`),
 			from4(`, c.RDB$CONFIG_SOURCE AS "context"`),
 			from4(`, CAST(NULL AS VARCHAR(1)) AS "access"`),
+			from4(`, CAST(NULL AS VARCHAR(1)) AS "display"`),
 			from4(`FROM RDB$CONFIG c`),
 			from4(`WHERE ` + like(`c.RDB$CONFIG_NAME`, `@name`) + ``),
 			from4(`ORDER BY c.RDB$CONFIG_NAME`),
@@ -80,13 +81,14 @@ func registerDatabases() {
 			{Name: "type", Desc: "always absent: RDB$CONFIG records no data type for a setting"},
 			{Name: "context", Desc: "from RDB$CONFIG_SOURCE, which says where the value came from"},
 			{Name: "access", Desc: "always absent: a setting carries no grant"},
+			{Name: "display", Desc: "always absent: Firebird shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "setting name pattern, empty for every setting", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})
@@ -105,6 +107,7 @@ func registerCollations() {
 			always(`, c.RDB$SPECIFIC_ATTRIBUTES AS "locale"`),
 			always(`, TRUE AS "deterministic"`),
 			always(`, c.RDB$DESCRIPTION AS "comment"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "rules"`),
 			always(`FROM RDB$COLLATIONS c`),
 			always(`JOIN RDB$CHARACTER_SETS s ON s.RDB$CHARACTER_SET_ID = c.RDB$CHARACTER_SET_ID`),
 			always(`WHERE ` + like(`''`, `@schema`) + ``),
@@ -120,12 +123,13 @@ func registerCollations() {
 			{Name: "locale", Desc: "from RDB$SPECIFIC_ATTRIBUTES, which carries the ICU locale and the case and accent settings where there are any"},
 			{Name: "deterministic", Desc: "always true: Firebird has no non deterministic collation"},
 			{Name: "comment"},
+			{Name: "rules", Desc: "always absent: RDB$COLLATIONS records attributes and no tailoring rules"},
 		},
 		Params: schemaAndName("collation"),
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
 			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType,
-				&v.Locale, &v.Deterministic, &v.Comment)
+				&v.Locale, &v.Deterministic, &v.Comment, &v.Rules)
 			return v, err
 		},
 	})

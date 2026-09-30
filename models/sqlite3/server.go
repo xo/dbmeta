@@ -39,6 +39,7 @@ func registerServer() {
 			always(`, CASE f.builtin WHEN 1 THEN 'c' ELSE 'extension' END AS "language"`),
 			always(`, NULL AS "source"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "definition"`),
 			always(`FROM pragma_function_list f`),
 			always(`WHERE (@name = '' OR f.name LIKE @name)`),
 			always(`AND (@schema = '' OR @schema = '')`),
@@ -68,6 +69,7 @@ func registerServer() {
 			{Name: "language", Desc: "c for one built into the library, extension for one the caller registered"},
 			{Name: "source", Desc: "always absent: a SQLite function is compiled"},
 			{Name: "comment", Desc: "always absent"},
+			{Name: "definition", Desc: "always absent, for the same reason as source"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "ignored: a SQLite function is not in a schema", Default: ""},
@@ -82,7 +84,7 @@ func registerServer() {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
-				&v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})
@@ -98,6 +100,7 @@ func registerServer() {
 			always(`, NULL AS "locale"`),
 			always(`, TRUE AS "deterministic"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "rules"`),
 			always(`FROM pragma_collation_list c`),
 			always(`WHERE (@name = '' OR c.name LIKE @name)`),
 			always(`ORDER BY c.name`),
@@ -110,6 +113,7 @@ func registerServer() {
 			{Name: "locale", Desc: "always absent: a SQLite collation has no locale"},
 			{Name: "deterministic", Desc: "always true: SQLite requires it"},
 			{Name: "comment", Desc: "always absent"},
+			{Name: "rules", Desc: "always absent: a collation is compiled code"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "collation name pattern, empty for every one", Default: ""},
@@ -117,7 +121,7 @@ func registerServer() {
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
 			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType,
-				&v.Locale, &v.Deterministic, &v.Comment)
+				&v.Locale, &v.Deterministic, &v.Comment, &v.Rules)
 			return v, err
 		},
 	})
@@ -231,13 +235,13 @@ func registerSettings() {
 			kind = "text"
 		}
 		b.WriteString(`'` + kind + `' AS "type", '` + s.context + `' AS "context"`)
-		b.WriteString(`, NULL AS "access" FROM pragma_` + s.name)
+		b.WriteString(`, NULL AS "access", NULL AS "display" FROM pragma_` + s.name)
 	}
 	stmt := dbmeta.Stmt{
 		// The columns are named rather than starred, because their order has
 		// to match the field list and a reader should not have to find the
 		// inner SELECT to check it.
-		always(`SELECT "name", "value", "type", "context", "access" FROM (`),
+		always(`SELECT "name", "value", "type", "context", "access", "display" FROM (`),
 		always(b.String()),
 		always(`) WHERE (@name = '' OR "name" LIKE @name)`),
 		always(`ORDER BY "name"`),
@@ -251,6 +255,7 @@ func registerSettings() {
 			Desc: "database for a setting stored in the file, connection for one that lasts as long as the handle",
 		},
 		{Name: "access", Desc: "always absent: SQLite has no grants"},
+		{Name: "display", Desc: "always absent: SQLite shows a value in one form, which is value"},
 	}
 	for i := range fieldList {
 		if fieldList[i].Name != "name" {
@@ -270,7 +275,7 @@ func registerSettings() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})

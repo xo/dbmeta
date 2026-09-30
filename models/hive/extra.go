@@ -34,6 +34,7 @@ func registerFunctions() {
 			always(`, CASE f.FUNC_TYPE WHEN 1 THEN 'java' ELSE CAST(f.FUNC_TYPE AS string) END AS "language"`),
 			always(`, f.CLASS_NAME AS "source"`),
 			always(`, CAST(NULL AS string) AS "comment"`),
+			always(`, CAST(NULL AS string) AS "definition"`),
 			always(`FROM sys.FUNCS f JOIN sys.DBS d ON d.DB_ID = f.DB_ID`),
 			always(`WHERE ` + notSystem),
 			always(`AND ` + like(`d.NAME`, `@schema`)),
@@ -55,13 +56,14 @@ func registerFunctions() {
 			{Name: "language", Desc: "java for a registered class, which is every function Hive records. A built in function is not in the metastore and does not appear here"},
 			{Name: "source", Desc: "the Java class name, which is the nearest thing to a body Hive has"},
 			{Name: "comment", Desc: "always absent: Hive records no comment on a function"},
+			{Name: "definition", Desc: "always absent: the metastore keeps the class and its resources, and no CREATE statement"},
 		},
 		Params: schemaAndName("function"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind,
 				&v.ResultType, &v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner,
-				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})

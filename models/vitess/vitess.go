@@ -10,7 +10,7 @@
 // model's statements, shared with [dbmeta.Query.Share], and read what that
 // MySQL holds. It imports the mysql model, which registers first. See D135.
 //
-// It answers 20 of the 55 questions, on 23.0.6 and 24.0.3. Every statement
+// It answers 20 of the 56 questions, on 23.0.6 and 24.0.3. Every statement
 // but one is the mysql model's. Sequences is its own, because a Vitess
 // sequence is a table with the comment vitess_sequence. docs/COVERAGE.md says
 // why each of the rest is not answered.

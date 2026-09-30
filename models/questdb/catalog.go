@@ -305,6 +305,7 @@ func registerServer() {
 			always(`, NULL AS "type"`),
 			always(`, CASE WHEN p.reloadable THEN 'reloadable' ELSE 'restart' END AS "context"`),
 			always(`, NULL AS "access"`),
+			always(`, NULL AS "display"`),
 			always(`FROM (SHOW PARAMETERS) p`),
 			always(`WHERE (@name = '' OR p.property_path LIKE @name)`),
 			always(`ORDER BY 1`),
@@ -315,11 +316,12 @@ func registerServer() {
 			{Name: "type", Desc: "always absent: QuestDB records no type for a setting"},
 			{Name: "context", Desc: "reloadable where the setting takes effect without a restart, and restart otherwise"},
 			{Name: "access", Desc: "always absent: the open source edition has no privileges"},
+			{Name: "display", Desc: "always absent: QuestDB shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "parameter name pattern, empty for every parameter", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})
@@ -365,6 +367,7 @@ func functions(kind string) *dbmeta.Binding[dbmeta.Function] {
 			always(`, 'internal' AS "language"`),
 			always(`, NULL AS "source"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "definition"`),
 			always(`FROM functions() f`),
 			always(`WHERE @with_system`),
 			always(`AND ` + kind),
@@ -388,12 +391,14 @@ func functions(kind string) *dbmeta.Binding[dbmeta.Function] {
 			{Name: "language", Desc: "always internal: every function is built into the server"},
 			{Name: "source", Desc: "always absent: a built in function has no source text"},
 			{Name: "comment", Desc: "always absent: QuestDB has no COMMENT statement"},
+			{Name: "definition", Desc: "always absent, for the same reason as source"},
 		},
 		Params: schemaNameSystem("function"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType, &v.ArgTypes,
-				&v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access, &v.Language, &v.Source, &v.Comment,
+				&v.Definition)
 			return v, err
 		},
 	}

@@ -1,11 +1,11 @@
 # What Each Database Can Answer
 
-`dbmeta` asks every database the same 55 questions. PostgreSQL answers all of
+`dbmeta` asks every database the same 56 questions. PostgreSQL answers all of
 them, because PostgreSQL is the model. No other database answers all of them,
 and this document says which ones each database answers, which ones it cannot,
 and why.
 
-Forty eight of the questions come from `psql`. The other seven exist because a
+Forty nine of the questions come from `psql`. The other seven exist because a
 consumer needs them and `psql` has no command for them: the columns of a
 constraint, the parameters of a routine, the labels of an enumerated type, the
 statement a view selects, the statistics over a column, the schema an
@@ -28,33 +28,33 @@ rather than reading one.
 
 | Model | Answers | Of | Tested against |
 | --- | --- | --- | --- |
-| `models/postgres` | 55 | 55 | PostgreSQL 9.6 through 18 |
-| `models/mysql` | 29 on MariaDB, 26 on MySQL | 55 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
-| `models/sqlite3` | 14 | 55 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
-| `models/duckdb` | 20 | 55 | duckdb/duckdb-go, the driver usql uses |
-| `models/sqlserver` | 32 | 55 | SQL Server 2017, 2019, 2022 and 2025 |
-| `models/oracle` | 25 | 55 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
-| `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 55 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
-| `models/clickhouse` | 23 | 55 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
-| `models/trino` | 13 | 55 | Trino 476 and 483 |
-| `models/presto` | 9 | 55 | Presto 0.299 |
-| `models/firebird` | 24 | 55 | Firebird 3.0, 4.0 and 5.0 |
-| `models/hana` | 32 | 55 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
-| `models/hive` | 16 | 55 | Apache Hive 4.0 and 4.2 |
-| `models/exasol` | 25 | 55 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
-| `models/vertica` | 26 | 55 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
-| `models/couchbase` | 12 | 55 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
-| `models/cockroachdb` | 54 | 55 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 48 of its statements are the postgres model's (D123) |
-| `models/cratedb` | 26 | 55 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
-| `models/questdb` | 11 | 55 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
-| `models/tidb` | 19 | 55 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 16 of its statements are the mysql model's (D133) |
-| `models/vitess` | 20 | 55 | Vitess 23.0.6 and 24.0.3, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
-| `models/databend` | 20 | 55 | Databend 1.2.881 and 1.2.948, from the system database, with dbimp's driver (D140) |
-| `models/singlestore` | 22 | 55 | SingleStore 9.0 and 9.1, on the development image with no licence. 16 of its statements are the mysql model's (D141) |
-| `models/snowflake` | 13 | 55 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
-| `models/redshift` | 11 | 55 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
-| `models/impala` | 11 | 55 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
-| `models/informationschema` | 12 | 55 | any database with a standard `information_schema` |
+| `models/postgres` | 56 | 56 | PostgreSQL 9.6 through 18 |
+| `models/mysql` | 29 on MariaDB, 26 on MySQL | 56 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
+| `models/sqlite3` | 14 | 56 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
+| `models/duckdb` | 20 | 56 | duckdb/duckdb-go, the driver usql uses |
+| `models/sqlserver` | 32 | 56 | SQL Server 2017, 2019, 2022 and 2025 |
+| `models/oracle` | 25 | 56 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
+| `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 56 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
+| `models/clickhouse` | 23 | 56 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
+| `models/trino` | 13 | 56 | Trino 476 and 483 |
+| `models/presto` | 9 | 56 | Presto 0.299 |
+| `models/firebird` | 24 | 56 | Firebird 3.0, 4.0 and 5.0 |
+| `models/hana` | 32 | 56 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
+| `models/hive` | 16 | 56 | Apache Hive 4.0 and 4.2 |
+| `models/exasol` | 25 | 56 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
+| `models/vertica` | 26 | 56 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
+| `models/couchbase` | 12 | 56 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
+| `models/cockroachdb` | 54 | 56 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 47 of its statements are the postgres model's (D123) |
+| `models/cratedb` | 26 | 56 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
+| `models/questdb` | 11 | 56 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
+| `models/tidb` | 19 | 56 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 16 of its statements are the mysql model's (D133) |
+| `models/vitess` | 20 | 56 | Vitess 23.0.6 and 24.0.3, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
+| `models/databend` | 20 | 56 | Databend 1.2.881 and 1.2.948, from the system database, with dbimp's driver (D140) |
+| `models/singlestore` | 22 | 56 | SingleStore 9.0 and 9.1, on the development image with no licence. 16 of its statements are the mysql model's (D141) |
+| `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
+| `models/redshift` | 11 | 56 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
+| `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
+| `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
 columns, functions, privileges, constraints, sequences, constraint columns,
@@ -72,7 +72,7 @@ is true of both. Where they differ, the model gates on the product rather than
 on the release number, because MariaDB is at 11.8 and MySQL at 9 and neither
 number says anything about the other. See D44.
 
-MariaDB answers 29 of the 55 and MySQL answers 26. The three MySQL cannot
+MariaDB answers 29 of the 56 and MySQL answers 26. The three MySQL cannot
 answer are sequences, which it has never had, aggregates, which it has no form
 of and whose catalog table it dropped in 8.0, and column statistics, below.
 
@@ -223,7 +223,7 @@ them into one string.
 
 ## SQLite
 
-SQLite answers 14 of the 55. It is the smallest native model here and it still
+SQLite answers 14 of the 56. It is the smallest native model here and it still
 beats the shared `information_schema` one, which SQLite does not have at all.
 
 It is also the only database here with no server. SQLite is a library, so the
@@ -344,7 +344,7 @@ replication, no tablespaces and no partitioning.
 
 ## Cassandra
 
-Cassandra answers 17 of the 55, verified against 5.0.9 and 3.11.19.
+Cassandra answers 17 of the 56, verified against 5.0.9 and 3.11.19.
 
 It is the first database here that is not SQL, and CQL is narrower than the
 name suggests. D62 holds the four consequences and this is the short version.
@@ -496,7 +496,7 @@ list of all of them and says nothing.
 
 ## ScyllaDB
 
-ScyllaDB answers 18 of the 55, verified against 2025.1.15, 2026.1, 2026.2 and
+ScyllaDB answers 18 of the 56, verified against 2025.1.15, 2026.1, 2026.2 and
 2026.3.1. It is a second product that speaks CQL, and `models/cassandra` reads
 it. Cassandra is the reference product and ScyllaDB is the flavor, the way
 MariaDB and MySQL share `models/mysql`. D91 is the decision.
@@ -614,7 +614,7 @@ four releases give the same answer, under `[scylla/same/grantee]` in
 
 ## ClickHouse
 
-ClickHouse answers 23 of the 55, verified against 26.9.2.8 and 25.8.33.6.
+ClickHouse answers 23 of the 56, verified against 26.9.2.8 and 25.8.33.6.
 
 ### system, not information_schema
 
@@ -726,7 +726,7 @@ for a comment at all.
 
 ### What it answers
 
-13 of the 55. Catalogs as databases, schemas, tables, columns, views,
+13 of the 56. Catalogs as databases, schemas, tables, columns, views,
 comments, types, access methods, roles, role grants, privileges, the current
 schema and the current user.
 
@@ -838,7 +838,7 @@ is the one that is supposed to.
 
 ## Firebird
 
-`models/firebird` answers 24 of the 55, against Firebird 3.0.14, 4.0.7 and
+`models/firebird` answers 24 of the 56, against Firebird 3.0.14, 4.0.7 and
 5.0.4.
 
 ### It reads RDB$, and there is no information_schema
@@ -1056,7 +1056,7 @@ its own and closes it. That was measured against Firebird 5.0.4 with
 
 ## SAP HANA
 
-`models/hana` answers 32 of the 55, against SAP HANA 2.00.088, which is
+`models/hana` answers 32 of the 56, against SAP HANA 2.00.088, which is
 Tested, and 2.00.076 and 2.00.082, which run nightly. It is the second richest answer here after PostgreSQL's.
 
 ### It reads SYS, and there is a lot of it
@@ -1240,7 +1240,7 @@ rows.
 
 ## Apache Hive
 
-`models/hive` answers 16 of the 55, against Apache Hive 4.2.1, which is
+`models/hive` answers 16 of the 56, against Apache Hive 4.2.1, which is
 Tested, and 4.0.1, which runs nightly. It is the
 only model here that writes its filter values into the statement, and the
 reason is in D78 rather than here.
@@ -1402,7 +1402,7 @@ records only where the two differ.
 
 ### What it answers
 
-9 of the 55. Catalogs as databases, schemas, tables, columns, views, types,
+9 of the 56. Catalogs as databases, schemas, tables, columns, views, types,
 access methods, privileges and the current user.
 
 Trino answers four more, and each is absent from the product rather than
@@ -1507,7 +1507,7 @@ differs for a second principal.
 
 ## Exasol
 
-`models/exasol` answers 25 of the 55. It was run against Exasol 2026.2.0 on
+`models/exasol` answers 25 of the 56. It was run against Exasol 2026.2.0 on
 the nano image and 2025.2.1 on the Community Edition machine, and the two
 answer identically, so the model has no version fragment. D85 says why there
 are two, and D87 records what was decided here.
@@ -1686,7 +1686,7 @@ the difference is in what the machine holds and not in the query.
 
 ## Vertica
 
-`models/vertica` answers 26 of the 55 on 25.1 and 24 on the three older
+`models/vertica` answers 26 of the 56 on 25.1 and 24 on the three older
 releases, which have no triggers and no per user settings to read. It was run
 against 7.2.1, 9.1.0, 10.1.1 and 25.1.0, all four community images, and D88
 records why those. The images are copies in `docker.io/usql/vertica`, which
@@ -1847,7 +1847,7 @@ On 10.1 `Privileges` is refused to both, because a lesser principal cannot read
 
 ## Couchbase
 
-`models/couchbase` answers 12 of the 55 on 7.6 and 8.0. It was run against
+`models/couchbase` answers 12 of the 56 on 7.6 and 8.0. It was run against
 7.6.12 and 8.0.3 through `github.com/xo/dbimp/couchbase`, the driver `usql`
 uses. 7.2.9 reports that it is too old, and D104 says why.
 
@@ -2265,7 +2265,7 @@ caller writes one join for every database.
 
 ## DuckDB
 
-DuckDB answers 20 of the 55, which is second only to PostgreSQL. Its catalog is
+DuckDB answers 20 of the 56, which is second only to PostgreSQL. Its catalog is
 unusually complete for an embedded database: comments on most objects, real
 enumerated types, sequences with their bounds, and a constraint catalog that
 names both the columns of a key and the columns they reference.
@@ -2377,7 +2377,7 @@ replication.
 
 ## Microsoft SQL Server
 
-SQL Server answers 32 of the 55, which is more than any database here except
+SQL Server answers 32 of the 56, which is more than any database here except
 PostgreSQL. It is the only one besides PostgreSQL with roles, privileges,
 tablespaces and DDL triggers, and the only one that keeps comments in a catalog
 of their own rather than on the object.
@@ -2550,7 +2550,7 @@ there is no object with an identity and an owner of its own to list.
 
 ## Oracle
 
-Oracle answers 25 of the 55. Every one is verified on six releases.
+Oracle answers 25 of the 56. Every one is verified on six releases.
 
 It needs no Windows and no virtual machine, which is the opposite of SQL
 Server. The free Express images reach back to 11g Release 2 from 2010, so every
@@ -2784,16 +2784,16 @@ view carries: `ALL_PDBS` does not exist on any release here. `DBA_PDBS` and
 
 ## CockroachDB
 
-`models/cockroachdb` answers 54 of the 55, on 24.3.36, 26.2.7 and 26.3.2. It
+`models/cockroachdb` answers 54 of the 56, on 24.3.36, 26.2.7 and 26.3.2. It
 was measured on 2026-09-29, with pgx, which is the driver dburl opens for
-`cockroachdb://`. CockroachDB imitates PostgreSQL's catalog, so 48 of its
+`cockroachdb://`. CockroachDB imitates PostgreSQL's catalog, so 47 of its
 statements are the postgres model's, shared with `Query.Share`. The version
 set's main version is the PostgreSQL release that CockroachDB claims, 13.0.0
 on 24.3 and 26.2 and 18.0.0 on 26.3, so a shared statement takes the fragments
 of that release. CockroachDB's own release is under the key `cockroachdb`.
 See D123.
 
-Six statements are its own, because the postgres model's call a function or
+Seven statements are its own, because the postgres model's call a function or
 a type that CockroachDB lacks:
 
 | Query | What differs |
@@ -2804,6 +2804,7 @@ a type that CockroachDB lacks:
 | index_columns | `descending` reads bit 1 of `indoption`, because there is no `pg_index_column_has_property` |
 | extension_objects | `description` is always NULL, because there is no `pg_describe_object`. `pg_extension` is empty, and `CREATE EXTENSION` does nothing |
 | operator_family_operators | the operator is written from `pg_operator`, because there is no `regoperator` type. `pg_amop` is empty |
+| extended_stats | `definition` names the columns from `stxkeys`, because there is no `pg_get_statisticsobjdef_columns`. CockroachDB has no statistics on an expression, so the columns are the whole definition (D147) |
 
 `column_stats` is not answered. CockroachDB keeps `pg_stats` empty even after
 ANALYZE, so the shared statement would say that no column has statistics,
@@ -2812,11 +2813,17 @@ the table in the statement rather than taking it as a bind parameter.
 `system.table_statistics` holds them too, and 26.3 refuses to read it:
 "Access to crdb_internal and system is restricted".
 
+`text_search_config_maps` is not answered. CockroachDB has no
+`ts_token_type`, which names the kind of token a mapping is for, and it keeps
+`pg_ts_config` empty, so there is no configuration to map (D147).
+
 A parameter declared `integer` reads as `bigint`, because CockroachDB makes
-`integer` 64 bits. The fixture builds 29 of the PostgreSQL fixture's 33 steps
+`integer` 64 bits. The fixture builds 29 of the PostgreSQL fixture's 36 steps
 on 26.3, and 26 on 24.3 and 26.2, which have no domain and cannot comment on
-a sequence or a function. It leaves out the revoke, the two partitioning steps
-and the publication, and `models/cockroachdb/fixture` says why. The
+a sequence or a function. It leaves out the revoke, the two partitioning steps,
+the publication, the statistics on an expression, the text search
+configuration and the collation with rules, and `models/cockroachdb/fixture`
+says why. The
 conformance report is line for line PostgreSQL's on all three releases.
 
 Parity finds what PostgreSQL finds, with one difference by release. From 26.3
@@ -2839,7 +2846,7 @@ rule 2 follows, and D128 keeps it.
 
 ## CrateDB
 
-`models/cratedb` answers 26 of the 55 on 6.4.5 and 25 on 6.3.7, which has no
+`models/cratedb` answers 26 of the 56 on 6.4.5 and 25 on 6.3.7, which has no
 `information_schema.collations`. It was measured on 2026-09-29 with pgx, on
 the PostgreSQL port, which is what dburl opens for `cratedb://`. The main
 version is the PostgreSQL release that CrateDB claims, 14.0 on both, and
@@ -2931,7 +2938,7 @@ written above.
 
 ## QuestDB
 
-`models/questdb` answers 11 of the 55 on 9.4.3 and 10.0.1. It was measured on
+`models/questdb` answers 11 of the 56 on 9.4.3 and 10.0.1. It was measured on
 2026-09-29 with pgx, on the PostgreSQL interface on 8812, which is what
 dburl opens for `questdb://` and what usql uses.
 
@@ -3018,7 +3025,7 @@ cannot do. Each lead was run against 10.0.1.
 
 ## TiDB
 
-`models/tidb` answers 19 of the 55 on 8.5.8, and 18 on 7.5.8 and 8.1.2,
+`models/tidb` answers 19 of the 56 on 8.5.8, and 18 on 7.5.8 and 8.1.2,
 where privileges is too old. It was measured on 2026-09-29 with the mysql
 driver, which is what dburl opens for `tidb://` and what usql uses. TiDB
 imitates MySQL's information_schema, so 16 of its statements are the mysql
@@ -3086,7 +3093,7 @@ methods, which is a list kept for compatibility.
 
 ## Vitess
 
-`models/vitess` answers 20 of the 55 on 23.0.6 and 24.0.3. It was measured on
+`models/vitess` answers 20 of the 56 on 23.0.6 and 24.0.3. It was measured on
 2026-09-30 on vttestserver, with the mysql driver, which is what dburl opens
 for `vitess://` and what usql uses. vtgate passes a query of
 information_schema to the MySQL of one tablet, so 19 of its statements are
@@ -3157,7 +3164,7 @@ subscriptions and said that vtgate does not pass the SELECT.
 
 ## Databend
 
-`models/databend` answers 20 of the 55 on 1.2.881 and 1.2.948. It was
+`models/databend` answers 20 of the 56 on 1.2.881 and 1.2.948. It was
 measured on 2026-09-30 with dbimp's driver, which is what usql's databend
 scheme opens. It reads the system database, as the ClickHouse model does,
 and the table function show_sequences(). See D140.
@@ -3226,7 +3233,7 @@ cluster key orders the rows of a table rather than partitioning it.
 
 ## SingleStore
 
-`models/singlestore` answers 22 of the 55 on 9.0 and 9.1. It was measured on
+`models/singlestore` answers 22 of the 56 on 9.0 and 9.1. It was measured on
 2026-09-30 on the development image, which runs with no licence on a machine
 with at most 8 cores and 64 GB, through the mysql driver, which is what
 dburl's memsql scheme opens and what usql uses. SingleStore imitates MySQL's
@@ -3285,7 +3292,7 @@ and CORRELATED_COLUMN_STATISTICS may, which docs/BACKLOG.md holds to measure.
 
 ## Snowflake and Amazon Redshift
 
-`models/snowflake` answers 13 of the 55 and `models/redshift` answers 11.
+`models/snowflake` answers 13 of the 56 and `models/redshift` answers 11.
 Neither has run. Ken chose on 2026-09-30 to write both from the vendors'
 documentation before an account or a cluster was provisioned, and hard rule
 9 says a query that has never run is not finished. Their tests skip until
@@ -3304,7 +3311,7 @@ model does not read yet.
 
 ## Apache Impala
 
-`models/impala` answers 11 of the 55 on 4.4.1 and 4.5.2, measured on
+`models/impala` answers 11 of the 56 on 4.4.1 and 4.5.2, measured on
 2026-09-30 in the one container dbrun builds (D145), with sclgo/impala-go,
 which is what usql uses.
 

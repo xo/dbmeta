@@ -258,6 +258,7 @@ func register() {
 			always(`, l.lanname AS "language"`),
 			always(`, p.prosrc AS "source"`),
 			always(`, obj_description(p.oid, 'pg_proc') AS "comment"`),
+			always(`, NULL AS "definition"`),
 			always(`FROM pg_proc p`),
 			always(`JOIN pg_namespace n ON n.oid = p.pronamespace`),
 			always(`LEFT JOIN pg_language l ON l.oid = p.prolang`),
@@ -278,13 +279,14 @@ func register() {
 			{Name: "owner"}, {Name: "security"},
 			{Name: "access", Desc: "always absent: the grant on a function is not read"},
 			{Name: "language"}, {Name: "source"}, {Name: "comment"},
+			{Name: "definition", Desc: "always absent: Redshift has no pg_get_functiondef, and SHOW FUNCTION is a statement of its own"},
 		},
 		Params: schemaNameSystem("function"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-				&v.Language, &v.Source, &v.Comment)
+				&v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})

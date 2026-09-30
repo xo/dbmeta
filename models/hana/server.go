@@ -99,6 +99,7 @@ func registerSettings() {
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "type"`),
 			always(`, c.LAYER_NAME AS "context"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "access"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "display"`),
 			always(`FROM SYS.M_INIFILE_CONTENTS c`),
 			always(`WHERE ` + like(`c.KEY`, `@name`)),
 			always(`ORDER BY c.FILE_NAME, c.SECTION, c.KEY, c.LAYER_NAME`),
@@ -109,13 +110,14 @@ func registerSettings() {
 			{Name: "type", Desc: "always absent: M_INIFILE_CONTENTS records no data type"},
 			{Name: "context", Desc: "the layer the value comes from, such as DEFAULT, SYSTEM or DATABASE. A key appears once per layer that sets it and the last one wins"},
 			{Name: "access", Desc: "always absent: a setting carries no grant"},
+			{Name: "display", Desc: "always absent: HANA shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "setting key pattern, empty for every setting. It matches the key alone and not the file or section", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})
@@ -133,6 +135,7 @@ func registerCollations() {
 			always(`, c.LOCALE AS "locale"`),
 			always(`, TRUE AS "deterministic"`),
 			always(`, c.DESCRIPTION AS "comment"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "rules"`),
 			always(`FROM SYS.COLLATIONS c`),
 			always(`WHERE ` + like(`c.COLLATION_NAME`, `@name`)),
 			always(`ORDER BY c.COLLATION_NAME`),
@@ -146,6 +149,7 @@ func registerCollations() {
 			{Name: "locale"},
 			{Name: "deterministic", Desc: "always true: HANA has no non deterministic collation"},
 			{Name: "comment", Desc: "from DESCRIPTION, which is the collation's own text and not a COMMENT ON"},
+			{Name: "rules", Desc: "always absent: SYS.COLLATIONS records no tailoring rules"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "collation name pattern, empty for every one", Default: ""},
@@ -153,7 +157,7 @@ func registerCollations() {
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
 			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType,
-				&v.Locale, &v.Deterministic, &v.Comment)
+				&v.Locale, &v.Deterministic, &v.Comment, &v.Rules)
 			return v, err
 		},
 	})
@@ -266,6 +270,13 @@ func registerStats() {
 			always(`, LOWER(s.DATA_STATISTICS_TYPE) || ' on ' ||` +
 				` s.DATA_SOURCE_COLUMN_NAMES AS "kinds"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "comment"`),
+			always(`, s.DATA_SOURCE_COLUMN_NAMES || ' FROM ' || s.DATA_SOURCE_SCHEMA_NAME || '.' ||` +
+				` s.DATA_SOURCE_OBJECT_NAME AS "definition"`),
+			// SIMPLE counts the distinct values and TOPK keeps the most
+			// frequent ones. HANA has no functional dependency statistic.
+			always(`, CASE WHEN s.DATA_STATISTICS_TYPE = 'SIMPLE' THEN TRUE ELSE FALSE END AS "ndistinct"`),
+			always(`, FALSE AS "dependencies"`),
+			always(`, CASE WHEN s.DATA_STATISTICS_TYPE = 'TOPK' THEN TRUE ELSE FALSE END AS "mcv"`),
 			always(`FROM SYS.DATA_STATISTICS s`),
 			always(`WHERE ` + notSystem(`s.DATA_STATISTICS_SCHEMA_NAME`)),
 			always(`AND ` + like(`s.DATA_STATISTICS_SCHEMA_NAME`, `@schema`)),
@@ -278,11 +289,16 @@ func registerStats() {
 			{Name: "table", Desc: "the object the statistic is over, which HANA allows to be a view as well as a table"},
 			{Name: "kinds", Desc: "the statistic kind and the columns it covers, such as histogram on A,B. HANA records the two separately and this kind has one field for both"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no statistics form"},
+			{Name: "definition", Desc: "the columns it covers, as HANA records them, and their object"},
+			{Name: "ndistinct", Desc: "true for a SIMPLE statistic, which counts the distinct values"},
+			{Name: "dependencies", Desc: "always false: HANA builds no functional dependency statistic"},
+			{Name: "mcv", Desc: "true for a TOPK statistic, which keeps the most frequent values"},
 		},
 		Params: schemaAndName("statistic"),
 		Scan: func(rows *sql.Rows) (dbmeta.ExtendedStat, error) {
 			var v dbmeta.ExtendedStat
-			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment,
+				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV)
 			return v, err
 		},
 	})

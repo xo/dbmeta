@@ -294,6 +294,7 @@ func registerExtra() {
 			fixed(", ", `(text)NULL`, "keyspace_name", "owner"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "access"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
+			fixed(", ", `(text)'tuple'`, "keyspace_name", "size"),
 			always(`FROM system_schema.types`),
 		},
 		Fields: []dbmeta.Field{
@@ -309,6 +310,7 @@ func registerExtra() {
 			{Name: "owner", Desc: "always absent: a type has no owner in the catalog"},
 			{Name: "access", Desc: "always absent: a grant is on a keyspace or a table"},
 			{Name: "comment", Desc: "always absent: a type carries no comment"},
+			{Name: "size", Desc: "always tuple, the word psql uses for a composite type"},
 		},
 		Params: filters("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
@@ -317,8 +319,9 @@ func registerExtra() {
 				fields any
 			)
 			err := rows.Scan(pad{}, &v.Schema, &v.Name, &v.Internal, pad{},
-				&fields, pad{}, pad{}, pad{})
+				&fields, pad{}, pad{}, pad{}, pad{})
 			v.Kind = "composite"
+			v.Size = sql.Null[string]{V: "tuple", Valid: true}
 			v.Elements = textList(fields)
 			return v, err
 		},

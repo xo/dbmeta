@@ -340,7 +340,7 @@ not the source of the data. Three of the phase 3 databases have no
 
 ### Phase 1. Translate the PostgreSQL queries from the PostgreSQL source
 
-Done. `models/postgres` answers all 55 kinds on 9.6 to 18.
+Done. `models/postgres` answers all 56 kinds on 9.6 to 18.
 
 This phase produces the primary platonic model. Every later phase copies its
 API.

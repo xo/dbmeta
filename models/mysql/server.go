@@ -33,6 +33,7 @@ func registerRoutines() {
 			{{Query: `, LOWER(r.routine_body) AS "language"`}},
 			{{Query: `, r.routine_definition AS "source"`}},
 			{{Query: `, NULLIF(r.routine_comment, '') AS "comment"`}},
+			{{Query: `, NULL AS "definition"`}},
 			{{Query: `FROM information_schema.ROUTINES r`}},
 			notSystem("WHERE", "r.routine_schema"),
 			schemaLike("schema", "r.routine_schema"),
@@ -50,13 +51,14 @@ func registerRoutines() {
 			{Name: "owner", Desc: "the definer"},
 			{Name: "security"}, {Name: "access"}, {Name: "language"},
 			{Name: "source"}, {Name: "comment"},
+			{Name: "definition", Desc: "always absent: the catalog keeps the body, which is source, and SHOW CREATE FUNCTION is a statement of its own"},
 		},
 		Params: schemaNameSystem("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
-				&v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})
@@ -132,6 +134,7 @@ func registerServer() {
 			{{Query: `, NULL AS "locale"`}},
 			{{Query: `, TRUE AS "deterministic"`}},
 			{{Query: `, NULL AS "comment"`}},
+			{{Query: `, NULL AS "rules"`}},
 			{{Query: `FROM information_schema.COLLATIONS c`}},
 			{{Query: `WHERE (@name = '' OR c.collation_name LIKE @name)`}},
 			{{Query: `ORDER BY 2`}},
@@ -145,12 +148,13 @@ func registerServer() {
 			{Name: "locale", Desc: "always absent: MariaDB has no ICU locale"},
 			{Name: "deterministic", Desc: "always true: MariaDB has no other behaviour"},
 			{Name: "comment"},
+			{Name: "rules", Desc: "always absent: a collation here is compiled into the server and has no tailoring rules"},
 		},
 		Params: nameSystem("collation"),
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
 			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType,
-				&v.Locale, &v.Deterministic, &v.Comment)
+				&v.Locale, &v.Deterministic, &v.Comment, &v.Rules)
 			return v, err
 		},
 	})
@@ -179,6 +183,7 @@ func registerServer() {
 				frag(mysqlVarMeta, `, LOWER(v.variable_scope) AS "context"`),
 			},
 			{{Query: `, NULL AS "access"`}},
+			{{Query: `, NULL AS "display"`}},
 			{
 				frag(onMaria, `FROM information_schema.SYSTEM_VARIABLES v`),
 				frag(onMySQL, `FROM performance_schema.global_variables v`),
@@ -198,11 +203,12 @@ func registerServer() {
 				Also: []dbmeta.Gate{onMaria, mysqlVarMeta},
 			},
 			{Name: "access", Desc: "always absent: neither product grants on a variable"},
+			{Name: "display", Desc: "always absent: the server shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "variable name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})

@@ -11,10 +11,11 @@
 // a statement of its own only where CockroachDB's catalog differs. It imports
 // the postgres model, which registers first. See D123.
 //
-// It answers 54 of the 55 questions, on every release measured: 24.3.36,
-// 26.2.7 and 26.3.2. 48 are the postgres model's statements and 6 are its
+// It answers 54 of the 56 questions, on every release measured: 24.3.36,
+// 26.2.7 and 26.3.2. 47 are the postgres model's statements and 7 are its
 // own. It does not answer column_stats, because CockroachDB keeps pg_stats
-// empty. docs/COVERAGE.md says what each answer lacks.
+// empty, or text_search_config_maps, because it has no text search
+// configuration. docs/COVERAGE.md says what each answer lacks.
 package cockroachdb
 
 import (
@@ -119,11 +120,13 @@ func register() {
 	share(dbmeta.TextSearchDictionaries)
 	share(dbmeta.TextSearchTemplates)
 	share(dbmeta.TextSearchConfigs)
+	// TextSearchConfigMaps is not shared, so it is not supported.
+	// CockroachDB has no ts_token_type, which names a token, and keeps
+	// pg_ts_config empty, so there is no configuration to map. See D147.
 	share(dbmeta.OperatorClasses)
 	share(dbmeta.OperatorFamilies)
 	share(dbmeta.OperatorFamilyFunctions)
 	share(dbmeta.Extensions)
-	share(dbmeta.ExtendedStats)
 	share(dbmeta.Comments)
 	share(dbmeta.Constraints)
 	share(dbmeta.Sequences)

@@ -12,7 +12,7 @@
 // reads CrateDB's own catalog. It imports the postgres model, which registers
 // first. See D123.
 //
-// It answers 26 of the 55 questions on 6.4.5 and 25 on 6.3.7, which has no
+// It answers 26 of the 56 questions on 6.4.5 and 25 on 6.3.7, which has no
 // collation view. 3 are the postgres model's statements and 23 are its own.
 // The other 29 are objects CrateDB does not have, or has in a form that is
 // not the one the question asks about. docs/COVERAGE.md says which, and what

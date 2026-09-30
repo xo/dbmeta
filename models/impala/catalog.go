@@ -300,6 +300,7 @@ func register() {
 				{Name: "language", Desc: "the binary type: builtin, java, native or ir"},
 				{Name: "source", Desc: "always absent: SHOW FUNCTIONS records no body"},
 				{Name: "comment", Desc: "always absent: a function takes no comment"},
+				{Name: "definition", Desc: "always absent: SHOW CREATE FUNCTION is a statement for each database"},
 			},
 			Params: schemaNameSystem("function"),
 			Walk: func(ctx context.Context, db dbmeta.Queryer, args map[string]any) iter.Seq2[dbmeta.Function, error] {
@@ -348,6 +349,7 @@ func register() {
 			{Name: "type", Desc: "always absent: SET ALL records no type"},
 			{Name: "context", Desc: "the level: regular, advanced, development, deprecated or removed"},
 			{Name: "access", Desc: "always absent: an option has no grant of its own"},
+			{Name: "display", Desc: "always absent: SET ALL shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "option name pattern, empty for every option", Default: ""},

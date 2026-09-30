@@ -194,8 +194,9 @@ func registerCasts() {
 
 // registerCollations backs \dO, from listCollations.
 //
-// Three fragments are gated. collprovider arrived in release 10, and the ICU
-// locale and the deterministic flag arrived in release 12.
+// Four fragments are gated. collprovider arrived in release 10, the ICU
+// locale and the deterministic flag arrived in release 12, and the ICU rules
+// arrived in release 16.
 func registerCollations() {
 	dbmeta.Collations.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Collation]{
 		Stmt: dbmeta.Stmt{
@@ -220,6 +221,10 @@ func registerCollations() {
 				{Min: v12, Query: `, c.collisdeterministic AS "deterministic"`},
 			},
 			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_collation') AS "comment"`}},
+			{
+				{Query: `, NULL AS "rules"`},
+				{Min: v16, Query: `, c.collicurules AS "rules"`},
+			},
 			{{Query: `FROM pg_catalog.pg_collation c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace`}},
 			{{Query: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
@@ -236,12 +241,13 @@ func registerCollations() {
 			{Name: "locale", Desc: "the locale, from colllocale at 17, colliculocale at 15, and collcollate below that"},
 			{Name: "deterministic", Desc: "whether equal strings are always identical. Always true below release 12, which had no other behaviour"},
 			{Name: "comment"},
+			{Name: "rules", Desc: "tailoring rules of an ICU collation", Min: v16},
 		},
 		Params: schemaNameSystem("collation"),
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
 			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType,
-				&v.Locale, &v.Deterministic, &v.Comment)
+				&v.Locale, &v.Deterministic, &v.Comment, &v.Rules)
 			return v, err
 		},
 	})
@@ -307,6 +313,9 @@ func registerSettings() {
 				{Query: `, NULL AS "access"`},
 				{Min: v15, Query: `, pg_catalog.array_to_string(p.paracl, E'\n') AS "access"`},
 			},
+			// current_setting gives the value with its unit, as psql's
+			// \dconfig prints it.
+			{{Query: `, pg_catalog.current_setting(s.name) AS "display"`}},
 			{{Query: `FROM pg_catalog.pg_settings s`}},
 			{
 				{Query: ``},
@@ -318,11 +327,12 @@ func registerSettings() {
 		Fields: []dbmeta.Field{
 			{Name: "name"}, {Name: "value"}, {Name: "type"}, {Name: "context"},
 			{Name: "access", Desc: "grants on the parameter", Min: v15},
+			{Name: "display", Desc: "value with its unit, as the server shows it"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "parameter name pattern, empty for every parameter", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})

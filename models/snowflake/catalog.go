@@ -418,6 +418,7 @@ func routineStmt() dbmeta.Stmt {
 		always(`, LOWER(f.function_language) AS "language"`),
 		always(`, f.function_definition AS "source"`),
 		always(`, f.comment AS "comment"`),
+		always(`, NULL AS "definition"`),
 		always(`FROM information_schema.functions f`),
 		always(`WHERE ` + notSystem("f.function_schema")),
 		always(`AND ` + like("f.function_schema", "@schema")),
@@ -425,7 +426,7 @@ func routineStmt() dbmeta.Stmt {
 		always(`UNION ALL`),
 		always(`SELECT p.procedure_catalog, p.procedure_schema, p.procedure_name,`),
 		always(` p.procedure_name || p.argument_signature, 'proc', p.data_type, p.argument_signature,`),
-		always(` '', '', p.procedure_owner, '', NULL, LOWER(p.procedure_language), p.procedure_definition, p.comment`),
+		always(` '', '', p.procedure_owner, '', NULL, LOWER(p.procedure_language), p.procedure_definition, p.comment, NULL`),
 		always(`FROM information_schema.procedures p`),
 		always(`WHERE ` + notSystem("p.procedure_schema")),
 		always(`AND ` + like("p.procedure_schema", "@schema")),
@@ -450,13 +451,14 @@ func registerRoutines() {
 			{Name: "access", Desc: "always absent: a grant on a function is not in information_schema"},
 			{Name: "language", Desc: "sql, javascript, python, java or scala"},
 			{Name: "source"}, {Name: "comment"},
+			{Name: "definition", Desc: "always absent: information_schema keeps the body, which is source, and GET_DDL is a call for each row"},
 		},
 		Params: schemaNameSystem("function"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-				&v.Language, &v.Source, &v.Comment)
+				&v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})

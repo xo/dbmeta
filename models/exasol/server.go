@@ -64,11 +64,12 @@ func registerSettings() {
 			always(`, CAST(NULL AS VARCHAR(1)) AS "type"`),
 			always(`, 'session' AS "context"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "access"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "display"`),
 			always(`FROM EXA_PARAMETERS p`),
 			always(`WHERE ` + like(`p.PARAMETER_NAME`, `@name`)),
 			always(`UNION ALL`),
 			always(`SELECT p.PARAMETER_NAME, p.SYSTEM_VALUE, CAST(NULL AS VARCHAR(1))`),
-			always(`, 'system', CAST(NULL AS VARCHAR(1))`),
+			always(`, 'system', CAST(NULL AS VARCHAR(1)), CAST(NULL AS VARCHAR(1))`),
 			always(`FROM EXA_PARAMETERS p`),
 			always(`WHERE ` + like(`p.PARAMETER_NAME`, `@name`)),
 			always(`ORDER BY 1, 4`),
@@ -79,11 +80,12 @@ func registerSettings() {
 			{Name: "type", Desc: "always absent: EXA_PARAMETERS records no data type"},
 			{Name: "context", Desc: "session for the value this session sees, which ALTER SESSION sets, and system for the default, which ALTER SYSTEM sets"},
 			{Name: "access", Desc: "always absent: a parameter carries no grant"},
+			{Name: "display", Desc: "always absent: Exasol shows a value in one form, which is value"},
 		},
 		Params: nameOnly("parameter"),
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Name), &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})

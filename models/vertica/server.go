@@ -86,6 +86,7 @@ func registerServer() {
 			always(`, CAST(NULL AS VARCHAR) AS "type"`),
 			always(`, LOWER(c.current_level) AS "context"`),
 			always(`, CAST(NULL AS VARCHAR) AS "access"`),
+			always(`, CAST(NULL AS VARCHAR) AS "display"`),
 			always(`FROM v_monitor.configuration_parameters c`),
 			always(`WHERE ` + like(`c.parameter_name`, `@name`)),
 			always(`ORDER BY c.parameter_name, c.node_name`),
@@ -96,11 +97,12 @@ func registerServer() {
 			{Name: "type", Desc: "always absent: Vertica records no data type for a parameter"},
 			{Name: "context", Desc: "the level the value comes from: default, database, node or session"},
 			{Name: "access", Desc: "always absent: a parameter carries no grant"},
+			{Name: "display", Desc: "always absent: Vertica shows a value in one form, which is value"},
 		},
 		Params: nameOnly("parameter"),
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})

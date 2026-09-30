@@ -45,6 +45,7 @@ func registerAggregates() {
 			{frag(mariaAgg, `, 'sql' AS "language"`)},
 			{frag(mariaAgg, `, CONVERT(p.body USING utf8mb4) AS "source"`)},
 			{frag(mariaAgg, `, NULLIF(CONVERT(p.comment USING utf8mb4), '') AS "comment"`)},
+			{frag(mariaAgg, `, NULL AS "definition"`)},
 			{frag(mariaAgg, `FROM mysql.proc p`)},
 			{frag(mariaAgg, `WHERE p.aggregate = 'GROUP'`)},
 			{frag(mariaAgg, `AND (@with_system OR p.db NOT IN (`+systemSchemas+`))`)},
@@ -56,7 +57,7 @@ func registerAggregates() {
 			{frag(mariaAgg, `SELECT 'def', '', f.name, f.name, 'agg'`)},
 			{frag(mariaAgg, `, CASE f.ret WHEN 0 THEN 'string' WHEN 1 THEN 'real' WHEN 2 THEN 'int'`+
 				` WHEN 3 THEN 'row' WHEN 4 THEN 'decimal' ELSE CAST(f.ret AS CHAR) END`)},
-			{frag(mariaAgg, `, NULL, '', '', '', '', NULL, 'c', f.dl, NULL`)},
+			{frag(mariaAgg, `, NULL, '', '', '', '', NULL, 'c', f.dl, NULL, NULL`)},
 			{frag(mariaAgg, `FROM mysql.func f`)},
 			{frag(mariaAgg, `WHERE f.type = 'aggregate'`)},
 			{frag(mariaAgg, `AND (@name = '' OR f.name LIKE @name)`)},
@@ -78,13 +79,14 @@ func registerAggregates() {
 			{Name: "language", Desc: "sql for a stored aggregate, c for a compiled one"},
 			{Name: "source", Desc: "the body, or the library name for a compiled aggregate"},
 			{Name: "comment"},
+			{Name: "definition", Desc: "always absent: mysql.proc keeps the body, which is source, and SHOW CREATE FUNCTION is a statement of its own"},
 		},
 		Params: schemaNameSystem("aggregate"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
-				&v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})

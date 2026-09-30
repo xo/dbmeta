@@ -219,6 +219,51 @@ func registerOwn() {
 			return v, err
 		},
 	})
+
+	// pg_get_statisticsobjdef_columns is absent, so the definition is built
+	// from the columns, the way the postgres model builds it below release
+	// 14. CockroachDB has no statistics on an expression, so the columns
+	// are the whole definition.
+	dbmeta.ExtendedStats.Register(dbmeta.CockroachDB, &dbmeta.Binding[dbmeta.ExtendedStat]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, s.stxname AS "name"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(s.stxowner) AS "owner"`}},
+			{{Query: `, c.relname AS "table"`}},
+			{{Query: `, pg_catalog.array_to_string(s.stxkind, ', ') AS "kinds"`}},
+			{{Query: `, pg_catalog.obj_description(s.oid, 'pg_statistic_ext') AS "comment"`}},
+			{{Query: `, pg_catalog.format('%s FROM %s', (SELECT pg_catalog.string_agg(pg_catalog.quote_ident(a.attname), ', ')` +
+				` FROM pg_catalog.unnest(s.stxkeys) k(attnum)` +
+				` JOIN pg_catalog.pg_attribute a ON a.attrelid = s.stxrelid AND a.attnum = k.attnum AND NOT a.attisdropped),` +
+				` s.stxrelid::pg_catalog.regclass) AS "definition"`}},
+			{{Query: `, 'd' = ANY(s.stxkind) AS "ndistinct"`}},
+			{{Query: `, 'f' = ANY(s.stxkind) AS "dependencies"`}},
+			{{Query: `, 'm' = ANY(s.stxkind) AS "mcv"`}},
+			{{Query: `FROM pg_catalog.pg_statistic_ext s`}},
+			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = s.stxrelid`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = s.stxnamespace`}},
+			{{Query: `WHERE (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR s.stxname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "name"}, {Name: "owner"}, {Name: "table"}, {Name: "kinds"},
+			{Name: "comment"},
+			{Name: "definition", Desc: "the columns the object covers, and their table"},
+			{Name: "ndistinct"}, {Name: "dependencies"}, {Name: "mcv"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
+			{Name: "name", Desc: "statistics object name pattern, empty for every statistics object", Default: ""},
+			{Name: "with_system", Desc: "include the objects CockroachDB keeps for itself", Default: false},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.ExtendedStat, error) {
+			var v dbmeta.ExtendedStat
+			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment,
+				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV)
+			return v, err
+		},
+	})
 }
 
 // schemaParentName is the parameter set of an object that belongs to a

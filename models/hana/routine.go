@@ -47,6 +47,7 @@ func registerFunctions() {
 			always(`, f.FUNCTION_TYPE AS "language"`),
 			always(`, f.DEFINITION AS "source"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "comment"`),
+			always(`, f.DEFINITION AS "definition"`),
 			always(`FROM SYS.FUNCTIONS f`),
 			always(`WHERE ` + notSystem(`f.SCHEMA_NAME`)),
 			always(`AND ` + like(`f.SCHEMA_NAME`, `@schema`)),
@@ -69,6 +70,7 @@ func registerFunctions() {
 			always(`, r.PROCEDURE_TYPE`),
 			always(`, r.DEFINITION`),
 			always(`, CAST(NULL AS NVARCHAR(1))`),
+			always(`, r.DEFINITION`),
 			always(`FROM SYS.PROCEDURES r`),
 			always(`WHERE ` + notSystem(`r.SCHEMA_NAME`)),
 			always(`AND ` + like(`r.SCHEMA_NAME`, `@schema`)),
@@ -90,13 +92,14 @@ func registerFunctions() {
 			{Name: "language", Desc: "what the routine is written in, from FUNCTION_TYPE or PROCEDURE_TYPE: SQLSCRIPT2 for SQLScript, and BUILTIN, LIVECACHE or AFLLANG for the rest"},
 			{Name: "source", Desc: "the CREATE text, which HANA stores in full"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no routine form"},
+			{Name: "definition", Desc: "the CREATE text, the same as source"},
 		},
 		Params: schemaAndName("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind,
 				&v.ResultType, &v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner,
-				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})
@@ -175,6 +178,7 @@ func registerTypes() {
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "owner"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "access"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "comment"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "size"`),
 			always(`FROM SYS.DATA_TYPES t`),
 			always(`WHERE ` + like(`t.TYPE_NAME`, `@name`)),
 			always(`ORDER BY t.TYPE_NAME`),
@@ -189,6 +193,7 @@ func registerTypes() {
 			{Name: "owner", Desc: "always absent: a built in type has no owner"},
 			{Name: "access", Desc: "always absent: a type carries no grant"},
 			{Name: "comment", Desc: "always absent: the engine writes no description on its own types"},
+			{Name: "size", Desc: "always absent: SYS.DATA_TYPES records the largest declared size and not an internal length"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "type name pattern, empty for every type", Default: ""},
@@ -196,7 +201,7 @@ func registerTypes() {
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})

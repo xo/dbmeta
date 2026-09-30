@@ -172,6 +172,9 @@ type Collation struct {
 	Locale        sql.Null[string]
 	Deterministic sql.Null[bool]
 	Comment       sql.Null[string]
+	// Rules is the tailoring rules of an ICU collation, as psql's \dO+
+	// prints them. PostgreSQL 16 added them. See D147.
+	Rules sql.Null[string]
 }
 
 // LargeObject is a large object. psql lists them with \dl.
@@ -200,6 +203,9 @@ type Setting struct {
 	Type    sql.Null[string]
 	Context sql.Null[string]
 	Access  sql.Null[string]
+	// Display is the value as the server shows it, with its unit, such as
+	// 128MB where Value holds 16384. psql's \dconfig prints it. See D147.
+	Display sql.Null[string]
 }
 
 // Queries for the objects above.
@@ -247,6 +253,11 @@ type Function struct {
 	Language   string
 	Source     sql.Null[string]
 	Comment    sql.Null[string]
+	// Definition is the whole statement that makes the routine, such as
+	// pg_get_functiondef returns, which psql's \sf prints. It is absent where
+	// the product keeps only the body, which is Source, or keeps nothing.
+	// See D147.
+	Definition sql.Null[string]
 }
 
 // Type is a data type. psql lists them with \dT.
@@ -260,6 +271,10 @@ type Type struct {
 	Owner    sql.Null[string]
 	Access   sql.Null[string]
 	Comment  sql.Null[string]
+	// Size is the internal length of a value in bytes, var for a type whose
+	// values vary in length, and tuple for a composite type, as psql's \dT+
+	// prints it. See D147.
+	Size sql.Null[string]
 }
 
 // Domain is a type with a constraint. psql lists them with \dD.
@@ -503,6 +518,21 @@ type TextSearchConfig struct {
 	Name    string
 	Parser  string
 	Comment sql.Null[string]
+	// ParserSchema is the schema of Parser. psql's \dF+ prints the two
+	// joined, such as pg_catalog.default. See D147.
+	ParserSchema sql.Null[string]
+}
+
+// TextSearchConfigMap is one dictionary that a configuration consults for one
+// kind of token. A configuration consults the dictionaries for a token in the
+// order of Position, and psql's \dF+ joins them into one line. See D147.
+type TextSearchConfigMap struct {
+	Schema           string
+	Config           string
+	Token            string
+	Position         int64
+	DictionarySchema string
+	Dictionary       string
 }
 
 // OperatorClass tells an access method how to index a type. psql lists them
@@ -515,6 +545,9 @@ type OperatorClass struct {
 	Default      bool
 	Family       string
 	Owner        string
+	// StorageType is the type the index stores, where it differs from the
+	// input type, as psql's \dAc+ prints it. See D147.
+	StorageType sql.Null[string]
 }
 
 // OperatorFamily groups operator classes. psql lists them with \dAf.
@@ -523,6 +556,9 @@ type OperatorFamily struct {
 	Schema       string
 	Name         string
 	Owner        string
+	// AppliesTo is the input types of the family's operator classes, joined
+	// by commas, as psql's \dAf prints them. See D147.
+	AppliesTo sql.Null[string]
 }
 
 // OperatorFamilyOperator is one operator of a family. psql lists them with
@@ -569,6 +605,15 @@ type ExtendedStat struct {
 	Table   string
 	Kinds   string
 	Comment sql.Null[string]
+	// Definition is the columns and expressions the statistics cover and
+	// their table, as psql's \dX prints it. See D147.
+	Definition sql.Null[string]
+	// Ndistinct, Dependencies and MCV say which of the three kinds the object
+	// was made with, as the columns of psql's \dX do. Kinds holds the same
+	// letters. MCV arrived in PostgreSQL 12.
+	Ndistinct    bool
+	Dependencies bool
+	MCV          bool
 }
 
 // Comment is a comment on any object. psql shows them with \dd.
@@ -595,6 +640,9 @@ var (
 	TextSearchTemplates = NewQuery[TextSearchTemplate]("text_search_templates")
 	// TextSearchConfigs lists the configurations.
 	TextSearchConfigs = NewQuery[TextSearchConfig]("text_search_configs")
+	// TextSearchConfigMaps lists the dictionaries each configuration consults
+	// for each kind of token.
+	TextSearchConfigMaps = NewQuery[TextSearchConfigMap]("text_search_config_maps")
 	// OperatorClasses lists the operator classes.
 	OperatorClasses = NewQuery[OperatorClass]("operator_classes")
 	// OperatorFamilies lists the operator families.

@@ -185,6 +185,7 @@ func registerForeign() {
 			always(`, c.NAME AS "name"`),
 			always(`, c.TYPE AS "parser"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "comment"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "parser_schema"`),
 			always(`FROM SYS.TEXT_CONFIGURATIONS c`),
 			always(`WHERE ` + notSystem(`c.SCHEMA_NAME`)),
 			always(`AND ` + like(`c.SCHEMA_NAME`, `@schema`)),
@@ -195,11 +196,12 @@ func registerForeign() {
 			{Name: "schema"}, {Name: "name"},
 			{Name: "parser", Desc: "from TYPE, the kind of configuration. HANA has no separate parser object, so the kind is what stands for one"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no text configuration form"},
+			{Name: "parser_schema", Desc: "always absent: the kind that stands for a parser belongs to no schema"},
 		},
 		Params: schemaAndName("configuration"),
 		Scan: func(rows *sql.Rows) (dbmeta.TextSearchConfig, error) {
 			var v dbmeta.TextSearchConfig
-			err := rows.Scan(&v.Schema, &v.Name, &v.Parser, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Parser, &v.Comment, &v.ParserSchema)
 			return v, err
 		},
 	})

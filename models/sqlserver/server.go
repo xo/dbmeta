@@ -47,6 +47,7 @@ func routineStmt(kindFilter string) dbmeta.Stmt {
 		always(`, CASE WHEN o.type IN ('FS', 'FT', 'PC') THEN 'clr' ELSE 'sql' END AS "language"`),
 		always(`, m.definition AS "source"`),
 		always(`, ` + commentOn("o.object_id") + ` AS "comment"`),
+		always(`, m.definition AS "definition"`),
 		always(`FROM sys.objects o`),
 		always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
 		always(`LEFT JOIN sys.sql_modules m ON m.object_id = o.object_id`),
@@ -80,6 +81,7 @@ func routineFields() []dbmeta.Field {
 			Desc: "the CREATE statement, absent for a CLR routine and for one created WITH ENCRYPTION",
 		},
 		{Name: "comment"},
+		{Name: "definition", Desc: "the CREATE statement, the same text as source"},
 	}
 }
 
@@ -87,7 +89,7 @@ func scanRoutine(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 		&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-		&v.Language, &v.Source, &v.Comment)
+		&v.Language, &v.Source, &v.Comment, &v.Definition)
 	return v, err
 }
 
@@ -214,6 +216,7 @@ func registerTypes() {
 			always(`, p.name AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "size"`),
 			always(`FROM sys.types ty`),
 			always(`LEFT JOIN sys.schemas s ON s.schema_id = ty.schema_id`),
 			always(`LEFT JOIN sys.database_principals p ON p.principal_id = ty.principal_id`),
@@ -233,12 +236,13 @@ func registerTypes() {
 			{Name: "owner"},
 			{Name: "access", Desc: "always absent: read privileges instead"},
 			{Name: "comment", Desc: "always absent: an extended property on a type is class 6 and is not read here"},
+			{Name: "size", Desc: "always absent: max_length is the largest declared size and not an internal length"},
 		},
 		Params: schemaNameSystem("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})
@@ -303,6 +307,7 @@ func registerTypes() {
 			always(`, NULL AS "locale"`),
 			always(`, CAST(1 AS bit) AS "deterministic"`),
 			always(`, c.description AS "comment"`),
+			always(`, NULL AS "rules"`),
 			always(`FROM sys.fn_helpcollations() c`),
 			always(`WHERE (@name = '' OR c.name LIKE @name)`),
 			always(`ORDER BY 2`),
@@ -315,6 +320,7 @@ func registerTypes() {
 			{Name: "locale", Desc: "always absent: the name carries the locale"},
 			{Name: "deterministic", Desc: "always true"},
 			{Name: "comment", Desc: "the description, which says what the collation does"},
+			{Name: "rules", Desc: "always absent: a collation is built into the server and has no tailoring rules"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "collation name pattern, empty for every one", Default: ""},
@@ -322,7 +328,7 @@ func registerTypes() {
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
 			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType,
-				&v.Locale, &v.Deterministic, &v.Comment)
+				&v.Locale, &v.Deterministic, &v.Comment, &v.Rules)
 			return v, err
 		},
 	})
@@ -591,6 +597,7 @@ func registerStorage() {
 			always(`, CASE WHEN c.is_dynamic = 1 THEN 'dynamic' ELSE 'static' END AS "type"`),
 			always(`, CASE WHEN c.is_advanced = 1 THEN 'advanced' ELSE 'basic' END AS "context"`),
 			always(`, NULL AS "access"`),
+			always(`, NULL AS "display"`),
 			always(`FROM sys.configurations c`),
 			always(`WHERE (@name = '' OR c.name LIKE @name)`),
 			always(`ORDER BY 1`),
@@ -601,13 +608,14 @@ func registerStorage() {
 			{Name: "type", Desc: "dynamic where a change takes effect at once, static where it needs a restart"},
 			{Name: "context", Desc: "advanced where the setting is hidden unless show advanced options is on"},
 			{Name: "access", Desc: "always absent"},
+			{Name: "display", Desc: "always absent: SQL Server shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "setting name pattern, empty for every setting", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})
@@ -862,6 +870,18 @@ func registerStats() {
 				` WHERE sc2.object_id = st.object_id AND sc2.stats_id = st.stats_id` +
 				` ORDER BY sc2.stats_column_id FOR XML PATH('')), 1, 2, ''), '') AS "kinds"`),
 			always(`, ` + commentOn("st.object_id") + ` AS "comment"`),
+			always(`, COALESCE(STUFF((SELECT ', ' + QUOTENAME(c.name)` +
+				` FROM sys.stats_columns sc2` +
+				` JOIN sys.columns c ON c.object_id = sc2.object_id AND c.column_id = sc2.column_id` +
+				` WHERE sc2.object_id = st.object_id AND sc2.stats_id = st.stats_id` +
+				` ORDER BY sc2.stats_column_id FOR XML PATH('')), 1, 2, ''), '')` +
+				` + ' FROM ' + QUOTENAME(s.name) + '.' + QUOTENAME(o.name) AS "definition"`),
+			// A statistic over several columns keeps the density of each
+			// leading set of them, which is what ndistinct counts. Its
+			// histogram is over the first column alone.
+			always(`, CAST(1 AS bit) AS "ndistinct"`),
+			always(`, CAST(0 AS bit) AS "dependencies"`),
+			always(`, CAST(0 AS bit) AS "mcv"`),
 			always(`FROM sys.stats st`),
 			always(`JOIN sys.objects o ON o.object_id = st.object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -883,11 +903,16 @@ func registerStats() {
 				Desc: "ndistinct over the columns it covers, in order. SQL Server builds one kind of multi column statistic and does not name it, so the columns go here, which is where psql prints them",
 			},
 			{Name: "comment"},
+			{Name: "definition", Desc: "the columns it covers, in order, and their table"},
+			{Name: "ndistinct", Desc: "always true: SQL Server keeps the density of each leading set of the columns"},
+			{Name: "dependencies", Desc: "always false: SQL Server builds no functional dependency statistic"},
+			{Name: "mcv", Desc: "always false: the histogram covers the first column alone"},
 		},
 		Params: schemaNameSystem("statistics object"),
 		Scan: func(rows *sql.Rows) (dbmeta.ExtendedStat, error) {
 			var v dbmeta.ExtendedStat
-			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment,
+				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV)
 			return v, err
 		},
 	})

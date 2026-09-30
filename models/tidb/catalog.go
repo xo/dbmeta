@@ -45,6 +45,7 @@ func registerOwn() {
 			always(`, NULL AS "type"`),
 			always(`, LOWER(v.variable_scope) AS "context"`),
 			always(`, NULL AS "access"`),
+			always(`, NULL AS "display"`),
 			always(`FROM information_schema.variables_info v`),
 			always(`WHERE (@name = '' OR v.variable_name LIKE @name)`),
 			always(`ORDER BY 1`),
@@ -55,11 +56,12 @@ func registerOwn() {
 			{Name: "type", Desc: "always absent: TiDB records no type for a variable"},
 			{Name: "context", Desc: "where the variable is set, such as session,global, global, instance or none"},
 			{Name: "access", Desc: "always absent: a variable is not granted"},
+			{Name: "display", Desc: "always absent: TiDB shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "variable name pattern, empty for every variable", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})

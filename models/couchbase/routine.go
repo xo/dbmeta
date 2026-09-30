@@ -40,6 +40,7 @@ func registerRoutines() {
 			from76(", f.definition.`#language` AS `language`"),
 			from76(", IFMISSING(f.definition.text, NULL) AS `source`"),
 			from76(", NULL AS `comment`"),
+			from76(", NULL AS `definition`"),
 			from76("FROM system:functions f"),
 			from76("WHERE " + like(funcSchema, "@schema")),
 			from76("AND " + like("f.identity.name", "@name")),
@@ -70,6 +71,7 @@ func registerRoutines() {
 					" body is in a library, which the catalog names and does not hold",
 			},
 			{Name: "comment", Desc: "always absent: a function carries no comment"},
+			{Name: "definition", Desc: "always absent: the catalog keeps the parts of a function, and no CREATE statement"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "scope name pattern, empty for every scope", Default: ""},
@@ -79,7 +81,7 @@ func registerRoutines() {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind,
 				&v.ResultType, &v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner,
-				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})

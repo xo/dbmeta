@@ -54,13 +54,14 @@ var functionFields = []dbmeta.Field{
 	{Name: "language", Desc: "PL/vSQL for a stored procedure on 25.1, and empty otherwise: a function records the class and library it comes from rather than the language they were written in"},
 	{Name: "source", Desc: "the definition Vertica records: the class and library for a function from a library, and absent for a stored procedure"},
 	{Name: "comment", Desc: "from COMMENT ON FUNCTION"},
+	{Name: "definition", Desc: "always absent: Vertica records the body, which is source, and EXPORT_OBJECTS builds the statement as a call of its own"},
 }
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind,
 		&v.ResultType, &v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner,
-		&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment)
+		&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 	return v, err
 }
 
@@ -85,6 +86,7 @@ func functionStmt(where string) dbmeta.Stmt {
 		since(v251, `, COALESCE(p.language, '') AS "language"`, `, '' AS "language"`),
 		always(`, NULLIF(f.function_definition, '') AS "source"`),
 		always(`, NULLIF(f.comment, '') AS "comment"`),
+		always(`, CAST(NULL AS VARCHAR) AS "definition"`),
 		always(`FROM v_catalog.user_functions f`),
 		since(v251, `LEFT JOIN v_catalog.user_procedures p ON f.procedure_type = 'Stored Procedure'`+
 			` AND p.schema_name = f.schema_name AND p.procedure_name = f.function_name`+
@@ -130,6 +132,7 @@ func registerTypes() {
 			always(`, CAST(NULL AS VARCHAR) AS "owner"`),
 			always(`, CAST(NULL AS VARCHAR) AS "access"`),
 			always(`, CAST(NULL AS VARCHAR) AS "comment"`),
+			always(`, CAST(NULL AS VARCHAR) AS "size"`),
 			always(`FROM v_catalog.types t`),
 			always(`WHERE ` + like(`t.type_name`, `@name`)),
 			always(`ORDER BY t.type_name`),
@@ -144,12 +147,13 @@ func registerTypes() {
 			{Name: "owner", Desc: "always absent: a built in type has no owner"},
 			{Name: "access", Desc: "always absent: a type carries no grant"},
 			{Name: "comment", Desc: "always absent: the engine writes no description on its own types"},
+			{Name: "size", Desc: "always absent: v_catalog.types records no internal length"},
 		},
 		Params: nameOnly("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})

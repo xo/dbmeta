@@ -24,7 +24,7 @@
 //
 // # What it answers
 //
-// 20 of the 55, on 1.2.881 and 1.2.948. Index columns and constraint
+// 20 of the 56, on 1.2.881 and 1.2.948. Index columns and constraint
 // columns are read out of a list that system records as text. docs/COVERAGE.md says why each of the
 // rest is not answered. See D140.
 package databend

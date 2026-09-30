@@ -55,13 +55,15 @@ var functionFields = []dbmeta.Field{
 	{Name: "language", Desc: "SQL for a SQL function, and the script language otherwise, such as LUA, PYTHON3, JAVA or R"},
 	{Name: "source", Desc: "the whole CREATE statement, which is what Exasol stores"},
 	{Name: "comment", Desc: "from COMMENT ON FUNCTION or COMMENT ON SCRIPT"},
+	{Name: "definition", Desc: "the whole CREATE statement, the same as source"},
 }
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), &v.ID, dbmeta.NullAsEmpty(&v.Kind),
 		&v.ResultType, &v.ArgTypes, dbmeta.NullAsEmpty(&v.Volatility), dbmeta.NullAsEmpty(&v.Parallel), &v.Owner,
-		dbmeta.NullAsEmpty(&v.Security), &v.Access, dbmeta.NullAsEmpty(&v.Language), &v.Source, &v.Comment)
+		dbmeta.NullAsEmpty(&v.Security), &v.Access, dbmeta.NullAsEmpty(&v.Language), &v.Source, &v.Comment,
+		&v.Definition)
 	return v, err
 }
 
@@ -72,7 +74,7 @@ func scriptArm(view, where string) string {
 		`, ` + scriptKind("s") +
 		`, ` + scriptResult("s") +
 		`, '', '', '', s.SCRIPT_OWNER, '', CAST(NULL AS VARCHAR(1))` +
-		`, s.SCRIPT_LANGUAGE, s.SCRIPT_TEXT, s.SCRIPT_COMMENT` +
+		`, s.SCRIPT_LANGUAGE, s.SCRIPT_TEXT, s.SCRIPT_COMMENT, s.SCRIPT_TEXT` +
 		` FROM ` + view + ` s WHERE ` + where +
 		` AND ` + like(`s.SCRIPT_SCHEMA`, `@schema`) +
 		` AND ` + like(`s.SCRIPT_NAME`, `@name`)
@@ -99,6 +101,7 @@ func registerFunctions() {
 			always(`, 'SQL' AS "language"`),
 			always(`, f.FUNCTION_TEXT AS "source"`),
 			always(`, f.FUNCTION_COMMENT AS "comment"`),
+			always(`, f.FUNCTION_TEXT AS "definition"`),
 			always(`FROM EXA_ALL_FUNCTIONS f`),
 			always(`WHERE ` + like(`f.FUNCTION_SCHEMA`, `@schema`)),
 			always(`AND ` + like(`f.FUNCTION_NAME`, `@name`)),
@@ -132,6 +135,7 @@ func registerFunctions() {
 			always(`, s.SCRIPT_LANGUAGE AS "language"`),
 			always(`, s.SCRIPT_TEXT AS "source"`),
 			always(`, s.SCRIPT_COMMENT AS "comment"`),
+			always(`, s.SCRIPT_TEXT AS "definition"`),
 			always(`FROM EXA_ALL_SCRIPTS s`),
 			always(`WHERE s.SCRIPT_TYPE = 'UDF' AND s.SCRIPT_INPUT_TYPE = 'SET'`),
 			always(`AND s.SCRIPT_RESULT_TYPE = 'RETURNS'`),
@@ -162,6 +166,7 @@ func registerTypes() {
 			always(`, CAST(NULL AS VARCHAR(1)) AS "owner"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "access"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "comment"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "size"`),
 			always(`FROM EXA_SQL_TYPES t`),
 			always(`WHERE ` + like(`t.TYPE_NAME`, `@name`)),
 			always(`ORDER BY t.TYPE_NAME`),
@@ -176,12 +181,13 @@ func registerTypes() {
 			{Name: "owner", Desc: "always absent: a built in type has no owner"},
 			{Name: "access", Desc: "always absent: a type carries no grant"},
 			{Name: "comment", Desc: "always absent: the engine writes no description on its own types"},
+			{Name: "size", Desc: "always absent: EXA_SQL_TYPES records a precision and not an internal length"},
 		},
 		Params: nameOnly("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Internal), dbmeta.NullAsEmpty(&v.Kind),
-				dbmeta.NullAsEmpty(&v.Elements), &v.Owner, &v.Access, &v.Comment)
+				dbmeta.NullAsEmpty(&v.Elements), &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})

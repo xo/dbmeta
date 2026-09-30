@@ -133,6 +133,7 @@ triggers and window functions. They are the same query narrowed by
 | Command | Go value | Yields | usql today |
 | --- | --- | --- | --- |
 | `\dF` | `dbmeta.TextSearchConfigs` | `TextSearchConfig` | no |
+| `\dF+` | `dbmeta.TextSearchConfigMaps` | `TextSearchConfigMap` | no |
 | `\dFp` | `dbmeta.TextSearchParsers` | `TextSearchParser` | no |
 | `\dFd` | `dbmeta.TextSearchDictionaries` | `TextSearchDictionary` | no |
 | `\dFt` | `dbmeta.TextSearchTemplates` | `TextSearchTemplate` | no |
@@ -181,7 +182,9 @@ row of absences would be worse than no row. See COVERAGE.md.
 
 `\sf` and `\sv` show the source of a function or a view. They live outside
 `describe.c` and are not part of the 49, so they are not in this table.
-`Function.Source` answers the first and `dbmeta.Views` answers the second.
+`Function.Definition` answers the first, and `dbmeta.Views` answers the
+second. `Function.Source` holds the body where a product keeps one apart from
+the statement (D147).
 
 ## The kinds with no psql command
 

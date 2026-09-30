@@ -7,6 +7,8 @@ var (
 	v10 = dbmeta.V(10)
 	v11 = dbmeta.V(11)
 	v12 = dbmeta.V(12)
+	v14 = dbmeta.V(14)
+	v16 = dbmeta.V(16)
 )
 
 // Everything is a schema containing one of every object kind the PostgreSQL
@@ -17,9 +19,10 @@ var (
 //
 // Five objects are skipped below release 10, because PostgreSQL did not have
 // them: identity columns, publications, and the rest that came with logical
-// replication. A generated column is skipped below release 12. The queries
-// that read those objects are refused on the same releases, so the fixture and
-// the queries agree.
+// replication. A generated column is skipped below release 12, statistics on
+// an expression below 14, and a collation with tailoring rules below 16. The
+// queries that read those objects are refused or pad on the same releases, so
+// the fixture and the queries agree.
 var Everything = Fixture{
 	Name:   "everything",
 	Schema: "dbmeta_fixture",
@@ -108,6 +111,18 @@ var Everything = Fixture{
 		from("publication", v10, `CREATE PUBLICATION dbmeta_fixture_pub FOR TABLE dbmeta_fixture.book`),
 		from("extended statistics", v10,
 			`CREATE STATISTICS dbmeta_fixture.book_stats ON author_id, published FROM dbmeta_fixture.book`),
+		// statistics on an expression arrived in release 14, and they are
+		// what pg_get_statisticsobjdef_columns prints
+		from("expression statistics", v14,
+			`CREATE STATISTICS dbmeta_fixture.title_stats ON lower(title), author_id FROM dbmeta_fixture.book`),
+
+		// A configuration of its own, so that TextSearchConfigMaps has rows
+		// in the fixture's schema. A copy takes every mapping of simple.
+		at("text search configuration",
+			`CREATE TEXT SEARCH CONFIGURATION dbmeta_fixture.plain (COPY = pg_catalog.simple)`),
+		// tailoring rules arrived in release 16
+		from("collation with rules", v16,
+			`CREATE COLLATION dbmeta_fixture.tailored (provider = icu, locale = 'und', rules = '&a < g')`),
 
 		// A composite primary key and a composite foreign key, so that
 		// ConstraintColumns has more than one column per constraint to order.

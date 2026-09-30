@@ -17,7 +17,7 @@
 //	}
 //
 // D9 makes this the secondary model. Prefer a native model where one exists,
-// because information_schema answers 12 of the 55 object kinds that psql
+// because information_schema answers 12 of the 56 object kinds that psql
 // describes and answers none of them completely. It has no size, owner or
 // access method for a table, no storage or index detail for a column, no
 // exclusion constraint, and no aggregate or window function. It is what a
@@ -482,21 +482,25 @@ func functions(p Profile) *dbmeta.Binding[dbmeta.Function] {
 			{{Query: `, r.external_language AS "language"`}},
 			{{Query: `, r.routine_definition AS "source"`}},
 			{{Query: `, NULL AS "comment"`}},
+			{{Query: `, NULL AS "definition"`}},
 			{{Query: `FROM information_schema.routines r`}},
 			{{Query: `WHERE (@with_system OR r.routine_schema NOT IN (` + p.systemSchemas() + `))`}},
 			{{Query: `AND (@schema = '' OR r.routine_schema LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR r.routine_name LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
-		Fields: dbmeta.Fields("catalog", "schema", "name", "id", "kind", "result_type",
+		Fields: append(dbmeta.Fields("catalog", "schema", "name", "id", "kind", "result_type",
 			"arg_types", "volatility", "parallel", "owner", "security", "access",
-			"language", "source", "comment"),
+			"language", "source", "comment"), dbmeta.Field{
+			Name: "definition",
+			Desc: "always absent: the standard keeps the body, which is source, and no CREATE statement",
+		}),
 		Params: schemaNameSystem("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
-				&v.Access, &v.Language, &v.Source, &v.Comment)
+				&v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
 			return v, err
 		},
 	}

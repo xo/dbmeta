@@ -17,7 +17,7 @@
 // tests in the test module run when dbrun resolves a connection string for
 // Snowflake (D117). See D144.
 //
-// It answers 13 of the 55 questions.
+// It answers 13 of the 56 questions.
 package snowflake
 
 import (

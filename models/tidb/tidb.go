@@ -11,7 +11,7 @@
 // where TiDB's catalog differs. It imports the mysql model, which registers
 // first. See D123 and D133.
 //
-// It answers 19 of the 55 questions on 8.5.8, and 18 on 7.5.8 and 8.1.2,
+// It answers 19 of the 56 questions on 8.5.8, and 18 on 7.5.8 and 8.1.2,
 // where privileges is too old. 16 are the mysql model's statements and 3 are
 // its own: settings, sequences and privileges. TiDB has no stored function,
 // procedure or trigger and no foreign server, and docs/COVERAGE.md says what

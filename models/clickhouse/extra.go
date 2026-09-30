@@ -229,6 +229,7 @@ func registerExtra() {
 			always(`, NULL AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, nullIf(f.alias_to, '') AS "comment"`),
+			always(`, NULL AS "size"`),
 			always(`FROM system.data_type_families f`),
 			always(`WHERE (@name = '' OR f.name LIKE @name)`),
 			always(`ORDER BY f.name`),
@@ -252,6 +253,7 @@ func registerExtra() {
 				Desc: "the type this one is an alias to, absent when it is not an" +
 					" alias. ClickHouse records no comment on a type",
 			},
+			{Name: "size", Desc: "always absent: system.data_type_families records no length"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "type name pattern, empty for every one", Default: ""},
@@ -259,7 +261,7 @@ func registerExtra() {
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})
@@ -275,6 +277,7 @@ func registerExtra() {
 			always(`, nullIf(c.language, '') AS "locale"`),
 			always(`, 1 AS "deterministic"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "rules"`),
 			always(`FROM system.collations c`),
 			always(`WHERE (@name = '' OR c.name LIKE @name)`),
 			always(`ORDER BY c.name`),
@@ -288,6 +291,7 @@ func registerExtra() {
 			{Name: "locale", Desc: "the language, where the collation names one"},
 			{Name: "deterministic", Desc: "always true: ClickHouse has no non deterministic collation"},
 			{Name: "comment", Desc: "always absent: a collation carries no comment"},
+			{Name: "rules", Desc: "always absent: system.collations records no tailoring rules"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "collation name pattern, empty for every one", Default: ""},
@@ -295,7 +299,7 @@ func registerExtra() {
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
 			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType,
-				&v.Locale, &v.Deterministic, &v.Comment)
+				&v.Locale, &v.Deterministic, &v.Comment, &v.Rules)
 			return v, err
 		},
 	})

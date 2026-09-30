@@ -82,6 +82,14 @@ and CORRELATED_COLUMN_STATISTICS may too. Build correlated statistics in the
 SingleStore fixture, read the view, and decide whether it answers
 ExtendedStats.
 
+### Find why HANA's count of views moved once
+
+On 2026-09-30 the tier run failed once on `hana-2.00.088`. checkTypes in
+`test/scan_test.go` read 896 views, and then 895 when it asked for views
+alone. The same test passed when it ran again on its own. Nothing in the
+fixture makes a view between the two reads, so HANA made or dropped a view
+of its own. Find which one, and whether checkTypes has to leave it out.
+
 ### Run the Snowflake and Redshift models
 
 `models/snowflake` and `models/redshift` were written from the vendors'
@@ -104,9 +112,19 @@ no queries.
 
 ### usql reads metadata through dbmeta
 
-[`USQL.md`](USQL.md) holds what `usql` answers today and what changes when it
-reads `dbmeta`, under How usql would use dbmeta. No `usql` command reads
-`dbmeta` yet.
+usql's W21 moved its describe commands, its version and \password onto
+dbmeta, and its W31 wires up every psql describe command in
+[`COMMANDS.md`](COMMANDS.md). Both are staged in usql and not committed.
+When W31 lands, update the column "usql today" in COMMANDS.md, and what
+[`USQL.md`](USQL.md) says usql answers.
+
+### Move usql's \copy statements here
+
+usql's \copy builds an INSERT with the dialect's placeholder, and probes the
+columns of a table with SELECT * FROM t WHERE 1=0. They are the last SQL in
+usql's drivers. usql's W29 records moving them to dbmeta, and Ken asked on
+2026-09-30 for it to wait for a design. It is not a read, so it needs a
+decision beside D56 before any of it lands here.
 
 ### dbtpl reads metadata through dbmeta
 

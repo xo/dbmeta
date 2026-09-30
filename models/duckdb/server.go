@@ -41,6 +41,7 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		// A macro keeps its body. A compiled function does not have one.
 		always(`, f.macro_definition AS "source"`),
 		always(`, COALESCE(f.comment, f.description) AS "comment"`),
+		always(`, NULL AS "definition"`),
 		always(`FROM duckdb_functions() f`),
 		always(`WHERE ` + internalOf("f")),
 	}
@@ -75,6 +76,7 @@ func functionFields() []dbmeta.Field {
 		{Name: "language", Desc: "c for a function built into the library, sql for a macro"},
 		{Name: "source", Desc: "the body of a macro, and absent for a compiled function"},
 		{Name: "comment", Desc: "the comment, or the description DuckDB ships for a built in"},
+		{Name: "definition", Desc: "always absent: duckdb_functions keeps the body of a macro, which is source, and no CREATE statement"},
 	}
 }
 
@@ -82,7 +84,7 @@ func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 		&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-		&v.Language, &v.Source, &v.Comment)
+		&v.Language, &v.Source, &v.Comment, &v.Definition)
 	return v, err
 }
 
@@ -159,6 +161,7 @@ func registerTypes() {
 			always(`, NULL AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, y.comment AS "comment"`),
+			always(`, CAST(y.type_size AS VARCHAR) AS "size"`),
 			always(`FROM duckdb_types() y`),
 			always(`WHERE ` + internalOf("y")),
 			always(`AND (@schema = '' OR y.schema_name LIKE @schema)`),
@@ -173,12 +176,13 @@ func registerTypes() {
 			{Name: "owner", Desc: "always absent: DuckDB has no users"},
 			{Name: "access", Desc: "always absent: DuckDB has no grants"},
 			{Name: "comment"},
+			{Name: "size", Desc: "the size in bytes of a value in memory, as duckdb_types records it. A string or a list holds a pointer, so this is not the length of its data"},
 		},
 		Params: schemaNameSystem("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
 			return v, err
 		},
 	})
@@ -221,6 +225,7 @@ func registerTypes() {
 			always(`, NULL AS "locale"`),
 			always(`, TRUE AS "deterministic"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "rules"`),
 			always(`FROM pragma_collations() c`),
 			always(`WHERE (@name = '' OR c.collname LIKE @name)`),
 			always(`ORDER BY 2`),
@@ -233,6 +238,7 @@ func registerTypes() {
 			{Name: "locale", Desc: "always absent: the name is the locale"},
 			{Name: "deterministic", Desc: "always true"},
 			{Name: "comment", Desc: "always absent"},
+			{Name: "rules", Desc: "always absent: DuckDB has no tailoring rules"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "collation name pattern, empty for every one", Default: ""},
@@ -240,7 +246,7 @@ func registerTypes() {
 		Scan: func(rows *sql.Rows) (dbmeta.Collation, error) {
 			var v dbmeta.Collation
 			err := rows.Scan(&v.Schema, &v.Name, &v.Provider, &v.Collate, &v.CType,
-				&v.Locale, &v.Deterministic, &v.Comment)
+				&v.Locale, &v.Deterministic, &v.Comment, &v.Rules)
 			return v, err
 		},
 	})
@@ -256,6 +262,7 @@ func registerSettings() {
 			always(`, s.input_type AS "type"`),
 			always(`, LOWER(s.scope) AS "context"`),
 			always(`, NULL AS "access"`),
+			always(`, NULL AS "display"`),
 			always(`FROM duckdb_settings() s`),
 			always(`WHERE (@name = '' OR s.name LIKE @name)`),
 			always(`ORDER BY 1`),
@@ -265,13 +272,14 @@ func registerSettings() {
 			{Name: "type", Desc: "the type the setting accepts, such as VARCHAR or BOOLEAN"},
 			{Name: "context", Desc: "global or local"},
 			{Name: "access", Desc: "always absent: DuckDB has no grants"},
+			{Name: "display", Desc: "always absent: DuckDB shows a value in one form, which is value"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "setting name pattern, empty for every setting", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})
