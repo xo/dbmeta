@@ -142,7 +142,7 @@ call and filter in the loop.
 | SQLite3    | native             | 14      | Complete    |
 | DuckDB     | native             | 20      | Complete    |
 | SQL Server | native             | 32      | Complete    |
-| Oracle     | native             | 25      | In progress |
+| Oracle     | native             | 26      | In progress |
 | Cassandra  | native             | 17      | In progress |
 | ScyllaDB   | native             | 18      | In progress |
 | ClickHouse | native             | 23      | In progress |
@@ -160,7 +160,7 @@ call and filter in the loop.
 | TiDB       | native             | 19      | In progress |
 | Vitess     | native             | 20      | In progress |
 | Databend   | native             | 20      | In progress |
-| SingleStore | native            | 22      | In progress |
+| SingleStore | native            | 23      | In progress |
 | Snowflake  | native             | 13      | Written, not run |
 | Amazon Redshift | native        | 11      | Written, not run |
 | Apache Impala | native          | 11      | In progress |
@@ -307,7 +307,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 148 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 47 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 150 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 47 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

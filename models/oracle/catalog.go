@@ -9,6 +9,10 @@ import (
 func registerCatalog() {
 	// \dp. Oracle records one row per grant and PostgreSQL keeps one list per
 	// object, so the rows are folded back into a list.
+	objectTypeOf := `SELECT MAX(o.object_type) FROM all_objects o` +
+		` WHERE o.owner = p.table_schema AND o.object_name = p.table_name` +
+		` AND o.object_type NOT IN ('INDEX', 'LOB', 'TABLE PARTITION',` +
+		` 'INDEX PARTITION', 'TABLE SUBPARTITION')`
 	dbmeta.Privileges.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Privilege]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT p.table_schema AS "schema"`),
@@ -16,10 +20,17 @@ func registerCatalog() {
 			// An index lives in a namespace of its own, so a table and an
 			// index can share a name in one schema. Joining all_objects
 			// would then double every grant, and the subquery cannot.
-			always(`, NVL((SELECT MAX(o.object_type) FROM all_objects o`),
-			always(`  WHERE o.owner = p.table_schema AND o.object_name = p.table_name`),
-			always(`  AND o.object_type NOT IN ('INDEX', 'LOB', 'TABLE PARTITION',`),
-			always(`  'INDEX PARTITION', 'TABLE SUBPARTITION')), '') AS "type"`),
+			//
+			// all_objects checks a privilege for every row, and 11g takes
+			// minutes over the whole of it. From 12c all_tab_privs names the
+			// type itself, and says UNKNOWN for a domain, a consumer group, a
+			// job class and an evaluation context, which only all_objects
+			// names. So the subquery runs for those alone. See D150.
+			dbmeta.Choice{
+				{Query: `, NVL((` + objectTypeOf + `), '') AS "type"`},
+				{Min: v18, Query: `, CASE WHEN MAX(p.type) <> 'UNKNOWN' THEN MAX(p.type)` +
+					` ELSE NVL((` + objectTypeOf + `), '') END AS "type"`},
+			},
 			always(`, `),
 			listagg("p.grantee || '=' || p.privilege", "p.grantee, p.privilege"),
 			always(`  AS "access"`),
@@ -34,7 +45,7 @@ func registerCatalog() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "schema"}, {Name: "name"},
-			{Name: "type", Desc: "the object type, read from all_objects"},
+			{Name: "type", Desc: "the object type, read from all_tab_privs, and from all_objects where all_tab_privs has no name for it or on 11g"},
 			{Name: "access", Desc: "the grants as grantee=privilege, one list per object"},
 			{
 				Name: "column_access",

@@ -235,25 +235,53 @@ func checkTypes(t *testing.T, m *dbmeta.Meta, db *sql.DB, system bool) {
 		t.Log("types: Cassandra narrows nothing, so it is not checked")
 		return
 	}
-	names := slices.Sorted(maps.Keys(every))
-	for _, name := range names {
-		got, err := read([]string{name})
-		if err != nil {
-			t.Errorf("tables of type %s: %v", name, err)
-			continue
+	// matches says whether a read narrowed to types holds exactly those
+	// types, as many of each as every read.
+	matches := func(got, every map[string]int, types []string) bool {
+		if len(got) != len(types) {
+			return false
 		}
-		if len(got) != 1 || got[name] != every[name] {
-			t.Errorf("tables of type %s: expected %d of that type alone, got %v", name, every[name], got)
+		for _, name := range types {
+			if got[name] != every[name] {
+				return false
+			}
+		}
+		return true
+	}
+	// narrowed reads the tables of types and compares them with every read.
+	// A catalog can change between two reads: HANA's statistics service
+	// makes its views for a minute after the server first answers, and a
+	// server shared with another session gains that session's tables. So a
+	// read that disagrees is taken again once with a fresh every read, and
+	// only a disagreement that stays is a fault.
+	narrowed := func(types []string) {
+		got, err := read(types)
+		if err != nil {
+			t.Errorf("tables of types %v: %v", types, err)
+			return
+		}
+		if matches(got, every, types) {
+			return
+		}
+		again, err := read(nil)
+		if err != nil {
+			t.Errorf("tables: %v", err)
+			return
+		}
+		if got, err = read(types); err != nil {
+			t.Errorf("tables of types %v: %v", types, err)
+			return
+		}
+		if !matches(got, again, types) {
+			t.Errorf("tables of types %v: expected only those, as many as %v, got %v", types, again, got)
 		}
 	}
+	names := slices.Sorted(maps.Keys(every))
+	for _, name := range names {
+		narrowed([]string{name})
+	}
 	if len(names) >= 2 {
-		pair := names[:2]
-		got, err := read(pair)
-		if err != nil {
-			t.Errorf("tables of types %v: %v", pair, err)
-		} else if len(got) != 2 || got[pair[0]] != every[pair[0]] || got[pair[1]] != every[pair[1]] {
-			t.Errorf("tables of types %v: expected %d and %d, got %v", pair, every[pair[0]], every[pair[1]], got)
-		}
+		narrowed(names[:2])
 	}
 	// A type no model reports matches nothing.
 	if got, err := read([]string{"no such type"}); err != nil || len(got) != 0 {
@@ -314,11 +342,11 @@ func TestEveryModelScansEveryQuery(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			db := c.open(t)
 			m := c.setup(t, db)
-			// Oracle 11g reads its whole catalog slowly: tables, types,
-			// privileges and column_stats each took more than a minute with
-			// the system objects included, measured on 2026-09-29, and the
-			// scan passed the test timeout. 18c reads it in seconds. So 11g
-			// is scanned without them. docs/COVERAGE.md has the timings.
+			// Oracle 11g reads all_objects and all_types slowly, 196 and
+			// 126 seconds each over the whole catalog, measured on
+			// 2026-09-30, so tables and types with the system objects pass
+			// the test timeout. 18c reads them in seconds. So 11g is scanned
+			// without them. docs/COVERAGE.md has the timings (D150).
 			if c.name == "oracle" && m.Version().Main().Compare(dbmeta.V(12)) < 0 {
 				t.Log("scanned without the system objects, which Oracle 11g reads too slowly")
 				scanEveryQueryWith(t, m, db, false)

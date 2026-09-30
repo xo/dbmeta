@@ -30,11 +30,12 @@
 //
 // # What it answers
 //
-// 25 of the 56. Schemas, tables, columns, indexes, index columns,
+// 26 of the 56. Schemas, tables, columns, indexes, index columns,
 // constraints, constraint columns, sequences, views, the current schema and
 // the current user. Then comments, triggers, event triggers, functions,
 // aggregates, routine parameters, types, domains, operators, privileges,
-// column statistics, partitioned tables, foreign servers and foreign tables.
+// column statistics, extended statistics, partitioned tables, foreign servers
+// and foreign tables.
 //
 // Domains needs 23ai, where the SQL domain and ALL_DOMAINS arrived. Every
 // other one answers on every release from 11g up.

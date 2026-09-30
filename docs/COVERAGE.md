@@ -33,7 +33,7 @@ rather than reading one.
 | `models/sqlite3` | 14 | 56 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
 | `models/duckdb` | 20 | 56 | duckdb/duckdb-go, the driver usql uses |
 | `models/sqlserver` | 32 | 56 | SQL Server 2017, 2019, 2022 and 2025 |
-| `models/oracle` | 25 | 56 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
+| `models/oracle` | 26 | 56 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 56 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
 | `models/clickhouse` | 23 | 56 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
 | `models/trino` | 13 | 56 | Trino 476 and 483 |
@@ -50,7 +50,7 @@ rather than reading one.
 | `models/tidb` | 19 | 56 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 16 of its statements are the mysql model's (D133) |
 | `models/vitess` | 20 | 56 | Vitess 23.0.6 and 24.0.3, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
 | `models/databend` | 20 | 56 | Databend 1.2.881 and 1.2.948, from the system database, with dbimp's driver (D140) |
-| `models/singlestore` | 22 | 56 | SingleStore 9.0 and 9.1, on the development image with no licence. 16 of its statements are the mysql model's (D141) |
+| `models/singlestore` | 23 | 56 | SingleStore 9.0 and 9.1, on the development image with no licence. 16 of its statements are the mysql model's (D141) |
 | `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
 | `models/redshift` | 11 | 56 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
@@ -1084,6 +1084,15 @@ has both a `yes` and a `no` helper and writes the inversion out.
 
 A bind parameter needs no cast, which is the opposite of Firebird. HANA infers
 the type from the comparison, including where the same parameter appears twice.
+
+The catalog keeps changing for about a minute after the server first answers.
+Measured on 2.00.088 on 2026-09-30, the statistics service made more than 100
+views in `_SYS_STATISTICS` in that minute, recorded its installation as done
+in `_SYS_STATISTICS.STATISTICS_PROPERTIES`, and made the views of
+`_SYS_TELEMETRY` about 12 seconds later. Nothing changed after that. A tier run
+once read the tables while this happened and counted 896 views and then 895,
+so checkTypes in `test/scan_test.go` reads again once when two counts
+disagree, and fails only when the disagreement stays.
 
 ### What it answers
 
@@ -2556,7 +2565,7 @@ there is no object with an identity and an owner of its own to list.
 
 ## Oracle
 
-Oracle answers 25 of the 56. Every one is verified on six releases.
+Oracle answers 26 of the 56. Every one is verified on six releases.
 
 It needs no Windows and no virtual machine, which is the opposite of SQL
 Server. The free Express images reach back to 11g Release 2 from 2010, so every
@@ -2568,10 +2577,10 @@ release runs in an ordinary container. See D57 for the SQL Server contrast and
 Schemas, tables, columns, indexes, index columns, constraints, constraint
 columns, sequences, views, the current schema and the current user. Then
 comments, triggers, event triggers, functions, aggregates, routine parameters,
-types, domains, operators, privileges, column statistics, partitioned tables,
-foreign servers and foreign tables.
+types, domains, operators, privileges, column statistics, extended
+statistics, partitioned tables, foreign servers and foreign tables.
 
-Verified on 11g, 18c, 19c, 21c, 23ai and 26ai. Every release runs 24 of them
+Verified on 11g, 18c, 19c, 21c, 23ai and 26ai. Every release runs 25 of them
 and each returns the number of columns it declares. `Domains` is the
 twenty-fifth and needs 23ai, where the SQL domain and `ALL_DOMAINS` arrived,
 so 23ai and 26ai run all 25 and the four older releases report that the server
@@ -2690,13 +2699,32 @@ nothing else does, and its number separates 23ai from 26ai.
 
 ### 11g reads its whole catalog slowly
 
-11g XE reads four queries slowly when the system objects are included. Each
-took more than a minute on 2026-09-29, and was cancelled at a minute: tables,
-types, privileges and column_stats. Operators took 112 seconds once and no
-time at all the next time. The catalog holds 4,818 tables with the system
-objects, and 18c reads the same queries in seconds. The scan test in the
-`test` module reads 11g without the system objects for that reason, and
-every query then answers. Why the plans are slow is on docs/BACKLOG.md.
+11g XE reads four queries slowly when the system objects are included:
+tables, types, privileges and column_stats. The catalog holds 4,818 tables
+with the system objects, and 18c reads the same queries in seconds. The plans
+were read on 2026-09-30, on a fresh server with nothing else running (D150).
+
+Two views are the cost. `all_objects` takes 196 seconds to count and
+`all_types` 126, alone, while `dba_objects` takes 0.1 and every other view
+the queries read takes about a second. Each row of the two views runs a
+chain of privilege checks against the fixed tables `X$KZSPR` and `X$KZSRO`,
+and an ordinary user with only `CREATE SESSION` waits as long as SYSTEM.
+The dictionary statistics in the image date from 2011, and fixed objects
+had none, but gathering both changed neither time. tables reads
+`all_objects` and types reads `all_types`, so both stay slow on 11g.
+
+The other two were slow because of what they joined, and both are fixed.
+privileges looked up the type of each object in `all_objects`. From 12c
+`all_tab_privs` names the type itself, so the lookup runs only where it says
+UNKNOWN, and 11g, which has no such column, keeps it. column_stats joined
+`all_tables` for the row count, which took 304 seconds over every schema. A
+lookup for each row takes 41 seconds on 11g, 0.8 on 26ai, and 0.3 for one
+schema, where the join took 0.4.
+
+The scan test in the `test` module still reads 11g without the system
+objects, because tables and types alone take more than five minutes with
+them. Every query then answers, and filtered to the user's schemas the
+privilege checks run for few rows.
 
 ### The D43 pass, and what it found
 
@@ -2751,10 +2779,18 @@ of a table, not an object with an identity of its own. There is no id to
 return for `LargeObject.OID`, because Oracle has no standalone large object.
 A stretch, and D43 says leave a stretch unsupported.
 
-`ExtendedStats` from `ALL_STAT_EXTENSIONS`. The view has the extension
-expression and no list of statistic kinds. It was left out when the
-expression had no field of its own. `ExtendedStat.Definition` holds one now
-(D147), so it is a lead to measure again, in `BACKLOG.md`.
+`ExtendedStats` from `ALL_STAT_EXTENSIONS` was left out at first, because
+the view holds an extension's expression and ExtendedStat had no field for
+one. `ExtendedStat.Definition` holds it now (D147), and the lead was measured
+again on 2026-09-30 and shipped (D149). An extension is a column group or an
+expression that `DBMS_STATS.CREATE_EXTENDED_STATS` makes, and its statistics
+are those of a hidden column named for it. The optimizer always counts its
+distinct values, which is ndistinct, and a frequency or top frequency
+histogram on the hidden column is a list of the most common values, which is
+mcv. Oracle has no functional dependency statistic. Whether a histogram
+exists depends on how the statistics were gathered, where PostgreSQL declares
+the kind when it makes the object. The fixture makes a column group on
+author.
 
 `Settings` from `V$PARAMETER` is a lead that still stands and is not written.
 
@@ -3240,7 +3276,7 @@ cluster key orders the rows of a table rather than partitioning it.
 
 ## SingleStore
 
-`models/singlestore` answers 22 of the 56 on 9.0 and 9.1. It was measured on
+`models/singlestore` answers 23 of the 56 on 9.0 and 9.1. It was measured on
 2026-09-30 on the development image, which runs with no licence on a machine
 with at most 8 cores and 64 GB, through the mysql driver, which is what
 dburl's memsql scheme opens and what usql uses. SingleStore imitates MySQL's
@@ -3263,6 +3299,7 @@ and SingleStore's own release is under the key `memsql`, read from
 | privileges | from ROLE_PRIVILEGES, because TABLE_PRIVILEGES and SCHEMA_PRIVILEGES are empty although a role holds a grant. A grant to a user is in no view |
 | aggregates | from AGGREGATE_FUNCTIONS, a user defined aggregate and the four functions that make it |
 | column statistics | from OPTIMIZER_STATISTICS, which ANALYZE TABLE fills. The bounds are only inside the histogram |
+| extended statistics | from CORRELATED_COLUMN_STATISTICS, which `ANALYZE TABLE ... CORRELATE COLUMN` fills. A correlation says how strongly one column follows another, which is PostgreSQL's functional dependency, so the kind is f. It has no name (D149) |
 
 ### What it does not answer
 
@@ -3278,7 +3315,10 @@ syntax, with no foreign key. book is a reference table, because a unique key
 of a sharded table must hold the shard key, and book_title_unique is on title
 alone. It adds a function, a procedure, an aggregate and the four functions
 behind it, a role granted to a group and the group to a user, a privilege,
-and rows with statistics.
+rows with statistics, and a correlation between two columns of author.
+`CORRELATE COLUMN` refuses to run with no database selected, even on a
+qualified table, so the fixture selects one with USE, and the test runs the
+setup on one connection and discards it afterwards.
 
 ### Which answers depend on who is asking
 
@@ -3294,9 +3334,8 @@ clients and is empty: LINKS as foreign servers, EXTERNAL_TABLES as foreign
 tables, PIPELINES as subscriptions, RESOURCE_POOLS as role settings,
 DISTRIBUTED_PARTITIONS as partitioned tables, and an AUTO_INCREMENT column as
 a sequence. TRIGGERS and TABLESPACES are empty. Both named the histograms for
-extended statistics. PostgreSQL's extended statistics cover several columns,
-and it is not yet known whether CORRELATED_COLUMN_STATISTICS does.
-docs/BACKLOG.md holds the item to measure it.
+extended statistics, and the histograms are over one column each. The view
+of correlations covers two, and D149 shipped it.
 
 ## Snowflake and Amazon Redshift
 

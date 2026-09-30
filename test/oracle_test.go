@@ -237,3 +237,35 @@ func mustVersion(t *testing.T, db *sql.DB) dbmeta.VersionSet {
 	}
 	return v
 }
+
+// TestOracleExtendedStats reads the fixture's column group back. Oracle
+// always counts the distinct values of an extension, and the statistics the
+// fixture gathers cover it (D149).
+func TestOracleExtendedStats(t *testing.T) {
+	db := openOracle(t)
+	m := setupOracle(t, db)
+	var found bool
+	for v, err := range dbmeta.ExtendedStats.All(t.Context(), m, db, oraArgs()) {
+		if err != nil {
+			t.Fatalf("reading extended stats: %v", err)
+		}
+		if v.Table != "AUTHOR" {
+			continue
+		}
+		found = true
+		if !strings.Contains(v.Definition.V, `"NAME"`) || !strings.Contains(v.Definition.V, `"RATING"`) ||
+			!strings.HasSuffix(v.Definition.V, " FROM DBMETA_FIXTURE.AUTHOR") {
+			t.Errorf("expected both columns and the table in the definition, got %q", v.Definition.V)
+		}
+		if !v.Ndistinct || v.Dependencies || !strings.HasPrefix(v.Kinds, "d") {
+			t.Errorf("expected ndistinct, got %+v", v)
+		}
+		if !v.Name.Valid || !strings.HasPrefix(v.Name.V, "SYS_STU") {
+			t.Errorf("expected the name Oracle gives an extension, got %+v", v.Name)
+		}
+		t.Logf("%s %s kinds=%s mcv=%v", v.Name.V, v.Definition.V, v.Kinds, v.MCV)
+	}
+	if !found {
+		t.Error("expected the column group on author")
+	}
+}

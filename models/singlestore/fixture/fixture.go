@@ -143,6 +143,12 @@ var Everything = Fixture{
 		at("author rows", `INSERT INTO dbmeta_fixture.author (name, rating)`+
 			` VALUES ('Ursula', 5), ('Octavia', 4), ('Iain', NULL)`),
 		at("analyze", `ANALYZE TABLE dbmeta_fixture.author`),
+		// A correlation between two columns, which ExtendedStats reads.
+		// CORRELATE COLUMN refuses to run with no database selected, even on
+		// a qualified table, so the step before it selects one. A caller runs
+		// the setup on one connection for that reason.
+		at("use", `USE dbmeta_fixture`),
+		at("correlation", `ANALYZE TABLE dbmeta_fixture.author CORRELATE COLUMN name WITH COLUMN rating USING COEFFICIENT 0.5`),
 	},
 	Teardown: []Step{
 		at("user", `DROP USER IF EXISTS 'dbmeta_fixture_member'@'%'`),

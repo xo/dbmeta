@@ -3,6 +3,8 @@ package test
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -48,12 +50,26 @@ func setupSingleStore(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	if err != nil {
 		t.Fatalf("building the meta: %v", err)
 	}
+	// The steps run on one connection, because the fixture selects its
+	// database with USE before a step that needs one. The connection is
+	// discarded afterwards, so that no other query inherits the database.
 	run := func(ctx context.Context, steps []ssfixture.Result, fatal bool) {
+		conn, err := db.Conn(ctx)
+		if err != nil {
+			t.Fatalf("taking a connection: %v", err)
+		}
+		defer func() {
+			// Raw returning ErrBadConn closes the connection and discards it
+			// rather than returning it to the pool, so no Close follows.
+			if err := conn.Raw(func(any) error { return driver.ErrBadConn }); !errors.Is(err, driver.ErrBadConn) {
+				t.Errorf("discarding the fixture connection: %v", err)
+			}
+		}()
 		for _, s := range steps {
 			if s.Skipped {
 				continue
 			}
-			if _, err := db.ExecContext(ctx, s.Query); err != nil && fatal {
+			if _, err := conn.ExecContext(ctx, s.Query); err != nil && fatal {
 				t.Fatalf("%s: %v\n%s", s.Name, err, s.Query)
 			}
 		}
@@ -265,5 +281,31 @@ func TestSingleStoreAnswersNoneOfThese(t *testing.T) {
 		if s := q.Support(m); s != dbmeta.NotSupported {
 			t.Errorf("%s: expected %v, got %v", q.Name(), dbmeta.NotSupported, s)
 		}
+	}
+}
+
+// TestSingleStoreExtendedStats reads the fixture's correlation back, which is
+// SingleStore's functional dependency statistic and has no name (D149).
+func TestSingleStoreExtendedStats(t *testing.T) {
+	db := openSingleStore(t)
+	m := setupSingleStore(t, db)
+	var found bool
+	for v, err := range dbmeta.ExtendedStats.All(t.Context(), m, db, ssArgs()) {
+		if err != nil {
+			t.Fatalf("reading extended stats: %v", err)
+		}
+		if v.Table != "author" {
+			continue
+		}
+		found = true
+		if v.Definition.V != "name, rating FROM dbmeta_fixture.author" {
+			t.Errorf("expected the two columns and the table, got %q", v.Definition.V)
+		}
+		if v.Kinds != "f" || !v.Dependencies || v.Ndistinct || v.MCV || v.Name.Valid {
+			t.Errorf("expected a nameless functional dependency, got %+v", v)
+		}
+	}
+	if !found {
+		t.Error("expected the correlation on author")
 	}
 }

@@ -289,4 +289,54 @@ func registerOwn() {
 			return v, err
 		},
 	})
+
+	// \dX. ANALYZE TABLE ... CORRELATE COLUMN declares how strongly one
+	// column follows another, so that the optimizer does not treat a filter
+	// on both as independent. That is what PostgreSQL's functional
+	// dependency statistic does, so the kind is f. A correlation has no name.
+	// See D149.
+	dbmeta.ExtendedStats.Register(dbmeta.MemSQL, &dbmeta.Binding[dbmeta.ExtendedStat]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT c.DATABASE_NAME AS "schema"`),
+			always(`, NULL AS "name"`),
+			always(`, NULL AS "owner"`),
+			always(`, c.TABLE_NAME AS "table"`),
+			always(`, 'f' AS "kinds"`),
+			always(`, NULL AS "comment"`),
+			always(`, CONCAT(c.CORRELATED_COLUMN_NAME, ', ', c.CORRELLEE_COLUMN_NAME,` +
+				` ' FROM ', c.DATABASE_NAME, '.', c.TABLE_NAME) AS "definition"`),
+			always(`, FALSE AS "ndistinct"`),
+			always(`, TRUE AS "dependencies"`),
+			always(`, FALSE AS "mcv"`),
+			always(`FROM information_schema.CORRELATED_COLUMN_STATISTICS c`),
+			always(`WHERE (@with_system OR c.DATABASE_NAME NOT IN (` + systemSchemas + `))`),
+			always(`AND ` + like("c.DATABASE_NAME", "@schema")),
+			// a correlation has no name, so only the empty pattern matches
+			always(`AND @name = ''`),
+			always(`ORDER BY 1, 4, c.CORRELATED_COLUMN_NAME, c.CORRELLEE_COLUMN_NAME`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"},
+			{Name: "name", Desc: "always absent: a correlation has no name"},
+			{Name: "owner", Desc: "always absent: a correlation has no owner"},
+			{Name: "table"},
+			{Name: "kinds", Desc: "always f, for a functional dependency"},
+			{Name: "comment", Desc: "always absent: a correlation takes no comment"},
+			{Name: "definition", Desc: "the correlated column, then the column it follows, and their table"},
+			{Name: "ndistinct", Desc: "always false: a correlation counts no distinct values"},
+			{Name: "dependencies", Desc: "always true: a correlation is how strongly one column follows another"},
+			{Name: "mcv", Desc: "always false: a correlation keeps no common values"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
+			{Name: "name", Desc: "statistics object name pattern. A correlation has no name, so only the empty pattern matches", Default: ""},
+			{Name: "with_system", Desc: "include the schemas SingleStore keeps for itself", Default: false},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.ExtendedStat, error) {
+			var v dbmeta.ExtendedStat
+			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment,
+				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV)
+			return v, err
+		},
+	})
 }

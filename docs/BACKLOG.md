@@ -76,39 +76,6 @@ requests were built by hand (D113). Build them with the Go driver
 apache/calcite-avatica-go instead, and find whether HSQLDB then checks the
 user. If it does, the entry can make one.
 
-### Find why Oracle 11g reads its catalog slowly
-
-With the system objects included, Oracle 11g XE took more than a minute each
-for tables, types, privileges and column_stats, measured on 2026-09-29.
-18c reads the same queries in seconds. Read the plans on 11g, and find
-whether one view or one join is the cost. docs/COVERAGE.md has the timings,
-under Oracle.
-
-### Measure SingleStore's correlated statistics
-
-Gemini and Gemini Pro named SingleStore's histograms for extended
-statistics (D141). PostgreSQL's extended statistics cover several columns,
-and it is not known whether CORRELATED_COLUMN_STATISTICS does. Build correlated statistics in the
-SingleStore fixture, read the view, and decide whether it answers
-ExtendedStats.
-
-### Find why HANA's count of views moved once
-
-On 2026-09-30 the tier run failed once on `hana-2.00.088`. checkTypes in
-`test/scan_test.go` read 896 views, and then 895 when it asked for views
-alone. The same test passed when it ran again on its own. Nothing in the
-fixture makes a view between the two reads, so HANA made or dropped a view
-of its own. Find which one, and whether checkTypes has to leave it out.
-
-### Measure Oracle's column groups for ExtendedStats
-
-D43's pass for Oracle left out `ALL_STAT_EXTENSIONS`, because the view holds
-an expression and ExtendedStat had no field for one. `ExtendedStat.Definition`
-holds it now (D147). Build a column group in the Oracle fixture, read the
-view, and decide what Oracle records for Ndistinct, Dependencies and MCV. If
-nothing answers them, the kind stays unanswered, because the three are not
-nullable. docs/COVERAGE.md has the first finding, under Oracle.
-
 ### Run the Snowflake and Redshift models
 
 `models/snowflake` and `models/redshift` were written from the vendors'

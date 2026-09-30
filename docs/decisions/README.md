@@ -167,3 +167,5 @@ file.
 | [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67 |
 | [D147](D147-the-fields-psql-prints-that-usql-needed.md) | The fields psql prints that usql needed | Decided |
 | [D148](D148-rqlite-shares-the-sqlite3-model.md) | rqlite shares the sqlite3 model | Decided |
+| [D149](D149-oracle-and-singlestore-answer-extended-statistics.md) | Oracle and SingleStore answer extended statistics | Decided |
+| [D150](D150-oracle-11g-reads-two-views-slowly.md) | Oracle 11g reads two views slowly | Decided |

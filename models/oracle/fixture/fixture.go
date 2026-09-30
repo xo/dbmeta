@@ -182,6 +182,13 @@ END;`),
 		// something.
 		at("author rows", `INSERT INTO dbmeta_fixture.author (author_id, name, rating)
 	SELECT LEVEL, 'author ' || LEVEL, MOD(LEVEL, 5) FROM dual CONNECT BY LEVEL <= 200`),
+		// A column group, which ExtendedStats reads. It is made before the
+		// statistics are gathered, so that they cover it.
+		at("column group", `DECLARE
+	extension VARCHAR2(30);
+BEGIN
+	extension := DBMS_STATS.CREATE_EXTENDED_STATS('DBMETA_FIXTURE', 'AUTHOR', '(NAME, RATING)');
+END;`),
 		at("analyze", `BEGIN
 	DBMS_STATS.GATHER_TABLE_STATS('DBMETA_FIXTURE', 'AUTHOR');
 END;`),
