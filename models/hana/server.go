@@ -264,11 +264,7 @@ func registerStats() {
 			always(`, s.DATA_STATISTICS_NAME AS "name"`),
 			always(`, '' AS "owner"`),
 			always(`, s.DATA_SOURCE_OBJECT_NAME AS "table"`),
-			// The columns are part of the kind rather than a field of
-			// their own, because ExtendedStat has nowhere else to put
-			// them and they are what makes the statistic what it is.
-			always(`, LOWER(s.DATA_STATISTICS_TYPE) || ' on ' ||` +
-				` s.DATA_SOURCE_COLUMN_NAMES AS "kinds"`),
+			always(`, LOWER(s.DATA_STATISTICS_TYPE) AS "kinds"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "comment"`),
 			always(`, s.DATA_SOURCE_COLUMN_NAMES || ' FROM ' || s.DATA_SOURCE_SCHEMA_NAME || '.' ||` +
 				` s.DATA_SOURCE_OBJECT_NAME AS "definition"`),
@@ -287,7 +283,7 @@ func registerStats() {
 			{Name: "schema"}, {Name: "name"},
 			{Name: "owner", Desc: "always empty: DATA_STATISTICS records no owner"},
 			{Name: "table", Desc: "the object the statistic is over, which HANA allows to be a view as well as a table"},
-			{Name: "kinds", Desc: "the statistic kind and the columns it covers, such as histogram on A,B. HANA records the two separately and this kind has one field for both"},
+			{Name: "kinds", Desc: "the statistic type in lower case, such as histogram or topk. HANA's types do not match PostgreSQL's letters, and ndistinct and mcv say where one does"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no statistics form"},
 			{Name: "definition", Desc: "the columns it covers, as HANA records them, and their object"},
 			{Name: "ndistinct", Desc: "true for a SIMPLE statistic, which counts the distinct values"},

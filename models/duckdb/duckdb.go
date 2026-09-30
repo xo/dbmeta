@@ -30,10 +30,9 @@
 //
 // # What it answers
 //
-// Twenty of the 56, which is more than any model here except PostgreSQL. The
-// catalog is unusually complete for an embedded database: it has comments on
-// most objects, real enumerated types, sequences, and a constraint catalog
-// that names the columns of a key and the columns it references.
+// Twenty of the 56. The catalog is unusually complete for an embedded
+// database: it has comments on most objects, real enumerated types,
+// sequences, and a constraint catalog that names the columns of a key and the columns it references.
 //
 // What it has none of is everything that needs more than one user or more than
 // one process. No roles, no privileges, no triggers, no tablespaces. See

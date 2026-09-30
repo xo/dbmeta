@@ -12,12 +12,12 @@ and writes a statement of its own only where TiDB's catalog differs.
 TiDB answers `VERSION()` with `8.0.11-TiDB-v8.5.8`. The version set's main
 version is the MySQL release TiDB claims, 8.0.11, and it is set under the
 mysql model's `mysql` key too, so that a shared statement takes the fragments
-it would take on MySQL 8.0.11. TiDB's own release is under the key `tidb`.
+it takes on MySQL 8.0.11. TiDB's own release is under the key `tidb`.
 
 ## A shared statement can carry an alternative for TiDB
 
 Two things in the mysql model's statements differ on TiDB and nowhere else,
-and copying every statement for them would copy about sixteen. So the mysql
+and copying every statement for them copies about sixteen. So the mysql
 model holds an alternative for TiDB, under the `tidb` key, which no server that
 model reads reports:
 
@@ -30,7 +30,7 @@ model reads reports:
   there, so the value is 0, which is what MySQL writes for no limit.
 
 A TiDB alternative must never sit in a choice beside one on the `mysql` key,
-because a TiDB version set reports both keys and the two would be ambiguous.
+because a TiDB version set reports both keys and the two are ambiguous.
 
 ## What TiDB writes on its own
 

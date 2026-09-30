@@ -1,11 +1,11 @@
-# What dbtpl Reads, and What dbmeta Would Have To Add
+# What dbtpl Reads, and What dbmeta Added
 
 `dbtpl` generates Go code from a database schema. It reads metadata with
 queries of its own, in `models/*.dbtpl.go`, dispatched through a `Loader` struct
 of function fields in `loader/loader.go`.
 
 This measures what `dbtpl` reads, how much of it `dbmeta` already answers, and
-what `dbmeta` would have to add before `dbtpl` could stop carrying its own SQL.
+what `dbmeta` had to add before `dbtpl` can stop carrying its own SQL.
 
 Measured against `dbtpl` at commit `8366044`.
 
@@ -43,15 +43,15 @@ arrived with the kinds D47 added.
 | `TableColumns` | `dbmeta.Columns` | exact: `Column.PrimaryKey` is in the same row |
 | `TableSequences` | `dbmeta.Columns` | `Column.Identity` says which column the database fills, which is what this asks |
 | `TableIndexes` | `dbmeta.Indexes` | exact: name, unique and primary are all there |
-| `IndexColumns` | `dbmeta.IndexColumns` | exact, and `dbmeta` adds the collation and the direction |
+| `IndexColumns` | `dbmeta.IndexColumns` | exact, and `dbmeta` adds the expression and the direction |
 | `Procs` | `dbmeta.Functions` | exact: `Function.ID` is the oid `dbtpl` joins on |
 | `ProcParams` | `dbmeta.RoutineParameters` | exact, except on SQLite, which has no named parameters |
 | `TableForeignKeys` | `dbmeta.ConstraintColumns` | exact, including the referenced column and the position in a composite key |
 | `Schema` | `dbmeta.CurrentSchema` | one row, read with `dbmeta.First` |
 
 `dbmeta` also answers these for MariaDB and SQLite, which `dbtpl` supports, and
-`dbtpl` would gain nothing new there because it already has them. What it would
-gain is not having to maintain five dialects of the same query.
+`dbtpl` gains nothing new there, because it already has them. What it gains is
+not having to maintain five dialects of the same query.
 
 ### Which databases answer everything dbtpl needs
 
@@ -90,23 +90,24 @@ than from memory.
 | Apache Impala | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Impala has no index, and SHOW lists no key and no parameter names |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
-Five answer all nine: PostgreSQL, the MySQL dialect, SQL Server, Oracle and
-SAP HANA.
-Those are the five a `dbtpl` built on `dbmeta` could generate from with nothing
-missing.
+Eight answer all nine: PostgreSQL, the MySQL dialect, SQL Server, Oracle, SAP
+HANA, CockroachDB, Vitess and SingleStore. A `dbtpl` built on `dbmeta` can
+generate from the first seven with nothing missing. SingleStore answers all
+nine and lists no foreign key, because it has none.
 
-Every gap above is the product rather than the model. `dbtpl` supports
+Every gap above is the product rather than the model, except on Redshift. The
+Redshift model does not read `TableForeignKeys` or `ProcParams`. `dbtpl` supports
 PostgreSQL, MySQL, SQL Server, Oracle and SQLite today, so the only one of its
 own databases that is short is SQLite, by one query, for a reason `dbtpl`
 already knows: it writes no parameter names for SQLite either.
 
-### Whether dbtpl could generate for each database
+### Whether dbtpl can generate for each database
 
-The count above is how many queries answer. Whether `dbtpl` could generate
+The count above is how many queries answer. Whether `dbtpl` can generate
 from a database is a different question, and it is the one to answer when a
 dialect is added.
 
-| Database | `dbtpl` supports it today | Could generate from `dbmeta` |
+| Database | `dbtpl` supports it today | Can generate from `dbmeta` |
 | --- | --- | --- |
 | PostgreSQL | yes | yes, all nine |
 | MySQL and MariaDB | yes | yes, all nine |
@@ -120,10 +121,10 @@ dialect is added.
 | Trino | no | **no** |
 | Presto | no | **no** |
 | SAP HANA | no | yes, all nine |
-| Apache Hive | no | partly: the foreign keys are there to follow, and they are declarations Hive does not enforce, so a generator would trust something the database never checks |
+| Apache Hive | no | partly: the foreign keys are there to follow, and they are declarations Hive does not enforce, so a generator trusts something the database never checks |
 | Firebird | no | yes, once it is told there is no schema to qualify by |
 | Vertica | no | yes, without parameter names. Every table, key and foreign key is there, and an index is a projection, which a generator can emit or leave out |
-| Exasol | no | partly: every table, key and foreign key is there to follow, and a routine has no parameters to read. The indexes are the engine's own, built and dropped as queries need them and named by object id, so a generator that emits an index would emit a different set on another day |
+| Exasol | no | partly: every table, key and foreign key is there to follow, and a routine has no parameters to read. The indexes are the engine's own, built and dropped as queries need them and named by object id, so a generator that emits an index emits a different set on another day |
 | Couchbase | no | **no**. A collection has no columns, so there is no field to generate |
 | CockroachDB | no | yes, all nine. A parameter declared integer reads as bigint, because CockroachDB makes integer 64 bits |
 | CrateDB | no | partly: no foreign key to follow and no parameter names. Every table, column and primary key is there |
@@ -140,7 +141,7 @@ Trino is the first that is a clear no, and it is not the same as answering few
 of the nine. `dbtpl` generates typed access from a schema and follows a foreign
 key to decide what relates to what. Trino has no foreign key, no unique
 constraint and no index at any release, so the relationships are not there to
-read and a generator would produce a struct per table with nothing tying them
+read and a generator produces a struct per table with nothing tying them
 together.
 
 That is the answer for a query engine rather than for Trino alone, and Presto
@@ -153,8 +154,8 @@ What follows is what each one became and what it still cannot do.
 
 **Routine parameters** became `dbmeta.RoutineParameters`, with a name,
 position, mode and type per parameter. PostgreSQL, the MySQL dialect, SQL
-Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase and the shared model
-answer it. SQLite cannot: a function there is compiled C with no
+Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase, CockroachDB, Vitess,
+SingleStore and the shared model answer it. SQLite cannot: a function there is compiled C with no
 named parameters.
 
 Group by `Routine` and, where the database overloads a name, by `RoutineID`.
@@ -164,27 +165,28 @@ database. On PostgreSQL it is the oid, which is what `dbtpl` uses today.
 **Constraint columns** became `dbmeta.ConstraintColumns`, with the column, its
 one based position within the constraint, and for a foreign key the catalog,
 schema, table and column it points at. Every model but ClickHouse, Trino,
-Presto and Couchbase answers it, SQLite included.
+Presto, Couchbase, QuestDB, Snowflake, Redshift and Impala answers it, SQLite
+included.
 
 This was the largest gap, and it is closed exactly the way `dbtpl` needs: a
 composite key is several rows sharing a constraint name, ordered by `Ordinal`,
 each paired with the column it references.
 
-**Enum values as rows** became `dbmeta.EnumValues`, and PostgreSQL and DuckDB
-answer it. A label there is a row with a one based ordinal, which is what a generated
+**Enum values as rows** became `dbmeta.EnumValues`, and PostgreSQL, DuckDB
+and CockroachDB answer it. A label there is a row with a one based ordinal, which is what a generated
 Go constant needs.
 
 MariaDB and MySQL cannot, and this is the one place `dbtpl` gains nothing. They
 have an enum column rather than an enum type, and the labels exist only inside
 the `enum('red','green','blue')` text of `COLUMN_TYPE`. Splitting that
-correctly means tracking quoting, because a label may hold a comma or an
+correctly means tracking quoting, because a label can hold a comma or an
 escaped quote, and no portable SQL does that. `dbtpl` splits it in Go today and
 has the same limitation, so nothing is lost by keeping that where it is.
-`Columns.DataType` returns the text verbatim.
+`Column.DataType` returns the text verbatim.
 
 **The definition of a view** became `dbmeta.Views`, a kind of its own rather
 than a field on `Table`. Reaching the definition costs a join or a function
-call per row, and a caller listing tables should not pay it. Every model but
+call per row, and a caller that lists tables does not pay it. Every model but
 Couchbase answers it.
 
 **The current schema** became `dbmeta.CurrentSchema`, which answers one row and
@@ -203,7 +205,7 @@ same value. PostgreSQL returns the oid, which is what `dbtpl` joins on today.
 Everything else returns the name or the specific name, because nothing else
 here overloads a routine.
 
-## How dbtpl would use dbmeta
+## How dbtpl can use dbmeta
 
 Unlike `usql`, `dbtpl` reads per schema and per table rather than listing, and
 it already passes a context and a `DB` everywhere. The shape fits.
@@ -258,10 +260,10 @@ The five kinds exist, so the order is about risk rather than blocking.
 Move `TableIndexes` and `IndexColumns` first: they map exactly and a mistake
 shows immediately in generated code. Then `Tables` and `TableColumns`, which
 gains `PrimaryKey` in the same row. Then `TableForeignKeys` onto
-`ConstraintColumns`, which is the one that could not be approximated and now
-can be read directly. Then `Procs` and `ProcParams` together, joined on
+`ConstraintColumns`, which is the one that was not possible to approximate
+and now can be read directly. Then `Procs` and `ProcParams` together, joined on
 `Function.ID`.
 
 Leave `Enums` and `EnumValues` where they are for MariaDB and MySQL. `dbmeta`
-answers them only for PostgreSQL and DuckDB, so moving them would mean two
-code paths rather than one.
+answers them only for PostgreSQL, DuckDB and CockroachDB, so moving them means
+two code paths rather than one.

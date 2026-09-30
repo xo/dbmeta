@@ -45,7 +45,7 @@ func routineStmt(kindFilter string) dbmeta.Stmt {
 		always(`, CASE WHEN m.execute_as_principal_id IS NULL THEN 'invoker' ELSE 'definer' END AS "security"`),
 		always(`, NULL AS "access"`),
 		always(`, CASE WHEN o.type IN ('FS', 'FT', 'PC') THEN 'clr' ELSE 'sql' END AS "language"`),
-		always(`, m.definition AS "source"`),
+		always(`, NULL AS "source"`),
 		always(`, ` + commentOn("o.object_id") + ` AS "comment"`),
 		always(`, m.definition AS "definition"`),
 		always(`FROM sys.objects o`),
@@ -78,10 +78,10 @@ func routineFields() []dbmeta.Field {
 		{Name: "language", Desc: "sql, or clr for a routine backed by an assembly"},
 		{
 			Name: "source",
-			Desc: "the CREATE statement, absent for a CLR routine and for one created WITH ENCRYPTION",
+			Desc: "always absent: SQL Server keeps the whole statement, which is definition, and no body apart from it",
 		},
 		{Name: "comment"},
-		{Name: "definition", Desc: "the CREATE statement, the same text as source"},
+		{Name: "definition", Desc: "the CREATE statement, absent for a CLR routine and for one created WITH ENCRYPTION"},
 	}
 }
 
@@ -862,13 +862,9 @@ func registerStats() {
 			always(`, st.name AS "name"`),
 			always(`, '' AS "owner"`),
 			always(`, o.name AS "table"`),
-			// The columns the statistics cover, joined, because the kind has
-			// no field for them and psql prints them inside the kinds line.
-			always(`, 'ndistinct over ' + COALESCE(STUFF((SELECT ', ' + c.name` +
-				` FROM sys.stats_columns sc2` +
-				` JOIN sys.columns c ON c.object_id = sc2.object_id AND c.column_id = sc2.column_id` +
-				` WHERE sc2.object_id = st.object_id AND sc2.stats_id = st.stats_id` +
-				` ORDER BY sc2.stats_column_id FOR XML PATH('')), 1, 2, ''), '') AS "kinds"`),
+			// d is PostgreSQL's letter for ndistinct, the one kind SQL Server
+			// builds over several columns.
+			always(`, 'd' AS "kinds"`),
 			always(`, ` + commentOn("st.object_id") + ` AS "comment"`),
 			always(`, COALESCE(STUFF((SELECT ', ' + QUOTENAME(c.name)` +
 				` FROM sys.stats_columns sc2` +
@@ -900,7 +896,7 @@ func registerStats() {
 			{Name: "table"},
 			{
 				Name: "kinds",
-				Desc: "ndistinct over the columns it covers, in order. SQL Server builds one kind of multi column statistic and does not name it, so the columns go here, which is where psql prints them",
+				Desc: "always d, PostgreSQL's letter for ndistinct: SQL Server builds one kind of statistic over several columns and does not name it",
 			},
 			{Name: "comment"},
 			{Name: "definition", Desc: "the columns it covers, in order, and their table"},

@@ -55,13 +55,14 @@ need no product key and no activation, which is why nothing here activates
 Windows. When the 180 days runs out, `slmgr /rearm` extends it, and that is
 Microsoft's own mechanism rather than a way around one.
 
-The rearm is automatic. `cmd/dbrun/oem/rearm.bat` runs at every startup as a
-scheduled task, reads the grace period, and spends a rearm only when fewer than ten days
-are left. It does not rearm on every boot, because the count is finite, three
-on most of these editions, and a machine that is started often would spend the
-whole budget in a week. A rearm applies at the next start, and the script does
-not restart the machine, because `dbrun` starts one and waits for SQL Server,
-and a reboot underneath that looks exactly like a failed boot.
+The rearm is automatic. `test/cmd/dbrun/oem/rearm.bat` runs at every startup
+as a scheduled task, reads the grace period, and spends a rearm only when fewer
+than ten days are left. It does not rearm on every boot, because the count is
+finite, three on most of these editions. A rearm at every boot spends the whole
+count in a week on a machine that is started often. A rearm applies at the next
+start, and the script does not restart the machine, because `dbrun` starts one
+and waits for SQL Server, and a reboot underneath that looks exactly like a
+failed boot.
 
 When the rearms are spent, `C:\OEM\rearm.log` says so. At that point the
 machine is rebuilt, which takes about an hour, or the release drops to
@@ -78,7 +79,8 @@ at `/oem` to `C:\OEM`, and runs `C:\OEM\install.bat` at the end of setup as
 SYSTEM. That hook is the whole mechanism.
 
 `dbrun provision` writes that directory per release: the SQL Server installer,
-a `ConfigurationFile.ini`, and `install.bat` with four values filled in. Then
+a `ConfigurationFile.ini`, `install.bat` with four values filled in, and
+`rearm.bat`. Then
 it starts the machine and waits. The payload is built into the binary with
 `//go:embed`, so the command works from any directory and has nothing to find.
 The sources are in `test/cmd/dbrun/oem/`.

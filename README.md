@@ -207,7 +207,7 @@ is whichever one the Go driver was built with, neither needs a container, and
 neither model carries a version gate.
 
 Every driver the tests use is the one `usql` uses for that database. The version
-may differ and the package may not, because a query that works here and fails
+can differ and the package must not, because a query that works here and fails
 on the driver `usql` ships is a query that does not work. See D52.
 
 A model ships its queries and a fixture together. The fixture is a known good
@@ -252,7 +252,7 @@ Supported from release 9.6 to release 18, which is ten major versions: 9.6, 10,
 Four releases are Tested: CI starts a real server for each and runs the
 integration tests on every change. They are the floor, the ceiling and one on
 each side of the middle, which is the smallest set that catches every fault
-found so far. Testing only the newest would have caught two of six.
+found so far. Testing only the newest catches two of the six.
 
 The other six are Nightly, and CI runs them once a night. `dbrun` runs any of
 the ten on a development machine.
@@ -281,7 +281,7 @@ Supported on 2017, 2019, 2022 and 2025 in containers, and on 2008R2, 2012,
 
 All four are Tested, and CI starts a real server for each on every change.
 There are only four, and every version gate the model carries sits below all of
-them, so there is no older branch that a smaller matrix would leave uncovered.
+them, so there is no older branch that a smaller matrix leaves uncovered.
 
 2017 is the first release with a Linux container. Microsoft shipped SQL Server
 on Linux from 2017, so the older releases run on Windows machines that `dbrun`
@@ -354,9 +354,10 @@ the container. CI builds its matrix from the same list, and
 container, which is D68. `docs/DBRUN.md` says how to use it.
 
 Every database also answers one checked in expectation. `TestConformance`
-builds the same core schema on PostgreSQL, MariaDB, MySQL, SQLite and DuckDB
-and compares the portable facts, so a difference between two families is either
-fixed or written down. 23 of the canonical lines are identical across all five,
+builds the same core schema on every database with a model and compares the
+portable facts, so a difference between two families is either fixed or written
+down. The relational databases agree on at least 23 of the canonical lines, and
+every database agrees on at least 4,
 and [`COVERAGE.md`](docs/COVERAGE.md) records every difference that is not.
 
 # Related Projects
@@ -366,7 +367,7 @@ a client can take the parts it needs.
 
 - [`usql`][usql] is a command line client for many databases. It is the reason
   the object model follows `psql`. [`USQL.md`](docs/USQL.md) measures what it
-  answers today and what `dbmeta` would change.
+  answers today and what `dbmeta` changes.
 - [`dbtpl`][dbtpl] generates Go code from a database schema. It reads the same
   metadata and it can build against the fixtures here. [`DBTPL.md`](docs/DBTPL.md)
   measures the same thing for it.
@@ -400,8 +401,9 @@ To run the integration tests, start a server and point the test module at it:
 cd test && go run ./cmd/dbrun test postgres-18
 ```
 
-`dbrun test all` runs every supported release of every product, which is what
-has to pass before a release.
+`dbrun test tested nightly verified` runs every supported release of every
+product, which is what has to pass before a release. `dbrun test all` adds the
+Staged releases, which no model reads.
 
 Tests in this module never open a database connection. They render statements,
 resolve versions, and read rows from a fake driver replaying recorded data, so

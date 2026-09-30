@@ -1,6 +1,6 @@
 # D6. Fix the NULL scan defect once, and never hide a NULL
 
-Status: Decided, amended in place.
+Status: Decided, amended in place, D6a superseded by D71.
 
 ## The amendment, and the bug that forced it
 
@@ -50,4 +50,4 @@ for it to go but the code. The rule that replaced it is in D6 above and in
 `docs/NULLS.md`: a field that can be absent is declared `sql.Null[T]`, and a
 `TestNoCoalesceOnCatalogColumns` in the model package guards it.
 
-See "Known defects" below for the evidence that produced it.
+See "Known defects to fix once" in `docs/PLAN.md` for the evidence that produced it.

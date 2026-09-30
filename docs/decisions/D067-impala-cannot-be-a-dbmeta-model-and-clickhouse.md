@@ -1,6 +1,6 @@
 # D67. Impala cannot be a dbmeta model, and ClickHouse goes first
 
-Status: Amends D66.
+Status: Amends D66, amended by D146.
 
 Impala is off the list. It has no catalog a statement can read, and the reader
 D66 wanted moved here does not use SQL, so hard rule 1 forbids moving it.

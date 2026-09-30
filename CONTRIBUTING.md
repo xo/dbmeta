@@ -31,7 +31,7 @@ what CI runs and a weaker command has let failures through twice.
 
 The `test` directory is a separate module and `./...` does not reach it. It
 holds the database drivers, and it is the only place in this repository that
-may use cgo.
+can use cgo.
 
 ```bash
 cd test && go run ./cmd/dbrun test tested
@@ -44,7 +44,7 @@ in `dbrun test postgres`. `dbrun test all` runs every release of every
 product, which is what has to pass before a release. The list also holds
 Staged servers, which no model reads, and which are there for dbimp's drivers
 and for the flavors usql reaches. CI never runs them, and `dbrun test staged`
-measures them again (D119). Each records the cadence it would have, which
+measures them again (D119). Each records the cadence it will have, which
 becomes its tier when its model arrives (D120).
 
 `dbrun` does everything to a database: `start` one and leave it up, `stop` it,

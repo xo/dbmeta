@@ -13,7 +13,7 @@ Vitess answers `VERSION()` with `8.4.6-Vitess`, which names only the MySQL
 release it claims. Its own release is in `@@version_comment`, as
 `Version: 24.0.3`, and the version query reads both. The main version is the
 MySQL release, set under the mysql model's `mysql` key too, so that a shared
-statement takes the fragments it would take on MySQL 8.4.6. Vitess's own
+statement takes the fragments it takes on MySQL 8.4.6. Vitess's own
 release is under the key `vitess`.
 
 ## A schema is a keyspace
@@ -23,7 +23,7 @@ A keyspace is stored in one MySQL database for each shard, named
 the keyspace. Ken first chose on 2026-09-30 that the model reports that name.
 It was then measured that vtgate does not accept it in a query. A SELECT from
 `vt_dbmeta_q_0.t` failed with VT05003, unknown database, and a SELECT from
-`dbmeta_q.t` succeeded, on 24.0.3. So a client could not query a table under
+`dbmeta_q.t` succeeded, on 24.0.3. So a client was not able to query a table under
 the name the model reported, and Ken changed the choice the same day: the
 model reports the keyspace.
 
@@ -46,7 +46,7 @@ it as a user's. So `notSystem` in the mysql model has an alternative under the
 `vitess` key that adds it. `schemaAs` and `schemaLike` have the alternatives
 that read the keyspace. A Vitess alternative must never sit in a choice
 beside one on the `mysql` key, because a Vitess version set reports both keys
-and the two would be ambiguous.
+and the two are ambiguous.
 
 ## What is not shared
 

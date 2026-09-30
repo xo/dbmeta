@@ -45,17 +45,17 @@ var functionFields = []dbmeta.Field{
 	{Name: "schema"}, {Name: "name"},
 	{Name: "id", Desc: "the object id. Exasol does not overload a name, so the name identifies the routine on its own"},
 	{Name: "kind", Desc: "function for a SQL function and for a UDF script, aggregate for a set UDF that returns one value, procedure for a scripting script run with EXECUTE SCRIPT, and adapter for the handler behind a virtual schema"},
-	{Name: "result_type", Desc: "setof record for a UDF that emits rows, and rowcount or table for a scripting script. Absent where the routine returns a single value, because Exasol keeps that type only in the text in source"},
-	{Name: "arg_types", Desc: "always absent: Exasol keeps the parameters only in the text in source"},
+	{Name: "result_type", Desc: "setof record for a UDF that emits rows, and rowcount or table for a scripting script. Absent where the routine returns a single value, because Exasol keeps that type only in the text in definition"},
+	{Name: "arg_types", Desc: "always absent: Exasol keeps the parameters only in the text in definition"},
 	{Name: "volatility", Desc: "always empty: Exasol marks no routine as deterministic or otherwise"},
 	{Name: "parallel", Desc: "always empty: Exasol marks no parallel safety. A UDF runs in parallel across the cluster by design"},
 	{Name: "owner"},
 	{Name: "security", Desc: "always empty: Exasol records no definer or invoker rights on a routine"},
 	{Name: "access", Desc: "always absent: Privileges reads the grants"},
 	{Name: "language", Desc: "SQL for a SQL function, and the script language otherwise, such as LUA, PYTHON3, JAVA or R"},
-	{Name: "source", Desc: "the whole CREATE statement, which is what Exasol stores"},
+	{Name: "source", Desc: "always absent: Exasol keeps the whole statement, which is definition, and no body apart from it"},
 	{Name: "comment", Desc: "from COMMENT ON FUNCTION or COMMENT ON SCRIPT"},
-	{Name: "definition", Desc: "the whole CREATE statement, the same as source"},
+	{Name: "definition", Desc: "the whole CREATE statement, which is what Exasol stores"},
 }
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
@@ -74,7 +74,7 @@ func scriptArm(view, where string) string {
 		`, ` + scriptKind("s") +
 		`, ` + scriptResult("s") +
 		`, '', '', '', s.SCRIPT_OWNER, '', CAST(NULL AS VARCHAR(1))` +
-		`, s.SCRIPT_LANGUAGE, s.SCRIPT_TEXT, s.SCRIPT_COMMENT, s.SCRIPT_TEXT` +
+		`, s.SCRIPT_LANGUAGE, CAST(NULL AS VARCHAR(1)), s.SCRIPT_COMMENT, s.SCRIPT_TEXT` +
 		` FROM ` + view + ` s WHERE ` + where +
 		` AND ` + like(`s.SCRIPT_SCHEMA`, `@schema`) +
 		` AND ` + like(`s.SCRIPT_NAME`, `@name`)
@@ -99,7 +99,7 @@ func registerFunctions() {
 			always(`, '' AS "security"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "access"`),
 			always(`, 'SQL' AS "language"`),
-			always(`, f.FUNCTION_TEXT AS "source"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "source"`),
 			always(`, f.FUNCTION_COMMENT AS "comment"`),
 			always(`, f.FUNCTION_TEXT AS "definition"`),
 			always(`FROM EXA_ALL_FUNCTIONS f`),
@@ -133,7 +133,7 @@ func registerFunctions() {
 			always(`, '' AS "security"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "access"`),
 			always(`, s.SCRIPT_LANGUAGE AS "language"`),
-			always(`, s.SCRIPT_TEXT AS "source"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "source"`),
 			always(`, s.SCRIPT_COMMENT AS "comment"`),
 			always(`, s.SCRIPT_TEXT AS "definition"`),
 			always(`FROM EXA_ALL_SCRIPTS s`),

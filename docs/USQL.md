@@ -77,7 +77,7 @@ The `dburl` registry settles this kind of question now: a scheme that borrows
 another scheme's driver has no `GoPackage`, and `nzgo` has one. See D80.
 
 An earlier version of this section said 47, 20 and 27 without saying which
-build, so it could not be reproduced. The figures here were measured by the
+build, so nobody was able to reproduce them. The figures here were measured by the
 `usql` session with a program that asserts each registered reader against the
 interfaces the dispatch requires, rather than by reading code.
 
@@ -106,10 +106,10 @@ Databend and Netezza, because none implements `CatalogReader`. `\dp` is
 missing on Oracle, godror, SQLite, ClickHouse and Impala, because none
 implements `PrivilegeSummaryReader`. Nothing is missing `\dt`, `\dn` or `\d`.
 
-The 30 with no reader at all include avatica, awsathena, bigquery, chai,
-cosmos, cql, csvq, databricks, exasol, firebirdsql, flightsql, h2, hdb, hive,
-ignite, maxcompute, n1ql, ots, presto, ql, spanner, tds, vertica, voltdb and
-ydb.
+At `382e1da`, the 30 with no reader at all included avatica, awsathena,
+bigquery, chai, cosmos, cql, csvq, databricks, exasol, firebirdsql, flightsql,
+h2, hdb, hive, ignite, maxcompute, n1ql, ots, presto, ql, spanner, tds,
+vertica, voltdb and ydb.
 
 The seven at full marks get there the same way: they are PostgreSQL, or wire
 compatible with it and reusing its reader, or they read `information_schema`.
@@ -131,7 +131,7 @@ extensions, roles, access methods and the rest are all readable from `dbmeta`
 and have nowhere to go in `usql` yet.
 
 So for PostgreSQL the gain is not a command that starts working. It is that
-`usql` could implement four times as many commands without writing SQL.
+`usql` can implement four times as many commands without writing SQL.
 
 It also gains facts `psql` does not print. `Column.PrimaryKey` is the example
 the policy was written around: `usql` reads it per column today and `dbmeta`
@@ -165,7 +165,7 @@ reading code.
 | CrateDB | 11/11 | 3/5 | the sequence and trigger sections: CrateDB has neither |
 | QuestDB | 9/11 | 0/5 | `\di`, because a symbol index is listed only one table at a time, and `\dp`, because the open source edition has no privileges. Every section, because QuestDB has no index, constraint, trigger or sequence it can list |
 | TiDB | 9/11 | 4/5 | `\df` and `\da`, and the trigger section: TiDB has no stored function, procedure or trigger. `\dp` needs 8.5, where the view of table grants has rows |
-| Vitess | 10/11 | 4/5 | `\dp`, because privileges would list the accounts of the tablet's MySQL, which no client of vtgate logs in as. The trigger section, because vtgate refuses CREATE TRIGGER. A schema is the keyspace (D135) |
+| Vitess | 10/11 | 4/5 | `\dp`, because privileges list the accounts of the tablet's MySQL, which no client of vtgate logs in as. The trigger section, because vtgate refuses CREATE TRIGGER. A schema is the keyspace (D135) |
 | Databend | 10/11 | 4/5 | `\dp`, because a grant is listed only by show_grants for one role or user at a time, and the trigger section: Databend has no trigger |
 | SingleStore | 11/11 | 3/5 | the sequence and trigger sections: SingleStore has no sequence and refuses CREATE TRIGGER |
 | Snowflake | 10/11 | 2/5 | not run (D144). `\di`: Snowflake has no index. The index column, trigger and constraint column sections: information_schema has no KEY_COLUMN_USAGE |
@@ -186,10 +186,12 @@ reading code.
 | Exasol | 11/11 | 3/5 | the sequence and trigger sections |
 | Vertica | 11/11 | 5/5 | nothing on 25.1. Below 25.1 there is no trigger section |
 
-Five answer every command and every section: PostgreSQL, MariaDB, SQL
-Server, SAP HANA and Vertica. Every gap in the table is the product having no such object
-rather than the model being unfinished, and each one says so with
-`NotSupported` rather than returning no rows.
+Six answer every command and every section: PostgreSQL, MariaDB, SQL
+Server, SAP HANA, CockroachDB and Vertica. Almost every gap in the table is the
+product having no such object rather than the model being unfinished. There
+are two exceptions. The Redshift model does not read the SVV views that hold
+the privileges, and on Impala `\dp` fails because authorization is off in the
+image. Each gap says so with `NotSupported` rather than returning no rows.
 
 The `usql` side of the comparison is not in this table, because it is
 measured in `usql` and not here, and a copy of somebody else's measurement is
@@ -213,7 +215,7 @@ MariaDB and 26 for MySQL.
 `\dp`. A driver registers a profile saying how it differs from the standard,
 which is tens of lines rather than a reader.
 
-That is the cheapest coverage in this project and it is why it should move
+That is the cheapest coverage in this project, and for that reason it moves
 first. It is one adapter rather than one per driver, and it lands on a set of
 names rather than on one product.
 
@@ -223,43 +225,45 @@ the queries against a real server.
 
 ## The gap, and what closed it
 
-`usql` read three kinds that `dbmeta` could not answer for any database:
-ColumnStats, ConstraintColumns and FunctionColumns. A migration would have lost
-all three. D46 named them, D47 set the policy for adding them, and all three
+`usql` read three kinds that `dbmeta` did not answer for any database:
+ColumnStats, ConstraintColumns and FunctionColumns. At that time, a migration
+lost all three. D46 named them, D47 set the policy for adding them, and all three
 now exist.
 
 `dbmeta.ConstraintColumns` is the column level detail of a constraint: which
 column, in what position, and for a foreign key which column of which table it
-points at. Every model answers it but ClickHouse, Trino, Presto and Couchbase,
-which have no such constraint to read, and SQLite answers it.
+points at. Every model answers it but ClickHouse, Trino, Presto, Couchbase,
+QuestDB, Snowflake, Redshift and Impala, which have no such constraint to read.
+SQLite answers it.
 
 `dbmeta.RoutineParameters` is `usql`'s FunctionColumns: the name, position,
 direction and type of each parameter. PostgreSQL, the MySQL dialect, SQL
-Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase and the shared model
-answer it. SQLite cannot, because a function there is compiled C with no
+Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase, CockroachDB, Vitess,
+SingleStore and the shared model answer it. SQLite cannot, because a function there is compiled C with no
 named parameters, and `COVERAGE.md` says why each of the others cannot.
 
 `dbmeta.ColumnStats` backs `\ss`. PostgreSQL, MariaDB, SQL Server, Oracle, SAP
-HANA and Apache Hive answer it. MySQL, SQLite, DuckDB and Trino cannot, and
-say so rather than returning rows that are almost all absent. `usql`
-implements `\ss` through its PostgreSQL reader, for postgres, pgx, cockroachdb
-and redshift, and through its DuckDB and Trino readers. DuckDB and Trino are
-not covered: `usql` prints statistics there that `dbmeta` refuses, because
-neither keeps a catalog of them that the models read.
+HANA, Apache Hive, CrateDB, Databend, SingleStore and Impala answer it. MySQL,
+SQLite, DuckDB and Trino cannot, and say so rather than returning rows that
+are almost all absent. `usql` implements `\ss` through its PostgreSQL reader,
+for postgres, pgx, cockroachdb and redshift, and through its DuckDB and Trino
+readers. DuckDB, Trino, CockroachDB and Redshift are not covered: `usql` prints
+statistics there that `dbmeta` does not give. DuckDB and Trino keep no catalog
+of them that the models read, and the CockroachDB and Redshift models do not
+answer ColumnStats.
 
 ### What is still missing for a lossless migration
 
-Nothing, for the databases `dbmeta` models, except `\ss` on DuckDB and Trino.
-A migration of those two loses `\ss`, because neither model can answer it.
-Redshift waits on a model of its own, because it has a dialect of its own
-from dburl v0.36.0 (D125).
+Nothing, for the databases `dbmeta` models, except `\ss` on DuckDB, Trino,
+CockroachDB and Redshift. A migration of those four loses `\ss`, because none
+of their models answers it.
 
 Two `usql` reader kinds have no `dbmeta` equivalent by design.
 ConstraintColumns replaces both ConstraintColumns and the column part of
 Constraints, and FunctionColumns became RoutineParameters. The names differ and
 the facts do not.
 
-## How usql would use dbmeta
+## How usql can use dbmeta
 
 The shape is already there. `usql`'s `Reader` interfaces and `dbmeta`'s
 `Query[T]` values line up one for one, so the move is per driver and reversible.
@@ -290,8 +294,10 @@ func (r *reader) Tables(f metadata.Filter) (*metadata.TableSet, error) {
 }
 ```
 
-`dbmeta.Args` is already the same four filters `metadata.Filter` carries, and
-`dbmeta.Queryer` is one method, so whatever `usql` already holds satisfies it.
+`dbmeta.Args` holds six filters: `Catalog`, `Schema`, `Parent`, `Name`,
+`Types` and `WithSystem`. The example copies three of them from
+`metadata.Filter`. `dbmeta.Queryer` is one method, so whatever `usql` already
+holds satisfies it.
 
 Two things the writer gets for free. `Query.Support(m)` says whether a database
 can answer at all, so `usql` can tell "this database has no such object" from
@@ -341,14 +347,14 @@ a case where `usql` has no answer at all.
 | --- | --- | --- | --- |
 | PostgreSQL | `SHOW server_version` | the same | same |
 | SQLite | `SELECT sqlite_version()` | the same | same |
-| Cassandra | `SELECT JSON * FROM system.local`, the whole row as one text | three columns from `system.local` | different statement, same answer |
+| Cassandra | `SELECT JSON * FROM system.local WHERE key = 'local'`, the whole row as one text | three columns from `system.local` | different statement, same answer |
 | ScyllaDB | the same statement as Cassandra | the same three columns | `usql` names the wrong product. It prints "Cassandra 3.0.8", which is the Cassandra release that ScyllaDB keeps compatible with. `dbmeta` finds ScyllaDB by the `supported_features` column, then runs `SELECT version FROM system.versions WHERE key = 'local'` for the ScyllaDB release, and prints both. A caller that runs the statements itself asks `Dialect.FollowUpQuery` for the second one. See D92. Measured on 2025.1 and 2026.3 on 2026-09-27 |
 | MariaDB | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |
 | MySQL | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |
 | ClickHouse | `SELECT version()` | no function, so the generic `SELECT version();` | same answer |
 | DuckDB | `SELECT version()` | `SELECT library_version FROM pragma_version()` | different statement, same answer |
 | Trino | `SELECT version()` | `SELECT node_version FROM system.runtime.nodes LIMIT 1` | different statement, same answer |
-| Presto | `SELECT node_version FROM system.runtime.nodes WHERE coordinator = true LIMIT 1` | the same, without the coordinator filter | same answer, and `usql` may read a worker on a cluster |
+| Presto | `SELECT node_version FROM system.runtime.nodes WHERE coordinator = true LIMIT 1` | the same, without the coordinator filter | same answer, and on a cluster `usql` can read a worker |
 | Firebird | `SELECT rdb$get_context('SYSTEM', 'ENGINE_VERSION') FROM rdb$database` | the same statement | the same answer, and `usql` prefixes the word Firebird |
 | Apache Hive | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement, and Hive has the function, so the fallback works |
 | SAP HANA | `SELECT VERSION FROM SYS.M_DATABASE` | the same statement, lower cased | the same answer, and `usql` prefixes the words SAP HANA |
@@ -368,7 +374,8 @@ a case where `usql` has no answer at all.
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and **`usql` fails for everybody else** |
 
-Measured on a live server of each, on 2026-09-26.
+Each row that gives no date of its own, and does not say it was not measured,
+was measured on a live server on 2026-09-26.
 
 #### Oracle, where usql reads a view an ordinary user cannot
 
@@ -439,7 +446,7 @@ On MariaDB the suffix carries the product, so `usql` reads
 by design. `dbmeta` reads the same string and names the product from the same
 suffix its queries gate on, so the two cannot drift apart. See D44.
 
-This is the one place `usql` would gain from the move without a new query.
+This is the one place where `usql` gains from the move without a new query.
 
 ### SQL Server, where usql is thinner than its own specification
 
@@ -466,7 +473,7 @@ dbmeta   SQLite 3.53.4           with either
 driver, and under D47 the consumer decides what to show. A consumer that wants
 to name its driver prepends that itself.
 
-This is the one line a move would change, so it is written down rather than
+This is the one line that a move changes, so it is written down rather than
 discovered later.
 
 `TestTheDisplayLineNamesTheProduct` in the `test` module pins the shape per
@@ -486,7 +493,7 @@ The escaping needs the server, because whether a backslash escapes inside a
 string literal is `sql_mode` on MySQL and MariaDB and
 `standard_conforming_strings` on PostgreSQL, and `Dialect.Quoting` reads it.
 
-That makes this the second thing a move would fix rather than merely relocate,
+That makes this the second thing that a move fixes rather than merely relocates,
 alongside the version line for MySQL. See D56.
 
 Vertica's is moved, and it fixes the same fault. `usql`'s Vertica driver
@@ -505,14 +512,19 @@ there is no session state to read. D87 has the rest.
 Every product whose driver in `usql` changes a password has a statement here.
 Netezza was the one other, and it is out of scope (D132). Each one is tested by setting every
 password in `hostilePasswords` on a real server and logging in with it (D127).
+Redshift and Snowflake are the exceptions, because no server is provisioned
+for either (D144). Vitess has no statement, because vtgate refuses ALTER USER.
 
 | Product | Statement | Quoting |
 | --- | --- | --- |
 | PostgreSQL, CockroachDB, CrateDB | `ALTER USER "<user>" PASSWORD '<password>'`, and `SET (password = ...)` on CrateDB | a string literal, with a backslash doubled when `standard_conforming_strings` is off |
-| MySQL and MariaDB | `ALTER USER '<user>'@'<host>' IDENTIFIED BY '<password>'` | a string literal, with a backslash doubled unless `sql_mode` has `NO_BACKSLASH_ESCAPES` |
+| MySQL, MariaDB, TiDB and SingleStore | `ALTER USER '<user>'@'<host>' IDENTIFIED BY '<password>'` | a string literal, with a backslash doubled unless `sql_mode` has `NO_BACKSLASH_ESCAPES` |
 | SQL Server | `ALTER LOGIN [<login>] WITH PASSWORD = N'<password>'`, and `OLD_PASSWORD` when given | a string literal, and `]` doubled in the login |
 | Oracle | `ALTER USER "<USER>" IDENTIFIED BY "<password>"`, and `REPLACE` when given | a quoted identifier. A plain name folds to upper case, and a double quote is refused |
 | Vertica | `ALTER USER "<user>" IDENTIFIED BY '<password>'`, and `REPLACE` when given | as PostgreSQL |
 | Exasol | `ALTER USER "<user>" IDENTIFIED BY "<password>"`, and `REPLACE` when given | a quoted identifier, with a double quote doubled |
 | ClickHouse | ``ALTER USER `<user>` IDENTIFIED BY '<password>'`` | a backslash always doubled, in the literal and in the name |
 | Cassandra and ScyllaDB | `ALTER ROLE "<role>" WITH PASSWORD = '<password>'` | a string literal with no backslash escape |
+| Amazon Redshift | `ALTER USER "<user>" PASSWORD '<password>'` | a string literal, with a backslash always doubled |
+| Snowflake | `ALTER USER "<user>" SET PASSWORD = '<password>'` | a string literal, with a backslash always doubled |
+| Databend | `ALTER USER '<user>' IDENTIFIED BY '<password>'` | a string literal for the user and the password, with a backslash always doubled |

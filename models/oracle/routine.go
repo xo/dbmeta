@@ -88,7 +88,7 @@ func procedureFields() []dbmeta.Field {
 		{
 			Name: "definition",
 			Desc: "always absent, for the same reason as source. DBMS_METADATA.GET_DDL" +
-				" builds it, and it is a call for each row",
+				" builds it, and it runs statements of its own for each row",
 		},
 	}
 }

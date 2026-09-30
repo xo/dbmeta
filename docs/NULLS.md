@@ -41,7 +41,7 @@ Demonstrated on a live PostgreSQL 18 server:
 **Do this instead.** Let the NULL through and give the field the type
 [`sql.Null[string]`],
 which is `sql.Null[string]`. Reading `.V` prints empty for an absent value, so
-a command line client behaves as it would have. Reading `.Valid` recovers the
+a command line client behaves as it did before. Reading `.Valid` recovers the
 difference for anyone who needs it, and a code generator does.
 
 **COALESCE is still right over an aggregate that matched no rows.** "No
@@ -74,7 +74,7 @@ bounds below 10.
 **Genuinely this.** The release had one behaviour and that behaviour is the
 answer. Do not pad, do not set `Field.Min` to hide it, and say so in the
 field's description. Three examples. A publication publishes no truncate below
-release 11, because truncate could not be replicated at all. A role membership
+release 11, because there was no way to replicate a truncate at all. A role membership
 always inherits below release 16, because there was no other option. A
 collation is always deterministic below release 12.
 
@@ -94,8 +94,8 @@ or `options`.
 against each PostgreSQL release and asserts that a field whose `Field.Min` is
 above the server version is NULL in every row. This is the one that works, and
 it is also what replaces a golden file per release: ten releases times
-fifty-five queries is five hundred and fifty combinations that nobody would
-maintain, and `Field.Min` already declares what each of them should contain.
+fifty-six queries is five hundred and sixty combinations that nobody can
+maintain, and `Field.Min` already declares what each of them must contain.
 
 Running the queries. Every fault above was invisible to a test that only
 assembled SQL.

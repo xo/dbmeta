@@ -1,6 +1,6 @@
 # D48. cgo is allowed in the test module, and nowhere else
 
-Status: Amends D26, D29 and D35.
+Status: Amends D26 and D29, supersedes D35.
 
 The root module has no driver and no cgo, and that does not change. A consumer
 builds it with `CGO_ENABLED=0` and cross compiles it, because there is nothing

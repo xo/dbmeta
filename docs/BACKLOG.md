@@ -78,7 +78,7 @@ under Oracle.
 
 Gemini and Gemini Pro named SingleStore's histograms for extended
 statistics (D141). PostgreSQL's extended statistics cover several columns,
-and CORRELATED_COLUMN_STATISTICS may too. Build correlated statistics in the
+and it is not known whether CORRELATED_COLUMN_STATISTICS does. Build correlated statistics in the
 SingleStore fixture, read the view, and decide whether it answers
 ExtendedStats.
 
@@ -89,6 +89,15 @@ On 2026-09-30 the tier run failed once on `hana-2.00.088`. checkTypes in
 alone. The same test passed when it ran again on its own. Nothing in the
 fixture makes a view between the two reads, so HANA made or dropped a view
 of its own. Find which one, and whether checkTypes has to leave it out.
+
+### Measure Oracle's column groups for ExtendedStats
+
+D43's pass for Oracle left out `ALL_STAT_EXTENSIONS`, because the view holds
+an expression and ExtendedStat had no field for one. `ExtendedStat.Definition`
+holds it now (D147). Build a column group in the Oracle fixture, read the
+view, and decide what Oracle records for Ndistinct, Dependencies and MCV. If
+nothing answers them, the kind stays unanswered, because the three are not
+nullable. docs/COVERAGE.md has the first finding, under Oracle.
 
 ### Run the Snowflake and Redshift models
 
@@ -129,5 +138,5 @@ decision beside D56 before any of it lands here.
 ### dbtpl reads metadata through dbmeta
 
 [`DBTPL.md`](DBTPL.md) holds which of the nine reads `dbtpl` needs each model
-answers, and whether `dbtpl` could generate from each database. `dbtpl` does
+answers, and whether `dbtpl` can generate from each database. `dbtpl` does
 not read `dbmeta` yet.

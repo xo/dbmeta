@@ -251,8 +251,13 @@ type Function struct {
 	Security   string
 	Access     sql.Null[string]
 	Language   string
-	Source     sql.Null[string]
-	Comment    sql.Null[string]
+	// Source is what the product keeps apart from the whole statement: the
+	// body, or for a PostgreSQL function in C or internal code, the name of
+	// the C function it runs. It is absent
+	// where the product keeps only the whole statement, which is Definition.
+	// See D147.
+	Source  sql.Null[string]
+	Comment sql.Null[string]
 	// Definition is the whole statement that makes the routine, such as
 	// pg_get_functiondef returns, which psql's \sf prints. It is absent where
 	// the product keeps only the body, which is Source, or keeps nothing.

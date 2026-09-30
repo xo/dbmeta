@@ -1,6 +1,6 @@
 # D71. Nothing here is generated. The models are written
 
-Status: Amends D2, D12 and D30, supersedes D11.
+Status: Amends D2, D12 and D30, supersedes D11 and D6a.
 
 No generator runs in this repository. There is no `tool` directive in either
 `go.mod`, no `go:generate` anywhere, and no file carries a generated header.

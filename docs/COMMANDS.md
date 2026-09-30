@@ -25,7 +25,7 @@ value, and `Fields`, `Params` and `Support` describe it. See the package
 documentation.
 
 `usql today` says whether `usql` currently implements that command at all. It
-implements twelve of them, so most of this table is capability that exists in
+implements eleven of them, so most of this table is capability that exists in
 `dbmeta` and has no consumer yet.
 
 ## Relations
@@ -175,10 +175,11 @@ obviously right for a histogram.
 The shape taken is PostgreSQL's, with every field nullable. A database that
 computes something reports it and a database that does not reports absent,
 which is the padding rule applied to a kind rather than to a release.
-PostgreSQL, MariaDB, SQL Server, Oracle, SAP HANA and Apache Hive answer. MySQL,
-SQLite and the other models report `ErrNotSupported`,
-because neither has a width, a null fraction or a distinct count to give, and a
-row of absences would be worse than no row. See COVERAGE.md.
+PostgreSQL, MariaDB, SQL Server, Oracle, SAP HANA, Apache Hive, CrateDB,
+Databend, SingleStore and Impala answer. MySQL, SQLite and the other models
+report `ErrNotSupported`, because none of them has a width, a null fraction or
+a distinct count to give. A row of absences is worse than no row. See
+COVERAGE.md.
 
 `\sf` and `\sv` show the source of a function or a view. They live outside
 `describe.c` and are not part of the 49, so they are not in this table.
@@ -236,8 +237,9 @@ one of them shares the statements of the model it imitates where they answer
 (D123, D125).
 
 `Query.Support` decides whether to offer a command. It returns `NotBuilt` when
-the model was left out of the binary by a build tag and `NotSupported` when the
-database has no such object, and those are different messages to a person.
+the model was left out of the binary by a build tag, `NotSupported` when the
+database has no such object, and `TooOld` when the product has the object and
+this release of it does not. Those are three different messages to a person.
 
 Rendering stays in `usql`. D5 keeps the `tblfmt` writer there, so the loop is
 to read rows from a `Query` and hand them to the existing writer. The old

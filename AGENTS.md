@@ -132,7 +132,7 @@ something is written down, it is not written down, and it is an open question.
    four are values of `container.Tier` and Archived is not, because an
    archived release is one `container.All` does not name. A release is Staged
    exactly when no model reads it. A Staged release records the cadence it
-   would have, Tested, Nightly or Verified, and takes it as its tier in the
+   will have, Tested, Nightly or Verified, and takes it as its tier in the
    change that adds its model. See D40, D42, D119 and D120.
 5. A query translated from a source tree that upstream no longer ships records
    the release and commit of that tree beside the query. PostgreSQL 9.6 is the
@@ -154,7 +154,7 @@ something is written down, it is not written down, and it is an open question.
 10. The root module is pure Go and has no cgo, ever. It has no driver at all,
    so there is nothing to argue about: a consumer builds it with
    `CGO_ENABLED=0` and cross compiles it.
-   The `test` module may use cgo, because its own `go.mod` keeps it out of
+   The `test` module can use cgo, because its own `go.mod` keeps it out of
    everything a consumer builds. Where a database has a canonical cgo driver
    and a pure Go one, test both: the canonical driver is what users run, and
    the pure Go one is what a consumer who cannot use cgo runs, and the two
@@ -176,7 +176,7 @@ something is written down, it is not written down, and it is an open question.
    printed output never found that. `docs/USQL.md` holds the measurement.
    `TestEveryModelIsInTheVersionTable` fails when a model has no row. See D38.
    Every driver in the `test` module is the one `usql` uses for that database.
-   The version may differ and the package may not. Where `usql` ships two for
+   The version can differ and the package must not. Where `usql` ships two for
    one database, test both as subtests named for the driver: SQLite runs on
    `mattn/go-sqlite3` and `modernc.org/sqlite`, and PostgreSQL on
    `jackc/pgx/v5/stdlib` and `lib/pq`. There are two exceptions. Parity is
@@ -197,7 +197,7 @@ something is written down, it is not written down, and it is an open question.
 11. Never write a `//go:build` constraint on an operating system or an
    architecture, and never branch on either. Testing is `linux/amd64` only.
    The same database version is assumed to answer the same way everywhere.
-   A driver may carry its own platform builds, which is the driver's business.
+   A driver can carry its own platform builds, which is the driver's business.
 12. Write idiomatic Go. This code is a move of an older package, so a pattern
    being present in the source is not a reason to keep it. See D18 in
    `docs/decisions/` for the two patterns that must not carry over.
@@ -205,9 +205,9 @@ something is written down, it is not written down, and it is an open question.
    withhold a fact, reorder one, or shape a result so that somebody's output
    looks right. `usql` filters to match `psql` and `dbtpl` shows none of it,
    and one set of queries serves both because no presentation is baked in.
-   A field may be added when one statement can produce it: a column already in
+   A field can be added when one statement can produce it: a column already in
    the row, a column reached by a join, or a correlated subquery whose plan
-   stays bounded as the catalog grows. It may not when it needs a second
+   stays bounded as the catalog grows. It cannot when it needs a second
    statement, a per row round trip, or a scan that grows with the whole
    catalog. Check a new one with `EXPLAIN` against a catalog with thousands of
    tables, not against a fixture with five.
@@ -299,12 +299,12 @@ something is written down, it is not written down, and it is an open question.
   the queries read, so the settings are baked in. `dbrun` embeds the file and
   builds the image when it is missing.
 - `test/` is a separate module with its own `go.mod`. It holds the integration
-  tests and the database drivers. Neither may appear in the root module. It is
+  tests and the database drivers. Neither can appear in the root module. It is
   the only place cgo is allowed, and the separate `go.mod` is what makes that
   safe.
 
 Read an existing model before you write one. `models/postgres` is the primary
-one and `models/sqlite3` is the smallest.
+one and `models/sqlite3` is a small one.
 
 ## Writing a model
 
@@ -358,7 +358,7 @@ absent column with a literal. Give the field the type `sql.Null[string]`, or
 `sql.Null[T]` for whatever T it is, and select `NULL AS "name"`. There is no
 alias for a nullable type and there must not be one: a reader of
 `go doc dbmeta.Sequence` learns from the field itself that it can be absent,
-and would not from a name like `Text`. See D51. Before padding, ask whether the value on the old release is
+and does not learn it from a name like `Text`. See D51. Before padding, ask whether the value on the old release is
 unknown or genuinely that value, and set `Field.Min` only for the first.
 
 Declare sentinel errors as constants of a defined string type, never as
@@ -453,8 +453,8 @@ with no body. `exhaustive` is disabled.
 
 A guard that can never fire is not a fix. `gosec` wanted a bound on a
 conversion of a PostgreSQL `server_version_num`, which is six digits, and the
-guard first written for it tested the wrong quantity and could never have
-fired. That warning is excluded with its reason.
+guard first written for it tested the wrong quantity and was never able to
+fire. That warning is excluded with its reason.
 
 Read `golangci-lint run` output as a list of questions, not a list of tasks.
 

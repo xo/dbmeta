@@ -5,7 +5,7 @@ Status: Decided.
 ## What Ken decided
 
 usql kept facts about each product's SQL on its per-driver struct,
-`drivers.Driver`, so two drivers of one product could disagree, and a
+`drivers.Driver`, so two drivers of one product were able to disagree, and a
 product with a model in dbmeta had its knowledge in two places. Ken went
 through every field in usql's session on 2026-09-30, after Gemini Pro and
 DeepSeek had sorted them, and moved the ones that are the product's grammar

@@ -451,7 +451,7 @@ func registerRoutines() {
 			{Name: "access", Desc: "always absent: a grant on a function is not in information_schema"},
 			{Name: "language", Desc: "sql, javascript, python, java or scala"},
 			{Name: "source"}, {Name: "comment"},
-			{Name: "definition", Desc: "always absent: information_schema keeps the body, which is source, and GET_DDL is a call for each row"},
+			{Name: "definition", Desc: "always absent: information_schema keeps the body, which is source, and GET_DDL is not measured yet"},
 		},
 		Params: schemaNameSystem("function"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {

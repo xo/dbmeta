@@ -38,7 +38,7 @@ change.
 
 ## Part 1. What psql describes
 
-`describe.c` holds 54 function definitions. Five are helpers, so there are 49
+`describe.c` holds 55 function definitions. Six are helpers, so there are 49
 entry points. Each one backs a backslash command.
 
 One entry point is new since the release 15 tree: `describeRoleGrants`, which
@@ -358,7 +358,7 @@ already ranks them this way and the survey supports it.
 ### psql never reads information_schema
 
 Worth stating because it is easy to assume otherwise. `describe.c` mentions
-`information_schema` seventeen times, and every one is
+`information_schema` eighteen times, and every one is
 `n.nspname <> 'information_schema'`, excluding it from results as a system
 schema. psql reads `pg_catalog` and nothing else.
 
@@ -373,8 +373,8 @@ surprised. A database with only `information_schema` answers nine of forty
 eight. This is exactly the case D34 is for, and it is why an empty result must
 never stand in for "cannot ask".
 
-It also confirms the narrowing of D9. If the ranking required every database to
-answer all forty eight, almost every cell would be an error.
+It also confirms the narrowing of D9. A ranking that requires every database
+to answer all forty eight makes almost every cell an error.
 
 ### The column detail is in information_schema, not in psql
 

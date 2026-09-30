@@ -169,13 +169,13 @@ whole answer.
 | `EventTriggers` | A trigger fires on a row, never on a statement that changes the schema. |
 | `RoleSettings`, `DefaultACLs` | A setting belongs to a session or to the server, never to a role. A grant applies to what exists, never to what will be created. |
 | `Publications`, `PublicationTables`, `Subscriptions` | MariaDB replicates a binary log, not a named set of tables. There is no publication to name and no subscription to list. |
-| `TextSearchParsers`, `TextSearchDictionaries`, `TextSearchTemplates`, `TextSearchConfigs` | Full text search is a `FULLTEXT` index with a built in tokenizer. None of its four parts is a nameable object. |
+| `TextSearchParsers`, `TextSearchDictionaries`, `TextSearchTemplates`, `TextSearchConfigs`, `TextSearchConfigMaps` | Full text search is a `FULLTEXT` index with a built in tokenizer. None of its parts is a nameable object, so there is nothing to map either. |
 | `ExtensionObjects` | A plugin owns no SQL objects, so there is nothing to list as belonging to one. |
 
 ### Analogues that were found and rejected
 
 Two AI models were asked what MariaDB holds for the 29 questions the first pass
-could not answer, which is the rule D43 sets. Both named analogues that do not
+did not answer, which is the rule D43 sets. Both named analogues that do not
 survive a look at a running server. They are recorded here so that the next
 person does not find them again and reach the other conclusion.
 
@@ -184,8 +184,8 @@ table exists and it has the right columns, and on MariaDB 11.8 it returns no
 rows and can never return any: it is the MySQL Cluster table, kept for
 compatibility. `information_schema.INNODB_SYS_TABLESPACES` does return rows,
 and each row is one file behind one table, not a named place an administrator
-created. Listing `dbmeta_fixture/book` as a tablespace would teach a caller
-something false.
+created. A list that names `dbmeta_fixture/book` as a tablespace teaches a
+caller something false.
 
 `information_schema.ENGINES` for `ForeignDataWrappers`. An engine is already
 the answer for `AccessMethods`, and an engine is not a wrapper: it is not named
@@ -204,7 +204,7 @@ a different thing with a similar name.
 parser, so this one is close. It was rejected because the built in parser is
 not a plugin and does not appear, so a default install answers with no rows
 while full text search works. `psql` lists the built in parser for `\dFp`, and
-an empty answer here would read as "this server has no full text search".
+an empty answer here reads as "this server has no full text search".
 
 `mysql.slave_master_info` for `Subscriptions`. MariaDB does not have that
 table. It keeps master information in a file, and `SHOW SLAVE STATUS` is the
@@ -213,13 +213,11 @@ way to read it, which is not a catalog query.
 ### Catalogs MariaDB has that no question asks for
 
 These hold real metadata and no `psql` command maps onto them, so `dbmeta` does
-not read them. A later question could.
+not read them. A later question can.
 
 `information_schema.EVENTS` holds scheduled events, which PostgreSQL has no
 form of. `information_schema.PERIODS` holds application time periods. It is present on
-11.8 and absent on 10.6, so a query for it needs a version gate. `information_schema.PARAMETERS` holds routine
-parameters, which `dbmeta.Functions` reports as absent because PostgreSQL packs
-them into one string.
+11.8 and absent on 10.6, so a query for it needs a version gate.
 
 ## SQLite
 
@@ -297,7 +295,7 @@ caller can change, which is what `\dconfig` means.
 ### Analogues that were found and rejected
 
 Two AI models were asked what SQLite holds for the 37 questions the first pass
-could not answer, which is the rule D43 sets. They agreed on almost all of it,
+did not answer, which is the rule D43 sets. They agreed on almost all of it,
 and every rejection below is theirs as well as mine.
 
 `sqlite_sequence` for `Sequences`. It exists only when a table uses
@@ -312,7 +310,7 @@ extension, it is not an index method, and nothing wraps foreign data with it.
 A virtual table for `ForeignTables`, the way a `FEDERATED` engine answers for
 MariaDB. This one looked right and it is not: a virtual table is also how
 SQLite does full text search, JSON and R-trees, so most of what the query
-returned would be local data.
+returns is local data.
 
 `pragma_compile_options` for `Settings`, rejected above.
 
@@ -321,16 +319,16 @@ PostgreSQL's `pg_statistic`, not the `CREATE STATISTICS` objects that `\dX`
 lists.
 
 `pragma_table_xinfo.type` for `Types`. A declared type in SQLite is an
-unenforced affinity hint. Presenting a column of them as a type catalog would
-suggest a check that does not happen.
+unenforced affinity hint. A column of them presented as a type catalog
+suggests a check that does not happen.
 
 `pragma_function_list` type `a` and `w` for `Aggregates`. This is the one the
 models split on, and running it settled it against both. Gemini said to map
 both and called it exact. DeepSeek said to map only `a`. On a real server,
 `sum`, `count`, `avg` and `group_concat` all report as `w`, and so do
 `row_number`, `rank` and `lag`. Type `a` matched one function, an extension.
-So mapping `w` would list `row_number` as an aggregate and mapping `a` would
-omit `sum`. Both mislead, there is no third option, and SQLite simply cannot
+If the query maps `w`, it lists `row_number` as an aggregate. If it maps `a`,
+it omits `sum`. Both mislead, there is no third option, and SQLite cannot
 tell an aggregate from a window function. `Aggregates` is unsupported and
 `Functions` reports the kind SQLite reports.
 
@@ -415,7 +413,7 @@ is the only thing in Cassandra that cannot be null.
 CQL orders rows within one partition and by a clustering column. A result that
 spans partitions arrives in token order, so the same query can return the same
 rows in another order on another cluster. No query writes `ORDER BY`, because
-one would not make the answer ordered.
+one does not make the answer ordered.
 
 ### What the fixture builds, and what it needs
 
@@ -457,8 +455,8 @@ Cassandra is in `test/testdata/conformance.txt` under `[cassandra]`, and it
 agrees with the relational databases on less than they agree with each other.
 That is why `TestConformanceAgreementHolds` now measures twice: the relational
 databases against the floor they have always held, and every database against
-a smaller one. Counting Cassandra with the rest would drop the floor from 23
-lines to 6 and leave it too low to notice a regression anywhere.
+a smaller one. If Cassandra counts with the rest, the floor drops from 23
+lines to 6 and is too low to notice a regression anywhere.
 
 Two differences and neither is a fault. There is no `table recent view` line,
 because `Tables` returns no view: a materialized view is in
@@ -663,9 +661,9 @@ The conformance projection contributes no constraint lines for ClickHouse.
 There is no primary key constraint, no foreign key and no unique constraint,
 and `system.constraints` holds the expression a CHECK asserts rather than the
 columns behind it, so the model registers `Constraints` and not
-`ConstraintColumns`. Counting ClickHouse in the cross family agreement number
-would take it from 23 lines to 14, so it is measured separately for a stated
-reason, the way Cassandra is.
+`ConstraintColumns`. If ClickHouse counts in the cross family agreement
+number, the number drops from 23 lines to 14. So ClickHouse is measured
+separately for a stated reason, the way Cassandra is.
 
 ### What the fixture cannot build
 
@@ -686,8 +684,8 @@ large object, no text search object of the shape psql names, and no user
 defined type: Enum, Array and Tuple are spelled inside a column's type rather
 than declared.
 
-`EnumValues` would mean parsing the enum out of a type string, which is not a
-catalog read. `RoutineParameters` is absent because a ClickHouse function is
+To answer `EnumValues`, a query must parse the enum out of a type string,
+which is not a catalog read. `RoutineParameters` is absent because a ClickHouse function is
 overloaded across types and `system.functions` records no signature.
 `ColumnStats` is absent: `system.columns` carries compressed and uncompressed
 sizes and nothing about distribution, and what `system.parts` holds is per
@@ -708,15 +706,15 @@ three. Trino has all three. A table is `catalog.schema.name`, a catalog is a
 configured connector, and one server reaches many at once.
 
 So Trino is the only model that answers a catalog filter, and
-[`dbmeta.Args`](../args.go) has carried the field all along waiting for it.
+[`dbmeta.Args`](../filter.go) has carried the field all along waiting for it.
 
 ### system.jdbc, not information_schema
 
 Trino ships an `information_schema` inside every catalog and a `system`
 catalog beside them, and the two differ in reach. A query against
 `memory.information_schema.tables` sees the memory catalog and nothing else,
-and the catalog cannot come from a bind parameter, so a filter naming a second
-catalog would return nothing rather than an answer. That is a wrong answer
+and the catalog cannot come from a bind parameter, so a filter that names a second
+catalog returns nothing rather than an answer. That is a wrong answer
 rather than an empty one, which rule 13 does not allow. The tables under
 `system.jdbc` span every catalog the server has.
 
@@ -740,7 +738,7 @@ connector can back several.
 Views. No cross catalog source carries a view definition:
 `system.metadata.materialized_views` has one and covers materialized views
 only, and a plain view's definition lives in the `information_schema.views` of
-its own catalog. Reading every catalog would mean one statement per catalog,
+its own catalog. A read of every catalog takes one statement per catalog,
 which rule 13 forbids.
 
 So Views reads the session catalog, and its `schema` parameter says so where a
@@ -825,7 +823,7 @@ A connector that partitions, such as Hive, does.
 
 PartitionedTables is left unanswered on that basis rather than on absence. The
 source exists and no connector in the test image populates it, so rule 9 has
-no object to build and the query would be verified against nothing.
+no object to build and nothing to verify the query against.
 
 ### Which answers depend on who is asking
 
@@ -879,8 +877,8 @@ and names are unique across the database. Firebird 6.0 adds SQL schemas and is
 out of range.
 
 So `Schemas` and `CurrentSchema` report `NotSupported`, and every other query
-returns an empty schema. An invented name would be indistinguishable from a
-real one to a caller that cannot see the server, and an empty result must never
+returns an empty schema. A caller that cannot see the server is not able to
+tell an invented name from a real one, and an empty result must never
 stand in for `NotSupported`, which is D34. `TestFirebirdSchemasAreNotSupported`
 holds both halves of that.
 
@@ -907,8 +905,8 @@ and the join every other constraint uses cannot reach its columns. Firebird
 implements a check with a pair of system triggers and records the columns as
 those triggers' rows in `RDB$DEPENDENCIES`, and nowhere else. That is the
 second arm of `ConstraintColumns`, and `TestFirebirdCheckConstraintColumns`
-exists so that it cannot quietly stop working: without it the result would
-merely be a shorter list.
+exists so that it cannot quietly stop working: without it the result is
+a shorter list.
 
 A foreign key names the unique constraint it references rather than the table,
 so reaching the target column takes three more joins: to `RDB$REF_CONSTRAINTS`
@@ -926,7 +924,7 @@ a caller names.
 
 ### What it cannot answer, and why
 
-Thirty-one kinds have no answer and every one of them is absent from the
+Thirty-two kinds have no answer and every one of them is absent from the
 product rather than hidden by the catalog.
 
 There are no schemas, no tablespaces, no user defined casts, no operators, no
@@ -946,7 +944,7 @@ list, so this is absence rather than reach.
 `RDB$INDEX_SEGMENTS.RDB$STATISTICS` holds a selectivity, but it is an index
 prefix selectivity rather than a per column statistic, and it is none of the
 things `ColumnStat` carries: no average width, no null fraction, no distinct
-count, no most common values. Reporting it would be a different number under
+count, no most common values. A report of it gives a different number under
 the same name.
 
 `Languages` is the one analogue left unsupported as a stretch, which rule 14
@@ -954,7 +952,7 @@ asks for explicitly. `RDB$FUNCTIONS.RDB$ENGINE_NAME` and the same column on
 `RDB$PROCEDURES` name the external engine a routine is written for, so the
 engines actually in use are derivable in one statement. That is a list of
 languages in use and not a catalog of languages installed, and Firebird has no
-catalog of the second. An unused engine would be missing and a caller could not
+catalog of the second. That list misses an unused engine, and a caller cannot
 tell. The fact is not lost: `Function.Language` carries it per routine, which
 is where Firebird records it.
 
@@ -1006,7 +1004,7 @@ carries a gate and is skipped on 3.0 for the same reason `Publications` reports
 
 It creates no user, and that is deliberate rather than a gap. A Firebird user
 lives in the server's security database, which every database on that server
-shares, so creating one from a fixture would change a database the test never
+shares, so a user that a fixture creates changes a database the test never
 opened. `test/parity_test.go` creates its principal and removes it again,
 because a parity test has to.
 
@@ -1057,7 +1055,9 @@ its own and closes it. That was measured against Firebird 5.0.4 with
 ## SAP HANA
 
 `models/hana` answers 32 of the 56, against SAP HANA 2.00.088, which is
-Tested, and 2.00.076 and 2.00.082, which run nightly. It is the second richest answer here after PostgreSQL's.
+Tested, and 2.00.076 and 2.00.082, which run nightly. It ties SQL Server for
+the richest answer after PostgreSQL and CockroachDB, which shares the
+PostgreSQL model.
 
 ### It reads SYS, and there is a lot of it
 
@@ -1132,7 +1132,7 @@ referenced constraint.
 
 ### What it cannot answer
 
-23 kinds, and every one because HANA has no such object.
+24 kinds, and every one because HANA has no such object.
 
 There is no `CREATE DOMAIN`, no enumerated type, no user defined cast,
 operator or aggregate, no tablespace, no DDL or event trigger, no publication,
@@ -1223,7 +1223,7 @@ without a trigger, so there is no equivalent to follow.
 
 Ten queries answer differently for a user that is not the administrator,
 which is the most of any product here. That is HANA rather than the model:
-almost every SYS view filters itself by what the reader may see, so a grantee
+almost every SYS view filters itself by what the reader is allowed to see, so a grantee
 sees fewer collations, fewer databases, fewer adapters and fewer settings, as
 well as fewer roles and grants.
 
@@ -1284,7 +1284,7 @@ it does not appear in `COLUMNS_V2` at all, so `Columns` does not report it
 and `PartitionedTables` does.
 `TestHivePartitionColumnIsNotAColumn` asserts both halves, because a caller
 that reads only `Columns` sees a table without its partition column and that
-absence would otherwise look like a bug.
+absence otherwise looks like a bug.
 
 A SerDe is how Hive reads and writes a table's rows, which is the question
 an access method answers, so `AccessMethods` reports the SerDe classes in
@@ -1313,7 +1313,7 @@ derived table and the comment on it records the measurement.
 
 ### What it cannot answer
 
-39 kinds, and almost all of them because Hive has no such object.
+40 kinds, and almost all of them because Hive has no such object.
 
 Indexes were removed in Hive 3.0 and there is no statement that makes one,
 so `Indexes` and `IndexColumns` have no answer. There are no sequences, no
@@ -1347,8 +1347,8 @@ what was asked for. It holds the metastore's internal identifier allocator:
 	org.apache.hadoop.hive.metastore.model.MDatabase = 11
 	org.apache.hadoop.hive.metastore.model.MRole = 11
 
-Reporting that as `Sequences` would have shipped a wrong answer that no test
-would catch, because the query runs and returns rows. A lead that exists is
+A model that reports that as `Sequences` ships a wrong answer that no test
+catches, because the query runs and returns rows. A lead that exists is
 more dangerous than one that does not, and running it is the only thing that
 separates them. See D43.
 
@@ -1359,7 +1359,7 @@ root module. D53 asks every fixture for six core objects and one of them is
 an index somebody created. Hive builds five.
 
 No function, because `CREATE FUNCTION` registers a Java class by name and a
-fixture that made one would depend on a class being on the server's path.
+fixture that makes one depends on a class being on the server's path.
 `Functions` is verified to run and returns nothing.
 
 No sequence and no trigger, because Hive has neither.
@@ -1389,7 +1389,7 @@ principal and HiveServer2 takes it, and the server then allows that
 principal everything. That is the measurement rather than a gap in it, and
 it is the same shape as Trino and Presto.
 
-A Hive with SQL standard authorization configured would answer differently
+A Hive with SQL standard authorization configured answers differently
 and nothing here measures that, because the image does not configure it.
 
 ## Presto
@@ -1522,7 +1522,7 @@ principal with what that principal can see and asks for no special right.
 
 Two queries read `EXA_DBA_`, because nothing else holds the answer.
 `RoleGrants` reads `EXA_DBA_ROLE_PRIVS`. The views an ordinary user can read
-list only the grants that user holds, which would hide every other member's
+list only the grants that user holds, which hides every other member's
 grants from an administrator too. `UserMappings` reads the connection views,
 which carry the remote user and every grant. Both are refused to a lesser
 principal, and parity records it.
@@ -1594,11 +1594,11 @@ comment.
 it is kept. The names in it are not quoted, and a column can be called `a,b`,
 so the list is matched against the table's real columns rather than split on
 its commas. A name that is itself two other column names joined by a comma
-would match twice. Nothing short of that can be misread.
+matches twice. Nothing short of that can be misread.
 
 ### What it cannot answer
 
-30 kinds. Most are absent from the product.
+31 kinds. Most are absent from the product.
 
 There is no sequence, trigger, domain, enumerated type, collation, tablespace,
 access method, conversion, cast, large object, event trigger, operator,
@@ -1614,7 +1614,7 @@ function or a script only inside its text. Parsing them out was considered and
 left alone: a SQL function's text is stored as written, and a type such as
 `DECIMAL(18, 0)` puts a comma inside a parameter, so a split is wrong exactly
 where it matters. `Function.ArgTypes` and `Function.ResultType` are empty for
-the same reason, and the text is in `Function.Source`.
+the same reason, and the text is in `Function.Definition`.
 
 `ColumnStats` has no answer because Exasol exposes no planner statistic.
 `EXA_ALL_COLUMN_SIZES` holds the memory and raw size of each column, which is
@@ -1641,7 +1641,7 @@ the database, which D47 forbids.
 Both invented a column. Gemini said `EXA_ALL_COLUMN_SIZES` has
 `AVERAGE_COLUMN_SIZE` and `COMPRESSED_SIZE`. It has `RAW_OBJECT_SIZE` and
 `MEM_OBJECT_SIZE`. DeepSeek said `EXA_ALL_INDICES` has `ROOT_SCHEMA` and
-`ROOT_NAME`. It has `INDEX_SCHEMA` and `INDEX_TABLE`. Neither would have run.
+`ROOT_NAME`. It has `INDEX_SCHEMA` and `INDEX_TABLE`. A query built on either answer does not run.
 See D43.
 
 ### What the fixture cannot build
@@ -1763,7 +1763,7 @@ object and grantee there, and a row per object from 10.1.
 
 ### What it cannot answer
 
-29 kinds. Most are absent from the product: domains, enumerated types, casts,
+30 kinds. Most are absent from the product: domains, enumerated types, casts,
 operators, operator classes and families, collation objects, conversions,
 large objects, event triggers, extensions, extended statistics, publications,
 subscriptions, text search objects, access methods, user mappings and foreign
@@ -1774,7 +1774,7 @@ Four are present in some form and rejected, which is a different thing.
 `RoutineParameters` has no answer. A routine's arguments are one comma
 separated list of types on its own row, and the named parameters a library
 function declares in `user_function_parameters` are `USING PARAMETERS`
-options rather than arguments. Reporting those as parameters would answer a
+options rather than arguments. A report of those as parameters answers a
 different question.
 
 `DefaultACLs` has no answer. A schema can make new objects inherit its grants,
@@ -1898,7 +1898,7 @@ parameter `...`, which is how CREATE FUNCTION writes it.
 
 ### What it cannot answer
 
-43 kinds. Most are absent from the product: views, constraints of any kind,
+44 kinds. Most are absent from the product: views, constraints of any kind,
 domains, enumerated types, casts, operators, operator classes and families,
 collations, conversions, large objects, triggers, event triggers, extensions,
 extended statistics, publications, subscriptions, text search objects, access
@@ -2030,8 +2030,8 @@ that varies is what kind of principal they are.
 | Couchbase 7.6, 8.0 | ordinary user | `functions`, `privileges`, `role_grants`, `roles`, `routine_parameters` |
 
 `current_user` and `current_schema` are left out of the table and are in the
-file. They answer a question about the connection, so a run where they agreed
-would be the fault.
+file. They answer a question about the connection, so a run where they agree
+is the fault.
 
 The releases on Windows machines are measured too. They are Verified rather
 than Tested, so `dbrun test sqlserver-2008R2` and its siblings run it rather
@@ -2040,14 +2040,17 @@ scene and says so instead of failing.
 
 Every dialect has a target or a recorded reason for having none, and
 `TestEveryDialectIsMeasuredForParity` fails when one has neither. SQLite and
-DuckDB are the products with no reason to have one: neither has a user.
+DuckDB have no user. Snowflake and Redshift have not run (D144). Impala and
+Vitess run with no authentication, so every user is the same principal.
+`parityExempt` in `test/parity_test.go` holds each reason.
 
 ### One release answers differently
 
-`test/testdata/parity.txt` has a section per product, and ten releases have
-one of their own: `postgres@10`, `postgres@11`, `postgres@12`, `postgres@13`,
-`mariadb@10`, `exasol@2025`, `vertica@7`, `vertica@9`, `vertica@10` and
-`couchbase@8`. A section named for a release wins over the shared one, and
+`test/testdata/parity.txt` has a section per product, and fourteen releases
+have one of their own: `postgres@10`, `postgres@11`, `postgres@12`,
+`postgres@13`, `mariadb@10`, `exasol@2025`, `vertica@7`, `vertica@9`,
+`vertica@10`, `couchbase@8`, `cockroachdb@24.3`, `cockroachdb@26.2`,
+`questdb@9.4` and `tidb@8.5`. A section named for a release wins over the shared one, and
 a name carrying a minor wins over one carrying only the major.
 
 PostgreSQL restricts a column of `pg_subscription` from an ordinary role. The
@@ -2074,7 +2077,7 @@ for relation" where 11 and later say "for table", which is why its section
 cannot be shared with theirs.
 
 The query is not gated for this. A superuser on 12 can read the column, and
-padding it would withhold a fact from the caller who is allowed it, which rule
+padding it withholds a fact from the caller who is allowed it, which rule
 13 forbids. What was wrong was the file claiming one answer covers every
 release of a product.
 
@@ -2086,7 +2089,7 @@ ClickHouse had a sixth section, `clickhouse@25.3`, and it is gone because it
 was never a difference in the product. It recorded that 25.3 did not refuse
 `foreign_servers` when every later release did, and the truth was that the
 query did not run on 25.3 at all: it read `n.create_query`, which arrived in
-25.6, so the server could not resolve the identifier and there was no answer
+25.6, so the server was not able to resolve the identifier and there was no answer
 to compare. A query that fails for everybody looks like a query that treats
 everybody alike.
 
@@ -2094,7 +2097,7 @@ With the column gated the query runs on 25.3, a granted user is refused there
 exactly as on every later release, and the shared section covers it. D83 has
 the measurement.
 
-A section can still name a minor, and nothing names one today. The mechanism
+A section can name a minor, and four do: the CockroachDB, QuestDB and TiDB sections above. The mechanism
 was added for this section and it was right for a reason that outlives it:
 the first attempt called it `clickhouse@25`, which is what every other
 product's section does, and that broke 25.8, because ClickHouse versions by
@@ -2113,7 +2116,7 @@ to the same principal. 10.6 has no such privilege to grant, and only the
 definer or a user that can read `mysql.proc` sees it there.
 
 Nothing is gated for this either, and for the same reason: an administrator on
-10.6 reads the column, so padding it would withhold a fact from a caller who is
+10.6 reads the column, so padding it withholds a fact from a caller who is
 allowed it.
 
 This one was hidden rather than missed. The workflow ran MariaDB with
@@ -2150,7 +2153,7 @@ sysadmin on every query, which is the cleanest result of the four.
 
 Oracle answers identically on every query for a local user that owns the
 objects. That is worth saying plainly, because D60 began from the worry that
-`ALL_` views would under-report. They do, but only for a caller asking about
+`ALL_` views under-report. They do, but only for a caller asking about
 a schema it has no privilege on, which is a different question, and that
 measurement is what closed D60 with no change to the model.
 
@@ -2195,7 +2198,7 @@ reading them.
 | `EnumValues` | yes | no | no | no | yes | no | no |
 | `ColumnStats` | yes | yes | no | no | no | yes | no |
 
-The table holds the first seven models, and the section of each later model
+The table has a column for each of the first seven products, and the section of each later model
 says which of the seven it answers. The SQL standard defines
 `key_column_usage`, `parameters`, `views` and `schemata`, so a database close
 to the standard answers those four. That was not the expectation: the two the
@@ -2234,7 +2237,7 @@ about that.
 `EnumValues`. Only PostgreSQL has an enumerated type. MariaDB and MySQL have an
 enum column rather than an enum type, and the labels exist only inside the
 `enum('red','green','blue')` text of `COLUMN_TYPE`. Splitting that correctly
-needs to track quoting, because a label may contain a comma or an escaped
+needs to track quoting, because a label can contain a comma or an escaped
 quote, and no portable SQL does that. `Columns.DataType` returns the text
 verbatim, so a caller that knows the product's quoting rules can parse it.
 `dbtpl` splits it in Go today and has the same limitation.
@@ -2265,7 +2268,7 @@ caller writes one join for every database.
 
 ## DuckDB
 
-DuckDB answers 20 of the 56, which is second only to PostgreSQL. Its catalog is
+DuckDB answers 20 of the 56. Its catalog is
 unusually complete for an embedded database: comments on most objects, real
 enumerated types, sequences with their bounds, and a constraint catalog that
 names both the columns of a key and the columns they reference.
@@ -2296,7 +2299,8 @@ better than every other model here manages.
 
 Schemas, databases, tables, columns, indexes, constraints, constraint columns,
 sequences, views, comments, types, enum values, functions, aggregates, routine
-parameters, collations, settings, extensions and the current schema.
+parameters, collations, settings, extensions, the current schema and the
+current user.
 
 Two are worth naming. `Comments` gathers comments from five catalog functions,
 because DuckDB puts a comment on the object rather than in a catalog of
@@ -2330,7 +2334,7 @@ minimum, maximum, approximate distinct count, mean and null fraction.
 `SUMMARIZE` is rejected for a different reason: it scans the data rather than
 reading a catalog, and it takes one statement per table. That fails the cost
 test in D47 and the one statement rule in D33. PostgreSQL and MariaDB keep
-statistics the planner wrote; DuckDB computes them on demand and stores
+statistics the planner wrote. DuckDB computes them on demand and stores
 nothing, so there is no catalog to read.
 
 `duckdb_dependencies` for `ExtensionObjects`. Both reviews rejected it. It
@@ -2360,8 +2364,8 @@ out.
 
 D49 filtered it on PostgreSQL for cross release consistency, which does not
 apply here because DuckDB has always recorded it. A second reason does:
-PostgreSQL never reports a NOT NULL constraint and DuckDB would, so the same
-schema would answer differently by database. `Column.Nullable` carries the fact
+PostgreSQL never reports a NOT NULL constraint. If DuckDB reports one, the
+same schema answers differently by database. `Column.Nullable` carries the fact
 in both.
 
 DeepSeek argued the other way, that `duckdb_constraints` is DuckDB's own
@@ -2377,10 +2381,11 @@ replication.
 
 ## Microsoft SQL Server
 
-SQL Server answers 32 of the 56, which is more than any database here except
-PostgreSQL. It is the only one besides PostgreSQL with roles, privileges,
-tablespaces and DDL triggers, and the only one that keeps comments in a catalog
-of their own rather than on the object.
+SQL Server answers 32 of the 56, as many as SAP HANA and fewer than only
+PostgreSQL and CockroachDB, which shares the PostgreSQL model. It is the only
+one of its own model with roles, privileges, tablespaces and DDL triggers, and
+the only one that keeps comments in a catalog of their own rather than on the
+object.
 
 It is tested on every major release that runs on Linux: 2017, 2019, 2022 and
 2025, all four on every push. 2016 and older have no container, so they are
@@ -2412,7 +2417,7 @@ nothing, which is the whole point of the gate.
 The machines earned their cost immediately. Every gate in this model sits below
 2017, so until one ran, the old branch of each was checked only by resolving a
 statement against a version set with no server. Running 2012 and 2014 found
-three faults that no container could have.
+three faults that no container can find.
 
 The fixture tore nothing down. Every teardown statement used `DROP ... IF
 EXISTS`, which arrived in 2016, so on 2014 and older every drop was a syntax
@@ -2427,7 +2432,7 @@ update and names it, so the shorter form never appeared.
 `ColumnStats` was supported and had nothing to report. The query gates at 2012
 and the fixture step that creates the statistics was gated at 2016, following a
 comment that had the release wrong. The two gates disagreed, and only a server
-between them could show it.
+between them can show it.
 
 2008 R2 then found a fourth, of the same family. The fixture created a sequence
 unconditionally, and `CREATE SEQUENCE` arrived in 2012, so the whole fixture
@@ -2452,8 +2457,8 @@ Schemas, databases, tables, columns, indexes, index columns, constraints,
 constraint columns, sequences, views, triggers, event triggers, comments,
 types, domains, collations, functions, aggregates, routine parameters, roles,
 role grants, privileges, tablespaces, partitioned tables, foreign servers, user
-mappings, foreign tables, column statistics, extended statistics, settings and
-the current schema.
+mappings, foreign tables, column statistics, extended statistics, settings, the
+current schema and the current user.
 
 Four are worth naming. `Comments` reads `sys.extended_properties` for the
 `MS_Description` property, which is the convention every SQL Server tool uses
@@ -2465,7 +2470,7 @@ is where a table's pages live and that is what the question asks.
 
 ### Visibility rather than refusal
 
-A SQL Server catalog view shows the caller what the caller may see and returns
+A SQL Server catalog view shows the caller what the caller is allowed to see and returns
 fewer rows otherwise. It does not refuse.
 
 Three queries here depend on a privilege. `ColumnStats` reads
@@ -2493,8 +2498,8 @@ query refuses below the release that added its view, that the padded
 alternative never names a column an older release has not got, and that no
 other query quietly depends on a release. See D54.
 
-One thing the model avoids on purpose. `STRING_AGG` arrived in 2017 and would
-be safe at this floor, and the model uses `STUFF(... FOR XML PATH(''))`
+One thing the model avoids on purpose. `STRING_AGG` arrived in 2017 and is
+safe at this floor, and the model uses `STUFF(... FOR XML PATH(''))`
 instead, which works from 2005. The floor is a container fact and the queries
 do not have to inherit it.
 
@@ -2701,7 +2706,7 @@ marked `ForeignServers` and `ForeignTables` absent, and Gemini named
 what a foreign server is, and `usql`'s own Oracle reader already queries it.
 
 The pass produced nineteen leads. D43 says to run each against a real server
-before believing it, and running them removed six. Fourteen shipped, which
+before believing it, and running them removed five. Fourteen shipped, which
 took Oracle from 11 to 25.
 
 | Question | Reads | Note |
@@ -2746,9 +2751,9 @@ return for `LargeObject.OID`, because Oracle has no standalone large object.
 A stretch, and D43 says leave a stretch unsupported.
 
 `ExtendedStats` from `ALL_STAT_EXTENSIONS`. The view has the extension
-expression and no list of statistic kinds. Putting the expression in a field
-named `Kinds` would be shaping the answer so it fills a column, which rule 13
-forbids.
+expression and no list of statistic kinds. It was left out when the
+expression had no field of its own. `ExtendedStat.Definition` holds one now
+(D147), so it is a lead to measure again, in `BACKLOG.md`.
 
 `Settings` from `V$PARAMETER` is a lead that still stands and is not written.
 
@@ -2807,7 +2812,7 @@ a type that CockroachDB lacks:
 | extended_stats | `definition` names the columns from `stxkeys`, because there is no `pg_get_statisticsobjdef_columns`. CockroachDB has no statistics on an expression, so the columns are the whole definition (D147) |
 
 `column_stats` is not answered. CockroachDB keeps `pg_stats` empty even after
-ANALYZE, so the shared statement would say that no column has statistics,
+ANALYZE, so the shared statement says that no column has statistics,
 which is false. Its statistics are in `SHOW STATISTICS FOR TABLE`, which names
 the table in the statement rather than taking it as a bind parameter.
 `system.table_statistics` holds them too, and 26.3 refuses to read it:
@@ -2827,7 +2832,7 @@ says why. The
 conformance report is line for line PostgreSQL's on all three releases.
 
 Parity finds what PostgreSQL finds, with one difference by release. From 26.3
-a principal that may not connect to a database reads "no access" as its size.
+a principal that is not allowed to connect to a database reads "no access" as its size.
 
 Gemini and DeepSeek were asked about each gap, as hard rule 14 requires, on
 2026-09-29. Both called tablespace paths, extensions and operator families
@@ -2891,18 +2896,18 @@ class and family. `pg_tablespace`, `pg_am`, `pg_enum`, `pg_description` and
 These are left unanswered, although CrateDB holds something like them:
 
 - Aggregates. `pg_proc` holds 178 of them, with `prokind` a, and each names a
-  `pronamespace` that is in no row of `pg_namespace`. An answer would have to
-  invent the schema.
+  `pronamespace` that is in no row of `pg_namespace`. An answer must invent
+  the schema.
 - Languages and foreign data wrappers. JavaScript and `jdbc` are the only
   ones, and no view lists them. A distinct `routine_body` or
   `foreign_data_wrapper_name` lists only the ones in use.
 - Routine parameters. There is no `information_schema.parameters`, and a
   JavaScript function is not in `pg_proc`. Only `specific_name` holds the
   argument types, with no names.
-- The four text search kinds. `information_schema.routines` lists analyzers,
+- The five text search kinds. `information_schema.routines` lists analyzers,
   tokenizers, token filters and char filters, which do the work of a text
   search configuration, a parser and a dictionary. An analyzer has no schema,
-  and a built-in one records no tokenizer, so a configuration would have no
+  and a built-in one records no tokenizer, so a configuration has no
   parser. D131 leaves them out.
 
 ### What the fixture builds
@@ -2975,8 +2980,9 @@ QuestDB has none of these: tablespaces, access methods, languages,
 conversions, casts, collations, large objects, event triggers, domains,
 operators, roles, role settings, role grants, privileges, default privileges,
 foreign data wrappers, foreign servers, user mappings, foreign tables,
-publications, subscriptions, the four text search kinds, the four kinds of
-operator class and family, extended statistics, comments, constraints,
+publications, publication tables, subscriptions, the five text search kinds,
+the four kinds of operator class and family, extended statistics, extension
+objects, comments, constraints,
 constraint columns, triggers, sequences, enum values and column statistics.
 The open source edition has no roles or grants, and `pg_roles` is empty.
 
@@ -3007,7 +3013,7 @@ QuestDB out with that reason.
 
 ### Which answers depend on who is asking
 
-Parity asks as `admin` and as the user of the PostgreSQL interface that may
+Parity asks as `admin` and as the user of the PostgreSQL interface that can
 only read. Every query answers the same way, except that 10.0.1 reports the
 reader's own name as the current user. 9.4.3 reports `admin` for the reader
 too, which is the one difference between the releases, and it has a parity
@@ -3057,7 +3063,7 @@ Two are left unanswered although TiDB holds something like them:
 
 - Column statistics. `mysql.stats_histograms` holds a distinct count and a
   null count for each column, keyed by a column id that no catalog view
-  names. Matching it by position would be wrong after a column is dropped, and
+  names. A match by position is wrong after a column is dropped, and
   only `SHOW STATS_HISTOGRAMS` gives the names, which a statement cannot read.
 - Extended statistics. `mysql.stats_extended` exists and is empty, because
   extended statistics are experimental and off by default.
@@ -3073,12 +3079,12 @@ the check constraint, which TiDB does not list.
 ### Which answers depend on who is asking
 
 Parity asks as root, as a user with every privilege on the fixture schema,
-and as one that may only read it. Both lesser users are refused roles and
+and as one that can only read it. Both lesser users are refused roles and
 role grants, which read the mysql schema, as they are on MySQL, and see fewer
 schemas, databases and privileges. 8.5 refuses a column of `mysql.user` and
 `mysql.role_edges`, and 7.5 and 8.1 refuse the whole table, so 8.5 has a
 parity section of its own. The current schema differs because the DSN of root
-names the database dbmeta, which the lesser users may not use, so they connect
+names the database dbmeta, which the lesser users are not allowed to use, so they connect
 to the fixture schema.
 
 ### What a second opinion found
@@ -3128,7 +3134,7 @@ Roles, role grants and privileges are not answered, although the mysql
 model's statements run. They list the accounts of the tablet's MySQL, such as
 `vt_dba`, `vt_app` and `vt_repl`, which Vitess uses itself and no client of
 vtgate logs in as. vttestserver starts vtcombo with no authentication, so a
-Vitess user could not be measured either. vtgate refuses CREATE TRIGGER,
+Vitess user cannot be measured either. vtgate refuses CREATE TRIGGER,
 CREATE FUNCTION and CREATE SERVER, so triggers, aggregates, foreign servers,
 user mappings and foreign tables are not answered. The rest are absent, as
 they are on MySQL.
@@ -3215,7 +3221,7 @@ drops each by name.
 ### Which answers depend on who is asking
 
 Parity asks as root, as a user whose role holds every privilege on the
-fixture's database, and as one whose role may only read it. Both lesser users
+fixture's database, and as one whose role can only read it. Both lesser users
 are refused system.settings, system.engines, system.statistics and
 system.constraints, so settings, access methods, column statistics,
 constraints and constraint columns are refused to them, and they see fewer
@@ -3276,7 +3282,7 @@ and rows with statistics.
 ### Which answers depend on who is asking
 
 Parity asks as root, as a user with every privilege on the fixture schema,
-and as one that may only read it, as for MySQL. Both lesser users see fewer
+and as one that can only read it, as for MySQL. Both lesser users see fewer
 roles, role grants and privileges.
 
 ### What a second opinion found
@@ -3288,7 +3294,8 @@ tables, PIPELINES as subscriptions, RESOURCE_POOLS as role settings,
 DISTRIBUTED_PARTITIONS as partitioned tables, and an AUTO_INCREMENT column as
 a sequence. TRIGGERS and TABLESPACES are empty. Both named the histograms for
 extended statistics. PostgreSQL's extended statistics cover several columns,
-and CORRELATED_COLUMN_STATISTICS may, which docs/BACKLOG.md holds to measure.
+and it is not yet known whether CORRELATED_COLUMN_STATISTICS does.
+docs/BACKLOG.md holds the item to measure it.
 
 ## Snowflake and Amazon Redshift
 
@@ -3322,7 +3329,7 @@ columns, column statistics, functions, aggregates and settings are each a
 walk (D146): SHOW DATABASES, and then SHOW TABLES IN and SHOW VIEWS IN each
 database, DESCRIBE FORMATTED each table for its type and comment, DESCRIBE
 and SHOW COLUMN STATS each table for its columns, SHOW CREATE VIEW each view,
-and SHOW FUNCTIONS IN each database. The metastore makes a new table
+and SHOW FUNCTIONS IN and SHOW AGGREGATE FUNCTIONS IN each database. The metastore makes a new table
 external, so a table the fixture makes reads as an external table. A walk costs one statement for
 each database it reaches, and one for each table where it goes deeper. The
 caller's patterns are matched in Go, because a SHOW statement takes none.

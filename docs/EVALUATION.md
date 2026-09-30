@@ -186,8 +186,8 @@ criterion does not apply.
 | 10 | 2022-06-23 | yes |
 | 9.6 | 2022-02-12 | yes |
 
-Maintained rebuilding stops after 14. Had PostgreSQL been an ordinary database,
-the floor would be 14.
+Maintained rebuilding stops after 14. For an ordinary database, that puts the
+floor at 14.
 
 **Criterion 3.** Reported by a model and consistent with the published five
 year policy, not independently checked: 18 through 14 are supported, 13 ended
@@ -262,9 +262,9 @@ release 20 is in development.
 
 ### Verified: major granularity is safe
 
-The claim to check was whether a catalog can change inside a major version,
-which would force a gate at something like 14.3 and make major granularity
-wrong.
+The claim to check was whether a catalog can change inside a major version.
+If it can, a query needs a gate at something like 14.3, and major granularity
+is wrong.
 
 It cannot, and `describe.c` demonstrates it. Every version gate in the file
 sits on a major boundary. On the current tree the gate values are 110000,
@@ -272,7 +272,7 @@ sits on a major boundary. On the current tree the gate values are 110000,
 one ends at patch zero.
 
 This matches the PostgreSQL rule that a patch release must not change the on
-disk format, which a catalog change would do. A patch release is a drop in
+disk format. A catalog change does change it. A patch release is a drop in
 binary replacement.
 
 Recheck this when translating, with:
@@ -282,8 +282,7 @@ grep -oE 'pset\.sversion *(<|>=) *[0-9]+' src/bin/psql/describe.c | grep -oE '[0
 ```
 
 A value that does not end in `0000` for a release 10 or later gate, or in `00`
-for an earlier one, would be a patch level gate and would break this
-assumption.
+for an earlier one, is a patch level gate and breaks this assumption.
 
 ### Two source trees are needed
 
@@ -305,9 +304,10 @@ no image has to be exactly recoverable to reproduce a file. See D71.
 
 ### Which versions get tested where
 
-D42 governs and it overrides any split by version. Four releases of each
-product run on every push and the rest run nightly, and D40 names the tier each
-one sits in.
+D42 governs and it overrides any split by version. The number of releases
+that run on every push differs by product, and D40 names the tier each one
+sits in. Print the releases that run on every push with
+`cd test && go run ./cmd/dbrun list --json --names tested`.
 
 ### Recorded dissent: both reviews argued for a higher floor
 
@@ -328,11 +328,11 @@ releases cannot be tested, and that 9.6 was verified to run on 2026-09-24.
 ### Corrected: the old images do publish arm64
 
 Gemini claimed that the 9.6, 10 and 11 images lack native `linux/arm64` builds
-and would need emulation. That is wrong. Checked against the Docker Hub API on
+and need emulation. That is wrong. Checked against the Docker Hub API on
 2026-09-24, all three publish `linux/386`, `linux/amd64`, `linux/arm` and
 `linux/arm64`.
 
-The related warning that those images might not start at all is also now
+The related warning, that those images can fail to start at all, is also now
 answered. `postgres:9.6` was pulled and run under podman 6.1.2 on a current
 Linux host on 2026-09-24. It became ready in four seconds and answered `\d` and
 `\dt` correctly.
@@ -451,18 +451,20 @@ There are 284 tags. Every one of them names 2017, 2019, 2022 or 2025. There is
 no 2016, no 2014 and no 2012, because Microsoft shipped SQL Server on Linux
 from 2017 and never published a Linux image for an earlier release.
 
-So the floor is 2017 and no further criterion applies. Criterion 3 would have
-argued for 2019, because 2017 passed its end of extended support in October
-2027 under the usual ten year term, and it does not get to: criterion 2 already
-fixed the set at four, and testing all four costs four parallel jobs. D54
-records the tier decision and what may honestly be said about 2016 and older.
+So the container floor is 2017 and no further criterion applies. The Windows
+machines of D57 go further back, to 2008 R2. Criterion 3 argues for 2019,
+because 2017 reaches the end of its extended support in October 2027 under the
+usual ten year term. It does not get to apply, because criterion 2 already
+fixed the container set at four, and testing all four costs four parallel
+jobs. D54 records the tier decision and what can honestly be said about 2016
+and older.
 
 Two facts about the images are worth writing down, because both cost time.
 Microsoft publishes no bare release tag, so the tag is `2017-latest` and there
 is no `2017`. The 2017 image is built on an older base and installs sqlcmd at
 `/opt/mssql-tools` where the other three use `/opt/mssql-tools18`, so a
 readiness command written for one of them fails on the other. Both are
-recorded in `container/container.go` rather than in a script.
+recorded in `container/sqlserver.go` rather than in a script.
 
 ## What is still unevaluated
 
@@ -483,7 +485,7 @@ here whose release range is set by community images. All four are now copies
 in `docker.io/usql/vertica`, tagged by release and pinned by digest, which
 D100 records.
 
-Exasol's `exasol/docker-db` would not initialize under rootless podman, which
+Exasol's `exasol/docker-db` did not initialize under rootless podman, which
 is D77, and Exasol now publishes `exasol/nano`, which starts unprivileged on
 the default network in about five seconds. D84 has the measurement, and D87
 records the model.
@@ -502,8 +504,8 @@ the version question, and D60 and D61 answer it.
 Cassandra went through step 2 and stopped there. On
 `docker.io/library/cassandra`, 2.2 was last rebuilt in August 2021 and is dead,
 3.0 and 3.11 were rebuilt in November 2025, and 4.0, 4.1 and 5.0 a week before
-this was written, all with a linux/amd64 build. So the floor could be 3.0 and
-it is 3.11, because 3.0 and 3.11 carry the same `system_schema` catalog and
+this was written, all with a linux/amd64 build. So 3.0 was a possible floor,
+and the floor is 3.11, because 3.0 and 3.11 carry the same `system_schema` catalog and
 3.11 is the release people ran. Below 3.0 the catalog is a different shape
 entirely, in `system.schema_columnfamilies` and its siblings, and no image that
 still runs has it. See `container/cassandra.go`.

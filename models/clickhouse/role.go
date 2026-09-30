@@ -406,7 +406,7 @@ func functionStmt(aggregate string) dbmeta.Stmt {
 		always(`, '' AS "security"`),
 		always(`, NULL AS "access"`),
 		always(`, f.origin AS "language"`),
-		always(`, nullIf(f.create_query, '') AS "source"`),
+		always(`, NULL AS "source"`),
 		always(`, nullIf(f.description, '') AS "comment"`),
 		always(`, nullIf(f.create_query, '') AS "definition"`),
 		always(`FROM system.functions f`),
@@ -445,9 +445,9 @@ func functionFields(kind string) []dbmeta.Field {
 			Desc: "where it came from: System for a built in one and one of the" +
 				" user defined origins otherwise",
 		},
-		{Name: "source", Desc: "the CREATE FUNCTION for a user defined one, absent for a built in"},
+		{Name: "source", Desc: "always absent: ClickHouse keeps the whole statement, which is definition, and no body apart from it"},
 		{Name: "comment", Desc: "the server's own description of the " + kind},
-		{Name: "definition", Desc: "the CREATE FUNCTION, the same text as source"},
+		{Name: "definition", Desc: "the CREATE FUNCTION for a user defined one, absent for a built in"},
 	}
 }
 

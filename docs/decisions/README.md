@@ -24,7 +24,7 @@ file.
 | [D3](D003-the-root-package-is-the-driver-agnostic-api.md) | The root package is the driver agnostic API | Decided |
 | [D4](D004-keep-the-object-coverage-drop-the-reader-naming.md) | Keep the object coverage, drop the Reader naming | Decided |
 | [D5](D005-dbmeta-only-reads.md) | dbmeta only reads | Amended by D56 |
-| [D6](D006-fix-the-null-scan-defect-once-and-never-hide-a.md) | Fix the NULL scan defect once, and never hide a NULL | Decided, amended in place |
+| [D6](D006-fix-the-null-scan-defect-once-and-never-hide-a.md) | Fix the NULL scan defect once, and never hide a NULL | Decided, amended in place, D6a superseded by D71 |
 | [D7](D007-use-the-standard-library-third-party-packages.md) | Use the standard library. Third party packages are a last resort | Decided |
 | [D8](D008-version-differences-are-generated-data-not.md) | Version differences are generated data, not packages | Decided |
 | [D9](D009-there-are-two-platonic-models-postgresql-is-the.md) | There are two platonic models. PostgreSQL is the primary one | Decided |
@@ -66,7 +66,7 @@ file.
 | [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query may answer partially, once, and must say so | Decided |
 | [D46](D046-five-object-kinds-are-missing-and-two-consumers.md) | Five object kinds are missing, and two consumers say which | Decided |
 | [D47](D047-dbmeta-supplies-the-data-the-consumer-decides.md) | dbmeta supplies the data. The consumer decides what to show | Amended by D146 |
-| [D48](D048-cgo-is-allowed-in-the-test-module-and-nowhere.md) | cgo is allowed in the test module, and nowhere else | Amends D26, D29 and D35 |
+| [D48](D048-cgo-is-allowed-in-the-test-module-and-nowhere.md) | cgo is allowed in the test module, and nowhere else | Amends D26 and D29, supersedes D35 |
 | [D49](D049-one-method-on-the-interface-and-a-not-null-is.md) | One method on the interface, and a NOT NULL is not a constraint row | Amended by D121 |
 | [D50](D050-documentation-lives-in-docs-and-the-decision-log.md) | Documentation lives in docs, and the decision log stays one file | Amended by D110 and D111 |
 | [D51](D051-there-is-no-alias-for-a-nullable-type.md) | There is no alias for a nullable type | Decided |
@@ -85,11 +85,11 @@ file.
 | [D64](D064-the-verified-tier-is-checked-against-the.md) | The Verified tier is checked against the document | Decided |
 | [D65](D065-a-windows-machine-rearms-its-evaluation-before.md) | A Windows machine rearms its evaluation before it expires | Decided |
 | [D66](D066-the-order-the-remaining-dialects-are-written-in.md) | The order the remaining dialects are written in | Amended by D67, D77, D88, D91, D94 and D129 |
-| [D67](D067-impala-cannot-be-a-dbmeta-model-and-clickhouse.md) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66 |
+| [D67](D067-impala-cannot-be-a-dbmeta-model-and-clickhouse.md) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66, amended by D146 |
 | [D68](D068-every-container-is-started-by-the-runner-and.md) | Every container is started by the runner and named product-release | Amended by D70 and D124 |
 | [D69](D069-the-workflow-builds-its-matrix-from-the-go-list.md) | The workflow builds its matrix from the Go list | Amends D42 |
 | [D70](D070-the-runner-is-a-go-command-called-dbrun.md) | The runner is a Go command called dbrun | Amends D68 and D12 |
-| [D71](D071-nothing-here-is-generated-the-models-are-written.md) | Nothing here is generated. The models are written | Amends D2, D12 and D30, supersedes D11 |
+| [D71](D071-nothing-here-is-generated-the-models-are-written.md) | Nothing here is generated. The models are written | Amends D2, D12 and D30, supersedes D11 and D6a |
 | [D72](D072-trino-reads-system-jdbc-and-a-catalog-is-a-real.md) | Trino reads system.jdbc, and a catalog is a real level | Decided |
 | [D73](D073-presto-is-its-own-dialect-and-not-a-flavor-of.md) | Presto is its own dialect, and not a flavor of Trino | Decided |
 | [D74](D074-firebird-has-no-schemas-and-none-is-invented.md) | Firebird has no schemas, and none is invented | Decided |
@@ -164,5 +164,5 @@ file.
 | [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided |
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
-| [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 |
+| [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67 |
 | [D147](D147-the-fields-psql-prints-that-usql-needed.md) | The fields psql prints that usql needed | Decided |

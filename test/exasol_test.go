@@ -370,9 +370,10 @@ func TestExasolRoutines(t *testing.T) {
 		}
 		// Exasol keeps the parameters and the return type only in the text,
 		// so arg_types is absent, and volatility and security are empty.
-		// The text is there.
-		if v.ArgTypes.Valid || v.Volatility != "" || v.Security != "" || !v.Source.Valid {
-			t.Errorf("%s: expected no arg_types, empty volatility and security, and a source, got %+v", v.Name, v)
+		// The text is the whole statement, so it is the definition and there
+		// is no source apart from it.
+		if v.ArgTypes.Valid || v.Volatility != "" || v.Security != "" || v.Source.Valid || !v.Definition.Valid {
+			t.Errorf("%s: expected no arg_types or source, empty volatility and security, and a definition, got %+v", v.Name, v)
 		}
 		if !v.ID.Valid || v.ID.V == "" {
 			t.Errorf("%s: expected an object id", v.Name)

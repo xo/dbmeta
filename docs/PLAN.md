@@ -32,10 +32,9 @@ agnostic means the caller asks for tables without knowing which database
 answers. This layer holds the object types, the `Query` values, the one
 method `Queryer` interface, the `Args` filter and the error values.
 
-The package `dbmeta/models/<driver>` holds the code for one driver. For
-example, `dbmeta/models/sqlite3` holds the SQLite3 queries and the structs that
-receive their rows. Each driver gets its own Go package, so the types in
-`dbmeta/models/postgres` and the types in `dbmeta/models/sqlite3` are different
+The package `dbmeta/models/<model>` holds the queries for one database. For
+example, `dbmeta/models/sqlite3` holds the SQLite3 queries. Each model scans
+its rows into the root package's types, so every model returns the same Go
 types.
 
 There is no version directory below the driver. A database changes its metadata
@@ -58,21 +57,23 @@ of this file.
 
 ## What exists today
 
-`models/` holds 16 native models: cassandra, clickhouse, couchbase, duckdb,
-exasol, firebird, hana, hive, mysql, oracle, postgres, presto, sqlite3,
-sqlserver, trino and vertica. ScyllaDB is a flavor of the Cassandra model and
-MySQL a flavor of the MariaDB one. `models/informationschema` is the shared
+`models/` holds 25 native models: cassandra, clickhouse, cockroachdb,
+couchbase, cratedb, databend, duckdb, exasol, firebird, hana, hive, impala,
+mysql, oracle, postgres, presto, questdb, redshift, singlestore, snowflake,
+sqlite3, sqlserver, tidb, trino and vertica. ScyllaDB is a flavor of the
+Cassandra model and MySQL a flavor of the MariaDB one. `models/informationschema` is the shared
 model for any database with a standard `information_schema`, and no native
 model builds on it. `COVERAGE.md` holds what each one answers.
 
 `container/` names every release the tests run against, and `dbrun` starts
 each one. `dbrun` also starts servers for dbimp's drivers that have no model:
-SurrealDB, Neo4j, the eight products of D112 and the three Avatica servers of
-D113. It knows the embedded databases too, including four that have no model
-yet (D116). `README.md` holds the support tiers.
+SurrealDB, Neo4j, the five products of D112 that have no model (ArangoDB,
+InfluxDB, Apache Pinot, rqlite and libSQL) and the three Avatica servers of
+D113. It knows the embedded databases too, including two, chai and csvq, that
+have no model yet (D116 and D119). `README.md` holds the support tiers.
 
-Neither consumer reads `dbmeta` yet. `USQL.md` and `DBTPL.md` hold what each
-would gain, and `BACKLOG.md` holds that work.
+`usql` reads `dbmeta` in work that is staged and not committed, and `dbtpl`
+does not read it yet. `USQL.md` and `DBTPL.md` hold what each gains, and `BACKLOG.md` holds that work.
 
 ## What existed at the start
 
@@ -127,12 +128,12 @@ and `dbmeta` can define its own:
 
 ### Driver coverage at the start
 
-14 of the 44 `usql` drivers have metadata support:
+14 of the 43 `usql` drivers have metadata support:
 
 clickhouse, databend, duckdb, impala, mymysql, mysql, netezza, oracle, pgx,
 postgres, snowflake, sqlite3, sqlserver, trino.
 
-30 drivers have none:
+29 drivers have none:
 
 adodb, athena, avatica, bigquery, cassandra, chai, cosmos, couchbase, csvq,
 databricks, dynamodb, exasol, firebird, flightsql, godror, h2, hive, ignite,
@@ -258,11 +259,12 @@ Ken took it. D8 now holds the version fragments as data in one package, and
 ### Both reviews attacked D9, and both partly misread it
 
 Both said that ranking PostgreSQL first over fits the API to one database.
-DeepSeek wrote that non PostgreSQL users would get "PG-shaped wrong answers".
+DeepSeek wrote that users of other databases get "PG-shaped wrong answers".
 
 The concern is real but the reading is too strong. D9 makes PostgreSQL the
 reference for the shape and the behavior of an object that two databases both
-have. It does not require every database to answer all 48 objects. The
+have. It does not require every database to answer every kind, which was 48
+then and is 56 now. The
 capability mechanism covers the gap.
 
 One phrase invited the misreading. "When they disagree, follow PostgreSQL" read
@@ -297,7 +299,8 @@ models are written by hand.
 
 ### Points raised that the plan did not cover
 
-DeepSeek raised these. Three are now answered, as each says.
+DeepSeek raised these. Four are now answered and one is answered in part, as
+each says.
 
 1. An error taxonomy. Separate "not supported" from "permission denied", from
    "connection failed", and from "version too old". The `usql` readers return
@@ -311,6 +314,8 @@ DeepSeek raised these. Three are now answered, as each says.
    D88 pins the digest of an image that somebody other than the vendor built.
 3. Identifier handling. Quoting, case folding, reserved words, and the maximum
    identifier length differ per database and the plan says nothing about them.
+   D127 answers quoting and D143 answers case folding. Reserved words and the
+   length are still open.
 4. Visibility. `information_schema` hides objects that the connected user
    cannot see, so two users get two answers from the same query. Metadata tests
    must fix the user, and the API must say which user it reflects. D61
@@ -318,7 +323,8 @@ DeepSeek raised these. Three are now answered, as each says.
    differences are recorded.
 5. Repeated queries. A caller that asks for the columns of 200 tables must not
    send 200 queries. Decide whether the API batches, caches, or leaves this to
-   the caller.
+   the caller. D33 answers it: the caller issues one query with a schema
+   filter, so there is nothing to batch and nothing to cache.
 
 ## Plan
 
@@ -340,7 +346,9 @@ not the source of the data. Three of the phase 3 databases have no
 
 ### Phase 1. Translate the PostgreSQL queries from the PostgreSQL source
 
-Done. `models/postgres` answers all 56 kinds on 9.6 to 18.
+Done. `models/postgres` answers all 56 kinds on 10 to 18, and 51 on 9.6, which
+has no publications, publication tables, subscriptions, extended statistics
+or partitioned tables.
 
 This phase produces the primary platonic model. Every later phase copies its
 API.
@@ -413,8 +421,8 @@ Done. Each has a native model. None extends the shared model: DuckDB reads its
 own catalog functions and SQL Server reads `sys`, because each answers more
 that way.
 
-As planned, they split into two groups by how much of phase 2 each could
-reuse.
+As planned, they split into two groups by how much of phase 2 each was able
+to reuse.
 
 DuckDB and Microsoft SQL Server have an `information_schema`, and both used
 the shared reader in `usql`.
@@ -557,7 +565,8 @@ statements, and TiDB's and Vitess's most of the mysql model's. Redshift is a
 hosted service with a dialect of its own (D117, D118, D123, D125, D133,
 D135).
 
-The Verified tier must run before a release (D64).
+The Verified tier must run before a release (D40). D64 checks that each
+Verified release is documented.
 
 ### What a test asserts
 

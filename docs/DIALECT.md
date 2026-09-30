@@ -20,8 +20,8 @@ once, by you, on one server, as one user.
 
 ### 1. Check it is the one to do next
 
-D66 in `decisions/` holds the order, and D67, D77, D88, D91 and D94 amend it.
-Do not start a database out of order without asking Ken.
+D66 in `decisions/` holds the order, and D67, D77, D88, D91, D94 and D129 amend
+it. Do not start a database out of order without asking Ken.
 
 ### 2. Choose the version range
 
@@ -40,7 +40,7 @@ The package is in the `dburl` registry, from v0.29.0. Find the scheme for the
 product and read `GoPackage`, which is the import path, and `RequiresCGO`:
 
 ```bash
-grep -n 'Driver: *"<product>"' -A 12 ~/src/go/src/github.com/xo/dburl/scheme.go
+grep -n 'Name: *"<product>"' -A 12 ~/src/go/src/github.com/xo/dburl/scheme.go
 ```
 
 The version is not there. Read it from `usql`'s `go.mod`, because D52 requires
@@ -50,16 +50,16 @@ the same package and allows a different version.
 grep -n "<package>" ~/src/go/src/github.com/xo/usql/go.mod
 ```
 
-A scheme with no `GoPackage` borrows another scheme's driver and is wire
-compatible with it. `cockroachdb` is one, and reading `pgx` for it is the
-right answer rather than a missing one.
+A scheme can name another product's driver in `GoPackage`, because the
+product is wire compatible with it. `cockroachdb` names `pgx`, and that is the
+right answer rather than a mistake.
 
 If dburl names a driver that `usql` does not import yet, ask Ken. Couchbase
 was the case: dburl named dbimp's driver, the tests moved to it first and
 pinned their own version (D101), and `usql` followed.
 
-D52 requires the same package `usql` uses. The version may differ and the
-package may not. A query that works here and fails on the driver `usql` ships
+D52 requires the same package `usql` uses. The version can differ and the
+package must not. A query that works here and fails on the driver `usql` ships
 is a query that does not work.
 
 If `usql` ships two drivers for the product, test both, as subtests named for
@@ -86,11 +86,11 @@ The list names every release and its tier. Read D40 for the tiers and D42 for
 what runs on a push against what runs nightly. If the product already has a
 Staged entry, because dbrun started it for dbimp or for a flavor before the
 model existed, change its `staged` calls to `add` in the change that adds the
-model, and keep the cadence each release records as its tier (D120). `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` fails until you do
-(D119).
+model, and keep the cadence each release records as its tier (D120).
+`TestAReleaseIsStagedExactlyWhenNoModelReadsIt` fails until you do (D119).
 
 Add the product to `All()` in `container/container.go`. Do this before anything
-else that needs a server, because D68 means nothing else may start one.
+else that needs a server, because D68 means nothing else can start one.
 
 Use `container.Password` for the password. It is one value for every product
 and it is shaped to clear the strictest policy any of them enforces.
@@ -100,13 +100,12 @@ If the product has users, make an ordinary user in `Init` and declare it in
 that user (D104). `Init` runs on every start, and `dbrun` runs it again after
 a failure, so it must be safe to run twice (D105, D107).
 
-Check before this that the published image can do what the queries read. Two
-here cannot and are built instead. The Apache Cassandra image refuses a user
-defined function, a materialized view and a role, and its entrypoint maps only
-eight yaml keys to environment variables, none of them those. Oracle publishes
-no free 19c image at all. `dbrun build` makes both, the Containerfile is
-embedded with `//go:embed` so the command carries its own input, and
-`buildFor` in `test/cmd/dbrun/build.go` is where a third would go.
+Check before this that the published image can do what the queries read. If
+it cannot, the image is built here. The Apache Cassandra image is one case. It
+refuses a user defined function, a materialized view and a role, and its
+entrypoint maps only eight yaml keys to environment variables, none of them
+those. [`CONTAINERS.md`](CONTAINERS.md), under An image this repository builds,
+holds the steps and names each image built here.
 
 Look for a configuration switch before reaching for a built image. Trino
 refuses `CREATE CATALOG` under its default static catalog management and its
@@ -169,8 +168,10 @@ port, no password and no release to pin, because the release is whichever one
 the driver links. D42 keeps them out of `container/` and they must stay out.
 `dbrun` finds them through `Info.Embedded`, so that `dbrun test sqlite3` works
 and `dbrun status` says what they are. If the database is in `unmodeled` in
-`test/cmd/dbrun/target.go`, as chai, csvq and moderncsqlite are, remove it
-from there when the model registers (D116).
+`test/cmd/dbrun/target.go`, as chai and csvq are, remove it from there when
+the model registers (D116). moderncsqlite stays in `unmodeled` although the
+sqlite3 model reads it. It is a second driver for the sqlite3 dialect, and the
+entry gives it a file of its own beside the sqlite3 one.
 
 What changes for an embedded database:
 
@@ -183,12 +184,13 @@ What changes for an embedded database:
   a caller holding a `Dialect` has no URL to hand to `dburl`.
 - Skip steps 4 and 6 entirely. There is nothing to start, and the database is
   a file under `$XDG_DATA_HOME/dbmeta/embedded` that `dbrun` names and keeps.
-- The test opens a file in `t.TempDir()` rather than reading a DSN from the
-  environment, and never skips for a missing server.
+- The test reads the path of its file from `DBMETA_<DIALECT>`, which `dbrun`
+  sets. If the variable is not set, the test opens a file in `t.TempDir()`. It
+  never skips for a missing server.
 - CI runs them in the same matrix as the servers, and `dbrun test` starts
   nothing for them. An embedded database that `dbrun` knew before its model,
-  such as chai, is Staged until the model arrives, and then it is Tested
-  with no change to `dbrun` (D116, D119).
+  such as chai, is Staged until the model arrives. Then remove it from
+  `unmodeled`, and it is Tested (D116, D119).
 - They go in `parityExempt` with the reason, not in `parityTargets`. A file on
   disk has no user, so there is no second principal to be, and hard rule 16
   cannot reach them. That is an exemption for the only reason an exemption is
@@ -212,8 +214,9 @@ What changes for a machine:
   SQL Server release and writes the port where nothing reads it if you get
   it wrong.
 - Its tier is always Verified and never Tested. A machine needs KVM and an
-  hour, so CI cannot run one. D40 has the tiers and D64 fails when a Verified
-  release is not documented as such.
+  hour, so CI cannot run one. D40 has the tiers.
+  `TestEveryVerifiedReleaseIsDocumented` fails when a Verified release is not
+  named in `COVERAGE.md` (D64).
 - `dbrun provision <name>` builds it. `--render` writes the payload and stops,
   which is how the templating is checked in a second rather than an hour.
   Every other `dbrun` verb then treats it as an ordinary target.
@@ -235,9 +238,9 @@ D86 and D87 are the decisions.
 
 **An image somebody other than the vendor built is pinned by digest.**
 Vertica's four releases run on community images, each pushed once and never
-rebuilt, so each `Tag` carries its `@sha256:` digest as well as its name. A
-push to the same tag would otherwise change what was tested without a line
-changing here. D88 is the decision, and it says what to check before taking
+rebuilt, so each `Tag` carries its `@sha256:` digest as well as its name.
+Without the digest, a push to the same tag changes what was tested and no line
+changes here. D88 is the decision, and it says what to check before taking
 such an image: whose build it is, and whether the binary reports the release
 the tag claims. D100 copied all four into `docker.io/usql/vertica`, because
 the Docker on GitHub's runners refuses the schema 1 manifest of one of them.
@@ -266,7 +269,7 @@ Which source carries the comment? It is often not the obvious one.
 ### 8. Ask at least two models, then verify every answer
 
 D43 and hard rule 14 require this, and it is not a formality. Ask two of
-Gemini, DeepSeek and Astra to sort the kinds you could not answer into three
+Gemini, DeepSeek and Astra to sort the kinds you did not answer into three
 groups: absent from the product, present under another name, and derivable from
 several catalog reads or one complex statement.
 
@@ -307,7 +310,9 @@ The package doc states how many of the 56 the model answers.
 `TestEveryPackageCommentStatesItsCount` checks the number.
 
 Each object kind is a `Binding` registered from `init`, carrying the statement
-as `Stmt`, the `Fields` it returns, the `Params` it takes and a `Scan`.
+as `Stmt`, the `Fields` it returns, the `Params` it takes and a `Scan`. A
+product that offers nothing a SELECT reads sets `Walk` instead of `Stmt` and
+`Scan`, which runs several statements (D146). The last section says when.
 
 If the product imitates another product's catalog, as CockroachDB imitates
 PostgreSQL's, do not copy that model's statements. Import the model and share
@@ -348,8 +353,8 @@ Return a fact the product has, even where `psql` does not print it, as long as
 one statement can produce it. See D47 and hard rule 13.
 
 Describe every field that is always empty, always false or always absent, and
-say why in the `Desc`. A reader of `go doc` should never have to test a column
-to find out that it is never filled.
+say why in the `Desc`. A reader of `go doc` must never have to test a column to
+find out that it is never filled.
 
 Three answers are not "supported" and each is different. A product that has no
 such object reports `NotSupported`, and an empty result must never be used to
@@ -357,7 +362,7 @@ mean it, which is D34. A server older than the release that added the object
 reports `TooOld`, which an upgrade fixes, and D63 added that state for it. A
 model left out of the build reports `NotBuilt`.
 
-A query may answer part of a question, once, and must say so. D45 allows it
+A query can answer part of a question, once, and must say so. D45 allows it
 under four conditions and SQLite constraints are the only case: the part
 returned is exact, the part missing is missing structurally, the field
 description names what is missing, and a test asserts the absence so that it
@@ -398,7 +403,7 @@ Add `test/<driver>_test.go`. At a minimum:
 - one that reads the fixture back through the typed API
 - one per thing that is peculiar to this product
 
-Write a test for every "always empty" claim that could rot, and for every
+Write a test for every "always empty" claim that can rot, and for every
 object the fixture cannot build. `TestSQLiteConstraints` asserts that the two
 check constraints the fixture creates do not appear, because D45 says SQLite
 answers three quarters of that question and never the fourth. Without the test
@@ -489,11 +494,11 @@ database can and cannot do, and it is what a consumer reads. Cover:
 Both are updated for every dialect, not only when something changes.
 
 [`USQL.md`](USQL.md) needs the version query row from step 9, and a line in the
-command coverage if the new model changes what `usql` could answer.
+command coverage if the new model changes what `usql` can answer.
 
 [`DBTPL.md`](DBTPL.md) needs two rows. One in the table counting how many of
 `dbtpl`'s nine reads the model answers. One in the table saying whether `dbtpl`
-could generate from the database at all, which is a different question and is
+can generate from the database at all, which is a different question and is
 not implied by the count. `TestEveryModelSaysWhetherDbtplCanUseIt` fails when a
 model has no verdict. A database can answer most of the nine and still be
 useless to a generator: Trino answers four and the answer is no, because it has
@@ -524,26 +529,34 @@ cd test && go run ./cmd/dbrun test <product>
 `gofmt -l .` must print nothing. Run the tests with `-count=2`, because that is
 what CI runs.
 
-## When the answer is that it cannot be a model
+## When the product has no catalog a SELECT reads
 
-Some products cannot be one, and finding that out is a result rather than a
-failure. Say so, record it, and move to the next.
+Most products have a catalog that one statement per object kind can read. A
+product that answers only through `SHOW` or `DESCRIBE` does not, because
+those are statements rather than relations and cannot be filtered, joined or
+aliased.
 
-Impala is the case. D66 put it first because `usql` had a hand written reader
-for it, and D67 struck it off: it has no queryable catalog, and its `usql`
-reader is not SQL but a set of `DESCRIBE` calls parsed in Go. A model here is
-one statement per object kind against a catalog, so there was nothing to move.
-Four containers were started to prove it before the decision was written.
+D67 found this for Impala. It has no queryable catalog, and its `usql` reader
+is not SQL but a set of `DESCRIBE` calls parsed in Go. D67 struck it off the
+order for that reason, after four containers were started to prove it.
 
-The test is whether the product has a catalog a statement can read. A product
-that answers only through `SHOW` or `DESCRIBE` cannot be a model, because those
-are statements rather than relations and cannot be filtered, joined or aliased.
-Trino is the same shape in miniature: its function list exists only behind
-`SHOW FUNCTIONS`, so Functions is unanswered while everything with a table
-behind it is answered.
+D146 answered it for Impala. A `Binding` can set `Walk`, a function that runs
+several `SHOW` statements through the `Queryer`, one to its end before the
+next, and yields the rows. The caller's patterns are matched in Go with
+`dbmeta.Like`, because a `SHOW` statement takes none. `models/impala` answers
+11 of the 56, most of them with a walk.
 
-Write the decision in `decisions/`, amend D66 if the order changes, and put the
-evidence in it. A later reader will ask why the product is missing.
+A walk is for a product that offers nothing a SELECT reads, and for nothing
+else. If one statement answers a kind, write the statement. Write the cost of
+a walk beside it: one statement for each database, and one for each table
+where the walk goes deeper. Trino shows the limit. Its function list exists
+only behind `SHOW FUNCTIONS`, and D146 allows a walk for Impala alone, so
+Functions is unanswered on Trino while everything with a table behind it is
+answered.
+
+If a product still cannot be a model, that is a result rather than a failure.
+Write the decision in `decisions/`, amend D66 if the order changes, and put
+the evidence in it. A later reader will ask why the product is missing.
 
 ## The tests that tell you what you forgot
 
@@ -554,7 +567,7 @@ Reading the list is faster than rediscovering them one at a time:
 | --- | --- |
 | `TestEveryDialectIsMeasuredForParity` | a dialect has no parity target and no recorded reason |
 | `TestEveryModelIsInTheVersionTable` | a model's version query was never compared against `usql`'s |
-| `TestEveryModelSaysWhetherDbtplCanUseIt` | a model has no verdict in `DBTPL.md` on whether `dbtpl` could generate from it |
+| `TestEveryModelSaysWhetherDbtplCanUseIt` | a model has no verdict in `DBTPL.md` on whether `dbtpl` can generate from it |
 | `TestEveryEmbeddedModelSaysSo` | a library does not declare `Embedded`, or declares it and is not parity exempt |
 | `TestTheCoverageTableIsRight` | the count in `COVERAGE.md` is not what the model answers |
 | `TestTheReadmeTableIsRight` | the count in `README.md` is not what the model answers |
@@ -573,7 +586,7 @@ Reading the list is faster than rediscovering them one at a time:
 | `TestTheReadmeNamesEveryTier` | the list grew a tier that `README.md` does not explain |
 | `TestTheReadmeTierTablesMatchTheList` | `README.md` puts a release in a tier the list does not |
 
-Several of those check a table that could be generated instead. The `usql`
+Several of those check a table that code can generate instead. The `usql`
 session made the argument and it is right: `usql` does not test its README
 driver table, it builds it from the `dburl` registry, so there is nothing for
 the prose to drift from. Generation is stronger than a test, because a test

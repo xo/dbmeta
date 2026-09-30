@@ -406,8 +406,11 @@ func TestSQLServerStats(t *testing.T) {
 		}
 		if v.Name.V == "author_name_rating" {
 			extended = true
-			if !strings.Contains(v.Kinds, "name") || !strings.Contains(v.Kinds, "rating") {
-				t.Errorf("expected both columns in the kinds, got %q", v.Kinds)
+			if v.Kinds != "d" || !v.Ndistinct || v.Dependencies || v.MCV {
+				t.Errorf("expected the kind d and ndistinct alone, got %+v", v)
+			}
+			if !strings.Contains(v.Definition.V, "[name]") || !strings.Contains(v.Definition.V, "[rating]") {
+				t.Errorf("expected both columns in the definition, got %q", v.Definition.V)
 			}
 		}
 	}

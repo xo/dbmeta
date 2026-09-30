@@ -56,7 +56,7 @@ work of another. They apply to a person and to a coding agent alike.
    `dbrun` refuses to, and `--force` overrides the refusal. Pass `--force`
    only when the person tells you to. Treat a running server with no owner as
    somebody else's too, although `dbrun` lets you stop it (D98). A stopped
-   container belongs to nobody, because its owner may be a session that ended
+   container belongs to nobody, because its owner can be a session that ended
    or a computer that restarted (D108).
 6. When your task ends, leave the machine as you found it. Stop or remove each
    server that you started. Leave running each server that was running before
@@ -88,7 +88,7 @@ Every server that `dbrun` creates carries its owner, as the container label
 `DBMETA_OWNER_NAME` adds a friendly name, such as `dbimp`, as a second label,
 `dbmeta.owner.name`. It is only shown: `status` and every refusal print it
 with the owner, as `dbimp (claude-code:05124815)`. The owner label alone
-decides who may act on a server, so two sessions that give the same name are
+decides who can act on a server, so two sessions that give the same name are
 still two owners (D115).
 
 The owner changes what a command does:
@@ -187,9 +187,16 @@ dbrun logs postgres-18
 | `test` | Runs dbmeta's integration tests against the server, starting and removing it around them. | yes |
 | `logs` | Prints what the server wrote. `-f` follows it. | no |
 | `list` | Prints what a selector names, and touches nothing. The embedded libraries come first, then the servers, containers and machines together, then the hosted services, each by product and then by release, oldest first. | no |
-| `build` | Builds the images this repository makes, which are for Cassandra and Oracle 19c. `start` and `test` build one when it is missing. | yes |
+| `build` | Builds the images this repository makes, such as the ones for Cassandra and Oracle 19c. Each one except Oracle 19c has a Containerfile in `test/cmd/dbrun/image/`. `start` and `test` build one when it is missing. | yes |
 | `provision` | Builds a Windows machine, which takes about an hour, or imports a vendor appliance with `--from`. | yes |
 | `help` | Prints the help. Running `dbrun` with no command does the same. | no |
+
+`remove` asks before it deletes a machine. `--yes` skips the question.
+`provision --render` writes the OEM folder of a Windows machine and stops. It
+downloads nothing and starts nothing, so it checks the templating in a second.
+`provision --watch` starts the machine, prints the address of its screen
+viewer, and returns without waiting for the database. [`WINDOWS.md`](WINDOWS.md)
+says more about both.
 
 ## Selectors
 
@@ -276,6 +283,8 @@ The administrator of each product:
 | Cassandra, ScyllaDB | `cassandra` | `cassandra` |
 | Apache Hive | `hive` | none. The image configures no authentication. |
 | Trino, Presto | `trino`, `presto` | none |
+| SingleStore | `root` | `container.Password` |
+| Apache Impala | `impala`, the user the image runs as | none. The image configures no authentication. |
 
 Several products also have an ordinary user that their setup creates, each
 named `dbmeta_user` with `container.Password`. On Couchbase it is
@@ -284,19 +293,19 @@ a user on the database `dbmeta` in the namespace `dbmeta` (D103). On Neo4j it
 is `container.Neo4jUser`, with the role `publisher`, and the setup also makes
 the database `dbmeta` (D106). ArangoDB, CrateDB, Databend, rqlite,
 Apache Pinot and Apache Druid have one too, and D112 and D113 say what each
-may do. InfluxDB 1 and 2
-have `container.InfluxDBUser`, who may only read `dbmeta` (D114). InfluxDB 3
-Core and libSQL have none, because neither can make a principal with fewer
-rights than its administrator. CouchDB and TerminusDB have `dbmeta_user`,
-who may read `dbmeta` and not change its design. Qdrant, Weaviate,
-Meilisearch and Typesense have a key that may only read, which goes by the
-name `dbmeta_user` in the DSN. CockroachDB and TiDB have `dbmeta_owner`,
-who owns `dbmeta`, and `dbmeta_user`, who may only read it. MongoDB,
-Elasticsearch and Dgraph have `dbmeta_user`, who may only read. YDB has
-`dbmetauser`, because YDB allows no underscore in a user name. Virtuoso, Milvus, Alternator, OpenSearch, Solr, Drill, H2,
-Fuseki, PostgREST, Stardog, GraphDB and VoltDB have `dbmeta_user`, who may
-only read. QuestDB has `container.QuestDBUser`, the user of its PostgreSQL
-interface that may only read. Chroma, GizmoSQL, Spanner, BigQuery, Vitess,
+can do. InfluxDB 1 and 2 have `container.InfluxDBUser`, who can only read
+`dbmeta` (D114). InfluxDB 3 Core and libSQL have none, because neither can
+make a principal with fewer rights than its administrator. CouchDB and
+TerminusDB have `dbmeta_user`, who can read `dbmeta` and cannot change its
+design. Qdrant, Weaviate, Meilisearch and Typesense have a key that can only
+read, which goes by the name `dbmeta_user` in the DSN. CockroachDB and TiDB
+have `dbmeta_owner`, who owns `dbmeta`, and `dbmeta_user`, who can only read
+it. MongoDB, Elasticsearch and Dgraph have `dbmeta_user`, who can only read.
+YDB has `dbmetauser`, because YDB allows no underscore in a user name.
+Virtuoso, Milvus, Alternator, OpenSearch, Solr, Drill, H2, Fuseki, PostgREST,
+Stardog, GraphDB and VoltDB have `dbmeta_user`, who can only read. QuestDB
+has `container.QuestDBUser`, the user of its PostgreSQL interface that can
+only read. Chroma, GizmoSQL, Spanner, BigQuery, Vitess,
 DynamoDB, Cosmos and ksqlDB have none, and D118 says why. `dsn --json`
 prints each in the `principals` field, after the administrator, with its own
 connection string (D102). Every other ordinary user is created by the test
@@ -334,15 +343,18 @@ with these fields:
 | `name` | the server name, such as `couchbase-8.0.3` |
 | `product` | the product, such as `couchbase` |
 | `release` | the release, such as `8.0.3`. An embedded database has none. |
-| `kind` | `container`, `machine` or `embedded` |
+| `kind` | `container`, `machine`, `embedded` or `hosted` |
 | `directory` | true for an embedded database that is a directory, chai and csvq (D116) |
 | `tier` | `tested`, `nightly`, `verified` or `staged` |
-| `cadence` | for a Staged release only, `tested`, `nightly` or `verified`: how often it would be tested if a model read it. A project that runs Staged releases, such as dbimp, runs the tested ones on each push and the nightly ones at night (D120) |
+| `cadence` | for a Staged release only, `tested`, `nightly` or `verified`: how often it is tested once a model reads it. A project that runs Staged releases, such as dbimp, runs the tested ones on each push and the nightly ones at night (D120) |
 | `dialect` | the dbmeta dialect, which is the dburl driver name, such as `couchbase`. It is empty until dbimp settles the name, as for ArangoDB (D112) |
 | `env` | the environment variable that dbmeta's tests read the DSN from, such as `DBMETA_COUCHBASE` |
 | `also`, `alsoEnv` | every other dialect the server answers, and the variable of each, which dbrun sets to the same DSN. InfluxDB 3 answers `influxql` beside `influxdb` (D114) |
 | `dsn` | the connection string that the Go driver takes |
 | `url` | the dburl URL, which is what `usql` takes |
+| `secondAddress` | the host and port of a container's second port, such as the controller of Pinot, and absent when it has none (D124) |
+| `credential` | for a hosted service, where its connection string came from, such as `env DBMETA_SNOWFLAKE_DSN`. It never holds the secret (D117) |
+| `license` | the licence file on the host that dbrun mounts, for a product that needs one (D118) |
 | `viewer` | for a machine, the port of its screen viewer |
 | `principals` | every user a test reaches the server as, the administrator first. Each has `role`, which is `administrator` or `user`, `user`, `dsn` and `url` |
 
@@ -357,11 +369,13 @@ A plain `dsn` prints the name and the URL on one line, separated by spaces. It
 does not print the bare URL. Use `dsn --json` in a script.
 
 `status --json` prints the running servers with every field above, and five
-more. With `-a`, it prints the stopped servers too.
+more. With `-a`, it prints the stopped servers too. It always prints each
+embedded database and each hosted service that the selector names. With no
+selector, that is every one.
 
 | Field | What it holds |
 | --- | --- |
-| `state` | `running` for a container, `answering` or `starting` for a machine, `moved` for a container whose port no longer matches the list, `stopped` for one that is stopped, which only `-a` prints, and `embedded` for an embedded database |
+| `state` | `running` for a container, `answering` or `starting` for a machine, `moved` for a container whose port no longer matches the list, `stopped` for one that is stopped, which only `-a` prints, `embedded` for an embedded database, and `hosted` for a hosted service |
 | `owner` | who started the server, and empty when it has no owner |
 | `ownerName` | the friendly name the owner gave itself with `DBMETA_OWNER_NAME`, when it gave one |
 | `mine` | whether the owner is you |
@@ -399,8 +413,9 @@ setup finished. `test` exits 1 when a test failed.
    (D105).
 
 A server waits 90 seconds by default. A product that needs longer names its
-own time. SAP HANA, Oracle, Apache Hive, Vertica, Apache Pinot, Apache Phoenix
-and Apache Druid wait 5 minutes. `--timeout` sets another.
+own time. SAP HANA, Oracle, Apache Hive, Vertica, Apache Pinot, Apache
+Phoenix, Apache Druid, Apache Impala and SingleStore wait 5 minutes. Milvus
+and ksqlDB wait 3 minutes. `--timeout` sets another.
 
 A server that answered is not always a server that is fully warm. Couchbase
 updates its indexes after a write rather than with it, so a test that writes
@@ -416,10 +431,11 @@ and then reads asks for `scan_consistency=request_plus` (D96).
 | after `test` | removed, unless `--keep` | kept, because it takes an hour to rebuild, unless `--remove` | kept, unless `--remove` | nothing to keep |
 
 An embedded database runs in the process that opens it and has no server.
-SQLite and DuckDB have dbmeta models. moderncsqlite, chai and csvq have
-none yet, and `dbrun` knows them so that a test or `usql` can find them
-(D116). moderncsqlite is SQLite without cgo, with a file of its own beside
-the sqlite3 one. chai and csvq are a directory rather than a file.
+SQLite and DuckDB have dbmeta models. moderncsqlite is SQLite without cgo,
+a second driver that the sqlite3 model reads, with a file of its own beside
+the sqlite3 one. chai and csvq have no model yet, and `dbrun` knows them so
+that a test or `usql` can find them (D116). chai and csvq are a directory
+rather than a file.
 
 The files live under `$XDG_DATA_HOME/dbmeta/embedded` and stay after a test,
 so that `dbrun usql sqlite3` opens what the test built. csvq reads a
@@ -522,12 +538,12 @@ outside its limit of eight.
 
 ## What dbrun does not start
 
-- Products that are only a cloud service, such as Snowflake, BigQuery,
-  Databricks, Athena and Spanner. There is no server to run.
+- Products that are only a cloud service, such as Snowflake, Databricks and
+  Athena. There is no server to run. BigQuery and Cloud Spanner are cloud
+  services too, and `dbrun` starts their emulators, as `bigquery-<release>`
+  and `spanner-<release>`.
 - Products that are out of scope, which are Db2 and Netezza (D130, D132).
   Neither can be tested here.
-- A product that needs two containers that work together, such as ksqlDB with
-  Kafka. `dbrun` runs one container for each server.
 
 ## What dbrun does not do
 

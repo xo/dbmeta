@@ -1,6 +1,6 @@
 # D146. A query can walk several statements
 
-Status: Amends D47.
+Status: Amends D47 and D67.
 
 ## The decision
 

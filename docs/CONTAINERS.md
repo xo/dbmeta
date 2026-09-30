@@ -31,8 +31,8 @@ dbmeta's CI does not run it, and the other repository runs it with
 4. Name every release in one of the tiers `Tested`, `Nightly`, `Verified` or
    `Staged`. CI runs the first two, and a person runs the third before a
    release. A release that no model reads is `Staged`, and CI never runs it.
-   Add it with `staged` rather than `add`, and give it the cadence it would
-   have if a model read it, `Tested`, `Nightly` or `Verified`. dbimp runs its
+   Add it with `staged` rather than `add`, and give it the cadence that it
+   takes when a model reads it, `Tested`, `Nightly` or `Verified`. dbimp runs its
    Staged releases by that cadence, and it becomes the tier when the model
    arrives (D120).
    `TestAReleaseIsStagedExactlyWhenNoModelReadsIt` holds that a release is
@@ -132,7 +132,8 @@ defined function, a materialized view and a role, and Oracle publishes no free
 19c image, so both are built. D118 added more: an image with no shell, such as
 the Cloud Spanner emulator's, a product that publishes a jar and no image,
 such as H2 and Fuseki, and two programs that must run in one container, such
-as PostgREST with PostgreSQL and ksqlDB with Kafka.
+as PostgREST with PostgreSQL and ksqlDB with Kafka. D145 added Impala, whose
+four Apache images are built into one.
 
 1. Write `test/cmd/dbrun/image/<product>.Containerfile`. It takes the release
    as the build argument `RELEASE`. Check the result in the build itself, as
@@ -193,6 +194,7 @@ into each release:
 | `tagPrefix` | text before the release in the tag, such as `v` for SurrealDB |
 | `tagSuffix` | text after the release in the tag, such as `-latest` for SQL Server |
 | `port` | the port inside the container that the tests connect to |
+| `second` | a second port inside the container, which dbrun publishes on the first host port plus 1000, and zero when there is none. QuestDB and Pinot set it (D124) |
 | `env` | the environment the image needs, such as its password |
 | `ready` | a command, run inside the container, that exits 0 once the server answers |
 | `init` | a command, run inside the container on every start after `ready` passes |
@@ -200,6 +202,7 @@ into each release:
 | `runFlags` | flags for the run command, before the image name, such as `--entrypoint` where Apache Pinot, Apache Druid and Avatica replace the image's entrypoint, or `--add-host` where Databend blocks its telemetry (D112) |
 | `args` | arguments after the image name, for the image's entrypoint or the one `runFlags` names |
 | `memory` | a memory limit above `MemoryLimit`, with its measurement |
+| `license` | the path inside the container where the product reads its licence file, for a product that does not start without one. dbrun mounts the file from the host and lists the product only while it finds the file. Stardog, GraphDB and VoltDB set it (D118) |
 | `startup` | a wait longer than 90 seconds, with its measurement |
 | `settle` | how long `ready` has to keep passing. Presto and Trino need it (D83). |
 | `dsn` | builds the connection string the Go driver takes, for a host port |

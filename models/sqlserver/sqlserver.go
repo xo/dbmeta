@@ -30,9 +30,9 @@
 //
 // # What it answers
 //
-// Thirty two of the 56, which is second only to PostgreSQL. SQL Server is the
-// only database here besides PostgreSQL with roles, privileges, tablespaces
-// and DDL triggers, and the only one with a catalog of comments rather than a
+// Thirty two of the 56, as many as SAP HANA. SQL Server is the only database
+// with a model of its own, besides PostgreSQL, with roles, privileges,
+// tablespaces and DDL triggers, and the only one with a catalog of comments rather than a
 // comment on each object.
 //
 // See docs/COVERAGE.md for what it cannot answer and for the analogues that

@@ -299,7 +299,7 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 	t.Parallel()
 	body := read(t, filepath.Join("docs", "DBTPL.md"))
-	_, table, ok := strings.Cut(body, "### Whether dbtpl could generate for each database")
+	_, table, ok := strings.Cut(body, "### Whether dbtpl can generate for each database")
 	if !ok {
 		t.Fatal("docs/DBTPL.md has no verdict table. Adding a dialect requires one.")
 	}
