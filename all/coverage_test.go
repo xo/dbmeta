@@ -75,6 +75,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "snowflake", dialect: dbmeta.Snowflake},
 		{name: "redshift", dialect: dbmeta.Redshift},
 		{name: "impala", dialect: dbmeta.Impala},
+		{name: "rqlite", dialect: dbmeta.Rqlite},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -109,6 +110,7 @@ var displayNames = map[string]string{
 	"Exasol": "exasol", "Vertica": "vertica", "ScyllaDB": "scylla",
 	"Couchbase": "couchbase", "CockroachDB": "cockroachdb", "CrateDB": "cratedb",
 	"QuestDB": "questdb", "TiDB": "tidb", "Vitess": "vitess", "Databend": "databend", "SingleStore": "singlestore", "Snowflake": "snowflake", "Amazon Redshift": "redshift", "Apache Impala": "impala",
+	"rqlite": "rqlite",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -275,6 +277,7 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"couchbase": "Couchbase", "cockroachdb": "CockroachDB",
 			"cratedb": "CrateDB", "questdb": "QuestDB", "tidb": "TiDB",
 			"vitess": "Vitess", "databend": "Databend", "singlestore": "SingleStore", "snowflake": "Snowflake", "redshift": "Amazon Redshift", "impala": "Apache Impala",
+			"rqlite": "rqlite",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -315,6 +318,7 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"couchbase": "Couchbase", "cockroachdb": "CockroachDB",
 			"cratedb": "CrateDB", "questdb": "QuestDB", "tidb": "TiDB",
 			"vitess": "Vitess", "databend": "Databend", "singlestore": "SingleStore", "snowflake": "Snowflake", "redshift": "Amazon Redshift", "impala": "Apache Impala",
+			"rqlite": "rqlite",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+

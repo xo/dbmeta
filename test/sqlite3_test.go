@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -44,13 +45,21 @@ func openSQLiteWith(t *testing.T, driver string) *sql.DB {
 }
 
 // eachSQLite runs fn once per driver, as a subtest named for it, with the
-// fixture already built.
+// fixture already built. When DBMETA_RQLITE names a server, it runs fn on
+// rqlite too, which shares every statement of the sqlite3 model and must
+// answer each check the same way (D148).
 func eachSQLite(t *testing.T, fn func(t *testing.T, db *sql.DB, m *dbmeta.Meta)) {
 	t.Helper()
 	for _, driver := range sqliteDrivers {
 		t.Run(driver, func(t *testing.T) {
 			db := openSQLiteWith(t, driver)
 			fn(t, db, setupSQLite(t, db))
+		})
+	}
+	if dsn := os.Getenv("DBMETA_RQLITE"); dsn != "" {
+		t.Run("rqlite", func(t *testing.T) {
+			db := openRqliteAt(t, dsn)
+			fn(t, db, setupRqlite(t, db))
 		})
 	}
 }

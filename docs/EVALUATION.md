@@ -383,7 +383,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | CrateDB | 6.3.7 | 6.4.5 | Criterion 2. 6.4.5 and 6.3.7 were rebuilt in September 2026, and 6.2 last on 2026-07-09. Reached on the PostgreSQL port, with a dialect and a model of its own, cratedb (D112, D123) |
 | Apache Pinot | 1.4.0 | 1.5.1 | The rule for an image that is never rebuilt (D112). Apache supports only the newest release. The entry is for dbimp's driver |
 | Databend | 1.2.881 | 1.2.948 | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. `models/databend` reads it, and dbimp's driver tests against it (D140) |
-| rqlite | 9.4.5 | 10.3.6 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver |
+| rqlite | 9.4.5 | 10.3.6 | The rule for an image that is never rebuilt (D112). The entry was for dbimp's driver, and `models/rqlite` reads it (D148) |
 | libSQL | 0.24.33 | 0.24.33 | The rule for an image that is never rebuilt (D112). libSQL has one line, and its newest release was built on 2025-12-19. The entry is for dbimp's driver |
 | chai, csvq, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
 | Avatica | 1.28.0 | 1.29.0 | The rule for an image that is never rebuilt (D112). The standalone server over HSQLDB, which the Calcite project builds. The entry is for dbimp's Avatica driver (D113) |

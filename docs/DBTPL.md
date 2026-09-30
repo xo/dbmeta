@@ -67,6 +67,7 @@ than from memory.
 | Oracle | 9 | nothing |
 | DuckDB | 8 | `IndexColumns`: DuckDB names an index and does not list the columns of it |
 | SQLite | 8 | `RoutineParameters`: a SQLite function has no named parameters |
+| rqlite | 8 | the same as SQLite, whose statements it shares |
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
 | ScyllaDB | 7 | the same two as Cassandra, for the same reasons |
@@ -114,6 +115,7 @@ dialect is added.
 | SQL Server | yes | yes, all nine |
 | Oracle | yes | yes, all nine |
 | SQLite | yes | yes, without parameter names |
+| rqlite | no | yes, without parameter names, the same as SQLite |
 | DuckDB | no | yes, without index columns |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |
 | Cassandra | no | partly: no current keyspace expression and no parameter names |

@@ -19,6 +19,7 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/nakagami/firebirdsql"
 	_ "github.com/prestodb/presto-go-client/v2"
+	_ "github.com/rqlite/gorqlite/stdlib"
 	_ "github.com/sclgo/impala-go"
 	_ "github.com/sijms/go-ora/v2"
 	_ "github.com/snowflakedb/gosnowflake/v2"
@@ -68,6 +69,9 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Couchbase:  "couchbase",
 	dbmeta.Databend:   "databend",
 	dbmeta.Impala:     "impala",
+	// dbimp has no rqlite driver yet, and Ken chose gorqlite's until it
+	// does (D148).
+	dbmeta.Rqlite: "rqlite",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the

@@ -15,6 +15,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.11.2
 	github.com/nakagami/firebirdsql v0.9.21
 	github.com/prestodb/presto-go-client/v2 v2.1.2
+	github.com/rqlite/gorqlite v0.0.0-20260504155303-50d445fd0ab9
 	github.com/sclgo/impala-go v1.8.0
 	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/sijms/go-ora/v3 v3.0.2-0.20260914154503-360b4b7ac9e9
@@ -22,7 +23,7 @@ require (
 	github.com/trinodb/trino-go-client v0.336.0
 	github.com/vertica/vertica-sql-go v1.3.8
 	github.com/xo/cql v0.1.0
-	github.com/xo/dbimp v0.6.0
+	github.com/xo/dbimp v0.7.0
 	github.com/xo/dbmeta v0.0.0
 	modernc.org/sqlite v1.59.0
 )

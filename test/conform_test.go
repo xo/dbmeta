@@ -28,6 +28,7 @@ import (
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
 	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
+	rqfixture "github.com/xo/dbmeta/models/rqlite/fixture"
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
@@ -131,6 +132,10 @@ func conformTargets() []conformTarget {
 			name: "sqlite3", dialect: dbmeta.SQLite3,
 			open:   func(t *testing.T) *sql.DB { return openSQLiteWith(t, "sqlite3") },
 			schema: sqfixture.Everything.Schema, build: setupSQLite,
+		},
+		{
+			name: "rqlite", dialect: dbmeta.Rqlite,
+			open: openRqlite, schema: rqfixture.Everything.Schema, build: setupRqlite,
 		},
 		{
 			name: "duckdb", dialect: dbmeta.DuckDB,

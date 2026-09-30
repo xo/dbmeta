@@ -54,6 +54,7 @@ rather than reading one.
 | `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
 | `models/redshift` | 11 | 56 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
+| `models/rqlite` | 14 | 56 | rqlite 9.4.5 and 10.3.6, through gorqlite until dbimp has a driver. Every statement is the sqlite3 model's (D148) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -3348,6 +3349,49 @@ routine parameters are not answered.
 
 Nothing. The image configures no authentication, so every user is the same
 principal, and Impala is exempt from parity with that reason.
+
+## rqlite
+
+`models/rqlite` answers 14 of the 56 on 9.4.5 and 10.3.6, measured on
+2026-09-30 through the `database/sql` driver of `github.com/rqlite/gorqlite`.
+dbimp has no rqlite driver yet, and the tests move to it when it exists
+(D148). rqlite runs SQLite 3.53 behind an HTTP API, so every statement is the
+sqlite3 model's, shared with `Query.Share`. It answers what SQLite answers,
+and the SQLite section above says why the rest is not answered. Every check
+the SQLite tests make runs on rqlite too, and the conformance report is line
+for line SQLite's.
+
+gorqlite decodes every number as a `float64`, and `database/sql` does not
+read a `float64` into a `bool`. So the sqlite3 model scans its boolean
+fields through `dbmeta.NumberAsBool`, which reads a bool or a number.
+
+### What rqlite adds, and why none of it is an answer
+
+rqlite reads its users and their permissions from the file that `-auth`
+names, and no SQL statement reaches that file. Its SQLite has the user
+authentication extension compiled in: `auth_enabled()`, `auth_user_add()`,
+`auth_user_change()`, `auth_user_delete()` and `authenticate()` are in
+`pragma_function_list`. `auth_enabled()` returns 0 and there is no
+`sqlite_user` table, so the extension holds no user. `Roles`, `Privileges`
+and `CurrentUser` stay unanswered.
+
+The version is the release of SQLite that the server runs. No SQL statement
+names the rqlite release, and only the HTTP API reports it.
+
+Gemini and DeepSeek were asked about the 42 unanswered kinds on 2026-09-30,
+as hard rule 14 requires. Both said rqlite adds nothing that SQL can read.
+Their SQLite leads were `sqlite_sequence`, `sqlite_stat1`, `sqlite_stat4`,
+`pragma_module_list`, and the type `a` of `pragma_function_list`. The SQLite
+section rejects each of them but `sqlite_stat4`, and rqlite's SQLite is built
+without `SQLITE_ENABLE_STAT4`, so it has no `sqlite_stat4` to read. Its
+compile options name `ENABLE_DBSTAT_VTAB`, and `dbstat` reports the pages of
+each table and index, which is a size and not one of the 56.
+
+### Parity
+
+The entry declares `dbmeta_user`, who can query and execute and nothing else.
+rqlite has no grant on a table, so the user reads every answer the
+administrator reads, and the section in `test/testdata/parity.txt` is empty.
 
 ## Releases that need a licence file
 

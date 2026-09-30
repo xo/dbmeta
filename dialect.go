@@ -84,7 +84,9 @@ const (
 	// reaches it.
 	QuestDB Dialect = "questdb"
 	// Redshift speaks PostgreSQL's protocol, and pgx reaches it.
-	Redshift   Dialect = "redshift"
+	Redshift Dialect = "redshift"
+	// Rqlite is rqlite, which runs SQLite behind an HTTP API.
+	Rqlite     Dialect = "rqlite"
 	Snowflake  Dialect = "snowflake"
 	Spanner    Dialect = "spanner"
 	SQLite3    Dialect = "sqlite3"

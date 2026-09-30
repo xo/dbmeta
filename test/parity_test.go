@@ -25,6 +25,7 @@ import (
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
 	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
+	rqfixture "github.com/xo/dbmeta/models/rqlite/fixture"
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
@@ -308,6 +309,17 @@ func parityTargets() []parityTarget {
 					{name: "grantee", make: makeDatabendHolder("ALL")},
 					{name: "reader", make: makeDatabendHolder("SELECT")},
 				},
+			}},
+		},
+		{
+			dialect: dbmeta.Rqlite, driver: "rqlite", env: "DBMETA_RQLITE",
+			open: openRqlite, build: setupRqlite, schema: rqfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// rqlite reads its users from a file and has no grant on a
+				// table. The entry declares one user besides the
+				// administrator, who can query and execute and nothing else.
+				name:       "same",
+				principals: []parityPrincipal{{name: "user", make: makeRqliteUser}},
 			}},
 		},
 		{

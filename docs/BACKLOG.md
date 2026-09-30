@@ -10,6 +10,16 @@ anything that was decided on the way (D110).
 
 ## Drivers
 
+### Move the rqlite tests to the dbimp driver
+
+The test module reads rqlite through `github.com/rqlite/gorqlite`, because
+dbimp has no rqlite driver yet, and Ken chose that driver on 2026-09-30
+(D148). dbimp started its driver the same day. When it exists, move the
+tests and dbrun to it, drop gorqlite from `test/go.mod` and from the
+depguard list in `test/.golangci.yml`, and run both releases again. dbimp's
+entry takes a url of the form `rqlite://user:password@host:port`. Hard rule
+10 asks for the package that `usql` uses, and usql will import dbimp's.
+
 ### Move the Cassandra tests to the dbimp driver
 
 The test module reads Cassandra and ScyllaDB through `github.com/xo/cql`

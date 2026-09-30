@@ -146,7 +146,8 @@ func registerViews() {
 		Scan: func(rows *sql.Rows) (dbmeta.View, error) {
 			var v dbmeta.View
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Definition,
-				&v.CheckOption, &v.Updatable, &v.Insertable, &v.Comment)
+				&v.CheckOption, dbmeta.NullNumberAsBool(&v.Updatable),
+				dbmeta.NullNumberAsBool(&v.Insertable), &v.Comment)
 			return v, err
 		},
 	})

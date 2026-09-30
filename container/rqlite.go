@@ -3,14 +3,15 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The rqlite releases dbrun starts.
 //
-// dbmeta has no rqlite model. The releases are here so that dbrun can start a
-// server for the tests of the rqlite driver in github.com/xo/dbimp, which
-// reads the HTTP API. rqlite is SQLite behind that API. No dialect is named
-// yet, because dbimp settles the name with the driver. See D112.
+// rqlite is SQLite behind an HTTP API, and models/rqlite shares the sqlite3
+// model's statements (D148). The releases were here first for the tests of
+// the rqlite driver in github.com/xo/dbimp (D112), which dbimp is writing.
 //
 // # The range
 //
@@ -26,7 +27,7 @@ import (
 // names it, so the start command writes the file and then starts the server
 // through the image's own entrypoint, which adds the node id and the data
 // directory. The file holds rqliteAdmin, with every permission, and
-// [RqliteUser], who may query and execute and nothing else: no backup, no
+// [RqliteUser], who can query and execute and nothing else: no backup, no
 // load, no status and no change to the cluster. rqlite has no administrator of
 // its own, so the name is chosen here.
 
@@ -44,23 +45,33 @@ exec docker-entrypoint.sh -auth /rqlite/file/auth.json`
 
 // rqlite is the rqlite image.
 var rqlite = product{
-	name:  "rqlite",
-	image: "docker.io/rqlite/rqlite",
-	port:  4001,
-	args:  []string{"sh", "-c", rqliteServe},
+	name:    "rqlite",
+	dialect: dbmeta.Rqlite,
+	image:   "docker.io/rqlite/rqlite",
+	port:    4001,
+	args:    []string{"sh", "-c", rqliteServe},
 	// The image has busybox wget and no curl. The check asks for a query as
 	// the administrator, so it passes only when a login works.
 	ready: []string{"sh", "-c", "wget -q -O- 'http://" + rqliteAdmin + ":" + Password +
 		"@127.0.0.1:4001/db/query?q=SELECT%201' | grep -q '\"values\"'"},
-	dsn:   rqliteHTTP(rqliteAdmin),
-	users: []Principal{{Role: User, User: RqliteUser, dsn: rqliteHTTP(RqliteUser)}},
+	dsn: rqliteAt("http", rqliteAdmin),
+	// dbimp's driver takes rqlite:// with no path and no query, and refuses
+	// http:// (dbimp D141). gorqlite, which the tests use until then, takes
+	// the dsn.
+	url: rqliteAt("rqlite", rqliteAdmin),
+	users: []Principal{{
+		Role: User, User: RqliteUser,
+		dsn: rqliteAt("http", RqliteUser),
+		url: rqliteAt("rqlite", RqliteUser),
+	}},
 }
 
-// rqliteHTTP is the address of the HTTP API, with one user's credentials.
-func rqliteHTTP(user string) func(port int) string {
+// rqliteAt is the address of the HTTP API under one scheme, with one user's
+// credentials.
+func rqliteAt(scheme, user string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
-			Scheme: "http",
+			Scheme: scheme,
 			User:   url.UserPassword(user, Password),
 			Host:   fmt.Sprintf("127.0.0.1:%d", port),
 		}
@@ -68,9 +79,6 @@ func rqliteHTTP(user string) func(port int) string {
 	}
 }
 
-// Rqlite is every rqlite release dbrun starts.
-//
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var Rqlite = list{}.staged(rqlite, Tested, "9.4.5", "10.3.6")
+// Rqlite is every rqlite release dbrun starts. Both are Tested, the cadence
+// each recorded while it was Staged (D120).
+var Rqlite = list{}.add(rqlite, Tested, "9.4.5", "10.3.6")

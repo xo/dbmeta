@@ -106,6 +106,7 @@ linters:
             - github.com/vertica/vertica-sql-go
             - github.com/snowflakedb/gosnowflake
             - github.com/sclgo/impala-go
+            - github.com/rqlite/gorqlite
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:
