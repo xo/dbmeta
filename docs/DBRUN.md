@@ -257,7 +257,8 @@ The administrator of each product:
 | Neo4j | `neo4j` | `container.Password` |
 | ArangoDB | `root` | `container.Password` |
 | Databend | `root` | `container.Password` |
-| rqlite, libSQL, Apache Pinot | `admin` | `container.Password` |
+| rqlite, Apache Pinot | `admin` | `container.Password` |
+| libSQL | `admin`, a name that sqld does not read | `container.LibSQLAdminToken`, a JWT with the claim `{"a":"rw"}` (D153) |
 | InfluxDB 1 | `admin` | `container.Password` |
 | InfluxDB 2 and 3 | the admin token `_admin` | `container.InfluxDBToken`, which is `apiv3_` and `container.Password`. `/query` takes it as the password |
 | CrateDB | `crate` | none. CrateDB takes no password for its superuser, and its URL writes an empty one, `crate:@`. Before dburl v0.35.0, usql read `crate@` as the user `postgres` (D123). |
@@ -294,8 +295,10 @@ is `container.Neo4jUser`, with the role `publisher`, and the setup also makes
 the database `dbmeta` (D106). ArangoDB, CrateDB, Databend, rqlite,
 Apache Pinot and Apache Druid have one too, and D112 and D113 say what each
 can do. InfluxDB 1 and 2 have `container.InfluxDBUser`, who can only read
-`dbmeta` (D114). InfluxDB 3 Core and libSQL have none, because neither can
-make a principal with fewer rights than its administrator. CouchDB and
+`dbmeta` (D114). libSQL has `container.LibSQLUser`, whose token has the
+claim `{"a":"ro"}` and can read and not write (D153). InfluxDB 3 Core has
+none, because it cannot make a principal with fewer rights than its
+administrator. CouchDB and
 TerminusDB have `dbmeta_user`, who can read `dbmeta` and cannot change its
 design. Qdrant, Weaviate, Meilisearch and Typesense have a key that can only
 read, which goes by the name `dbmeta_user` in the DSN. CockroachDB and TiDB
