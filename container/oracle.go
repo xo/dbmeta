@@ -154,7 +154,7 @@ var (
 //
 // A release with no entry keeps its full version, which makes the name carry a
 // patch level and fails TestNamesCarryOnlyTheMajor. That is deliberate: adding
-// a release without saying what Oracle calls it should not pass quietly.
+// a release without saying what Oracle calls it must not pass quietly.
 var oracleNames = map[string]string{
 	"11.2.0.2": "11g",
 	"18.4.0":   "18c",
@@ -189,8 +189,8 @@ func oracleMajor(release string) string {
 // has no free image and is built by hand, so it cannot run in CI.
 //
 // Every tag is pinned to a release. "23" floated: it resolved to 23.26.3 today
-// and would have moved under the tests without anyone deciding, which is what
-// the harness section of docs/PLAN.md warns about.
+// and can move under the tests without anyone deciding, which is what the
+// harness section of docs/PLAN.md warns about.
 var Oracle = list{}.add(oraclexe, Tested, "21.3.0").
 	add(oraclefree, Tested, "23.26.3").
 	add(oraclexe, Nightly, "11.2.0.2").

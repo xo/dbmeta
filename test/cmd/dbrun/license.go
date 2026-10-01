@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// A product that does not start without a licence file, such as Stardog,
+// A product that does not start without a license file, such as Stardog,
 // names where it reads the file in container.Server.License. A person
 // downloads the file, and dbrun mounts it. dbrun finds it in the first of two
 // places that has one, and lists the server only while one does, the way a
@@ -18,18 +18,18 @@ import (
 //  1. The path in the variable DBMETA_<PRODUCT>_LICENSE.
 //  2. The file <product> in $XDG_CONFIG_HOME/dbmeta/licenses.
 
-// licenseEnv names the variable that holds the path of a product's licence
+// licenseEnv names the variable that holds the path of a product's license
 // file.
 func licenseEnv(product string) string {
 	return "DBMETA_" + strings.ToUpper(product) + "_LICENSE"
 }
 
-// licenseDir is the directory of licence files.
+// licenseDir is the directory of license files.
 func licenseDir() string {
 	return filepath.Join(configDir(), "dbmeta", "licenses")
 }
 
-// resolveLicense finds the licence file of a product. It returns false when
+// resolveLicense finds the license file of a product. It returns false when
 // no place has one, which is not an error: the server is then absent. An
 // error is a place that names a file that cannot be used.
 func resolveLicense(product string) (string, bool, error) {
@@ -49,20 +49,20 @@ func resolveLicense(product string) (string, bool, error) {
 	return p, true, nil
 }
 
-// usableFile says why a path cannot be mounted as a licence file, or nil
+// usableFile says why a path cannot be mounted as a license file, or nil
 // when it can.
 func usableFile(p string) error {
 	info, err := os.Stat(p)
 	switch {
 	case err != nil:
-		return fmt.Errorf("reading the licence file: %w", err)
+		return fmt.Errorf("reading the license file: %w", err)
 	case !info.Mode().IsRegular():
 		return fmt.Errorf("%s is not a regular file", p)
 	}
 	return nil
 }
 
-// licenseMount is the flag that mounts a licence file where the product
+// licenseMount is the flag that mounts a license file where the product
 // reads it, and cannot be written from inside.
 func licenseMount(host, inside string) []string {
 	return []string{"--volume", host + ":" + inside + ":ro"}

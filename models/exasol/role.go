@@ -69,7 +69,7 @@ func registerRoles() {
 
 	// \drg. EXA_DBA_ROLE_PRIVS is every role grant in the database, and it
 	// needs SELECT ANY DICTIONARY. The views an ordinary user can read list
-	// only the grants that user holds, which would hide every other
+	// only the grants that user holds, which hides every other
 	// member's grants from an administrator as well. So this reads the
 	// whole list and a lesser principal is refused it. test/parity_test.go
 	// records that.

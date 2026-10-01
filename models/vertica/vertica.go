@@ -38,7 +38,7 @@
 //
 // # What is missing
 //
-// 29 kinds. Vertica has no domain, enumerated type, collation object, cast,
+// 30 kinds. Vertica has no domain, enumerated type, collation object, cast,
 // operator, text search object, extension, publication or large object. The
 // parameters of a routine are a comma separated list of types on its row,
 // and the named parameters a library function declares are options rather

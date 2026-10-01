@@ -69,8 +69,8 @@ type Choice []Fragment
 // family. Among those sharing a key, the highest Min wins.
 //
 // Two alternatives naming different keys, both met, return
-// [ErrAmbiguousFragment]. Nothing decides between them and guessing would pick
-// by a number that means something different on each side. It is a fault in
+// [ErrAmbiguousFragment]. Nothing decides between them, and a guess picks by
+// a number that means something different on each side. It is a fault in
 // the model.
 //
 // A Choice where every alternative names a key and the server reports none of
@@ -82,7 +82,7 @@ func (c Choice) Resolve(versions VersionSet) (string, error) {
 	var (
 		best  Fragment
 		found bool
-		// reachable counts the alternatives this server could meet on a newer
+		// reachable counts the alternatives this server can meet on a newer
 		// release: the ones with no key, and the ones whose key it reports.
 		reachable int
 	)
@@ -207,11 +207,12 @@ type Param struct {
 type Binding[T any] struct {
 	// Stmt is the versioned statement.
 	Stmt Stmt
-	// Columns are the result columns, in the order the statement returns them.
+	// Fields are the result columns, in the order the statement returns them.
 	Fields []Field
 	// Params are the parameters the statement takes.
 	Params []Param
-	// Scan reads one row. A generator writes it, so no reflection is needed.
+	// Scan reads one row. The model writes it by hand, so no reflection is
+	// needed.
 	Scan func(*sql.Rows) (T, error)
 
 	// Walk answers the query with several statements, for a product whose
@@ -247,7 +248,8 @@ type Query[T any] struct {
 }
 
 // AnyQuery is a query with its result type erased, so that a caller can list
-// every query and describe it without naming 40 types. [Query] satisfies it.
+// every query and describe it without naming every result type. [Query]
+// satisfies it.
 //
 // Use it to list what dbmeta knows. To read rows, use the [Query] value
 // itself, which keeps the result type.
@@ -296,8 +298,8 @@ func Queries() []AnyQuery {
 // Name returns the name of the object kind.
 func (q *Query[T]) Name() string { return q.name }
 
-// Register records what a dialect provides for this query. A model file in
-// internal calls it from its init. Registering twice for one dialect panics,
+// Register records what a dialect provides for this query. A model package
+// calls it from its init. Registering twice for one dialect panics,
 // because it is a build mistake.
 func (q *Query[T]) Register(d Dialect, b *Binding[T]) {
 	q.mu.Lock()
@@ -395,7 +397,7 @@ func (q *Query[T]) Support(m *Meta) Support {
 	// A query whose every fragment is gated above this release builds no
 	// statement at all. The product has the object and this server does not,
 	// which is neither of the answers above: telling a caller "not supported"
-	// would say stop asking, and telling it "supported" walks it into a query
+	// says stop asking, and telling it "supported" walks it into a query
 	// it cannot build. D54 left this open and it is now its own answer.
 	if errors.Is(err, ErrVersionTooOld) {
 		return TooOld
@@ -405,8 +407,8 @@ func (q *Query[T]) Support(m *Meta) Support {
 
 // Fields returns the result columns for m, in order.
 //
-// Read [Field.Min] to tell a field the server is too old to have from a value
-// that is genuinely null. Both arrive as NULL under the padding rule.
+// Read [Field.Present] to tell a field the server is too old to have from a
+// value that is genuinely null. Both arrive as NULL under the padding rule.
 func (q *Query[T]) Fields(m *Meta) ([]Field, error) {
 	b, err := q.lookup(m)
 	if err != nil {
@@ -450,7 +452,7 @@ func (q *Query[T]) Build(m *Meta, args map[string]any) (string, []any, error) {
 //
 // The iterator holds a database connection until it ends. Stopping early, with
 // break or by returning false from the yield, releases it, and so does
-// cancelling ctx. Do not open a second iterator inside the body of the first:
+// canceling ctx. Do not open a second iterator inside the body of the first:
 // that needs a second connection and deadlocks on a pool of one. Ask for every
 // row you want in one call and filter in the loop.
 func (q *Query[T]) All(ctx context.Context, m *Meta, db Queryer, args map[string]any) iter.Seq2[T, error] {
@@ -578,8 +580,8 @@ func bind(s string, info *Info, params []Param, args map[string]any) (string, []
 			v = strings.Join(list, ",")
 		}
 		// A repeated parameter gets a new placeholder and a repeated value,
-		// rather than reusing the first one. PostgreSQL would accept either,
-		// because $2 may appear twice, but MySQL writes ? and every ? consumes
+		// rather than reusing the first one. PostgreSQL accepts either,
+		// because $2 can appear twice, but MySQL writes ? and every ? consumes
 		// one argument. Reusing the number there gives "expected 5 arguments,
 		// got 3". Appending is correct for both.
 		// A dialect whose protocol cannot carry a parameter writes the

@@ -230,7 +230,7 @@ func registerRelations() {
 
 	// \d name. index_xinfo rather than index_info, so that the rowid columns
 	// SQLite appends to every index appear. They are filtered out here by
-	// key = 1, which is what index_info would have returned, but the pragma
+	// key = 1, which is what index_info returns, but the pragma
 	// also carries the collation and the direction and index_info does not.
 	dbmeta.IndexColumns.Register(dbmeta.SQLite3, &dbmeta.Binding[dbmeta.IndexColumn]{
 		Stmt: dbmeta.Stmt{

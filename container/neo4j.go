@@ -11,7 +11,7 @@ import (
 //
 // dbmeta has no Neo4j model. The releases are here so that dbrun can start a
 // server for the tests of the Neo4j driver in github.com/xo/dbimp, which is
-// its third driver. Ken agreed to the product and to its licence on
+// its third driver. Ken agreed to the product and to its license on
 // 2026-09-27. See D106.
 //
 // # The range, by the docs/EVALUATION.md procedure
@@ -22,11 +22,11 @@ import (
 // 2026-09-19. Each tag has a linux/amd64 build.
 //
 // 4.4 is not in the range. Its Enterprise image starts only with the
-// commercial licence, and a person cannot run that without paying. So the
+// commercial license, and a person cannot run that without paying. So the
 // floor is 5.26, the LTS line, and the ceiling is the newest monthly release.
 // The ceiling moves each month.
 //
-// # The edition and the licence
+// # The edition and the license
 //
 // The image is the Enterprise Edition, because the Community Edition has one
 // database and no roles. It starts only when NEO4J_ACCEPT_LICENSE_AGREEMENT is
@@ -131,6 +131,6 @@ func neo4jURL(user string) func(port int) string {
 // Neo4j is every Neo4j release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Neo4j = list{}.staged(neo4j, Tested, "5.26.31", "2026.09.0")

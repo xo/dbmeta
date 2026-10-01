@@ -24,7 +24,7 @@ import (
 // releases, and a new one arrives almost every day, so the ceiling moves
 // often. It tags a weekly release with the suffix -nightly, as in
 // v1.2.948-nightly. The release is named without the suffix, so that the
-// server is databend-1.2.948, and the tag keeps it. The core of Databend is under the Apache 2.0 licence.
+// server is databend-1.2.948, and the tag keeps it. The core of Databend is under the Apache 2.0 license.
 //
 // # The telemetry is blocked
 //

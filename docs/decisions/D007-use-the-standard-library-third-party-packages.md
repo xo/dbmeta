@@ -33,5 +33,5 @@ The mysql reader imports `github.com/gohxs/readline` and
 metadata. Leave them in `usql`.
 
 Check the models too. No metadata query needs a UUID column or anything else
-that would pull in a package, so make sure that every model imports nothing
+that pulls in a package, so make sure that every model imports nothing
 outside the standard library and the root package.

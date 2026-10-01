@@ -14,7 +14,7 @@ watching, hosting one old SQL Server.
 | 2014 Express | Windows Server 2012 R2 | `2012r2` |
 | 2016 SP2 Express | Windows Server 2016 | `2016` |
 
-2008 R2 is the floor, and it is a media floor rather than a judgement.
+2008 R2 is the floor, and it is a media floor rather than a judgment.
 Microsoft still publishes the Express installer for 2008 R2, 2012 and 2014, and
 the 2012 release page is gone while every 2012 service pack page is still
 there. The plain 2008 page is gone entirely.
@@ -22,7 +22,7 @@ there. The plain 2008 page is gone entirely.
 ## The tier
 
 Verified, never Tested. A machine needs KVM and the better part of an hour, so
-CI cannot run one, and calling it Tested would put an untestable release in the
+CI cannot run one, and calling it Tested puts an untestable release in the
 table beside a release CI runs on every push. D40 already has the right word
 and this uses it. `container/windows_test.go` fails if a machine is given any
 other tier.
@@ -34,7 +34,7 @@ fourth tier, and it did not need a new word after all.
 
 ## One machine per release
 
-SQL Server installs side by side, so four releases could share two machines.
+SQL Server installs side by side, so four releases can share two machines.
 Both reviews said not to, for the same two reasons, and both are right.
 
 A second release on a host has to be a named instance. A named instance takes a
@@ -61,10 +61,10 @@ testing and needs no product key and no activation, and `slmgr /rearm` extends
 it, which is Microsoft's own mechanism.
 
 So nothing here activates Windows. There is an existing script outside this
-repository that does, by installing a generic volume licence key and pointing
+repository that does, by installing a generic volume license key and pointing
 `slmgr /skms` at a public KMS emulator. That is circumventing licensing rather
 than complying with it, and it is also unnecessary, because the evaluation
-editions already permit exactly this use. It was not carried over and it should
+editions already permit exactly this use. It was not carried over and it must
 not be.
 
 SQL Server Express is free on the same footing, and it is enough: every catalog
@@ -94,7 +94,7 @@ the container is created, so it answered twenty seconds in and every machine
 was declared ready before Windows had begun installing. Readiness is a query
 now. A check that cannot fail is worse than no check, because it is believed.
 
-## What may be claimed after a machine runs
+## What can be claimed after a machine runs
 
 That the queries ran against that release, on that build, on that date. Not
 that they run today, because nothing runs again. Record the build in

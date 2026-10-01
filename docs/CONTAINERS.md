@@ -202,7 +202,7 @@ into each release:
 | `runFlags` | flags for the run command, before the image name, such as `--entrypoint` where Apache Pinot, Apache Druid and Avatica replace the image's entrypoint, or `--add-host` where Databend blocks its telemetry (D112) |
 | `args` | arguments after the image name, for the image's entrypoint or the one `runFlags` names |
 | `memory` | a memory limit above `MemoryLimit`, with its measurement |
-| `license` | the path inside the container where the product reads its licence file, for a product that does not start without one. dbrun mounts the file from the host and lists the product only while it finds the file. Stardog, GraphDB and VoltDB set it (D118) |
+| `license` | the path inside the container where the product reads its license file, for a product that does not start without one. dbrun mounts the file from the host and lists the product only while it finds the file. Stardog, GraphDB and VoltDB set it (D118) |
 | `startup` | a wait longer than 90 seconds, with its measurement |
 | `settle` | how long `ready` has to keep passing. Presto and Trino need it (D83). |
 | `dsn` | builds the connection string the Go driver takes, for a host port |

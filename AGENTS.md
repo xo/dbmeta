@@ -35,7 +35,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 153. Read the status, because 49
+`docs/decisions/README.md` is a table of all 156. Read the status, because 51
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -46,7 +46,7 @@ Then by what you are doing:
 | writing or changing any query | `docs/NULLS.md`, then `docs/COVERAGE.md` |
 | asking why something is the way it is | the index in `docs/decisions/README.md` |
 | adding an object kind | D46 and D47 in `docs/decisions/`, then `docs/COMMANDS.md` |
-| adding a database | `docs/DIALECT.md`, which is every step in order. It points at D66, `docs/EVALUATION.md`, D43, D52, D38 and D61 |
+| adding a database | `docs/DIALECT.md`, which is every step in order. It points at D66, `docs/EVALUATION.md`, D43, D154, D38 and D61 |
 | wondering which database comes next | D66, which holds the order and why a product with no container is last |
 | a parity failure | D61. Decide whether the query began depending on who is asking, or whether one release genuinely differs, and record it |
 | changing what a database answers | `docs/COVERAGE.md`, which is the record of what each one can do |
@@ -60,7 +60,7 @@ Then by what you are doing:
 | starting a database for any reason | `dbrun`, and nothing else. `docs/DBRUN.md` holds its use and the rules for a shared machine. Read those rules first |
 | adding a container or a machine that dbrun starts | `docs/CONTAINERS.md`, every step in order |
 | reaching a hosted service, such as Snowflake | `docs/DBRUN.md`, under Hosted services, and D117. Never enter a credential yourself |
-| running a product that needs a licence file, such as Stardog | `docs/DBRUN.md`, under Licence files, and D118. Never sign up for one or download one yourself |
+| running a product that needs a license file, such as Stardog | `docs/DBRUN.md`, under License files, and D118. Never sign up for one or download one yourself |
 | adding an entry for a product dbimp or usql reaches | D118, which holds the rules the entries follow and what each one cost to measure |
 | changing how a database is started | D68, D70, D75, D86, D97, D98, D105, D108 and D115 in `docs/decisions/`, then `docs/DBRUN.md` |
 | changing how dbrun calls podman or docker | D122. Read JSON, name many containers in one call, and do not ask twice |
@@ -175,25 +175,24 @@ something is written down, it is not written down, and it is an open question.
    a version for an administrator and none for anybody else. Comparing
    printed output never found that. `docs/USQL.md` holds the measurement.
    `TestEveryModelIsInTheVersionTable` fails when a model has no row. See D38.
-   Every driver in the `test` module is the one `usql` uses for that database.
-   The version can differ and the package must not. Where `usql` ships two for
-   one database, test both as subtests named for the driver: SQLite runs on
-   `mattn/go-sqlite3` and `modernc.org/sqlite`, and PostgreSQL on
-   `jackc/pgx/v5/stdlib` and `lib/pq`. There are two exceptions. Parity is
+   Every driver in the `test` module is the one the `dburl` registry names for
+   that dialect: `Scheme.GoPackage` of each scheme whose `Dialect` it is, from
+   dburl v0.29.0, with `Scheme.RequiresCGO` saying whether it needs a C
+   compiler. dburl is upstream of `dbmeta` and of `usql` both, and `usql` is
+   downstream, so its imports do not decide this. The version is the test
+   module's own, because the registry carries none. Where two schemes of one
+   dialect name two packages, test both as subtests named for the driver:
+   SQLite runs on `mattn/go-sqlite3` and `modernc.org/sqlite`, and PostgreSQL
+   on `jackc/pgx/v5/stdlib` and `lib/pq`. There are two exceptions. Parity is
    one, and D52 says why. Oracle is the other, and D59 says why: the
-   `go-ora/v3` that `usql` pins panics rather than connecting on 11g and 18c.
+   `go-ora/v3` that dburl names panics rather than connecting on 11g and 18c.
    It is fixed upstream and untagged, so the Oracle tests use v2 until v3 tags
    the fix, and then go back. `test/oraclev3` runs every Oracle query through
    v3 at the commit that fixes it, because v3 binds a parameter differently
-   and refused every query once (D136). The package is in the `dburl`
-   registry, from v0.29.0: `Scheme.GoPackage` is the import path and
-   `Scheme.RequiresCGO` says whether it needs a C compiler. Read that first,
-   and read `usql`'s `go.mod` for the version, because the registry does not
-   carry one. `grep -rn "// DRIVER" usql` is the second look and it is not the
-   list: it finds an import carrying the comment, and Oracle has none, because
-   `oracle` and `godror` both register through `orshared.Register`. A query
-   that works here and fails on the driver `usql` ships is a query that does
-   not work. See D52 and D80.
+   and refused every query once (D136). If what `usql` imports differs from
+   what dburl names, the fault is in one of those two, and the fix goes
+   there. A query that works here and fails on the driver dburl names is a
+   query that does not work. See D52, D80 and D154.
 11. Never write a `//go:build` constraint on an operating system or an
    architecture, and never branch on either. Testing is `linux/amd64` only.
    The same database version is assumed to answer the same way everywhere.
@@ -214,7 +213,7 @@ something is written down, it is not written down, and it is an open question.
    A child of an object is its own kind with flat rows, never a slice on the
    parent, because filling a slice needs a second statement or a dialect
    specific aggregate. See D47.
-14. A new dialect is not finished until several AI models have been asked
+14. A new dialect is not finished until you ask several AI models
    about the queries it cannot answer. `docs/DIALECT.md` holds every step of
    adding one, and this is one of them. Consult at least two of Gemini,
    DeepSeek and Astra, and ask each one to sort the unanswered queries into
@@ -242,7 +241,7 @@ something is written down, it is not written down, and it is an open question.
    If you are a coding agent, set `DBMETA_OWNER_NAME` to the name of your
    session on every `dbrun` command, so that `status` shows whose each server
    is. See D115.
-16. A dialect is not finished until every query has been asked as the
+16. A dialect is not finished until you ask every query as the
    administrator and as every lesser kind of principal the product has, and
    the differences are written down. Add the principals to `parityTargets` in
    `test/parity_test.go`, run `go test -run TestPrivilegeParity -update`, and
@@ -397,7 +396,7 @@ the end of a result from a failure in the middle of one.
 
 An iterator holds a database connection until it ends. Stopping early, by
 `break` or by `yield` returning false, must close the rows and release the
-connection, and so must cancelling the context. A caller that nests one
+connection, and so must canceling the context. A caller that nests one
 iterator inside another uses a second connection, which deadlocks on a pool of
 one. Document the filter form that avoids nesting.
 
@@ -571,6 +570,15 @@ a document, a code comment, an error message or a commit message. Follow it
 for that text. Its rules include the ones above and add more, such as no
 contractions and one word for one meaning. Ken asked for this. See D89 and
 D110.
+
+`TestProseIsSimpleEnglish` checks the rules of the skill that a machine can
+check: the banned modals, semicolons, dashes, contractions, bold, "has been",
+British spellings, filler words and Latin abbreviations. It reads every
+document, every comment in Go, YAML, a Containerfile, a batch file or an INI
+file, and every error and test message. It skips text
+in backticks or double quotes. There is no marker that turns a rule off. If
+it reports a sentence, rewrite the sentence. Sentence length and the voice
+are still yours to check. See D156.
 
 Work that is known and not done goes in `docs/BACKLOG.md`, with the decision
 or the measurement that found it. When an item is done, delete it, and record

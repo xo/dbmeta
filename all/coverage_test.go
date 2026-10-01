@@ -327,7 +327,7 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			continue
 		}
 		if !strings.Contains(table, "| "+product+" |") {
-			t.Errorf("docs/DBTPL.md: no verdict for %s. Say whether dbtpl could"+
+			t.Errorf("docs/DBTPL.md: no verdict for %s. Say whether dbtpl can"+
 				" generate from it and why.", product)
 		}
 	}
@@ -425,7 +425,7 @@ func spellOut(doc string) string {
 			{" one", 1}, {" two", 2}, {" three", 3}, {" four", 4}, {" five", 5},
 			{" six", 6}, {" seven", 7}, {" eight", 8}, {" nine", 9}, {"", 0},
 		} {
-			// the same word capitalised, because a comment starts a
+			// the same word capitalized, because a comment starts a
 			// sentence with it. These are ASCII words from the map above.
 			upper := strings.ToUpper(word[:1]) + word[1:]
 			for _, w := range []string{word + unit.suffix, upper + unit.suffix} {

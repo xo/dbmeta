@@ -13,7 +13,7 @@ package container
 // docker.io/dgraph/standalone builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is v25.4.1, of 2026-08-24, and v25.3.8, of 2026-07-09.
-// Dgraph is under the Apache 2.0 licence.
+// Dgraph is under the Apache 2.0 license.
 //
 // # The users
 //
@@ -21,7 +21,7 @@ package container
 // secret of at least 32 bytes in a file. So the command writes the file and
 // starts the image's own script, which runs Zero and Alpha. Dgraph makes the
 // administrator groot with the password password. Init logs in, gives groot
-// [Password], and makes the group dbmeta, which may read the predicate
+// [Password], and makes the group dbmeta, which can read the predicate
 // dgraph.type, and [DgraphUser] in that group. Dgraph grants a group each
 // predicate by name, so a test that reads more grants more as groot.
 // Dgraph numbers a namespace and does not name one, so nothing is named
@@ -87,6 +87,6 @@ var dgraph = product{
 // Dgraph is every Dgraph release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Dgraph = list{}.staged(dgraph, Tested, "25.3.8", "25.4.1")

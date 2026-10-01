@@ -37,10 +37,10 @@
 //
 // A caller reads the version by asking for the query and running it:
 //
-//	query, _, ok := dbmeta.Postgres.VersionQuery()
+//	query, _, ok := dbmeta.PostgreSQL.VersionQuery()
 //	// caller runs query and scans the columns as strings
-//	versions, err := dbmeta.Postgres.ParseVersion(cols)
-//	m, err := dbmeta.New(dbmeta.Postgres, versions)
+//	versions, err := dbmeta.PostgreSQL.ParseVersion(cols)
+//	m, err := dbmeta.New(dbmeta.PostgreSQL, versions)
 //
 // One dialect can need a second statement. [Dialect.FollowUpQuery] says
 // whether it does for the server the first one found, and
@@ -63,11 +63,11 @@
 //	}
 //
 // An iterator holds a database connection until it ends. Stopping early
-// releases it, and so does cancelling the context. Do not open a second
+// releases it, and so does canceling the context. Do not open a second
 // iterator inside the body of the first, because that needs a second
 // connection and deadlocks on a pool of one.
 //
-// A caller that would rather run the statement itself asks for it instead:
+// A caller that runs the statement itself asks for it instead:
 //
 //	query, args, err := dbmeta.Tables.Build(m, map[string]any{"schema": "public"})
 //
@@ -77,6 +77,8 @@
 //
 // # Layout
 //
-// The models for one database live under internal, one file per model, and
-// register what their dialect provides. Callers use this package.
+// Each model is a package under models, one for each database, and it
+// registers what its dialect provides. The all package imports every model
+// that the build tags select.
+// Callers use this package.
 package dbmeta

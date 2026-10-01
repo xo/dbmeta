@@ -15,7 +15,7 @@ import "fmt"
 // applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is 1.5.9, of 2026-05-05, and 1.4.1, of 2026-01-14. The
 // 1.5.10.dev tags are development builds. Chroma is under the Apache 2.0
-// licence.
+// license.
 //
 // # No users
 //
@@ -49,6 +49,6 @@ var chroma = product{
 // Chroma is every Chroma release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Chroma = list{}.staged(chroma, Tested, "1.4.1", "1.5.9")

@@ -17,22 +17,22 @@
 // syntax arrives in a later release, and some objects do not exist at all on
 // an older one. `CREATE TRIGGER ... EXECUTE FUNCTION` is release 11 syntax and
 // `EXECUTE PROCEDURE` is what works below it. Writing the deprecated form
-// everywhere would mean the newest release is tested with syntax nobody
+// everywhere means that the newest release is tested with syntax nobody
 // writes, so each step carries alternatives exactly as a query piece does.
 //
 // A step with no alternative for the server is skipped rather than refused.
 // That is the one place a fixture differs from a query: asking for
-// publications on release 9.6 is an error, but creating one there is simply
+// publications on release 9.6 is an error, but creating one there is
 // something the fixture does not do. [Result.Skipped] records it.
 //
-// # What you may depend on
+// # What you can depend on
 //
-// A fixture is additive. A later release of `dbmeta` may add an object to one,
+// A fixture is additive. A later release of `dbmeta` can add an object to one,
 // and will not rename or remove what is already there. Code written against a
 // fixture keeps working when this package grows.
 //
 // Adding an object is not free for a caller that counts rows, so a caller that
-// needs an exact set should name the objects it reads rather than reading
+// needs an exact set names the objects it reads rather than reading
 // everything in the schema.
 //
 // To change a schema in a way that is not additive, add a new fixture beside
@@ -50,7 +50,7 @@ type Step struct {
 	// Name says what the step creates, for a caller reporting what it ran or
 	// skipped.
 	Name string
-	// Stmt is the statement, which may differ by server version.
+	// Stmt is the statement, which can differ by server version.
 	Stmt dbmeta.Stmt
 }
 
@@ -61,7 +61,7 @@ type Result struct {
 	// Query is the statement to run. It is empty when the step was skipped.
 	Query string
 	// Skipped reports that the server is too old for the step, so there is
-	// nothing to run. The object the step would have created does not exist on
+	// nothing to run. The object the step creates does not exist on
 	// that release, and the query that reads it is refused there too.
 	Skipped bool
 	// Reason says why the step was skipped.

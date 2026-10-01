@@ -48,7 +48,7 @@ fragment. Two models asked independently and both said the same thing. Gemini
 put it best: once you are branching on engine identity rather than engine
 version, you no longer have one dialect with versioned fragments, you have two
 dialects sharing a struct. DeepSeek added the maintenance case, that a reader
-would have to hold both products in their head at every object.
+has to hold both products in their head at every object.
 
 MariaDB and MySQL are not the counter example they look like. They share
 decades rather than six years, their catalogs still agree on nearly
@@ -64,7 +64,7 @@ connector raises rather than answering nothing, and D34 says a query dbmeta
 offers must run, so they are not offered.
 
 Its conformance section is its own, and that is the second reason a shared
-dialect would not have worked. Presto's `memory` connector refuses `NOT NULL`
+dialect does not work. Presto's `memory` connector refuses `NOT NULL`
 on the newest release there is, so every column in its fixture is nullable
 where Trino's is not. One section cannot describe both.
 

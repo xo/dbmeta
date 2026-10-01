@@ -57,19 +57,22 @@ of this file.
 
 ## What exists today
 
-`models/` holds 27 native models: cassandra, clickhouse, cockroachdb,
+`models/` holds 28 native models: cassandra, clickhouse, cockroachdb,
 couchbase, cratedb, databend, duckdb, exasol, firebird, hana, hive, impala,
 influxdb, mysql, oracle, postgres, presto, questdb, redshift, rqlite,
-singlestore, snowflake, sqlite3, sqlserver, tidb, trino and vertica. ScyllaDB is a flavor of the
+singlestore, snowflake, sqlite3, sqlserver, tidb, trino, vertica and vitess. ScyllaDB is a flavor of the
 Cassandra model and MySQL a flavor of the MariaDB one. `models/informationschema` is the shared
 model for any database with a standard `information_schema`, and no native
 model builds on it. `COVERAGE.md` holds what each one answers.
 
 `container/` names every release the tests run against, and `dbrun` starts
-each one. `dbrun` also starts servers for dbimp's drivers that have no model:
-SurrealDB, Neo4j, the products of D112 that have no model (ArangoDB,
-InfluxDB 1 and 2, Apache Pinot and libSQL) and the three Avatica servers of
-D113. It knows the embedded databases too, including two, chai and csvq, that
+each one. `dbrun` also starts Staged servers that no model reads (D119).
+Many are for dbimp's drivers, such as SurrealDB, Neo4j, the products of D112
+that have no model (ArangoDB, InfluxDB 1 and 2, Apache Pinot and libSQL), and
+the servers of D113. Two of those, Avatica and Phoenix, speak JSON (D155), and
+Druid waits for a driver of its own in dbimp. The rest are for the flavors
+usql reaches and the emulators of hosted services (D118). `dbrun list staged`
+names every one. It knows the embedded databases too, including two, chai and csvq, that
 have no model yet (D116 and D119). `README.md` holds the support tiers.
 
 `usql` reads `dbmeta` in work that is staged and not committed, and `dbtpl`
@@ -523,7 +526,7 @@ Neither axis contains the other. A query can work on every MariaDB release and
 fail on MySQL 8. A query can work on both products at release 8 and fail on
 both at release 5.
 
-### dburl holds the flavor taxonomy. Import it.
+### dburl holds the flavor taxonomy
 
 Do not invent a list of flavors and do not copy one. D19 makes
 `github.com/xo/dburl` the place the taxonomy lives, so read it from there
@@ -559,9 +562,10 @@ starts and no model reads yet, and CI never runs it. Archived has no tests. `con
 the list, and the workflow reads it through `dbrun list --json --names`
 (D69). CI compiles the tests once and every job runs the binary (D82). The
 embedded databases run in the same matrix and start nothing. A separate job
-compares MariaDB with MySQL (D44). CockroachDB, CrateDB, TiDB and Vitess
-have models of their own. CockroachDB's shares most of the postgres model's
-statements, and TiDB's and Vitess's most of the mysql model's. Redshift is a
+compares MariaDB with MySQL (D44). CockroachDB, CrateDB, SingleStore, TiDB
+and Vitess have models of their own. CockroachDB's and CrateDB's share
+statements of the postgres model, and the models of SingleStore, TiDB and
+Vitess share statements of the mysql model. Redshift is a
 hosted service with a dialect of its own (D117, D118, D123, D125, D133,
 D135).
 
@@ -612,11 +616,11 @@ No question is open. The four that were are answered in D128, D129, D130 and
 D131.
 
 None of the older questions is open.
-The floor question that the upstream change reopened has been answered:
+The floor question that the upstream change reopened is answered:
 D20 keeps 9.6, and D40 adds the tiers and the removal trigger that the review
 asked for in exchange.
 
-Everything else raised in this document has been answered, and every decision
+Everything else raised in this document is answered, and every decision
 has a status in its file.
 
 Nothing is deferred either. Both of the items that were are closed, and each

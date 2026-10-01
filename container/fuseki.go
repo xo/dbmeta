@@ -12,7 +12,7 @@ package container
 // Apache publishes no image, and each release once, as a jar on Maven
 // Central. So the rule in D112 applies: the newest release of each of the
 // last two lines. Checked on 2026-09-28, that is 6.2.0, of 2026-07-27, and
-// 6.1.0, of 2026-05. Jena is under the Apache 2.0 licence.
+// 6.1.0, of 2026-05. Jena is under the Apache 2.0 license.
 //
 // # The image is built here
 //
@@ -22,13 +22,13 @@ package container
 // # The users
 //
 // Fuseki reads its users from a password file with one name and password on
-// each line, and the configuration says which user may use which endpoint.
-// The command writes both. admin may query, update and write the graphs of
-// the dataset dbmeta, which TDB2 keeps on disk. [FusekiUser] may only query.
+// each line, and the configuration says which user can use which endpoint.
+// The command writes both. admin can query, update and write the graphs of
+// the dataset dbmeta, which TDB2 keeps on disk. [FusekiUser] can only query.
 // The configuration asks for basic authentication, because the default is
 // digest. Fuseki reads both files on every start, so nothing else sets up.
 
-// FusekiUser may only query the dataset dbmeta. Its password is [Password].
+// FusekiUser can only query the dataset dbmeta. Its password is [Password].
 const FusekiUser = "dbmeta_user"
 
 // fusekiServe writes the password file and the configuration and starts the
@@ -72,6 +72,6 @@ var fuseki = product{
 // Fuseki is every Apache Jena Fuseki release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Fuseki = list{}.staged(fuseki, Tested, "6.1.0", "6.2.0")

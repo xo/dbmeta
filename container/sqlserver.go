@@ -43,7 +43,7 @@ var sqlserver = product{
 // Linux from 2017, so 2016 and earlier have no container and cannot be tested
 // at all. D54 says what is claimed for them, which is less than support.
 //
-// Splitting these across tiers would have saved little. Every version gate the
+// Splitting these across tiers saves little. Every version gate the
 // model has sits below 2017, so the releases here differ by what they added
 // rather than by what they lack, and the newest is the one most likely to
 // break. See D54.

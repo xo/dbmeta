@@ -44,7 +44,7 @@ func TestParseVersion(t *testing.T) {
 	}
 }
 
-// TestCompareDiffersInLength is the case a three field version type could not
+// TestCompareDiffersInLength is the case a three field version type cannot
 // express. Oracle reports five components and SQL Server four.
 func TestCompareDiffersInLength(t *testing.T) {
 	t.Parallel()

@@ -291,7 +291,7 @@ func TestDialectVersion(t *testing.T) {
 // TestRepeatedParamBindsTwice guards a fault that only a placeholder style
 // like MySQL's can show. A parameter named twice in one statement must get two
 // placeholders and two values, because every ? consumes an argument.
-// PostgreSQL hides this, since $2 may appear twice.
+// PostgreSQL hides this, since $2 can appear twice.
 // declared at package level, not in the test body: NewQuery and Register both
 // reject a duplicate, and a test body runs again under -count=2.
 const seqDialect Dialect = "seqdb"
@@ -437,8 +437,8 @@ func TestWrongProductIsNotSupported(t *testing.T) {
 	// the same query on the right product, at too old a release, is a
 	// different answer again. It used to report Supported and leave the
 	// release to the error, which D54 recorded as an open question and
-	// answered: a caller that trusts Support walked into a query it could
-	// not build.
+	// answered: a caller that trusted Support walked into a query it was
+	// unable to build.
 	old := twin(t, "alpha", "10.6")
 	if got := twinOnlyQuery.Support(old); got != TooOld {
 		t.Errorf("expected version too old, got %v", got)
@@ -449,8 +449,8 @@ func TestWrongProductIsNotSupported(t *testing.T) {
 }
 
 // TestTwoKeysBothMetIsAFault checks that nothing guesses. Two alternatives for
-// different products cannot both apply, and picking by the number would
-// compare releases that mean different things.
+// different products cannot both apply, and picking by the number
+// compares releases that mean different things.
 func TestTwoKeysBothMetIsAFault(t *testing.T) {
 	t.Parallel()
 	both := twin(t, "alpha", "11.8", "beta", "9.7")

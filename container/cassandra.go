@@ -15,7 +15,7 @@ import (
 // dead. 3.0 and 3.11 were rebuilt in November 2025, and 4.0, 4.1 and 5.0 a
 // week before this was written. Every one of them has a linux/amd64 build.
 //
-// So the floor could be 3.0 and it is 3.11. 3.0 and 3.11 carry the same
+// So the floor can be 3.0 and it is 3.11. 3.0 and 3.11 carry the same
 // system_schema catalog, so 3.0 adds a release without adding an answer, and
 // 3.11 is the release people actually ran. The versions above it are all
 // covered.

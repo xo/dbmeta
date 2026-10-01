@@ -14,7 +14,7 @@
 //
 // That makes a version gate almost pointless here, and there are none. Every
 // pragma these queries read arrived by SQLite 3.37, released in 2021, and no
-// Go driver still shipping is older than that. A gate would claim a precision
+// Go driver still shipping is older than that. A gate claims a precision
 // nothing can check, because the only way to reach an older SQLite is to pin
 // an old driver, which a consumer does deliberately.
 //

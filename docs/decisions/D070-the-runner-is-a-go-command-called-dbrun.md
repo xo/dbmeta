@@ -30,9 +30,9 @@ a driver, which hard rule 1 keeps out of the root module.
 and docker is used when podman is absent, so the command works on a machine
 with either and nobody has to say which.
 
-A Go client library was considered and rejected. It would be a dependency for
-something the two commands already do identically, it would have to speak two
-socket protocols to cover both, and the places they differ are one line each:
+A Go client library was considered and rejected. It is a dependency for
+something the two commands already do identically, it has to speak two socket
+protocols to cover both, and the places they differ are one line each:
 `image exists` against `image inspect`, and `rm --storage`, which podman needs
 and docker has no state for.
 
@@ -45,11 +45,12 @@ at all, only Dockerfiles and a three gigabyte installer archive that no command
 can fetch from them, because their download needs an account and a browser
 session. It is fetched from a mirror when it is not already on the machine,
 and the SHA-256 Oracle publishes is what says the file is theirs. A copy that
-fails the check is deleted, so a bad download is not kept. `start` and `test` build a missing image so that neither caller has to
-remember, and `build` rebuilds one on demand. The Cassandra Containerfile is
-embedded with `//go:embed`, so the command carries its own build input. What
-stays shell is Oracle's own build script, which is theirs and which rewriting
-here would mean owning a build we do not control.
+fails the check is deleted, so a bad download is not kept. `start` and `test`
+build a missing image so that neither caller has to remember, and `build`
+rebuilds one on demand. The Cassandra Containerfile is embedded with
+`//go:embed`, so the command carries its own build input. What stays shell is
+Oracle's own build script, which is theirs, and rewriting it here means owning
+a build we do not control.
 
 `provision` folded in too, and that reverses the design's own recommendation.
 It said to leave provisioning a script and exec it, because the interface is
@@ -75,7 +76,7 @@ comment and left the header alone. It renders, it installs for forty minutes,
 and it fails at the end.
 
 A translation is not finished because it compiles. It is finished when its
-output has been compared to the output of the thing it replaced.
+output is compared to the output of the thing it replaced.
 
 ## One selector changed
 

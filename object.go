@@ -8,7 +8,7 @@ import "database/sql"
 // result type is inferred and a type the package does not know cannot be
 // asked for. A model registers what its dialect provides for each value.
 //
-// A field a database may report as NULL is declared sql.Null[T] and never a
+// A field a database can report as NULL is declared sql.Null[T] and never a
 // plain T. An absent value is not an empty one: a table with no comment and a
 // table whose comment is the empty string are different facts, and collapsing
 // them shipped a real bug once. Read docs/NULLS.md before writing a query.
@@ -19,9 +19,10 @@ import "database/sql"
 // matters, and read Field.Present to tell an absent value from a column the
 // server is too old to have.
 //
-// The object set comes from psql, which describes 49 kinds. Only the first few
-// are declared here, because D13 builds the models before the API and the
-// shape of the rest follows from them. See docs/QUERIES.md.
+// The object set comes from psql, which describes 49 kinds, and later
+// decisions such as D46 and D55 added the kinds psql has no command for. D13
+// built the models before the API, so the shape of each kind follows from
+// what the models answer. See docs/QUERIES.md.
 
 // Table is a table, a view, a materialized view or a sequence.
 type Table struct {
@@ -58,8 +59,8 @@ type Column struct {
 	// pragma_table_xinfo, and PostgreSQL reaches it with one more join.
 	PrimaryKey bool
 	// Identity is the identity kind, empty when the column is not an identity.
-	// PostgreSQL gained it in release 11, so an older server reports empty
-	// under the padding rule and [Field.Min] says which is which.
+	// PostgreSQL gained it in release 11, so an older server reports it absent
+	// under the padding rule, and [Field.Present] says which is which.
 	Identity sql.Null[string]
 	// Generated is the generated kind, empty when the column is not
 	// generated. PostgreSQL gained it in release 12.
@@ -93,7 +94,7 @@ var (
 	Schemas = NewQuery[Schema]("schemas")
 	// Columns lists the columns of a table.
 	Columns = NewQuery[Column]("columns")
-	// Indexes lists the indexes of a table. No model provides it yet.
+	// Indexes lists the indexes of a table.
 	Indexes = NewQuery[Index]("indexes")
 )
 
@@ -615,7 +616,8 @@ type ExtendedStat struct {
 	Definition sql.Null[string]
 	// Ndistinct, Dependencies and MCV say which of the three kinds the object
 	// was made with, as the columns of psql's \dX do. Kinds holds the same
-	// letters. MCV arrived in PostgreSQL 12.
+	// letters, except on SAP HANA, where it holds the type of the statistic in
+	// lower case. MCV arrived in PostgreSQL 12.
 	Ndistinct    bool
 	Dependencies bool
 	MCV          bool
@@ -810,8 +812,8 @@ type RoutineParameter struct {
 // which is what psql prints, and this is the same fact in rows. A label can
 // contain a comma, so splitting that string is not a substitute.
 //
-// MySQL has no enum type, only an enum column, so a model there reports the
-// column as the enum and its name is the column name.
+// MySQL has no enum type, only an enum column, and the mysql model does not
+// answer this kind.
 type EnumValue struct {
 	Catalog string
 	Schema  string
@@ -885,9 +887,9 @@ var (
 	ColumnStats = NewQuery[ColumnStat]("column_stats")
 	// CurrentSchema returns the schema an unqualified name resolves in.
 	//
-	// It is session dependent. It answers one row and it is the one kind here
-	// that describes the connection rather than the database. A caller reads
-	// it with [First].
+	// It is session dependent. It answers one row and, with [CurrentUser], it
+	// describes the connection rather than the database. A caller reads it
+	// with [First].
 	CurrentSchema = NewQuery[Schema]("current_schema")
 	// CurrentUser returns who the connection is authenticated as.
 	//

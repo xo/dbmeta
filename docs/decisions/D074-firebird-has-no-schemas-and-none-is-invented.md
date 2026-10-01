@@ -18,8 +18,8 @@ wants to qualify a name has an easier time with something in the field.
 
 It is rejected. `main` is a name SQLite itself uses and a ClickHouse database
 is a real namespace, so neither model is inventing anything. Firebird has
-nothing to report, and a value put there would be indistinguishable from a
-real schema to a caller that cannot see the server. D34 already says an empty
+nothing to report, and a value put there is indistinguishable from a real
+schema to a caller that cannot see the server. D34 already says an empty
 result must never stand in for `NotSupported`, and the converse holds as
 firmly: a fabricated row must never stand in for an absent level.
 
@@ -28,7 +28,7 @@ returns an empty schema with a field description saying why, and
 `TestFirebirdSchemasAreNotSupported` holds both halves.
 
 The cost is one of the nine reads `dbtpl` makes, which `docs/DBTPL.md`
-records. A generator would have to be told there is no schema to qualify by.
+records. A generator has to be told there is no schema to qualify by.
 That is a true statement about Firebird and the honest thing for it to be told.
 
 ## Roles keeps SEC$USERS, although the driver has a fault around it
@@ -47,8 +47,8 @@ is why it looked intermittent until it was pinned down. The parity test
 reproduced it four times out of four and recorded between 18 and 22 differing
 queries where the truth is three.
 
-Dropping `SEC$USERS` would remove the fault and make the parity record stable
-at once, which was measured: the same run then reported three differences
+Dropping `SEC$USERS` removes the fault and makes the parity record stable at
+once, which was measured: the same run then reported three differences
 every time.
 
 It is rejected, because the fault cannot reach a consumer. `dbmeta` issues no
@@ -61,7 +61,7 @@ record is stable with `SEC$USERS` in place.
 
 D52 says a query that fails on the driver `usql` ships is a query that does
 not work. This one does not fail on that driver. It fails after a statement
-`usql` would have to be asked to run, and the reason is written down in
+that `usql` runs only when it is asked to, and the reason is written down in
 `docs/COVERAGE.md` so that the next person to see EOF from Firebird knows
 within a minute what it is.
 
@@ -73,8 +73,8 @@ derivable in one statement.
 
 That is a list of languages in use and not a catalog of languages installed,
 and Firebird has no catalog of the second. An engine that is installed and
-unused would be missing and a caller could not tell which kind of answer it
-had. Rule 14 says to leave an analogue that is a stretch unsupported and to
+unused is missing from it, and a caller cannot tell which kind of answer it
+has. Rule 14 says to leave an analogue that is a stretch unsupported and to
 record the reason, and this is that case. The fact itself is not lost:
 `Function.Language` carries it per routine, which is where Firebird records it.
 
@@ -84,5 +84,5 @@ Firebird's conformance section is identical to PostgreSQL's except for three
 lines, and on all three Firebird agrees with the other eight databases while
 PostgreSQL is the outlier, because its fixture declares the keys `serial`.
 That is the closest any model has come to the reference, and it is worth
-saying after two query engines that could answer neither a constraint nor an
+saying after two query engines that can answer neither a constraint nor an
 index.

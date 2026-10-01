@@ -121,7 +121,7 @@ func (r runner) look(ctx context.Context, name string) (seenContainer, bool) {
 	}
 	c, ok := got[name]
 	if err != nil || !ok {
-		// Absent, or the runner would not say. Neither is remembered,
+		// Absent, or the runner did not say. Neither is remembered,
 		// because a failure is not proof that the container is gone.
 		return seenContainer{}, false
 	}
@@ -316,18 +316,30 @@ func (r runner) create(ctx context.Context, t target) error {
 	if err == nil {
 		return nil
 	}
-	last := out
-	if _, after, found := strings.Cut(out, "\n"); found {
-		// The runner writes a paragraph and the last line is the error.
-		lines := strings.Split(after, "\n")
-		last = lines[len(lines)-1]
-	}
+	said := runnerError(out)
 	if strings.Contains(out, "already in use") && r.podman() {
 		// podman can leave a name held in container storage where rm --force
 		// does not reach it. docker has no such state and no such command.
-		return fmt.Errorf("%s\n  clear it with: %s rm --storage %s", last, r.name, t.Name)
+		return fmt.Errorf("%s\n  clear it with: %s rm --storage %s", said, r.name, t.Name)
 	}
-	return fmt.Errorf("%s", last)
+	return fmt.Errorf("%s: %w", said, err)
+}
+
+// runnerError is what a runner said when a run failed, as one line. docker
+// writes the reason first and then "Run 'docker run --help' for more
+// information", so reporting the last line alone hid every reason docker
+// gave, and a failed start in CI said only that. The hint is left out and the
+// other lines are joined.
+func runnerError(out string) string {
+	var said []string
+	for line := range strings.SplitSeq(strings.TrimSpace(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "Run '") && strings.HasSuffix(line, "for more information") {
+			continue
+		}
+		said = append(said, line)
+	}
+	return strings.Join(said, " ")
 }
 
 // waitReady waits until the server answers, not until the port opens.

@@ -255,7 +255,7 @@ output('hello')
 	},
 	Teardown: []Step{
 		// The virtual schema first, because its adapter is in the fixture
-		// schema and dropping that schema would strand it.
+		// schema and dropping that schema first strands it.
 		at("virtual schema", `DROP VIRTUAL SCHEMA IF EXISTS dbmeta_remote CASCADE`),
 		at("schema", `DROP SCHEMA IF EXISTS dbmeta_fixture CASCADE`),
 		at("role", `DROP ROLE IF EXISTS dbmeta_reader`),

@@ -16,7 +16,7 @@ import (
 )
 
 // openVitess returns a connection to the server named by DBMETA_VITESS, with
-// the mysql driver, which is what dburl's vitess:// opens and what usql uses.
+// the mysql driver, which is what dburl's vitess:// opens (D154).
 func openVitess(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_VITESS")

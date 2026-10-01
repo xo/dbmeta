@@ -3,8 +3,8 @@
 Status: Amended by D98 and D108.
 
 `container.MemoryLimit` is `4g` and every container this project starts is
-given it. `dbrun` starts a fifth server by stopping the one that has been
-running longest, and says which.
+given it. `dbrun` starts a fifth server by stopping the longest running one,
+and says which.
 
 Neither existed before and the machine showed why. A session that starts a
 server per question ends with a dozen up, all idle. Thirteen were running at
@@ -42,7 +42,7 @@ is an hour.
 Two fields on `container.Server` that no product needed before SAP HANA, and
 both are data rather than behavior. `RunFlags` goes before the image and
 `Args` after it, because HANA's entrypoint takes the initial password and the
-licence agreement as command line arguments and reads no environment variable
+license agreement as command line arguments and reads no environment variable
 for either. `Startup` is a third, because HANA answers in 108 seconds where
 every other product here answers within 90.
 

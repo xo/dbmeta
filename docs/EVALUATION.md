@@ -114,16 +114,16 @@ agreeing to.
 
 Sources are ranked. Prefer a higher one when they disagree.
 
-1. **The database source code.** Highest. It is the ground truth about catalog
+1. The database source code. Highest. It is the ground truth about catalog
    changes and version behavior, and for PostgreSQL it is public.
-2. **A registry or vendor API.** High. Image dates and platform lists are facts
+2. A registry or vendor API. High. Image dates and platform lists are facts
    and a command returns them.
-3. **Published vendor lifecycle pages.** High for dates, but confirm the page
+3. Published vendor lifecycle pages. High for dates, but confirm the page
    is current.
-4. **Documentation of comparable tools.** Medium. Useful for what a floor
+4. Documentation of comparable tools. Medium. Useful for what a floor
    normally is. Projects state support they do not test.
-5. **An AI model.** Low on its own. See below.
-6. **Deployment share figures.** Lowest. Treat every number as an estimate.
+5. An AI model. Low on its own. See below.
+6. Deployment share figures. Lowest. Treat every number as an estimate.
 
 ## Consulting AI models
 
@@ -171,10 +171,10 @@ The claim was false and the test matrix decision changed.
 
 The evaluation that produced D20, in the order above.
 
-**Criterion 1.** PostgreSQL is the model. The floor is 9.6 and the cost
+Criterion 1. PostgreSQL is the model. The floor is 9.6 and the cost
 criterion does not apply.
 
-**Criterion 2, recorded anyway.** Checked against the Docker Hub API on
+Criterion 2, recorded anyway. Checked against the Docker Hub API on
 2026-09-24.
 
 | Release | Image last updated | Platforms include amd64 |
@@ -189,12 +189,12 @@ criterion does not apply.
 Maintained rebuilding stops after 14. For an ordinary database, that puts the
 floor at 14.
 
-**Criterion 3.** Reported by a model and consistent with the published five
+Criterion 3. Reported by a model and consistent with the published five
 year policy, not independently checked: 18 through 14 are supported, 13 ended
 on 2025-11-13, 12 ended on 2024-11-14. Release 14 ends on 2026-11-12, which is
 under two months away.
 
-**Criterion 5.** Counted from `describe.c` on the current tree, which is
+Criterion 5. Counted from `describe.c` on the current tree, which is
 `REL_19_BETA1-1062-gd9de60c5e47` on `master`, release 20 under development. It
 holds 68 version gates spanning release 11 to release 19.
 
@@ -214,7 +214,7 @@ grep -oE 'pset\.sversion *(<|>=) *[0-9]+' src/bin/psql/describe.c | sort | uniq 
 
 A gate is dead at a given floor when it is always true or always false there.
 
-**A warning about this criterion.** These numbers describe only the releases
+A warning about this criterion. These numbers describe only the releases
 the current `psql` still supports. On 2026-07-02, commit `831bec45924` removed
 every `psql` code path for a server below release 10, stating the upstream
 policy of supporting at least ten previous major versions. A release 15 tree
@@ -311,8 +311,8 @@ sits in. Print the releases that run on every push with
 
 ### Recorded dissent: both reviews argued for a higher floor
 
-Gemini first recommended a floor of 10 on the grounds that 9.6 has been end of
-life since 2021, its image has not been rebuilt since February 2022, and
+Gemini first recommended a floor of 10 on the grounds that 9.6 reached end of
+life in 2021, its image has not been rebuilt since February 2022, and
 release 10 introduced declarative partitioning, identity columns and logical
 replication, so supporting 9.6 means a fallback path for a catalog without any
 of them.
@@ -376,7 +376,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
 | Couchbase | 7.2.9 | 8.0.3 | Criterion 2. 7.2 is the oldest line the image still rebuilds, and 7.0 and 7.1 stopped in November 2024. The model's floor is 7.6, because 7.2 sends its columns in name order. 7.2.9 stays for the dbimp driver, and the model reports it too old (D104) |
-| Neo4j | 5.26.31 | 2026.09.0 | Criterion 2. 4.4.48, 5.26.31 and 2026.09.0 were rebuilt on 2026-09-26, and a monthly release stops being rebuilt when the next one arrives. 4.4 is out, because its Enterprise image starts only with the commercial licence. The ceiling moves each month. There is no dbmeta model, and the entry is for dbimp's driver (D106) |
+| Neo4j | 5.26.31 | 2026.09.0 | Criterion 2. 4.4.48, 5.26.31 and 2026.09.0 were rebuilt on 2026-09-26, and a monthly release stops being rebuilt when the next one arrives. 4.4 is out, because its Enterprise image starts only with the commercial license. The ceiling moves each month. There is no dbmeta model, and the entry is for dbimp's driver (D106) |
 | SurrealDB | 2.7.0 | 3.3.0 | Criterion 2. 2.7.0 was rebuilt on 2026-09-23 and 3.3.0 on 2026-09-24, and between them 3.1.6 on 2026-09-01 and 3.2.4 on 2026-08-03. 1.5.6 was last rebuilt in November 2024, and 2.6.5 and 3.0.5 in March 2026. There is no dbmeta model, and the entry is for dbimp's driver |
 | ArangoDB | 3.12.12 | 3.12.12 | Criterion 2. Only the 3.12 line is still built: 3.12.12 was rebuilt on 2026-09-24, and 3.11.14 was last built on 2025-05-24. The release moves with each patch. The entry is for dbimp's driver (D112) |
 | InfluxDB | 1.11.8 | 3.11.5 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. Ken chose the releases in dbimp's D79. The entries were for dbimp's driver. `models/influxdb` reads InfluxDB 3, whose releases are Tested and Nightly (D152), and InfluxDB 1 and 2 stay Staged (D112, D114, D119) |
@@ -409,15 +409,15 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Virtuoso | 7.2.17 | 7.2.17 | Criterion 2. 7.2.17 was rebuilt on 2026-08-05 and 7.2.16 last on 2025-10-15. The entry is for dbimp's SPARQL driver (D118) |
 | Alternator | 2025.1 | 2026.3 | The scylla entry's range, which D90 chose. The DynamoDB interface of ScyllaDB (D118) |
 | Vitess | 23.0.6 | 24.0.3 | The rule for an image that is never rebuilt (D112). `models/vitess` reads it, and shares the mysql model (D135) |
-| SingleStore | 9.0 | 9.1 | The newest two lines the development image serves, on image 0.2.85, which ships 9.1.1 and downloads 9.0 when it starts. It runs with no licence on a machine with at most 8 cores and 64 GB. Ken asked for it on 2026-09-30, which amends D118 |
+| SingleStore | 9.0 | 9.1 | The newest two lines the development image serves, on image 0.2.85, which ships 9.1.1 and downloads 9.0 when it starts. It runs with no license on a machine with at most 8 cores and 64 GB. Ken asked for it on 2026-09-30, which amends D118 |
 | Apache Impala | 4.4.1 | 4.5.2 | The rule for an image that is never rebuilt (D112). Apache publishes each daemon as an image of its own, and dbrun builds them into one (D145). Ken asked for it on 2026-09-30, which amends D118 |
 | Milvus | 2.6.24 | 3.0.2 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | OpenSearch | 2.19.6 | 3.8.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
-| DynamoDB | 3.2.0 | 3.3.1 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary licence Ken accepted (D118) |
-| Cosmos | EN20260907 | EN20260907 | The vNext emulator is a dated build each month, built once, so the rule in D112 gives the newest. A Microsoft licence Ken accepted (D118) |
-| Stardog | 12.0.4 | 12.1.4 | The rule for an image that is never rebuilt (D112). Needs a licence file, and not yet measured (D118) |
-| GraphDB | 11.4.3 | 11.5.1 | The rule for an image that is never rebuilt (D112). GraphDB 11 needs a licence file, and not yet measured (D118) |
-| VoltDB | 14.1.0 | 15.2.0 | The rule for an image that is never rebuilt (D112). The developer edition needs a licence file, and not yet measured (D118) |
+| DynamoDB | 3.2.0 | 3.3.1 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary license Ken accepted (D118) |
+| Cosmos | EN20260907 | EN20260907 | The vNext emulator is a dated build each month, built once, so the rule in D112 gives the newest. A Microsoft license Ken accepted (D118) |
+| Stardog | 12.0.4 | 12.1.4 | The rule for an image that is never rebuilt (D112). Needs a license file, and not yet measured (D118) |
+| GraphDB | 11.4.3 | 11.5.1 | The rule for an image that is never rebuilt (D112). GraphDB 11 needs a license file, and not yet measured (D118) |
+| VoltDB | 14.1.0 | 15.2.0 | The rule for an image that is never rebuilt (D112). The developer edition needs a license file, and not yet measured (D118) |
 | Solr | 9.9.0 | 10.0.0 | Criterion 2. 10.0.0, 9.10.1 and 9.9.0 were rebuilt on 2026-09-26. 9.10.1 is between them. The entry is for dbimp's driver (D118) |
 | Drill | 1.21.2 | 1.22.0 | The rule for an image that is never rebuilt (D112). The Java of 1.22.0 fails on a current host unless its container support is off (D118) |
 | H2 | 2.4.240 | 2.5.252 | The rule for an image that is never rebuilt (D112), applied to the jars on Maven Central. The image is built here (D118) |
@@ -510,8 +510,8 @@ and the floor is 3.11, because 3.0 and 3.11 carry the same `system_schema` catal
 entirely, in `system.schema_columnfamilies` and its siblings, and no image that
 still runs has it. See `container/cassandra.go`.
 
-Do not assume a floor for a database until it has been through the procedure
-above.
+Do not assume a floor for a database until you apply the procedure above to
+it.
 
 ## Candidates carried over from usql
 

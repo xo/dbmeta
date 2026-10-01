@@ -13,14 +13,14 @@ import (
 // SQL Server on Linux begins at 2017, so there is no container for 2016 or
 // earlier and nothing older can run in CI. D54 says those releases are
 // Archived, which means nothing is claimed for them. A virtual machine is how
-// that changes, and D57 says what may be claimed once one has run.
+// that changes, and D57 says what can be claimed once one has run.
 //
 // Each is a [Machine] with a [WindowsSpec], and machine.go says what the two
 // kinds of machine share.
 //
 // # Why one machine per release
 //
-// SQL Server installs side by side, so four releases could share fewer
+// SQL Server installs side by side, so four releases can share fewer
 // machines. Both reviews said not to, for the same two reasons. A second
 // release on a host has to be a named instance, which means a dynamic port and
 // the SQL Server Browser rather than a fixed 1433. And the releases disagree
@@ -56,7 +56,7 @@ type WindowsSpec struct {
 	RegistryKey string
 	// LicenseFlag says setup takes /IACCEPTSQLSERVERLICENSETERMS. Every
 	// release here requires it, and the field stays because a release that
-	// does not is exactly the kind of thing this list should be able to say.
+	// does not is exactly the kind of thing this list must be able to say.
 	LicenseFlag bool
 }
 
@@ -126,7 +126,7 @@ var SQLServerMachines = []Machine{
 		Windows: "Windows Server 2016", Image: "2016",
 		// SQL Server 2016 SP2 Express, and the only one of the four that is a
 		// bootstrapper rather than the package. It downloads the media when it
-		// runs, which Server 2016 can do and Server 2008 R2 could not.
+		// runs, which Server 2016 can do and Server 2008 R2 cannot.
 		Installer:    "https://download.microsoft.com/download/3/7/6/3767d272-76a1-4f31-8849-260bd37924e4/SQLServer2016-SSEI-Expr.exe",
 		Bootstrapper: true,
 		RegistryKey:  "MSSQL13.MSSQLSERVER",

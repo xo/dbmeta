@@ -27,17 +27,17 @@ against.
 
 ## Why a DBA_ query returns an error rather than nothing
 
-A query that is unsupported says the product has no such object. That would be
-a lie here: Oracle has roles, and a connection with the privilege can list
-them. Reporting `ErrNotSupported` would tell a caller to stop asking, when the
-truthful answer is that this particular connection may not see it.
+A query that is unsupported says the product has no such object. Here that is
+a lie: Oracle has roles, and a connection with the privilege can list them.
+Reporting `ErrNotSupported` tells a caller to stop asking, when the truthful
+answer is that this particular connection cannot see it.
 
 So the query exists, it reads `DBA_`, and an unprivileged caller gets
 `ORA-00942: table or view does not exist` passed back. That is a fact about the
 connection rather than about the database, and the caller is the one who can do
 something about it.
 
-This is the third behaviour this project has met for the same situation, and
+This is the third behavior this project has met for the same situation, and
 they are worth keeping apart. PostgreSQL shows a caller everything. SQL Server
 narrows the answer silently, which `models/sqlserver` documents. Oracle refuses
 outright, and that refusal is the most useful of the three, because nothing is
@@ -67,9 +67,9 @@ caller who has no privilege and a better one for a caller who has it and typed
 the name wrong.
 
 `usql` often knows which case it is in, because it knows who connected. A
-consumer that knows it is a DBA would rather ask `DBA_` and get the error.
+consumer that knows it is a DBA prefers to ask `DBA_` and get the error.
 
-Three mechanisms have been sketched and none chosen:
+Three mechanisms are sketched and none is chosen:
 
 1. A keyed fragment, so the same query reads `DBA_` when the caller says so.
    This keeps one query and one column set, which rule 3 already asks for. It

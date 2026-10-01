@@ -9,9 +9,9 @@ import (
 
 // The InfluxDB releases dbrun starts.
 //
-// dbmeta has no InfluxDB model. The releases are here so that dbrun can start
-// a server for the tests of the InfluxDB driver in github.com/xo/dbimp. The
-// driver has two dialects, which Ken accepted in dbimp's D78: influxdb, which
+// models/influxdb reads InfluxDB 3 through the InfluxDB driver in
+// github.com/xo/dbimp (D152). The other releases are here for the tests of
+// that driver. The driver has two dialects, which Ken accepted in dbimp's D78: influxdb, which
 // is SQL on InfluxDB 3, and influxql, which is InfluxQL through /query on
 // InfluxDB 1, 2 and 3. InfluxDB 3 answers both, so its entry names influxdb
 // and also influxql, and one container serves both. See D114.
@@ -22,16 +22,16 @@ import (
 // docs/EVALUATION.md applies. Checked on 2026-09-28, 1.13.1, 1.11.8, 2.9.1 and
 // 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.11.5,
 // 3.10.6 and 3.9.13 between 2026-09-16 and 2026-09-18. Ken chose the releases
-// in dbimp's D79. No model reads InfluxDB, so all of them are Staged (D119).
+// in dbimp's D79. No model reads InfluxDB 1 or 2, so those are Staged (D119).
 //
 // The InfluxDB 3 tag is the release with -core, such as 3.11.5-core. InfluxDB 3
-// Enterprise is not here: its free licence and its trial both need a person to
+// Enterprise is not here: its free license and its trial both need a person to
 // follow a link in an email before the server starts.
 //
 // # InfluxDB 1
 //
 // The image makes the database dbmeta, the admin user and [InfluxDBUser], who
-// may read that database, from its environment on the first start. Init sets
+// can read that database, from its environment on the first start. Init sets
 // the user's password and grants it READ again on every start, so a user that
 // somebody changed is put back.
 //
@@ -43,9 +43,9 @@ import (
 // to a bucket. InfluxDB 2 maps a database named for each bucket to it by
 // itself, as a virtual mapping, so /query reads dbmeta with no mapping made
 // here, measured on 2.9.1 and 2.8.0. Init makes [InfluxDBUser] as a v1 user
-// who may read the bucket, which is how /query takes a user and a password. A
-// v2 token that may only read the bucket is possible too, and the server gives
-// it a random value, so no DSN here could name it.
+// who can read the bucket, which is how /query takes a user and a password. A
+// v2 token that can only read the bucket is possible too, and the server gives
+// it a random value, so no DSN here can name it.
 //
 // # InfluxDB 3
 //

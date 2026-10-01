@@ -36,7 +36,7 @@ import (
 // inside the container can reach the first one. So the check also asks
 // whether authorization is on, which it is only on the real server.
 
-// MongoDBUser may only read the database dbmeta. Its password is [Password].
+// MongoDBUser can only read the database dbmeta. Its password is [Password].
 const MongoDBUser = "dbmeta_user"
 
 // mongoshAdmin runs mongosh as the administrator.
@@ -79,7 +79,7 @@ func mongoURL(user, source string) func(port int) string {
 // MongoDB is every MongoDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var MongoDB = list{}.staged(mongodb, Tested, "7.0.43", "8.3.11").
 	staged(mongodb, Nightly, "8.0.32")

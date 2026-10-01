@@ -13,8 +13,8 @@ imports it, for Claude Code.
 
 [`docs/decisions/`](docs/decisions/) holds every decision this project has made,
 one file each, with the reasoning and what was rejected. The index in
-[`docs/decisions/README.md`](docs/decisions/README.md) lists all 153 with their
-status. Read the status: 49 of them amend or replace an earlier one.
+[`docs/decisions/README.md`](docs/decisions/README.md) lists all 156 with their
+status. Read the status: 51 of them amend or replace an earlier one.
 
 Do not decide an open question on your own. The open questions are at the end
 of `docs/PLAN.md`. Ask Ken.
@@ -40,11 +40,11 @@ cd test && go run ./cmd/dbrun test tested
 That runs the integration tests against every entry CI tests on every push. It
 starts a container for each server, one at a time, and removes it after, and
 it starts nothing for the embedded databases. To test one product, name it, as
-in `dbrun test postgres`. `dbrun test all` runs every release of every
-product, which is what has to pass before a release. The list also holds
-Staged servers, which no model reads, and which are there for dbimp's drivers
-and for the flavors usql reaches. CI never runs them, and `dbrun test staged`
-measures them again (D119). Each records the cadence it will have, which
+in `dbrun test postgres`. `dbrun test tested nightly verified` runs every
+release that a model reads, which is what has to pass before a release.
+`dbrun test all` also runs the Staged servers, which no model reads, and which
+are there for dbimp's drivers and for the flavors usql reaches. CI never runs
+them, and `dbrun test staged` measures them again (D119). Each records the cadence it will have, which
 becomes its tier when its model arrives (D120).
 
 `dbrun` does everything to a database: `start` one and leave it up, `stop` it,
@@ -72,6 +72,9 @@ count. It ends with the tests that fail when a step is skipped.
 The repository carries two agent skills. A skill is a set of instructions
 that a coding agent loads for a task. `simple-english` sets how prose is
 written, and `go-pedantry` sets how Go is written.
+`TestProseIsSimpleEnglish` checks the rules of `simple-english` that a
+machine can check, over every document, every comment and every error and
+test message. If it reports a sentence, rewrite the sentence. See D156.
 
 `skills-lock.json` names the source of each skill. The `skills` command from
 npm writes that file, and version 1.7.0 is the one measured here. It writes

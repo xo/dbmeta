@@ -20,7 +20,7 @@ now. `container/questdb.go` records the query, so that the model has it.
 
 ## Rejected
 
-A dialect that registers a version query and no model. It would give usql the
-version sooner. It would also make a release that no model reads look read,
+A dialect that registers a version query and no model. It gives usql the
+version sooner. It also makes a release that no model reads look read,
 because a release is Staged exactly when its dialect has no model (D119), and
-a version query alone would need that rule to change.
+a version query alone needs that rule to change.

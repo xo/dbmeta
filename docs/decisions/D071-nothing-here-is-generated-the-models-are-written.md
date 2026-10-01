@@ -14,8 +14,8 @@ the same as `usql`, and that is the only relationship between the two projects.
 
 Because the plan said otherwise in three places and the instructions repeated
 it. D2 said `dbtpl` generates the model code. D11 pinned `dbtpl` with the
-`tool` directive so that two agents on two machines would produce the same Go
-from the same SQL. D30 corrected half of it, saying `dbtpl` is not used, and
+`tool` directive so that two agents on two machines produce the same Go from
+the same SQL. D30 corrected half of it, saying `dbtpl` is not used, and
 then put generation in a sub-package that was never built.
 
 `CLAUDE.md` carried the consequence. It told a reader that `models/<driver>`
@@ -25,22 +25,22 @@ wrong, and the first two are worse than wrong: they tell somebody not to touch
 the only files there are to touch.
 
 `docs/EVALUATION.md` carried it too, requiring a pinned image digest beside
-each model so that generation would be reproducible. Nothing is reproduced,
+each model so that generation is reproducible. Nothing is reproduced,
 so nothing needs the digest.
 
 ## What replaces it
 
 A model is written, read and edited like any other Go. A query is written
 against a live server, `dbrun` starts that server, and rule 9 makes the fixture
-part of the model rather than something a generator would emit.
+part of the model rather than something a generator emits.
 
 What D2 decided about layout stands. One package per driver under `models/`,
 one package covering every supported release, with the version differences held
 as data inside it, which is D8. Only the claim that a tool produced it is gone.
 
 What D11 reasoned about build dependencies stands too, and it is D26 that
-carries it: a driver does not belong in the root module. There is simply no
-build dependency left to place.
+carries it: a driver does not belong in the root module. There is no build
+dependency left to place.
 
 D6a went the same way and is marked superseded by this. It put the NULL scan
 fix in a generator's flags. The fix is in the code, the rule is D6 and

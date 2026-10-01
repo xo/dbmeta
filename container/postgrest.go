@@ -20,7 +20,7 @@ import (
 // docker.io/postgrest/postgrest builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is v16.4, of 2026-09-24, and v14.18, of 2026-09-12. There
-// is no 15. PostgREST is under the MIT licence.
+// is no 15. PostgREST is under the MIT license.
 //
 // # The image is built here
 //
@@ -34,12 +34,12 @@ import (
 // signed token names. The command makes the roles before PostgREST starts,
 // because it cannot connect before authenticator exists, and every step is
 // safe to run twice. dbmeta_admin owns the schema dbmeta, and [PostgRESTUser]
-// may read its tables. There is no anonymous role, so a request with no token
+// can read its tables. There is no anonymous role, so a request with no token
 // is refused. A token is an HS256 JWT signed with [postgrestSecret], which
 // [postgrestToken] computes, so each principal's DSN carries its token as the
 // password.
 
-// PostgRESTUser may read the tables of the schema dbmeta.
+// PostgRESTUser can read the tables of the schema dbmeta.
 const PostgRESTUser = "dbmeta_user"
 
 // postgrestSecret signs every token. PostgREST needs at least 32 characters.
@@ -105,6 +105,6 @@ var postgrest = product{
 // PostgREST is every PostgREST release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var PostgREST = list{}.staged(postgrest, Tested, "14.18", "16.4")

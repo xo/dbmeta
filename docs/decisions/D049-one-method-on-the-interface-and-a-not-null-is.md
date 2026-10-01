@@ -33,10 +33,10 @@ A fake cannot satisfy it. `sql.Rows` is a struct with unexported fields that
 only `database/sql` constructs, from a registered driver, so nothing outside
 that package can return one. That was as true of the four method version.
 
-Both reviews rejected defining a `Rows` interface to fix that. It would change
-the `Scan` signature of every binding, give up `ColumnTypes`, `RawBytes` and
-`NextResultSet`, allocate per row, and break every consumer that hands a
-`*sql.Rows` to something else.
+Both reviews rejected defining a `Rows` interface to fix that. Such an
+interface changes the `Scan` signature of every binding, gives up
+`ColumnTypes`, `RawBytes` and `NextResultSet`, allocates per row, and breaks
+every consumer that hands a `*sql.Rows` to something else.
 
 Mock at the driver level. `database/sql/driver` is the seam Go provides and
 `examplefake_test.go` already uses it, replaying recorded rows with no database.
@@ -53,13 +53,13 @@ PostgreSQL 18 records a NOT NULL constraint in `pg_constraint` with `contype`
 `Constraints` and `ConstraintColumns` both exclude it, on every release. The
 fact is reported by `Column.Nullable`, which is filled everywhere.
 
-Reporting it would make the same schema answer differently on release 17 and
+Reporting it makes the same schema answer differently on release 17 and
 release 18, for a reason that has nothing to do with what either server can do.
 That is the leak this library exists to prevent.
 
 Synthesizing the rows on older releases from `attnotnull` was rejected, and the
 reason is sharper than inventing names. Release 18 lets a NOT NULL constraint
-be named explicitly, so a synthesized `<table>_<column>_not_null` would be
+be named explicitly, so a synthesized `<table>_<column>_not_null` is
 wrong some of the time, which is worse than absent.
 
 ## The gap this found in the padding rule

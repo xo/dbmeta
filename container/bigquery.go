@@ -15,7 +15,7 @@ import "fmt"
 // ghcr.io/goccy/bigquery-emulator builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is 0.8.1, of 2026-06-13, and 0.7.2. The emulator is a
-// community project under the MIT licence, and Google does not maintain it.
+// community project under the MIT license, and Google does not maintain it.
 // Its INFORMATION_SCHEMA holds SCHEMATA, TABLES, TABLE_OPTIONS and COLUMNS,
 // and not VIEWS, ROUTINES or JOBS, so it answers less than the service does.
 //
@@ -40,6 +40,6 @@ var bigquery = product{
 // BigQuery is every BigQuery emulator release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var BigQuery = list{}.staged(bigquery, Tested, "0.7.2", "0.8.1")

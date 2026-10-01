@@ -239,7 +239,7 @@ func registerCollations() {
 			{Name: "collate"},
 			{Name: "ctype"},
 			{Name: "locale", Desc: "the locale, from colllocale at 17, colliculocale at 15, and collcollate below that"},
-			{Name: "deterministic", Desc: "whether equal strings are always identical. Always true below release 12, which had no other behaviour"},
+			{Name: "deterministic", Desc: "whether equal strings are always identical. Always true below release 12, which had no other behavior"},
 			{Name: "comment"},
 			{Name: "rules", Desc: "tailoring rules of an ICU collation", Min: v16},
 		},

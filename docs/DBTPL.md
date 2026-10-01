@@ -117,29 +117,29 @@ dialect is added.
 | Oracle | yes | yes, all nine |
 | SQLite | yes | yes, without parameter names |
 | rqlite | no | yes, without parameter names, the same as SQLite |
-| InfluxDB 3 | no | **no**. It has no key and no foreign key, so there is nothing to relate one measurement to another, and every column but time is nullable |
+| InfluxDB 3 | no | no. It has no key and no foreign key, so there is nothing to relate one measurement to another, and every column but time is nullable |
 | DuckDB | no | yes, without index columns |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |
 | Cassandra | no | partly: no current keyspace expression and no parameter names |
 | ScyllaDB | no | partly: the same as Cassandra |
-| Trino | no | **no** |
-| Presto | no | **no** |
+| Trino | no | no |
+| Presto | no | no |
 | SAP HANA | no | yes, all nine |
 | Apache Hive | no | partly: the foreign keys are there to follow, and they are declarations Hive does not enforce, so a generator trusts something the database never checks |
 | Firebird | no | yes, once it is told there is no schema to qualify by |
 | Vertica | no | yes, without parameter names. Every table, key and foreign key is there, and an index is a projection, which a generator can emit or leave out |
 | Exasol | no | partly: every table, key and foreign key is there to follow, and a routine has no parameters to read. The indexes are the engine's own, built and dropped as queries need them and named by object id, so a generator that emits an index emits a different set on another day |
-| Couchbase | no | **no**. A collection has no columns, so there is no field to generate |
+| Couchbase | no | no. A collection has no columns, so there is no field to generate |
 | CockroachDB | no | yes, all nine. A parameter declared integer reads as bigint, because CockroachDB makes integer 64 bits |
 | CrateDB | no | partly: no foreign key to follow and no parameter names. Every table, column and primary key is there |
-| QuestDB | no | **no**. It has no key and no foreign key, so there is nothing to relate one table to another, and every column is nullable |
+| QuestDB | no | no. It has no key and no foreign key, so there is nothing to relate one table to another, and every column is nullable |
 | TiDB | no | yes, without routines. Every table, key and foreign key is there, and TiDB enforces its foreign keys |
 | Vitess | no | yes, all nine. A schema is the keyspace, which is the name vtgate accepts in a query (D135) |
 | Databend | no | partly: no key and no foreign key to follow, because Databend has neither. Every table and column is there, and a CHECK and its columns |
 | SingleStore | no | partly: no foreign key to follow, because SingleStore refuses one. Every table, key, index and routine is there |
-| Snowflake | no | **no**, until it has run (D144), and then partly: no foreign key to follow |
-| Amazon Redshift | no | **no**, until it has run (D144), and then partly: no foreign key to follow |
-| Apache Impala | no | **no**. No key and no foreign key is listed, so there is nothing to relate one table to another, and every column is nullable |
+| Snowflake | no | no, until it has run (D144), and then partly: no foreign key to follow |
+| Amazon Redshift | no | no, until it has run (D144), and then partly: no foreign key to follow |
+| Apache Impala | no | no. No key and no foreign key is listed, so there is nothing to relate one table to another, and every column is nullable |
 
 Trino is the first that is a clear no, and it is not the same as answering few
 of the nine. `dbtpl` generates typed access from a schema and follows a foreign
@@ -156,27 +156,27 @@ answers the same way for the same reason, which D66 predicted.
 Five things, three of them shared with `usql`. All five now exist, under D47.
 What follows is what each one became and what it still cannot do.
 
-**Routine parameters** became `dbmeta.RoutineParameters`, with a name,
+Routine parameters became `dbmeta.RoutineParameters`, with a name,
 position, mode and type per parameter. PostgreSQL, the MySQL dialect, SQL
 Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase, CockroachDB, Vitess,
-SingleStore and the shared model answer it. SQLite cannot: a function there is compiled C with no
+SingleStore, InfluxDB 3 and the shared model answer it. SQLite cannot: a function there is compiled C with no
 named parameters.
 
 Group by `Routine` and, where the database overloads a name, by `RoutineID`.
 `Function.ID` carries the same value, so the join is one expression for every
 database. On PostgreSQL it is the oid, which is what `dbtpl` uses today.
 
-**Constraint columns** became `dbmeta.ConstraintColumns`, with the column, its
+Constraint columns became `dbmeta.ConstraintColumns`, with the column, its
 one based position within the constraint, and for a foreign key the catalog,
 schema, table and column it points at. Every model but ClickHouse, Trino,
-Presto, Couchbase, QuestDB, Snowflake, Redshift and Impala answers it, SQLite
-included.
+Presto, Couchbase, QuestDB, Snowflake, Redshift, Impala and InfluxDB 3 answers
+it, SQLite included.
 
 This was the largest gap, and it is closed exactly the way `dbtpl` needs: a
 composite key is several rows sharing a constraint name, ordered by `Ordinal`,
 each paired with the column it references.
 
-**Enum values as rows** became `dbmeta.EnumValues`, and PostgreSQL, DuckDB
+Enum values as rows became `dbmeta.EnumValues`, and PostgreSQL, DuckDB
 and CockroachDB answer it. A label there is a row with a one based ordinal, which is what a generated
 Go constant needs.
 
@@ -188,12 +188,12 @@ escaped quote, and no portable SQL does that. `dbtpl` splits it in Go today and
 has the same limitation, so nothing is lost by keeping that where it is.
 `Column.DataType` returns the text verbatim.
 
-**The definition of a view** became `dbmeta.Views`, a kind of its own rather
+The definition of a view became `dbmeta.Views`, a kind of its own rather
 than a field on `Table`. Reaching the definition costs a join or a function
 call per row, and a caller that lists tables does not pay it. Every model but
-Couchbase answers it.
+Couchbase and InfluxDB 3 answers it.
 
-**The current schema** became `dbmeta.CurrentSchema`, which answers one row and
+The current schema became `dbmeta.CurrentSchema`, which answers one row and
 is read with `dbmeta.First`. It is session dependent and says so. Every model
 but Cassandra, Firebird, Presto and Couchbase answers it.
 

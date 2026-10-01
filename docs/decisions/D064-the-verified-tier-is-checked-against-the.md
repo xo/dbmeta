@@ -23,9 +23,9 @@ It checks one direction. A release the Go list calls Verified has to appear in
 the document, so adding one and not writing it down fails. It cannot check the
 other direction, because the document says what a release was verified against
 in prose a person wrote, and parsing that to find a claim with no release
-behind it would be guessing.
+behind it is guessing.
 
 It also cannot prove anybody ran anything, and it does not pretend to. Recording
 a date and a checked-in log was considered and not taken: it is stronger
-evidence and one more thing to keep current by hand, and the failure it would
-catch is not the one that has happened.
+evidence and one more thing to keep current by hand, and the failure it
+catches is not the one that happened.

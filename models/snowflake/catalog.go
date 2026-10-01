@@ -346,7 +346,7 @@ func registerRelations() {
 			{Name: "role", Desc: "the user or role the role was granted to"},
 			{Name: "member_of"},
 			{Name: "grantor", Desc: "always absent: APPLICABLE_ROLES records no grantor"},
-			{Name: "admin", Desc: "whether the grantee may grant the role on"},
+			{Name: "admin", Desc: "whether the grantee can grant the role on"},
 			{Name: "inherit", Desc: "always true: a granted role is always inherited"},
 			{Name: "set", Desc: "always true: a session can use any role it was granted"},
 		},
@@ -389,7 +389,7 @@ func registerRelations() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"},
-			{Name: "session", Desc: "the role the session acts as, which decides what it may do"},
+			{Name: "session", Desc: "the role the session acts as, which decides what it can do"},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
 			var v dbmeta.User

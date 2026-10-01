@@ -30,8 +30,8 @@ echo [oem] starting %DATE% %TIME% > "%LOG%"
 
 rem .NET Framework 3.5 is a prerequisite for 2008 R2, 2012 and 2014, and is not
 rem present on Server 2012 R2 or later. It is part of Server 2008 R2 already,
-rem where this call simply reports that and carries on.
-rem The /all switch is not recognised by the DISM that ships with Server 2008
+rem where this call reports that and carries on.
+rem The /all switch is not recognized by the DISM that ships with Server 2008
 rem R2, which fails with "Error: 87". That release has .NET 3.5 built in, so
 rem the whole step is optional there. Try the modern form, then the old one,
 rem and carry on either way.

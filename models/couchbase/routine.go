@@ -56,7 +56,7 @@ func registerRoutines() {
 			{
 				Name: "arg_types",
 				Desc: "the parameter names, in order. A parameter has no type," +
-					" so the names are what psql's argument list would hold. A" +
+					" so the names are what psql's argument list holds. A" +
 					" variadic function has the one parameter ...",
 			},
 			{Name: "volatility", Desc: "always empty: SQL++ marks no volatility"},

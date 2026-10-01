@@ -10,7 +10,7 @@ import (
 )
 
 // The CI workflow used to name every release and every image in YAML, beside
-// the Go list here, and a test compared the two so they could not drift.
+// the Go list here, and a test compared the two so that they did not drift.
 //
 // They cannot drift now, because there is only one copy. The workflow asks
 // dbrun for the list as JSON and expands it into a matrix, so it names
@@ -86,7 +86,7 @@ func TestTheMatrixJobsCompileNothing(t *testing.T) {
 		if strings.Contains(body, "go run ") || strings.Contains(body, "go test ") {
 			t.Errorf("the %s job compiles. It runs the binaries the build job"+
 				" uploaded, because compiling the test module costs about ninety"+
-				" seconds and every job in the matrix would pay it. See D82.", name)
+				" seconds and every job in the matrix that compiles pays it. See D82.", name)
 		}
 		if !strings.Contains(body, "DBMETA_TEST_BINARY") {
 			t.Errorf("the %s job does not set DBMETA_TEST_BINARY, so dbrun will"+

@@ -124,7 +124,7 @@ func changePasswordMySQLFamily(t *testing.T, d dbmeta.Dialect, db *sql.DB, env s
 			}
 			exec(t, db, stmt)
 			// No database, because the one a TiDB DSN names is one the new
-			// user may not use.
+			// user cannot use.
 			dsn := mysqlAt(t, dsnOf(t, env), "dbmeta_pw", c.password, "")
 			login(t, "mysql", dsn, `SELECT CURRENT_USER()`, "dbmeta_pw")
 		})
@@ -174,8 +174,8 @@ func exec(t *testing.T, db *sql.DB, stmt string) {
 }
 
 // cleanup runs a statement after the test has ended, when t.Context is already
-// cancelled. It drops the cancellation rather than reaching for a background
-// context, and it reports rather than fails, because a test that passed should
+// canceled. It drops the cancellation rather than reaching for a background
+// context, and it reports rather than fails, because a test that passed must
 // not fail on tidying up after itself.
 func cleanup(t *testing.T, db *sql.DB, stmt string) {
 	t.Helper()
@@ -360,7 +360,7 @@ func TestChangePasswordVertica(t *testing.T) {
 //
 // CrateDB reads a string literal the way PostgreSQL does with
 // standard_conforming_strings on, and it reports the setting, so the quoting
-// state comes from the server as it does for PostgreSQL. A user may change
+// state comes from the server as it does for PostgreSQL. A user can change
 // its own password without naming the current one.
 func TestChangePasswordCrateDB(t *testing.T) {
 	db := openCrateDB(t)
@@ -407,7 +407,7 @@ func TestChangePasswordCrateDB(t *testing.T) {
 //
 // A backslash escapes the next character in a ClickHouse string literal and
 // inside backticks, whatever the session says, so the model doubles it in
-// both. A name that ends in a backslash is the case that would escape its own
+// both. A name that ends in a backslash is the case that can escape its own
 // closing backtick.
 func TestChangePasswordClickHouse(t *testing.T) {
 	db := openClickHouse(t)

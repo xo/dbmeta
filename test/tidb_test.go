@@ -16,7 +16,7 @@ import (
 )
 
 // openTiDB returns a connection to the server named by DBMETA_TIDB, with the
-// mysql driver, which is what dburl's tidb:// opens and what usql uses.
+// mysql driver, which is what dburl's tidb:// opens (D154).
 func openTiDB(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_TIDB")

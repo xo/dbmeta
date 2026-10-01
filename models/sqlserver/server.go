@@ -409,7 +409,7 @@ func registerSecurity() {
 			{Name: "can_login", Desc: "true for a principal backed by a login, and false for a role"},
 			{Name: "replication", Desc: "always false: replication is configured outside the database"},
 			{Name: "bypass_rls", Desc: "always false: read sys.security_policies for row level security"},
-			{Name: "inherit", Desc: "always true: SQL Server has no other behaviour"},
+			{Name: "inherit", Desc: "always true: SQL Server has no other behavior"},
 			{Name: "conn_limit", Desc: "always -1: SQL Server limits connections per server rather than per principal"},
 			{Name: "valid_until", Desc: "always absent: expiry belongs to the login, outside the database"},
 			{Name: "member_of", Desc: "always empty: read role_grants instead"},
@@ -529,7 +529,7 @@ func registerStorage() {
 			{Name: "owner", Desc: "always absent: a filegroup has no owner"},
 			{
 				Name: "location",
-				Desc: "the path of the first file in the group. A filegroup may hold several",
+				Desc: "the path of the first file in the group. A filegroup can hold several",
 			},
 			{Name: "options", Desc: "default for the filegroup a table without a clause goes to"},
 			{Name: "size", Desc: "always absent: a size needs the file sizes summed"},

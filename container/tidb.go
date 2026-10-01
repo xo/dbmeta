@@ -21,7 +21,7 @@ import (
 // 2026-09-17 and maintained to 2026-12-01, and the ceiling is v8.5.8, of
 // 2026-08-27. v8.1.2, of 2026-07-24, is kept between them. 9.0 is a beta, and the
 // latest tag is from 2024 and is never used. TiDB is under the Apache 2.0
-// licence.
+// license.
 //
 // # The setup
 //
@@ -29,15 +29,15 @@ import (
 // variable for the password of root. So the command writes the setup to a
 // file and starts the server with --initialize-sql-file, which runs it once,
 // when the server makes its store. It gives root [Password], and makes the
-// database dbmeta, [TiDBOwner], who may do anything in it, and [TiDBUser], who
-// may only read it. The check asks the status port, because nothing in the
+// database dbmeta, [TiDBOwner], who can do anything in it, and [TiDBUser], who
+// can only read it. The check asks the status port, because nothing in the
 // image can log in.
 
-// TiDBOwner may do anything in the database dbmeta. Its password is
+// TiDBOwner can do anything in the database dbmeta. Its password is
 // [Password].
 const TiDBOwner = "dbmeta_owner"
 
-// TiDBUser may only read the database dbmeta. Its password is [Password].
+// TiDBUser can only read the database dbmeta. Its password is [Password].
 const TiDBUser = "dbmeta_user"
 
 // tidbServe writes the setup and starts the server on it.

@@ -25,7 +25,7 @@ import (
 // Step 2 decides it. On docker.io/library/crate, checked on 2026-09-27, 6.4.5
 // was rebuilt on 2026-09-21 and 6.3.7 on 2026-09-03. 6.2, 6.1 and 6.0 were
 // last rebuilt on 2026-07-09, and 5.10 on 2026-01-29. So the floor is 6.3 and
-// the ceiling is 6.4. CrateDB is under the Apache 2.0 licence.
+// the ceiling is 6.4. CrateDB is under the Apache 2.0 license.
 //
 // # The administrator has no password
 //
@@ -33,7 +33,7 @@ import (
 // start command turns on host based authentication, which trusts crate and
 // asks every other user for a password. Without it, CrateDB trusts every
 // connection and takes the user name from the request, so the ordinary user's
-// password would check nothing.
+// password checks nothing.
 //
 // # The setup
 //
@@ -49,7 +49,7 @@ import (
 // Its password is [Password].
 const CrateDBUser = "dbmeta_user"
 
-// crateSchema is the schema that the ordinary user may use.
+// crateSchema is the schema that the ordinary user can use.
 const crateSchema = "dbmeta"
 
 // crateShell runs one statement in crash as crate.

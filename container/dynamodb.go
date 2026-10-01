@@ -14,7 +14,7 @@ package container
 // D112 applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is 3.3.1, of 2026-07-31, and 3.2.0, of 2026-01-12.
 //
-// # The licence
+// # The license
 //
 // DynamoDB Local is under the Amazon DynamoDB Local License Agreement, which
 // is proprietary and binds whoever uses it. It needs no account. Ken accepted
@@ -23,7 +23,7 @@ package container
 // # No users
 //
 // DynamoDB Local checks no key, so there is no user with fewer rights. The key
-// dbmeta and [Password] are sent and not checked, and a key may hold only
+// dbmeta and [Password] are sent and not checked, and a key can hold only
 // letters and digits. -sharedDb gives every key and region one store, and
 // -inMemory keeps the store in memory, so it is empty after a restart.
 
@@ -42,6 +42,6 @@ var dynamodb = product{
 // DynamoDB is every DynamoDB Local release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var DynamoDB = list{}.staged(dynamodb, Tested, "3.2.0", "3.3.1")

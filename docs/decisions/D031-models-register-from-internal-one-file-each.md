@@ -26,14 +26,14 @@ not carry thirty.
 
 The first is the base tier, built by default and turned off with `no_base`. The
 second is the `most` tier. The third is the `all` tier, which `usql` uses for
-the three it would rather not build by default: `charts`, `odbc` and `godror`.
+the three it does not build by default: `charts`, `odbc` and `godror`.
 
 `dbmeta` has no equivalent of that third tier. There is no bad model here,
 because a model is SQL rather than a driver with a C dependency, and D29 keeps
 cgo out entirely. Use `none`, `base`, `most` and `all` only.
 
 The `usql` base tier is these eight: `csvq`, `clickhouse`, `oracle`, `duckdb`,
-`sqlserver`, `postgres`, `mysql`, `sqlite3`. Note that this is not the same set
+`sqlserver`, `postgres`, `mysql`, `sqlite3`. This is not the same set
 as the primary databases in the phase plan. It has `clickhouse` and `csvq`,
 which the phases do not mention, and it does not have Cassandra, which phase 3
 does.

@@ -26,7 +26,7 @@ import (
 // The server keeps its data in RocksDB under /tmp/dbmeta, in the container's
 // own layer, so that the users and the data survive a stop and a start. The
 // image runs as a user that cannot write /data, and RocksDB refused to start
-// there. Memory would lose the ordinary user at every stop.
+// there. A memory store loses the ordinary user at every stop.
 //
 // # The setup has no shell
 //
@@ -122,7 +122,7 @@ func surrealDBURL(user, auth string) func(port int) string {
 // SurrealDB is every SurrealDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var SurrealDB = list{}.staged(surrealdb, Tested, "2.7.0", "3.3.0").
 	staged(surrealdb, Nightly, "3.1.6", "3.2.4")

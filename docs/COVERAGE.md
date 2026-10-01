@@ -50,7 +50,7 @@ rather than reading one.
 | `models/tidb` | 19 | 56 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 16 of its statements are the mysql model's (D133) |
 | `models/vitess` | 20 | 56 | Vitess 23.0.6 and 24.0.3, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
 | `models/databend` | 20 | 56 | Databend 1.2.881 and 1.2.948, from the system database, with dbimp's driver (D140) |
-| `models/singlestore` | 23 | 56 | SingleStore 9.0 and 9.1, on the development image with no licence. 16 of its statements are the mysql model's (D141) |
+| `models/singlestore` | 23 | 56 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
 | `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
 | `models/redshift` | 11 | 56 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
@@ -81,8 +81,9 @@ of and whose catalog table it dropped in 8.0, and column statistics, below.
 ### What it answers with the same thing PostgreSQL has
 
 Schemas, databases, tables, columns, indexes, index columns, constraints,
-triggers, sequences, partitioned tables, comments, functions, collations,
-settings, roles, role grants, privileges.
+constraint columns, triggers, sequences, views, partitioned tables, comments,
+functions, routine parameters, collations, settings, roles, role grants,
+privileges, column statistics, the current schema and the current user.
 
 A schema and a database are the same object in MariaDB. `dbmeta.Schemas` and
 `dbmeta.Databases` both answer, and they answer with the same rows. That is the
@@ -228,10 +229,11 @@ form of. `information_schema.PERIODS` holds application time periods. It is pres
 
 ## SQLite
 
-SQLite answers 14 of the 56. It is the smallest native model here and it still
-beats the shared `information_schema` one, which SQLite does not have at all.
+SQLite answers 14 of the 56. It is a small native model and it still beats
+the shared `information_schema` one, which SQLite does not have at all.
 
-It is also the only database here with no server. SQLite is a library, so the
+It is also one of the two databases here with no server, and DuckDB is the
+other. SQLite is a library, so the
 release under test is whichever one the Go driver was built with. There is
 nothing to upgrade separately, nothing to run in a container, and no version
 gate in the model: every pragma it reads arrived by SQLite 3.37 in 2021, and
@@ -705,15 +707,15 @@ through a connector and keeps almost nothing of its own, so most of what it
 cannot answer is missing because the thing does not exist rather than because
 the catalog hides it.
 
-### A catalog is a real level, and Trino is the only one
+### A catalog is a real level, and only Trino and Presto have one
 
 Every other model here returns an empty catalog or repeats the database name
 into it, because the products have two levels of namespace and `psql` has
 three. Trino has all three. A table is `catalog.schema.name`, a catalog is a
 configured connector, and one server reaches many at once.
 
-So Trino is the only model that answers a catalog filter, and
-[`dbmeta.Args`](../filter.go) has carried the field all along waiting for it.
+So Trino and Presto are the only models that answer a catalog filter, and
+[`dbmeta.Args`](../filter.go) has carried the field all along waiting for them.
 
 ### system.jdbc, not information_schema
 
@@ -811,7 +813,7 @@ exist, and put all but six kinds in absent.
 
 Two answers were worth the exercise.
 
-**Functions cannot be read as a relation, and now that is settled.** Gemini
+Functions cannot be read as a relation, and now that is settled. Gemini
 said `SHOW FUNCTIONS` cannot be wrapped in a subquery and it is right, though
 not for the reason it gave. The parser does not reject it: it reads `SHOW` as
 a table name and reports `Table 'memory.default.show' does not exist`. So
@@ -820,7 +822,7 @@ spaces, and Functions and Aggregates stay unanswered. `SHOW SESSION` has the
 same shape, which is why Settings is unanswered too, and both models agreed
 `SHOW STATS FOR` has no table valued form, so ColumnStats is as well.
 
-**information_schema.columns has an undocumented column.** Gemini derived
+information_schema.columns has an undocumented column. Gemini derived
 partitioned tables from `extra_info = 'partition key'`. `SHOW COLUMNS` does
 not list `extra_info` and the column resolves anyway, which a control
 settled: a name that really does not exist fails with `Column
@@ -1121,7 +1123,8 @@ than by analogy:
 | `UserMappings` | `SYS.REMOTE_USERS` |
 | `ForeignTables` | `SYS.VIRTUAL_TABLES` |
 
-No other model here answers all four. `SYS.REMOTE_SUBSCRIPTIONS` answers
+Only Exasol, CockroachDB and PostgreSQL answer all four as well.
+`SYS.REMOTE_SUBSCRIPTIONS` answers
 `Subscriptions` as well, which is the subscriber half of replication.
 
 Three more are worth naming. `SYS.DATA_STATISTICS` answers extended
@@ -1424,7 +1427,7 @@ access methods, privileges and the current user.
 Trino answers four more, and each is absent from the product rather than
 missing from the model.
 
-**Comments has no source.** Presto accepts a `COMMENT` clause on
+Comments has no source. Presto accepts a `COMMENT` clause on
 `CREATE TABLE`, keeps nothing readable, and shows nothing in
 `SHOW CREATE TABLE`. There is no `system.metadata.table_comments` for the
 query to reach, so `Tables.comment` and `Views.comment` are padded absent and
@@ -1432,11 +1435,11 @@ the Comments kind is not registered. `COMMENT ON` is not a statement Presto
 has at all: the parser rejects the word, so a column comment cannot be set
 either and `system.jdbc.columns.remarks` is always NULL.
 
-**CurrentSchema has no expression.** Neither `current_catalog` nor
+CurrentSchema has no expression. Neither `current_catalog` nor
 `current_schema` resolves, and nothing in `system.runtime` carries the
 session. `current_user` does resolve, so CurrentUser is answered.
 
-**Roles and RoleGrants raise rather than answering nothing.** This is the
+Roles and RoleGrants raise rather than answering nothing. This is the
 sharpest difference from Trino and the one most likely to surprise. Both
 products read the same standard views. Trino's memory connector returns no
 rows, which is a supported query with an empty result. Presto's answers:
@@ -1470,7 +1473,7 @@ to compare, only a product to tell apart.
 
 `prestodb/presto-go-client/v2`, which is what `usql` pins, takes the catalog
 and schema in the path and refuses an `http://` scheme. It rejects the scheme
-before any network call, and reads any unrecognised query parameter as a
+before any network call, and reads any unrecognized query parameter as a
 Presto session property, so the server rejects the statement:
 
 ```
@@ -2058,6 +2061,7 @@ Every dialect has a target or a recorded reason for having none, and
 `TestEveryDialectIsMeasuredForParity` fails when one has neither. SQLite and
 DuckDB have no user. Snowflake and Redshift have not run (D144). Impala and
 Vitess run with no authentication, so every user is the same principal.
+InfluxDB 3 Core has one kind of token, the administrator's (D152).
 `parityExempt` in `test/parity_test.go` holds each reason.
 
 ### One release answers differently
@@ -2220,8 +2224,9 @@ says which of the seven it answers. The SQL standard defines
 to the standard answers those four. That was not the expectation: the two the
 consumers wanted most turned out to be the two the standard already had.
 
-`CurrentUser` is answered by every model but SQLite, which has no users, and
-Cassandra, which has no CQL expression for it. It is
+`CurrentUser` is answered by every model but four: SQLite and rqlite, which
+have no users, Cassandra, which has no CQL expression for it, and InfluxDB 3,
+where no statement names a user. It is
 the one question here that reads no catalog at all on the shared model, because
 `CURRENT_USER` is a standard SQL expression rather than a view. It came from
 auditing `usql` for database specific SQL outside its metadata readers, which
@@ -2250,7 +2255,8 @@ unqualified name resolves nowhere until a `USE` runs. SQLite returns `main`,
 which is a constant, because SQLite looks in `temp` first and reports nothing
 about that.
 
-`EnumValues`. Only PostgreSQL has an enumerated type. MariaDB and MySQL have an
+`EnumValues`. Of the seven, only PostgreSQL and DuckDB have an enumerated
+type. MariaDB and MySQL have an
 enum column rather than an enum type, and the labels exist only inside the
 `enum('red','green','blue')` text of `COLUMN_TYPE`. Splitting that correctly
 needs to track quoting, because a label can contain a comma or an escaped
@@ -2363,7 +2369,7 @@ full catalog rather than a wrapped remote, so it is reported as a `Database`,
 which is what it is.
 
 Hive partitioning through `read_parquet()` for `PartitionedTables`. It is a
-file layout read at scan time, not a catalogued object.
+file layout read at scan time, not a cataloged object.
 
 ### A difference worth knowing
 
@@ -2496,7 +2502,7 @@ Three queries here depend on a privilege. `ColumnStats` reads
 PolyBase is configured. All three were run as a user holding `VIEW DEFINITION`
 alone, and all three returned an empty result rather than an error.
 
-That is worth knowing because it is a third behaviour. PostgreSQL shows a
+That is worth knowing because it is a third behavior. PostgreSQL shows a
 caller everything, MariaDB refuses outright, and SQL Server quietly narrows the
 answer. A consumer that treats an empty result as "there are none" is wrong on
 SQL Server in a way it is not wrong on PostgreSQL.
@@ -2588,8 +2594,8 @@ statistics, partitioned tables, foreign servers and foreign tables.
 
 Verified on 11g, 18c, 19c, 21c, 23ai and 26ai. Every release runs 25 of them
 and each returns the number of columns it declares. `Domains` is the
-twenty-fifth and needs 23ai, where the SQL domain and `ALL_DOMAINS` arrived,
-so 23ai and 26ai run all 25 and the four older releases report that the server
+twenty-sixth and needs 23ai, where the SQL domain and `ALL_DOMAINS` arrived,
+so 23ai and 26ai run all 26 and the four older releases report that the server
 is too old.
 
 ### Which user the tests run as
@@ -3249,7 +3255,7 @@ one text, such as addup(Int32,Int32) RETURN (Int32), and a function records
 them as a variant. Databend has no trigger, type, domain, collation,
 extension or partitioned table, and the rest are PostgreSQL's alone.
 
-A computed column needs an Enterprise licence on 1.2.881. 1.2.948 accepts
+A computed column needs an Enterprise license on 1.2.881. 1.2.948 accepts
 one, and system.columns does not mark it as computed on either release.
 
 ### What the fixture builds
@@ -3283,7 +3289,7 @@ cluster key orders the rows of a table rather than partitioning it.
 ## SingleStore
 
 `models/singlestore` answers 23 of the 56 on 9.0 and 9.1. It was measured on
-2026-09-30 on the development image, which runs with no licence on a machine
+2026-09-30 on the development image, which runs with no license on a machine
 with at most 8 cores and 64 GB, through the mysql driver, which is what
 dburl's memsql scheme opens and what usql uses. SingleStore imitates MySQL's
 information_schema, so 16 of its statements are the mysql model's, shared
@@ -3522,19 +3528,19 @@ again replaces its points.
 Nothing. InfluxDB 3 Core has one kind of token, the administrator's, so there
 is no lesser principal, and InfluxDB is exempt from parity with that reason.
 
-## Releases that need a licence file
+## Releases that need a license file
 
-Stardog, GraphDB and Volt Active Data do not start without a licence file
+Stardog, GraphDB and Volt Active Data do not start without a license file
 that a person downloads, and `dbrun` lists them only while it finds the file.
 dbmeta has no model for any of them, so every release of the three is Staged,
 and CI never runs one. See D118 and D119.
 
 | Product | Releases | Measured |
 | --- | --- | --- |
-| Stardog | 12.0.4, 12.1.4 | Not yet. No licence file is provisioned |
-| GraphDB | 11.4.3, 11.5.1 | Not yet. No licence file is provisioned |
-| Volt Active Data | 14.1.0, 15.2.0 | Not yet. No licence file is provisioned |
+| Stardog | 12.0.4, 12.1.4 | Not yet. No license file is provisioned |
+| GraphDB | 11.4.3, 11.5.1 | Not yet. No license file is provisioned |
+| Volt Active Data | 14.1.0, 15.2.0 | Not yet. No license file is provisioned |
 
 Put each file at `$XDG_CONFIG_HOME/dbmeta/licenses/<product>`, where the
 product is `stardog`, `graphdb` or `voltdb`, or name its path in
-`DBMETA_<PRODUCT>_LICENSE`. `docs/DBRUN.md` says the same under Licence files.
+`DBMETA_<PRODUCT>_LICENSE`. `docs/DBRUN.md` says the same under License files.

@@ -26,7 +26,7 @@ func meta(t *testing.T, ver string) *dbmeta.Meta {
 }
 
 // TestEveryReleaseResolves checks that every supported release produces a
-// statement. A release with no applicable fragment would fail here.
+// statement. A release with no applicable fragment fails here.
 // TestEveryReleaseResolves checks that each query either produces a statement
 // or says the server is too old. An object that PostgreSQL did not have yet is
 // the second case: publications and subscriptions arrived in release 10, so a

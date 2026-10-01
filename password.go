@@ -108,8 +108,8 @@ func (d Dialect) ParseQuoting(cols []string) (Quoting, error) {
 // Quoting reads the session state from the server.
 //
 // This is a read and it runs a query, the same way [Dialect.Version] does. A
-// caller that would rather run the statement itself uses [Dialect.QuotingQuery]
-// and [Dialect.ParseQuoting].
+// caller that runs the statement itself uses [Dialect.QuotingQuery] and
+// [Dialect.ParseQuoting].
 //
 // A product with no such state returns the zero value and no error.
 func (d Dialect) Quoting(ctx context.Context, db Queryer) (Quoting, error) {
@@ -135,9 +135,9 @@ func (d Dialect) Quoting(ctx context.Context, db Queryer) (Quoting, error) {
 // with the text afterwards. The text contains the password in clear, because
 // the server requires that, so a caller must keep it out of its logs.
 //
-// It returns [ErrNotSupported] when the product has no such statement or the
-// model is not built, and [ErrQuotingUnknown] when the product needs session
-// state that [Quoting] does not carry.
+// It returns [ErrModelNotBuilt] when the model is not built, [ErrNotSupported]
+// when the product has no such statement, and [ErrQuotingUnknown] when the
+// product needs session state that [Quoting] does not carry.
 func (d Dialect) ChangePassword(c PasswordChange, q Quoting) (string, error) {
 	info, ok := d.Info()
 	if !ok {

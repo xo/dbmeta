@@ -11,15 +11,15 @@ are adopted here.
 `README.md` declares which tier every database version is in. `gen.go` writes
 that table from the models, under D31, so it cannot drift from the code.
 
-**Tested.** Tests run on every change, in CI. This is what D24 puts in CI: the
+Tested. Tests run on every change, in CI. This is what D24 puts in CI: the
 latest release of PostgreSQL, MySQL and SQLite3. A fault here is a bug and it
 gets fixed.
 
-**Verified.** Tests exist and run on a development machine before a release,
+Verified. Tests exist and run on a development machine before a release,
 not on every change. This is the D24 local matrix. A fault here is a bug and it
 gets fixed, and it is found later than a tested one.
 
-**Archived.** The queries exist and were checked once against a real server,
+Archived. The queries exist and were checked once against a real server,
 and nothing runs them now. The tier records the date and the image digest of
 that check. A fault here is fixed only if someone supplies a test with the
 report.

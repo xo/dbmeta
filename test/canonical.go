@@ -15,7 +15,7 @@ import (
 //
 // dbmeta reports what a database said. It does not normalize an answer so that
 // two databases agree, and a test must not push it to. That is the one rule
-// this file could break, so the boundary is mechanical rather than a promise:
+// this file can break, so the boundary is mechanical rather than a promise:
 //
 // Every function here takes a value and returns a new one. None of them takes
 // a pointer to a model struct and none of them writes to a field. dbmeta's own
@@ -34,8 +34,8 @@ import (
 //
 // Gemini said no value can be compared across families and DeepSeek said a
 // subset can. DeepSeek is right, and the evidence is local: the fault that
-// justified the MariaDB comparison was a NULL that would not scan, which is a
-// value fault. Names and row counts would have missed it.
+// justified the MariaDB comparison was a NULL that did not scan, which is a
+// value fault. A comparison of names and row counts does not find it.
 //
 // The subset is what the SQL standard makes a database record the same way:
 // whether a column accepts NULL, where it sits in the table, whether it is in
@@ -54,7 +54,7 @@ var canonicalFields = map[string]string{
 	// right: integer, INTEGER, int, int(11), INTEGER as an affinity hint
 	"Column.DataType": "dropped: a type spelling is per product",
 	// dropped, because a default is stored as the database renders it:
-	// 'red' on MariaDB, red on MySQL, 'red'::colour on PostgreSQL
+	// `'red'` on MariaDB, `red` on MySQL, `'red'::colour` on PostgreSQL
 	"Column.Default": "dropped: a default is rendered per product",
 	// mapped to whether the column has an explicit default other than NULL.
 	//
@@ -62,7 +62,7 @@ var canonicalFields = map[string]string{
 	// nullable column that was declared without one, where a NOT NULL column
 	// gets SQL NULL. It is saying that the column defaults to NULL, which is
 	// true and is not what every other database says. TestMySQLNullDefault
-	// pins the raw behaviour, so this mapping cannot hide it.
+	// pins the raw behavior, so this mapping cannot hide it.
 	"Column.HasDefault": "mapped: from Column.Default, present and not the literal NULL",
 	// dropped, because only PostgreSQL and DuckDB have one and the text is
 	// rewritten by the server on MariaDB and MySQL

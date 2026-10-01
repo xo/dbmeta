@@ -26,13 +26,13 @@ and not a place in a file. `TestEveryDecisionReferenceExists` reads the folder.
 
 ## Why D50's reason no longer holds
 
-D50 kept one file because an amendment would live in a different file from the
-decision it amends, and a reader who landed on the older one would get a rule
-that no longer holds. `TestAnAmendmentPointsBothWays` answers that. It fails
-unless both decisions name each other in their status, and each file now opens
-with its status, so a reader sees an amendment before anything else.
-`TestTheDecisionIndexIsComplete` checks every row of the index against the
-file, title and status alike, and prints the row to add.
+D50 kept one file because, with a file per decision, an amendment lives in a
+different file from the decision it amends, and a reader who lands on the
+older one gets a rule that no longer holds. `TestAnAmendmentPointsBothWays`
+answers that. It fails unless both decisions name each other in their status,
+and each file now opens with its status, so a reader sees an amendment before
+anything else. `TestTheDecisionIndexIsComplete` checks every row of the index
+against the file, title and status alike, and prints the row to add.
 
 The move found one fault. D77's heading said "amended by D84", and its row in
 the old index said only "Amends D66", because the old test checked that a row

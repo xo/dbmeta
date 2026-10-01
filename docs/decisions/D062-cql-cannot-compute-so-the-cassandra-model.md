@@ -48,8 +48,7 @@ tables and 313 columns.
 CQL orders rows within one partition, by a clustering column. A result that
 spans partitions arrives in token order, and the same query can return the
 same rows in another order on another cluster. No query here writes `ORDER BY`,
-because writing one would not make the answer ordered and would suggest it
-was.
+because writing one does not make the answer ordered and suggests that it is.
 
 ## Padding is a type hint, and every alias is quoted
 
@@ -81,7 +80,7 @@ defaults.
 
 So a padded column is scanned into `pad`, a `sql.Scanner` that discards, and
 the field keeps its zero value, which is the invalid Null. The column is still
-selected, because the statement should say what it returns and because a query
+selected, because the statement must say what it returns and because a query
 returns as many columns as it declares fields.
 
 This does not rescue a real catalog column that is null, and nothing can with

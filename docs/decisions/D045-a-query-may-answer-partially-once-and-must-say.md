@@ -1,4 +1,4 @@
-# D45. A query may answer partially, once, and must say so
+# D45. A query can answer partially, once, and must say so
 
 Status: Decided.
 
@@ -30,16 +30,16 @@ missing, in the API, where a caller reads it. A test asserts the absence, so
 that it stays a decision rather than becoming a bug.
 
 The SQLite fixture creates two check constraints and `TestSQLiteConstraints`
-asserts that neither appears. Without that test this would be indistinguishable
+asserts that neither appears. Without that test, this is indistinguishable
 from a query that forgot them.
 
-## What it is not a licence for
+## What it is not a license for
 
 Do not use this to ship a query that half works. The question to ask is whether
-a caller reading the result would be wrong about anything. Here it would not:
-it would be missing something the field description told it would be missing.
-A query that returns a wrong value, or that silently drops rows a caller would
-expect, is not a partial answer. It is a defect.
+a caller reading the result is wrong about anything. Here it is not. The caller
+misses only what the field description told it is missing. A query that
+returns a wrong value, or that silently drops rows a caller expects, is not a
+partial answer. It is a defect.
 
 ## The rejection this sits beside
 
@@ -47,9 +47,9 @@ expect, is not a partial answer. It is a defect.
 SQLite reports `sum`, `count` and `group_concat` with the same type code as
 `row_number` and `rank`, because both groups can be used over a window. Gemini
 said to map that code to aggregates and called it exact. DeepSeek said to map
-only the other code. Running it against a server showed that the first would
-list `row_number` as an aggregate and the second would omit `sum`. Every
-available answer is wrong about something, so there is no exact part to return,
-and `Aggregates` is unsupported.
+only the other code. Running it against a server showed that the first lists
+`row_number` as an aggregate and the second omits `sum`. Every available
+answer is wrong about something, so there is no exact part to return, and
+`Aggregates` is unsupported.
 
 Exact but incomplete is allowed. Complete but wrong is not.

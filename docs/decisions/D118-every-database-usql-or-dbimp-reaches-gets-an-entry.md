@@ -24,7 +24,7 @@ Every entry follows the rules that D112 set:
 2. Every release is Staged, because no model reads it yet, so CI does not
    run it. D119 made that the rule for every release no model reads.
 3. The administrator has `container.Password`. An ordinary user is named
-   `dbmeta_user`, and a product that has no users gets a key that may only
+   `dbmeta_user`, and a product that has no users gets a key that can only
    read, which goes by that name in the DSN.
 4. The setup is safe to run twice. Each entry was started fresh, measured,
    stopped, started again, measured again and removed.
@@ -35,42 +35,42 @@ Every entry follows the rules that D112 set:
 
 | Product | Releases | Administrator | Ordinary principal |
 | --- | --- | --- | --- |
-| Qdrant | 1.18.3, 1.19.1 | the API key | a second key that may only read |
+| Qdrant | 1.18.3, 1.19.1 | the API key | a second key that can only read |
 | Chroma | 1.4.1, 1.5.9 | none | none |
 | Weaviate | 1.38.17, 1.39.7 | the key of `admin` | the key of `dbmeta_user`, a read only user in the admin list |
 | CouchDB | 3.4.3, 3.5.2 | `admin` | `dbmeta_user`, a member of `dbmeta` |
 | QuestDB | 9.4.3, 10.0.1 | `admin` | none |
-| Meilisearch | 1.53.2, 1.54.0 | the master key | a key that may search and read `dbmeta` |
-| Typesense | 29.1, 30.2 | the bootstrap key | a key that may search `dbmeta` |
+| Meilisearch | 1.53.2, 1.54.0 | the master key | a key that can search and read `dbmeta` |
+| Typesense | 29.1, 30.2 | the bootstrap key | a key that can search `dbmeta` |
 | TerminusDB | 11.1.17, 12.0.7 | `admin` | `dbmeta_user`, with a role that reads `admin/dbmeta` |
-| CockroachDB | 26.2.7, 26.3.2, 24.3.36 | `root` | `dbmeta_owner`, who owns `dbmeta`, and `dbmeta_user`, who may connect to it |
-| TiDB | 7.5.8, 8.5.8, 8.1.2 | `root` | `dbmeta_owner`, with every right on `dbmeta`, and `dbmeta_user`, who may select |
+| CockroachDB | 26.2.7, 26.3.2, 24.3.36 | `root` | `dbmeta_owner`, who owns `dbmeta`, and `dbmeta_user`, who can connect to it |
+| TiDB | 7.5.8, 8.5.8, 8.1.2 | `root` | `dbmeta_owner`, with every right on `dbmeta`, and `dbmeta_user`, who can select |
 | MongoDB | 7.0.43, 8.3.11, 8.0.32 | `admin` | `dbmeta_user`, with the role `read` on `dbmeta` |
-| Elasticsearch | 8.19.22, 9.5.3, 9.4.6 | `elastic` | `dbmeta_user`, who may read the indices named `dbmeta*` |
-| Dgraph | 25.3.8, 25.4.1 | `groot` | `dbmeta_user`, in a group that may read `dgraph.type` |
-| YDB | 26.2.1.14, 26.3.1.17 | `root` | `dbmetauser`, who may read and describe `/local/dbmeta` |
+| Elasticsearch | 8.19.22, 9.5.3, 9.4.6 | `elastic` | `dbmeta_user`, who can read the indices named `dbmeta*` |
+| Dgraph | 25.3.8, 25.4.1 | `groot` | `dbmeta_user`, in a group that can read `dgraph.type` |
+| YDB | 26.2.1.14, 26.3.1.17 | `root` | `dbmetauser`, who can read and describe `/local/dbmeta` |
 | Spanner emulator | 1.5.58 | none | none |
 | BigQuery emulator | 0.7.2, 0.8.1 | none | none |
 | GizmoSQL | 1.38.5, 1.39.0 | `admin` | none. The core has one user |
-| Virtuoso | 7.2.17 | `dba` | `dbmeta_user`, who may run SPARQL queries and not updates |
+| Virtuoso | 7.2.17 | `dba` | `dbmeta_user`, who can run SPARQL queries and not updates |
 | Alternator | 2025.1, 2026.3 | `cassandra` | `dbmeta_user`, with SELECT on every keyspace |
 | Vitess | 23.0.6, 24.0.3 | none | none. vttestserver accepts any user |
 | Milvus | 2.6.24, 3.0.2 | `root` | `dbmeta_user`, with a role that reads `dbmeta` |
-| OpenSearch | 2.19.6, 3.8.0 | `admin` | `dbmeta_user`, who may read the indices named `dbmeta*` |
+| OpenSearch | 2.19.6, 3.8.0 | `admin` | `dbmeta_user`, who can read the indices named `dbmeta*` |
 | DynamoDB Local | 3.2.0, 3.3.1 | none | none. It checks no key |
 | Cosmos DB emulator | EN20260907 | the account key | none |
 | Solr | 9.9.0, 10.0.0, 9.10.1 | `admin` | `dbmeta_user`, with the role search, which reads and runs SQL |
-| Drill | 1.21.2, 1.22.0 | `admin` | `dbmeta_user`, who may query and not change an option |
-| H2 | 2.4.240, 2.5.252 | `sa` | `dbmeta_user`, who may read the schema PUBLIC |
-| Fuseki | 6.1.0, 6.2.0 | `admin` | `dbmeta_user`, who may query and not update |
-| PostgREST | 14.18, 16.4 | the token of `dbmeta_admin` | the token of `dbmeta_user`, who may read the schema `dbmeta` |
+| Drill | 1.21.2, 1.22.0 | `admin` | `dbmeta_user`, who can query and not change an option |
+| H2 | 2.4.240, 2.5.252 | `sa` | `dbmeta_user`, who can read the schema PUBLIC |
+| Fuseki | 6.1.0, 6.2.0 | `admin` | `dbmeta_user`, who can query and not update |
+| PostgREST | 14.18, 16.4 | the token of `dbmeta_admin` | the token of `dbmeta_user`, who can read the schema `dbmeta` |
 | ksqlDB | 8.2.4, 8.3.2 | `admin` | none. Every user open source ksqlDB lets in has the same rights |
 | Stardog | 12.0.4, 12.1.4 | `admin` | `dbmeta_user`. Not yet measured |
 | GraphDB | 11.4.3, 11.5.1 | `admin` | `dbmeta_user`. Not yet measured |
 | Volt Active Data | 14.1.0, 15.2.0 | `admin` | `dbmeta_user`. Not yet measured |
 
 Each ordinary principal was measured on both releases, except on the three
-that need a licence file. It read, it was
+that need a license file. It read, it was
 refused a write with 403, and a request with no credential or a wrong one
 was refused with 401.
 
@@ -102,7 +102,7 @@ for them again:
    it cannot make a table. `POSTGRES_USER` and
    `YDB_ENFORCE_USER_TOKEN_REQUIREMENT` both do that. So the server starts
    with neither, and Init gives root its password afterwards. A connection
-   with no user is still accepted and may do anything. YDB also allows no
+   with no user is still accepted and can do anything. YDB also allows no
    underscore in a user name.
 7. TiDB reads no variable for the password of root, and its image has no
    MySQL client. The command starts the server with `--initialize-sql-file`,
@@ -151,9 +151,10 @@ for them again:
 16. h2go, the H2 driver usql ships, fails against H2 2.4.240 and 2.5.252
     with "Can't read all data needed". The server answers its own Shell, so
     the fault is between the driver and those releases. An H2 user that is
-    not an administrator also may not set `DB_CLOSE_DELAY` in its address.
+    not an administrator also is not allowed to set `DB_CLOSE_DELAY` in its
+    address.
 17. The Kafka start script writes a GC log under `/var/log/kafka`, which the
-    ksqlDB image does not have, so the broker would not start. The command
+    ksqlDB image does not have, so the broker did not start. The command
     sets `LOG_DIR`. The preflight of ksqlDB gives up when Kafka is slow, so
     the command waits for the broker's port first.
 18. ksqlDB 8 runs on Jetty 12, whose JAAS module is
@@ -163,9 +164,9 @@ for them again:
 ## What Ken decided on 2026-09-28
 
 1. DynamoDB Local and the Cosmos DB emulator get entries, and Ken accepted
-   their licences for this project.
-2. Stardog, GraphDB 11 and VoltDB get entries, each with a licence file that
-   a person downloads. The file is the licence's equivalent of a
+   their licenses for this project.
+2. Stardog, GraphDB 11 and VoltDB get entries, each with a license file that
+   a person downloads. The file is the license's equivalent of a
    credential, and the next section says how an entry finds it.
 3. SingleStore gets no entry.
 4. Gel, Blazegraph, Stargate and Apache Impala get no entry. A product that
@@ -176,9 +177,9 @@ for them again:
    rather than a password of its own.
 6. Elasticsearch keeps 8.19 as its floor, because 8.19 is still patched.
 
-## A licence file is found the way a credential is
+## A license file is found the way a credential is
 
-Stardog, GraphDB 11 and Volt Active Data do not start without a licence file
+Stardog, GraphDB 11 and Volt Active Data do not start without a license file
 that a person gets by signing up. D117 already answers the shape of this: a
 thing only a person can provision is found on the host at run time, and the
 entry exists in `dbrun` only while it is found. So `container.Server.License`
@@ -190,19 +191,20 @@ Every release of the three is Staged, as every release no model reads is,
 and CI has no file for any of them either. None has
 started here yet, because no file is provisioned, so each entry says in its
 doc comment that it is not yet measured. `docs/COVERAGE.md` says the same.
-A licence file is not a secret the way a password is, so `dbrun` does not
-ask that only its owner may read it.
+A license file is not a secret the way a password is, so `dbrun` does not
+ask that only its owner can read it.
 
 ## Wire compatible products wait for their models
 
 CockroachDB speaks the PostgreSQL protocol, and TiDB and Vitess the MySQL
-protocol, and usql reaches each with its own scheme. Neither entry names a dialect yet.
-`models/postgres` reads the version with `SHOW server_version`, which
-CockroachDB answers with a PostgreSQL compatibility number, and
+protocol, and usql reaches each with its own scheme. Neither entry names a
+dialect yet. `models/postgres` reads the version with `SHOW server_version`,
+which CockroachDB answers with a PostgreSQL compatibility number, and
 `models/mysql` sets the version key of MySQL for the `VERSION()` of TiDB,
-which is `8.0.11-TiDB-v8.5.8`, and of Vitess, which is `8.4.6-Vitess`. With a dialect, `dbrun test` would run each
-model's tests and record a wrong answer. Each entry takes its dialect when
-the model detects the product and sets its own version key, as D44 requires.
+which is `8.0.11-TiDB-v8.5.8`, and of Vitess, which is `8.4.6-Vitess`. With a
+dialect, `dbrun test` runs each model's tests and records a wrong answer. Each
+entry takes its dialect when the model detects the product and sets its own
+version key, as D44 requires.
 
 ## A port inside a container is not on the host
 

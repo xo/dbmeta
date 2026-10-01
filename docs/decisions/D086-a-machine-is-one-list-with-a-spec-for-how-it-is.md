@@ -18,7 +18,7 @@ to build the connection string.
 How the machine is built is held beside that, in one of two fields, and
 exactly one is set. `Windows` is a `WindowsSpec`, which is what
 `container.WindowsVM` used to hold beyond the common part: the Windows
-release, the dockurr image, the installer, the registry key and the licence
+release, the dockurr image, the installer, the registry key and the license
 flag. `Appliance` is an `ApplianceSpec`: the file the vendor publishes, its
 SHA256, the page to download it from, the disks inside it, the memory, the
 processors and the port inside the guest.
@@ -32,7 +32,7 @@ still `<product>-<release>`, so `sqlserver-2012` did not change.
 
 ## What was rejected
 
-Two lists, one per kind. Every reader would join them, and the checks that
+Two lists, one per kind. Every reader has to join them, and the checks that
 matter most, that no name and no port is used twice, span both anyway.
 
 Fields for the user, the password and TLS options. The connection string is
@@ -53,7 +53,7 @@ and disk sizes come from the vendor's descriptor and are typed fields.
 `provision` builds a machine of either kind. For an appliance it takes the
 file with `--from`, or finds it in the machine's state directory, and fails
 with the download page and the expected SHA256 when neither has it. A second
-verb would be a second place for start, status and remove to disagree.
+verb is a second place for start, status and remove to disagree.
 
 The import reads the file once. It checks the SHA256 of the whole file and
 unpacks the disks in the same pass, then converts each disk to qcow2 with the

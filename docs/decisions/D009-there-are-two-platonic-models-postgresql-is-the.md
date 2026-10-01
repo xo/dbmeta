@@ -20,7 +20,7 @@ describe the same thing differently, follow PostgreSQL. Use
 `information_schema` for the databases that offer nothing better.
 
 It is not a requirement that every database answer all 48 PostgreSQL objects.
-Both external reviews read it that way and warned that most drivers would then
+Both external reviews read it that way and warned that most drivers then
 return "not supported" for most calls. That reading is wrong, and the wording
 above is narrowed to prevent it. A database answers for the objects it has, and
 the capability mechanism D34 describes reports the rest. PostgreSQL sets the
@@ -58,7 +58,7 @@ fragments on an integer server version. The generated Go shows the pattern as
 old for a feature, `psql` returns an error that names the version.
 
 `dbmeta` takes the other path. D8 sets discrete fragments per version, because
-each is a concrete SQL statement that has been run against a concrete server.
+each is a concrete SQL statement that ran against a concrete server.
 An inline conditional has no single statement to check.
 
 Two consequences follow. An agent that ports a query from `describe.c` or from

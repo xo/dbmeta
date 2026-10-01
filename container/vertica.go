@@ -19,11 +19,11 @@ import (
 //
 // docker.io/ratiopbc/vertica-ce is a copy of the image Vertica's own
 // vertica-containers/one-node-ce Dockerfile builds: its entrypoint carries the
-// Open Text copyright and Apache licence, its layers are that Dockerfile's
+// Open Text copyright and Apache license, its layers are that Dockerfile's
 // steps, and its binary reports Vertica Analytic Database v25.1.0-0. It was
 // built on 2024-12-17 and pushed on 2025-11-17, and it has not been rebuilt,
-// so it is pinned by digest as well as by tag: a push to the same tag would
-// otherwise change what was tested without anything here changing.
+// so it is pinned by digest as well as by tag. Without the digest, a push to
+// the same tag changes what was tested, and nothing here changes.
 //
 // # The range, and where it comes from
 //

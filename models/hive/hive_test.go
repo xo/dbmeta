@@ -62,8 +62,8 @@ func TestLiteralRefuses(t *testing.T) {
 // TestEveryQuoteIsAnAlias holds the invariant backtick relies on.
 //
 // The conversion turns every double quote in a fragment into a backtick, so
-// a double quoted string literal in one of these statements would silently
-// become an identifier. Every literal here is single quoted and this is what
+// a double quoted string literal in one of these statements silently
+// becomes an identifier. Every literal here is single quoted and this is what
 // says so.
 func TestEveryQuoteIsAnAlias(t *testing.T) {
 	t.Parallel()
@@ -92,7 +92,7 @@ func TestEveryQuoteIsAnAlias(t *testing.T) {
 
 // TestNoValuesAreBound checks that a Hive statement carries its own values.
 //
-// A value returned here would be handed to a driver that discards it, which
+// A value returned here goes to a driver that discards it, which
 // is the failure D78 exists to prevent.
 func TestNoValuesAreBound(t *testing.T) {
 	t.Parallel()

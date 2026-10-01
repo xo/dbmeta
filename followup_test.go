@@ -116,10 +116,10 @@ func (q *cancelAfterFirst) QueryContext(ctx context.Context, query string, args 
 	return q.db.QueryContext(ctx, query, args...)
 }
 
-// TestFollowUpCancelledIsAnError checks that a context cancelled between the
+// TestFollowUpCanceledIsAnError checks that a context canceled between the
 // two statements is reported rather than taken for a refusal, because nothing
 // after it can run.
-func TestFollowUpCancelledIsAnError(t *testing.T) {
+func TestFollowUpCanceledIsAnError(t *testing.T) {
 	t.Parallel()
 	db, err := openFake()
 	if err != nil {

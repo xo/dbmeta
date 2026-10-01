@@ -20,7 +20,7 @@ import (
 // the floor and the ceiling are both 3.12, and the release moves with each
 // patch.
 //
-// # The licence
+// # The license
 //
 // 3.12 is under the ArangoDB Community License. It is free for development and
 // testing, which D90 counts, and it asks for no acceptance at start.
@@ -83,7 +83,7 @@ u.grantDatabase("` + ArangoDBUser + `", "` + arangoDatabase + `", "rw");`),
 
 // arangoURL is the address of the database dbmeta as one user, in the form
 // dbimp's arangodb driver takes, which is dbimp's D93. The path is the
-// database: with none, the driver uses _system, which dbmeta_user may not
+// database: with none, the driver uses _system, which dbmeta_user cannot
 // read.
 func arangoURL(user string) func(port int) string {
 	return func(port int) string {
@@ -112,6 +112,6 @@ func arangoHTTP(user string) func(port int) string {
 // ArangoDB is every ArangoDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var ArangoDB = list{}.staged(arangodb, Tested, "3.12.12")

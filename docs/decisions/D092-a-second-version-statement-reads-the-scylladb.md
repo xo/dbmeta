@@ -36,7 +36,7 @@ follow-up fails. The role still learns that it is talking to ScyllaDB, and
 the release stays unknown. An unknown release meets every gate on the key, so
 the role gets the newest fragments, which is what D21 does above the ceiling.
 
-A cancelled context is the one failure that is an error, because nothing
+A canceled context is the one failure that is an error, because nothing
 after it can run. A test in the root module cancels between the two
 statements to hold that apart from a refusal.
 

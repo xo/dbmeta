@@ -22,7 +22,7 @@ its own display.
 - `OldPassword`, which says ChangePassword needs the current password.
   SQL Server is the case.
 - `Terminator`, what the product does with a semicolon at the end of a
-  statement. Oracle refuses it unless the statement ends with END;, and
+  statement. Oracle refuses it unless the statement ends with `END;`, and
   Trino and Presto refuse it always.
 - `Batches`, the statements that open and close a batch, such as CQL's
   BEGIN BATCH and APPLY BATCH.

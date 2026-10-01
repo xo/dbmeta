@@ -78,7 +78,7 @@ func setupExasol(t *testing.T, db *sql.DB) *dbmeta.Meta {
 // openExasol returns a connection to the server named by DBMETA_EXASOL.
 //
 // One connection, because Exasol holds a schema open per session and
-// CREATE SCHEMA opens the one it creates. A pool would hand a later query a
+// CREATE SCHEMA opens the one it creates. A pool can hand a later query a
 // session with a different current schema than the one the fixture left.
 func openExasol(t *testing.T) *sql.DB {
 	t.Helper()
@@ -218,7 +218,7 @@ func TestExasolColumns(t *testing.T) {
 		// Every column has an identity and a generated kind, and they are
 		// the empty string for most columns. Exasol reads '' as NULL, and
 		// the model restores the empty value rather than reporting it
-		// absent, which would say the release has no such thing.
+		// absent, because an absent value says the release has no such thing.
 		if !v.Identity.Valid || !v.Generated.Valid {
 			t.Errorf("%s: identity and generated must be present, got %v and %v",
 				key, v.Identity, v.Generated)

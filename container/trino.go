@@ -30,16 +30,16 @@ import (
 //	Catalog 'memory' does not support non-null column for column name 'author_id'
 //
 // The memory connector gained NOT NULL somewhere between the two. Whether the
-// queries themselves would answer on 451 is unmeasured, because there is
+// queries themselves answer on 451 is unmeasured, because there is
 // nothing to read them against.
 //
-// Gating the fixture would not rescue it, and that is the part worth knowing.
+// Gating the fixture does not rescue it, and that is the part worth knowing.
 // D53 keeps one conformance section per database rather than one per release,
 // on the stated ground that nullability and ordinal position do not change
 // between releases. A Trino fixture without NOT NULL reports every column
-// nullable, so 451 and 476 would need different sections and the design that
-// makes the cross family comparison readable would have to go. The cost is
-// paid by every database to support one release of one of them.
+// nullable. 451 and 476 then need different sections, and the design that
+// makes the cross family comparison readable must go. The cost is paid by
+// every database to support one release of one of them.
 //
 // A floor is allowed to be recent. Not every product can be supported back to
 // where it stops working, and an engine that changes its connectors release

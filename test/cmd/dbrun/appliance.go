@@ -95,7 +95,7 @@ func placeDisks(state string, a container.ApplianceSpec) []placedDisk {
 	return out
 }
 
-// imported reports whether every disk has been converted already.
+// imported reports whether every disk is converted already.
 func imported(disks []placedDisk) bool {
 	for _, d := range disks {
 		if _, err := os.Stat(filepath.Join(d.Dir, d.File)); err != nil {

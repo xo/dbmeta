@@ -27,8 +27,8 @@ import (
 // is a translation of it, and they ship different library versions. A query
 // that works on one and not the other is worth finding. See D48.
 //
-// mattn/go-sqlite3 needs cgo, which the test module may use and the root
-// module may not.
+// mattn/go-sqlite3 needs cgo, which the test module can use and the root
+// module cannot.
 var sqliteDrivers = []string{"sqlite3", "sqlite"}
 
 func openSQLiteWith(t *testing.T, driver string) *sql.DB {

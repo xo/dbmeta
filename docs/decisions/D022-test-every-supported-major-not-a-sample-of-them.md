@@ -20,7 +20,7 @@ change in an untested middle version.
 DeepSeek is right, and the source proves it. PostgreSQL removes catalog
 columns. Commit `fe5038236c` in the PostgreSQL tree is titled "Remove obsolete
 pg_attrdef.adsrc column". A query written for release 11 fails on release 12
-with `column "adsrc" does not exist`. Testing 11 and 13 would not find it.
+with `column "adsrc" does not exist`. Testing 11 and 13 does not find it.
 
 `describe.c` shows the same thing directly. It carries 3 gates of the form
 `pset.sversion < N`, at 11, 12 and 15. A gate that asks whether the server is

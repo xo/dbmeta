@@ -19,7 +19,7 @@ func registerCatalog() {
 			always(`, p.table_name AS "name"`),
 			// An index lives in a namespace of its own, so a table and an
 			// index can share a name in one schema. Joining all_objects
-			// would then double every grant, and the subquery cannot.
+			// then doubles every grant, and the subquery cannot.
 			//
 			// all_objects checks a privilege for every row, and 11g takes
 			// minutes over the whole of it. From 12c all_tab_privs names the

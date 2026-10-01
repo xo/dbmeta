@@ -48,8 +48,8 @@ var clickhouse = product{
 	// access_control_improvements.named_collection_control in the server
 	// configuration, which the image exposes no variable for, so the fixture
 	// builds none and the foreign servers query returns no rows. Enabling it
-	// would mean building an image, which is not worth it for one query that
-	// is already verified to run.
+	// means building an image, which is not worth it for one query that is
+	// already verified to run.
 	ready: []string{"clickhouse-client", "--password", Password, "-q", "SELECT 1"},
 	dsn: func(port int) string {
 		return fmt.Sprintf("clickhouse://default:%s@127.0.0.1:%d/default",

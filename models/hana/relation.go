@@ -452,7 +452,7 @@ func registerConstraints() {
 			always(`FROM SYS.CONSTRAINTS k`),
 			// A check names no column: HANA records the condition on the
 			// table and leaves COLUMN_NAME and POSITION NULL. Those rows
-			// would arrive here as a column with no name.
+			// otherwise arrive here as a column with no name.
 			always(`WHERE k.COLUMN_NAME IS NOT NULL`),
 			always(`AND ` + notSystem(`k.SCHEMA_NAME`)),
 			always(`AND ` + like(`k.SCHEMA_NAME`, `@schema`)),

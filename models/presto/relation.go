@@ -166,7 +166,7 @@ func registerRelations() {
 			{Name: "generated", Desc: "always absent: Presto has no generated column"},
 			{
 				Name: "comment",
-				Desc: "always absent: Presto has no statement that sets one and" +
+				Desc: "always absent in practice: Presto has no statement that sets one and" +
 					" leaves system.jdbc.columns.remarks NULL",
 			},
 			{Name: "collation", Desc: "always absent: Presto has no collation"},

@@ -151,7 +151,7 @@ func registerForeignData() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "server"},
-			{Name: "name", Desc: "the remote user; it applies to every local user, as PUBLIC does"},
+			{Name: "name", Desc: "the remote user. It applies to every local user, as PUBLIC does"},
 			{Name: "options", Desc: "always absent: the password is the only other setting and it is not read"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "server name pattern, empty for every server", Default: ""}},

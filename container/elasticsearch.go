@@ -13,20 +13,20 @@ package container
 // docker.io/library/elasticsearch builds each release tag once, and three
 // lines still get releases. Checked on 2026-09-28, 9.5.3 and 9.4.6 were built
 // on 2026-09-22 and 8.19.22 on 2026-09-23, and 9.3.8, of 2026-08-11, looks
-// finished. The rule in D112 would give 9.4.6 and 9.5.3. 8.19 is still
+// finished. The rule in D112 gives 9.4.6 and 9.5.3. 8.19 is still
 // patched and is what many servers run, so it is the floor, 9.5.3 is the
 // ceiling, and 9.4.6 is kept between them. The image is under the Elastic License 2.0,
-// the SSPL or the AGPL, and the basic licence it makes for itself includes
+// the SSPL or the AGPL, and the basic license it makes for itself includes
 // security and SQL.
 //
 // # The users
 //
 // The image gives the administrator elastic [Password]. Security is on and
 // TLS is off, so a password works over plain HTTP. Init makes the role
-// dbmeta_role, which may read the indices whose names start with dbmeta,
+// dbmeta_role, which can read the indices whose names start with dbmeta,
 // [ElasticsearchUser] with that role, and the index dbmeta.
 
-// ElasticsearchUser may only read the indices whose names start with dbmeta.
+// ElasticsearchUser can only read the indices whose names start with dbmeta.
 // Its password is [Password].
 const ElasticsearchUser = "dbmeta_user"
 
@@ -59,7 +59,7 @@ var elasticsearch = product{
 // Elasticsearch is every Elasticsearch release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Elasticsearch = list{}.staged(elasticsearch, Tested, "8.19.22", "9.5.3").
 	staged(elasticsearch, Nightly, "9.4.6")

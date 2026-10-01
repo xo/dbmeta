@@ -9,7 +9,7 @@ tier. CI runs all four on every push. 2016 and older are Archived.
 
 Microsoft shipped SQL Server on Linux from 2017. `mcr.microsoft.com/mssql/server`
 carries 284 tags and not one of them names 2016, 2014 or 2012. So the floor is
-not a judgement about which releases deserve support. It is the oldest release
+not a judgment about which releases deserve support. It is the oldest release
 anybody can run in CI, and there is nothing below it to argue about.
 
 Two facts about the images. Microsoft publishes no bare release tag, so the tag
@@ -60,7 +60,7 @@ them, and the set of statements that build on 2008 R2 is the set that builds on
 
 So the gates stay, and they are no longer a claim nobody checks.
 
-## What may honestly be said about 2014 and 2016
+## What can honestly be said about 2014 and 2016
 
 This much: the statement resolves, it names only catalog views that release
 documents, and a reviewer read it. Not that it ran, because it cannot.
@@ -72,7 +72,7 @@ so such a release is Archived and Archived means nothing is claimed.
 
 ## What this does not decide
 
-Whether `Query.Support` should answer no for a server too old to build the
+Whether `Query.Support` must answer no for a server too old to build the
 statement. Today it answers yes and `Build` then returns `ErrVersionTooOld`, which
 `TestWrongProductIsNotSupported` fixes deliberately: Support answers a question
 about the product, and the release is the error's business. Writing the test
@@ -97,7 +97,7 @@ Security views, and the encryption columns are absent or empty. `ALL_TABLES`
 has in-memory columns that report nothing.
 
 Two things matter more than the feature list. `ALL_*` shows the caller only what
-the caller may see, which is the `information_schema` problem this project
+the caller can see, which is the `information_schema` problem this project
 already knows, and `DBA_*` needs `SELECT_CATALOG_ROLE` that an ordinary user
 does not have. So the Oracle model must choose between the two deliberately and
 the test user must be a named one with fixed grants. See the requirements on the

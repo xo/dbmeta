@@ -14,7 +14,7 @@
 // So Schemas and CurrentSchema report [dbmeta.ErrNotSupported] rather than
 // one invented row, and every other query returns an empty schema. An empty
 // string is the honest answer where the product has no such level, and a
-// fabricated one would be indistinguishable from a real schema to a caller
+// fabricated one is indistinguishable from a real schema to a caller
 // that cannot see the server.
 //
 // A Firebird database is also a file rather than a name. The server serves
@@ -43,7 +43,7 @@
 // privileges, comments, databases, settings, publications, publication
 // tables and the current user.
 //
-// Three of those need Firebird 4.0 and report [dbmeta.ErrTooOld] on 3.0:
+// Three of those need Firebird 4.0 and report [dbmeta.ErrVersionTooOld] on 3.0:
 // settings reads RDB$CONFIG, and publications and publication tables read
 // RDB$PUBLICATIONS and RDB$PUBLICATION_TABLES. None of the three exists
 // before 4.0.
@@ -110,9 +110,9 @@ var v4 = dbmeta.V(4, 0)
 // like builds a filter that matches everything when the parameter is empty.
 //
 // Every parameter is cast, and that is not decoration. Firebird takes the
-// type of a bare parameter from what it is compared with, so writing
-// `? = ”` types the parameter VARCHAR(0) and the server then refuses any
-// value at all:
+// type of a bare parameter from what it is compared with, so a bare
+// parameter compared with the empty string is typed VARCHAR(0), and the
+// server then refuses any value at all:
 //
 //	arithmetic exception, numeric overflow, or string truncation
 //	string right truncation
@@ -130,7 +130,7 @@ var v4 = dbmeta.V(4, 0)
 // return an empty result rather than an error.
 //
 // Only the trailing blanks are padding. A quoted identifier can begin with a
-// space, and a plain TRIM would take that too and report a name the database
+// space, and a plain TRIM takes that too and reports a name the database
 // does not have.
 func like(col, param string) string {
 	p := `CAST(` + param + ` AS VARCHAR(255))`
@@ -154,7 +154,7 @@ func userObject(col string) string {
 //
 // The codes for DECFLOAT, INT128 and the two time zone types arrived in 4.0.
 // They need no version fragment, because a release that does not have a type
-// never stores its code, so the arm simply never matches.
+// never stores its code, so the arm never matches.
 func fieldType(p string) string {
 	return `TRIM(TRAILING FROM CASE ` + p + `.RDB$FIELD_TYPE` +
 		` WHEN 7 THEN ` + exact(p, `'SMALLINT'`) +

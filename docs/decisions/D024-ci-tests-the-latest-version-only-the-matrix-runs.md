@@ -7,7 +7,7 @@ other version, and every flavor, is tested on a development machine.
 
 This overrides D22, which proposed one CI job per supported major. Read D22 for
 why a sampled matrix misses catalog changes. That reasoning still holds. The
-matrix is not cancelled, it moves off CI, because running every version of
+matrix is not canceled, it moves off CI, because running every version of
 every database on every push costs more than the project will pay.
 
 The CI databases are PostgreSQL, MySQL and SQLite3. D35 removed DuckDB, because

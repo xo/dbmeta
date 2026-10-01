@@ -180,7 +180,7 @@ func registerRoles() {
 
 	// \dp. One row per table, with the grants folded together the way psql
 	// prints them. A database grant is in DB_PRIVS and a column grant in
-	// TBL_COL_PRIVS, and both arrive as their own rows here.
+	// TBL_COL_PRIVS, and this reads neither.
 	dbmeta.Privileges.Register(dbmeta.Hive, &dbmeta.Binding[dbmeta.Privilege]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT d.NAME AS "schema"`),
@@ -203,7 +203,7 @@ func registerRoles() {
 			{Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "always table: this reads the table grants. Hive also grants on a database and on a column, and neither is an object this kind names"},
 			{Name: "access", Desc: "grantee=privilege, comma separated, the way psql prints it. COLLECT_LIST does not promise an order, so two runs can differ in order and not in content"},
-			{Name: "column_access", Desc: "always absent: Hive keeps a column grant in TBL_COL_PRIVS and folding it in would need a second aggregate over a second table"},
+			{Name: "column_access", Desc: "always absent: Hive keeps a column grant in TBL_COL_PRIVS and folding it in needs a second aggregate over a second table"},
 			{Name: "policies", Desc: "always absent: Hive has no row level policy in the metastore"},
 		},
 		Params: schemaAndName("table"),

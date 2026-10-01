@@ -29,7 +29,7 @@
 // on ScyllaDB alone and attach a service level to a role, which is what role
 // settings reads there. Cassandra skips them. See D91.
 //
-// # Dropping what may not exist
+// # Dropping what can be absent
 //
 // CQL has DROP ... IF EXISTS for everything here, so the teardown is plain and
 // needs none of the trickery the Oracle fixture wraps its drops in.

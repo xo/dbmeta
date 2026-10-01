@@ -13,7 +13,7 @@ package container
 // built again on 2026-08-05, and 7.2.16 was last built on 2025-10-15. So by
 // criterion 2 the one release still rebuilt is 7.2.17. The open source
 // edition has one line, 7.2, and Virtuoso 8 is commercial only. It is under
-// the GPL 2.0 licence.
+// the GPL 2.0 license.
 //
 // # The users
 //
@@ -28,7 +28,7 @@ package container
 // The buffers are set for about 2 GB, which is the vendor's figure for that
 // much memory.
 
-// VirtuosoUser may run SPARQL queries and not updates. Its password is
+// VirtuosoUser can run SPARQL queries and not updates. Its password is
 // [Password].
 const VirtuosoUser = "dbmeta_user"
 
@@ -65,6 +65,6 @@ var virtuoso = product{
 // Virtuoso is every Virtuoso release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Virtuoso = list{}.staged(virtuoso, Tested, "7.2.17")

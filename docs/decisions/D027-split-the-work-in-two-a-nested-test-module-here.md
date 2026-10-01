@@ -5,12 +5,12 @@ Status: Decided.
 Both reviews were asked and both gave the same answer, which was neither of the
 two options as posed. Split by what is reusable.
 
-**A nested module in this repository** holds what belongs to `dbmeta` alone:
+A nested module in this repository holds what belongs to `dbmeta` alone:
 the integration tests and the database drivers they need. It once also held the
 `tool` directive that D11 moved out of the root, and D71 removed the last of
 that.
 
-**The sibling repository `xo/dbtest`** holds what three projects share: the
+The sibling repository `xo/dbtest` holds what three projects share: the
 podman container harness. `usql` backlog item 6 already asks for it, and
 `usql` and `dbtpl` will use it too.
 
@@ -55,7 +55,7 @@ Dependabot, Renovate and editors as well.
 Use a plain name. `test` is the obvious one.
 
 Do not put it under `internal/`. It does not need to be, because a nested
-module is already a boundary, and `internal/` would block reuse if any part of
+module is already a boundary, and `internal/` blocks reuse if any part of
 it is later shared.
 
 ## What this costs, and what to do about each
@@ -69,8 +69,8 @@ A nested module is not free. Four things need handling and none is hard.
 3. Dependabot needs a second entry pointing at the nested directory, or it will
    never see those drivers.
 4. Tagging a nested module requires a path prefixed tag, such as
-   `test/v0.1.0`. This only matters if something outside ever imports it, which
-   nothing should.
+   `test/v0.1.0`. This only matters if something outside ever imports it, and
+   nothing is meant to.
 
 ## Precedent
 

@@ -11,7 +11,7 @@
 // user owns, EXA_ALL_ for what it can see, and EXA_DBA_ for everything, which
 // needs SELECT ANY DICTIONARY. This model reads EXA_ALL_, for the reason the
 // Oracle model reads ALL_: it answers every principal with what that
-// principal may see and asks no special right.
+// principal can see and asks no special right.
 //
 // Two queries read EXA_DBA_ because nothing else holds the answer. RoleGrants
 // reads EXA_DBA_ROLE_PRIVS and UserMappings reads the connection views, and
@@ -33,9 +33,10 @@
 // this model matched nothing at all.
 //
 // A field that the object model says is a plain string is scanned through
-// [empty], which reads NULL as the empty string. The statement selects an
-// empty string for a field that is always empty and gets NULL back, and a NULL cannot be
-// scanned into a string. A field whose type is sql.Null keeps its NULL, and
+// [dbmeta.NullAsEmpty], which reads NULL as the empty string. The statement
+// selects an empty string for a field that is always empty and gets NULL
+// back, and a NULL cannot be scanned into a string. A field whose type is
+// sql.Null keeps its NULL, and
 // three fields where the empty string means something are restored from the
 // row: a column that is not an identity has identity "", and so for
 // generated, and a foreign key's catalog is "". See [present].
@@ -59,7 +60,7 @@
 //
 // # What is missing
 //
-// 30 kinds. Exasol has no sequence, trigger, domain, enumerated type,
+// 31 kinds. Exasol has no sequence, trigger, domain, enumerated type,
 // collation, tablespace, extension, publication, text search object or
 // operator of any kind, no unique or check constraint, and no CREATE INDEX:
 // it builds its own indices. The parameters of a routine are kept only in

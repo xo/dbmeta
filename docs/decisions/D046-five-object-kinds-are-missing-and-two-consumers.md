@@ -2,21 +2,21 @@
 
 Status: Decided.
 
-`dbmeta` answered 48 object kinds and neither consumer could move onto it.
-Measuring both said why, and the two lists overlap. Add these five before
+`dbmeta` answered 48 object kinds and neither consumer was able to move onto
+it. Measuring both said why, and the two lists overlap. Add these five before
 telling anyone to migrate.
 
 The evidence is in `USQL.md` and `DBTPL.md`, both measured rather than read.
 
 ## The three that both consumers need
 
-**Routine parameters.** `usql` calls them `FunctionColumns` and `dbtpl` calls
+Routine parameters. `usql` calls them `FunctionColumns` and `dbtpl` calls
 them `ProcParams`. `dbmeta` has `Function.ArgTypes`, which is one string. A
 person can read it and a code generator cannot use it. The kind needs a name, a
 position, a direction, a type and a size, which is the union of what the two
 ask for.
 
-**Constraint columns.** `usql` calls them `ConstraintColumns` and `dbtpl` calls
+Constraint columns. `usql` calls them `ConstraintColumns` and `dbtpl` calls
 them `TableForeignKeys`. `dbmeta` has `Constraint.Definition`, which is again
 one string. The kind needs the column, its position, and for a foreign key the
 catalog, schema, table and column it points at. A composite key needs the
@@ -25,23 +25,23 @@ position, or it cannot be put back together.
 This is the largest gap. `dbtpl` generates code from a foreign key, and parsing
 `author_id -> author(author_id)` out of a string is not something to ship.
 
-**Column statistics.** `usql` reads them for `\ss`, which `psql` does not have
+Column statistics. `usql` reads them for `\ss`, which `psql` does not have
 and `usql` added. Six of its drivers implement it. The kind needs the average
 width, the null fraction, the distinct count, the minimum, maximum and mean,
 and the most common values with their frequencies.
 
-`\ss` is the one command that would regress on every database if `usql` moved
+`\ss` is the one command that regresses on every database if `usql` moves
 today, so this is not optional either.
 
 ## The two that only dbtpl needs
 
-**Enum values as rows.** `Types` reports `Kind` as `enum` and joins the labels
+Enum values as rows. `Types` reports `Kind` as `enum` and joins the labels
 into `Type.Elements` with commas. `dbtpl` generates a Go constant per label and
 needs a row each, with the sort order. Splitting the string is not good enough,
 because a label can contain a comma. MySQL has no enum type, only an enum
 column, so the kind has to allow a name that came from a column.
 
-**The definition of a view.** `dbtpl.Table.ViewDef` holds the SQL of a view.
+The definition of a view. `dbtpl.Table.ViewDef` holds the SQL of a view.
 `dbmeta.Table` has no such field and no query returns one.
 
 ## Two smaller things to decide with them
@@ -54,7 +54,7 @@ writing it.
 
 `Column.IsPrimaryKey`. `dbtpl` reads it per column and `dbmeta` answers it
 through `Constraints` or `Indexes`, which is a second query and a join in Go.
-Ask whether the column should carry it.
+Ask whether the column must carry it.
 
 ## What this does not change
 

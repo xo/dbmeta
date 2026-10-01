@@ -16,7 +16,7 @@ import (
 )
 
 // openImpala returns a connection to the server named by DBMETA_IMPALA, with
-// sclgo/impala-go, which is what usql uses (D52).
+// sclgo/impala-go, which is what dburl names (D154).
 func openImpala(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_IMPALA")

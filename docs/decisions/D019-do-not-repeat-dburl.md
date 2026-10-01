@@ -37,7 +37,7 @@ its own aliases, its own flavor table, or its own connection string parser. If
 `dbmeta` needs to know something about a database URL, `dburl` answers it.
 
 An earlier draft of the testing plan said to copy the flavor taxonomy out of
-`dburl` as data in order to protect D7. That instruction is withdrawn. Import
+`dburl` as data to protect D7. That instruction is withdrawn. Import
 `dburl` and read it.
 
 ## dburl already draws the distinction that D14 needs

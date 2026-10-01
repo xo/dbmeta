@@ -21,13 +21,13 @@ import (
 // applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is 10.0.1, of 2026-08-24, and 9.4.3, of 2026-06-15. The
 // tags that end in -rhel and the patch and nightly tags are left out. The open
-// source edition is under the Apache 2.0 licence.
+// source edition is under the Apache 2.0 license.
 //
 // # Two users
 //
 // The open source edition has one user with every right, admin with
 // [Password], on the HTTP interface and on the PostgreSQL one. The PostgreSQL
-// interface can have one more user, which may only read, and the entry turns
+// interface can have one more user, which can only read, and the entry turns
 // it on as [QuestDBUser] with [Password]. The edition has no roles and no
 // grants. QuestDB has no databases, so nothing is named dbmeta, and the
 // PostgreSQL interface takes the name qdb.
@@ -46,7 +46,7 @@ import (
 // which is published on the second host port (D124). The DSN is the form pgx
 // takes, and the URL is dburl's questdb one.
 
-// QuestDBUser is the user of the PostgreSQL interface that may only read.
+// QuestDBUser is the user of the PostgreSQL interface that can only read.
 // Its password is [Password].
 const QuestDBUser = "dbmeta_user"
 

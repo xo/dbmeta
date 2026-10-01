@@ -34,7 +34,7 @@ func TestParseInspectReadsBothRunners(t *testing.T) {
 // TestARunnerCommandForgetsWhatItChanges holds the rule of the cache: a
 // command that names a container forgets it, so that the next read asks the
 // runner, and one that only reads does not. The runner here does not exist,
-// so a read that asked it would find nothing.
+// so a read that asks it finds nothing.
 func TestARunnerCommandForgetsWhatItChanges(t *testing.T) {
 	t.Parallel()
 	r := runner{name: "dbrun-no-such-runner", seen: &seen{byName: map[string]*seenContainer{
@@ -58,5 +58,25 @@ func TestARunnerCommandForgetsWhatItChanges(t *testing.T) {
 	r.forget([]string{"exec", "gone", "true"})
 	if _, remembered := r.seen.byName["gone"]; remembered {
 		t.Error("exec did not make the cache forget the container it ran in")
+	}
+}
+
+// TestRunnerErrorKeepsTheReason checks that a failed start reports why. docker
+// writes the reason first and a hint last, and the hint alone is what a
+// failed start in CI once said.
+func TestRunnerErrorKeepsTheReason(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ out, want string }{
+		{
+			"docker: Error response from daemon: Conflict. The container name \"/cassandra-5.0\" is already in use.\n" +
+				"Run 'docker run --help' for more information\n",
+			"docker: Error response from daemon: Conflict. The container name \"/cassandra-5.0\" is already in use.",
+		},
+		{"Error: short-name resolution enforced\n", "Error: short-name resolution enforced"},
+		{"a paragraph\nthat goes on\n", "a paragraph that goes on"},
+	} {
+		if got := runnerError(c.out); got != c.want {
+			t.Errorf("runnerError(%q) = %q, want %q", c.out, got, c.want)
+		}
 	}
 }

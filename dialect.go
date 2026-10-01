@@ -17,11 +17,11 @@ import (
 // such list, because hard rule 1 keeps that taxonomy in dburl. See D99.
 //
 // A product that speaks another product's wire protocol has a Dialect of its
-// own, as dburl gives it from v0.36.0. CockroachDB, CrateDB and Redshift speak
-// PostgreSQL's protocol, and SingleStore, TiDB and Vitess speak MySQL's, and
-// each has its own dialect, because its catalog is its own. A model for one
-// of them can share the statements of the product it imitates, as the
-// CockroachDB model does (dburl D30 and D37, D123, D125).
+// own, as dburl gives it from v0.36.0. CockroachDB, CrateDB, QuestDB and
+// Redshift speak PostgreSQL's protocol, and SingleStore, TiDB and Vitess
+// speak MySQL's, and each has its own dialect, because its catalog is its
+// own. A model for one of them can share the statements of the product it
+// imitates, as the CockroachDB model does (dburl D30 and D37, D123, D125).
 //
 // A dialect names the family and never the release. A release arrives as a
 // [VersionSet] value, because D8 resolves version differences at run time. See
@@ -115,7 +115,7 @@ type Info struct {
 	// say. dbmeta branches on it nowhere itself: every query runs the same way
 	// against a library as against a server.
 	//
-	// Hard rule 1 would normally send a fact about a scheme to dburl, and
+	// Hard rule 1 normally sends a fact about a scheme to dburl, and
 	// dburl carries this one from v0.29.0: it marks file, sqlite3,
 	// moderncsqlite, csvq, duckdb and chai DeploymentEmbedded, which is the
 	// same statement about the same six schemes. It is still declared
@@ -176,8 +176,9 @@ type Info struct {
 	// VersionQuery reads the server version. An empty string means the database
 	// reports no version, and a caller uses an unknown version.
 	VersionQuery string
-	// VersionColumns is how many columns VersionQuery returns. SQL Server and
-	// Cassandra return three.
+	// VersionColumns is how many columns VersionQuery returns. Most return
+	// one. SQL Server returns five, and CockroachDB, CrateDB, SingleStore and
+	// Vitess return two.
 	VersionColumns int
 	// ParseVersion turns the columns of the first row into a version set and a
 	// display line.
@@ -205,7 +206,8 @@ type Info struct {
 	ParseQuoting func(cols []string) (Quoting, error)
 	// ChangePassword builds the statement that sets a password. It returns
 	// text and never runs anything. Nil when the product has no such
-	// statement, which is every embedded database here.
+	// statement or the model builds none, as for every embedded database
+	// here.
 	ChangePassword func(c PasswordChange, q Quoting) (string, error)
 	// OldPassword says ChangePassword needs PasswordChange.Old: the product
 	// refuses a user's own password change without the current one. SQL
@@ -233,7 +235,7 @@ var (
 )
 
 // RegisterDialect records what a model declares about its database. A model
-// file in internal calls this from its init. Registering twice panics, the way
+// package calls this from its init. Registering twice panics, the way
 // [database/sql.Register] does, because two models for one dialect is a build
 // mistake rather than a run time condition.
 func RegisterDialect(d Dialect, info *Info) {
@@ -376,7 +378,7 @@ func (d Dialect) Version(ctx context.Context, db Queryer) (VersionSet, error) {
 	// ScyllaDB refuses system.versions to a role granted nothing on it and
 	// serves system.local to the same role. So a refusal leaves the set as
 	// the first statement read it, which still names the product. Only a
-	// cancelled context is an error, because then nothing that follows can
+	// canceled context is an error, because then nothing that follows can
 	// run either.
 	cols, err = readRow(ctx, db, d, query, n)
 	switch {
@@ -466,8 +468,8 @@ func New(d Dialect, versions VersionSet) (*Meta, error) {
 // Dialect returns the dialect m was built for.
 func (m *Meta) Dialect() Dialect { return m.dialect }
 
-// String satisfies the [fmt.Stringer] interface. It returns the line a person
-// should see, such as "PostgreSQL 16.2", which is what usql prints for
+// String satisfies the [fmt.Stringer] interface. It returns the line to show
+// a person, such as "PostgreSQL 16.2", which is what usql prints for
 // \conninfo and in its prompt.
 func (m *Meta) String() string {
 	if s := m.versions.String(); s != "" && s != "unknown" {

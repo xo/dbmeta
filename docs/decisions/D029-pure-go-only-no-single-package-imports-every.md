@@ -37,7 +37,7 @@ DuckDB. That removes most of the objection without splitting anything.
 
 Ken has settled this beyond preference. `dbmeta` is pure Go, and so is the
 generation sub-package. The root module uses no cgo and never will. The test
-module may, and does for SQLite. D48 amends this: the separate `go.mod` is what
+module can, and does for SQLite. D48 amends this: the separate `go.mod` is what
 makes a C toolchain safe there and absent everywhere else.
 
 Use the pure Go driver in the table above for every database that has one.
@@ -72,7 +72,7 @@ Three ways out, and one of them is better than it first sounds.
    The container already carries the client, so the generation step runs the
    query through it and reads the result. No driver, no cgo.
 2. Cover DuckDB only through captured data. D28 already replays captures in the
-   root module, so DuckDB tests would run there like any other. Something still
+   root module, so DuckDB tests run there like any other. Something still
    has to produce the capture, which returns to option 1.
 3. Drop DuckDB from the tested set and support it without testing.
 

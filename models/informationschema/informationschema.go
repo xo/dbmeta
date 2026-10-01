@@ -38,7 +38,7 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// Feature is something a database may or may not have in its
+// Feature is something that a database has or does not have in its
 // information_schema. A database that lacks one does not answer for it, and
 // D34 reports that rather than returning an empty result.
 type Feature string
@@ -677,7 +677,7 @@ func views(p Profile) *dbmeta.Binding[dbmeta.View] {
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 			{
 				Name: "definition",
-				Desc: "the statement the view selects. The standard allows a server to return an empty string where the caller may not read it",
+				Desc: "the statement the view selects. The standard allows a server to return an empty string where the caller has no right to read it",
 			},
 			{Name: "check_option"}, {Name: "updatable"},
 			{Name: "insertable", Desc: "always absent: the standard has no such column"},

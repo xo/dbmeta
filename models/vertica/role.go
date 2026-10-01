@@ -20,8 +20,8 @@ func registerRoles() {
 			always(`, FALSE AS "replication"`),
 			always(`, FALSE AS "bypass_rls"`),
 			always(`, TRUE AS "inherit"`),
-			// A limit is a number or the word unlimited, and zero is what
-			// PostgreSQL's catalog would call no limit at all.
+			// A limit is a number or the word unlimited, and unlimited is
+			// read as -1, which is what PostgreSQL's catalog calls no limit.
 			since(v91, `, CASE WHEN u.max_connections = 'unlimited' THEN -1`+
 				` ELSE CAST(u.max_connections AS INTEGER) END AS "conn_limit"`,
 				`, CAST(-1 AS INTEGER) AS "conn_limit"`),

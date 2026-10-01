@@ -38,7 +38,7 @@ import (
 //
 // The main version is the MySQL release Vitess claims, which is what VERSION()
 // answers before -Vitess, and it is set under the mysql model's MySQL key too,
-// so that a shared statement takes the fragments it would take on that MySQL.
+// so that a shared statement takes the fragments it takes on that MySQL.
 // The mysql model's [mysql.Vitess] key is set too, so that a shared statement
 // takes the one alternative Vitess needs, its list of system schemas.
 const Release = mysql.Vitess

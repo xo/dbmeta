@@ -19,7 +19,7 @@ import (
 
 // openSQLServer returns a connection to the server named by DBMETA_SQLSERVER,
 // or skips. The driver is github.com/microsoft/go-mssqldb, which is the one
-// usql uses. See D52.
+// dburl names. See D154.
 func openSQLServer(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_SQLSERVER")
@@ -334,7 +334,7 @@ func TestSQLServerCatalogExtras(t *testing.T) {
 	}
 
 	// A sequence arrived in 2012, so 2008 R2 refuses the query and the
-	// fixture skips the step that would have made one. Both halves have to
+	// fixture skips the step that makes one. Both halves have to
 	// agree, and this checks that they do rather than skipping quietly.
 	seq, ok, err := dbmeta.First(dbmeta.Sequences.All(ctx, m, db, msArgs()))
 	switch {

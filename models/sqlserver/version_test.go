@@ -114,7 +114,7 @@ func TestTablesPadsBelowTheFloor(t *testing.T) {
 		}
 		// temporal_type and is_external are columns of sys.tables that 2014
 		// has not got. Naming either one on an older server is the fault this
-		// catches, and it would be a syntax error rather than a wrong answer.
+		// catches, and it is a syntax error rather than a wrong answer.
 		if r.major < 13 {
 			for _, bad := range []string{"temporal_type", "is_external"} {
 				if strings.Contains(sql, bad) {

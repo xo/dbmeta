@@ -24,20 +24,20 @@ That distinction is what D46 got wrong by omission. `psql` renders a constraint
 and a routine signature as formatted text because a human is reading them, and
 `dbmeta` copied the text. A code generator cannot use it.
 
-## When a field may be added
+## When a field can be added
 
 The test is cost, and it is checkable.
 
-A field may be added when one statement can produce it: a column already in a
+A field can be added when one statement can produce it: a column already in a
 selected row, a column reached by a join, or a correlated subquery whose plan
-stays bounded as the catalog grows. A field may not be added when it needs a
+stays bounded as the catalog grows. A field cannot be added when it needs a
 second statement, a per row round trip, or a scan whose cost grows with the
 whole catalog rather than with the rows returned.
 
 Gemini wanted correlated subqueries banned outright, on the grounds that they
 cause N+1 plans. That is wrong and DeepSeek said so. N+1 is a client issuing
 one query per row, which the one statement rule already forbids. A correlated
-subquery is one statement. The rule would also outlaw code that already works:
+subquery is one statement. The rule also outlaws code that already works:
 the PostgreSQL model aggregates enum labels that way, and the whole SQLite
 model rests on correlated table valued pragma joins, which is the only way
 SQLite exposes the columns of more than one table at a time.
@@ -74,17 +74,17 @@ Relational databases return flat rows, so `dbmeta` yields flat rows.
 
 ## Session state and statistics are in scope
 
-Gemini drew the line at durable DDL in the catalog and would reject the current
-schema as session state and column statistics as runtime data. That line is
+Gemini drew the line at durable DDL in the catalog. That line leaves out the
+current schema, as session state, and column statistics, as runtime data. It is
 wrong for this library, because it excludes two of the five things the
-consumers measured in D46 actually asked for, and `usql` would lose the `\ss`
-command by migrating.
+consumers measured in D46 actually asked for, and under it `usql` loses the
+`\ss` command when it migrates.
 
 The line is this instead. `dbmeta` answers anything the database will tell it
 about itself in one read only statement. A kind says in its documentation
 whether it is durable, session dependent or runtime, so a caller knows what it
 is holding. `CurrentSchema` is session dependent and says so. `ColumnStats` is
-runtime, may be stale, and says so.
+runtime, can be stale, and says so.
 
 What is still out of scope: anything that writes, anything that needs a second
 statement, and anything about the data rather than the schema. Row counts are

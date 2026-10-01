@@ -31,7 +31,7 @@ more specific than one written for the family.
 
 Two alternatives naming different keys, both met, is `ErrAmbiguousFragment`. It
 is a fault in the model. Nothing decides between them, and picking the higher
-number would compare releases that mean different things.
+number compares releases that mean different things.
 
 A parser sets a key only for a product it actually detected. Never set a key
 speculatively, because the absence of a key is the fact everything above rests
@@ -39,7 +39,7 @@ on.
 
 ## Wrong product and old server are different answers
 
-A `Choice` where the server could not meet any alternative on any release
+A `Choice` where the server cannot meet any alternative on any release
 returns `ErrNotSupported`. A `Choice` where the server reports the key and sits
 below the `Min` returns `ErrVersionTooOld`. The first is a fact about the
 product and no upgrade changes it. The second is a fact about the release and
@@ -86,5 +86,5 @@ and compares the answer to every query that narrows to one schema, row by row
 and column by column. Two kinds of difference are expected and recorded: an
 object only one product has, and a column each product spells its own way.
 Anything else fails. It found the fault where `external_language` is NULL on
-MariaDB and `SQL` on MySQL, which would have failed to scan into a field that
-is not nullable.
+MariaDB and `SQL` on MySQL. That NULL fails to scan into a field that is not
+nullable.

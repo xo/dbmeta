@@ -4,7 +4,7 @@ Status: Amended by D109 and D119.
 
 dbimp asked on 2026-09-27 for a `dbrun` entry for Neo4j, which Ken named as
 its third driver that day. dbimp's D59 chose the Enterprise Edition. Ken
-agreed to the product, to the Enterprise Edition and to its licence on the
+agreed to the product, to the Enterprise Edition and to its license on the
 same day. dbmeta has no Neo4j model. The entry is for dbimp's tests, as the
 SurrealDB entry is (D103).
 
@@ -14,7 +14,7 @@ The Enterprise image starts only when `NEO4J_ACCEPT_LICENSE_AGREEMENT` is
 set. The value `eval` accepts the Neo4j Software Evaluation Agreement: 30
 days, for internal development only. D90 counts an evaluation edition as
 free for development and testing, so Neo4j qualifies. `EVALUATION.md` asks
-for an accepted licence to be recorded, as D76 records the SAP licence.
+for an accepted license to be recorded, as D76 records the SAP license.
 
 The agreement describes a usage report, which is on by default. The entry
 sets `dbms.usage_report.enabled` to false. With it on, the log of 5.26.31 said
@@ -30,7 +30,7 @@ dbimp chose the Enterprise Edition.
 5.26.31, the LTS line, is the floor, and 2026.09.0, the newest monthly
 release, is the ceiling. Both are Tested, because dbimp needs both on every
 push. 4.4.48 is still rebuilt, and its Enterprise image accepts only `yes`,
-the commercial licence, so nobody can run it without paying. A monthly
+the commercial license, so nobody can run it without paying. A monthly
 release stops being rebuilt when the next one arrives, so the ceiling moves
 each month.
 

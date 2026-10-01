@@ -245,7 +245,7 @@ func registerExtra() {
 					" Array and Tuple are spelled inside a column's type rather" +
 					" than declared",
 			},
-			{Name: "elements", Desc: "always empty: a parameterised type is written inline"},
+			{Name: "elements", Desc: "always empty: a parameterized type is written inline"},
 			{Name: "owner", Desc: "always absent: nobody owns a built in type"},
 			{Name: "access", Desc: "always absent: a type is not grantable"},
 			{

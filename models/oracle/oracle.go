@@ -8,7 +8,7 @@
 //
 // Every query here reads the ALL_ views. Both reviews said the same thing and
 // the reasoning is the one this project already knows from information_schema:
-// ALL_ shows the connected user what it may see and needs no special role,
+// ALL_ shows the connected user what it can see and needs no special role,
 // DBA_ needs SELECT_CATALOG_ROLE that an ordinary application user does not
 // have, and USER_ shows only the caller's own schema and has no OWNER column
 // at all.
@@ -76,7 +76,7 @@ const Reference = "23.26.3.0.0"
 //	       dozen ALL_ views over 23ai and removes none
 //
 // They are written as constants rather than left in prose when the first query
-// needs one. Declaring them now would be five unused variables.
+// needs one. Declared now, they are five unused variables.
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Oracle, &dbmeta.Info{

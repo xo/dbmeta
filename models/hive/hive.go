@@ -19,6 +19,8 @@
 // This is what separates Hive from Impala. D67 struck Impala because it
 // answers only through SHOW and DESCRIBE, which are statements rather than
 // relations and cannot be filtered, joined or aliased. sys is relations.
+// D146 later let Impala answer by a walk over SHOW statements, which is
+// what models/impala does.
 //
 // # Hive cannot bind a parameter, so this model writes literals
 //
@@ -55,7 +57,7 @@ import (
 // and the commit it was built from.
 //
 // usql registers no Version function for Hive, so it falls through to the
-// generic SELECT version();, which is this statement. The two agree. See
+// generic `SELECT version();`, which is this statement. The two agree. See
 // docs/USQL.md.
 const versionQuery = `SELECT version()`
 
@@ -79,7 +81,7 @@ func init() {
 		Fold: dbmeta.FoldLower,
 		// Hive has no placeholder, because it has no parameter. Literal
 		// is what this dialect uses and Placeholder is never called,
-		// but a nil one would be a trap for anything that reads Info
+		// but a nil one is a trap for anything that reads Info
 		// without checking Literal first, so it says what it means.
 		Placeholder: func(int) string {
 			panic("hive: Placeholder is never used, because Hive cannot bind. See Info.Literal")
@@ -109,7 +111,7 @@ func init() {
 // this function rather than setting a flag.
 //
 // Hive uses C style backslash escapes, so a backslash is escaped first and
-// then the quote. Doing it the other way round would escape the backslash
+// then the quote. The other order escapes the backslash
 // this function just wrote.
 //
 // # What it refuses

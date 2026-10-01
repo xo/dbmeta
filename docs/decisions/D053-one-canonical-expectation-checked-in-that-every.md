@@ -30,8 +30,8 @@ shipment's foreign key still said `REFERENCES region(country, area)`.
 
 Gemini said no value can be compared across families and DeepSeek said a subset
 can. DeepSeek is right and the evidence is local: the fault that justified the
-MariaDB comparison was a NULL that would not scan, which is a value fault that
-names and row counts would have missed.
+MariaDB comparison was a NULL that did not scan, which is a value fault that
+a check of names and row counts misses.
 
 The portable subset is what the standard makes every database record the same
 way: whether a column accepts NULL, where it sits, whether it is in the primary
@@ -45,7 +45,7 @@ side is wrong. One expectation is five comparisons and every failure names the
 database.
 
 It works only because the canonical projection is release independent. A raw
-golden would need one file per product per release, because PostgreSQL 9.6 and
+golden needs one file per product per release, because PostgreSQL 9.6 and
 18 disagree about raw values. Nullability and ordinal position do not change
 between releases, so one file covers every release of every database, and the
 PostgreSQL job checks it on all ten.
@@ -64,7 +64,7 @@ field on the model that is not on the canonical struct and not in the list
 fails the build. It found eight undocumented drops the first time it ran.
 
 The raw values stay asserted by each database's own tests, which this cannot
-weaken. Where the projection maps a difference away, the raw behaviour is
+weaken. Where the projection maps a difference away, the raw behavior is
 pinned by a test named in the entry.
 
 ## What it found
@@ -98,8 +98,8 @@ objection is the one that decided it: a missing dialect key skips the step
 silently, the expectation is regenerated, the test passes, and that database is
 never exercised.
 
-Silence is the failure mode this project has been bitten by most. Separate
-fixtures fail loudly, and the core object test now catches what they miss.
+Silence is the failure mode that hurt this project most. Separate fixtures
+fail loudly, and the core object test now catches what they miss.
 
 ## What productSpecific keeps doing
 

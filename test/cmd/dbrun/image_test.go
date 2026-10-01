@@ -10,9 +10,8 @@ import (
 
 // TestEveryContainerfileHasItsImage holds that a Containerfile and the entry
 // that runs it agree. dbrun builds image/<product>.Containerfile as
-// localhost/dbmeta/<product>, so an entry that names another image would
-// pull one nobody publishes, and a file no entry names would be built for
-// nothing.
+// localhost/dbmeta/<product>, so an entry that names another image pulls
+// one nobody publishes, and a file no entry names is built for nothing.
 func TestEveryContainerfileHasItsImage(t *testing.T) {
 	t.Parallel()
 	files, err := fs.Glob(images, "image/*.Containerfile")

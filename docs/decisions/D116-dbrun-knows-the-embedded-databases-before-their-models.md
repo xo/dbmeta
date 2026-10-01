@@ -7,7 +7,7 @@ before a dialect or a model is written for any of them. An embedded database
 runs in the process that opens it and has no server, as SQLite and DuckDB do.
 Ken chose four, from the embedded drivers `usql` ships: chai, csvq, ql and
 moderncsqlite. H2 is left out, because its driver talks to an H2 server, so
-it would be a container.
+it belongs in a container entry.
 
 ## The entries
 

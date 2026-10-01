@@ -3,7 +3,7 @@
 // A fixture is a schema that contains one of everything the metadata queries
 // read, so that a test asks a real server for metadata and gets an answer
 // worth checking. Read the mysql fixture package for what a fixture is and
-// what a caller may depend on. The types are that package's.
+// what a caller can depend on. The types are that package's.
 //
 // Vitess builds most of the MySQL fixture as it is, so [Everything] is the
 // MySQL fixture step by step, less the steps that vtgate refuses: CREATE
@@ -38,7 +38,7 @@ var Everything = func() myfixture.Fixture {
 	}
 	// A sequence is a table with this comment. The VSchema entry that lets
 	// vtgate take values from it is left out, because the metadata is the
-	// table and a second run would find the entry there already.
+	// table and a second run finds the entry there already.
 	f.Setup = append(f.Setup, myfixture.Step{
 		Name: "vitess sequence",
 		Stmt: dbmeta.Always("CREATE TABLE dbmeta_fixture.counter (\n" +

@@ -1,6 +1,6 @@
 // Package fixture holds known good MariaDB and MySQL schemas.
 //
-// Like every fixture here it is exported API and additive: a later release may
+// Like every fixture here it is exported API and additive: a later release can
 // add an object and will not rename or remove one. See the PostgreSQL fixture
 // for the rules, which are the same.
 //

@@ -2,7 +2,7 @@
 //
 // It is the only thing that starts one. D68 says so, and this exists because
 // a rule nobody can follow is a rule that gets broken: the shell script it
-// replaces could start a server, test it and throw it away, and nothing else,
+// replaced started a server, tested it and threw it away, and nothing else,
 // so anybody who wanted to keep one reached for podman and named it whatever
 // they were thinking. docs/DBRUN.md says how to use it, and D70 is the
 // design.
@@ -110,8 +110,8 @@ func run(args []string) error {
 	}
 	// Flags are accepted anywhere, not only before the first selector. Go's
 	// flag package stops at the first non-flag argument, so `list postgres
-	// --releases` would read the flag as the name of a database. Splitting
-	// them first is the whole fix.
+	// --releases` reads the flag as the name of a database. Splitting them
+	// first is the whole fix.
 	flags, selectors := splitArgs(rest)
 	if err := fs.Parse(flags); err != nil {
 		return errSilent
@@ -120,7 +120,7 @@ func run(args []string) error {
 		return errors.New("--keep and --remove ask for opposite things")
 	}
 
-	// Ctrl-C has to reach the container, or a cancelled run leaves one bound
+	// Ctrl-C has to reach the container, or a canceled run leaves one bound
 	// to a port with nothing to say why.
 	ctx, stop := signal.NotifyContext(context.Background(),
 		os.Interrupt, syscall.SIGTERM)
@@ -145,8 +145,8 @@ func run(args []string) error {
 		return err
 	}
 	// A bare product resolves to the newest release, and every command says
-	// which one before it acts. The answer changes the month a release ships
-	// and a silent default is the part that would bite.
+	// which one before it acts. The answer changes the month a release ships,
+	// and a silent default is the part that causes a fault.
 	for _, n := range notes {
 		fmt.Println(n)
 	}
@@ -259,7 +259,7 @@ Environment:
                         it, a file in $XDG_CONFIG_HOME/dbmeta/credentials or a
                         dbmeta-credential-<name> helper has one
   DBMETA_<PRODUCT>_LICENSE
-                        the licence file of a product that needs one, such as
+                        the license file of a product that needs one, such as
                         DBMETA_STARDOG_LICENSE. The product appears only while
                         it or a file in $XDG_CONFIG_HOME/dbmeta/licenses has one
   DBMETA_OWNER_NAME     your friendly name, such as dbimp, which status shows

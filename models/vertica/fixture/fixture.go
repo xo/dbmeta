@@ -18,7 +18,7 @@
 //
 // # What Vertica cannot be asked for here
 //
-// No SQL function. CREATE FUNCTION ... AS BEGIN RETURN ...; END needs a
+// No SQL function. `CREATE FUNCTION ... AS BEGIN RETURN ...; END` needs a
 // semicolon inside its body, and vertica-sql-go, the driver usql uses, splits a
 // statement at every semicolon before it sends anything, so the server
 // receives half a function and refuses it. vsql creates the same statement

@@ -18,7 +18,7 @@ import (
 // docker.io/apache/impala builds each release tag once, so the rule in D112
 // applies: the newest release of each of the last two lines. Checked on
 // 2026-09-30, that is 4.5.2 and 4.4.1. Impala is under the Apache 2.0
-// licence.
+// license.
 //
 // # The image is built here
 //

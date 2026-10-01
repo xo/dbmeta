@@ -8,7 +8,7 @@ The whole of it is one question asked twice.
 
 ## The rule
 
-**Never hide a NULL.** A database returns NULL to mean something. Turning it
+Never hide a NULL. A database returns NULL to mean something. Turning it
 into an empty string, a zero or a false throws that meaning away, and nothing
 downstream can get it back.
 
@@ -38,13 +38,12 @@ Demonstrated on a live PostgreSQL 18 server:
  revoked_privs | f           |       0 | (none)     |
 ```
 
-**Do this instead.** Let the NULL through and give the field the type
-[`sql.Null[string]`],
-which is `sql.Null[string]`. Reading `.V` prints empty for an absent value, so
+Do this instead. Let the NULL through and give the field the type
+[`sql.Null[string]`]. Reading `.V` prints empty for an absent value, so
 a command line client behaves as it did before. Reading `.Valid` recovers the
 difference for anyone who needs it, and a code generator does.
 
-**COALESCE is still right over an aggregate that matched no rows.** "No
+COALESCE is still right over an aggregate that matched no rows. "No
 members" and "an empty member list" are one answer, so
 `COALESCE((SELECT string_agg(...)), '')` is correct. The test that guards this
 checks the column, not the count.
@@ -57,7 +56,7 @@ too old to have a column selects a placeholder under the same name. Writing
 different coat: "this release has no such field" then reads as "the field is
 present and empty".
 
-**Do this instead.** Pad with `NULL`, cast where the database needs a type:
+Do this instead. Pad with `NULL`, cast where the database needs a type:
 `NULL::bigint`, `NULL::boolean`.
 
 ## The distinction that decides which applies
@@ -66,12 +65,12 @@ Before padding, ask one question:
 
 > On the old release, is the value unknown, or is it genuinely this?
 
-**Unknown.** The catalog column does not exist, so there is no answer. Pad with
+Unknown. The catalog column does not exist, so there is no answer. Pad with
 NULL, make the field nullable, and set `Field.Min`. Examples: a column's
 identity kind below release 11, a collation's provider below 10, a sequence's
 bounds below 10.
 
-**Genuinely this.** The release had one behaviour and that behaviour is the
+Genuinely this. The release had one behavior and that behavior is the
 answer. Do not pad, do not set `Field.Min` to hide it, and say so in the
 field's description. Three examples. A publication publishes no truncate below
 release 11, because there was no way to replicate a truncate at all. A role membership
@@ -177,7 +176,7 @@ same table in its place, and Scan discards it on both products, the same way
 it discards a padded column on Cassandra. The field keeps its invalid Null.
 See D91.
 
-The lesson generalises. Before trusting a padded NULL, check what the driver
+The lesson generalizes. Before trusting a padded NULL, check what the driver
 does with one, not only what the database does. The two are different
 questions and only the second is in the manual.
 

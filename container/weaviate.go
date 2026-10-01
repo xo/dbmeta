@@ -13,14 +13,14 @@ package container
 // older line still gets new releases, so the rule in D112 applies: the newest
 // release of each of the last two lines. Checked on 2026-09-28, that is
 // 1.39.7, of 2026-09-25, and 1.38.17, of 2026-09-22. A tag with a commit hash
-// in it is a preview build. Weaviate is under the BSD 3-Clause licence.
+// in it is a preview build. Weaviate is under the BSD 3-Clause license.
 //
 // # Keys, not passwords
 //
 // Weaviate checks an API key, and the key says who the user is, so each user
 // has a key of its own. The administrator admin has [Password], and
 // [WeaviateUser] has [WeaviateUserKey]. The admin list makes the second user
-// one that may only read. A request sends the key as a bearer token, and the
+// one that can only read. A request sends the key as a bearer token, and the
 // DSN carries each key as its password.
 //
 // # The setup
@@ -29,7 +29,7 @@ package container
 // Dbmeta, which is where Weaviate keeps objects, if it is missing. Weaviate
 // starts the name of a class with a capital letter.
 
-// WeaviateUser is the user that may only read.
+// WeaviateUser is the user that can only read.
 const WeaviateUser = "dbmeta_user"
 
 // WeaviateUserKey is the key of [WeaviateUser]. It differs from [Password],
@@ -70,6 +70,6 @@ var weaviate = product{
 // Weaviate is every Weaviate release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Weaviate = list{}.staged(weaviate, Tested, "1.38.17", "1.39.7")

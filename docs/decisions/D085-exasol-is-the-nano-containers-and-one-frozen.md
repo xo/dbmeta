@@ -29,14 +29,14 @@ unused.
 The Community Edition is Exasol 8, build 2025.2.1, which is a release line
 behind. That is the point rather than a drawback: it gives the model an old
 server to answer against, so a fragment that claims a column arrived in
-2026.2 has something that predates it. Without the machine, Exasol would be
-a single release product and its coverage would say so.
+2026.2 has something that predates it. Without the machine, Exasol is a
+single release product and its coverage says so.
 
 ## Frozen, and what that means
 
 The Community Edition release does not move. It is imported once, recorded
 with its build, and left there. Exasol shipping 2025.2.2 is not a reason to
-rebuild it, and a new decision is what would change that.
+rebuild it, and only a new decision changes that.
 
 It is Verified under D40, the same tier as the four SQL Server machines and
 for the same reasons: it needs KVM, it is about ten gigabytes, and CI cannot
@@ -46,7 +46,7 @@ run one. Nothing is claimed for it beyond what a person ran before a release.
 
 Three differences, and the first one decides the design.
 
-**The image cannot be fetched unattended.** `container/windows.go` gives each
+The image cannot be fetched unattended. `container/windows.go` gives each
 release an `Installer` URL on `download.microsoft.com`, and `dbrun provision`
 downloads it. The Community Edition is behind a signup form at
 `exasol.com/free-signup-community-edition`, so there is no URL to put in a Go
@@ -55,14 +55,14 @@ its checksum rather than a URL, and `dbrun provision` imports the file the
 person already downloaded, from the state directory, and fails with a message
 naming the page when it is not there.
 
-**There is nothing to install.** The Windows path boots an evaluation Windows,
+There is nothing to install. The Windows path boots an evaluation Windows,
 runs an unattended SQL Server setup from an OEM folder, and sets a registry
 key to pin the port. The Community Edition is a prebuilt appliance: the
 database is already in it. So there is no OEM folder, no unattended answer
 file, no installer bootstrapper and no `LicenseFlag`. That is most of
 `WindowsVM` gone.
 
-**No Windows licence and no rearm.** D65's `slmgr /rearm` machinery exists
+No Windows license and no rearm. D65's `slmgr /rearm` machinery exists
 because a Windows evaluation edition expires after 180 days. The appliance is
 Ubuntu with Exasol on it, so none of that applies and none of it carries over.
 

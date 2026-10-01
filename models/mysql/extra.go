@@ -86,7 +86,7 @@ func registerRoutineParameters() {
 			// Padded rather than read. MySQL has no PARAMETER_DEFAULT column
 			// at all, MariaDB added one only recently, and neither fills it
 			// for an ordinary stored routine, because neither lets a
-			// parameter have a default. Reading it would need a version gate
+			// parameter have a default. Reading it needs a version gate
 			// for a column that is always empty.
 			{{Query: `, NULL AS "default"`}},
 			{{Query: `FROM information_schema.PARAMETERS p`}},
@@ -172,7 +172,7 @@ func registerViews() {
 // It holds one JSON histogram per column and nothing else, so there is no
 // width, no null fraction and no distinct count to report, and a histogram
 // exists only where somebody ran ANALYZE TABLE ... UPDATE HISTOGRAM. Reporting
-// a row with everything absent would be worse than reporting none, so MySQL
+// a row with everything absent is worse than reporting none, so MySQL
 // answers ErrNotSupported. See docs/COVERAGE.md.
 //
 // Reading mysql.column_stats needs SELECT on the mysql schema, like the other

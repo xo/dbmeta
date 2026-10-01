@@ -13,7 +13,7 @@ package container
 // docker.io/opensearchproject/opensearch builds each release tag once, so the
 // rule in D112 applies: the newest release of each of the last two lines.
 // Checked on 2026-09-28, that is 3.8.0 and 2.19.6, both of 2026-09-15.
-// OpenSearch is under the Apache 2.0 licence.
+// OpenSearch is under the Apache 2.0 license.
 //
 // # The password
 //
@@ -35,11 +35,11 @@ package container
 //
 // # The users
 //
-// Init makes the role dbmeta_role, which may read the indices whose names
+// Init makes the role dbmeta_role, which can read the indices whose names
 // start with dbmeta, [OpenSearchUser], and the mapping of the one to the
 // other, and the index dbmeta. Each is a PUT, which is safe to run twice.
 
-// OpenSearchUser may only read the indices whose names start with dbmeta.
+// OpenSearchUser can only read the indices whose names start with dbmeta.
 // Its password is [Password].
 const OpenSearchUser = "dbmeta_user"
 
@@ -94,6 +94,6 @@ api=http://127.0.0.1:9200/_plugins/_security/api
 // OpenSearch is every OpenSearch release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var OpenSearch = list{}.staged(opensearch, Tested, "2.19.6", "3.8.0")

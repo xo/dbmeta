@@ -17,7 +17,7 @@ import (
 // for a line does not follow its releases, so the rule in D112 applies: the
 // newest release of each of the last two lines. Checked on 2026-09-28, that
 // is 26.3.1.17, of 2026-09-21, and 26.2.1.14, of 2026-09-11. A tag that ends
-// in .ent, -rc or .hotfix is left out. YDB is under the Apache 2.0 licence.
+// in .ent, -rc or .hotfix is left out. YDB is under the Apache 2.0 license.
 //
 // # The users
 //
@@ -32,7 +32,7 @@ import (
 // directory /local/dbmeta, and lets that user read it and describe it. YDB
 // allows no underscore in a user name, so the name is dbmetauser and not
 // dbmeta_user. The server still accepts a connection that has no user, and
-// that connection may do anything.
+// that connection can do anything.
 //
 // # The address
 //
@@ -40,7 +40,7 @@ import (
 // answers with the name and the port inside the container. go_balancer=disable
 // makes the driver keep the address it was given.
 
-// YDBUser may only read and describe the directory /local/dbmeta. Its
+// YDBUser can only read and describe the directory /local/dbmeta. Its
 // password is [Password].
 const YDBUser = "dbmetauser"
 
@@ -80,6 +80,6 @@ func ydbURL(scheme, user string) func(port int) string {
 // YDB is every YDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var YDB = list{}.staged(ydb, Tested, "26.2.1.14", "26.3.1.17")

@@ -19,7 +19,7 @@ const ownerLabel = "dbmeta.owner"
 // ownerNameLabel is the container label that holds the friendly name of the
 // owner, such as dbimp, which a person can read where the owner is a session
 // ID. It is set from DBMETA_OWNER_NAME, and it is only ever shown: the owner
-// label alone decides who may act on a server. See D115.
+// label alone decides who can act on a server. See D115.
 const ownerNameLabel = "dbmeta.owner.name"
 
 // currentOwnerName is the friendly name the caller gave itself, or empty.
@@ -90,7 +90,7 @@ func (r runner) startedAt(ctx context.Context, name string) string {
 	return c.started
 }
 
-// mayTouch reports whether the caller may stop, remove, restart or rebuild a
+// mayTouch reports whether the caller can stop, remove, restart or rebuild a
 // server with this owner.
 //
 // A server with no owner was created before servers had one. It is treated
@@ -100,7 +100,7 @@ func mayTouch(owner, me string, force bool) bool {
 	return force || owner == "" || owner == me
 }
 
-// claimable reports whether the caller may remove or rebuild a server with
+// claimable reports whether the caller can remove or rebuild a server with
 // this owner. It is mayTouch, and also any stopped container, because a
 // stopped container belongs to nobody. A machine keeps its owner when it
 // stops, because it takes an hour to create again. See D108.
@@ -138,7 +138,7 @@ type holder struct {
 // up is oldest first.
 //
 // It chooses the oldest of the caller's own servers. A server with no owner
-// is not chosen, although a command that names it may stop it: every server
+// is not chosen, although a command that names it can stop it: every server
 // that ran before owners existed is somebody's, and stopping one silently is
 // the fault that owners exist to end. When there is none it refuses and names
 // who holds the servers. --force chooses the oldest of any owner, which is

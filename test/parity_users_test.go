@@ -17,8 +17,8 @@ import (
 //
 // Every principal in a scene gets the same rights over the fixture schema, so
 // that the only thing that varies between them is what kind of principal they
-// are. A difference that came from one having fewer grants than another would
-// say nothing about the model.
+// are. A difference that comes from one having fewer grants than another says
+// nothing about the model.
 
 // oracleFixturePassword is what models/oracle/fixture creates its user with.
 // The fixture user is already a local user owning every object, which is the
@@ -96,13 +96,13 @@ func makeMySQLGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 }
 
 // makeTiDBGrantee makes the MySQL grantee, and connects it to the fixture
-// schema, because the database the TiDB DSN names is one it may not use.
+// schema, because the database the TiDB DSN names is one it cannot use.
 func makeTiDBGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	t.Helper()
 	return mysqlAt(t, makeMySQLGrantee(t, db, dsn, schema), "dbmeta_grantee", parityPassword, schema)
 }
 
-// makeTiDBReader makes a user that may only read the fixture schema.
+// makeTiDBReader makes a user that can only read the fixture schema.
 func makeTiDBReader(t *testing.T, db *sql.DB, dsn, schema string) string {
 	t.Helper()
 	const who = `'dbmeta_parity_reader'@'%'`
@@ -144,7 +144,7 @@ func makeSQLServerContained(t *testing.T, db *sql.DB, dsn, schema string) string
 
 // grantSQLServerSchema gives a principal the same rights over the fixture
 // schema that the other principals have. CONTROL is ownership without
-// changing the owner, which would make the fixture teardown fail.
+// changing the owner. A change of owner makes the fixture teardown fail.
 func grantSQLServerSchema(t *testing.T, db *sql.DB, who, schema string) {
 	t.Helper()
 	exec(t, db, `GRANT CONTROL ON SCHEMA::`+schema+` TO `+who)
@@ -297,7 +297,7 @@ func makeCrateDBHolder(privileges string) func(*testing.T, *sql.DB, string, stri
 }
 
 // makeQuestDBReader connects as the user of the PostgreSQL interface that
-// may only read, which the dbrun entry turns on. QuestDB has no statement
+// can only read, which the dbrun entry turns on. QuestDB has no statement
 // that creates a user, so becoming it is a change to the credentials of the
 // DSN.
 func makeQuestDBReader(t *testing.T, _ *sql.DB, dsn, _ string) string {
@@ -434,8 +434,8 @@ func firebirdApart(t *testing.T, dsn, stmt string) {
 // firebirdUser swaps the principal in a Firebird DSN.
 //
 // replaceUser cannot, because a Firebird DSN carries no scheme and url.Parse
-// then reads the user name as one. This adds the scheme dburl would, edits
-// the user and takes the scheme off again.
+// then reads the user name as one. This adds the scheme that dburl uses,
+// edits the user and takes the scheme off again.
 func firebirdUser(t *testing.T, dsn, user, password string) string {
 	t.Helper()
 	u, err := url.Parse("firebird://" + dsn)
@@ -450,8 +450,8 @@ func firebirdUser(t *testing.T, dsn, user, password string) string {
 //
 // NO FORCE_FIRST_PASSWORD_CHANGE is required rather than tidy: without it
 // HANA marks the password as needing a change and the new user cannot run a
-// statement until it has changed one, so every query would report the same
-// error and the comparison would say nothing.
+// statement until it has changed one, so every query reports the same error
+// and the comparison says nothing.
 func makeHANAGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	t.Helper()
 	cleanup(t, db, `DROP USER dbmeta_parity CASCADE`)
@@ -481,9 +481,9 @@ func makeHivePrincipal(t *testing.T, _ *sql.DB, dsn, _ string) string {
 //
 // An Exasol schema's owner owns every object in it, so changing the schema's
 // owner is the whole of it. The schema goes back to SYS before the user is
-// dropped, because DROP USER ... CASCADE drops every schema the user owns and
-// the fixture's own teardown would then find the adapter its virtual schema
-// needs already gone.
+// dropped, because DROP USER ... CASCADE drops every schema the user owns.
+// Without that step, the fixture's own teardown finds the adapter its virtual
+// schema needs already gone.
 func makeExasolOwner(t *testing.T, db *sql.DB, dsn, schema string) string {
 	t.Helper()
 	cleanup(t, db, `DROP USER IF EXISTS dbmeta_owner CASCADE`)
@@ -512,7 +512,7 @@ func makeExasolGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 // URL but exa:host:port followed by key=value pairs separated by semicolons.
 //
 // The password goes last. The driver reads a backslash before a semicolon as
-// an escaped separator, so a password ending in a backslash would swallow the
+// an escaped separator, so a password ending in a backslash swallows the
 // semicolon after it. At the end there is none. A password containing a
 // semicolon is not written here at all: that is the driver's escaping, and
 // test/password_test.go leaves that case out.

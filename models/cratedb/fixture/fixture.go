@@ -14,7 +14,7 @@
 // # What CrateDB cannot be asked for
 //
 // No foreign key and no unique constraint, so book carries an author_id that
-// nothing enforces and a title that may repeat. No COMMENT statement, no
+// nothing enforces and a title that can repeat. No COMMENT statement, no
 // sequence, no trigger, no user defined type, no enum and no domain. A
 // primary key column is NOT NULL whether it says so or not.
 //

@@ -46,7 +46,7 @@
 //
 // # What is missing
 //
-// 43 kinds. A document has no fixed shape, so there is no column catalog,
+// 44 kinds. A document has no fixed shape, so there is no column catalog,
 // and INFER is a statement rather than a relation. There is no view, no
 // constraint of any kind, no trigger that SQL++ reads, no user defined type,
 // no comment and no setting a statement can read. docs/COVERAGE.md holds the

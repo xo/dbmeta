@@ -11,10 +11,10 @@ strain. The tests are fast, they need no container, and they can cover a server
 version whose image no longer starts, which matters because D20 supports
 PostgreSQL back to 9.6 and those images were last built in 2022.
 
-Note that this is a replay driver, not an expectation mock. It answers with
-recorded bytes from a real server. Gemini suggested `DATA-DOG/go-sqlmock`
-instead, which is a different tool that asserts which queries were issued. It
-is also a third party dependency, which D26 forbids. Do not use it.
+This is a replay driver, not an expectation mock. It answers with recorded
+bytes from a real server. Gemini suggested `DATA-DOG/go-sqlmock` instead,
+which is a different tool that asserts which queries were issued. It is also a
+third party dependency, which D26 forbids. Do not use it.
 
 ## What a replay test cannot catch
 

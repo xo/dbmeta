@@ -63,7 +63,7 @@ func TestEveryVerifiedReleaseIsDocumented(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Error("no release is Verified, so this test is checking nothing." +
-			" Either the tier is gone and this test should be too, or the" +
+			" Either the tier is gone and this test must go too, or the" +
 			" lists stopped being read.")
 	}
 	t.Logf("%d Verified releases, every one named in %s", checked, coverage)

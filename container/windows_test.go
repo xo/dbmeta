@@ -59,7 +59,7 @@ func windowsMachines() []container.Machine {
 //
 // It names the instance key where the listening port is set. A key for another
 // release writes the port into a key nothing reads, setup reports success, and
-// the machine is simply unreachable with no error anywhere.
+// the machine is unreachable with no error anywhere.
 func TestTheRegistryKeyMatchesTheRelease(t *testing.T) {
 	t.Parallel()
 	want := map[string]string{

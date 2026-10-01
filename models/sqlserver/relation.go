@@ -50,8 +50,8 @@ func registerRelations() {
 		},
 	})
 
-	// \l. A caller sees the databases it may see, which is every one for a
-	// sysadmin and its own for anybody else.
+	// \l. A caller sees the databases it has the right to see, which is
+	// every one for a sysadmin and its own for anybody else.
 	dbmeta.Databases.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Database]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT d.name AS "name"`),
@@ -70,7 +70,7 @@ func registerRelations() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"},
-			{Name: "owner", Desc: "empty where the caller may not resolve the owner's login"},
+			{Name: "owner", Desc: "empty where the caller has no right to resolve the owner's login"},
 			{
 				Name: "encoding",
 				Desc: "UTF8 for a UTF-8 collation and UCS-2 otherwise, which is what nvarchar stores",
@@ -107,7 +107,7 @@ func registerRelations() {
 			always(`, t.name AS "name"`),
 			// temporal_type and is_external arrived in 2016. An older server
 			// has neither kind of table, so the padded alternative is not
-			// missing anything it could have reported.
+			// missing anything it can report.
 			{
 				{Query: `, 'table' AS "type"`},
 				{Min: v13, Query: `, ` + tableType + ` AS "type"`},
@@ -368,7 +368,7 @@ func registerRelations() {
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 			{
 				Name: "definition",
-				Desc: "the whole CREATE VIEW statement as written. It is empty where the view was created WITH ENCRYPTION or where the caller may not see the definition",
+				Desc: "the whole CREATE VIEW statement as written. It is empty where the view was created WITH ENCRYPTION or where the caller has no right to see the definition",
 			},
 			{Name: "check_option", Desc: "cascaded for WITH CHECK OPTION, and none otherwise"},
 			{
@@ -413,7 +413,7 @@ func registerRelations() {
 			{Name: "enabled", Desc: "enabled or disabled: SQL Server can disable one trigger"},
 			{
 				Name: "definition",
-				Desc: "the CREATE TRIGGER statement, empty where it was encrypted or the caller may not see it",
+				Desc: "the CREATE TRIGGER statement, empty where it was encrypted or the caller has no right to see it",
 			},
 			{Name: "comment"},
 		},
@@ -476,7 +476,7 @@ func registerConstraints() {
 			always(`AND (@name = '' OR c.name LIKE @name)`),
 
 			// A default is a named constraint here, which no other database
-			// models. It is reported, because a caller reading \d name would
+			// models. It is reported, because a caller reading \d name does
 			// see it in the DDL and Column.Default holds the same expression.
 			always(`UNION ALL`),
 			always(`SELECT s.name, o.name, d.name, 'default', d.definition,` +

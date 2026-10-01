@@ -7,8 +7,8 @@ import (
 
 // Helpers that run a statement and close its rows properly. A defer belongs in
 // a function of its own, because every caller here runs one statement per
-// query in a loop over 48 of them, and a defer in that loop would hold 48
-// result sets open until the test ended.
+// query in a loop over 48 of them, and a defer in that loop holds 48 result
+// sets open until the test ends.
 
 // columnsOf runs the statement and returns the columns it returned.
 func columnsOf(t *testing.T, db *sql.DB, query string, vals []any) ([]string, error) {

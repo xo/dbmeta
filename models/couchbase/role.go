@@ -112,7 +112,7 @@ func registerRoles() {
 				" WHEN " + grantLevel + " = 2 THEN 'scope' ELSE 'bucket' END AS `type`"),
 			from76(", CONCAT2(', ', ARRAY_SORT(ARRAY_AGG(a.grantee || '=' || a.`role`))) AS `access`"),
 			from76(", NULL AS `column_access`"),
-			from76(", '' AS `policies`"),
+			from76(", NULL AS `policies`"),
 			from76("FROM system:applicable_roles a"),
 			from76("GROUP BY a.bucket_name"),
 			from76("HAVING " + like(grantParts+"[0]", "@schema")),

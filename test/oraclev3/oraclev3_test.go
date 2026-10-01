@@ -1,5 +1,5 @@
 // Package oraclev3 runs the Oracle model through go-ora/v3, which is the
-// driver usql's oracle scheme opens.
+// driver dburl names for the oracle scheme (D154).
 //
 // The rest of the test module reaches Oracle with go-ora/v2, because v3.0.1
 // panics on 11g and 18c (D59). The two register the same driver name, so they

@@ -21,9 +21,9 @@ import (
 // The older emulator, which needs a Windows host or much more memory, is left
 // out.
 //
-// # The licence
+// # The license
 //
-// The emulator is under a Microsoft licence, and is free. Ken accepted it for
+// The emulator is under a Microsoft license, and is free. Ken accepted it for
 // this project on 2026-09-28.
 //
 // # What it answers
@@ -67,6 +67,6 @@ var cosmos = product{
 // Cosmos is every Cosmos DB emulator release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Cosmos = list{}.staged(cosmos, Tested, "EN20260907")

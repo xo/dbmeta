@@ -28,7 +28,7 @@ import (
 // The main version is the MySQL release SingleStore claims, which is what
 // VERSION() answers, 5.7.32 on both releases, and it is set under the mysql
 // model's MySQL key too, so that a shared statement takes the fragments it
-// would take on that MySQL. The mysql model's [mysql.MemSQL] key is set too,
+// takes on that MySQL. The mysql model's [mysql.MemSQL] key is set too,
 // so that a shared statement takes SingleStore's list of system schemas.
 const Release = mysql.MemSQL
 

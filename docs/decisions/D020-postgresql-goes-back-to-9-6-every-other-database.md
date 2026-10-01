@@ -5,23 +5,23 @@ Status: Decided.
 There are two rules here, not one, because PostgreSQL is not an ordinary
 database in this project.
 
-**PostgreSQL: support 9.6 and newer.** The ceiling is the newest stable
+PostgreSQL: support 9.6 and newer. The ceiling is the newest stable
 release, 18 today. That is ten major versions: 9.6, 10, 11, 12, 13, 14, 15, 16,
 17 and 18.
 
 The unit is the major version, not the point release. `dbmeta` does not treat
 14.1 and 14.2 separately. This is safe rather than convenient: every one of the
 11 version gates in `describe.c` sits on a major boundary, and PostgreSQL does
-not change a catalog in a patch release, because that would change the on disk
+not change a catalog in a patch release, because that changes the on disk
 format. `EVALUATION.md` records the check and the command to repeat it.
 
-Note that "major" means two different things across this range. Before release
+"Major" means two different things across this range. Before release
 10 a major version is the first two numbers, so 9.5 and 9.6 are different
 majors. From 10 onward it is a single number. `EVALUATION.md` explains what
 that does to the integer the server reports.
 
-**Every other database: the floor is the oldest release with a maintained
-container image**, which usually matches the oldest release its vendor still
+Every other database: the floor is the oldest release with a maintained
+container image, which usually matches the oldest release its vendor still
 supports. See `EVALUATION.md` for the method and for the evidence behind each
 choice.
 
@@ -56,7 +56,7 @@ server older than release 10. Its message gives the reason:
 
 The commit messages were read, because the reason matters more than the fact.
 There is no metadata specific rationale anywhere. The removal was one commit
-covering all of `psql`, and metadata was simply the largest part of it: of 288
+covering all of `psql`, and metadata was the largest part of it: of 288
 deleted lines, 244 were in `describe.c`.
 
 The 2026 reason is policy. `831bec45924` says in full:
@@ -70,23 +70,20 @@ It does not claim that the old servers cannot be tested, or that the old code
 was wrong, or that maintaining it was costly. It cites a policy about how far
 back to support.
 
-The 2021 reason was technical, and it is the one that would transfer. Commit
+The 2021 reason was technical, and it is the one that transfers. Commit
 `cf0cab868a`, which set the previous cutoff at 9.2, says:
 
-> Per discussion, we'll limit support for old servers to those branches that
-> can still be built easily on modern platforms, which as of now is 9.2 and up.
+> "Per discussion, we'll limit support for old servers to those branches that can still be built easily on modern platforms, which as of now is 9.2 and up."
 
 That is a real constraint: a server you cannot build is a server you cannot
-test against. It would apply to `dbmeta` too, and it is exactly the condition
+test against. It applies to `dbmeta` too, and it is exactly the condition
 D40's trigger watches for. It is not the reason given in 2026, and 9.6 was
 verified to run on this host on 2026-09-24.
 
 PostgreSQL also sets a precedent for keeping a capability it cannot easily
 test. The matching pg_dump commit from 2021, `30e7c175b8`, notes in passing:
 
-> (As in previous changes of this sort, we aren't removing pg_restore's ability
-> to read older archive files ... though it's fair to wonder how that might be
-> tested nowadays.)
+> "(As in previous changes of this sort, we aren't removing pg_restore's ability to read older archive files ... though it's fair to wonder how that might be tested nowadays.)"
 
 So upstream removes the code that reads from an old server, and keeps the code
 that reads an old format, on the grounds that the second costs little once
@@ -94,8 +91,8 @@ written. That is close to the argument for keeping 9.6 here.
 
 The conclusion is narrow and worth stating exactly. Upstream's 2026 reason is a
 scope policy for a C project with a ten version commitment. It is not evidence
-that these queries cannot be maintained or cannot be tested, and `dbmeta`
-adopting it would be copying a conclusion without its premise.
+that these queries cannot be maintained or cannot be tested. If `dbmeta`
+adopts it, `dbmeta` copies a conclusion without its premise.
 
 ## The gap is one release, not four
 
@@ -166,8 +163,8 @@ it was aimed at the wrong design.
 
 Ken reviewed this and kept 9.6. The reasoning holds up against the review.
 
-The extraction is genuinely one time for a frozen release. 9.6 has been out of
-upstream support since 2021 and its catalog will never change again, so the
+The extraction is genuinely one time for a frozen release. 9.6 left
+upstream support in 2021 and its catalog will never change again, so the
 query set has a final form rather than a moving one.
 
 The image demonstrably runs, so this is not a claim of support that nothing can

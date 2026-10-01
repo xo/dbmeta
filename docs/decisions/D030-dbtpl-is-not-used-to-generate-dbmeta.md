@@ -5,8 +5,8 @@ Status: Amended by D71.
 `dbtpl` is not used and `dbmeta` does not pin it. That half is right and it
 holds.
 
-The other half said generation would be driven by ordinary Go code in a
-sub-package. There is no such sub-package and there is no generation at all.
+The other half said that ordinary Go code in a sub-package was to drive
+generation. There is no such sub-package and there is no generation at all.
 D71 records what actually happened, which is that the models were written.
 
 Ken decided this. Both reviews questioned the stated reason and their objection

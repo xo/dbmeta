@@ -2,7 +2,7 @@
 
 Status: Decided.
 
-A field a database may report as NULL is declared `sql.Null[T]` and never a
+A field a database can report as NULL is declared `sql.Null[T]` and never a
 named alias of one. `Text` and `Int` are gone.
 
 ## What was inconsistent
@@ -10,7 +10,7 @@ named alias of one. `Text` and `Int` are gone.
 Two of the four nullable kinds were aliased and two were not: 93 fields as
 `Text`, 5 as `Int`, and five written out as `sql.Null[bool]` or
 `sql.Null[float64]`. Two structs declared next to each other read differently
-for no reason a caller could see.
+for no reason a caller can see.
 
 ## Why not alias all four instead
 
@@ -24,7 +24,7 @@ already know. A code review diff and an editor's field list behave the same
 way, and pkg.go.dev's clickable link is the only place where the alias costs
 nothing.
 
-The other two would have had to be called `Bool` and `Float`, which read like
+As aliases, the other two need the names `Bool` and `Float`, which read like
 primitives and hide the single thing a caller has to know about the field.
 Gemini's phrasing: a name like `Text` is dangerous for a nullable type, because
 a reader assumes it behaves like a string and does not expect to check `Valid`.
@@ -47,8 +47,8 @@ expensive mistake, that collapsing a NULL access list into an empty string made
 is in `NULLS.md` in full, where it always was, and the package documentation in
 `object.go` now points there.
 
-An invariant that governs the whole project should not have been hanging off a
-type alias. Deleting the alias fixed that as a side effect.
+An invariant that governs the whole project must not hang off a type alias.
+Deleting the alias fixed that as a side effect.
 
 ## The shape of the change
 

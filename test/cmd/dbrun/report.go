@@ -83,7 +83,7 @@ type versionEntry struct {
 	// Versions holds each version the server reports, by key. The empty key
 	// is the main one.
 	Versions map[string]string `json:"versions,omitempty"`
-	// Error says why the version could not be read.
+	// Error says why dbrun did not read the version.
 	Error string `json:"error,omitempty"`
 }
 

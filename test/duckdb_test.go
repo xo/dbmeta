@@ -19,9 +19,9 @@ import (
 // library, so the release under test is whichever one the driver was built
 // with, and this test never skips. See D42.
 //
-// The driver is github.com/duckdb/duckdb-go/v2, which is the one usql uses.
-// D52 requires that. It needs cgo, which the test module may use and the root
-// module may not. See D48.
+// The driver is github.com/duckdb/duckdb-go/v2, which is the one dburl names
+// for duckdb. D154 requires that. It needs cgo, which the test module can use
+// and the root module cannot. See D48.
 //
 // The file is not named after the fixture schema. DuckDB names the catalog
 // after the file, and a catalog and a schema of the same name make a qualified

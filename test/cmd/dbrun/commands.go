@@ -26,15 +26,15 @@ const (
 	statusProbe = 5 * time.Second
 )
 
-// maxRunning is how many of these servers may be up at once.
+// maxRunning is how many of these servers can be up at once.
 //
 // Each one is bounded to container.MemoryLimit, so the ceiling is that times
 // this, and the rest of the machine is left alone. Without a cap a session
 // that starts a server per question ends with a dozen up, all idle, and the
 // host in swap.
 //
-// Starting one when this many are already up stops the one that has been
-// running longest. That is the right one to lose: the server in use is the
+// Starting one when this many are already up stops the one that is running
+// longest. That is the right one to lose: the server in use is the
 // one most recently started, and starting is a minute for a container.
 //
 // It was 4 until Ken raised it to 8 (D108). Eight at 4 GB is 32 GB, and the
@@ -266,7 +266,7 @@ func doStatus(ctx context.Context, r runner, t target, o options) error {
 
 // whose says who started a running server, for the text form of status. The
 // caller's own servers say so too, so that a glance tells which ones a
-// session may stop. See D98.
+// session can stop. See D98.
 func whose(ctx context.Context, r runner, t target) string {
 	switch owner := r.owner(ctx, t.Name); owner {
 	case currentOwner():
@@ -347,7 +347,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		fmt.Printf("  %-*s stopped, and created by %s. Creating it again as yours\n", nameWidth(),
 			t.Name, r.who(ctx, t.Name))
 		if !r.quiet(ctx, t.Remove...) {
-			return errors.New("the stopped container would not be removed")
+			return errors.New("the stopped container was not removed")
 		}
 	}
 	// An image this repository builds is made here, so that start and test
@@ -363,7 +363,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		}
 		if !r.quiet(ctx, "start", t.Name) {
 			if t.Kind == kindMachine {
-				return errors.New("the machine would not start")
+				return errors.New("the machine did not start")
 			}
 			// A container that will not start is rebuilt, because it is a
 			// minute. A machine is not, because it is an hour.
@@ -384,7 +384,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		}
 		// The log says why. Oracle 21c answers in under a minute on a
 		// GitHub runner, and once it did not answer in five, and the error
-		// alone could not say whether the database was slow or stuck.
+		// alone did not say whether the database was slow or stuck.
 		if out, lerr := r.output(ctx, "logs", "--tail", "20", t.Name); lerr == nil && out != "" {
 			return fmt.Errorf("%w\n  the last lines of its log:\n%s", err, lastLines(out, 20))
 		}
@@ -456,7 +456,7 @@ func doStop(ctx context.Context, r runner, t target, o options) error {
 		return notYours(r.who(ctx, t.Name))
 	}
 	if !r.quiet(ctx, "stop", t.Name) {
-		return errors.New("it would not stop")
+		return errors.New("it did not stop")
 	}
 	fmt.Printf("  stopped %s\n", t.Name)
 	return nil
@@ -505,8 +505,8 @@ func doRemove(ctx context.Context, r runner, t target, o options) error {
 		}
 	}
 	// A container that is not there has nothing to remove, and saying
-	// removed would be false. It costs no call, because the listing already
-	// said so.
+	// removed is false. It costs no call, because the listing already said
+	// so.
 	if !r.exists(ctx, t.Name) {
 		return nil
 	}

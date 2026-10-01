@@ -10,8 +10,8 @@
 // system.jdbc exactly, and almost nothing else this package needs: Presto has
 // no version() function, no system.metadata.table_comments, no queryable table
 // comment at all, and neither current_catalog nor current_schema resolves.
-// A shared dialect would branch on which product it was talking to rather than
-// on a version, which is two dialects sharing a struct. D73 has the
+// A shared dialect branches on which product it talks to rather than on a
+// version, which is two dialects sharing a struct. D73 has the
 // measurement.
 //
 // # A catalog is a real level here, and it is the first time
@@ -31,7 +31,7 @@
 // beside them, and the two differ in reach. A query against
 // memory.information_schema.tables sees the memory catalog and nothing else,
 // and there is no way to name the catalog from a bind parameter, so a filter
-// on a second catalog would return nothing rather than an answer. The tables
+// on a second catalog returns nothing rather than an answer. The tables
 // under system.jdbc span every catalog the server has.
 //
 // system.jdbc is also the richer of the two. Its columns table carries the
@@ -116,8 +116,8 @@ const systemSchemas = `'information_schema'`
 //
 // system holds the metadata this model reads and jmx exposes the JVM. tpch
 // and tpcds are sample data generators rather than server internals, so they
-// are left in: a person who starts the image and asks what is there should be
-// shown them.
+// are left in: a person who starts the image and asks what is there is shown
+// them.
 const systemCatalogs = `'system', 'jmx'`
 
 // notSystem filters both out unless the caller asks for them. The columns are

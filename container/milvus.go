@@ -15,7 +15,7 @@ import "time"
 // applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is v3.0.2, of 2026-09-18, and v2.6.24, of 2026-09-16. The
 // dated tags and the -gpu and -debug tags are other builds. Milvus is under
-// the Apache 2.0 licence.
+// the Apache 2.0 license.
 //
 // # One container
 //
@@ -26,12 +26,12 @@ import "time"
 // # The users
 //
 // The server makes root with [Password] on the first start. Init makes the
-// database dbmeta, [MilvusUser] and a role that may read every collection in
+// database dbmeta, [MilvusUser] and a role that can read every collection in
 // dbmeta, and grants the role. A call that makes a thing that is there
 // answers 200 with a code that is not 0, so Init ends by asking whether the
 // user holds the role.
 
-// MilvusUser may read every collection in the database dbmeta. Its password
+// MilvusUser can read every collection in the database dbmeta. Its password
 // is [Password].
 const MilvusUser = "dbmeta_user"
 
@@ -84,6 +84,6 @@ var milvus = product{
 // Milvus is every Milvus release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Milvus = list{}.staged(milvus, Tested, "2.6.24", "3.0.2")

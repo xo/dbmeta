@@ -54,7 +54,7 @@ func registerConstraintColumns() {
 			{{Query: `WHERE r.conrelid <> 0`}},
 			// Left out for the reason Constraints leaves it out: release 18
 			// records a NOT NULL here and no earlier release does, so
-			// reporting it would make the same schema answer differently on
+			// reporting it makes the same schema answer differently on
 			// two servers. See D49.
 			{{Query: `AND r.contype <> 'n'`}},
 			{{Query: `AND ` + notSystemSchema}},
@@ -229,8 +229,8 @@ func registerViews() {
 // registerColumnStats backs usql's \ss.
 //
 // pg_stats is a view over pg_statistic that applies row level security, so it
-// shows only the columns the caller may read. A column never analyzed has no
-// row, which is a fact rather than a gap.
+// shows only the columns the caller has the right to read. A column never
+// analyzed has no row, which is a fact rather than a gap.
 func registerColumnStats() {
 	dbmeta.ColumnStats.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ColumnStat]{
 		Stmt: dbmeta.Stmt{

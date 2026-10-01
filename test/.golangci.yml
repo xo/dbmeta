@@ -63,8 +63,8 @@ linters:
     # after the switch says more than an empty case with no body.
     - exhaustive
     # thelper reads a test body passed as a closure as a helper, and wants
-    # t.Helper() at the top of it. That would make a failure report the line
-    # of the runner rather than the line of the assertion, which is backwards.
+    # t.Helper() at the top of it. Then a failure reports the line of the
+    # runner rather than the line of the assertion, which is backwards.
     # The real helpers here call t.Helper() already.
     - thelper
   settings:
@@ -72,8 +72,8 @@ linters:
     # the mistake this is here to stop, and the root configuration refuses it
     # from the other side.
     #
-    # mattn/go-sqlite3 and duckdb/duckdb-go need cgo, which this module may
-    # use and the root module may not. The separate go.mod is what makes that
+    # mattn/go-sqlite3 and duckdb/duckdb-go need cgo, which this module can
+    # use and the root module must not. The separate go.mod is what makes that
     # safe. See D48.
     #
     # Every driver here is the one usql uses for the same database, which D52
@@ -135,8 +135,8 @@ linters:
   exclusions:
     rules:
       # The container runtime chooses the shape of its own JSON. podman and
-      # docker both write HostPort, and a tag that renamed it would simply
-      # stop matching. The struct is a reader for somebody else's output.
+      # docker both write HostPort, and a tag that renames it stops
+      # matching. The struct is a reader for somebody else's output.
       - path: cmd/dbrun/runner.go
         linters:
           - tagliatelle

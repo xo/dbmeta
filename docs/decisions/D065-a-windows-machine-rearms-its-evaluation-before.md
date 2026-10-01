@@ -8,9 +8,9 @@ grace period, and spends a rearm only when fewer than ten days are left.
 ## Why not on every boot
 
 The rearm count is finite, three on most of these editions, and it cannot be
-reset. A machine that is started often would spend the whole budget in a week
-and be no better off. Reading `GracePeriodRemaining` first turns that into one
-rearm every 170 days.
+reset. If it rearms on every boot, a machine that is started often spends the
+whole budget in a week and is no better off. Reading `GracePeriodRemaining`
+first turns that into one rearm every 170 days.
 
 ## Why it does not reboot
 

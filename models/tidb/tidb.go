@@ -30,7 +30,7 @@ import (
 //
 // The main version is the MySQL release TiDB claims to be, 8.0.11, and it is
 // set under the mysql model's MySQL key too, so that a shared statement takes
-// the fragments it would take on MySQL 8.0.11. The mysql model's [mysql.TiDB]
+// the fragments it takes on MySQL 8.0.11. The mysql model's [mysql.TiDB]
 // key is set too, so that a shared statement takes the one alternative TiDB
 // needs, its list of system schemas.
 const Release = mysql.TiDB

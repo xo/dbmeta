@@ -1,6 +1,6 @@
 # D113. Three Avatica servers run under dbrun for dbimp's driver
 
-Status: Amended by D119.
+Status: Amended by D119 and D155.
 
 dbimp asked on 2026-09-28 for `dbrun` entries for its Avatica driver, which
 Ken placed ninth in dbimp's order (dbimp D74). Avatica is the wire protocol of
@@ -15,7 +15,7 @@ has a dialect yet, because dbimp settles the name in its step 9 (D112).
 | --- | --- | --- | --- |
 | Avatica | 1.28.0, 1.29.0 | none | The standalone server over HSQLDB in memory, which the Calcite project builds. It speaks protobuf. The entrypoint of 1.28.0 and 1.27.0 runs `/usr/bin/java`, which those images lack, so the entry names `/opt/java/openjdk/bin/java` itself |
 | Apache Phoenix | 2.0-5.0 | none | The Phoenix Query Server on HBase 2.0 and Phoenix 5.0, from `boostport/hbase-phoenix-all-in-one`. It checks no user without Kerberos |
-| Apache Druid | 36.0.0, 37.0.0 | `admin`, and `dbmeta_user`, who may read every datasource | Every service in one container, with the smallest configuration and the basic security extension. The Avatica endpoint is on the Router at `/druid/v2/sql/avatica-protobuf/` |
+| Apache Druid | 36.0.0, 37.0.0 | `admin`, and `dbmeta_user`, who can read every datasource | Every service in one container, with the smallest configuration and the basic security extension. The Avatica endpoint is on the Router at `/druid/v2/sql/avatica-protobuf/` |
 
 Every release is Tested. Each was started fresh, measured with a query through
 `apache/calcite-avatica-go`, the Go driver usql uses today, stopped and started

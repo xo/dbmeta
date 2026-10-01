@@ -15,20 +15,21 @@ zero rows for both, and selecting from `information_schema.tables` is an error.
 DATABASES) t` does not parse either.
 
 Metadata comes from `SHOW` and `DESCRIBE`, one statement per scope. So dbmeta
-could answer three of the 55: `Schemas` from `SHOW DATABASES`, which returns a
+can answer three of the 55: `Schemas` from `SHOW DATABASES`, which returns a
 name and a comment in one statement, `CurrentSchema` from `current_database()`
-and `CurrentUser` from `user()`. `Tables` would need `SHOW TABLES IN` once per
-database and `Columns` would need `DESCRIBE` once per table, which is the per
-row round trip rule 13 forbids.
+and `CurrentUser` from `user()`. `Tables` needs `SHOW TABLES IN` once per
+database and `Columns` needs `DESCRIBE` once per table, which is the per row
+round trip rule 13 forbids.
 
 ## Why usql is not blocked after all
 
-D66 put Impala first because `usql` could not retire its metadata package
-until the last of its five readers moved here. That reader does not run a
-statement. It calls `GetSchemas`, `GetTables` and `GetColumns` on the driver,
-which are HiveServer2 metadata operations in the protocol rather than queries.
+D66 put Impala first because `usql` was not able to retire its metadata
+package until the last of its five readers moved here. That reader does not
+run a statement. It calls `GetSchemas`, `GetTables` and `GetColumns` on the
+driver, which are HiveServer2 metadata operations in the protocol rather than
+queries.
 
-Hosting that here would mean importing the Impala driver into the root module,
+Hosting that here means importing the Impala driver into the root module,
 and hard rule 1 forbids a database driver there outright. So the reader cannot
 move, and it is already where it belongs: it is a property of the wire
 protocol, which is the driver's business. `usql` keeps it and loses nothing.
@@ -56,5 +57,5 @@ and `system.data_skipping_indices` are a real catalog rather than an
 Before scheduling a dialect, check that the product has a catalog a single
 statement can read. A product whose metadata is a protocol operation or a
 `SHOW` per object cannot be a model here, however popular it is and however
-well it runs in a container. D66 ordered by whether a product could be started
+well it runs in a container. D66 ordered by whether a product can be started
 and that was one question short.

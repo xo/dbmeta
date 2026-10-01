@@ -13,8 +13,8 @@ audience is anyone writing any query, not only somebody adding a dialect.
 
 A dialect is one deliverable. The queries, the fixture, the tests, the parity
 targets and the documentation ship together. A dialect with queries and none of
-the rest is not nearly finished. It is one whose answers have been measured
-once, by you, on one server, as one user.
+the rest is not nearly finished. It is one whose answers you measured once,
+on one server, as one user.
 
 ## Before you write anything
 
@@ -34,42 +34,39 @@ Step 2 does not always answer. Trino publishes a tag per release and rebuilds
 none of them, so "the oldest release still rebuilt" means nothing there, and
 step 3 decided instead. Say so when it happens.
 
-### 3. Find the driver `usql` uses
+### 3. Find the driver dburl names
 
-The package is in the `dburl` registry, from v0.29.0. Find the scheme for the
-product and read `GoPackage`, which is the import path, and `RequiresCGO`:
+The package is in the `dburl` registry, from v0.29.0, which is upstream of
+`dbmeta` and of `usql` both (D154). Find the scheme for the product and read
+`GoPackage`, which is the import path, and `RequiresCGO`:
 
 ```bash
 grep -n 'Name: *"<product>"' -A 12 ~/src/go/src/github.com/xo/dburl/scheme.go
 ```
 
-The version is not there. Read it from `usql`'s `go.mod`, because D52 requires
-the same package and allows a different version.
-
-```bash
-grep -n "<package>" ~/src/go/src/github.com/xo/usql/go.mod
-```
+The version is not there, and the `test` module picks its own. The package
+must be the one dburl names, and the version can differ from any other
+module's.
 
 A scheme can name another product's driver in `GoPackage`, because the
 product is wire compatible with it. `cockroachdb` names `pgx`, and that is the
 right answer rather than a mistake.
 
-If dburl names a driver that `usql` does not import yet, ask Ken. Couchbase
-was the case: dburl named dbimp's driver, the tests moved to it first and
-pinned their own version (D101), and `usql` followed.
+If dburl names a driver that does not exist yet, ask Ken. rqlite was the case:
+dburl named dbimp's driver before dbimp wrote it, the tests used gorqlite
+meanwhile (D148), and they moved to dbimp's driver when it was released
+(D151).
 
-D52 requires the same package `usql` uses. The version can differ and the
-package must not. A query that works here and fails on the driver `usql` ships
-is a query that does not work.
+A query that works here and fails on the driver dburl names is a query that
+does not work. If what `usql` imports differs from what dburl names, one of
+the two has a fault, and the fix goes to it (D154).
 
-If `usql` ships two drivers for the product, test both, as subtests named for
-the driver. SQLite and PostgreSQL both do this. The registry shows this as two
-schemes: `sqlite3` and `moderncsqlite`, `postgres` and `pgx`.
+If two schemes of one dialect name two packages, test both, as subtests named
+for the driver. SQLite and PostgreSQL both do this: `sqlite3` and
+`moderncsqlite`, `postgres` and `pgx`.
 
-`grep -rn "// DRIVER" ~/src/go/src/github.com/xo/usql` is the second look, not
-the first. It finds the import that carries the comment, and Oracle has none,
-because `oracle` and `godror` both register through `orshared.Register`. That
-grep was step 3 until D80 and it answered Oracle wrongly.
+D154 lists the exceptions. Oracle is tested on `go-ora/v2` rather than the v3
+that dburl names (D59), and `godror` and `mymysql` are not tested.
 
 ## Standing the server up
 
@@ -163,7 +160,7 @@ a shell on it and `dbrun dsn <name>` prints the URL.
 Most of this file assumes a server in a Linux container. Four kinds differ,
 and each changes a handful of steps rather than all of them.
 
-**An embedded database is a library.** SQLite and DuckDB have no server, no
+An embedded database is a library. SQLite and DuckDB have no server, no
 port, no password and no release to pin, because the release is whichever one
 the driver links. D42 keeps them out of `container/` and they must stay out.
 `dbrun` finds them through `Info.Embedded`, so that `dbrun test sqlite3` works
@@ -200,7 +197,7 @@ What changes for an embedded database:
   upstream source and `modernc.org/sqlite` is a translation of it, and they
   ship different library versions.
 
-**An old release with no Linux container needs a Windows machine.** SQL Server
+An old release with no Linux container needs a Windows machine. SQL Server
 on Linux begins at 2017, so 2008 R2 through 2016 have no container and no way
 to run in CI. D57 is the decision and [`WINDOWS.md`](WINDOWS.md) is the whole
 procedure. Read that rather than this section if you are provisioning one.
@@ -225,10 +222,10 @@ What changes for a machine:
   skips that scene rather than failing.
 - The machine is kept after a test, not removed, because rebuilding it is an
   hour where a container is a minute.
-- The evaluation licence rearms itself at every boot. D65 explains it and
+- The evaluation license rearms itself at every boot. D65 explains it and
   nothing here activates Windows.
 
-**A release a vendor ships only as a disk image is an appliance.** The Exasol
+A release a vendor ships only as a disk image is an appliance. The Exasol
 Community Edition is one. It is a `container.Machine` with an
 `ApplianceSpec` in the product's own container file, naming the file the
 vendor publishes, its SHA256 and the page to download it from, because
@@ -236,7 +233,7 @@ nothing here can fetch it. `dbrun provision <name> --from <file>` checks and
 imports it once, and it is kept and Verified like a Windows machine. D85,
 D86 and D87 are the decisions.
 
-**An image somebody other than the vendor built is pinned by digest.**
+An image somebody other than the vendor built is pinned by digest.
 Vertica's four releases run on community images, each pushed once and never
 rebuilt, so each `Tag` carries its `@sha256:` digest as well as its name.
 Without the digest, a push to the same tag changes what was tested and no line
@@ -325,7 +322,7 @@ own for the fragments you write. `models/cockroachdb` is the example (D123).
 Four rules decide most of the detail, and the first one is the one that has
 cost this project the most.
 
-**Never hide a NULL.** Read [`NULLS.md`](NULLS.md) in full before writing a
+Never hide a NULL. Read [`NULLS.md`](NULLS.md) in full before writing a
 query, and keep it open while you write them. It is the whole rule.
 
 The short version, which is not a substitute for reading it. A database
@@ -467,8 +464,9 @@ Four places hold a count and a test checks each:
 - a count written in a sentence in any document, by
   `TestTheCountsInProseMatchTheModels`
 
-Add the database to `answers` in `all/coverage_test.go` and to `displayNames`
-beside it, which is the one map the table tests and the prose test share. The
+Add the database to the list in `answers` in `all/coverage_test.go`, and to
+the map `displayNames` beside it. The table tests and the prose test share
+both. The
 tests then tell you which numbers are wrong.
 
 The fourth was added after the first three had been passing for months while

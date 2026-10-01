@@ -343,7 +343,7 @@ const keyConstraints = `(SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE, POSITION, DEFA
 
 func registerConstraints() {
 	// Hive 3.0 added constraints and none of them is enforced: they are
-	// declarations a planner may use. KEY_CONSTRAINTS holds one row per
+	// declarations a planner can use. KEY_CONSTRAINTS holds one row per
 	// column, so this groups them.
 	dbmeta.Constraints.Register(dbmeta.Hive, &dbmeta.Binding[dbmeta.Constraint]{
 		Stmt: dbmeta.Stmt{

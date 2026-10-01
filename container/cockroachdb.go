@@ -23,7 +23,7 @@ import (
 // 2026-09-24. v24.3.36 is kept too, because 24.3 is the oldest line with
 // long term support that is still patched, to 2027-05-05. CockroachDB is under
 // the CockroachDB Software License, which is source available and needs no
-// licence key for a single node.
+// license key for a single node.
 //
 // # The users
 //
@@ -32,15 +32,15 @@ import (
 // sslmode=disable asks for. The check and Init log in as root with its client
 // certificate, so they work before root has a password. Init gives root
 // [Password] and makes the database dbmeta, owned by [CockroachDBOwner], and
-// [CockroachDBUser], who may connect to it. That is the superuser, the owner
-// and the grantee that PostgreSQL has. Every user may create a table in the
+// [CockroachDBUser], who can connect to it. That is the superuser, the owner
+// and the grantee that PostgreSQL has. Every user can create a table in the
 // schema public, as on PostgreSQL 14 and older, so Init gives the schema to
 // the owner and takes that right from everybody else.
 
 // CockroachDBOwner owns the database dbmeta. Its password is [Password].
 const CockroachDBOwner = "dbmeta_owner"
 
-// CockroachDBUser may connect to the database dbmeta. Its password is
+// CockroachDBUser can connect to the database dbmeta. Its password is
 // [Password].
 const CockroachDBUser = "dbmeta_user"
 

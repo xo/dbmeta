@@ -1,6 +1,6 @@
 // Package fixture holds a known good Microsoft SQL Server schema.
 //
-// Like every fixture here it is exported API and additive: a later release may
+// Like every fixture here it is exported API and additive: a later release can
 // add an object and will not rename or remove one. See the PostgreSQL fixture
 // for the rules, which are the same.
 //
@@ -225,10 +225,10 @@ END`),
 		// It had v13 on it, matching a comment saying
 		// sys.dm_db_stats_properties arrived in release 13, and that was
 		// wrong twice: the view arrived in 2012 SP1, which is why the query
-		// gates at v11, and CREATE STATISTICS has been there since long
+		// gates at v11, and CREATE STATISTICS was there long
 		// before any release here. The two gates disagreeing meant 2012 and
 		// 2014 reported the query supported and then had nothing to report,
-		// which no container could show because they are all 13 or newer.
+		// which no container can show because they are all 13 or newer.
 		at("author rows", `INSERT INTO dbmeta_fixture.author (author_id, name, rating)
 	SELECT TOP 200 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)),
 		'author ' + CAST(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS nvarchar(8)),

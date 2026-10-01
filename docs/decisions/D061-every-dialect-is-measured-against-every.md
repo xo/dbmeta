@@ -2,15 +2,15 @@
 
 Status: Amended in place.
 
-A dialect is not finished until every query has been asked as the
-administrator and as each lesser kind of principal the product has, and the
-differences are written down. `test/parity_test.go` does it and
+A dialect is not finished until every query is asked as the administrator
+and as each lesser kind of principal the product has, and the differences are
+written down. `test/parity_test.go` does it and
 `test/testdata/parity.txt` is the record.
 
 ## Why
 
-D60 asked whether Oracle should read `DBA_` views, and the argument rested on
-`ALL_` showing a caller only what the caller may see. Nobody had asked whether
+D60 asked whether Oracle must read `DBA_` views, and the argument rested on
+`ALL_` showing a caller only what the caller can see. Nobody had asked whether
 the other products do the same thing. They do, and one of them is worse than
 Oracle.
 
@@ -32,14 +32,14 @@ is:
 
 `current_user` and `current_schema` are left out of that table and are in the
 file. They are supposed to differ, because they answer a question about the
-connection, and a run where they agreed would be the fault.
+connection, and a run where they agree is the fault.
 
 One release needed a section of its own. PostgreSQL 12 grants public SELECT on
 six columns of `pg_subscription` and not on `subsynccommit`, so an ordinary
-role is refused `Subscriptions` there and served from 13 on. A section may
+role is refused `Subscriptions` there and served from 13 on. A section can
 therefore be written `product@major`, and that one wins for a server reporting
 that major. The query is not gated for it: a superuser on 12 reads the column,
-and padding it would withhold a fact from the caller who is allowed it.
+and padding it withholds a fact from the caller who is allowed it.
 
 Cassandra behaves like the MySQL dialect and for the same reason: `roles`,
 `role_grants` and `privileges` read `system_auth`, and `settings` reads
@@ -91,14 +91,15 @@ connection to make, so the rule does not reach them and cannot.
 A dialect ships its queries, its fixture, its documentation and its parity
 targets. Those are one deliverable and not four, the same way rule 9 makes the
 fixture part of the queries. A dialect with queries and no parity target is not
-nearly finished. It is one whose answers have been measured for exactly one
-kind of user.
+nearly finished. It is one whose answers were measured for exactly one kind
+of user.
 
 `TestEveryDialectIsMeasuredForParity` holds it. Every dialect must have a
 target or an entry in `parityExempt` giving the reason it has none, and one
 with neither fails. `TestPrivilegeParity` cannot do this job: it skips a target
 whose server is not running, and it says nothing at all about a target that was
-never written, so a dialect added without one would pass every test here.
+never written. Without this check, a dialect added without one passes every
+test here.
 
 Only three are exempt. SQLite and DuckDB have no user to be, and
 `infoschema_over_postgres` is a test registration of the shared model over a
@@ -122,8 +123,8 @@ every Oracle target now names a pluggable database. Covering it needs a
 connection to `CDB$ROOT`, which `container/oracle.go` already records as a
 target worth having and which is not written.
 
-A SQL Server sysadmin that is not `sa` is not covered either. It would answer
-the same as `sa` and nothing suggests otherwise, so it is not worth a target.
+A SQL Server sysadmin that is not `sa` is not covered either. Nothing suggests
+that it answers differently from `sa`, so it is not worth a target.
 
 ## A scene can be newer than the server
 

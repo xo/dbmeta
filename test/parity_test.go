@@ -41,7 +41,7 @@ import (
 // about the database, and a consumer has to be told which ones do that.
 //
 // Oracle is why this exists. Its ALL_ views show the caller only what the
-// caller may see, which was known, but nothing had measured whether the same
+// caller can see, which was known, but nothing had measured whether the same
 // thing happens elsewhere. It does: PostgreSQL filters pg_stats and
 // pg_settings by role, and information_schema filters everywhere.
 //
@@ -181,7 +181,7 @@ func parityTargets() []parityTarget {
 			scenes: []parityScene{{
 				// TiDB has no containment either, and the same two
 				// lesser principals as MySQL: one with every privilege on
-				// the schema, and one that may only read it.
+				// the schema, and one that can only read it.
 				name: "same",
 				principals: []parityPrincipal{
 					{name: "grantee", make: makeTiDBGrantee},
@@ -303,7 +303,7 @@ func parityTargets() []parityTarget {
 			scenes: []parityScene{{
 				// Databend has no containment, so root, a user whose role
 				// holds every privilege on the fixture's database, and one
-				// whose role may only read it.
+				// whose role can only read it.
 				name: "same",
 				principals: []parityPrincipal{
 					{name: "grantee", make: makeDatabendHolder("ALL")},
@@ -327,7 +327,7 @@ func parityTargets() []parityTarget {
 			open: openQuestDB, build: setupQuestDB, schema: qdfixture.Everything.Schema,
 			scenes: []parityScene{{
 				// The open source edition has no roles and no grants. Its
-				// PostgreSQL interface has one more user, which may only
+				// PostgreSQL interface has one more user, which can only
 				// read, and the entry turns it on.
 				name:       "same",
 				principals: []parityPrincipal{{name: "read-only", make: makeQuestDBReader}},
@@ -413,7 +413,7 @@ func parityTargets() []parityTarget {
 				// A common user cannot be made from inside a pluggable
 				// database, and nothing connects to CDB$ROOT. That target is
 				// recorded as missing in container/oracle.go and this is the
-				// second place it would be used.
+				// second place that needs it.
 				name:       "same",
 				principals: []parityPrincipal{{name: "local", make: makeOracleLocal}},
 			}},
@@ -452,7 +452,8 @@ var parityExempt = map[dbmeta.Dialect]string{
 // D61 makes parity part of finishing a dialect, and this is what holds it to
 // that. TestPrivilegeParity cannot: it skips a target whose server is not
 // running, and it says nothing at all about a target that was never written.
-// A dialect added without one would pass every test in the repository.
+// Without this test, a dialect added without one passes every test in the
+// repository.
 func TestEveryDialectIsMeasuredForParity(t *testing.T) {
 	t.Parallel()
 	measured := make(map[dbmeta.Dialect]bool)
@@ -479,14 +480,14 @@ func TestEveryDialectIsMeasuredForParity(t *testing.T) {
 // [dbmeta.Info.Embedded].
 //
 // A model that is a library must declare it, because dbrun builds its target
-// list from the flag and a model that does not declare it simply will not
-// appear. And a model that declares it must be exempt from parity, because
+// list from the flag and a model that does not declare it does not appear in
+// that list. And a model that declares it must be exempt from parity, because
 // the reason it is exempt is the reason it is embedded: there is no second
 // user to be.
 func TestEveryEmbeddedModelSaysSo(t *testing.T) {
 	t.Parallel()
-	// The libraries, pinned. A refactor that drops the flag would otherwise
-	// remove them from dbrun silently.
+	// The libraries, pinned. Without the pin, a refactor that drops the flag
+	// removes them from dbrun silently.
 	for _, d := range []dbmeta.Dialect{dbmeta.SQLite3, dbmeta.DuckDB} {
 		if !d.Embedded() {
 			t.Errorf("%s is a library and does not declare Embedded."+
@@ -586,7 +587,7 @@ func TestPrivilegeParity(t *testing.T) {
 // the product keys to look for.
 //
 // Only these are looked up. Cassandra records a version under cql and another
-// under protocol, and neither is a product: reading any key here would file
+// under protocol, and neither is a product: a read of every key here files
 // its answers under cql. ScyllaDB is a product, so its key is listed, and a
 // Cassandra server, which reports no such key, stays under cql.
 var parityFlavors = map[dbmeta.Dialect][]string{
@@ -613,17 +614,17 @@ var parityFlavors = map[dbmeta.Dialect][]string{
 // privilege to grant.
 //
 // CockroachDB is the third. From 26.3 the databases query reports a size, and
-// a principal that may not connect to a database reads "no access" where the
+// a principal that cannot connect to a database reads "no access" where the
 // administrator reads its size. 24.3 and 26.2 have no pg_size_pretty, so the
 // size is NULL for everybody and the answers agree.
 //
-// So a section may be written as product@major, and that one wins for a server
+// So a section can be written as product@major, and that one wins for a server
 // reporting that major. Everything else falls back to the shared section. The
 // override exists only where a release really differs, which keeps the file
 // readable and puts the difference where a reader trips over it.
 //
 // The major alone is the key. A product whose answers differ between two
-// releases of one major would need more, and none here does.
+// releases of one major needs more, and none here does.
 func parityRelease(base string, m *dbmeta.Meta, want map[string][]string) string {
 	product, rest, _ := strings.Cut(base, "/")
 	// A flavor's release is under its own key, and the main version can be
@@ -698,7 +699,7 @@ type parityAnswer struct {
 	// body is every row as text, so a value the server blanked out is a
 	// difference and not only a missing row.
 	body string
-	// err is what the server said, for a query the principal may not run.
+	// err is what the server said, for a query the principal cannot run.
 	err string
 }
 
@@ -745,7 +746,7 @@ func parityArgs(q dbmeta.AnyQuery, m *dbmeta.Meta, schema string) (map[string]an
 //
 // It reads the result generically rather than through the typed iterator,
 // because the comparison is the same for every query and a scan per object
-// kind would be a second copy of every model.
+// kind is a second copy of every model.
 func parityAsk(ctx context.Context, db *sql.DB, query string, vals []any) parityAnswer {
 	rows, err := db.QueryContext(ctx, query, vals...)
 	if err != nil {
@@ -802,7 +803,7 @@ func firstLine(s string) string {
 
 // exasolSession matches the session number Exasol ends every message with,
 // such as (Session: 1877435836291743744). It is a new number on every
-// connection, so the refusal would never read the same twice.
+// connection, so without this match the refusal never reads the same twice.
 var exasolSession = regexp.MustCompile(` \(Session: [0-9]+\)`)
 
 // clientHost matches the host half of a MySQL user name.
@@ -824,7 +825,7 @@ var grantColumns = regexp.MustCompile(`\b([A-Z]+)\([^)]*\) ON\b`)
 // which arrived in 4.0, and PostgreSQL's publications arrived in 10. On an
 // older server the query is not asked at all, so it can neither agree nor
 // differ, and an expectation written from a newer one names it. Holding that
-// against the older server would make the file release specific, which is the
+// against the older server makes the file release specific, which is the
 // thing the format is built to avoid.
 //
 // A line for a query that was asked is compared as usual, in both directions.

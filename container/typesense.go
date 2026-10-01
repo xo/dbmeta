@@ -12,12 +12,12 @@ package container
 // docker.io/typesense/typesense builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is 30.2 and 29.1, both of 2026-04-16. 31.0 is a release
-// candidate. Typesense is under the GPL 3.0 licence.
+// candidate. Typesense is under the GPL 3.0 license.
 //
 // # Keys, not users
 //
 // Typesense has no users. It checks a bootstrap key, which is [Password], and
-// keys made with it. Init makes [TypesenseReadKey], which may only search the
+// keys made with it. Init makes [TypesenseReadKey], which can only search the
 // collection dbmeta. A request sends a key in the X-TYPESENSE-API-KEY header,
 // and the DSN carries each key as its password.
 //
@@ -32,7 +32,7 @@ package container
 // no user names.
 const TypesenseUser = "dbmeta_user"
 
-// TypesenseReadKey is the key that may only search the collection dbmeta. It
+// TypesenseReadKey is the key that can only search the collection dbmeta. It
 // differs from [Password], because Typesense refuses a key it already has.
 const TypesenseReadKey = Password + "-read"
 
@@ -61,6 +61,6 @@ var typesense = product{
 // Typesense is every Typesense release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Typesense = list{}.staged(typesense, Tested, "29.1", "30.2")

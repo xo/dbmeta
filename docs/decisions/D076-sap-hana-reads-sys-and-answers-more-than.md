@@ -5,7 +5,7 @@ Status: Decided.
 `models/hana` answers 32 of the 55 against SAP HANA 2.0 SPS 08.
 `docs/COVERAGE.md` holds the measurements. Four things had to be decided.
 
-## Ken agreed to the SAP licence
+## Ken agreed to the SAP license
 
 SAP HANA, express edition will not start without `--agree-to-sap-license`,
 which accepts the SAP Developer Center Software Developer License Agreement.
@@ -13,8 +13,8 @@ Ken agreed to it on 2026-09-26 for this project's test containers, and the
 flag is in `container/hana.go` with that recorded beside it.
 
 It is written down because it is the only product here that needs an
-affirmative licence acceptance to run at all, and because the next person to
-read that flag should not have to wonder who decided.
+affirmative license acceptance to run at all, and so that the next person to
+read that flag does not have to wonder who decided.
 
 ## Access methods are the row store and the column store
 
@@ -49,7 +49,7 @@ no `GRANT` syntax that fills it. All three spellings of a column list are a
 syntax error, which was measured rather than read.
 
 The decision is to keep reading the column rather than to drop it and hard
-code an empty string. The catalog has it, a later release may fill it, and a
+code an empty string. The catalog has it, a later release can fill it, and a
 query that reads a column it cannot demonstrate is exactly the thing that rots
 silently. So `TestHANAHasNoColumnGrant` asserts both halves: that the grant is
 still refused, and that `column_access` is still empty. If SAP adds the
@@ -62,4 +62,4 @@ product here, and four of those return the same rows with different values
 rather than fewer rows. Functions, sequences, triggers and views all carry a
 definition, and HANA returns the row and withholds the text from a reader
 without the privilege. A consumer that treats a definition as always present
-is wrong on HANA, and nothing but D61 would have found it.
+is wrong on HANA, and only D61 found it.

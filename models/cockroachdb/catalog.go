@@ -78,9 +78,9 @@ func registerOwn() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"}, {Name: "owner"},
-			{Name: "location", Desc: "always NULL: CockroachDB keeps no tablespace on a path"},
+			{Name: "location", Desc: "always absent: CockroachDB keeps no tablespace on a path"},
 			{Name: "options"},
-			{Name: "size", Desc: "always NULL: CockroachDB has no pg_tablespace_size"},
+			{Name: "size", Desc: "always absent: CockroachDB has no pg_tablespace_size"},
 			{Name: "access"}, {Name: "comment"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "tablespace name pattern, empty for every tablespace", Default: ""}},
@@ -163,7 +163,7 @@ func registerOwn() {
 
 	// CockroachDB has no pg_describe_object. Its pg_extension and its
 	// dependencies of kind e were empty on every release measured, so the
-	// statement answers no rows, and the description would have no source
+	// statement answers no rows, and the description has no source
 	// even with a row.
 	dbmeta.ExtensionObjects.Register(dbmeta.CockroachDB, &dbmeta.Binding[dbmeta.ExtensionObject]{
 		Stmt: dbmeta.Stmt{
@@ -178,7 +178,7 @@ func registerOwn() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "extension"},
-			{Name: "description", Desc: "always NULL: CockroachDB has no pg_describe_object"},
+			{Name: "description", Desc: "always absent: CockroachDB has no pg_describe_object"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "extension name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.ExtensionObject, error) {
@@ -189,7 +189,7 @@ func registerOwn() {
 	})
 
 	// CockroachDB has no regoperator type, so the operator is written out
-	// from pg_operator, as regoperator would write it: the name and the two
+	// from pg_operator, as regoperator writes it: the name and the two
 	// argument types. Its pg_amop was empty on every release measured.
 	dbmeta.OperatorFamilyOperators.Register(dbmeta.CockroachDB, &dbmeta.Binding[dbmeta.OperatorFamilyOperator]{
 		Stmt: dbmeta.Stmt{

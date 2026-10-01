@@ -5,7 +5,7 @@ Status: Decided, amended in place, D6a superseded by D71.
 ## The amendment, and the bug that forced it
 
 The first PostgreSQL model met this decision by writing `COALESCE(x, '')`
-around every nullable column, so that every Go field could stay a plain string.
+around every nullable column, so that every Go field stayed a plain string.
 That was wrong and it shipped a real fault. It is corrected here rather than
 quietly rewritten.
 

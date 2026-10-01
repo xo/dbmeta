@@ -12,5 +12,5 @@ shows on CockroachDB, which hard rule 2 follows.
 
 Hiding it was rejected. No column of `pg_namespace` or `pg_class` marks a
 schema that CockroachDB keeps for itself, and only its name does. So hiding it
-would need a CockroachDB statement of the model's own for every query that
-filters by schema, about thirty, in place of the shared ones (D123).
+needs a CockroachDB statement of the model's own for every query that filters
+by schema, about thirty, in place of the shared ones (D123).

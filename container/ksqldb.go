@@ -91,6 +91,6 @@ var ksqldb = product{
 // KsqlDB is every ksqlDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var KsqlDB = list{}.staged(ksqldb, Tested, "8.2.4", "8.3.2")

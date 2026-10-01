@@ -60,8 +60,9 @@ can see it.
 
 Two things, and both are needed.
 
-The check is the work: `CREATE SCHEMA IF NOT EXISTS memory.dbmeta_ready; DROP
-SCHEMA IF EXISTS memory.dbmeta_ready`, in one call, for both products. Both
+The check is the work:
+`CREATE SCHEMA IF NOT EXISTS memory.dbmeta_ready; DROP SCHEMA IF EXISTS memory.dbmeta_ready`,
+in one call, for both products. Both
 statements run in one invocation and the client exits non-zero when either
 fails, which is what `dbrun` reads. Nothing is left behind: `dbrun` stops
 polling on a zero exit, and a poll that leaked the schema is not a poll that
@@ -96,10 +97,10 @@ and the first statement running, which was ample for the node set to be
 refreshed into a usable state and stay there. D82 removed that and the gap
 closed to nothing.
 
-This is the second time that ninety seconds turns out to have been load
-bearing. Anything else in `container/` whose check is cheaper than the work
-that follows it is now unprotected in the same way, and `Settle` is what to
-reach for when one of them starts failing.
+This is the second time that ninety seconds was load bearing. Anything else in
+`container/` whose check is cheaper than the work that follows it is now
+unprotected in the same way, and `Settle` is what to reach for when one of
+them starts failing.
 
 This is worth stating plainly, because the obvious reading is that D82 broke
 Presto. It did not. It removed an accidental delay that a readiness check was

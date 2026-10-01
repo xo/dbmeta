@@ -58,7 +58,7 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 // ClickHouse spells it ALTER USER ... IDENTIFIED BY, and the server hashes
 // what it is given. A string literal there takes backslash escapes as well as
 // a doubled quote, so both are applied and nothing needs detecting: the
-// behaviour is not a server setting here the way it is in MySQL.
+// behavior is not a server setting here the way it is in MySQL.
 func changePassword(c dbmeta.PasswordChange, _ dbmeta.Quoting) (string, error) {
 	backslashes := dbmeta.Quoting{BackslashEscapes: sql.Null[bool]{V: true, Valid: true}}
 	return "ALTER USER " + quoteName(c.User) +
@@ -68,7 +68,7 @@ func changePassword(c dbmeta.PasswordChange, _ dbmeta.Quoting) (string, error) {
 // quoteName returns a name between backticks. A backslash escapes the next
 // character inside backticks as it does inside a string literal, so it is
 // doubled as well as the backtick. dbmeta.QuoteIdentifier doubles only the
-// closing character, and a name that ends in a backslash would then escape
+// closing character, and a name that ends in a backslash then escapes
 // its own closing backtick.
 func quoteName(name string) string {
 	return "`" + strings.NewReplacer(`\`, `\\`, "`", "``").Replace(name) + "`"

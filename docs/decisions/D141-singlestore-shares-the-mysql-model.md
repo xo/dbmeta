@@ -1,4 +1,4 @@
-# D141. SingleStore shares the mysql model, and runs with no licence
+# D141. SingleStore shares the mysql model, and runs with no license
 
 Status: Amends D118.
 
@@ -7,7 +7,7 @@ Status: Amends D118.
 Ken asked on 2026-09-30 for dbmeta to answer for SingleStore, because usql
 deletes its own readers in W21 and read SingleStore through its mysql reader
 until then. D118 had given SingleStore no entry. Ken asked for it to be tried
-without a licence key, and the development image,
+without a license key, and the development image,
 ghcr.io/singlestore-labs/singlestoredb-dev, starts with none on a machine
 with at most 8 cores and 64 GB, as its README says. So SingleStore has a
 container entry, and 9.0 and 9.1 are Tested.

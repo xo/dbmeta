@@ -8,8 +8,8 @@ push, and against all ten releases on a nightly schedule.
 ## Why four, and why those four
 
 Testing the newest release alone is not enough, and there is evidence rather
-than intuition for that. Six real faults have been found by running the queries
-against real servers. Here is the release that exposed each:
+than intuition for that. Running the queries against real servers found six
+real faults. Here is the release that exposed each:
 
 | Fault | Exposed on |
 | --- | --- |
@@ -20,8 +20,8 @@ against real servers. Here is the release that exposed each:
 | a NULL access list collapsed into an empty string | every release |
 | a NULL `check_clause` scanned into a string | every release |
 
-Four of the six were invisible at the newest release. Testing 18 alone would
-have caught two.
+Four of the six were invisible at the newest release. Testing 18 alone
+catches two.
 
 The floor, the ceiling and one release on each side of the middle catch all
 six. That was checked rather than assumed.
@@ -31,17 +31,17 @@ six. That was checked rather than assumed.
 A covering set over the version gates is not the right idea, and it is worth
 saying why, because it looks right. The gates sit at 10, 11, 12, 13, 15, 16 and
 17, and `{9.6, 18}` covers every one of them, since 9.6 is below all of them
-and 18 is above all of them. That pair would have caught two faults out of six.
+and 18 is above all of them. That pair catches two faults out of the six.
 
 The reason is that these tests do not check that the gates work. They check
-that the gates are **correct**. A wrong gate is only visible between the
+that the gates are correct. A wrong gate is only visible between the
 release it claims and the release that is true, and nothing predicts that
 window. `colliculocale` was gated at 12 and arrived at 15, so it was fine at
 9.6 and fine at 18 and broken at 12, 13 and 14.
 
 That argues for all ten, and all ten do run, nightly. Four is what a push
 carries, because a push has to stay fast enough that a contributor does not
-avoid it, and four demonstrably catches what has been found so far.
+avoid it, and four demonstrably catches every fault found so far.
 
 ## The rule for the next database
 
@@ -62,4 +62,4 @@ as `mariadb:11.4` and `mysql:8.4`, and the rule above applies to each on its
 own.
 
 A slow database goes nightly from the start. Oracle and Cassandra take minutes
-to become healthy, and a push should not wait for them.
+to become healthy, and a push must not wait for them.

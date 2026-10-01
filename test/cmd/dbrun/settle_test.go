@@ -38,7 +38,7 @@ func TestSettleReturnsOnTheFirstPassWhenThereIsNone(t *testing.T) {
 		t.Fatalf("waiting: %v", err)
 	}
 	if took := time.Since(start); took > 2*time.Second {
-		t.Errorf("took %s with no settle, and the first pass should have done", took)
+		t.Errorf("took %s with no settle, and the first pass must end the wait", took)
 	}
 }
 
@@ -63,8 +63,8 @@ func TestSettleWaitsForTheCheckToKeepPassing(t *testing.T) {
 func TestSettleRestartsAfterAFailure(t *testing.T) {
 	t.Parallel()
 	// Passes on call 1, fails on call 2, passes from 3. With a 3 second
-	// settle and a one second poll, a loop that did not restart would return
-	// at about 4 seconds and one that does returns at about 6.
+	// settle and a one second poll, a loop that does not restart returns at
+	// about 4 seconds and one that does returns at about 6.
 	r := runner{name: "env"}
 	start := time.Now()
 	if err := r.waitReady(context.Background(), target{
@@ -115,7 +115,7 @@ func TestInstallTriesAgainAfterAFailure(t *testing.T) {
 		Name: "flaky",
 		Init: flapper(t, 1),
 	}, 0); err != nil {
-		t.Fatalf("installing: %v, and the second attempt should have succeeded", err)
+		t.Fatalf("installing: %v, and the second attempt must succeed", err)
 	}
 }
 

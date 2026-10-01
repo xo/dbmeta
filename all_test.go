@@ -52,9 +52,9 @@ func TestAllStreamsRows(t *testing.T) {
 }
 
 // TestAllStoppingEarlyReleases checks the hazard D33 names. An iterator holds a
-// connection, so breaking out of the loop must give it back. With one
-// connection in the pool, a second query after an early break would block
-// forever if it did not.
+// connection, so breaking out of the loop must give it back. If it does not,
+// and the pool has one connection, a second query after an early break blocks
+// forever.
 func TestAllStoppingEarlyReleases(t *testing.T) {
 	// not parallel: these tests share the replay map, keyed by statement text
 	m := meta(t, "18")

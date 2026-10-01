@@ -29,7 +29,7 @@ fast, so its floor and its ceiling are Tested, as D112 made them.
 | Line | Releases | Dialects | Ordinary user |
 | --- | --- | --- | --- |
 | InfluxDB 1 | 1.13.1, and 1.11.8 nightly | `influxql` | `dbmeta_user`, READ on `dbmeta` |
-| InfluxDB 2 | 2.9.1, and 2.8.0 nightly | `influxql` | `dbmeta_user`, a v1 user who may read the bucket `dbmeta` |
+| InfluxDB 2 | 2.9.1, and 2.8.0 nightly | `influxql` | `dbmeta_user`, a v1 user who can read the bucket `dbmeta` |
 | InfluxDB 3 Core | 3.9.13, 3.11.5, and 3.10.6 nightly | `influxdb`, and also `influxql` | none |
 
 This amends D112, which gave InfluxDB 3 no dialect because the names were not
@@ -54,6 +54,6 @@ On each release, fresh, then stopped and started again, on 2026-09-28:
 - InfluxDB 3: `/query` answers InfluxQL with the admin token as a password and
   as a bearer token.
 
-A v2 token that may only read the bucket is possible on InfluxDB 2. The server
-gives it a random value, so no connection string here could name it, and the
+A v2 token that can only read the bucket is possible on InfluxDB 2. The server
+gives it a random value, so no connection string here can name it, and the
 ordinary user is the v1 user instead.

@@ -76,7 +76,7 @@ func registerRelations() {
 			{Name: "tablespace", Desc: "always absent: storage is chosen per table by its policy"},
 			{
 				Name: "size",
-				Desc: "always absent: a size would have to sum system.parts, which is" +
+				Desc: "always absent: a size needs a sum over system.parts, which is" +
 					" a scan that grows with the data rather than with the catalog",
 			},
 			{Name: "comment"},

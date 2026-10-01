@@ -235,13 +235,14 @@ now exist.
 `dbmeta.ConstraintColumns` is the column level detail of a constraint: which
 column, in what position, and for a foreign key which column of which table it
 points at. Every model answers it but ClickHouse, Trino, Presto, Couchbase,
-QuestDB, Snowflake, Redshift and Impala, which have no such constraint to read.
+QuestDB, Snowflake, Redshift, Impala and InfluxDB 3, which have no such
+constraint to read.
 SQLite answers it.
 
 `dbmeta.RoutineParameters` is `usql`'s FunctionColumns: the name, position,
 direction and type of each parameter. PostgreSQL, the MySQL dialect, SQL
 Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase, CockroachDB, Vitess,
-SingleStore and the shared model answer it. SQLite cannot, because a function there is compiled C with no
+SingleStore, InfluxDB 3 and the shared model answer it. SQLite cannot, because a function there is compiled C with no
 named parameters, and `COVERAGE.md` says why each of the others cannot.
 
 `dbmeta.ColumnStats` backs `\ss`. PostgreSQL, MariaDB, SQL Server, Oracle, SAP
@@ -376,7 +377,7 @@ a case where `usql` has no answer at all.
 | Amazon Redshift | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement. `dbmeta` reads the Redshift release after the word Redshift in the banner. Not measured: no cluster is provisioned (D144) |
 | Apache Impala | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement. It answers `impalad version 4.5.2-RELEASE ...`, and `dbmeta` reads the release after the word version. Measured on 4.4.1 and 4.5.2 on 2026-09-30 |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
-| Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and **`usql` fails for everybody else** |
+| Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and `usql` fails for everybody else |
 
 Each row that gives no date of its own, and does not say it was not measured,
 was measured on a live server on 2026-09-26.

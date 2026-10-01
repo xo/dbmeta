@@ -18,7 +18,7 @@ import (
 // the oldest release still rebuilt. Checked on 2026-09-28, 10.0.0, 9.10.1 and
 // 9.9.0 were rebuilt on 2026-09-26, and 9.10.0 and 8.11 stopped. So the floor
 // is 9.9.0, the ceiling is 10.0.0, and 9.10.1 is kept between them. Solr is under
-// the Apache 2.0 licence.
+// the Apache 2.0 license.
 //
 // # One container
 //
@@ -30,12 +30,12 @@ import (
 // Solr keeps its users in security.json in ZooKeeper. The command writes that
 // file with admin and [SolrUser], each with [Password], and uploads it once
 // ZooKeeper answers, on every start, so it is the same after a restart. admin
-// may do anything. [SolrUser] has the role search, which may read a
+// can do anything. [SolrUser] has the role search, which can read a
 // collection and run SQL on it. Solr stores a password as the SHA-256 of the
 // SHA-256 of a salt and the password, which [solrHash] computes. Init makes
 // the collection dbmeta.
 
-// SolrUser may read a collection and run SQL on it. Its password is
+// SolrUser can read a collection and run SQL on it. Its password is
 // [Password].
 const SolrUser = "dbmeta_user"
 
@@ -115,7 +115,7 @@ var solr = product{
 // Solr is every Apache Solr release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Solr = list{}.staged(solr, Tested, "9.9.0", "10.0.0").
 	staged(solr, Nightly, "9.10.1")

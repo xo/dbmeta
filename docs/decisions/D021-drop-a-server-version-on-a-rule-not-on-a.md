@@ -93,7 +93,7 @@ user on the day a new release ships.
 It can fail, and the failure is acceptable because it is loud and searchable.
 PostgreSQL 12 removed `pg_attrdef.adsrc`, so a query written for 11 failed on
 12 with `column "adsrc" does not exist`. That is a clear error that produces a
-bug report. Silently returning an empty result would not.
+bug report. A silent empty result does not.
 
 Do not catch a catalog error and return an empty set. An empty set means the
 database has no such object.

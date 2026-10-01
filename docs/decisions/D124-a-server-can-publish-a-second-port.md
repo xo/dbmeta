@@ -20,8 +20,9 @@ product's DSN and URL can each name a different interface.
 QuestDB is the first product that needs two. dburl's `questdb` scheme, from
 v0.36.0, opens pgx on the PostgreSQL interface on 8812, and usql reaches
 QuestDB through it. The entry published only the HTTP interface on 9000, so
-usql could not test its `questdb://` URL against it. dbimp plans a QuestDB
-driver of its own for the HTTP interface, and the entry's check uses it.
+usql was not able to test its `questdb://` URL against it. dbimp plans a
+QuestDB driver of its own for the HTTP interface, and the entry's check uses
+it.
 
 The first version of this decision said that dbimp's driver reads the HTTP
 interface, and kept the DSN on it. That was wrong: the driver is planned and

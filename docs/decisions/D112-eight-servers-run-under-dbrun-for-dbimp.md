@@ -47,7 +47,7 @@ report goes nowhere. The server starts and answers with it.
 | InfluxDB | 3.9.13, 3.11.5, and 3.10.6 nightly | none | InfluxDB 3 Core has admin tokens and no users. A fixed token is written to a file before the server starts |
 | CrateDB | 6.3.7, 6.4.5 | `dbmeta_user`, DQL, DML and DDL on the schema `dbmeta` | `crate` takes no password. Host based authentication is on, so the ordinary user's password is checked |
 | TDengine | 3.3.8.8, 3.4.2.8 | `dbmeta_user`, SYSINFO 0, who makes `dbmeta` itself | The Community Edition has no GRANT. The ordinary user can make and drop users, measured on both releases |
-| Apache Pinot | 1.4.0, 1.5.1 | `dbmeta_user`, who may query `baseballStats` | The Quickstart runs every part in one container. The broker checks the users. The entry is the first to replace the image's entrypoint |
+| Apache Pinot | 1.4.0, 1.5.1 | `dbmeta_user`, who can query `baseballStats` | The Quickstart runs every part in one container. The broker checks the users. The entry is the first to replace the image's entrypoint |
 | Databend | 1.2.881, 1.2.948-nightly | `dbmeta_user`, every privilege on `dbmeta` through a role | Telemetry blocked. The weekly release moves almost every day |
 | rqlite | 9.4.5, 10.3.6 | `dbmeta_user`, query and execute only | The users are in a file that the start command writes |
 | libSQL | 0.24.33 | none | Basic authentication has one user. A lesser one needs a signed JWT and a key pair |

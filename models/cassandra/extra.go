@@ -121,7 +121,7 @@ func registerExtra() {
 	// and everything else carries -1, so the range is exact: on 5.0 it
 	// selects the same 102 columns that kind IN ('partition_key',
 	// 'clustering') does, and no regular or static column has a position at
-	// or above zero on either release. kind would read better and 3.11
+	// or above zero on either release. kind reads better and 3.11
 	// refuses it, with "IN predicates on non-primary-key columns (kind) is
 	// not yet supported", because that arrived in 4.0. One form that works
 	// everywhere beats a fragment that makes the same query mean two things.

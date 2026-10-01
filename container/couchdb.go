@@ -13,14 +13,14 @@ package container
 // floor is the oldest release still rebuilt. Checked on 2026-09-28, 3.5.2 and
 // 3.4.3 were rebuilt on 2026-09-19, and 3.3.3 was last rebuilt on 2025-04-29.
 // The tag 3.5.2 holds 3.5.2.1. A tag that ends in -nouveau adds a search
-// service and is left out. CouchDB is under the Apache 2.0 licence.
+// service and is left out. CouchDB is under the Apache 2.0 license.
 //
 // # The users
 //
 // The image makes the administrator admin with [Password] on the first start.
 // Init makes [CouchDBUser] in the _users database and names that user as a
-// member of the database dbmeta, so it may read and write documents there and
-// may not change the design or the security of the database.
+// member of the database dbmeta, so it can read and write documents there and
+// cannot change the design or the security of the database.
 // CouchDB refuses a member that writes a design document with 403. It refuses
 // a member that writes the security object with 500 and the reason
 // no_majority, and leaves the object as it was.
@@ -66,6 +66,6 @@ var couchdb = product{
 // CouchDB is every Apache CouchDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var CouchDB = list{}.staged(couchdb, Tested, "3.4.3", "3.5.2")

@@ -82,7 +82,7 @@ operator, then the custom resource. All of that to read catalog tables.
 
 The part that settles it is that the analogy to the Windows machines fails.
 Those work as frozen baselines because a Windows machine has exactly one time
-sensitive thing in it, the evaluation licence, and D65 handles that by rearming
+sensitive thing in it, the evaluation license, and D65 handles that by rearming
 at every boot. A Kubernetes cluster has many: etcd leases, node heartbeats, API
 server certificates and service account tokens all expire while the snapshot
 sits on disk. It boots and then needs a person. A frozen baseline that needs a
@@ -98,8 +98,8 @@ create a single node database. That is exactly what `one-node-ce` does.
 Checked on 2026-09-26, after Rocket Software took Vertica over from OpenText.
 `vertica.com/try` answers 403. The community edition download page still
 answers 200 and now serves OpenText's generic Information Management marketing
-with no download on it. Rocket's own Vertica pages answer 403 from here, which
-may be geography or bot filtering rather than absence, so that one is not
+with no download on it. Rocket's own Vertica pages answer 403 from here. The
+cause can be geography or bot filtering rather than absence, so that one is not
 proven either way.
 
 So route B is blocked as well, and not on a registration anybody can complete.
@@ -110,14 +110,14 @@ current host, creates its database, and answers with a complete `v_catalog`:
 
 	Vertica Analytic Database v10.1.1-0
 
-That is a real Vertica and the queries could be written against it. It is not
+That is a real Vertica and the queries can be written against it. It is not
 a release anybody runs, it is five years old, it is built by a stranger, and
 nothing about it can be rebuilt or reproduced. `docs/EVALUATION.md` step 2
 rejects it, and D40 forbids calling a version supported without naming its
 tier, and there is no tier for "verified once against an unmaintained image of
-a dead release". Writing a model on it would satisfy rule 9 in the letter and
-not at all in the spirit: the queries would be verified against something no
-consumer will ever connect to.
+a dead release". A model written on it satisfies rule 9 in the letter and not
+at all in the spirit: the queries are verified against something no consumer
+will ever connect to.
 
 So Vertica waits until a current release can be started. It is not next.
 
@@ -191,8 +191,8 @@ official emulator, which is a lead to run before either is scheduled.
 
 Four are another driver for a product already here, and want a flavor key or
 nothing: `pgx` is PostgreSQL, `mymysql` is MySQL, `moderncsqlite` is SQLite
-and `godror` is Oracle. `netezza` is PostgreSQL derived and may be a flavor
-key, which is a lead rather than a fact.
+and `godror` is Oracle. `netezza` is PostgreSQL derived and is perhaps a
+flavor key, which is a lead rather than a fact.
 
 Three are not relational and the 55 do not apply: DynamoDB, Cosmos DB and
 Tablestore are key value stores with no SQL catalog to read.
@@ -204,7 +204,7 @@ what `information_schema` already covers.
 ## The rule this follows
 
 Order by whether it can be started, then by whether anybody is blocked, then
-by what the native catalog adds. Not by popularity: Snowflake and BigQuery
-would be near the top on user count and are last here, because a query that
-has never run against a real server is not finished and neither of them can be
-run on demand.
+by what the native catalog adds. Not by popularity: Snowflake and BigQuery are
+near the top on user count and are last here, because a query that has never
+run against a real server is not finished and neither of them can be run on
+demand.

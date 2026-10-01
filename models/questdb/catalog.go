@@ -162,7 +162,7 @@ func registerRelations() {
 			{Name: "ordinal", Desc: "the position from 1. QuestDB reports it from 0, and the model adds 1"},
 			{Name: "data_type", Desc: "the PostgreSQL type QuestDB sends, so SYMBOL reads character varying. The QuestDB type is only in table_columns, which reads one table at a time"},
 			{Name: "nullable", Desc: "always true: QuestDB has no NOT NULL"},
-			{Name: "default", Desc: "always absent: QuestDB has no column default"},
+			{Name: "default", Desc: "always absent in practice: QuestDB has no column default"},
 			{Name: "primary_key", Desc: "always false: QuestDB has no primary key"},
 			{Name: "identity", Desc: "always empty: QuestDB has no identity column"},
 			{Name: "generated", Desc: "always empty: QuestDB has no generated column"},

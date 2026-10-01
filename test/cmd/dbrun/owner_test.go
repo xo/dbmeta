@@ -77,7 +77,7 @@ func TestPickEvicteeStopsOnlyYourOwn(t *testing.T) {
 	}
 }
 
-// TestMayTouch checks who may stop, remove, restart or rebuild a server.
+// TestMayTouch checks who can stop, remove, restart or rebuild a server.
 func TestMayTouch(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {

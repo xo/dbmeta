@@ -16,7 +16,7 @@ func versions(s string) dbmeta.VersionSet {
 
 // TestTriggerSyntaxFollowsTheRelease is the case that started this. Release 11
 // takes EXECUTE FUNCTION and everything below it takes EXECUTE PROCEDURE.
-// Writing the deprecated form everywhere would test syntax nobody writes.
+// Written everywhere, the deprecated form tests syntax nobody writes.
 func TestTriggerSyntaxFollowsTheRelease(t *testing.T) {
 	t.Parallel()
 	tests := map[string]string{

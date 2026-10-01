@@ -23,8 +23,8 @@ there is no privilege boundary for an injection to cross. That is Ken's
 argument and it holds for both consumers.
 
 It does not hold for every consumer. `dbmeta` is a library, and something
-that put an untrusted name into a filter and ran it against Hive would have
-a boundary to cross. So the escaping is written as though it mattered,
+that puts an untrusted name into a filter and runs it against Hive has a
+boundary to cross. So the escaping is written as though it mattered,
 because for somebody it will:
 
 `TestLiteral` checks the break out shapes directly, and

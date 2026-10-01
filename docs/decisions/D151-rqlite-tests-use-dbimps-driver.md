@@ -17,8 +17,8 @@ ordinary user connects with no change to the url.
 ## The helper for a boolean is gone
 
 gorqlite gave every number as a `float64`, and D148 added `NumberAsBool` and
-`NullNumberAsBool` to the root package so that the sqlite3 model could read
-a boolean from one. dbimp's driver gives a number the Go type of its column's
+`NullNumberAsBool` to the root package for the sqlite3 model to read a
+boolean from one. dbimp's driver gives a number the Go type of its column's
 affinity (dbimp D140), so an integer arrives as an `int64`, which
 `database/sql` reads into a `bool` itself. The two helpers were removed, and
 the sqlite3 model scans its booleans directly again, as it did before D148.

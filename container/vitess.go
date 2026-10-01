@@ -10,8 +10,8 @@ import (
 //
 // Vitess speaks the MySQL wire protocol, and usql reaches it with the scheme
 // vitess. The dialect is vitess, which dburl gives it from v0.36.0 (dburl
-// D37). Vitess answers VERSION() with 8.4.6-Vitess, and models/mysql would
-// read that as MySQL, so Vitess has a model of its own, models/vitess, that
+// D37). Vitess answers VERSION() with 8.4.6-Vitess, and models/mysql reads
+// that as MySQL, so Vitess has a model of its own, models/vitess, that
 // shares the mysql model's statements where they answer (D123, D125, D135).
 //
 // # The range
@@ -20,7 +20,7 @@ import (
 // D112 applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is v24.0.3 and v23.0.6, both of 2026-09-03. The tag names
 // the MySQL it runs, and the entry takes -mysql84. Vitess is under the Apache
-// 2.0 licence.
+// 2.0 license.
 //
 // # No users
 //

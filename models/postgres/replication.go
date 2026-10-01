@@ -52,8 +52,8 @@ func registerPublications() {
 		Fields: []dbmeta.Field{
 			{Name: "name", Min: v10}, {Name: "owner", Min: v10}, {Name: "all_tables", Min: v10},
 			{Name: "insert", Min: v10}, {Name: "update", Min: v10}, {Name: "delete", Min: v10},
-			// not padded: a publication before release 11 could not publish a
-			// truncate at all, and one before release 13 could not publish
+			// not padded: a publication before release 11 had no way to publish a
+			// truncate at all, and one before release 13 had no way to publish
 			// via the root partition, so false is the correct answer rather
 			// than an absence
 			{Name: "truncate", Desc: "publishes truncate. Always false below release 11", Min: v10},

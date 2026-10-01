@@ -57,7 +57,7 @@ var firebird = product{
 	},
 	// isql -x extracts the schema, which needs a real connection and a real
 	// database, so it fails while the entrypoint is still creating the file.
-	// A plain connection test would pass too early.
+	// A plain connection test passes too early.
 	ready: []string{"isql", "-u", "SYSDBA", "-p", Password, "-x", firebirdPath},
 	dsn: func(port int) string {
 		return fmt.Sprintf("SYSDBA:%s@127.0.0.1:%d%s",

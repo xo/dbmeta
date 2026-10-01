@@ -22,7 +22,7 @@ var (
 //
 // LISTAGG returns a VARCHAR2, and a VARCHAR2 holds 4000 bytes. Before 12.2
 // going past that raises ORA-01489 and the whole query fails, so a schema
-// nobody would call unusual can stop a metadata read. 12.2 added ON OVERFLOW
+// nobody calls unusual can stop a metadata read. 12.2 added ON OVERFLOW
 // TRUNCATE, which cuts the string and appends a count instead. The fragment
 // takes it where the release has it. Both sides return one VARCHAR2 column,
 // which is what rule 3 asks.

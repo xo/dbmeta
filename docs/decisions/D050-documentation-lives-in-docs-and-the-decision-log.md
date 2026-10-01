@@ -4,7 +4,7 @@ Status: Amended by D110 and D111.
 
 Three files in the repository root: `README.md`, because GitHub renders it,
 `CLAUDE.md`, because an agent reads it first, and `CONTRIBUTING.md`, because
-GitHub gives it its own behaviour. Everything else is in `docs/`.
+GitHub gives it its own behavior. Everything else is in `docs/`.
 
 Both reviews agreed on that much and on nothing else, and the measurement that
 prompted it was 6116 lines of Markdown in 11 root files against 8261 lines of
@@ -48,9 +48,9 @@ up.
 ## One rule per file where the rule is expensive
 
 `NULLS.md` stays its own file. Gemini wanted it deleted and merged into
-both `CLAUDE.md` and `CONTRIBUTING.md`, which would put the most expensive rule
-this project has learned in two places and guarantee they drift. It is linked
-as a requirement from both instead.
+both `CLAUDE.md` and `CONTRIBUTING.md`. That puts the most expensive rule this
+project has learned in two places and guarantees they drift. It is linked as a
+requirement from both instead.
 
 ## Two indexes, because there are two readers
 
@@ -88,6 +88,6 @@ decided one becomes a decision. There is no third state that needs a document.
 
 `COVERAGE.md`, `USQL.md` and `DBTPL.md` are generated from measurement and go
 stale silently. Filing them better does not fix that. A test that fails when
-the counts drift would, and `container/workflow_test.go` already does exactly
+the counts drift does, and `container/workflow_test.go` already does exactly
 that for the CI matrix. That is worth more than any amount of organizing and it
 is not done yet.

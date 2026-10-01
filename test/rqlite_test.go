@@ -16,7 +16,7 @@ import (
 )
 
 // openRqlite returns a connection to the server named by DBMETA_RQLITE, with
-// dbimp's rqlite driver, which is what usql uses (D151).
+// dbimp's rqlite driver, which is what dburl names (D151, D154).
 func openRqlite(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_RQLITE")

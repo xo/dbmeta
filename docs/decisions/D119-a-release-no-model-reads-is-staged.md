@@ -41,13 +41,14 @@ target:
    Tested. chai, csvq and ql are Staged.
 
 Stardog, GraphDB and Volt Active Data are Staged too, although each also needs
-a licence file. The missing model is the reason CI does not run them, and it
-would be the reason even if CI had the files.
+a license file. The missing model is the reason CI does not run them, and it
+stays the reason even if CI has the files.
 
 A release moves out of Staged in the change that adds its model, and the test
-above fails until it does. D120 later gave each Staged release the cadence it
-would have, and the cadence becomes its tier. The range of releases does not change, because each product's file
-already records it by the rules in `docs/EVALUATION.md`.
+above fails until it does. D120 later gave each Staged release the cadence
+that it takes when a model reads it, and the cadence becomes its tier. The
+range of releases does not change, because each product's file already records
+it by the rules in `docs/EVALUATION.md`.
 
 ## What it changed
 
@@ -72,7 +73,7 @@ this one.
    is what says how thoroughly a release is tested, and a Tested release that
    CI skips makes the tier say something false.
 2. Make them Verified. Verified means a person runs the release before every
-   dbmeta release, and nobody would run 95 releases that test nothing.
+   dbmeta release, and nobody will run 95 releases that test nothing.
 3. Record the date each one was measured, with a test that fails when the date
    is old. A test that fails because time passed breaks a change that has
    nothing to do with it. The measurement is recorded in D118, in

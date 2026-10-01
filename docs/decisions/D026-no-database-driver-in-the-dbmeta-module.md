@@ -27,14 +27,14 @@ which is exactly what this decision forbids.
 State the risk accurately, because it is smaller than it first looks and the
 decision does not rest on exaggerating it. Go prunes the module graph for
 modules declaring go 1.17 or later, so a dependency that provides no imported
-package is dropped from a consumer's build list. A consumer of `dbmeta` would
-almost certainly not be forced onto `lib/pq v1.12.3` by this.
+package is dropped from a consumer's build list. This almost certainly does
+not force a consumer of `dbmeta` onto `lib/pq v1.12.3`.
 
-It is still the wrong shape. The root `go.mod` and `go.sum` would list four
-drivers that the library never imports. Vulnerability scanners would report
-them, `go mod graph` would show them, and building `dbmeta` itself would
-download them. The stated intent is that the module carries no driver, and a
-separate module delivers that without relying on a pruning rule to hide it.
+It is still the wrong shape. The root `go.mod` and `go.sum` then list four
+drivers that the library never imports. Vulnerability scanners report them,
+`go mod graph` shows them, and a build of `dbmeta` itself downloads them. The
+stated intent is that the module carries no driver, and a separate module
+delivers that without relying on a pruning rule to hide it.
 
 ## Where the drivers and the generator go
 

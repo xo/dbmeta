@@ -3,7 +3,7 @@
 // A fixture is a schema that contains one of everything the metadata queries
 // read, so that a test asks a real server for metadata and gets an answer
 // worth checking. Read the mysql fixture package for what a fixture is and
-// what a caller may depend on. The types are that package's.
+// what a caller can depend on. The types are that package's.
 //
 // TiDB builds most of the MySQL fixture as it is, so [Everything] is the
 // MySQL fixture step by step. It keeps each step that TiDB builds, leaves out

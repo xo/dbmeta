@@ -125,7 +125,7 @@ there is no server at all.
 ## Iterators hold a connection
 
 An iterator holds a database connection until it ends. Stopping early, with
-`break` or by cancelling the context, releases it.
+`break` or by canceling the context, releases it.
 
 Do not open a second iterator inside the body of the first. That needs a second
 connection and deadlocks on a pool of one. Ask for every row you want in one
@@ -208,9 +208,11 @@ SQLite and DuckDB have no server. Both are libraries, so the release under test
 is whichever one the Go driver was built with, neither needs a container, and
 neither model carries a version gate.
 
-Every driver the tests use is the one `usql` uses for that database. The version
-can differ and the package must not, because a query that works here and fails
-on the driver `usql` ships is a query that does not work. See D52.
+Every driver the tests use is the one the `dburl` registry names for that
+dialect, because dburl is upstream of `dbmeta` and of every consumer. The
+version can differ and the package must not, because a query that works here
+and fails on the driver a consumer opens is a query that does not work. See D52
+and D154.
 
 A model ships its queries and a fixture together. The fixture is a known good
 schema containing one of every object the queries read, exported so that other
@@ -267,9 +269,9 @@ returning an empty result:
 publications, publication tables, subscriptions, extended statistics and
 partitioned tables.
 
-Note that `psql` itself dropped support for servers below release 10 in
-PostgreSQL 20. `dbmeta` supports 9.6 deliberately, and its queries for that
-release are translated from an older checkout.
+`psql` itself dropped support for servers below release 10 in PostgreSQL 20.
+`dbmeta` supports 9.6 deliberately, and its queries for that release are
+translated from an older checkout.
 
 ## SQL Server
 
@@ -308,7 +310,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 153 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 49 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 156 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 51 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

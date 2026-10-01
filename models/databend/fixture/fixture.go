@@ -9,7 +9,7 @@
 //
 // No primary key, no foreign key and no unique constraint, so the core
 // tables carry the columns and not the keys. A CHECK is the one constraint.
-// A computed column needs an Enterprise licence on 1.2.881, and the fixture
+// A computed column needs an Enterprise license on 1.2.881, and the fixture
 // has none, so no column is computed.
 //
 // # What belongs to no database

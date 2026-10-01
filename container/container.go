@@ -112,7 +112,7 @@ const (
 	// yet, so CI does not run it. Each one was measured through dbrun when
 	// it was added: it starts, answers, sets up, and its users do what its
 	// file says. That is all the tier promises. [Server.Cadence] says how
-	// often it would be tested, and it becomes the tier when the model
+	// often it will be tested, and it becomes the tier when the model
 	// arrives. See D119 and D120.
 	Staged Tier = "staged"
 )
@@ -133,13 +133,13 @@ type Server struct {
 	// Major is the release as a person says it, and is what names a container
 	// and a CI job. It is the Release for every product but Oracle, whose
 	// images are tagged with a four part version: 11.2.0.2 is 11, 19.3.0 is
-	// 19. PostgreSQL is why this is not simply the part before the first dot,
+	// 19. PostgreSQL is why this is not the part before the first dot,
 	// because 9.6 is a major and 9 is not a release at all.
 	Major string
 	// Tier is how often this release is tested.
 	Tier Tier
-	// Cadence is how often a Staged release would be tested if a model
-	// read it: Tested, Nightly or Verified. A project that runs Staged
+	// Cadence is how often a Staged release will be tested if a model
+	// reads it: Tested, Nightly or Verified. A project that runs Staged
 	// releases, such as dbimp, runs the Tested ones on each push and the
 	// Nightly ones at night. When the model arrives, the cadence becomes the
 	// tier. It is empty for a release that is not Staged. See D120.
@@ -206,7 +206,7 @@ type Server struct {
 	// enough. Empty means MemoryLimit.
 	Memory string
 	// License is the path inside the container where the product reads its
-	// licence file, for a product that does not start without one that a
+	// license file, for a product that does not start without one that a
 	// person downloads. Empty means the product needs none. The file is not
 	// here and must not be: a caller finds it on the host and mounts it, and
 	// dbrun lists such a server only while it finds the file. See D118.
@@ -285,7 +285,7 @@ func (s Server) Ref() string { return s.Image + ":" + s.Tag }
 // and the command that removes it both need the name.
 //
 // flags are more flags for the run command, after the server's own, such as
-// the mount of a licence file.
+// the mount of a license file.
 func (s Server) RunArgs(name string, hostPort int, flags ...string) []string {
 	args := []string{"run", "--detach", "--name", name}
 	for _, e := range s.Environ() {
@@ -379,8 +379,9 @@ func (s Server) DSN(port int) string { return s.dsn(port) }
 
 // URL returns the dburl style URL for the server on this port, which is what
 // usql takes. For most products it is the DSN, because the driver takes a URL
-// too. MySQL and Cassandra are the exceptions: their drivers take a form that
-// is not a URL at all.
+// too. A product sets its own where the two differ: MySQL's driver takes a
+// form that is not a URL at all, and libSQL's DSN is the http:// address that
+// dbimp's recorder takes, among others.
 func (s Server) URL(port int) string {
 	if s.url != nil {
 		return s.url(port)
@@ -483,8 +484,8 @@ type product struct {
 // tier is the one thing this package exists to state.
 type list []Server
 
-// staged adds releases that no model reads yet, at the cadence each would
-// have if one did. See D119 and D120.
+// staged adds releases that no model reads yet, each with the cadence it
+// takes when a model reads it. See D119 and D120.
 func (l list) staged(p product, cadence Tier, versions ...string) list {
 	l = l.add(p, Staged, versions...)
 	for i := range l {

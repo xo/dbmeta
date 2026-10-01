@@ -1,6 +1,6 @@
 # D52. A test driver is the one usql uses, or it is the wrong driver
 
-Status: Amended by D59.
+Status: Amended by D59 and D154.
 
 The `test` module imports, for each database, the same driver package `usql`
 imports for that database. Not the same version, which each module pins for
@@ -19,7 +19,7 @@ not work, and the failure surfaces in someone else's project.
 Drivers are not interchangeable. They differ in how they present a type, in
 what they do with a NULL, and in which protocol extensions they use, and those
 are exactly the things a metadata query touches. The NULL scan fault this
-project has hit twice is driver visible behaviour.
+project has hit twice is driver visible behavior.
 
 The version is a different matter. Each module pins what it needs, and a
 consumer picks its own, which is hard rule 1 and does not change.
@@ -28,7 +28,7 @@ consumer picks its own, which is hard rule 1 and does not change.
 
 The DuckDB work was written against `github.com/marcboeker/go-duckdb/v2`,
 which is the widely known driver and is not the one `usql` uses. `usql` uses
-`github.com/duckdb/duckdb-go/v2`, the successor under the DuckDB organisation.
+`github.com/duckdb/duckdb-go/v2`, the successor under the DuckDB organization.
 Ken caught it before it was committed.
 
 The other four were already right, and that was luck rather than method:
@@ -80,7 +80,7 @@ lib/pq  tablespaces refused: pq: permission denied for tablespace pg_global (425
 `test/testdata/parity.txt` records that string verbatim, so the parity file is
 coupled to the driver wherever a query is refused. Parity therefore runs on the
 first driver only. It measures what the server answers a principal, which is
-not a driver question, and running it twice would buy a per-driver section for
+not a driver question, and running it twice buys a per-driver section for
 every refusal in the file in exchange for re-measuring the database.
 
 ## Which databases have a second driver at all
@@ -132,5 +132,5 @@ package that cannot be used. Corrected.
 ## When usql does not have one
 
 A database `usql` does not support has no driver to match, and the choice is
-open. Say so in the commit, and prefer the driver `usql` would most likely
-adopt, which is usually the one the database's own organisation publishes.
+open. Say so in the commit, and prefer the driver `usql` is most likely to
+adopt, which is usually the one the database's own organization publishes.

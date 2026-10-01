@@ -25,8 +25,8 @@ import (
 // 2026-09-28, that is v1.39.0, of 2026-09-14, and v1.38.5, of 2026-09-11. It
 // releases several times a month, so the ceiling moves often. The tag that
 // ends in -slim does not turn TLS on, and the other tags make a certificate
-// of their own. The core is under the Apache 2.0 licence, and the enterprise
-// features need a licence key that nothing here needs.
+// of their own. The core is under the Apache 2.0 license, and the enterprise
+// features need a license key that nothing here needs.
 //
 // # One user
 //
@@ -65,6 +65,6 @@ var gizmosql = product{
 // GizmoSQL is every GizmoSQL release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var GizmoSQL = list{}.staged(gizmosql, Tested, "1.38.5", "1.39.0")

@@ -136,7 +136,7 @@ func register() {
 	share(dbmeta.EnumValues)
 	share(dbmeta.Views)
 	// ColumnStats is not shared, so it is not supported. CockroachDB keeps
-	// pg_stats empty even after ANALYZE, so the shared statement would say
+	// pg_stats empty even after ANALYZE, so the postgres statement says
 	// that no column has statistics, which is false. Its statistics are in
 	// SHOW STATISTICS FOR TABLE, which takes the table in the statement and
 	// not as a bind parameter, so no one statement reads a schema's worth.

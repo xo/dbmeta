@@ -53,7 +53,7 @@ import (
 // the database.
 //
 // The expectation works only because the canonical projection is portable by
-// construction. A raw golden would have to be per product and per release,
+// construction. A raw golden has to be per product and per release,
 // because PostgreSQL 9.6 and 18 disagree about raw values. Nullability and
 // ordinal position do not change between releases, so one file covers every
 // release of every database.
@@ -331,8 +331,8 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 	// ClickHouse is the case: system.constraints holds the expression a CHECK
 	// asserts and there is no list of columns behind it, so it registers
 	// Constraints and not ConstraintColumns. Skipping is safe, because a
-	// database that used to report them would lose its recorded lines and
-	// fail on the diff rather than here.
+	// database that used to report them loses its recorded lines and fails
+	// on the diff rather than here.
 	if dbmeta.Constraints.Support(m) != dbmeta.Supported ||
 		dbmeta.ConstraintColumns.Support(m) != dbmeta.Supported {
 		t.Logf("no constraint lines: constraints is %v and constraint columns is %v",
@@ -608,7 +608,7 @@ func TestConformanceAgreementHolds(t *testing.T) {
 //
 // Neither is a fault and both are in docs/COVERAGE.md. They are still checked
 // against their own recorded sections, which is where a real regression in
-// either would show.
+// either shows.
 var agreementExcluded = map[string]string{
 	"influxdb": "not relational: a measurement has no key, no constraint and no view, and" +
 		" every one has a time column, so the section holds the four measurements and" +

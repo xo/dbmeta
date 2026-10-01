@@ -164,7 +164,7 @@ func registerTriggers() {
 // registerSequences backs \ds and the sequence detail of \d name.
 //
 // pg_sequence arrived in release 10. Before it, the bounds lived in the
-// sequence relation itself and could only be read by selecting from it, which
+// sequence relation itself and were readable only by selecting from it, which
 // a metadata query cannot do for every sequence at once. An older server
 // therefore reports the name and owner with zero bounds.
 func registerSequences() {

@@ -24,9 +24,9 @@ the query was supported.
 Because they are different answers and a caller acts differently on them.
 `NotSupported` means stop asking: no upgrade changes it. `TooOld` means this
 server cannot and a newer one can, which is something a person can act on.
-Folding them together would lose that, and a consumer showing a person what it
-can offer would say "this database does not have roles" when the truth is
-"yours is too old".
+Folding them together loses that. A consumer showing a person what it can
+offer then says "this database does not have roles" when the truth is "yours
+is too old".
 
 ## The ordering
 

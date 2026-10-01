@@ -13,13 +13,13 @@ package container
 // rule in D112 applies: the newest release of each of the last two lines.
 // Checked on 2026-09-28, that is v12.0.7, of 2026-08-10, and v11.1.17, of
 // 2025-11-07. 12.1-rc is a release candidate. TerminusDB is under the Apache
-// 2.0 licence.
+// 2.0 license.
 //
 // # The users
 //
 // The server sets the password of the administrator admin to [Password] when
 // it makes its store, on the first start. Init makes [TerminusDBUser] and a
-// role that may read and not write, and grants the role on the database
+// role that can read and not write, and grants the role on the database
 // admin/dbmeta. It works through the terminusdb command, which writes the
 // store directly, and it asks before each step whether the object is there.
 //
@@ -59,6 +59,6 @@ var terminusdb = product{
 // TerminusDB is every TerminusDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var TerminusDB = list{}.staged(terminusdb, Tested, "11.1.17", "12.0.7")

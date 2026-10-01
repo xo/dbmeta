@@ -34,8 +34,9 @@ import (
 	_ "github.com/xo/dbmeta/all"
 )
 
-// drivers names the driver each dialect connects with. It is the one usql
-// uses for that database, which D52 requires, and D59 is why Oracle differs.
+// drivers names the driver each dialect connects with. It is the one the
+// dburl registry names for that dialect, which D154 requires, and D59 is why
+// Oracle differs.
 //
 // SQLite and DuckDB are not here. They are a library rather than a server, so
 // there is no connection for dbrun to make: their tests open their own file.
@@ -49,7 +50,7 @@ var drivers = map[dbmeta.Dialect]string{
 	// redshift:// opens it on a Redshift cluster.
 	dbmeta.QuestDB:  "pgx",
 	dbmeta.Redshift: "pgx",
-	// snowflake:// opens gosnowflake, which usql uses.
+	// snowflake:// opens gosnowflake, which dburl names (D154).
 	dbmeta.Snowflake: "snowflake",
 	dbmeta.MySQL:     "mysql",
 	// tidb://, vitess:// and memsql:// open the mysql driver.
@@ -189,7 +190,7 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 	case o.remove:
 		keep = false
 	}
-	// A test never removes a server it may not touch, which is one another
+	// A test never removes a server it cannot touch, which is one another
 	// session started and this test only shared, nor one that was up before
 	// it began and is not the caller's. See D98.
 	owner := r.owner(ctx, t.Name)
@@ -204,7 +205,7 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 			fmt.Printf("  kept %s\n", t.Name)
 			return
 		}
-		// context.WithoutCancel, so that a cancelled run still cleans up
+		// context.WithoutCancel, so that a canceled run still cleans up
 		// rather than leaving a container bound to a port.
 		r.quiet(context.WithoutCancel(ctx), t.Remove...)
 		fmt.Printf("  removed %s\n", t.Name)
@@ -231,7 +232,7 @@ func goTest(ctx context.Context, env ...string) error {
 	argv := []string{"go", "test", "-count=1", "./..."}
 	if bin := os.Getenv("DBMETA_TEST_BINARY"); bin != "" {
 		// An absolute path, because the tests run with the test module as the
-		// working directory and a relative one would be read against it.
+		// working directory and a relative one is read against it.
 		abs, err := filepath.Abs(bin)
 		if err != nil {
 			return fmt.Errorf("resolving DBMETA_TEST_BINARY %s: %w", bin, err)

@@ -84,7 +84,7 @@ func registerConstraintColumns() {
 			{Name: "name", Desc: "the column the constraint is on"},
 			{Name: "ordinal", Desc: "one based position within the constraint"},
 			{Name: "foreign_catalog", Desc: "always empty for a foreign key and absent otherwise"},
-			{Name: "foreign_schema", Desc: "always main: SQLite cannot reference another database"},
+			{Name: "foreign_schema", Desc: "main for a foreign key, because SQLite cannot reference another database, and absent otherwise"},
 			{Name: "foreign_table"},
 			{
 				Name: "foreign_name",

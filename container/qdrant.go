@@ -17,11 +17,11 @@ import (
 // docker.io/qdrant/qdrant builds each release tag once, so the rule in D112
 // applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is v1.19.1, of 2026-09-03, and v1.18.3, of 2026-07-17.
-// Qdrant is under the Apache 2.0 licence.
+// Qdrant is under the Apache 2.0 license.
 //
 // # Keys, not users
 //
-// Qdrant has no users. It checks an API key, and a second key that may only
+// Qdrant has no users. It checks an API key, and a second key that can only
 // read. The administrator's key is [Password], and [QdrantUser] holds the read
 // only key, [QdrantReadKey]. A request sends the key in the api-key header.
 // The DSN carries each key as its password.
@@ -36,7 +36,7 @@ import (
 // user names.
 const QdrantUser = "dbmeta_user"
 
-// QdrantReadKey is the key that may only read. Qdrant refuses a read only key
+// QdrantReadKey is the key that can only read. Qdrant refuses a read only key
 // that is the same as the administrator's.
 const QdrantReadKey = Password + "-read"
 
@@ -80,6 +80,6 @@ func keyHTTP(user, key string) func(port int) string {
 // Qdrant is every Qdrant release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Qdrant = list{}.staged(qdrant, Tested, "1.18.3", "1.19.1")

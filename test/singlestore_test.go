@@ -18,8 +18,7 @@ import (
 )
 
 // openSingleStore returns a connection to the server named by DBMETA_MEMSQL,
-// with the mysql driver, which is what dburl's memsql:// opens and what usql
-// uses.
+// with the mysql driver, which is what dburl's memsql:// opens (D154).
 func openSingleStore(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_MEMSQL")

@@ -71,7 +71,7 @@ type target struct {
 	Release string         `json:"release,omitempty"`
 	Kind    kind           `json:"kind"`
 	Tier    container.Tier `json:"tier"`
-	// Cadence is how often a Staged target would be tested if a model read
+	// Cadence is how often a Staged target will be tested if a model reads
 	// it, and is empty for any other. dbimp runs the tested ones on each
 	// push and the nightly ones at night. See D120.
 	Cadence container.Tier `json:"cadence,omitempty"`
@@ -90,8 +90,8 @@ type target struct {
 	Also    []dbmeta.Dialect `json:"also,omitempty"`
 	AlsoEnv []string         `json:"alsoEnv,omitempty"`
 	// DSN is what the driver takes and URL is what a person types. They
-	// differ for MySQL and Cassandra, whose drivers take a form that is not
-	// a URL.
+	// differ where a driver takes another form, such as MySQL's, which is
+	// not a URL.
 	DSN string `json:"dsn,omitempty"`
 	URL string `json:"url,omitempty"`
 	// SecondAddress is the host and port that a container's second port is
@@ -103,7 +103,7 @@ type target struct {
 	// URL hold the connection string with its secret masked, and secret
 	// holds it whole, for the commands that connect. See D117.
 	Credential string `json:"credential,omitempty"`
-	// License is the licence file on the host that dbrun mounts, for a
+	// License is the license file on the host that dbrun mounts, for a
 	// product that does not start without one. See D118.
 	License string `json:"license,omitempty"`
 	secret  string
@@ -225,8 +225,8 @@ var unmodeled = []struct {
 //
 // It decides which product a file: URL resolves to when the file does not
 // exist yet: dburl matches the header first and falls back to the extension,
-// and .db is sqlite3 there. A DuckDB database called .db would be opened as
-// SQLite by anything following that URL.
+// and .db is sqlite3 there. Anything that follows that URL opens a DuckDB
+// database called .db as SQLite.
 //
 // A dialect with no entry gets its own name as the extension, which is
 // unambiguous because it matches nothing dburl registers.
@@ -241,7 +241,7 @@ func embeddedExt(d dbmeta.Dialect) string {
 }
 
 // wantPorts is the mapping this target asks for, as container port to host
-// port, read back out of the arguments that would create it.
+// port, read back out of the arguments that create it.
 func (t target) wantPorts() map[string]string {
 	ports := make(map[string]string, 2)
 	for i, arg := range t.Run {
@@ -430,7 +430,7 @@ func (t target) env() []string {
 //	tested        a tier
 //	all           every release of every product
 //
-// A bare product resolving to the newest is the one that could surprise
+// A bare product resolving to the newest is the one that can surprise
 // somebody, because the answer changes the month a release ships. Every
 // command that resolves one says so before it acts, which is the difference
 // between a default and a trap.
@@ -466,7 +466,7 @@ func resolve(all []target, args []string, allReleases bool) ([]target, []string,
 			continue
 		}
 		// An exact name wins over a product, so that a release called the
-		// same as a product would still be reachable.
+		// same as a product is still reachable.
 		var exact []target
 		for _, t := range all {
 			if t.Name == arg {

@@ -21,11 +21,11 @@ import (
 // on SQLite and 12 on DuckDB, and three of the four built a region and a
 // shipment table while SQLite did not.
 //
-// That drift is why a cross family comparison could not be written. Comparing
+// That drift is why a cross family comparison was impossible to write. Comparing
 // two databases on schemas that are not the same schema reports the fixtures,
 // not the models.
 //
-// This test needs no database. It reads the SQL each fixture would run.
+// This test needs no database. It reads the SQL each fixture runs.
 
 // coreObjects are the objects every fixture must build, whatever the database.
 // They are the schema a cross family comparison reads, so a fixture that skips
@@ -81,7 +81,7 @@ func sqlOf(t *testing.T, query string, err error) string {
 	return query + "\n"
 }
 
-// fixtureText returns everything one fixture would run, as one string.
+// fixtureText returns everything one fixture runs, as one string.
 type fixtureText struct {
 	name  string
 	steps int
@@ -134,7 +134,7 @@ func allFixtures(t *testing.T) []fixtureText {
 
 // TestEveryFixtureBuildsTheCoreObjects is the guard that makes a cross family
 // comparison possible. A fixture that stops building one of these takes its
-// database out of the comparison, and without this it would do so silently.
+// database out of the comparison, and without this test it does so silently.
 func TestEveryFixtureBuildsTheCoreObjects(t *testing.T) {
 	t.Parallel()
 	for _, f := range allFixtures(t) {

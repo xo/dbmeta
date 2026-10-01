@@ -24,6 +24,13 @@ var markdownLink = regexp.MustCompile(`\]\((?:\./)?([^)#:]+\.md)(#[^)]*)?\)`)
 // decisionRef matches a bare reference to a decision, such as D47.
 var decisionRef = regexp.MustCompile(`\bD([1-9][0-9]*)\b`)
 
+// foreignRef matches a decision of another project, such as dbimp D156 or
+// dburl's D46 to D48. Those projects number their own decisions, so a number
+// after their name says nothing about docs/decisions here, and matching it
+// against this project's numbers passed or failed by chance.
+var foreignRef = regexp.MustCompile(`\b(?:dbimp|dburl|usql|dbtpl)(?:'s)?\s+D[1-9][0-9]*` +
+	`(?:(?:,\s*|\s+and\s+|\s+to\s+|\s+or\s+)D[1-9][0-9]*)*`)
+
 // bareMention matches a document named in running text, which is how a Go
 // comment points at one, as in: See docs/NULLS.md for the rule.
 var bareMention = regexp.MustCompile(`(?:^|[\s` + "`" + `(])((?:docs/)?[A-Z][A-Z_]*\.md)`)
@@ -43,7 +50,7 @@ func TestEveryMarkdownLinkResolves(t *testing.T) {
 		}
 		// A bare mention, which is the only form a Go comment or a workflow
 		// comment has. Markdown is covered by the link check above, which is
-		// stronger, and prose in a decision record may name a file that was
+		// stronger, and prose in a decision record can name a file that was
 		// deliberately deleted.
 		if strings.HasSuffix(path, ".md") {
 			continue
@@ -70,7 +77,8 @@ func TestEveryDecisionReferenceExists(t *testing.T) {
 		t.Fatalf("expected at least 50 decisions, found %d", len(written))
 	}
 	for _, path := range repoFiles(t, ".md", ".go") {
-		for _, m := range decisionRef.FindAllStringSubmatch(read(t, path), -1) {
+		body := foreignRef.ReplaceAllString(read(t, path), "")
+		for _, m := range decisionRef.FindAllStringSubmatch(body, -1) {
 			if !written[m[1]] {
 				t.Errorf("%s: refers to D%s, which is not in docs/decisions", path, m[1])
 			}
@@ -304,8 +312,8 @@ func TestTheRootHoldsFourDocuments(t *testing.T) {
 
 // TestClaudeImportsAgents holds D110. AGENTS.md holds the rules, because
 // Codex and the other agents read it, and CLAUDE.md imports it, so that
-// Claude Code reads the same rules. A rule written in CLAUDE.md would reach
-// Claude Code alone. A symbolic link would not do, because a Windows checkout
+// Claude Code reads the same rules. A rule written in CLAUDE.md reaches
+// Claude Code alone. A symbolic link does not work, because a Windows checkout
 // writes a link as a small text file, as D89 found for the skills.
 func TestClaudeImportsAgents(t *testing.T) {
 	t.Parallel()
@@ -331,7 +339,7 @@ func TestClaudeImportsAgents(t *testing.T) {
 // means a section landed in the wrong place. docs/COVERAGE.md had three
 // called "Which answers depend on who is asking": the document wide one, and
 // the SAP HANA and Trino ones, which had been left outside their products and
-// after Apache Hive, where nobody reading about HANA would find them.
+// after Apache Hive, where nobody reading about HANA finds them.
 func TestNoSectionHeadingIsRepeated(t *testing.T) {
 	t.Parallel()
 	for _, path := range repoFiles(t, ".md") {
@@ -350,8 +358,8 @@ func TestNoSectionHeadingIsRepeated(t *testing.T) {
 // TestEveryDocumentIsInBothTables checks that a document in docs/ is named in
 // the table at the top of AGENTS.md and in the one in README.md.
 //
-// Both documents say to do this and neither could tell you whether it had
-// been done. AGENTS.md goes further and says a document that is not in that
+// Both documents say to do this and neither can tell you whether it was
+// done. AGENTS.md goes further and says a document that is not in that
 // table does not exist, which is only true if something holds it. See D50.
 func TestEveryDocumentIsInBothTables(t *testing.T) {
 	t.Parallel()
@@ -384,9 +392,9 @@ func TestEveryDocumentIsInBothTables(t *testing.T) {
 // TestAnAmendmentPointsBothWays is the guard that made splitting the decision
 // log safe.
 //
-// D50 rejected splitting it because an amendment would live in a different
-// file from the decision it amends, so a reader landing on the older one would
-// get a rule that no longer holds. One file never fixed that by itself. The
+// D50 rejected splitting it because an amendment then lives in a different
+// file from the decision it amends, and a reader who lands on the older one
+// gets a rule that no longer holds. One file never fixed that by itself. The
 // status of both decisions has to say so, and each file opens with its status,
 // so the status is the first thing anyone reads. D111 split the log on that
 // ground.

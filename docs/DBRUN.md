@@ -276,11 +276,13 @@ The administrator of each product:
 | Alternator | `cassandra`, the access key | the salted hash of `cassandra`, which is the secret key |
 | Spanner, BigQuery, Vitess | `admin`, `admin`, `root` | none. The two emulators and vttestserver check nothing, and the name is checked by nothing. `dbrun usql spanner` needs `SPANNER_EMULATOR_HOST` set to the published address, because dburl drops the host |
 | OpenSearch | `admin` | `container.Password`. The first start uses a stronger one that the installer accepts, and replaces it before the server starts (D118) |
-| DynamoDB, Cosmos | `dbmeta`, the account key | none checked. Cosmos has the key `container.CosmosKey`, which Microsoft publishes |
+| DynamoDB | `dbmeta`, the access key | none. DynamoDB Local checks no key |
+| Cosmos | `container.CosmosKey`, the key of the emulator's one account, which Microsoft publishes. dburl takes the key as the user name of the URL | none |
 | Solr, Drill, Fuseki, ksqlDB, H2 | `admin`, and `sa` on H2 | `container.Password` |
 | PostgREST | `dbmeta_admin`, a role a token names | a signed token, which the DSN carries as the password. There is no anonymous role |
-| Stardog, GraphDB, VoltDB | `admin` | `container.Password`. Each appears only with its licence file |
-| Avatica, Apache Phoenix | `SA`, `phoenix` | none. Neither checks a user, and the name is checked by nothing. |
+| Stardog, GraphDB, VoltDB | `admin` | `container.Password`. Each appears only with its license file |
+| Avatica | `SA`, HSQLDB's administrator | none. SA has no password in HSQLDB, which checks each user the server passes on (D155). |
+| Apache Phoenix | `phoenix` | none. Nothing checks a user without Kerberos, and the name says who a test means to be. |
 | Cassandra, ScyllaDB | `cassandra` | `cassandra` |
 | Apache Hive | `hive` | none. The image configures no authentication. |
 | Trino, Presto | `trino`, `presto` | none |
@@ -295,10 +297,13 @@ is `container.Neo4jUser`, with the role `publisher`, and the setup also makes
 the database `dbmeta` (D106). ArangoDB, CrateDB, Databend, rqlite,
 Apache Pinot and Apache Druid have one too, and D112 and D113 say what each
 can do. InfluxDB 1 and 2 have `container.InfluxDBUser`, who can only read
-`dbmeta` (D114). libSQL has `container.LibSQLUser`, whose token has the
-claim `{"a":"ro"}` and can read and not write (D153). InfluxDB 3 Core has
-none, because it cannot make a principal with fewer rights than its
-administrator. CouchDB and
+`dbmeta` (D114). libSQL has `container.LibSQLUser`, whose token,
+`container.LibSQLUserToken`, has the claim `{"a":"ro"}` and can read and not
+write (D153). The standalone Avatica
+server has `container.AvaticaUser`, who can read DBMETA.READABLE and nothing
+else (D155). InfluxDB 3 Core has none, because it cannot make a principal
+with fewer rights than its administrator, and Apache Phoenix has none,
+because it checks users only through Kerberos. CouchDB and
 TerminusDB have `dbmeta_user`, who can read `dbmeta` and cannot change its
 design. Qdrant, Weaviate, Meilisearch and Typesense have a key that can only
 read, which goes by the name `dbmeta_user` in the DSN. CockroachDB and TiDB
@@ -314,9 +319,9 @@ prints each in the `principals` field, after the administrator, with its own
 connection string (D102). Every other ordinary user is created by the test
 that needs it and dropped when that test ends.
 
-## Licence files
+## License files
 
-Stardog, GraphDB and Volt Active Data do not start without a licence file
+Stardog, GraphDB and Volt Active Data do not start without a license file
 that a person downloads, and each vendor gives one only after a signup. A
 coding agent never signs up or downloads one. Ken provisions each file, the
 same way he provisions a hosted credential.
@@ -357,7 +362,7 @@ with these fields:
 | `url` | the dburl URL, which is what `usql` takes |
 | `secondAddress` | the host and port of a container's second port, such as the controller of Pinot, and absent when it has none (D124) |
 | `credential` | for a hosted service, where its connection string came from, such as `env DBMETA_SNOWFLAKE_DSN`. It never holds the secret (D117) |
-| `license` | the licence file on the host that dbrun mounts, for a product that needs one (D118) |
+| `license` | the license file on the host that dbrun mounts, for a product that needs one (D118) |
 | `viewer` | for a machine, the port of its screen viewer |
 | `principals` | every user a test reaches the server as, the administrator first. Each has `role`, which is `administrator` or `user`, `user`, `dsn` and `url` |
 
@@ -367,6 +372,13 @@ takes for the driver that dbmeta tests with, and the `url` field is what
 URL. On Couchbase both are the same `couchbase://` URL. On SurrealDB and Neo4j
 the `dsn` is the plain `http://` address, and the `url` names the database in
 its path, such as `neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` (D109).
+On libSQL the `dsn` is the `http://` address, and the `url` is the
+`libsql://` form that dbimp's driver takes, which ends in `?tls=false` (D153).
+On the standalone Avatica server and Phoenix the `dsn` is the `http://`
+address, and the `url` is the `avatica://` form that dbimp's driver takes,
+with no path (D155).
+On rqlite and InfluxDB 3 both are the same URL, `rqlite://` and
+`influxdb://`, because dbimp's drivers take only that form.
 
 A plain `dsn` prints the name and the URL on one line, separated by spaces. It
 does not print the bare URL. Use `dsn --json` in a script.
@@ -487,7 +499,7 @@ one into a command that others can see.
 | `DBMETA_RUNNER` | `podman` or `docker`. Without it, `dbrun` uses podman, and docker when podman is absent. CI sets `docker`. |
 | `DBMETA_OWNER` | Who you are, for the owner label of each server you create. Without it, `dbrun` uses the session of a coding agent, and then the login name. |
 | `DBMETA_<NAME>_DSN` | The connection string of a hosted service, such as `DBMETA_SNOWFLAKE_DSN`. The service appears only while it is set, or while its credential file or helper has one (D117). |
-| `DBMETA_<PRODUCT>_LICENSE` | The path of the licence file of a product that needs one, such as `DBMETA_STARDOG_LICENSE`. The product appears only while it or `$XDG_CONFIG_HOME/dbmeta/licenses/<product>` names a file (D118). |
+| `DBMETA_<PRODUCT>_LICENSE` | The path of the license file of a product that needs one, such as `DBMETA_STARDOG_LICENSE`. The product appears only while it or `$XDG_CONFIG_HOME/dbmeta/licenses/<product>` names a file (D118). |
 | `XDG_CONFIG_HOME` | Where `dbmeta/credentials` lives, the directory of credential files for the hosted services. It defaults to `~/.config`. |
 | `DBMETA_OWNER_NAME` | The friendly name of your session, such as `dbimp`, which `status` shows beside the owner. A coding agent sets it on every command (D115). |
 | `DBMETA_TEST_BINARY` | A test binary built with `go test -c`. `dbrun test` runs it instead of compiling the tests. CI sets it (D82). |
@@ -522,8 +534,14 @@ outside its limit of eight.
 
 ## When something goes wrong
 
+- A container did not start. The error holds every line that podman or docker
+  printed, joined into one line. It leaves out the hint of docker,
+  `Run 'docker run --help' for more information`, which says nothing about
+  the cause. If podman says that the name is already in use, the error also
+  names the `podman rm --storage` command that clears it.
 - A server never answered. The error ends with the last 20 lines of the
-  container's log. Run `dbrun logs <name>` to read all of it. Then run `dbrun remove <name>` and `dbrun start <name>` to build it fresh. A
+  container's log. Run `dbrun logs <name>` to read all of it. Then run
+  `dbrun remove <name>` and `dbrun start <name>` to build it fresh. A
   container that did not start stays behind until you remove it.
 - A server runs and every connection is refused. Run `dbrun status`. If it
   says the server runs on another port than the list asks for, run

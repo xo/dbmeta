@@ -350,7 +350,7 @@ func registerIndexColumns() {
 	// quoted and a column can be called "a,b". It is matched against the
 	// table's real columns instead, and each column's place in the list is
 	// its position in the index. A name that is itself two other column
-	// names joined by a comma would match twice, and nothing short of that
+	// names joined by a comma matches twice, and nothing short of that
 	// can be misread.
 	dbmeta.IndexColumns.Register(dbmeta.Exasol, &dbmeta.Binding[dbmeta.IndexColumn]{
 		Stmt: dbmeta.Stmt{

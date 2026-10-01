@@ -4,8 +4,8 @@ Status: Decided.
 
 One job builds `dbrun` and the test binary and uploads them. Every job in
 both release matrices downloads those two and compiles nothing. Ken asked
-whether `dbrun` could be built once, and the answer is that it can, along
-with the thing that costs four times as much.
+whether it was possible to build `dbrun` once, and the answer is that it is,
+along with the thing that costs four times as much.
 
 ## What it cost before
 
@@ -32,12 +32,11 @@ is paid once per job for a binary that is identical in all of them.
 which is the root module, because the key is the hash of the root `go.sum`
 and the root module has no dependencies at all. Whichever job saved first
 saved the smallest possible cache, and a key cannot be written twice, so no
-later job could replace it with a useful one.
+later job was able to replace it with a useful one.
 
-Widening the key to cover `test/go.sum` would have helped and it would not
-have been enough. A restored build cache still relinks, and the link of a
-121 megabyte binary is not free. Building once and shipping the result skips
-the question.
+A key that also covers `test/go.sum` helps, and it is not enough. A restored
+build cache still relinks, and the link of a 121 megabyte binary is not free.
+Building once and shipping the result skips the question.
 
 ## How
 
@@ -58,7 +57,7 @@ because an artifact does not carry the mode bit.
 `TestTheMatrixJobsCompileNothing` fails when a matrix job runs `go run` or
 `go test`, or does not set `DBMETA_TEST_BINARY`. That test exists because
 this is invisible from a passing run: a job that compiles gives the right
-answer and simply costs ninety seconds to give it.
+answer and costs ninety seconds to give it.
 
 ## What this does not fix
 

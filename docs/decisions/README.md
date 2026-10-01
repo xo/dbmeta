@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-49 of them amend or replace an earlier one, and a decision read without its
+51 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -63,14 +63,14 @@ file.
 | [D42](D042-four-releases-per-push-every-release-nightly.md) | Four releases per push, every release nightly | Supersedes D24, amended by D69 |
 | [D43](D043-ask-several-models-before-a-dialect-is-declared.md) | Ask several models before a dialect is declared finished | Decided |
 | [D44](D044-a-version-key-names-the-product-a-number-alone.md) | A version key names the product. A number alone never does | Decided |
-| [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query may answer partially, once, and must say so | Decided |
+| [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query can answer partially, once, and must say so | Decided |
 | [D46](D046-five-object-kinds-are-missing-and-two-consumers.md) | Five object kinds are missing, and two consumers say which | Decided |
 | [D47](D047-dbmeta-supplies-the-data-the-consumer-decides.md) | dbmeta supplies the data. The consumer decides what to show | Amended by D146 |
 | [D48](D048-cgo-is-allowed-in-the-test-module-and-nowhere.md) | cgo is allowed in the test module, and nowhere else | Amends D26 and D29, supersedes D35 |
 | [D49](D049-one-method-on-the-interface-and-a-not-null-is.md) | One method on the interface, and a NOT NULL is not a constraint row | Amended by D121 |
 | [D50](D050-documentation-lives-in-docs-and-the-decision-log.md) | Documentation lives in docs, and the decision log stays one file | Amended by D110 and D111 |
 | [D51](D051-there-is-no-alias-for-a-nullable-type.md) | There is no alias for a nullable type | Decided |
-| [D52](D052-a-test-driver-is-the-one-usql-uses-or-it-is-the.md) | A test driver is the one usql uses, or it is the wrong driver | Amended by D59 |
+| [D52](D052-a-test-driver-is-the-one-usql-uses-or-it-is-the.md) | A test driver is the one usql uses, or it is the wrong driver | Amended by D59 and D154 |
 | [D53](D053-one-canonical-expectation-checked-in-that-every.md) | One canonical expectation, checked in, that every database must meet | Decided |
 | [D54](D054-sql-server-covers-every-release-that-ships-a.md) | SQL Server covers every release that ships a Linux container | Amended by D63 |
 | [D55](D055-the-current-user-moves-here-changing-a-password.md) | The current user moves here. Changing a password does not | Decided |
@@ -98,7 +98,7 @@ file.
 | [D77](D077-exasol-will-not-run-here-and-hive-goes-ahead-of.md) | Exasol will not run here, and Hive goes ahead of it | Amends D66, amended by D84 |
 | [D78](D078-hive-reads-sys-and-is-a-model.md) | Hive reads sys, and is a model | Decided |
 | [D79](D079-a-dialect-that-cannot-bind-renders-its-values.md) | A dialect that cannot bind renders its values | Decided |
-| [D80](D080-the-driver-registry-is-dburl-s-and-reading-it-is.md) | The driver registry is dburl's, and reading it is not importing it | Amended by D125 |
+| [D80](D080-the-driver-registry-is-dburl-s-and-reading-it-is.md) | The driver registry is dburl's, and reading it is not importing it | Amended by D125 and D154 |
 | [D81](D081-the-cassandra-dialect-is-cql.md) | The Cassandra dialect is cql | Decided |
 | [D82](D082-ci-compiles-once-and-every-job-runs-the-binary.md) | CI compiles once and every job runs the binary | Decided |
 | [D83](D083-a-server-is-ready-when-it-can-run-a-query-and.md) | A server is ready when it can run a query, and keeps being able to | Decided |
@@ -131,7 +131,7 @@ file.
 | [D110](D110-every-xo-repository-is-set-up-for-agents-alike.md) | Every xo repository is set up for coding agents the same way | Amends D50 and D89 |
 | [D111](D111-a-large-project-keeps-one-file-per-decision.md) | A large project keeps one file per decision | Amends D50 |
 | [D112](D112-eight-servers-run-under-dbrun-for-dbimp.md) | Eight more servers run under dbrun for dbimp's drivers | Amends D109, amended by D114, D119, D123, D134 and D153 |
-| [D113](D113-three-avatica-servers-run-under-dbrun.md) | Three Avatica servers run under dbrun for dbimp's driver | Amended by D119 |
+| [D113](D113-three-avatica-servers-run-under-dbrun.md) | Three Avatica servers run under dbrun for dbimp's driver | Amended by D119 and D155 |
 | [D114](D114-a-server-can-answer-more-than-one-dialect.md) | A server can answer more than one dialect | Amends D112, amended by D119 |
 | [D115](D115-a-server-shows-its-owners-name-and-status-a-shows.md) | A server shows its owner's name, and status -a shows the stopped ones | Amends D98 |
 | [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 and D142 |
@@ -159,7 +159,7 @@ file.
 | [D138](D138-tables-takes-types.md) | Tables takes types, bound as one string | Decided |
 | [D139](D139-a-column-has-a-collation.md) | A column has a collation | Decided |
 | [D140](D140-databend-reads-its-system-database.md) | Databend reads its system database | Decided |
-| [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no licence | Amends D118 |
+| [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no license | Amends D118 |
 | [D142](D142-ql-is-removed.md) | ql is removed | Amends D116, D119 and D129 |
 | [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided |
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided |
@@ -172,3 +172,6 @@ file.
 | [D151](D151-rqlite-tests-use-dbimps-driver.md) | The rqlite tests use dbimp's driver | Amends D148 |
 | [D152](D152-influxdb-3-reads-datafusions-information-schema.md) | InfluxDB 3 reads DataFusion's information_schema | Decided |
 | [D153](D153-libsql-has-an-ordinary-user-through-a-jwt.md) | libSQL has an ordinary user through a JWT | Amends D112 |
+| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80 |
+| [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
+| [D156](D156-a-test-checks-the-simple-english-rules-a-machine-can.md) | A test checks the simple English rules that a machine can check | Decided |

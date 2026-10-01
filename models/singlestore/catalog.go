@@ -170,7 +170,7 @@ func registerOwn() {
 			{Name: "schema", Desc: "the database, and absent for a grant on every database"},
 			{Name: "name", Desc: "the table, and * for a grant on every table of the database"},
 			{Name: "type", Desc: "table, schema for a grant on a whole database, or global"},
-			{Name: "access", Desc: "the role and what it may do, one grant per row. A grant to a user is in no view"},
+			{Name: "access", Desc: "the role and what it can do, one grant per row. A grant to a user is in no view"},
 			{Name: "column_access", Desc: "always absent: SingleStore has no grant on a column"},
 			{Name: "policies", Desc: "always absent: SingleStore has no row level security"},
 		},

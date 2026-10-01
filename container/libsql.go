@@ -20,7 +20,7 @@ import (
 // docs/EVALUATION.md. libSQL has one line, and its newest release is v0.24.33,
 // built on 2025-12-19. The tag latest is built from the main branch and is not
 // a release. The project says it is maintained and that new work goes into
-// Turso. libSQL is under the MIT licence.
+// Turso. libSQL is under the MIT license.
 //
 // # Two tokens
 //
@@ -102,6 +102,6 @@ func libsqlURL(user, token string) func(port int) string {
 // LibSQL is every libSQL release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var LibSQL = list{}.staged(libsql, Tested, "0.24.33")

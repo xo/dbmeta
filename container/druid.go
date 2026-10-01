@@ -10,10 +10,11 @@ import (
 // The Apache Druid releases dbrun starts.
 //
 // Druid speaks Avatica, the wire protocol of Apache Calcite, on its Router at
-// /druid/v2/sql/avatica-protobuf/. dbmeta has no Druid model. The releases are
-// here so that dbrun can start a server for the tests of the Avatica driver in
-// github.com/xo/dbimp. No dialect is named yet, because dbimp settles the name
-// with the driver. See D113.
+// /druid/v2/sql/avatica-protobuf/. dbmeta has no Druid model. The releases
+// were here first for the tests of the Avatica driver in github.com/xo/dbimp
+// (D113). dbimp now gives Druid a driver of its own, named druid, on its SQL
+// API (dbimp D154). The entry stays as D113 describes it until that driver
+// asks for more (D155).
 //
 // # The range
 //
@@ -21,7 +22,7 @@ import (
 // rule in D112 applies: the newest release of each of the last two lines.
 // Checked on 2026-09-28, that is 37.0.0, released on 2026-05-06, and 36.0.0, on
 // 2026-02-06. 38.0.0-rc1 is a candidate and not a release. Druid is under the
-// Apache 2.0 licence.
+// Apache 2.0 license.
 //
 // # One container
 //
@@ -35,7 +36,7 @@ import (
 // The start command turns on the basic security extension. The administrator
 // is admin with [Password], and Druid keeps its users in its metadata store.
 // Init makes [DruidUser] through the security API of the Coordinator, with a
-// role that may read every datasource and nothing else.
+// role that can read every datasource and nothing else.
 
 // DruidUser is the ordinary user that Init makes on every Druid release. Its
 // password is [Password].
@@ -101,7 +102,7 @@ var druid = product{
 	// passes only when the Broker answers too.
 	ready: []string{"sh", "-c", `wget -q -O /dev/null --header '` + druidAuth +
 		`' --header 'Content-Type: application/json' --post-data '{"query":"SELECT 1"}' http://127.0.0.1:8888/druid/v2/sql`},
-	// Making the user again answers an error, so those two steps may fail.
+	// Making the user again answers an error, so those two steps can fail.
 	// The password and the role are set every time.
 	init: []string{"sh", "-c", "set -e\n" +
 		druidPost("authentication/db/basic/users/"+DruidUser, "") + " || true\n" +
@@ -131,6 +132,6 @@ func druidHTTP(user string) func(port int) string {
 // Druid is every Apache Druid release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Druid = list{}.staged(druid, Tested, "36.0.0", "37.0.0")

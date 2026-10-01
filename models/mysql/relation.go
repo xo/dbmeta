@@ -12,8 +12,8 @@ import (
 func registerRelations() {
 	// Schemas and databases are the same object in MariaDB. Both queries read
 	// SCHEMATA, and a caller asking for either gets the same rows under a
-	// different shape. Reporting one as unsupported would be wrong, because
-	// the database does have the concept, it simply does not separate them.
+	// different shape. Reporting one as unsupported is wrong, because
+	// the database does have the concept. It does not separate the two.
 	dbmeta.Schemas.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT s.catalog_name AS "catalog"`}},

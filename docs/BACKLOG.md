@@ -18,7 +18,8 @@ a clean driver in `github.com/xo/dbimp` replaces it. When dbimp has that
 driver, move the tests to it and run the Cassandra and ScyllaDB tests on every
 release again. Couchbase is the precedent: D101 moved its tests to dbimp's
 driver before `usql` imported it, and `usql` followed. Hard rule 10 asks for
-the package that `usql` uses, so ask Ken whether the move waits for `usql`.
+the package that dburl names (D154), and dburl names `github.com/xo/cql` for
+Cassandra today. So the move waits until dburl names dbimp's driver.
 
 ## Servers
 
@@ -57,15 +58,6 @@ Neo4j's is the newest monthly release (D106, D112). When a newer release is
 published, replace it in the file in `container/` and in the row in
 `EVALUATION.md`.
 
-### Try an ordinary user on the standalone Avatica server
-
-The standalone Avatica server checks no user, and passes the user and the
-password of each connection to HSQLDB, which has users. A user that SA made
-through the server was then not found by a second connection, and the
-requests were built by hand (D113). Build them with the Go driver
-apache/calcite-avatica-go instead, and find whether HSQLDB then checks the
-user. If it does, the entry can make one.
-
 ### Answer Triggers on InfluxDB 3
 
 A processing engine trigger whose specification is `table:<name>` runs on
@@ -77,20 +69,21 @@ measure whether the model can answer Triggers from the view.
 
 ### Build the Apache Druid model
 
-Ken asked for a Druid dialect on 2026-10-01 and chose to wait. dburl has no
-druid scheme, and nothing decides whether Druid is reached as avatica
-through calcite-avatica-go, or by a driver of dbimp's own on Druid's SQL
-API (dbimp D74). When Ken and dbimp settle the name and the driver, build
-the model. dbrun starts Druid 36.0.0 and 37.0.0 already (D113).
+Ken asked for a Druid dialect on 2026-10-01 and chose to wait. He then
+decided that Druid gets a driver of its own in dbimp, on Druid's SQL API,
+which registers the name druid (dbimp D154). So the dialect will be druid.
+dburl has no druid scheme yet, and the driver comes later in dbimp's order.
+When both exist, build the model. dbrun starts Druid 36.0.0 and 37.0.0
+already (D113).
 
 ### Build the Apache Pinot model
 
 Pinot 1.4 and 1.5 keep their catalog only in the Controller's REST API. The
 Broker's SQL has no information_schema, no SHOW and no DESCRIBE, and the
-Controller of 1.5.1 has no /sql/ddl, measured on 2026-10-01. dbimp's driver
-would have to answer metadata statements such as SHOW TABLES and DESCRIBE
-from the Controller, and its DSN does not name the Controller today (dbimp
-D129). Ken has not decided that work in dbimp. When a release of the driver
+Controller of 1.5.1 has no /sql/ddl, measured on 2026-10-01. A model needs
+dbimp's driver to answer metadata statements such as SHOW TABLES and DESCRIBE
+from the Controller, and the DSN of that driver does not name the Controller
+today (dbimp D129). Ken has not decided that work in dbimp. When a release of the driver
 has such statements, build a model that walks them, as Impala's does (D146).
 
 ### Run the Snowflake and Redshift models

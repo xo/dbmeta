@@ -17,7 +17,7 @@ session runs `dbrun` from the dbmeta checkout. So the session gives it.
 server is created. `status`, every refusal and the list of who holds the
 servers when there is no room print it with the owner, as
 `dbmeta (claude-code:b3cc5e94)`. `status --json` prints it as `ownerName`. It
-is only shown. The owner label alone decides who may act on a server, as D98
+is only shown. The owner label alone decides who can act on a server, as D98
 decided, so two sessions that give the same name are still two owners.
 
 `DBRUN.md` asks every coding agent to set it to the name of its session on

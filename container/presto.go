@@ -14,7 +14,7 @@ import (
 // The two are the same program forked in 2019, when the original authors left
 // Facebook and renamed PrestoSQL to Trino. Six years apart is enough that they
 // no longer answer the same questions, and D73 has the measurement. The short
-// version is that a shared dialect would branch on which product it was
+// version is that a shared dialect must branch on which product it is
 // talking to rather than on a version, and a dialect that does that is two
 // dialects sharing a struct.
 //
@@ -52,8 +52,8 @@ var presto = product{
 	//
 	// Reading system.runtime.nodes was tried and is not enough. It plans to a
 	// SOURCE fragment, which said it had to be scheduled on a node, and it
-	// still answered three seconds before a write to the memory connector
-	// would run. Reasoning from the plan was the mistake: the coordinator
+	// still answered three seconds before the memory connector was able to
+	// run a write. Reasoning from the plan was the mistake: the coordinator
 	// serves its own node list before the scheduler will place connector work
 	// on it.
 	//
@@ -61,8 +61,8 @@ var presto = product{
 	// was failing. Both statements run in one presto-cli call and it exits
 	// non-zero if either fails, so a ready server is one that has just done
 	// the thing and cleaned up after itself. Nothing is left behind: dbrun
-	// stops polling on the exit code, and a run that leaked the schema would
-	// not be the run that returned zero. See D83.
+	// stops polling on the exit code, and a run that leaks the schema is
+	// not a run that returns zero. See D83.
 	ready: []string{
 		"presto-cli", "--execute",
 		"CREATE SCHEMA IF NOT EXISTS memory.dbmeta_ready;" +

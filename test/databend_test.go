@@ -17,8 +17,8 @@ import (
 
 // openDatabend returns a connection to the server named by DBMETA_DATABEND.
 //
-// usql's databend driver is dbimp's, which replaced databend-go in dbimp
-// v0.6.0, so that is the one used here (D52).
+// dburl names dbimp's databend driver, which replaced databend-go in dbimp
+// v0.6.0, so that is the one used here (D154).
 func openDatabend(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_DATABEND")

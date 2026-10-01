@@ -14,17 +14,17 @@ package container
 // 2026-09-28, that is 11.5.1, of 2026-09-23, and 11.4.3, of 2026-08-06.
 // 12.0.0-TR5 is a pre-release.
 //
-// # The licence
+// # The license
 //
-// GraphDB 11 does not run without a licence file. GraphDB Free is a licence
+// GraphDB 11 does not run without a license file. GraphDB Free is a license
 // that a person requests with an email address, and Ken chose on 2026-09-28
 // to provision it. dbrun mounts the file at [Server.License] and lists these
-// releases only while it finds the file. CI has no licence, and no model
+// releases only while it finds the file. CI has no license, and no model
 // reads them, so they are Staged. GraphDB 10.8 ran free with no file, and is a line older.
 //
 // # Not yet measured
 //
-// No release has started here, because no licence file has been provisioned.
+// No release has started here, because no license file is provisioned yet.
 // The steps below follow the vendor's documentation and are the first thing
 // to measure when the file arrives.
 //
@@ -32,10 +32,10 @@ package container
 //
 // GraphDB starts with security off and the administrator admin. While
 // security is off, Init makes the repository dbmeta, gives admin [Password],
-// makes [GraphDBUser], who may read dbmeta, and turns security on. Once it is
+// makes [GraphDBUser], who can read dbmeta, and turns security on. Once it is
 // on, Init sends the administrator's password with each request.
 
-// GraphDBUser may read the repository dbmeta. Its password is [Password].
+// GraphDBUser can read the repository dbmeta. Its password is [Password].
 const GraphDBUser = "dbmeta_user"
 
 // graphdbInit makes the repository and the users, and turns security on.
@@ -68,6 +68,6 @@ var graphdb = product{
 // GraphDB is every GraphDB release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads GraphDB, so CI runs none
-// of them. Each also needs a licence file that CI does not have,
+// of them. Each also needs a license file that CI does not have,
 // so its cadence is Verified. See D119 and D120.
 var GraphDB = list{}.staged(graphdb, Verified, "11.4.3", "11.5.1")

@@ -15,7 +15,7 @@ import (
 
 // openInfluxDB returns a connection to the InfluxDB 3 server named by
 // DBMETA_INFLUXDB, with dbimp's influxdb driver, which is what dburl's
-// influxdb scheme opens and what usql uses.
+// influxdb scheme opens (D154).
 func openInfluxDB(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_INFLUXDB")

@@ -15,7 +15,7 @@ import "fmt"
 // gcr.io/cloud-spanner-emulator/emulator builds each release tag once. It has
 // one line, 1.5, so the rule in D112 gives one release. Checked on
 // 2026-09-28, that is 1.5.58, of 2026-09-15. The emulator is under the Apache
-// 2.0 licence.
+// 2.0 license.
 //
 // # The image is built here
 //
@@ -67,6 +67,6 @@ var spanner = product{
 // Spanner is every Cloud Spanner emulator release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Spanner = list{}.staged(spanner, Tested, "1.5.58")

@@ -50,8 +50,8 @@ type Machine struct {
 
 	// Port is the host port this machine publishes the database on. It is
 	// fixed per machine rather than derived from a position in a list,
-	// because a machine is kept, and a port that moved when a release was
-	// added would strand one that took an hour to build.
+	// because a machine is kept, and a port that moves when a release is
+	// added strands one that took an hour to build.
 	Port int
 	// Viewer is the host port for the web console, which is how a person
 	// watches a boot or an install that has gone wrong.

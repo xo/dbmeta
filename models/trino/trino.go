@@ -12,8 +12,8 @@
 // configured connector rather than a database, and one server reaches many of
 // them at once.
 //
-// So Trino is the only model that takes a catalog filter, and [dbmeta.Args]
-// has carried the field all along for it.
+// So Trino and Presto are the only models that take a catalog filter, and
+// [dbmeta.Args] has carried the field all along for them.
 //
 // # system.jdbc, not information_schema
 //
@@ -21,7 +21,7 @@
 // beside them, and the two differ in reach. A query against
 // memory.information_schema.tables sees the memory catalog and nothing else,
 // and there is no way to name the catalog from a bind parameter, so a filter
-// on a second catalog would return nothing rather than an answer. The tables
+// on a second catalog returns nothing rather than an answer. The tables
 // under system.jdbc span every catalog the server has.
 //
 // system.jdbc is also the richer of the two. Its columns table carries the
@@ -96,8 +96,8 @@ const systemSchemas = `'information_schema'`
 //
 // system holds the metadata this model reads and jmx exposes the JVM. tpch
 // and tpcds are sample data generators rather than server internals, so they
-// are left in: a person who starts the image and asks what is there should be
-// shown them.
+// are left in: a person who starts the image and asks what is there is shown
+// them.
 const systemCatalogs = `'system', 'jmx'`
 
 // notSystem filters both out unless the caller asks for them. The columns are

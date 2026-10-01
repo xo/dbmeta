@@ -20,7 +20,7 @@ import (
 // instead of step 2 of docs/EVALUATION.md: the newest release of each of the
 // last two lines. Checked on 2026-09-27, that is 1.5.1, released on
 // 2026-07-01, and 1.4.0, on 2025-09-30. The tag latest is a snapshot of the
-// next release. Pinot is under the Apache 2.0 licence.
+// next release. Pinot is under the Apache 2.0 license.
 //
 // # One container
 //
@@ -35,7 +35,7 @@ import (
 // The broker checks a user and a password, and the controller does not,
 // because the Quickstart loads its tables through the controller with none.
 // The users are in the configuration of the broker, and there is no statement
-// that makes one. pinotAdmin may query every table. [PinotUser] may query
+// that makes one. pinotAdmin can query every table. [PinotUser] can query
 // baseballStats and no other. A query through the broker cannot write, so
 // that is the difference between the two. The Quickstart loads one table, so
 // the limit on the ordinary user was not measured: both users read it, and a
@@ -56,7 +56,7 @@ import (
 // [Password].
 const PinotUser = "dbmeta_user"
 
-// pinotAdmin is the user who may query every table.
+// pinotAdmin is the user who can query every table.
 const pinotAdmin = "admin"
 
 // pinotTable is the sample table the Quickstart loads.
@@ -117,6 +117,6 @@ func pinotAt(scheme, user string) func(port int) string {
 // Pinot is every Apache Pinot release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Pinot = list{}.staged(pinot, Tested, "1.4.0", "1.5.1")

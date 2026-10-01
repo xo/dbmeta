@@ -17,12 +17,12 @@ import (
 // # The image
 //
 // ghcr.io/singlestore-labs/singlestoredb-dev runs a master aggregator and a
-// leaf in one container, and needs no licence on a machine with at most 8
+// leaf in one container, and needs no license on a machine with at most 8
 // cores and 64 GB of memory, as its README says. The image is tagged by its
 // own version and not by the engine's, so each release pins the image tag,
 // and SINGLESTORE_VERSION names an engine other than the one the image
 // ships, which the container downloads when it starts. Ken asked on
-// 2026-09-30 for SingleStore to be tried without a licence key, which
+// 2026-09-30 for SingleStore to be tried without a license key, which
 // amends D118 (D141).
 //
 // # The port

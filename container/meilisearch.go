@@ -19,12 +19,12 @@ import (
 // D112 applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is v1.54.0, of 2026-09-21, and v1.53.2, of 2026-09-07. A
 // minor release arrives about every two weeks, so the range goes stale fast.
-// The community edition is under the MIT licence.
+// The community edition is under the MIT license.
 //
 // # Keys, not users
 //
 // Meilisearch has no users. It checks a master key, which is [Password], and
-// keys made from it. Init makes a key that may only search and read the index
+// keys made from it. Init makes a key that can only search and read the index
 // dbmeta. Meilisearch computes the value of a key from its identifier and the
 // master key, so the identifier is fixed and [MeilisearchReadKey] is known
 // before the server starts. A request sends a key as a bearer token, and the
@@ -38,7 +38,7 @@ const MeilisearchUser = "dbmeta_user"
 // that the value of the key is fixed too.
 const meilisearchKeyUID = "6a0d0f8e-3b1c-4d2a-9e5f-0d8b7c6a5e41"
 
-// MeilisearchReadKey is the key that may only read the index dbmeta. It is
+// MeilisearchReadKey is the key that can only read the index dbmeta. It is
 // the HMAC-SHA256 of the key's identifier under the master key, in hex,
 // which is how Meilisearch makes the value of a key.
 var MeilisearchReadKey = func() string {
@@ -82,6 +82,6 @@ var meilisearch = product{
 // Meilisearch is every Meilisearch release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Meilisearch = list{}.staged(meilisearch, Tested, "1.53.2", "1.54.0")

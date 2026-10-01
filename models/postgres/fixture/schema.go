@@ -14,7 +14,7 @@ var (
 // Everything is a schema containing one of every object kind the PostgreSQL
 // queries read, so that a query returns rows rather than an empty result.
 //
-// It is additive. A later release may add an object and will not rename or
+// It is additive. A later release can add an object and will not rename or
 // remove one that is already here.
 //
 // Five objects are skipped below release 10, because PostgreSQL did not have
@@ -77,7 +77,7 @@ var Everything = Fixture{
 		at("function comment", `COMMENT ON FUNCTION dbmeta_fixture.touch() IS 'a trigger function'`),
 
 		// EXECUTE FUNCTION is release 11 syntax. EXECUTE PROCEDURE still works
-		// above it, but writing the deprecated form everywhere would test
+		// above it, but writing the deprecated form everywhere tests
 		// syntax that nobody writes on a current server.
 		choose("trigger",
 			dbmeta.Fragment{Query: `CREATE TRIGGER book_touch BEFORE UPDATE ON dbmeta_fixture.book

@@ -20,7 +20,7 @@ different.
 What D36 actually requires is that `dbmeta` decides nothing. It must not detect
 a version behind the caller's back and must let the caller override. A method
 the caller chooses to call satisfies that. A constructor that silently probes
-the server would not.
+the server does not.
 
 ## Compare it against usql, every time
 

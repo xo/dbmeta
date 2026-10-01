@@ -19,9 +19,9 @@ import (
 // the release year and the cumulative update on SQL Server where usql carries
 // neither. docs/USQL.md records the table.
 //
-// Nothing pinned any of it. A model could lose its product name and print a
-// bare "8.4.11", which is what usql does today, and no test would notice. This
-// is that test.
+// Nothing pinned any of it. A model can lose its product name and print a
+// bare "8.4.11", which is what usql does today, and no test noticed. This is
+// that test.
 //
 // It checks a shape rather than a string, because the string is the server's
 // and changes with every patch release.
@@ -65,7 +65,7 @@ var displayShapes = []struct {
 		// The year comes from @@VERSION and the CU from productupdatelevel,
 		// and usql reads neither. The year is required rather than optional:
 		// written optional, this matched usql's shorter line too and guarded
-		// nothing. "2008 R2" is why it is not simply four digits.
+		// nothing. "2008 R2" is why it is not only four digits.
 		//
 		// The CU is not required, because productupdatelevel is NULL on a
 		// release older than the one that added it. The exact "RTM-CU27" form

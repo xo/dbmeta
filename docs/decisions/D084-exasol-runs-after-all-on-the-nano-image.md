@@ -9,8 +9,8 @@ image.
 `docker.io/exasol/nano` has 29 tags, amd64 and arm64, one release line so
 far, `2026.2.0-nano.1` through `nano.5`. `nano.5` was pushed on 2026-09-24,
 three days before this was written. That is criterion 2 of
-`docs/EVALUATION.md` answered, which `exasol/docker-db` could never answer
-whatever the tag list said, because the image did not initialize.
+`docs/EVALUATION.md` answered, which `exasol/docker-db` was never able to
+answer whatever the tag list said, because the image did not initialize.
 
 ## What it does not need
 
@@ -26,8 +26,8 @@ reported the database up in about five seconds against the startup budget
 D77 spent, and the storage question that D77 identified and did not attempt
 never arises.
 
-The fourth gate was the one D77 said might take a single volume mount. It
-takes none.
+The fourth gate was the one that D77 said a single volume mount can perhaps
+fix. It takes none.
 
 ## What this decision does not do
 
@@ -39,9 +39,9 @@ back in D66's order rather than sitting behind a blocked note.
 
 It also does not adopt the running container. The installer names it
 `exasol-nano`, and every container here is `<product>-<release>`, so `dbrun`
-cannot see it, `dbrun version` would report nothing for a server that is
-plainly running, and a second copy could end up on the machine with nothing
-to tell them apart. That is D68 exactly. If Exasol is added, it is added to
+cannot see it, `dbrun version` reports nothing for a server that is plainly
+running, and a second copy can end up on the machine with nothing to tell
+them apart. That is D68 exactly. If Exasol is added, it is added to
 `container/container.go` and started by `dbrun` like everything else.
 
 ## The installer, since it is the way in
@@ -70,5 +70,5 @@ agent to show the SQL before running it, so this is about the mechanism
 rather than about that file.
 
 None of that blocks using the image. `podman pull docker.io/exasol/nano` and
-a container entry need none of the installer, which is how this project would
+a container entry need none of the installer, which is how this project will
 reach it.

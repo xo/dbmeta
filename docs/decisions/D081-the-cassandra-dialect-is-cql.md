@@ -15,13 +15,13 @@ The `dburl` session found it. D80 sent a request there for a field saying
 which product a scheme drives, Ken asked whether the thirteen values matched
 the registry, and that session checked all of them. This was the one.
 
-## Why dburl could not absorb it instead
+## Why dburl cannot absorb it instead
 
 `Scheme.Driver` has to be the exact string the Go driver registers, because
-that is what a caller hands to `sql.Open`. Renaming the scheme to `cassandra`
-would emit a name nothing answers to and every Cassandra connection would
-fail. Adding a second scheme named `cassandra` would do the same thing with
-more steps. The fault was here.
+that is what a caller hands to `sql.Open`. A scheme renamed to `cassandra`
+emits a name nothing answers to, and every Cassandra connection fails. A second
+scheme named `cassandra` has the same result with more steps. The fault was
+here.
 
 ## What changed with it
 

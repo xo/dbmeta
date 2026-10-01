@@ -27,7 +27,7 @@
 # and materialized_views_enabled. Both spellings are edited, and the build
 # then checks the result rather than trusting sed, because a sed that matches
 # nothing changes nothing and says so to nobody. That is how the Oracle 19c
-# build once produced an image that looked finished and could not open a
+# build once produced an image that looked finished and was unable to open a
 # database.
 
 ARG RELEASE=5.0

@@ -16,7 +16,7 @@ idea.
 
 ## The further question is answered: there are no per object interfaces
 
-This decision once asked whether `dbmeta` should export those fifteen as
+This decision once asked whether `dbmeta` exports those fifteen as
 interfaces at all, and said not to settle it before D13 delivered the models.
 D13 delivered eight. The shape they produced is the one this decision hoped
 for, and the code is now the record of it.

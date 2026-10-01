@@ -13,27 +13,28 @@
 //
 // # Visibility rather than refusal
 //
-// A SQL Server catalog view shows the caller what the caller may see, and
-// returns fewer rows otherwise. It does not refuse.
+// A SQL Server catalog view shows the caller what it has the right to see,
+// and returns fewer rows otherwise. It does not refuse.
 //
 // That matters for three queries here. ColumnStats reads
-// sys.dm_db_stats_properties, which needs VIEW STATISTICS; a caller without it
-// gets no rows rather than an error. UserMappings reads sys.linked_logins,
-// which needs a server level permission, and behaves the same way.
+// sys.dm_db_stats_properties, which needs VIEW STATISTICS, and a caller
+// without it gets no rows rather than an error. UserMappings reads
+// sys.linked_logins, which needs a server level permission, and behaves the
+// same way.
 // ForeignTables reads sys.external_tables, which exists in every install and
 // holds nothing until PolyBase is configured.
 //
 // All three were run as a user with VIEW DEFINITION alone and all three
 // returned an empty result rather than failing. That is worth knowing, because
 // PostgreSQL shows a caller everything and MariaDB refuses outright, so a
-// consumer sees three different behaviours for the same lack of privilege.
+// consumer sees three different behaviors for the same lack of privilege.
 //
 // # What it answers
 //
 // Thirty two of the 56, as many as SAP HANA. SQL Server is the only database
-// with a model of its own, besides PostgreSQL, with roles, privileges,
-// tablespaces and DDL triggers, and the only one with a catalog of comments rather than a
-// comment on each object.
+// with a model of its own, besides PostgreSQL and CockroachDB, with roles,
+// privileges, tablespaces and DDL triggers, and the only one with a catalog
+// of comments rather than a comment on each object.
 //
 // See docs/COVERAGE.md for what it cannot answer and for the analogues that
 // were rejected.
@@ -95,12 +96,12 @@ func init() {
 // returns the name the product is sold under: ProductMajorVersion says 16 and
 // nothing says 2022. Only @@VERSION carries it, in its first words, so the
 // name is cut from there rather than kept in a table of major numbers to
-// years. A table would need an edit for every release Microsoft ships, and
+// years. A table needs an edit for every release Microsoft ships, and
 // this does not.
 //
 // The cut is guarded. @@VERSION reads "Microsoft SQL Server 2022 (RTM-CU27)
 // ..." and the name is everything before the parenthesis, so a banner without
-// one would ask LEFT for -1 characters and raise an error. NULLIF turns that
+// one asks LEFT for -1 characters and raises an error. NULLIF turns that
 // into a NULL instead, which arrives as empty and is left out of the line.
 //
 // productupdatelevel is the CU number. SERVERPROPERTY returns NULL for a
@@ -127,7 +128,7 @@ const versionQuery = `SELECT LEFT(@@VERSION, NULLIF(CHARINDEX('(', @@VERSION), 0
 //
 // so the trim keeps the build and the display then prints it twice. Stopping
 // at " - " as well fixes that and changes nothing for the other form. A real
-// 2014 found this, and no container could have: every SQL Server with a Linux
+// 2014 found this, and no container can: every SQL Server with a Linux
 // container ships a cumulative update and names it.
 func productName(banner string) string {
 	name := strings.TrimSpace(banner)
@@ -198,7 +199,7 @@ const systemSchemas = `'sys', 'INFORMATION_SCHEMA', 'guest', 'db_owner', ` +
 // bit parameter cannot stand alone as a condition: "WHERE @with_system OR ..."
 // is rejected with "an expression of non-boolean type specified in a context
 // where a condition is expected". Every other model here writes the bare
-// parameter and every one of those would fail on SQL Server.
+// parameter and every one of those fails on SQL Server.
 const notSystem = `(@with_system = 1 OR s.name NOT IN (` + systemSchemas + `))`
 
 func schemaNameSystem(kind string) []dbmeta.Param {

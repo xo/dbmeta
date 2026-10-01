@@ -11,9 +11,8 @@
 # The integration job runs the queries against a real server, which is the only
 # thing that catches SQL a database rejects and a Go type the driver cannot
 # fill. It tests four releases rather than one, chosen in D42: the floor, the
-# ceiling, and one on each side of the middle. Every bug found so far would
-# have been caught by those four, and four of the six would have been missed by
-# testing the newest release alone.
+# ceiling, and one on each side of the middle. Those four catch every bug found
+# so far, and a test of the newest release alone misses four of the six.
 #
 # The nightly job runs the Nightly tier, which is every release the push jobs
 # leave out, because a wrong version gate is only visible in the window between
@@ -25,8 +24,8 @@
 # They run in the same matrix as the servers, and dbrun starts nothing for
 # them. SQLite runs against both of its drivers. See D42 and D48.
 #
-# A Staged release is in neither matrix. No model reads it, so a job would
-# start it and test nothing. That is the servers dbrun starts for dbimp's
+# A Staged release is in neither matrix. No model reads it, so a job for it
+# starts it and tests nothing. That is the servers dbrun starts for dbimp's
 # drivers and for the flavors usql reaches, and the embedded chai and csvq.
 # See D119.
 #
@@ -66,7 +65,7 @@ jobs:
 
       - name: Lint
         # Pinned. The configuration is `default: all`, so an unpinned upgrade
-        # would enable a new linter and fail a build that changed nothing.
+        # enables a new linter and fails a build that changed nothing.
         # Both modules are linted, because golangci-lint reads the go.mod of
         # the directory it runs in and the test module has its own.
         uses: golangci/golangci-lint-action@v9
@@ -100,7 +99,7 @@ jobs:
       - name: Build without cgo
         # The root module has no driver and no cgo, and a consumer builds it
         # with CGO_ENABLED=0. That promise is checked rather than assumed.
-        # The test module may use cgo and is built separately. See D48.
+        # The test module can use cgo and is built separately. See D48.
         run: CGO_ENABLED=0 go build ./...
 
       - name: Build the model tiers

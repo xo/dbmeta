@@ -3,8 +3,8 @@
 Status: Decided.
 
 When a new dialect is implemented, consult at least two independent AI models,
-such as Gemini, DeepSeek and Astra, about the queries that the first pass could
-not answer. Ask each one to sort them into three groups: absent from the
+such as Gemini, DeepSeek and Astra, about the queries that the first pass
+cannot answer. Ask each one to sort them into three groups: absent from the
 product, present under another name, and derivable from several catalog reads
 or one complex statement. Then verify every claim against a running server.
 

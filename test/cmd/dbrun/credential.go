@@ -24,7 +24,7 @@ import (
 //
 //  1. The variable DBMETA_<NAME>_DSN.
 //  2. The file <name> in $XDG_CONFIG_HOME/dbmeta/credentials, which only its
-//     owner may read.
+//     owner can read.
 //  3. The helper dbmeta-credential-<name> on the path, which prints the
 //     connection string, the way a git or docker credential helper does.
 //
@@ -39,7 +39,7 @@ type credential struct {
 	source string
 }
 
-// helperTimeout is how long a credential helper may take.
+// helperTimeout is how long a credential helper can take.
 const helperTimeout = 10 * time.Second
 
 // credentialDir is the directory of credential files.
@@ -68,7 +68,7 @@ func credentialEnv(name string) string {
 // resolveCredential finds the connection string of a service. It returns
 // false when no place has one, which is not an error: the service is then
 // absent. An error is a place that has one and cannot be used, such as a
-// file that others may read.
+// file that others can read.
 func resolveCredential(ctx context.Context, name string) (credential, bool, error) {
 	env := credentialEnv(name)
 	if s := strings.TrimSpace(os.Getenv(env)); s != "" {
@@ -102,7 +102,7 @@ func resolveCredential(ctx context.Context, name string) (credential, bool, erro
 	defer cancel()
 	cmd := exec.CommandContext(ctx, helper)
 	// What the helper writes to its error stream is not shown, because it
-	// could hold the secret.
+	// can hold the secret.
 	out, err := cmd.Output()
 	if err != nil {
 		return credential{}, false, fmt.Errorf("running %s: %w", helper, err)
@@ -147,8 +147,8 @@ func resolveHosted(ctx context.Context, services []hosted.Service) ([]target, []
 			continue
 		}
 		masked := maskDSN(c.dsn)
-		// CI never runs a hosted service, so a Staged one would be Verified
-		// if a model read it (D120).
+		// CI never runs a hosted service, so a Staged one will be Verified
+		// if a model reads it (D120).
 		var cadence container.Tier
 		if s.Tier == container.Staged {
 			cadence = container.Verified
@@ -212,8 +212,8 @@ func maskDSN(dsn string) string {
 }
 
 // usqlHosted opens usql on a hosted service without the secret on a command
-// line, where a process list would show it. The connection string goes in a
-// usql configuration file that only its owner may read, as a named
+// line, where a process list shows it. The connection string goes in a
+// usql configuration file that only its owner can read, as a named
 // connection, and usql is started on the name. The file is removed when usql
 // ends.
 func usqlHosted(ctx context.Context, t target) error {

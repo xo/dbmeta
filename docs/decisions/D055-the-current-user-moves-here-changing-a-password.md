@@ -11,7 +11,7 @@ was audited, and it is three hooks on `drivers.Driver` and nothing else.
 | `User` | `SELECT current_user`, and `SELECT user FROM dual` on Oracle | reads | yes, as `CurrentUser` |
 | `ChangePassword` | `ALTER USER`, `ALTER ROLE`, `ALTER LOGIN` | writes | no |
 
-Everything else on that struct is Go behaviour rather than SQL: `Process`
+Everything else on that struct is Go behavior rather than SQL: `Process`
 rewrites a statement, `ColumnTypes`, `RowsAffected`, `Err` and the `Convert`
 family read a result, and `Copy` generates inserts, which is data movement and
 not metadata.
@@ -51,9 +51,9 @@ this model has had.
 
 ## Why changing a password stays in usql
 
-D5 is the first reason and it would be enough on its own. `dbmeta` reads. A
+D5 is the first reason and it is enough on its own. `dbmeta` reads. A
 consumer can hand it a read only connection and reason about what it can do,
-and one write would end that.
+and one write ends that.
 
 The second reason is the one that settles it even for somebody willing to
 reopen D5. A password statement cannot bind a parameter. Both were tried on a
@@ -67,7 +67,7 @@ ERROR:  syntax error at or near "ALTER"
 Msg 102, Level 15, State 1: Incorrect syntax near '@p'.
 ```
 
-Every statement here binds its arguments. Moving this one would mean `dbmeta`
+Every statement here binds its arguments. Moving this one means `dbmeta`
 interpolating a secret into SQL text, and carrying a quoting and escaping rule
 per product to do it safely. That is a new class of risk in a library that has
 none today, in exchange for moving one line per driver.

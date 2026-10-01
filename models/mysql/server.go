@@ -67,7 +67,7 @@ func registerRoutines() {
 func registerServer() {
 	// A storage engine is the closest thing MariaDB has to an access method.
 	// Both answer "how is this stored and searched", and psql prints the
-	// access method of a table in \d, which is where a caller would look.
+	// access method of a table in \d, which is where a caller looks.
 	dbmeta.AccessMethods.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.AccessMethod]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT e.engine AS "name"`}},
@@ -100,7 +100,7 @@ func registerServer() {
 			{{Query: `, p.plugin_version AS "version"`}},
 			{{Query: `, '' AS "schema"`}},
 			{{Query: `, NULLIF(p.plugin_description, '') AS "comment"`}},
-			// ALL_PLUGINS lists what is installed and what could be. MySQL has
+			// ALL_PLUGINS lists what is installed and what can be. MySQL has
 			// only PLUGINS, which lists what is installed. The filter on an
 			// active status makes the two agree on what they return.
 			{
@@ -146,7 +146,7 @@ func registerServer() {
 			{Name: "collate", Desc: "the character set"},
 			{Name: "ctype", Desc: "the character set"},
 			{Name: "locale", Desc: "always absent: MariaDB has no ICU locale"},
-			{Name: "deterministic", Desc: "always true: MariaDB has no other behaviour"},
+			{Name: "deterministic", Desc: "always true: MariaDB has no other behavior"},
 			{Name: "comment"},
 			{Name: "rules", Desc: "always absent: a collation here is compiled into the server and has no tailoring rules"},
 		},
@@ -247,11 +247,11 @@ func registerServer() {
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: "the user, with its host where it has one"},
 			{Name: "superuser"}, {Name: "create_role"}, {Name: "create_db"},
-			{Name: "can_login", Desc: "false for a role, which cannot log in;" +
+			{Name: "can_login", Desc: "false for a role, which cannot log in." +
 				" MySQL locks the account of a role, so a locked user reads the same way"},
 			{Name: "replication"},
 			{Name: "bypass_rls", Desc: "always false: MariaDB has no row level security"},
-			{Name: "inherit", Desc: "always true: MariaDB has no other behaviour"},
+			{Name: "inherit", Desc: "always true: MariaDB has no other behavior"},
 			{Name: "conn_limit", Desc: "0 for no limit, which is every user on TiDB before 8.5, where there is no limit per user"},
 			{Name: "valid_until", Desc: "always absent: not recorded in mysql.user"},
 			{Name: "member_of", Desc: "always empty: read role_grants instead"},
@@ -302,8 +302,8 @@ func registerServer() {
 			{Name: "role"}, {Name: "member_of"},
 			{Name: "grantor", Desc: "always absent: neither product records who granted it"},
 			{Name: "admin"},
-			{Name: "inherit", Desc: "always true: MariaDB has no other behaviour"},
-			{Name: "set", Desc: "always true: MariaDB has no other behaviour"},
+			{Name: "inherit", Desc: "always true: MariaDB has no other behavior"},
+			{Name: "set", Desc: "always true: MariaDB has no other behavior"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "member name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.RoleGrant, error) {

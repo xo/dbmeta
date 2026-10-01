@@ -10,7 +10,7 @@
 // therefore carries alternatives per dialect rather than per version, which is
 // the one place a shared model differs from a native one.
 //
-// Like every fixture here it is additive. A later release may add an object
+// Like every fixture here it is additive. A later release can add an object
 // and will not rename or remove one.
 package fixture
 
@@ -69,7 +69,7 @@ func PostgreSQL() Syntax {
 //
 // Check constraints are off here to match the profile that `usql` uses for the
 // same databases. MariaDB from 10.2 and MySQL from 8.0.16 do record them, so
-// when the real `mysql` model lands this and its profile may both turn on.
+// this and the profile can both turn them on.
 // They must turn on together, which is what
 // TestFixtureMatchesTheProfile enforces: a fixture must not build an object
 // the model will not read.

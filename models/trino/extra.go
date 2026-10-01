@@ -220,7 +220,7 @@ func registerCurrent() {
 			always(`, CAST(NULL AS varchar) AS "comment"`),
 		},
 		Fields: []dbmeta.Field{
-			{Name: "catalog", Desc: "the session catalog, which Trino has and the others do not"},
+			{Name: "catalog", Desc: "the session catalog"},
 			{Name: "name"},
 			{Name: "owner", Desc: "always empty: a schema records no owner"},
 			{Name: "comment", Desc: "always absent: Trino stores no schema comment"},

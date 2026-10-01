@@ -24,7 +24,7 @@ statements of the model it imitates where they answer, as `models/cockroachdb`
 shares the postgres model's (D123). No such model exists yet for SingleStore,
 TiDB, Vitess or Redshift, so none of them is answered:
 
-- TiDB and Vitess were planned as flavors that `models/mysql` would detect by
+- TiDB and Vitess were planned as flavors that `models/mysql` was to detect by
   version key, as it detects MariaDB (D44). They get models of their own
   instead, and their container entries name their dialects and stay Staged.
 - Redshift is a hosted service. It was Verified, because the postgres model

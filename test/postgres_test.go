@@ -18,12 +18,12 @@ import (
 	"github.com/xo/dbmeta/models/postgres/fixture"
 )
 
-// postgresDrivers are the two database/sql drivers usql ships for PostgreSQL,
-// named as database/sql knows them.
+// postgresDrivers are the two database/sql drivers dburl names for
+// PostgreSQL, named as database/sql knows them (D154).
 //
-// Every test here runs once per driver. usql's postgres driver is lib/pq and
-// its pgx driver is jackc/pgx/v5/stdlib, and a person typing postgres:// gets
-// the first. They are not interchangeable at the scan boundary even though
+// Every test here runs once per driver. dburl's postgres and pgx schemes open
+// jackc/pgx/v5/stdlib, and its pq scheme opens lib/pq, which registers as
+// postgres with database/sql. They are not interchangeable at the scan boundary even though
 // they speak one protocol: pgx/stdlib asks for binary result formats and
 // lib/pq asks for text, so a value arrives at Scan having taken a different
 // path. That is where this project's faults live. See D48 and D52.
@@ -37,8 +37,8 @@ type pgFamily struct {
 	env     string
 	dialect dbmeta.Dialect
 	fixture fixture.Fixture
-	// drivers are the drivers usql reaches the product with. cockroachdb://
-	// opens pgx.
+	// drivers are the drivers dburl names for the product (D154).
+	// cockroachdb:// opens pgx.
 	drivers []string
 	// left says why the product's fixture has no step of a name that the
 	// PostgreSQL fixture has, and is empty when it has one.
@@ -135,7 +135,7 @@ func TestPostgresScansEveryQuery(t *testing.T) {
 //
 // The fixture lives in the model package rather than here, because it changes
 // with the queries and because other projects use it. A step the server is too
-// old for is skipped, and the query that reads what it would have built is
+// old for is skipped, and the query that reads what that step builds is
 // refused on the same release.
 func setup(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	t.Helper()
@@ -155,7 +155,7 @@ func setupFamily(t *testing.T, f pgFamily, db *sql.DB) *dbmeta.Meta {
 	}
 
 	// the context must be passed in rather than taken from t, because
-	// [testing.T.Context] is cancelled just before a cleanup runs, and the
+	// [testing.T.Context] is canceled just before a cleanup runs, and the
 	// teardown is a cleanup
 	run := func(ctx context.Context, steps []fixture.Result) {
 		for _, s := range steps {
@@ -241,7 +241,7 @@ func TestEveryQueryRuns(t *testing.T) {
 
 // TestPaddedFieldsAreNull is the invariant that replaces a golden file per
 // release. Ten releases times 55 queries is 550 combinations, which nobody
-// would maintain. [dbmeta.Field.Min] already declares the release each column
+// will maintain. [dbmeta.Field.Min] already declares the release each column
 // arrived in, so the assertion can be generic: a field the server is too old
 // for must be NULL in every row, because the statement padded it.
 //
@@ -649,7 +649,7 @@ func TestPrimaryKeyOnColumn(t *testing.T) {
 
 // TestNotNullIsNotAConstraintRow holds the decision in D49. PostgreSQL 18
 // records a NOT NULL constraint in pg_constraint and every earlier release
-// records it only on the column, so reporting it would make the same schema
+// records it only on the column, so a report of it makes the same schema
 // answer differently on two servers for a reason that has nothing to do with
 // what either can do.
 //

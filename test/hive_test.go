@@ -110,8 +110,7 @@ func TestHiveEveryQueryRuns(t *testing.T) {
 			continue
 		}
 		// Hive cannot bind, so a built statement carries its values and
-		// hands back none. A value here would be sent to a driver that
-		// discards it.
+		// hands back none. A value here goes to a driver that discards it.
 		if len(vals) != 0 {
 			t.Errorf("%s: returned %d values and Hive cannot bind one", q.Name(), len(vals))
 			continue
@@ -143,9 +142,9 @@ func TestHiveEveryQueryRuns(t *testing.T) {
 //
 // Hive cannot bind, so the model writes filter values into the statement and
 // the escaping is the whole of the protection. A unit test can show the
-// string looks right. Only the server can show it means what it should.
+// string looks right. Only the server can show that it means what it must.
 //
-// The value here closes the literal and adds a disjunction that would match
+// The value here closes the literal and adds a disjunction that matches
 // every row. Escaped, it is an ordinary string that matches no table. If the
 // escaping ever breaks, this returns every table rather than none, so the
 // assertion is on the count and not on an error.
@@ -184,15 +183,15 @@ func TestHiveEscapingHoldsOnTheServer(t *testing.T) {
 		switch {
 		case n < 0:
 		case n == 0:
-			t.Logf("%-32q matched nothing, as an ordinary string should", hostile)
+			t.Logf("%-32q matched nothing, as an ordinary string must", hostile)
 		default:
 			t.Errorf("%q matched %d of %d tables. The value was not escaped and"+
 				" changed what the statement means.", hostile, n, all)
 		}
 	}
 
-	// And the catalog is still there, which the third value would have
-	// removed if a statement separator got through.
+	// And the catalog is still there. If a statement separator gets through,
+	// the third value removes it.
 	var after int
 	for _, err := range dbmeta.Tables.All(ctx, m, db, dbmeta.Args{WithSystem: true}.Map()) {
 		if err != nil {
@@ -322,8 +321,8 @@ func TestHiveForeignKeyTarget(t *testing.T) {
 	}
 }
 
-// TestHivePartitionColumnIsNotAColumn asserts a difference that would
-// otherwise look like a missing column.
+// TestHivePartitionColumnIsNotAColumn asserts a difference that otherwise
+// looks like a missing column.
 //
 // A Hive partition key is not in the table's column list. It is in
 // PARTITION_KEYS, so PartitionedTables reports it and Columns does not, and
@@ -382,14 +381,14 @@ func TestHiveAccessMethods(t *testing.T) {
 // TestHiveTellsNullFromEmpty is the guard on the driver property that
 // docs/NULLS.md exists for.
 //
-// sqlflow.org/gohive, which usql shipped before this, could not represent a
+// sqlflow.org/gohive, which usql shipped before this, did not represent a
 // NULL at all: CAST(NULL AS string) and ” both arrived as a valid empty
-// string, and a NULL bigint arrived as a valid zero. Every nullable field in
-// this model would have been a lie, silently, and the model looked correct
+// string, and a NULL bigint arrived as a valid zero. On that driver, every
+// nullable field in this model is a silent lie, and the model looked correct
 // until this was measured.
 //
 // beltran/gohive/v2 distinguishes them. This asserts that it still does,
-// because a driver change that regressed it would leave no other trace.
+// because a driver change that regresses it leaves no other trace.
 func TestHiveTellsNullFromEmpty(t *testing.T) {
 	db := openHive(t)
 	ctx := t.Context()

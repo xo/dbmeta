@@ -6,7 +6,7 @@ The root module has no driver and no cgo, and that does not change. A consumer
 builds it with `CGO_ENABLED=0` and cross compiles it, because there is nothing
 in it but the standard library.
 
-The `test` module may use cgo. Its own `go.mod` keeps it out of everything a
+The `test` module can use cgo. Its own `go.mod` keeps it out of everything a
 consumer builds, which is the reason the module exists, and that isolation is
 as true for a C compiler as it is for a driver version.
 

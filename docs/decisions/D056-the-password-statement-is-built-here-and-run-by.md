@@ -32,7 +32,7 @@ invariant, and returning text keeps it. DeepSeek's was that a static escaper
 cannot be correct without session state, which is an argument about where the
 state is read rather than about whether the statement belongs here.
 
-## Why it cannot simply be a parameter
+## Why it cannot be a parameter
 
 It cannot be bound. PostgreSQL will not prepare the statement at all:
 
@@ -91,7 +91,7 @@ so rather than leaving it implied.
 
 ## How it is tested
 
-A unit test would not have caught the fault this exists for. So each case sets
+A unit test does not catch the fault this exists for. So each case sets
 a real password on a real server and then opens a new connection with it,
 across seven passwords chosen to break a naive escaper.
 

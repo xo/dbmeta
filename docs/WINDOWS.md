@@ -10,7 +10,7 @@ virtual machine, and it is not Windows: D85 imports one frozen Exasol
 Community Edition appliance beside the nano containers. It shares the idea
 that a machine is a target `dbrun` starts, and it shares almost none of the
 machinery here, because an appliance has nothing to install and no evaluation
-licence to rearm. Both kinds are one list, `container.Machines()`, and D86
+license to rearm. Both kinds are one list, `container.Machines()`, and D86
 says how they share it.
 
 | SQL Server | Windows host | dockur `VERSION` | host port |
@@ -49,7 +49,7 @@ cd test && go run ./cmd/dbrun test sqlserver-2012 --keep
 
 ## Licensing
 
-Every Windows image here is a Microsoft **evaluation** edition, fetched from
+Every Windows image here is a Microsoft evaluation edition, fetched from
 Microsoft by dockur. Evaluation editions are free for 180 days of testing and
 need no product key and no activation, which is why nothing here activates
 Windows. When the 180 days runs out, `slmgr /rearm` extends it, and that is
@@ -87,12 +87,12 @@ The sources are in `test/cmd/dbrun/oem/`.
 
 ## Four things that are not obvious
 
-**The installer is downloaded on the Linux host, not in the machine.** Windows
+The installer is downloaded on the Linux host, not in the machine. Windows
 Server 2008 R2 has no TLS 1.2 and cannot reach Microsoft's download servers at
 all, so fetching it inside the machine fails on the oldest release and works on
 the rest, which is the worst way for something to fail.
 
-**The listening port has to be set in the registry afterwards.** Express
+The listening port has to be set in the registry afterwards. Express
 installs with TCP disabled and a dynamic port whatever `TCPENABLED=1` says in
 the configuration file. `install.bat` writes `TcpPort` and clears
 `TcpDynamicPorts` under the instance key, and the instance key is named for the
@@ -100,14 +100,14 @@ release: `MSSQL10_50` for 2008 R2 through `MSSQL13` for 2016. A key for the
 wrong release writes the port where nothing reads it, setup reports success,
 and the machine is unreachable with no error anywhere.
 
-**Readiness is a query, not a port.** The container runtime publishes the port
+Readiness is a query, not a port. The container runtime publishes the port
 when the container is created, so a connection to it succeeds seconds later and
 keeps succeeding for the forty minutes Windows takes to install. The first
 version of this script tested the port and declared every machine ready almost
 immediately. `dbrun` opens a connection and runs the version query, so a
 machine that answers but has not finished configuring is not called ready.
 
-**2008 R2 wants its own section header.** Its configuration file wants
+2008 R2 wants its own section header. Its configuration file wants
 `[SQLSERVER2008]` rather than `[OPTIONS]`. The file carries a comment saying
 so, and the comment names the header, so a replacement that is not anchored to
 a whole line rewrites the comment and leaves the header alone. That is what the

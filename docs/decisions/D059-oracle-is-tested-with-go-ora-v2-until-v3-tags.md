@@ -40,9 +40,9 @@ reasoning is about the SQL, and it still holds: the statements are the same
 whichever major version of the driver carries them, because the difference is
 in the wire protocol negotiation and not in what the server parses.
 
-What D52 could not anticipate is a driver that cannot reach the server at all.
-Holding to v3 would not make the old releases work in `usql`. It would only
-stop dbmeta from testing them, and then nobody would know they are broken.
+What D52 did not anticipate is a driver that cannot reach the server at all.
+Holding to v3 does not make the old releases work in `usql`. It only stops
+dbmeta from testing them, and then nobody knows they are broken.
 
 ## This reaches usql, and only until v3 tags
 
@@ -69,8 +69,7 @@ it reached authentication on 11g, 19c and 26ai, so the protocol side works
 across the range that go-ora v3 cannot, and it then refused the credentials
 because its connection string is not the URL form the rest of this project
 uses. That is a matter of reading its documentation rather than a fault, and it
-was not chased further, because a v0.0.1 beta is not what a test suite should
-depend on.
+was not chased further, because a test suite must not depend on a v0.0.1 beta.
 
 Revisit when it reaches a stable release. It is the only driver that is both
 pure Go and Oracle's own, and if it reaches 11g it settles this decision and
@@ -81,8 +80,8 @@ hard rule 10's Oracle clause together.
 When v3 tags the fix. Then move Oracle back to v3, match `usql` again, and mark
 this superseded. There is nothing else to decide at that point.
 
-Pinning v3 at the master commit instead was considered and not taken. It would
-keep the same package `usql` uses, and a pseudo-version is tolerable in a test
+Pinning v3 at the master commit instead was considered and not taken. It keeps
+the same package `usql` uses, and a pseudo-version is tolerable in a test
 module in a way it is not in a shipped binary. But v2.9.0 is a tagged release
 that reaches every server here, and choosing a tagged release over an untagged
 commit needs no explanation later.

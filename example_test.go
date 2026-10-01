@@ -17,7 +17,7 @@ func Example() {
 	ctx := context.Background()
 
 	// The client opens the connection. dbmeta never does, and never imports a
-	// driver. A real client would use dburl.Open here.
+	// driver. A real client uses dburl.Open here.
 	db, err := sql.Open("examplefake", "postgres://localhost/example")
 	if err != nil {
 		log.Fatal(err)

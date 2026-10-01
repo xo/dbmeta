@@ -17,7 +17,7 @@ once.
 So `models/trino` is the first to answer a catalog filter. `dbmeta.Args` has
 carried the field since it was written and nothing had used it. A consumer
 that passes `Args{Catalog: "memory"}` to any other model gets every catalog,
-because there is only one; passing it to this one narrows.
+because there is only one. Passing it to this one narrows.
 
 `Databases` reads `system.metadata.catalogs`, so `\l` lists the catalogs a
 server can reach. That is the closest thing Trino has to the question `psql`
@@ -30,8 +30,8 @@ catalog beside them. They differ in reach, and the difference decides this.
 
 A query against `memory.information_schema.tables` sees the memory catalog
 alone. The catalog cannot come from a bind parameter, because it is an
-identifier in the `FROM` clause, so a filter naming a second catalog would
-return no rows rather than an answer. That is a wrong answer wearing the
+identifier in the `FROM` clause, so a filter naming a second catalog returns
+no rows rather than an answer. That is a wrong answer wearing the
 clothes of an empty one, which rule 13 does not allow. `system.jdbc` spans
 every catalog the server has.
 
@@ -41,7 +41,7 @@ It is also richer. `system.jdbc.columns` carries the column comment in
 Views is the exception and it has to be. No cross catalog source holds a view
 definition: `system.metadata.materialized_views` covers materialized views
 only, and a plain view's definition lives in its own catalog's
-`information_schema.views`. Reading every catalog would be one statement per
+`information_schema.views`. Reading every catalog is one statement per
 catalog, which rule 13 forbids. So Views reads the session catalog, and its
 parameter description says so where a caller reads it rather than in a
 document they will not open.
@@ -66,6 +66,6 @@ The floor. `container/trino.go` holds it with the measurement behind it, and
 476 is set by what the memory connector can build rather than by what the
 catalog can answer.
 
-Whether `dbtpl` could generate from Trino. It could not, and `DBTPL.md` says
+Whether `dbtpl` can generate from Trino. It cannot, and `DBTPL.md` says
 why: no foreign key means no relationship to follow. That is a fact about the
 product rather than a decision about the model.

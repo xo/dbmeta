@@ -57,16 +57,16 @@ Three things address it and all three are required.
    almost always what the caller wanted.
 2. Define the lifecycle. Stopping early, by `break` or by a `yield` returning
    false, must close the rows and release the connection. An iterator that
-   leaks a connection on `break` is worse than a slice. Cancelling the context
+   leaks a connection on `break` is worse than a slice. Canceling the context
    must do the same.
 3. Make the escape hatch available. A caller that genuinely needs the whole
    result in memory collects the iterator into a slice with `slices.Collect`,
    which releases the connection at once. That is the caller's choice and it
    needs no API of its own.
 
-This is the cost of D33 and it is accepted. Note that materializing by default
-would trade this hazard for unbounded memory on a large catalog, which is the
-worse failure.
+This is the cost of D33 and it is accepted. Materializing by default trades
+this hazard for unbounded memory on a large catalog, which is the worse
+failure.
 
 ## Reading more than one catalog needs one snapshot
 

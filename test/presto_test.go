@@ -242,8 +242,8 @@ func TestPrestoColumnsAreAllNullable(t *testing.T) {
 // TestPrestoCatalogFilters covers the level no other model has.
 //
 // Presto is the only product here with three levels, so it is the only model
-// that answers a catalog filter, and a filter that quietly matched nothing
-// would look the same as an empty catalog.
+// that answers a catalog filter, and a filter that quietly matches nothing
+// looks the same as an empty catalog.
 func TestPrestoCatalogFilters(t *testing.T) {
 	db := openPresto(t)
 	m := setupPresto(t, db)

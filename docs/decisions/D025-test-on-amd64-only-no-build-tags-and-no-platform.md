@@ -14,9 +14,9 @@ different ways.
 
 This is a testing policy, not a restriction on where the code runs. `dbmeta` is
 pure Go under D29, so it builds and runs anywhere Go does. Nothing enforces
-amd64 and nothing should. Gemini read the decision as needing a `//go:build
-amd64` constraint to enforce itself, which would contradict the rule. It does
-not, because nothing is being enforced. Only testing is limited.
+amd64, and nothing is allowed to. Gemini read the decision as needing a
+`//go:build amd64` constraint to enforce itself, which contradicts the rule. It
+does not, because nothing is being enforced. Only testing is limited.
 
 The ban is on operating system and architecture constraints. It is not a ban on
 build tags of every kind. D31 gates model registration with the feature tags

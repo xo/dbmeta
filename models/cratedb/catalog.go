@@ -466,7 +466,7 @@ func registerRoutines() {
 func registerRoles() {
 	// pg_roles holds the users, which can log in, and the roles, which
 	// cannot. It is read rather than sys.users and sys.roles, because a user
-	// who is not a superuser is refused the sys schema and may read
+	// who is not a superuser is refused the sys schema and can read
 	// pg_roles. CrateDB has no database to create and no row security, so
 	// those two are false. The parity test found the refusal. See D61.
 	dbmeta.Roles.Register(dbmeta.CrateDB, &dbmeta.Binding[dbmeta.Role]{

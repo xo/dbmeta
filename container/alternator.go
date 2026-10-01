@@ -26,7 +26,7 @@ import (
 // salted hash of the role's password, as system.roles holds it. The command
 // sets the hash of the superuser cassandra, so its secret is [cassandraHash]
 // with the dollar signs unescaped. Init makes [AlternatorUser] with a hash
-// that is fixed too, and grants it SELECT on every keyspace, so it may read
+// that is fixed too, and grants it SELECT on every keyspace, so it can read
 // and not write. Alternator keeps a table named t in the keyspace
 // alternator_t, and has no database, so nothing is named dbmeta.
 //
@@ -34,7 +34,7 @@ import (
 // through ExecuteStatement, which Alternator refuses, and LIST TABLES and
 // DESCRIBE TABLE through calls it answers.
 
-// AlternatorUser may read every table and write none. Its password is
+// AlternatorUser can read every table and write none. Its password is
 // [Password].
 const AlternatorUser = "dbmeta_user"
 
@@ -101,6 +101,6 @@ func dynamoURL(key, secret string) func(port int) string {
 // Alternator is every ScyllaDB Alternator release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Alternator = list{}.staged(alternator, Tested, "2025.1", "2026.3")

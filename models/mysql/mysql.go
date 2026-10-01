@@ -29,9 +29,10 @@
 //     credential every local user reaches it with
 //   - a foreign table is a table on an engine that reads remote data
 //
-// This model answers 29 of the 56 questions on MariaDB and 26 on MySQL. The
-// four that read the mysql schema need SELECT on it, because neither product
-// publishes those tables through information_schema.
+// This model answers 29 of the 56 questions on MariaDB and 26 on MySQL. Six
+// of them on MariaDB, and four on MySQL, read the mysql schema and need
+// SELECT on it, because neither product publishes those tables through
+// information_schema.
 //
 // # Two products, one dialect
 //
@@ -146,7 +147,7 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 }
 
 // IsMariaDB reports whether a version set came from MariaDB rather than MySQL.
-// A caller narrowing behaviour by product reads this. A fragment does not: it
+// A caller narrowing behavior by product reads this. A fragment does not: it
 // gates on the [MariaDB] key instead.
 func IsMariaDB(versions dbmeta.VersionSet) bool {
 	return versions.Has(MariaDB)

@@ -239,7 +239,7 @@ func registerSettings() {
 	}
 	stmt := dbmeta.Stmt{
 		// The columns are named rather than starred, because their order has
-		// to match the field list and a reader should not have to find the
+		// to match the field list and a reader must not have to find the
 		// inner SELECT to check it.
 		always(`SELECT "name", "value", "type", "context", "access", "display" FROM (`),
 		always(b.String()),

@@ -8,8 +8,8 @@ rem of times: three on most of these editions, and the count cannot be reset.
 rem
 rem So this does not rearm on every boot. It reads the grace period first and
 rem rearms only when less than ten days are left, which spends one rearm every
-rem 170 days rather than one per reboot. A machine that is started often would
-rem otherwise burn the whole budget in a week.
+rem 170 days rather than one per reboot. Without that check, a machine that is
+rem started often burns the whole budget in a week.
 rem
 rem It is registered by install.bat as a scheduled task that runs at startup,
 rem as SYSTEM, because slmgr needs administrator rights.

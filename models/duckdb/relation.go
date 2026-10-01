@@ -355,8 +355,8 @@ func registerRelations() {
 // only on the column, so reporting it made the same schema answer differently
 // by release. DuckDB always records it, so that reason does not apply, and a
 // second one does: PostgreSQL never reports a NOT NULL constraint and DuckDB
-// would, so the same schema would answer differently by database. Column
-// nullable carries the fact in both.
+// records one, so without the filter the same schema answers differently by
+// database. Column nullable carries the fact in both.
 //
 // DeepSeek argued the other way, that duckdb_constraints is DuckDB's own
 // catalog and hiding a row loses information. The information is not lost, and

@@ -65,7 +65,7 @@ linters:
     # and different in kind: a sentinel is a constant of type Error, which
     # err113 does not know how to check.
     - err113
-    # wrapcheck would wrap the errors that come back from database/sql,
+    # wrapcheck wants the errors that come back from database/sql wrapped,
     # which destroys the identity a caller tests with errors.Is.
     - wrapcheck
     # Style opinions that argue with gofmt or with plain code.
@@ -91,16 +91,16 @@ linters:
     - testpackage
     # exhaustruct wants every field of every literal named. A Fragment is
     # written as {Min: v15, SQL: "..."} on purpose, because Key is the
-    # exception and naming it everywhere would bury it.
+    # exception and naming it everywhere buries it.
     - exhaustruct_v5
     # noinlineerr bans `if err := f(); err != nil`, which is the form the Go
     # standard library uses and gofmt is built around.
     - noinlineerr
     # recvcheck reports that VersionSet mixes receivers. It does: Set records
     # a version and needs a pointer, and everything else reads and does not.
-    # Making them all pointers would stop a VersionSet value from answering,
-    # and every Set call builds up a local variable rather than mutating a
-    # copy taken out of a container, which is the case that would be a bug.
+    # With a pointer receiver on every method, a value cannot answer. Every
+    # Set call builds up a local variable rather than mutating a copy taken
+    # out of a container, and only that copy is a bug.
     - recvcheck
     # exhaustive fires on two switches that handle two of three values and
     # answer the third after the switch. Its remedy is an empty case with no
@@ -150,9 +150,9 @@ linters:
         - G201
         - G202
         # G115 fires on reading a PostgreSQL server_version_num, which is six
-        # digits, into a uint32. A guard against four billion would be dead
-        # code, and the one first written here tested the wrong quantity and
-        # could never fire.
+        # digits, into a uint32. A guard against four billion is dead code,
+        # and the one first written here tested the wrong quantity and was
+        # never able to fire.
         - G115
         # G602 fires on an index guarded by a separate bool it cannot follow.
         - G602
@@ -186,7 +186,7 @@ linters:
         linters:
           - unqueryvet
       # Two bindings that read different catalogs can select the same shape.
-      # Merging them would tie two unrelated queries together.
+      # Merging them ties two unrelated queries together.
       - path: models/
         linters:
           - dupl

@@ -12,7 +12,7 @@ package container
 // docker.io/apache/drill builds each release tag once, so the rule in D112
 // applies: the newest release of each of the last two lines. Checked on
 // 2026-09-28, that is 1.22.0, of 2025-06-28, and 1.21.2, of 2024-08-02. Drill
-// releases slowly. It is under the Apache 2.0 licence.
+// releases slowly. It is under the Apache 2.0 license.
 //
 // # Embedded mode
 //
@@ -31,10 +31,10 @@ package container
 // which the image does not let its user write, turns on the htpasswd
 // authenticator with a file that holds admin and [DrillUser], each with
 // [Password], and asks for basic authentication on the HTTP interface. admin
-// is the one administrator, and [DrillUser] may query and may not change an
+// is the one administrator, and [DrillUser] can query and cannot change an
 // option or a storage plugin.
 
-// DrillUser may query, and may not change an option or a storage plugin. Its
+// DrillUser can query, and cannot change an option or a storage plugin. Its
 // password is [Password].
 const DrillUser = "dbmeta_user"
 
@@ -79,6 +79,6 @@ var drill = product{
 // Drill is every Apache Drill release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var Drill = list{}.staged(drill, Tested, "1.21.2", "1.22.0")

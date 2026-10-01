@@ -329,7 +329,7 @@ func registerSettings() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name", Desc: `always "duckdb": the product has no users`},
-			{Name: "session", Desc: "always null: DuckDB has no separate session user"},
+			{Name: "session", Desc: "always absent: DuckDB has no separate session user"},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
 			var v dbmeta.User

@@ -101,12 +101,12 @@ dialect, and both releases keep their cadence as their tier, Tested (D120).
 
 A flavor of the postgres model for each, with a product key. It was drafted,
 and dburl's D30 and Ken chose dialects of their own. A second product in one
-model would have needed every version gate of the postgres model to name the
-PostgreSQL key, because CockroachDB 26.3 claims 18 and a gate on the number
-alone would treat it as PostgreSQL 18.
+model needs every version gate of the postgres model to name the PostgreSQL
+key, because CockroachDB 26.3 claims 18 and a gate on the number alone treats
+it as PostgreSQL 18.
 
 A copy of the postgres statements in each model. 48 statements answer on
-CockroachDB as they are, and a copy would drift from the original.
+CockroachDB as they are, and a copy drifts from the original.
 
 dbimp's HTTP driver for CrateDB, which dbimp's D73 and D76 planned. The HTTP
 interface builds each whole result in memory and has no paging, and pgx

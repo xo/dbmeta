@@ -35,8 +35,8 @@ understand it.
 
 ## Columns are declared, and the SQL is not
 
-This is where DeepSeek was wrong and the error would have broken D8. It said
-fragments may change only the `WHERE`, `ORDER` and `LIMIT` text and never the
+This is where DeepSeek was wrong, and its advice contradicts D8. It said
+fragments can change only the `WHERE`, `ORDER` and `LIMIT` text and never the
 select list.
 
 That is the opposite of D8. Fragments exist to change the select list. Padding

@@ -86,7 +86,7 @@ var hana = product{
 	// So it is 8g, which is what SAP documents as the minimum.
 	//
 	// The image offers no way to set the limit directly. Its entrypoint
-	// takes one hook parameter, the licence flag, and there is no ini hook
+	// takes one hook parameter, the license flag, and there is no ini hook
 	// to write [memorymanager] with.
 	memory: "8g",
 	// It answered in 108 seconds on a warm image here, which is past the

@@ -9,13 +9,13 @@ container this project uses, and every container is named
 
 ## Why it needed saying
 
-Because the machine filled up with containers nobody could place. A session
-debugging one thing left `ch268`, `pg12`, `pg96` and `chplain` behind, on ports
-chosen by whoever typed the command, while the runner used its own names and
-its own ports for the same releases. Two sets of the same servers, and the only
-way to tell which was which was to read the image tag.
+Because the machine filled up with containers nobody was able to place. A
+session debugging one thing left `ch268`, `pg12`, `pg96` and `chplain` behind,
+on ports chosen by whoever typed the command, while the runner used its own
+names and its own ports for the same releases. Two sets of the same servers,
+and the only way to tell which was which was to read the image tag.
 
-It is worse than untidy. `version` could not reach two servers that were
+It is worse than untidy. `version` was not able to reach two servers that were
 plainly running, because the port it computes is not the port somebody typed.
 A container named for the release but started by hand is the confusing case,
 not the obviously wrong one.

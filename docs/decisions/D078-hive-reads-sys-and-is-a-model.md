@@ -5,13 +5,13 @@ Status: Decided.
 `models/hive` answers 16 of the 55 against Apache Hive 4.2.1.
 `docs/COVERAGE.md` holds the measurements.
 
-An earlier version of this decision said Hive could not be a model. That was
+An earlier version of this decision said that Hive cannot be a model. That was
 right about the evidence at the time and wrong about the conclusion, and
 both halves of what changed it came from outside this project.
 
 ## Hive is not Impala, which is what D66 left open
 
-D66 put Hive last with the note that it is the shape Impala already teaches,
+D66 put Hive last and noted that it is the shape Impala already teaches,
 and D67 struck Impala because it answers only through `SHOW` and `DESCRIBE`,
 which are statements rather than relations.
 
@@ -49,23 +49,22 @@ It accepted bind parameters and discarded them. `args` is a parameter of its
 implemented", so a statement reached Hive with its question marks still in
 it and came back as a Thrift frame size error rather than a refusal.
 
-Worse, it could not represent NULL. Measured:
+Worse, it had no way to represent NULL. Measured:
 
 	SELECT CAST(NULL AS string)   valid=true  ""
 	SELECT ''                     valid=true  ""
 	SELECT CAST(NULL AS bigint)   valid=true  0
 
 A NULL and an empty string were the same value, and a NULL and a zero were
-the same value. Every nullable field in a model built on it would have been
-a lie, silently, and nothing about the model would have looked wrong.
+the same value. Every nullable field in a model built on it is a lie,
+silently, and nothing about the model looks wrong.
 `docs/NULLS.md` is the shortest document here and the one that cost the most
 to learn, and that driver breaks all of it.
 
 `usql` is replacing it with `github.com/beltran/gohive/v2`, which Ken
 confirmed. v2 refuses parameters with a message instead of mangling them,
 and it tells NULL from empty. `TestHiveTellsNullFromEmpty` asserts the
-second, because a driver change that regressed it would leave no other
-trace.
+second, because a driver change that regressed it leaves no other trace.
 
 One trap the `usql` session recorded and this keeps: `beltran/gohive` v1 has
 no `database/sql` driver at all, only a Connect and Cursor client, and it
@@ -113,7 +112,7 @@ So an absent `transport` is safe where an absent `auth` is not, and only a
 wrong value panics. Nothing needs to default it.
 
 The `dburl` session then found the mechanism, which turns the distinction
-from a judgement into something checkable. `ParseDSN` fills in
+from a judgment into something checkable. `ParseDSN` fills in
 `TransportMode: "binary"` and `Service: "hive"` when it builds its struct
 and does not fill in `Auth`, so `Auth` reaches the connect path as the empty
 string that panics while the other two arrive with working values. The form

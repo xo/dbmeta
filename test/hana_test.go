@@ -344,8 +344,8 @@ func TestHANARowAndColumnStore(t *testing.T) {
 // SYS.GRANTED_PRIVILEGES carries a COLUMN_NAME column and HANA 2.0 SPS 08
 // has no GRANT syntax that fills it: every spelling of a column list is a
 // syntax error. The Privileges query keeps column_access because the
-// catalog has the column, and it is always empty. Without this test a
-// query that stopped reading it would look the same.
+// catalog has the column, and it is always empty. Without this test, a
+// query that stops reading it looks the same.
 func TestHANAHasNoColumnGrant(t *testing.T) {
 	db := openHANA(t)
 	m := setupHANA(t, db)

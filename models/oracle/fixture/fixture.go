@@ -11,13 +11,13 @@
 // fixture creates a user and its objects live there. That also means the
 // teardown is one statement: dropping the user cascades to everything it owns.
 //
-// # Dropping what may not exist
+// # Dropping what can be absent
 //
 // Oracle had no DROP ... IF EXISTS before 23ai, so a teardown that runs
 // against a clean database raises ORA-01918 and stops. Every drop here is
 // wrapped in a block that catches its own error, which is the idiom Oracle
-// users have written for twenty years and is what a version gate would have
-// to produce anyway.
+// users have written for twenty years and is what a version gate has to
+// produce anyway.
 package fixture
 
 import (

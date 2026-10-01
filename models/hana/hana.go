@@ -32,7 +32,7 @@
 //
 // # What is missing
 //
-// 23 kinds, and almost all of them because HANA has no such object. There is
+// 24 kinds, and almost all of them because HANA has no such object. There is
 // no CREATE DOMAIN, no enumerated type, no user defined cast, operator or
 // aggregate, no tablespace, no DDL trigger, no publication, and no default
 // privilege. docs/COVERAGE.md holds the rest, including the leads a second

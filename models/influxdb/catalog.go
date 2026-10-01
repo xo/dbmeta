@@ -149,7 +149,7 @@ func registerRelations() {
 			{Name: "ordinal", Desc: "the position from 1. DataFusion reports it from 0, and the model adds 1"},
 			{Name: "data_type", Desc: "the Arrow type, such as Int64, Float64 or Timestamp(ns). A tag is Dictionary(Int32, Utf8)"},
 			{Name: "nullable", Desc: "false for time alone: a point can leave out any tag or field"},
-			{Name: "default", Desc: "always absent: a column has no default"},
+			{Name: "default", Desc: "always absent in practice: a column has no default"},
 			{Name: "primary_key", Desc: "always false: InfluxDB 3 has no primary key"},
 			{Name: "identity", Desc: "always empty: InfluxDB 3 has no identity column"},
 			{Name: "generated", Desc: "always empty: InfluxDB 3 has no generated column"},

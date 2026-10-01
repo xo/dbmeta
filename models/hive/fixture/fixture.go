@@ -23,7 +23,7 @@
 // No sequence, no trigger and no index, because Hive has none.
 //
 // No function. CREATE FUNCTION registers a Java class by name, so a fixture
-// that made one would depend on a class being on the server's path. Functions
+// that made one depends on a class being on the server's path. Functions
 // is verified to run and returns nothing.
 package fixture
 

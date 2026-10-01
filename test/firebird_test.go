@@ -301,12 +301,12 @@ func TestFirebirdColumns(t *testing.T) {
 }
 
 // TestFirebirdSchemasAreNotSupported is the guard on the one decision this
-// model makes that a reader would otherwise have to test for.
+// model makes that a reader otherwise has to test for.
 //
 // Firebird has no schemas before 6.0, so the answer is ErrNotSupported and
 // never an empty result. D34 is the rule and an empty result must never stand
-// in for it. Without this test a query that broke and returned nothing would
-// look the same as the deliberate answer.
+// in for it. Without this test, a query that breaks and returns nothing
+// looks the same as the deliberate answer.
 func TestFirebirdSchemasAreNotSupported(t *testing.T) {
 	db := openFirebird(t)
 	m := setupFirebird(t, db)
@@ -386,8 +386,8 @@ func TestFirebirdConstraints(t *testing.T) {
 // A Firebird check has no index, so it has no index segments and the join
 // every other constraint uses cannot reach it. The columns are recorded as
 // the dependencies of the system triggers that implement the check, and
-// nowhere else. Without this test that arm could stop working and the result
-// would merely be a shorter list.
+// nowhere else. Without this test, that arm can stop working and the result
+// is merely a shorter list.
 func TestFirebirdCheckConstraintColumns(t *testing.T) {
 	db := openFirebird(t)
 	m := setupFirebird(t, db)
@@ -439,7 +439,7 @@ func TestFirebirdForeignKeyTarget(t *testing.T) {
 }
 
 // TestFirebirdRoutines checks that a package member is left out and a plain
-// routine is not, which is the one judgement the Functions query makes.
+// routine is not, which is the one judgment the Functions query makes.
 func TestFirebirdRoutines(t *testing.T) {
 	db := openFirebird(t)
 	m := setupFirebird(t, db)

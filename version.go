@@ -144,8 +144,8 @@ func (v Version) part(i int) uint32 {
 // VersionSet is every version one server reports.
 //
 // Most databases report one, under the empty key. Cassandra reports three that
-// move independently, under the keys "release", "cql" and "protocol", so a
-// fragment says which one it gates on.
+// move independently: the release under the empty key, and the keys "cql" and
+// "protocol", so a fragment says which one it gates on.
 type VersionSet struct {
 	// Versions holds each reported version by name. The empty name is the
 	// main one.

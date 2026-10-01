@@ -30,7 +30,7 @@ URL names a port. The dsn stays `http://`, which dbimp's recorder takes.
 ## What was measured
 
 On 0.24.33, on 2026-10-01, a SELECT worked with both tokens, CREATE TABLE
-worked with the rw token, and the ro token was refused: "Current session
-doesn't not have Write permission to namespace default". A token with a bad
-signature and a request with no token were both refused, and both tokens
-still worked after a stop and a start.
+worked with the rw token, and the ro token was refused:
+"Current session doesn't not have Write permission to namespace default". A
+token with a bad signature and a request with no token were both refused, and
+both tokens still worked after a stop and a start.

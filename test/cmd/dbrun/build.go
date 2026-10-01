@@ -21,7 +21,7 @@ import (
 // this turns them on. See D62.
 //
 // Oracle publishes no free 19c image at all. It publishes Dockerfiles and an
-// installer archive that a person downloads once under the developer licence,
+// installer archive that a person downloads once under the developer license,
 // and the image is built from those.
 //
 // The rest have a published image that cannot run what dbrun needs inside
@@ -143,9 +143,9 @@ const (
 	oracle19cSHA256 = "ba8329c757133da313ed3b6d7f86c5ac42cd9970a28bf2e6233f3235233aa8d8"
 	// Where the archive comes from when it is not already on the machine.
 	//
-	// Not Oracle: their download needs an account, an accepted licence and a
+	// Not Oracle: their download needs an account, an accepted license and a
 	// browser session, so it cannot be fetched by a command. This is a copy of
-	// the same file, and the digest above is what says so. Oracle's licence
+	// the same file, and the digest above is what says so. Oracle's license
 	// still governs what the file is used for, and it is the caller's to
 	// accept, exactly as before.
 	oracle19cURL  = "https://archive.org/download/linux.-x-64-193000-db-home/" + oracle19cArchive
@@ -155,7 +155,7 @@ const (
 // buildOracle19c builds the image from Oracle's own Dockerfiles.
 //
 // Oracle publishes no free 19c image, and 19c is the long term release most
-// installations run. The archive is the caller's to obtain and the licence is
+// installations run. The archive is the caller's to obtain and the license is
 // the caller's to accept: nothing here downloads it.
 func buildOracle19c(ctx context.Context, r runner, _ target) error {
 	archive, fetched, err := oracleArchive(ctx)
@@ -169,7 +169,7 @@ func buildOracle19c(ctx context.Context, r runner, _ target) error {
 			// so leaving it there means every later run fails the same way
 			// with nothing to do about it.
 			if rmErr := os.Remove(archive); rmErr != nil {
-				return fmt.Errorf("%w\n  and %s could not be removed: %v."+
+				return fmt.Errorf("%w\n  and %s was not removed: %w."+
 					" Delete it before running this again", err, archive, rmErr)
 			}
 			return fmt.Errorf("%w\n  the download was removed,"+
@@ -212,8 +212,8 @@ func buildOracle19c(ctx context.Context, r runner, _ target) error {
 
 	fmt.Println("  running Oracle's build, which takes about half an hour")
 	// Oracle's own script, called rather than reimplemented. It is theirs, it
-	// changes with their layout, and rewriting it here would mean owning a
-	// build we do not control.
+	// changes with their layout, and a rewrite of it here means owning a build
+	// we do not control.
 	if err := shell(ctx, dir, "./buildContainerImage.sh", "-v", "19.3.0", "-e"); err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func buildOracle19c(ctx context.Context, r runner, _ target) error {
 // stateDir is where something large that the harness fetched or built lives.
 //
 // Not in the repository: a Windows disk is tens of gigabytes and a grep or an
-// editor index over the working tree should not have to walk it. The XDG data
+// editor index over the working tree must not have to walk it. The XDG data
 // directory is the conventional home, and the named variable overrides it.
 func stateDir(env, name string) string {
 	if dir := os.Getenv(env); dir != "" {

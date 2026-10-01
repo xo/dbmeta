@@ -21,8 +21,8 @@ func TestChangePassword(t *testing.T) {
 		// A backslash always escapes in a ClickHouse string literal.
 		{"a quote and a backslash", dbmeta.PasswordChange{User: "bob", Password: `a'b\`},
 			"ALTER USER `bob` IDENTIFIED BY 'a''b\\\\'"},
-		// And inside backticks, so a name that ends in a backslash would
-		// escape its own closing backtick if the backslash were not doubled.
+		// And inside backticks, so a name that ends in a backslash
+		// escapes its own closing backtick unless the backslash is doubled.
 		{"a backslash in the name", dbmeta.PasswordChange{User: `bo\`, Password: "p"},
 			"ALTER USER `bo\\\\` IDENTIFIED BY 'p'"},
 		{"a backtick in the name", dbmeta.PasswordChange{User: "b`ob", Password: "p"},

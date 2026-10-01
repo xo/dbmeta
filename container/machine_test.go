@@ -19,7 +19,7 @@ func TestEveryMachineIsUsable(t *testing.T) {
 	for _, s := range container.All() {
 		// A machine and a container share one name space, which is how
 		// sqlserver-2016 and sqlserver-2017 sit in one list. A name in both
-		// would make a selector mean two things.
+		// makes a selector mean two things.
 		names[s.Name()] = true
 	}
 	// A machine must not collide with a container either. dbrun publishes
@@ -47,7 +47,7 @@ func TestEveryMachineIsUsable(t *testing.T) {
 			t.Errorf("%s is missing its dialect, product or release: %+v", m.Name(), m)
 		}
 		// A virtual machine cannot run in CI, so it is Verified and never
-		// Tested. Saying otherwise would put an untestable release in the
+		// Tested. Saying otherwise puts an untestable release in the
 		// table beside one CI runs. See D54.
 		if m.Tier != container.Verified {
 			t.Errorf("%s is %s, and a machine can only be %s",
@@ -72,8 +72,8 @@ func TestEveryMachineIsUsable(t *testing.T) {
 		if !strings.Contains(m.DSN(), ":"+strconv.Itoa(m.Port)) {
 			t.Errorf("%s: the port is missing from %s", m.Name(), m.DSN())
 		}
-		// Exactly one kind. Both set would leave provision guessing, and
-		// neither would leave it nothing to do.
+		// Exactly one kind. If both are set, provision must guess, and if
+		// neither is set, it has nothing to do.
 		if (m.Windows == nil) == (m.Appliance == nil) {
 			t.Errorf("%s must set exactly one of Windows and Appliance", m.Name())
 		}
@@ -93,7 +93,7 @@ func checkAppliance(t *testing.T, m container.Machine) {
 		t.Errorf("%s: %q is not the file name of an OVA", m.Name(), a.File)
 	}
 	// The digest is the only check there is, because the file cannot be
-	// fetched again to compare. An empty one would import anything.
+	// fetched again to compare. An empty one imports anything.
 	if !sha256Hex.MatchString(a.SHA256) {
 		t.Errorf("%s: %q is not a lower case SHA256", m.Name(), a.SHA256)
 	}

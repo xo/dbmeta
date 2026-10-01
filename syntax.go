@@ -32,7 +32,7 @@ const (
 	TerminatorStripped
 	// TerminatorStrippedUnlessEnd is Oracle, which refuses the semicolon at
 	// the end of a statement and needs it at the end of a PL/SQL block, so a
-	// client removes it unless the statement ends with END;.
+	// client removes it unless the statement ends with `END;`.
 	TerminatorStrippedUnlessEnd
 )
 

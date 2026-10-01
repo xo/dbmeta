@@ -2,8 +2,8 @@
 
 Status: Amends D66, amended by D100.
 
-D66 put Vertica fifth and then recorded that it could not be started: the
-official image was withdrawn, the maintained one runs only under the
+D66 put Vertica fifth and then recorded that it was not possible to start
+it: the official image was withdrawn, the maintained one runs only under the
 Kubernetes operator, and the download one-node-ce builds from went away. It
 also rejected `saadmairaj/vertica:10.1.1` as five years old, built by a
 stranger and impossible to reproduce. Ken decided on 2026-09-27 to go ahead
@@ -20,11 +20,11 @@ with community images, and `models/vertica` answers 26 of the 55.
 
 The 25.1 image is not a stranger's build of Vertica. Its layers are the steps
 of Vertica's own `vertica-containers/one-node-ce` Dockerfile, its entrypoint
-carries the Open Text copyright and Apache licence, and its binary reports
+carries the Open Text copyright and Apache license, and its binary reports
 Vertica Analytic Database v25.1.0-0. It is a copy of the image the withdrawn
 `vertica/vertica-ce` published, pushed by somebody else, and 25.1 is a
 current release. That answers the part of D66's objection that mattered,
-which was that nothing a consumer runs could be tested.
+which was that nothing a consumer runs was testable.
 
 The three older images are a stranger's builds of real releases, and they
 are there for a different reason. One release cannot exercise a version gate,
@@ -34,8 +34,8 @@ both sides. They run nightly, because they are large and they are the gates'
 floor rather than what a consumer connects to today.
 
 Every image was pushed once and never rebuilt, so every entry pins its digest
-as well as its tag. A push to the same tag would otherwise change what was
-tested without a line changing here.
+as well as its tag. Without the digest, a push to the same tag changes what
+was tested without a line changing here.
 
 ## How a password reaches each image
 
@@ -56,10 +56,11 @@ it reported a server up whose first connection was refused.
 ## The driver splits a statement at every semicolon
 
 `vertica-sql-go`, the driver `usql` uses, splits a statement at each
-semicolon before it sends it, and it does not know a SQL function's `BEGIN
-... END` body. `CREATE FUNCTION f(n INT) RETURN INT AS BEGIN RETURN (n * 2);
-END;` reaches the server in halves and is refused near EOL. `vsql` creates
-it without complaint. The semicolon cannot be left out either, so no SQL
+semicolon before it sends it, and it does not know a SQL function's
+`BEGIN ... END` body.
+`CREATE FUNCTION f(n INT) RETURN INT AS BEGIN RETURN (n * 2); END;` reaches
+the server in halves and is refused near EOL. `vsql` creates it without
+complaint. The semicolon cannot be left out either, so no SQL
 function can be created through the driver `usql` ships. That is a driver
 fault and it is `usql`'s to know about. The fixture creates none, and
 Functions reads the functions the packages Vertica installs provide, and the
@@ -79,7 +80,7 @@ before it in the list lacks it:
 The 25.1 row is measured present on 25.1 and absent on 10.1, and no release
 between is measured, so the gate is where the thing was seen. A server in
 between is told Triggers and RoleSettings are too old. That can be wrong for a
-release nobody has run here, and a measurement is what would move it.
+release nobody has run here, and only a measurement moves it.
 
 Before 10.1 there is no string aggregate, so Privileges returns a row per
 object and grantee rather than a row per object. The columns are the same,

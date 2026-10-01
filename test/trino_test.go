@@ -241,8 +241,8 @@ func TestTrinoColumnsCarryTheComment(t *testing.T) {
 // TestTrinoCatalogFilters covers the level no other model has.
 //
 // Trino is the only product here with three levels, so it is the only model
-// that answers a catalog filter, and a filter that quietly matched nothing
-// would look the same as an empty catalog.
+// that answers a catalog filter, and a filter that quietly matches nothing
+// looks the same as an empty catalog.
 func TestTrinoCatalogFilters(t *testing.T) {
 	db := openTrino(t)
 	m := setupTrino(t, db)

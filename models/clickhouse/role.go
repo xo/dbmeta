@@ -233,7 +233,7 @@ func registerRoles() {
 			{Name: "options", Desc: "the volume name and its type"},
 			{
 				Name: "size",
-				Desc: "always absent: a size would have to sum system.disks, which is" +
+				Desc: "always absent: a size needs a sum over system.disks, which is" +
 					" a second statement",
 			},
 			{Name: "access", Desc: "always absent: a policy is not grantable"},
@@ -353,7 +353,7 @@ func registerRoles() {
 			{Name: "catalog", Desc: "always empty: ClickHouse has nothing above a database"},
 			{Name: "name"},
 			{Name: "owner", Desc: "always empty: a database records no owner"},
-			{Name: "comment", Desc: "always absent: reading it would need a second statement"},
+			{Name: "comment", Desc: "always absent: reading it needs a second statement"},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var v dbmeta.Schema

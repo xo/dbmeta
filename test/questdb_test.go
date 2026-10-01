@@ -17,7 +17,7 @@ import (
 // openQuestDB returns a connection to the server named by DBMETA_QUESTDB.
 //
 // QuestDB is reached on its PostgreSQL interface with pgx, which is what
-// dburl's questdb:// opens and what usql uses (D52).
+// dburl's questdb:// opens (D154).
 func openQuestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	return openQuestDBAt(t, os.Getenv("DBMETA_QUESTDB"))

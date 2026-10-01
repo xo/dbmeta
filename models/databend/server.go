@@ -66,7 +66,7 @@ func registerServer() {
 	})
 
 	// \du. A user can log in and a role cannot. account_admin is the role
-	// that may do anything, so a user that holds it is a superuser.
+	// that can do anything, so a user that holds it is a superuser.
 	dbmeta.Roles.Register(dbmeta.Databend, &dbmeta.Binding[dbmeta.Role]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT u.name AS "name"`),
@@ -93,7 +93,7 @@ func registerServer() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"},
-			{Name: "superuser", Desc: "true for account_admin and for whoever holds it, which may do anything"},
+			{Name: "superuser", Desc: "true for account_admin and for whoever holds it, which can do anything"},
 			{Name: "create_role", Desc: "always false: it is a grant rather than a flag"},
 			{Name: "create_db", Desc: "always false: it is a grant rather than a flag"},
 			{Name: "can_login", Desc: "true for a user that is not disabled, and false for a role, which cannot log in"},

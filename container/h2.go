@@ -28,11 +28,11 @@ import (
 // h2go opens a database in memory and not a file, so the database is
 // mem:dbmeta, and it lasts while the server runs because of DB_CLOSE_DELAY.
 // The first connection to a database that H2 makes is its administrator, so
-// the check makes it as sa with [Password]. Init makes [H2User], who may read
+// the check makes it as sa with [Password]. Init makes [H2User], who can read
 // the schema PUBLIC. A restart loses the database, and the check and Init
 // make it again.
 
-// H2User may read the schema PUBLIC. Its password is [Password].
+// H2User can read the schema PUBLIC. Its password is [Password].
 const H2User = "dbmeta_user"
 
 // h2URL is the JDBC address of the database, which the Shell of H2 takes.
@@ -68,6 +68,6 @@ func h2DSN(user string) func(port int) string {
 // H2 is every H2 release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it would have if a model read it, which is
+// them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
 var H2 = list{}.staged(h2, Tested, "2.4.240", "2.5.252")

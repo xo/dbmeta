@@ -9,7 +9,7 @@ import (
 // TestEveryStagedTargetHasACadence holds D120 for every kind of target: the
 // servers, the machines, the libraries and the hosted services. A project
 // that runs Staged targets, such as dbimp, chooses which run on each push by
-// the cadence, so a Staged target without one would run nowhere.
+// the cadence, so a Staged target without one runs nowhere.
 func TestEveryStagedTargetHasACadence(t *testing.T) {
 	for _, x := range targets() {
 		switch {

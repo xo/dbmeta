@@ -1,6 +1,6 @@
 # D80. The driver registry is dburl's, and reading it is not importing it
 
-Status: Amended by D125.
+Status: Amended by D125 and D154.
 
 `dburl` v0.29.0 describes every scheme it registers. `dburl.Scheme` gained
 `Desc`, `Home`, `GoPackage`, `DriverURL`, `RequiresCGO` and `Deployment`, so

@@ -21,7 +21,7 @@
 // Third, there is no order across partitions. CQL orders rows only within one
 // partition and only by a clustering column, so a result arrives in token
 // order and the same query can return the same rows in another order on
-// another cluster. No query here writes ORDER BY, because writing one would
+// another cluster. No query here writes ORDER BY, because writing one does
 // not make the answer ordered.
 //
 // # Padding
@@ -237,7 +237,7 @@ func fixed(prefix, literal, standIn, name string) dbmeta.Choice {
 	return dbmeta.Choice{{Query: prefix + literal + as}, scylla(prefix + standIn + as)}
 }
 
-// filters declares the filters a caller may pass.
+// filters declares the filters a caller can pass.
 //
 // None of them narrows anything. CQL cannot express an optional filter, so
 // every query returns every row and the caller narrows the result. They are

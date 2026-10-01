@@ -20,17 +20,17 @@ import (
 // each of the last two lines. Checked on 2026-09-28, that is 15.2.0, of
 // 2026-04-16, and 14.1.0, of 2025-01-31. The tag ends in _voltdb.
 //
-// # The licence
+// # The license
 //
-// The developer edition does not start without a licence file, which a person
+// The developer edition does not start without a license file, which a person
 // gets by signing up, and which lasts 100 days. Ken chose on 2026-09-28 to
 // provision it. dbrun mounts the file at [Server.License] and lists these
-// releases only while it finds the file. CI has no licence, and no model
+// releases only while it finds the file. CI has no license, and no model
 // reads them, so they are Staged.
 //
 // # Not yet measured
 //
-// No release has started here, because no licence file has been provisioned.
+// No release has started here, because no license file is provisioned yet.
 // The steps below follow the vendor's compose file and documentation and are
 // the first thing to measure when the file arrives.
 //
@@ -39,10 +39,10 @@ import (
 // The command writes a deployment file with security on, which names admin,
 // an administrator, and [VoltDBUser], with the role dbmeta_reader, both with
 // [Password]. It makes the database directory once and starts the server on
-// it. Init makes the role, which may read. VoltDB has one database, so
+// it. Init makes the role, which can read. VoltDB has one database, so
 // nothing is named dbmeta.
 
-// VoltDBUser may read. Its password is [Password].
+// VoltDBUser can read. Its password is [Password].
 const VoltDBUser = "dbmeta_user"
 
 // voltdbServe writes the deployment file, makes the database directory once,
@@ -89,6 +89,6 @@ func voltURL(user string) func(port int) string {
 // VoltDB is every Volt Active Data release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads VoltDB, so CI runs none
-// of them. Each also needs a licence file that CI does not have,
+// of them. Each also needs a license file that CI does not have,
 // so its cadence is Verified. See D119 and D120.
 var VoltDB = list{}.staged(voltdb, Verified, "14.1.0", "15.2.0")

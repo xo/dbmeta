@@ -16,7 +16,7 @@ import (
 
 // oemFiles is the payload Windows setup runs at the end of an unattended
 // install: a configuration file for SQL Server setup, the batch file that
-// runs it, and the one that keeps the evaluation licence alive.
+// runs it, and the one that keeps the evaluation license alive.
 //
 // They are embedded rather than read from disk so that dbrun is one binary
 // with nothing to find. It used to locate them relative to the script, which
@@ -203,8 +203,7 @@ func writeOEM(release string, w container.WindowsSpec, oem string) error {
 	).Replace(string(install))
 	if strings.Contains(text, "@@") {
 		// A placeholder left behind means a rename somewhere, and the machine
-		// would run the literal text for the next forty minutes before
-		// failing.
+		// runs the literal text for the next forty minutes before it fails.
 		return fmt.Errorf("a placeholder is unfilled in install.bat for %s", release)
 	}
 	if err := writeCRLF(filepath.Join(oem, "install.bat"), text); err != nil {
@@ -235,7 +234,7 @@ func replaceLine(text, from, to string) string {
 // writeCRLF writes a file with the line endings Windows reads.
 //
 // A batch file with Unix endings runs, mostly, and then fails somewhere
-// specific and unhelpful. Normalising first means a file that already has
+// specific and unhelpful. Normalizing first means a file that already has
 // them does not end up with two.
 func writeCRLF(path, text string) error {
 	text = strings.ReplaceAll(text, "\r\n", "\n")
@@ -255,12 +254,12 @@ func createMachine(ctx context.Context, r runner, name string, args []string) er
 	if r.exists(ctx, name) {
 		fmt.Println("  the machine exists, starting it")
 		if !r.quiet(ctx, "start", name) {
-			return errors.New("it would not start")
+			return errors.New("it did not start")
 		}
 		return nil
 	}
 	if out, err := r.output(ctx, withOwner(args, currentOwner(), currentOwnerName())...); err != nil {
-		return fmt.Errorf("it would not start: %s", lastLine(out))
+		return fmt.Errorf("it did not start: %s", lastLine(out))
 	}
 	return nil
 }
