@@ -322,7 +322,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 165 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 55 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 166 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 56 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -334,6 +334,7 @@ Everything else is in [`docs/`](docs/):
 | [`DBRUN.md`](docs/DBRUN.md) | How to use `dbrun`, the command that starts the databases the tests run against, and the rules for sharing one machine. |
 | [`CONTAINERS.md`](docs/CONTAINERS.md) | How to add a container or a virtual machine that `dbrun` can start. |
 | [`BACKLOG.md`](docs/BACKLOG.md) | Work that is known and not done, with the decision or the measurement that found each item. |
+| [`PROGRESS.md`](docs/PROGRESS.md) | Where the work stands, so that a session that ends or crashes can resume. |
 | [`WINDOWS.md`](docs/WINDOWS.md) | The Windows machines that host the SQL Server releases with no Linux container, and why each of them is awkward. |
 
 [`AGENTS.md`](AGENTS.md) holds the rules for writing code here, for a coding

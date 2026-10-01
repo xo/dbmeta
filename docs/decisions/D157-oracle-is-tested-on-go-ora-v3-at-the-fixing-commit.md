@@ -1,6 +1,6 @@
 # D157. Oracle is tested on go-ora v3 at the commit that fixes it
 
-Status: Amends D59, D136 and D154.
+Status: Amends D59, D136 and D154, amended by D166.
 
 ## The decision
 
@@ -42,8 +42,8 @@ the rest.
 
 19c did not finish its first start. Its database creation stayed at 36% for 20
 minutes, at the 4 GB memory limit, while the load on the machine was 30. D59
-measured 19c on this same commit, so the driver is not the cause. The backlog
-holds the measurement that settles the memory.
+measured 19c on this same commit, so the driver is not the cause. Ken chose
+on 2026-10-02 not to measure it further (D166).
 
 A second run of 19c found a fault in dbrun. A container that was running and
 not yet ready counted as up, so the tests ran before the database was open and

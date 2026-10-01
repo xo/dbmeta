@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-55 of them amend or replace an earlier one, and a decision read without its
+56 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -175,7 +175,7 @@ file.
 | [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157 |
 | [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
 | [D156](D156-a-test-checks-the-simple-english-rules-a-machine-can.md) | A test checks the simple English rules that a machine can check | Decided |
-| [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154 |
+| [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154, amended by D166 |
 | [D158](D158-h2-and-voltdb-wait.md) | H2 and VoltDB wait | Decided |
 | [D159](D159-influxql-can-walk-show-statements.md) | InfluxQL can walk SHOW statements | Amends D146 |
 | [D160](D160-libsql-shares-the-sqlite3-model.md) | libSQL shares the sqlite3 model | Amends D153 |
@@ -184,3 +184,4 @@ file.
 | [D163](D163-arangodb-maps-a-collection-onto-a-table.md) | ArangoDB maps a collection onto a table | Proposed |
 | [D165](D165-influxql-maps-a-database-to-a-schema-and-a.md) | InfluxQL maps a database to a schema and a measurement to a table | Decided |
 | [D164](D164-surrealdb-maps-a-namespace-to-a-catalog-and-a-field-to-a.md) | SurrealDB maps a namespace to a catalog and a defined field to a column | Decided |
+| [D166](D166-oracle-19c-pinot-and-the-influxdb-release-wait.md) | Oracle 19c, Pinot and the InfluxDB release wait | Amends D157 |

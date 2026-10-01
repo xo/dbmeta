@@ -36,19 +36,6 @@ D158 left VoltDB Staged, because the developer edition does not start without
 a license file and none is on this machine. When Ken places one where
 `docs/DBRUN.md` says, under License files, build the model.
 
-### Measure the memory that Oracle 19c needs to start
-
-On 2026-10-01 a fresh `oracle-19c` sat at 36% of its database creation for 20
-minutes, at its 4 GB limit, 4.28 GB of 4.30 GB, and at 330% CPU. The load on
-the machine was 30, from other sessions. D157 records 19c as not measured on
-that run. D59 had measured 19c on the same go-ora commit, so 4 GB was enough at
-least once. When the machine is quiet, start 19c alone and record its peak
-memory during the first start. If it needs more than `container.MemoryLimit`,
-give the 19c entry a `Memory` with that number beside it, as SAP HANA has.
-Also record how long the first start takes. The entry waits five minutes by
-default, and the first start creates the database, which takes longer than
-that.
-
 ### Find why the Hive setup fails on a slow machine
 
 The Hive setup fails on a GitHub runner, soon after HiveServer2 first answers,
@@ -102,15 +89,16 @@ dburl has no druid scheme yet, and the driver comes later in dbimp's order.
 When both exist, build the model. dbrun starts Druid 36.0.0 and 37.0.0
 already (D113).
 
-### Build the Apache Pinot model
+### Consider a SQL layer for what a product does not answer
 
-Pinot 1.4 and 1.5 keep their catalog only in the Controller's REST API. The
-Broker's SQL has no information_schema, no SHOW and no DESCRIBE, and the
-Controller of 1.5.1 has no /sql/ddl, measured on 2026-10-01. A model needs
-dbimp's driver to answer metadata statements such as SHOW TABLES and DESCRIBE
-from the Controller, and the DSN of that driver does not name the Controller
-today (dbimp D129). Ken has not decided that work in dbimp. When a release of the driver
-has such statements, build a model that walks them, as Impala's does (D146).
+This is not a priority (D166). Apache Pinot keeps its catalog only in the
+Controller's REST API, and its Broker's SQL has no information_schema, no
+SHOW and no DESCRIBE, measured on 1.4 and 1.5 on 2026-10-01. InfluxDB names
+its release only in `GET /ping`. A generic SQL layer, in a driver or beside
+one, can answer such statements, for example SHOW TABLES, DESCRIBE and
+`SELECT version()`, from what the product does expose. If Ken takes it up,
+a Pinot model can walk those statements, as Impala's does (D146), and the
+InfluxDB models can read the release with a statement.
 
 ### Run the Snowflake and Redshift models
 

@@ -35,7 +35,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 165. Read the status, because 55
+`docs/decisions/README.md` is a table of all 166. Read the status, because 56
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -72,6 +72,7 @@ Then by what you are doing:
 | writing a document, a code comment, an error message or a commit message | the `simple-english` skill. Load it first. See below, under Writing documentation |
 | writing or reviewing Go code | the `go-pedantry` skill. Load it first. See Standing rules |
 | looking for work that is known and not done | `docs/BACKLOG.md` |
+| resuming a session that ended or crashed | `docs/PROGRESS.md`, which says where the work stands |
 | adding or updating an agent skill | `CONTRIBUTING.md`, under Agent skills, D89 and D110 |
 
 `CONTRIBUTING.md` is the same thing for a person, and shorter.
