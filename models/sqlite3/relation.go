@@ -8,6 +8,10 @@ import (
 
 // Tables, columns, indexes, constraints and triggers.
 
+// indexType is the word for the kind of the entry i of pragma_index_list.
+const indexType = `CASE i.origin WHEN 'c' THEN 'btree' WHEN 'u' THEN 'unique constraint'` +
+	` WHEN 'pk' THEN 'primary key' ELSE i.origin END`
+
 // tableType is the word for the kind of the entry m of sqlite_schema.
 const tableType = `CASE m.type WHEN 'view' THEN 'view'` +
 	` WHEN 'table' THEN CASE WHEN m.sql LIKE 'CREATE VIRTUAL TABLE%'` +
@@ -97,7 +101,7 @@ func registerRelations() {
 			always(`, NULL AS "comment"`),
 			always(`FROM sqlite_schema m`),
 			always(`WHERE m.type IN ('table', 'view')`),
-			always(`AND ` + notSystem),
+			notSystem("m.name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@name = '' OR m.name LIKE @name)`),
 			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, tableType) + `)`),
@@ -153,7 +157,7 @@ func registerRelations() {
 			always(`, NULL AS "collation"`),
 			always(`FROM sqlite_schema m JOIN pragma_table_xinfo(m.name) c`),
 			always(`WHERE m.type IN ('table', 'view')`),
-			always(`AND ` + notSystem),
+			notSystem("m.name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@parent = '' OR m.name LIKE @parent)`),
 			always(`AND (@name = '' OR c.name LIKE @name)`),
@@ -197,14 +201,19 @@ func registerRelations() {
 			always(`, ` + mainSchema),
 			always(`, m.name AS "table"`),
 			always(`, i.name AS "name"`),
-			always(`, CASE i.origin WHEN 'c' THEN 'btree' WHEN 'u' THEN 'unique constraint'` +
-				` WHEN 'pk' THEN 'primary key' ELSE i.origin END AS "type"`),
+			dbmeta.Choice{
+				{Query: `, ` + indexType + ` AS "type"`},
+				// libSQL has one method of its own, the DiskANN vector
+				// index, which its type=diskann option names.
+				{Key: LibSQL, Query: `, CASE WHEN i.name IN (` + vectorIndexes + `)` +
+					` THEN 'diskann' ELSE ` + indexType + ` END AS "type"`},
+			},
 			always(`, i."unique" = 1 AS "unique"`),
 			always(`, i.origin = 'pk' AS "primary"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM sqlite_schema m JOIN pragma_index_list(m.name) i`),
 			always(`WHERE m.type = 'table'`),
-			always(`AND ` + notSystem),
+			notSystem("m.name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@parent = '' OR m.name LIKE @parent)`),
 			always(`AND (@name = '' OR i.name LIKE @name)`),
@@ -214,7 +223,7 @@ func registerRelations() {
 			{Name: "catalog"}, {Name: "schema"}, {Name: "table"}, {Name: "name"},
 			{
 				Name: "type",
-				Desc: "btree for an index someone created, and the constraint kind for one SQLite created itself",
+				Desc: "btree for an index someone created, and the constraint kind for one SQLite created itself. On libSQL, diskann for a vector index",
 			},
 			{Name: "unique"}, {Name: "primary"},
 			{Name: "comment", Desc: "always absent"},
@@ -248,7 +257,7 @@ func registerRelations() {
 			// key = 0 is a column the index carries to reach the row, not a
 			// column the index is on
 			always(`AND x.key = 1`),
-			always(`AND (@with_system OR m.tbl_name NOT LIKE 'sqlite\_%' ESCAPE '\')`),
+			notSystem("m.tbl_name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@parent = '' OR m.tbl_name LIKE @parent)`),
 			always(`AND (@name = '' OR m.name LIKE @name)`),
@@ -287,7 +296,7 @@ func registerRelations() {
 			always(`, NULL AS "comment"`),
 			always(`FROM sqlite_schema m`),
 			always(`WHERE m.type = 'trigger'`),
-			always(`AND (@with_system OR m.tbl_name NOT LIKE 'sqlite\_%' ESCAPE '\')`),
+			notSystem("m.tbl_name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@parent = '' OR m.tbl_name LIKE @parent)`),
 			always(`AND (@name = '' OR m.name LIKE @name)`),
@@ -337,7 +346,7 @@ func registerConstraints() {
 			always(`, NULL AS "comment"`),
 			always(`FROM sqlite_schema m JOIN pragma_table_xinfo(m.name) c`),
 			always(`WHERE m.type = 'table' AND c.pk > 0`),
-			always(`AND ` + notSystem),
+			notSystem("m.name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@parent = '' OR m.name LIKE @parent)`),
 			always(`AND (@name = '' OR ('pk_' || m.name) LIKE @name)`),
@@ -352,7 +361,7 @@ func registerConstraints() {
 			always(`, FALSE, FALSE, NULL`),
 			always(`FROM sqlite_schema m JOIN pragma_index_list(m.name) i`),
 			always(`WHERE m.type = 'table' AND i."unique" = 1 AND i.origin <> 'pk'`),
-			always(`AND ` + notSystem),
+			notSystem("m.name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@parent = '' OR m.name LIKE @parent)`),
 			always(`AND (@name = '' OR i.name LIKE @name)`),
@@ -376,7 +385,7 @@ func registerConstraints() {
 			always(`, FALSE, FALSE, NULL`),
 			always(`FROM sqlite_schema m JOIN pragma_foreign_key_list(m.name) f`),
 			always(`WHERE m.type = 'table' AND f.seq = 0`),
-			always(`AND ` + notSystem),
+			notSystem("m.name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
 			always(`AND (@parent = '' OR m.name LIKE @parent)`),
 			always(`AND (@name = '' OR ('fk_' || m.name || '_' || f.id) LIKE @name)`),

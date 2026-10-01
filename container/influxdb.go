@@ -10,8 +10,8 @@ import (
 // The InfluxDB releases dbrun starts.
 //
 // models/influxdb reads InfluxDB 3 through the InfluxDB driver in
-// github.com/xo/dbimp (D152). The other releases are here for the tests of
-// that driver. The driver has two dialects, which Ken accepted in dbimp's D78: influxdb, which
+// github.com/xo/dbimp (D152), and models/influxql reads InfluxDB 1 and 2
+// through the same driver (D165). The driver has two dialects, which Ken accepted in dbimp's D78: influxdb, which
 // is SQL on InfluxDB 3, and influxql, which is InfluxQL through /query on
 // InfluxDB 1, 2 and 3. InfluxDB 3 answers both, so its entry names influxdb
 // and also influxql, and one container serves both. See D114.
@@ -22,7 +22,7 @@ import (
 // docs/EVALUATION.md applies. Checked on 2026-09-28, 1.13.1, 1.11.8, 2.9.1 and
 // 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.11.5,
 // 3.10.6 and 3.9.13 between 2026-09-16 and 2026-09-18. Ken chose the releases
-// in dbimp's D79. No model reads InfluxDB 1 or 2, so those are Staged (D119).
+// in dbimp's D79.
 //
 // The InfluxDB 3 tag is the release with -core, such as 3.11.5-core. InfluxDB 3
 // Enterprise is not here: its free license and its trial both need a person to
@@ -99,8 +99,11 @@ var influxdb1 = product{
 	init: []string{"sh", "-c", "set -e\n" +
 		influx1("SET PASSWORD FOR "+InfluxDBUser+" = '"+Password+"'") + "\n" +
 		influx1("GRANT READ ON "+influxDatabase+" TO "+InfluxDBUser) + "\n"},
-	dsn: influxHTTP(influxAdmin, Password),
-	url: influxURL(influxAdmin, Password),
+	// dbimp's driver takes only the influxdb:// URL, and the DSN stays the
+	// http:// address that dbimp's tools read (D160, D165).
+	connectURL: true,
+	dsn:        influxHTTP(influxAdmin, Password),
+	url:        influxURL(influxAdmin, Password),
 	users: []Principal{{
 		Role: User, User: InfluxDBUser,
 		dsn: influxHTTP(InfluxDBUser, Password), url: influxURL(InfluxDBUser, Password),
@@ -145,8 +148,10 @@ var influxdb2 = product{
 	ready: []string{"sh", "-c", "influx bucket list --name " + influxDatabase +
 		" --token \"$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN\" > /dev/null"},
 	init: []string{"sh", "-c", influx2Setup},
-	dsn:  influxHTTP(influxTokenName, InfluxDBToken),
-	url:  influxURL(influxTokenName, InfluxDBToken),
+	// The same as InfluxDB 1 (D160, D165).
+	connectURL: true,
+	dsn:        influxHTTP(influxTokenName, InfluxDBToken),
+	url:        influxURL(influxTokenName, InfluxDBToken),
 	users: []Principal{{
 		Role: User, User: InfluxDBUser,
 		dsn: influxHTTP(InfluxDBUser, Password), url: influxURL(InfluxDBUser, Password),
@@ -219,14 +224,12 @@ func influxHTTP(user, password string) func(port int) string {
 
 // InfluxDB is every InfluxDB release dbrun starts.
 //
-// models/influxdb reads InfluxDB 3, so its releases take the cadence each
-// recorded while it was Staged (D120, D152). InfluxDB 1 and 2 answer only
-// InfluxQL, which no model reads, so they stay Staged. Each keeps the
-// cadence it will have if a model reads it, which is what dbimp runs on each
-// push and at night. See D119.
-var InfluxDB = list{}.staged(influxdb1, Tested, "1.13.1").
-	staged(influxdb1, Nightly, "1.11.8").
-	staged(influxdb2, Tested, "2.9.1").
-	staged(influxdb2, Nightly, "2.8.0").
+// models/influxdb reads InfluxDB 3, and models/influxql reads InfluxDB 1 and
+// 2, so every release takes the cadence it recorded while it was Staged
+// (D120, D152, D165).
+var InfluxDB = list{}.add(influxdb1, Tested, "1.13.1").
+	add(influxdb1, Nightly, "1.11.8").
+	add(influxdb2, Tested, "2.9.1").
+	add(influxdb2, Nightly, "2.8.0").
 	add(influxdb, Tested, "3.9.13", "3.11.5").
 	add(influxdb, Nightly, "3.10.6")

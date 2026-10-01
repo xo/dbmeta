@@ -9,9 +9,8 @@ import (
 
 // The SurrealDB releases dbrun starts.
 //
-// dbmeta has no SurrealDB model. The releases are here so that dbrun can
-// start a server for the tests of github.com/xo/dbimp/surrealdb, which is the
-// driver dbimp writes next. See D103.
+// models/surrealdb reads them, and dbrun also starts them for the tests of
+// github.com/xo/dbimp/surrealdb, the driver dburl names. See D103 and D164.
 //
 // # The range, by the docs/EVALUATION.md procedure
 //
@@ -75,8 +74,11 @@ var surrealdb = product{
 		"DEFINE DATABASE IF NOT EXISTS " + surrealDBName + ";\n" +
 		"DEFINE USER OVERWRITE " + SurrealDBUser + " ON DATABASE PASSWORD '" + Password +
 		"' ROLES EDITOR;\n",
-	dsn: surrealDBHTTP("root"),
-	url: surrealDBURL("root", ""),
+	// The driver takes only the surrealdb:// URL, so dbrun connects with
+	// it, and the DSN stays the http:// address that other projects read.
+	connectURL: true,
+	dsn:        surrealDBHTTP("root"),
+	url:        surrealDBURL("root", ""),
 	users: []Principal{{
 		Role: User, User: SurrealDBUser,
 		dsn: surrealDBHTTP(SurrealDBUser), url: surrealDBURL(SurrealDBUser, "database"),
@@ -119,10 +121,11 @@ func surrealDBURL(user, auth string) func(port int) string {
 	}
 }
 
-// SurrealDB is every SurrealDB release dbrun starts.
+// SurrealDB is every SurrealDB release dbmeta is tested against.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var SurrealDB = list{}.staged(surrealdb, Tested, "2.7.0", "3.3.0").
-	staged(surrealdb, Nightly, "3.1.6", "3.2.4")
+// models/surrealdb reads all four, so each takes the cadence it recorded
+// while it was Staged: 2.7.0 and 3.3.0 on every push, and 3.1.6 and 3.2.4 at
+// night (D120, D164). 2.7.0 answers one kind, because a 2.x statement
+// cannot read INFO as a value.
+var SurrealDB = list{}.add(surrealdb, Tested, "2.7.0", "3.3.0").
+	add(surrealdb, Nightly, "3.1.6", "3.2.4")

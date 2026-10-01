@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/xo/dbmeta"
+	arfixture "github.com/xo/dbmeta/models/arangodb/fixture"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
@@ -24,7 +25,10 @@ import (
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
 	imfixture "github.com/xo/dbmeta/models/impala/fixture"
 	ixfixture "github.com/xo/dbmeta/models/influxdb/fixture"
+	iqfixture "github.com/xo/dbmeta/models/influxql/fixture"
+	lsfixture "github.com/xo/dbmeta/models/libsql/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
+	njfixture "github.com/xo/dbmeta/models/neo4j/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
@@ -33,10 +37,12 @@ import (
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
+	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
 	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
 	vtfixture "github.com/xo/dbmeta/models/vitess/fixture"
+	ydfixture "github.com/xo/dbmeta/models/ydb/fixture"
 )
 
 // The cross family conformance test.
@@ -139,8 +145,16 @@ func conformTargets() []conformTarget {
 			open: openInfluxDB, schema: ixfixture.Everything.Schema, build: setupInfluxDB,
 		},
 		{
+			name: "influxql", dialect: dbmeta.InfluxQL,
+			open: openInfluxQL, schema: iqfixture.Everything.Schema, build: setupInfluxQL,
+		},
+		{
 			name: "rqlite", dialect: dbmeta.Rqlite,
 			open: openRqlite, schema: rqfixture.Everything.Schema, build: setupRqlite,
+		},
+		{
+			name: "libsql", dialect: dbmeta.LibSQL,
+			open: openLibSQL, schema: lsfixture.Everything.Schema, build: setupLibSQL,
 		},
 		{
 			name: "duckdb", dialect: dbmeta.DuckDB,
@@ -167,6 +181,27 @@ func conformTargets() []conformTarget {
 			build: func(t *testing.T, db *sql.DB) *dbmeta.Meta {
 				m := setupCouchbase(t, db)
 				skipBelowFloor(t, m)
+				return m
+			},
+		},
+		{
+			name: "neo4j", dialect: dbmeta.Neo4j,
+			open: openNeo4j, schema: njfixture.Everything.Schema, build: setupNeo4j,
+		},
+		{
+			name: "arangodb", dialect: dbmeta.ArangoDB,
+			open: openArangoDB, schema: arfixture.Everything.Schema, build: setupArangoDB,
+		},
+		{
+			name: "surrealdb", dialect: dbmeta.SurrealDB,
+			open: openSurrealDB, schema: srfixture.Everything.Schema,
+			// 2.x answers the current schema alone, so there is nothing to
+			// compare. TestSurrealDBTooOld covers that release.
+			build: func(t *testing.T, db *sql.DB) *dbmeta.Meta {
+				m := setupSurrealDB(t, db)
+				if !m.Version().Main().AtLeast(srINFO) {
+					t.Skipf("the server is %s, which answers the current schema alone", m.Version())
+				}
 				return m
 			},
 		},
@@ -209,6 +244,11 @@ func conformTargets() []conformTarget {
 			name: "vertica", dialect: dbmeta.Vertica,
 			open: openVertica, schema: vefixture.Everything.Schema,
 			build: setupVertica,
+		},
+		{
+			name: "ydb", dialect: dbmeta.YDB,
+			open: openYDB, schema: ydfixture.Everything.Schema,
+			build: setupYDB,
 		},
 	}
 }
@@ -305,8 +345,9 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 	out = append(out, tables...)
 
 	// columns, canonically. A database with no column catalog contributes no
-	// column lines. Couchbase is the case: a document has no fixed shape, so
-	// no statement lists the fields of a collection.
+	// column lines. Couchbase is one case: a document has no fixed shape, so
+	// no statement lists the fields of a collection. Neo4j is the other: the
+	// only list of the properties of a label reads every node (D162).
 	var cols []string
 	if dbmeta.Columns.Support(m) != dbmeta.Supported {
 		t.Logf("no column lines: columns is %v", dbmeta.Columns.Support(m))
@@ -613,6 +654,13 @@ var agreementExcluded = map[string]string{
 	"influxdb": "not relational: a measurement has no key, no constraint and no view, and" +
 		" every one has a time column, so the section holds the four measurements and" +
 		" their tags and fields alone",
+	"arangodb": "not relational: a collection's columns are the properties of its" +
+		" schema rule, which has no key, so no column reads a primary key, AQL lists" +
+		" no view, and a rule is one check with no columns behind it, so there are no" +
+		" constraint lines",
+	"influxql": "not relational, for the same reason as influxdb: a measurement has" +
+		" no key, no constraint and no view, and every one has a time column, so the" +
+		" section holds the four measurements and their tags and fields alone (D165)",
 	"cassandra": "not relational: its Tables query returns no view, because a" +
 		" materialized view is in another catalog table and CQL has no UNION," +
 		" and its column ordinal is a position within the primary key because" +
@@ -641,6 +689,10 @@ var agreementExcluded = map[string]string{
 	"impala": "no constraint Impala lists: a primary key and a foreign key are" +
 		" information Impala keeps and SHOW does not list, and a Parquet table" +
 		" refuses NOT NULL, so every column reads nullable and none a key",
+	"neo4j": "not relational: a label has no column catalog, because the only list of its" +
+		" properties reads every node, and the report compares no constraint where it" +
+		" has no column, so the section holds the four labels alone. There is no" +
+		" foreign key and no view",
 	"presto": "a query engine rather than a store, which is the same reason as" +
 		" trino. It also keeps no NOT NULL, because its memory connector refuses" +
 		" one on the newest release there is, so every column reads nullable" +
@@ -652,6 +704,15 @@ var agreementExcluded = map[string]string{
 	"singlestore": "no foreign key: SingleStore refuses one on every release," +
 		" so the two foreign keys the relational databases agree on cannot be" +
 		" built. It agrees on the other 21 lines",
+	"ydb": "no column catalog and no view: a .sys view lists the tables, and" +
+		" the columns of each are in its schema, which only a gRPC call per" +
+		" table reads, and no .sys view says which paths are views, so the" +
+		" section holds the four tables alone (D161)",
+	"surrealdb": "no primary key column and no foreign key: the record id is the key of" +
+		" every table and no DEFINE FIELD names it, a composite key is a UNIQUE index," +
+		" and a link to another table is a field of the type record<t> that the server" +
+		" does not check. The ordinal of a column is its place in the order of the" +
+		" names, because SurrealDB records no position (D164)",
 	"trino": "a query engine rather than a store: it has no constraint of any" +
 		" kind at any release, so every column reads primary_key=false where" +
 		" the relational databases agree on the key, and there are no" +

@@ -47,7 +47,8 @@ func openSQLiteWith(t *testing.T, driver string) *sql.DB {
 // eachSQLite runs fn once per driver, as a subtest named for it, with the
 // fixture already built. When DBMETA_RQLITE names a server, it runs fn on
 // rqlite too, which shares every statement of the sqlite3 model and must
-// answer each check the same way (D148).
+// answer each check the same way (D148). DBMETA_LIBSQL does the same for
+// libSQL (D160).
 func eachSQLite(t *testing.T, fn func(t *testing.T, db *sql.DB, m *dbmeta.Meta)) {
 	t.Helper()
 	for _, driver := range sqliteDrivers {
@@ -60,6 +61,12 @@ func eachSQLite(t *testing.T, fn func(t *testing.T, db *sql.DB, m *dbmeta.Meta))
 		t.Run("rqlite", func(t *testing.T) {
 			db := openRqliteAt(t, dsn)
 			fn(t, db, setupRqlite(t, db))
+		})
+	}
+	if dsn := os.Getenv("DBMETA_LIBSQL"); dsn != "" {
+		t.Run("libsql", func(t *testing.T) {
+			db := openLibSQLAt(t, dsn)
+			fn(t, db, setupLibSQL(t, db))
 		})
 	}
 }
@@ -472,9 +479,13 @@ func TestSQLiteFunctions(t *testing.T) {
 				t.Fatalf("reading functions: %v", err)
 			}
 			key := v.Name + "/" + v.Kind
-			if seen[key] {
-				t.Errorf("%s is listed twice, so the argument counts were not folded", key)
+			// sqld registers its own concat, ltrim and four more beside the
+			// ones built into SQLite, so on libSQL one name and kind has a
+			// row for each language (D160).
+			if seen[key+"/"+v.Language] {
+				t.Errorf("%s in %s is listed twice, so the argument counts were not folded", key, v.Language)
 			}
+			seen[key+"/"+v.Language] = true
 			seen[key] = true
 			kinds[v.Name] = v.Kind
 			args[key] = v.ArgTypes.V

@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"database/sql"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
+	arfixture "github.com/xo/dbmeta/models/arangodb/fixture"
 )
 
 // The principals, one maker per product.
@@ -319,6 +321,20 @@ func makeRqliteUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
 	return u.String()
 }
 
+// makeLibSQLUser connects as the user the dbrun entry declares, whose token
+// can read and not write. sqld has no statement that makes a user, because it
+// checks a signed token, so becoming the user is a change to the credentials
+// of the URL (D153).
+func makeLibSQLUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.UserPassword(container.LibSQLUser, container.LibSQLUserToken)
+	return u.String()
+}
+
 // makeCouchbaseUser connects as the ordinary user the dbrun setup makes.
 //
 // SQL++ has no statement that creates a user, and the setup already makes
@@ -332,6 +348,131 @@ func makeCouchbaseUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
 		t.Fatalf("parsing %s: %v", dsn, err)
 	}
 	u.User = url.UserPassword(container.CouchbaseUser, container.Password)
+	return u.String()
+}
+
+// makeNeo4jUser connects as the ordinary user the dbrun setup makes.
+//
+// The setup makes the user with the role publisher on every start, so
+// becoming it is a change to the credentials of the URL. The fixture gives it
+// the role dbmeta_reader as well.
+func makeNeo4jUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	return replaceUser(t, dsn, container.Neo4jUser, container.Password)
+}
+
+// makeYDBUser connects as the ordinary user the dbrun setup makes.
+//
+// The setup makes dbmetauser and lets it read and describe the directory
+// dbmeta, which holds the fixture. YDB has no containment: a user belongs to
+// the cluster and a directory is only a grant scope. So becoming the user is
+// a change to the credentials of the URL.
+func makeYDBUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.UserPassword(container.YDBUser, container.Password)
+	return u.String()
+}
+
+// makeArangoDBUser connects as the ordinary user the dbrun setup makes, who
+// has read and write on the database dbmeta and nothing on _system. So
+// becoming it is a change to the credentials of the URL.
+func makeArangoDBUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.UserPassword(container.ArangoDBUser, container.Password)
+	return u.String()
+}
+
+// arangoReader is the user makeArangoDBReader makes.
+const arangoReader = "dbmeta_reader"
+
+// makeArangoDBReader makes a user who can read the database dbmeta and has
+// no access to the collection note, which has a schema rule. A user belongs
+// to the server, and a database or a collection is only a grant scope, so
+// this is a grantee with less than the ordinary user. Only the HTTP API of
+// _system makes a user, and AQL makes none.
+func makeArangoDBReader(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	ctx := t.Context()
+	user := `{"user": "` + arangoReader + `", "passwd": "` + container.Password + `", "active": true}`
+	for _, r := range []*arfixture.Request{
+		{Method: http.MethodDelete, Path: "/_api/user/" + arangoReader},
+		{Method: http.MethodPost, Path: "/_api/user", Body: user},
+		{Method: http.MethodPut, Path: "/_api/user/" + arangoReader + "/database/dbmeta", Body: `{"grant": "ro"}`},
+		{Method: http.MethodPut, Path: "/_api/user/" + arangoReader + "/database/dbmeta/note", Body: `{"grant": "none"}`},
+	} {
+		if err := arangoAPI(ctx, dsn, "_system", r); err != nil && r.Method != http.MethodDelete {
+			t.Fatalf("making %s: %v", arangoReader, err)
+		}
+	}
+	t.Cleanup(func() {
+		//nolint:errcheck // removing the user is best effort
+		arangoAPI(context.WithoutCancel(ctx), dsn, "_system",
+			&arfixture.Request{Method: http.MethodDelete, Path: "/_api/user/" + arangoReader})
+	})
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.UserPassword(arangoReader, container.Password)
+	return u.String()
+}
+
+// makeSurrealDBUser connects as the ordinary user the dbrun setup makes, an
+// EDITOR on the database dbmeta. A user defined on a database names its level
+// in the URL, because the driver sends the headers that sign it in there
+// (dbimp D51).
+func makeSurrealDBUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
+	t.Helper()
+	return surrealDBPrincipal(t, dsn, container.SurrealDBUser, "database")
+}
+
+// makeSurrealDBViewer makes a VIEWER on the database dbmeta, which reads
+// everything there and changes nothing.
+func makeSurrealDBViewer(t *testing.T, db *sql.DB, dsn, _ string) string {
+	t.Helper()
+	makeSurrealDBSystemUser(t, db, "dbmeta_viewer", "DATABASE", "VIEWER")
+	return surrealDBPrincipal(t, dsn, "dbmeta_viewer", "database")
+}
+
+// makeSurrealDBNamespaceUser makes an EDITOR on the namespace dbmeta, which
+// is above the database and below the root.
+func makeSurrealDBNamespaceUser(t *testing.T, db *sql.DB, dsn, _ string) string {
+	t.Helper()
+	makeSurrealDBSystemUser(t, db, "dbmeta_ns_editor", "NAMESPACE", "EDITOR")
+	return surrealDBPrincipal(t, dsn, "dbmeta_ns_editor", "namespace")
+}
+
+// makeSurrealDBSystemUser defines a system user with one role on a level,
+// and removes it when the test ends.
+func makeSurrealDBSystemUser(t *testing.T, db *sql.DB, name, level, role string) {
+	t.Helper()
+	ctx := t.Context()
+	exec(t, db, "DEFINE USER OVERWRITE "+name+" ON "+level+" PASSWORD '"+container.Password+"' ROLES "+role)
+	t.Cleanup(func() {
+		//nolint:errcheck // removing the user is best effort
+		db.ExecContext(context.WithoutCancel(ctx), "REMOVE USER IF EXISTS "+name+" ON "+level)
+	})
+}
+
+// surrealDBPrincipal is dsn with the credentials of user, signed in at level.
+func surrealDBPrincipal(t *testing.T, dsn, user, level string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.UserPassword(user, container.Password)
+	q := u.Query()
+	q.Set("auth", level)
+	u.RawQuery = q.Encode()
 	return u.String()
 }
 

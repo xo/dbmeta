@@ -3,14 +3,15 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The ArangoDB releases dbrun starts.
 //
-// dbmeta has no ArangoDB model. The release is here so that dbrun can start a
-// server for the tests of the ArangoDB driver in github.com/xo/dbimp. No
-// dialect is named yet, because dbimp settles the name with the driver. See
-// D112.
+// models/arangodb reads it through the ArangoDB driver in github.com/xo/dbimp,
+// whose tests dbrun started it for first. The dialect is arangodb, which is
+// the dialect dburl names for the scheme arangodb. See D112 and D163.
 //
 // # The range, by the docs/EVALUATION.md procedure
 //
@@ -57,9 +58,10 @@ func arangoShell(script string) []string {
 
 // arangodb is the ArangoDB image.
 var arangodb = product{
-	name:  "arangodb",
-	image: "docker.io/library/arangodb",
-	port:  8529,
+	dialect: dbmeta.ArangoDB,
+	name:    "arangodb",
+	image:   "docker.io/library/arangodb",
+	port:    8529,
 	env: map[string]string{
 		"ARANGO_ROOT_PASSWORD": Password,
 		// ArangoDB reads the memory of the host and not the limit of the
@@ -73,12 +75,27 @@ var arangodb = product{
 if (!db._databases().includes("` + arangoDatabase + `")) { db._createDatabase("` + arangoDatabase + `"); }
 if (u.exists("` + ArangoDBUser + `")) { u.update("` + ArangoDBUser + `", "` + Password + `"); } else { u.save("` + ArangoDBUser + `", "` + Password + `"); }
 u.grantDatabase("` + ArangoDBUser + `", "` + arangoDatabase + `", "rw");`),
-	dsn: arangoHTTP("root"),
-	url: arangoURL("root"),
+	// dbimp's driver takes only the arangodb:// URL, and the DSN stays the
+	// http:// address of the HTTP API (D112, D163).
+	connectURL: true,
+	dsn:        arangoHTTP("root"),
+	url:        arangoURL("root"),
 	users: []Principal{{
 		Role: User, User: ArangoDBUser,
 		dsn: arangoHTTP(ArangoDBUser), url: arangoURL(ArangoDBUser),
 	}},
+}
+
+// arangoHTTP is the address of the HTTP API, with one user's credentials.
+func arangoHTTP(user string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: "http",
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		}
+		return u.String()
+	}
 }
 
 // arangoURL is the address of the database dbmeta as one user, in the form
@@ -97,21 +114,8 @@ func arangoURL(user string) func(port int) string {
 	}
 }
 
-// arangoHTTP is the address of the HTTP API, with one user's credentials.
-func arangoHTTP(user string) func(port int) string {
-	return func(port int) string {
-		u := url.URL{
-			Scheme: "http",
-			User:   url.UserPassword(user, Password),
-			Host:   fmt.Sprintf("127.0.0.1:%d", port),
-		}
-		return u.String()
-	}
-}
-
 // ArangoDB is every ArangoDB release dbrun starts.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var ArangoDB = list{}.staged(arangodb, Tested, "3.12.12")
+// models/arangodb reads it, so the release takes the cadence it recorded
+// while it was Staged, which is Tested (D119, D120, D163).
+var ArangoDB = list{}.add(arangodb, Tested, "3.12.12")

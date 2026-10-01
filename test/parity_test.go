@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/xo/dbmeta"
+	arfixture "github.com/xo/dbmeta/models/arangodb/fixture"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
@@ -20,7 +22,10 @@ import (
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
+	iqfixture "github.com/xo/dbmeta/models/influxql/fixture"
+	lsfixture "github.com/xo/dbmeta/models/libsql/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
+	njfixture "github.com/xo/dbmeta/models/neo4j/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
@@ -28,9 +33,11 @@ import (
 	rqfixture "github.com/xo/dbmeta/models/rqlite/fixture"
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
+	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
 	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
+	ydfixture "github.com/xo/dbmeta/models/ydb/fixture"
 )
 
 // The privilege parity test, which D61 requires of every dialect.
@@ -273,6 +280,60 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
+			dialect: dbmeta.Neo4j, driver: "neo4j", env: "DBMETA_NEO4J",
+			open: openNeo4j, build: setupNeo4j,
+			schema: njfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Neo4j has no containment. A user belongs to the server and
+				// holds roles, and a role holds privileges on graphs. The
+				// lesser principal is the ordinary user the dbrun setup
+				// makes, with the role publisher, which reads and writes and
+				// cannot manage the server. The fixture also gives it the
+				// role dbmeta_reader.
+				name:       "same",
+				principals: []parityPrincipal{{name: "user", make: makeNeo4jUser}},
+			}},
+		},
+		{
+			dialect: dbmeta.ArangoDB, driver: "arangodb", env: "DBMETA_ARANGODB",
+			open: openArangoDB, build: setupArangoDB,
+			schema: arfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// ArangoDB has no containment. A user belongs to the
+				// server, and a database or a collection is only a grant
+				// scope. The user the dbrun setup makes has read and write
+				// on the database, and the reader can only read it and has
+				// no access to one collection.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "user", make: makeArangoDBUser},
+					{name: "reader", make: makeArangoDBReader},
+				},
+			}},
+		},
+		{
+			dialect: dbmeta.SurrealDB, driver: "surrealdb", env: "DBMETA_SURREALDB",
+			open: openSurrealDB, build: setupSurrealDB,
+			schema: srfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// SurrealDB defines a system user on the root, on a
+				// namespace or on a database, and gives it one of three
+				// roles there: OWNER, EDITOR or VIEWER. The administrator is
+				// the OWNER on the root. The user the dbrun setup makes is
+				// an EDITOR on the database, and the test makes a VIEWER on
+				// the database and an EDITOR on the namespace. A record user
+				// signs in through a DEFINE ACCESS rather than as a system
+				// user, and the driver signs in system users only (dbimp
+				// D51), so it is not here.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "user", make: makeSurrealDBUser},
+					{name: "viewer", make: makeSurrealDBViewer},
+					{name: "namespace", make: makeSurrealDBNamespaceUser},
+				},
+			}},
+		},
+		{
 			dialect: dbmeta.ClickHouse, driver: "clickhouse", env: "DBMETA_CLICKHOUSE",
 			open: openClickHouse, build: setupClickHouse,
 			schema: chfixture.Everything.Schema,
@@ -281,6 +342,18 @@ func parityTargets() []parityTarget {
 				// and a database is only a grant scope.
 				name:       "same",
 				principals: []parityPrincipal{{name: "grantee", make: makeClickHouseGrantee}},
+			}},
+		},
+		{
+			dialect: dbmeta.YDB, driver: "ydb", env: "DBMETA_YDB",
+			open: openYDB, build: setupYDB, schema: ydfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// YDB has no containment. A user belongs to the cluster and a
+				// directory is only a grant scope. The lesser principal is
+				// the user the dbrun setup makes, who can read and describe
+				// the directory that holds the fixture.
+				name:       "same",
+				principals: []parityPrincipal{{name: "user", make: makeYDBUser}},
 			}},
 		},
 		{
@@ -320,6 +393,30 @@ func parityTargets() []parityTarget {
 				// administrator, who can query and execute and nothing else.
 				name:       "same",
 				principals: []parityPrincipal{{name: "user", make: makeRqliteUser}},
+			}},
+		},
+		{
+			dialect: dbmeta.LibSQL, driver: "libsql", env: "DBMETA_LIBSQL",
+			open: openLibSQL, build: setupLibSQL, schema: lsfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// sqld has no grant on a table. A token either writes or
+				// only reads, and the entry declares one user besides the
+				// administrator, whose token only reads (D153).
+				name:       "same",
+				principals: []parityPrincipal{{name: "user", make: makeLibSQLUser}},
+			}},
+		},
+		{
+			dialect: dbmeta.InfluxQL, driver: "influxdb", env: "DBMETA_INFLUXQL",
+			open: openInfluxQL, build: setupInfluxQL, schema: iqfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// InfluxDB has no containment. A user belongs to the server,
+				// and a database is only a grant scope, so there is the
+				// administrator and there is a user that can read one
+				// database. The entry makes it on InfluxDB 1 and 2, and
+				// InfluxDB 3 Core has none (D165).
+				name:       "same",
+				principals: []parityPrincipal{{name: "user", make: makeInfluxQLUser}},
 			}},
 		},
 		{
@@ -717,6 +814,12 @@ func parityRun(t *testing.T, db *sql.DB, m *dbmeta.Meta, schema string) map[stri
 			continue
 		}
 		query, vals, err := q.Build(m, args)
+		if walk, ok := parityWalks[q.Name()]; ok && errors.Is(err, dbmeta.ErrSeveralStatements) {
+			// A walk has no one statement, so it is asked through its
+			// iterator. InfluxQL is the case (D159).
+			out[q.Name()] = walk(ctx, m, db, args)
+			continue
+		}
 		if err != nil {
 			continue
 		}
@@ -798,8 +901,20 @@ func firstLine(s string) string {
 	}
 	s = clientHost.ReplaceAllString(s, "@'client'")
 	s = exasolSession.ReplaceAllString(s, "")
+	s = ydbAddress.ReplaceAllString(s, "")
+	s = ydbStack.ReplaceAllString(s, "")
 	return grantColumns.ReplaceAllString(s, "$1 ON")
 }
+
+// ydbAddress matches the node ydb-go-sdk names in every error, such as
+// ", address = 127.0.0.1:55119". The port is whichever one dbrun gave the
+// server, so without this match the refusal never reads the same twice.
+var ydbAddress = regexp.MustCompile(`, address = [^,)]+`)
+
+// ydbStack matches the Go call stack ydb-go-sdk adds after an error, which
+// begins with " at " and a function in backticks. It names lines of the
+// driver's source, which move with every release of the driver.
+var ydbStack = regexp.MustCompile(" at `.*$")
 
 // exasolSession matches the session number Exasol ends every message with,
 // such as (Session: 1877435836291743744). It is a new number on every

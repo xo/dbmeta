@@ -355,7 +355,7 @@ with these fields:
 | `directory` | true for an embedded database that is a directory, chai and csvq (D116) |
 | `tier` | `tested`, `nightly`, `verified` or `staged` |
 | `cadence` | for a Staged release only, `tested`, `nightly` or `verified`: how often it is tested once a model reads it. A project that runs Staged releases, such as dbimp, runs the tested ones on each push and the nightly ones at night (D120) |
-| `dialect` | the dbmeta dialect, which is the dburl driver name, such as `couchbase`. It is empty until dbimp settles the name, as for ArangoDB (D112) |
+| `dialect` | the dbmeta dialect, which is the dburl driver name, such as `couchbase`. It is empty until dbimp settles the name, as for Apache Pinot (D112) |
 | `env` | the environment variable that dbmeta's tests read the DSN from, such as `DBMETA_COUCHBASE` |
 | `also`, `alsoEnv` | every other dialect the server answers, and the variable of each, which dbrun sets to the same DSN. InfluxDB 3 answers `influxql` beside `influxdb` (D114) |
 | `dsn` | the connection string that the Go driver takes |
@@ -369,11 +369,23 @@ with these fields:
 The `dsn` and `url` fields can differ. The `dsn` field is what `sql.Open`
 takes for the driver that dbmeta tests with, and the `url` field is what
 `dburl` parses. On MySQL and Cassandra the driver takes a form that is not a
-URL. On Couchbase both are the same `couchbase://` URL. On SurrealDB and Neo4j
-the `dsn` is the plain `http://` address, and the `url` names the database in
-its path, such as `neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` (D109).
-On libSQL the `dsn` is the `http://` address, and the `url` is the
-`libsql://` form that dbimp's driver takes, which ends in `?tls=false` (D153).
+URL. On Couchbase both are the same `couchbase://` URL.
+
+Five products keep the `http://` address as the `dsn`, because dbimp's tools
+read it, and dbimp's driver for each takes only the `url`:
+
+- SurrealDB, whose `url` names the database in its path (D109).
+- Neo4j, whose `url` names the database in its path, such as
+  `neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` (D109).
+- libSQL, whose `url` is the `libsql://` form that ends in `?tls=false`
+  (D153).
+- ArangoDB, whose `url` is the `arangodb://` form.
+- InfluxDB 1 and 2, whose `url` is the `influxdb://` form, which names the
+  database `dbmeta` in its path (D165).
+
+For each of them `dbrun` sets the test variable, such as `DBMETA_NEO4J`, to
+the `url`, and `dbrun version` connects with it (D160, D162 to D165).
+
 On the standalone Avatica server and Phoenix the `dsn` is the `http://`
 address, and the `url` is the `avatica://` form that dbimp's driver takes,
 with no path (D155).
@@ -506,7 +518,7 @@ one into a command that others can see.
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
 | `DBMETA_ORACLE_STATE` | Where the Oracle 19c checkout and installer archive live. |
 | `DBMETA_EMBEDDED_STATE` | Where the files and directories of the embedded databases live. |
-| `DBMETA_<DIALECT>` | The DSN that dbmeta's tests read, such as `DBMETA_COUCHBASE`. A server with no dialect yet uses its product, such as `DBMETA_ARANGODB` (D112), and moderncsqlite uses `DBMETA_MODERNCSQLITE` (D116). `dbrun test` sets it, and each `alsoEnv` variable too (D114). A test skips when it is not set. |
+| `DBMETA_<DIALECT>` | The DSN that dbmeta's tests read, such as `DBMETA_COUCHBASE`. A server with no dialect yet uses its product, such as `DBMETA_PINOT` (D112), and moderncsqlite uses `DBMETA_MODERNCSQLITE` (D116). `dbrun test` sets it, and each `alsoEnv` variable too (D114). A test skips when it is not set. |
 
 ## Using dbrun from another repository
 

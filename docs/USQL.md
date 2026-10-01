@@ -179,7 +179,12 @@ reading code.
 | DuckDB | 10/11 | 3/5 | `\dp`, and the index column and trigger sections |
 | SQLite | 10/11 | 4/5 | `\dp`, and the sequence section |
 | rqlite | 10/11 | 4/5 | the same as SQLite, whose statements it shares (D148) |
+| libSQL | 10/11 | 4/5 | the same as SQLite, whose statements it shares (D160) |
 | InfluxDB 3 | 8/11 | 0/5 | `\l`, because a query names its database and no SQL lists them, `\di`, because InfluxDB 3 has no index, and `\dp`, because Core has one token. Every section: no key, constraint, trigger or sequence (D152) |
+| Neo4j | 11/11 | 3/5 | the trigger and sequence sections: Neo4j has neither. `\d NAME` also needs Columns to print anything, and a label has no column catalog, so it prints nothing. On 5.26 `\df` and `\da` lose the procedures, and the index column and constraint column sections need 2026.05 (D162) |
+| YDB | 8/11 | 0/5 | `\di`, `\df` and `\da`, and every section: the columns, indexes and keys of a table are in its schema, which only a gRPC call per table reads, and YQL has no function list. `\d NAME` also needs Columns to print anything. Every command answers only for an administrator (D161) |
+| ArangoDB | 7/11 | 1/5 | `\l`, `\dn`, `\di` and `\dp`: AQL lists no database, index or user, and there is no schema. A collection's columns are the properties of its schema rule, so `\d NAME` prints nothing for a collection with no rule. Every section but constraints, because a rule is a check with no columns behind it (D163) |
+| InfluxQL | 8/11 | 0/5 | `\df` and `\da`, because no InfluxQL statement lists a function, and `\di`, because InfluxDB has no index. `\dp` on InfluxDB 1 alone, because InfluxDB 2 and 3 have no SHOW GRANTS. Every section: no key, constraint, trigger or sequence (D165) |
 | Cassandra | 10/11 | 4/5 | `\l`, and the sequence section |
 | ScyllaDB | 10/11 | 4/5 | the same as Cassandra |
 | Trino | 8/11 | 0/5 | `\df`, `\da`, `\di` and every section: a query engine has no index, no constraint and no table valued function list |
@@ -187,9 +192,10 @@ reading code.
 | Apache Hive | 9/11 | 2/5 | `\l` and `\di`, and the sequence, index column and trigger sections |
 | Exasol | 11/11 | 3/5 | the sequence and trigger sections |
 | Vertica | 11/11 | 5/5 | nothing on 25.1. Below 25.1 there is no trigger section |
+| SurrealDB | 11/11 | 5/5 | nothing on 3.x, where an INFO statement is a value. 2.7 answers none of them, because a 2.x statement cannot read INFO as a value, and the model reports each as too old (D164) |
 
-Six answer every command and every section: PostgreSQL, MariaDB, SQL
-Server, SAP HANA, CockroachDB and Vertica. Almost every gap in the table is the
+Seven answer every command and every section: PostgreSQL, MariaDB, SQL
+Server, SAP HANA, CockroachDB, Vertica, and SurrealDB from 3.0. Almost every gap in the table is the
 product having no such object rather than the model being unfinished. There
 are two exceptions. The Redshift model does not read the SVV views that hold
 the privileges, and on Impala `\dp` fails because authorization is off in the
@@ -235,14 +241,15 @@ now exist.
 `dbmeta.ConstraintColumns` is the column level detail of a constraint: which
 column, in what position, and for a foreign key which column of which table it
 points at. Every model answers it but ClickHouse, Trino, Presto, Couchbase,
-QuestDB, Snowflake, Redshift, Impala and InfluxDB 3, which have no such
-constraint to read.
+QuestDB, Snowflake, Redshift, Impala, InfluxDB 3 and ArangoDB, which have no
+such constraint to read, and YDB, which keeps its primary key where no SELECT
+reaches.
 SQLite answers it.
 
 `dbmeta.RoutineParameters` is `usql`'s FunctionColumns: the name, position,
 direction and type of each parameter. PostgreSQL, the MySQL dialect, SQL
 Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase, CockroachDB, Vitess,
-SingleStore, InfluxDB 3 and the shared model answer it. SQLite cannot, because a function there is compiled C with no
+SingleStore, InfluxDB 3, Neo4j from 2026.05 and the shared model answer it. SQLite cannot, because a function there is compiled C with no
 named parameters, and `COVERAGE.md` says why each of the others cannot.
 
 `dbmeta.ColumnStats` backs `\ss`. PostgreSQL, MariaDB, SQL Server, Oracle, SAP
@@ -350,8 +357,12 @@ a case where `usql` has no answer at all.
 | --- | --- | --- | --- |
 | PostgreSQL | `SHOW server_version` | the same | same |
 | SQLite | `SELECT sqlite_version()` | the same | same |
+| ArangoDB | `RETURN VERSION()` | the same, in the `Version` of usql's arangodb driver, through dbimp's driver | the same statement, and both print the word ArangoDB before the release. dbmeta's was measured on 3.12.12 on 2026-10-01, and usql's was read from its source |
 | InfluxDB 3 | `SELECT version()` | `GET /ping`, through the driver's raw connection, which no SQL statement reaches | different answers. `version()` names the release of DataFusion, such as 51.0.0, which the statements depend on, and only `/ping` names InfluxDB's. Measured on 3.11.5 on 2026-10-01 |
+| YDB | `SELECT version()` | `SELECT '<unknown>' AS version`, a literal | different answers. `version()` returns the release, such as 26.3.1.17, and usql prints "YDB <unknown>" for every server. Measured on 26.2.1.14 and 26.3.1.17 on 2026-10-01 |
+| InfluxQL | none: no InfluxQL statement names the release for every user on every release, so `Dialect.Version` reports an unknown version, and `ParseVersion` takes the release a caller reads from `GET /ping` | `GET /ping`, through the driver's raw connection, which is the same function as for InfluxDB 3 | the same source, read by usql. dbmeta has no statement to run, because SHOW DIAGNOSTICS names the release only to an administrator on InfluxDB 1, and InfluxDB 2 and 3 do not have it. Measured on 1.13.1, 2.9.1 and 3.11.5 on 2026-10-01 (D165) |
 | rqlite | `SELECT sqlite_version()` | none of its own: the driver declares no `Version`, and usql reads dbmeta's | the same statement. `dbmeta` reads the SQLite release the server runs, and no SQL statement names the rqlite release, which only the HTTP API reports. Measured on 9.4.5 and 10.3.6 on 2026-10-01 |
+| libSQL | `SELECT sqlite_version()` | the same, which the driver declares as its `Version` | same. Both read the SQLite release that sqld runs, because only `GET /version` names the sqld release and no SQL statement reaches it. `dbmeta` prints "libSQL, which runs SQLite 3.45.1" and usql prints "libSQL, SQLite 3.45.1". Measured on 0.24.33 on 2026-10-01 |
 | Cassandra | `SELECT JSON * FROM system.local WHERE key = 'local'`, the whole row as one text | three columns from `system.local` | different statement, same answer |
 | ScyllaDB | the same statement as Cassandra | the same three columns | `usql` names the wrong product. It prints "Cassandra 3.0.8", which is the Cassandra release that ScyllaDB keeps compatible with. `dbmeta` finds ScyllaDB by the `supported_features` column, then runs `SELECT version FROM system.versions WHERE key = 'local'` for the ScyllaDB release, and prints both. A caller that runs the statements itself asks `Dialect.FollowUpQuery` for the second one. See D92. Measured on 2025.1 and 2026.3 on 2026-09-27 |
 | MariaDB | `SELECT VERSION()` | no function, so the generic `SELECT version();` | same answer |
@@ -364,6 +375,7 @@ a case where `usql` has no answer at all.
 | Apache Hive | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement, and Hive has the function, so the fallback works |
 | SAP HANA | `SELECT VERSION FROM SYS.M_DATABASE` | the same statement, lower cased | the same answer, and `usql` prefixes the words SAP HANA |
 | Vertica | `SELECT version()` | the same | same, measured on 7.2.1, 9.1.0, 10.1.1 and 25.1.0 on 2026-09-27 |
+| Neo4j | `CALL dbms.components() YIELD name, versions, edition WHERE name = 'Neo4j Kernel' RETURN versions[0] AS version, edition` | the same, with no name for the first column | the same answer, and both print Neo4j, the release and the edition. The ordinary user reads it too. Measured on 5.26.31 and 2026.09.0 on 2026-10-01 |
 | Couchbase | `SELECT RAW ds_version()` | the same, through the dbimp driver since `usql` commit 8407785 | the same answer, and both print the word Couchbase before it, measured on 7.6.12 and 8.0.3 on 2026-09-27 |
 | Exasol | `SELECT PARAM_VALUE FROM EXA_METADATA WHERE PARAM_NAME = 'databaseProductVersion'` | the same statement, lower cased | the same answer, and `usql` prefixes the word Exasol. A user granted nothing but `CREATE SESSION` reads it on 2025.2.1 and 2026.2.0, measured on 2026-09-27 |
 | CockroachDB | `SELECT pg_catalog.version(), pg_catalog.current_setting('server_version')` | `SELECT version()`, cut at the first bracket | the same release. `dbmeta` also reads the PostgreSQL release that CockroachDB claims, 13.0.0 or 18.0.0, and gates the statements it shares with the postgres model on it (D123). Measured on 24.3.36, 26.2.7 and 26.3.2 on 2026-09-29 |
@@ -376,6 +388,7 @@ a case where `usql` has no answer at all.
 | Snowflake | `SELECT CURRENT_VERSION()` | no function, so the generic `SELECT version();` | not measured: no account is provisioned (D144). Snowflake documents CURRENT_VERSION() and no version() |
 | Amazon Redshift | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement. `dbmeta` reads the Redshift release after the word Redshift in the banner. Not measured: no cluster is provisioned (D144) |
 | Apache Impala | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement. It answers `impalad version 4.5.2-RELEASE ...`, and `dbmeta` reads the release after the word version. Measured on 4.4.1 and 4.5.2 on 2026-09-30 |
+| SurrealDB | `RETURN IF (<set>[2, 1])[0] = 1 THEN '3' ELSE '2' END`, a probe of the major release | the RPC method `version`, through `surrealdb.Version` and the driver's raw connection, which no SurrealQL statement reaches | different answers. No statement returns the release, so the probe tells 3.x, which sorts a set, from 2.x, which does not, and prints SurrealDB 3. `usql` prints the full release, such as SurrealDB 3.3.0, and `ParseVersion` reads that answer too, so a caller that reads the RPC answer hands it to dbmeta. Ken chose this on 2026-10-01 (D164). The ordinary user reads both on 3.3.0. Measured on 2.7.0, 3.1.6, 3.2.4 and 3.3.0 on 2026-10-01 |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
 | Oracle | `SELECT banner FROM v$version WHERE ROWNUM = 1` | `SELECT version FROM v$instance` | same answer for an administrator, and `usql` fails for everybody else |
 

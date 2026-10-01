@@ -57,18 +57,19 @@ of this file.
 
 ## What exists today
 
-`models/` holds 28 native models: cassandra, clickhouse, cockroachdb,
-couchbase, cratedb, databend, duckdb, exasol, firebird, hana, hive, impala,
-influxdb, mysql, oracle, postgres, presto, questdb, redshift, rqlite,
-singlestore, snowflake, sqlite3, sqlserver, tidb, trino, vertica and vitess. ScyllaDB is a flavor of the
+`models/` holds 34 native models: arangodb, cassandra, clickhouse,
+cockroachdb, couchbase, cratedb, databend, duckdb, exasol, firebird, hana,
+hive, impala, influxdb, influxql, libsql, mysql, neo4j, oracle, postgres,
+presto, questdb, redshift, rqlite, singlestore, snowflake, sqlite3, sqlserver,
+surrealdb, tidb, trino, vertica, vitess and ydb. ScyllaDB is a flavor of the
 Cassandra model and MySQL a flavor of the MariaDB one. `models/informationschema` is the shared
 model for any database with a standard `information_schema`, and no native
 model builds on it. `COVERAGE.md` holds what each one answers.
 
 `container/` names every release the tests run against, and `dbrun` starts
 each one. `dbrun` also starts Staged servers that no model reads (D119).
-Many are for dbimp's drivers, such as SurrealDB, Neo4j, the products of D112
-that have no model (ArangoDB, InfluxDB 1 and 2, Apache Pinot and libSQL), and
+Many are for dbimp's drivers, such as the products of D112 that have no model
+(Apache Pinot), and
 the servers of D113. Two of those, Avatica and Phoenix, speak JSON (D155), and
 Druid waits for a driver of its own in dbimp. The rest are for the flavors
 usql reaches and the emulators of hosted services (D118). `dbrun list staged`

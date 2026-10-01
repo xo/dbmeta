@@ -3,13 +3,15 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
-// The YDB releases dbrun starts.
+// The YDB releases dbmeta is tested against.
 //
-// dbmeta has no YDB model, and usql reaches YDB with the scheme ydb through
-// github.com/ydb-platform/ydb-go-sdk. The releases are here so that dbrun can
-// start a server for usql and for a model that comes later. See D118.
+// models/ydb reads them, and usql reaches YDB with the scheme ydb through
+// github.com/ydb-platform/ydb-go-sdk. dbrun started them for usql before the
+// model existed. See D118 and D161.
 //
 // # The range
 //
@@ -52,11 +54,12 @@ const ydbCLI = "/ydb -e grpc://localhost:2136 -d /local --user root --password-f
 
 // ydb is the YDB image.
 var ydb = product{
-	name:  "ydb",
-	image: "docker.io/ydbplatform/local-ydb",
-	port:  2136,
-	env:   map[string]string{"GRPC_PORT": "2136"},
-	ready: []string{"bash", "-c", ydbAnonymous + " sql -s 'SELECT 1'"},
+	dialect: dbmeta.YDB,
+	name:    "ydb",
+	image:   "docker.io/ydbplatform/local-ydb",
+	port:    2136,
+	env:     map[string]string{"GRPC_PORT": "2136"},
+	ready:   []string{"bash", "-c", ydbAnonymous + " sql -s 'SELECT 1'"},
 	init: []string{"bash", "-c", `set -e
 ` + ydbCLI + ` sql -s 'SELECT 1' >/dev/null 2>&1 || ` + ydbAnonymous + ` sql -s "ALTER USER root PASSWORD '` + Password + `'"
 ` + ydbCLI + ` sql -s "CREATE USER ` + YDBUser + ` PASSWORD '` + Password + `'" 2>/dev/null ||
@@ -77,9 +80,8 @@ func ydbURL(scheme, user string) func(port int) string {
 	}
 }
 
-// YDB is every YDB release dbrun starts.
+// YDB is every YDB release dbmeta is tested against.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var YDB = list{}.staged(ydb, Tested, "26.2.1.14", "26.3.1.17")
+// Both are Tested, which is the cadence each recorded while it was Staged.
+// See D119 and D120.
+var YDB = list{}.add(ydb, Tested, "26.2.1.14", "26.3.1.17")

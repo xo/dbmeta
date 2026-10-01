@@ -107,6 +107,9 @@ type target struct {
 	// product that does not start without one. See D118.
 	License string `json:"license,omitempty"`
 	secret  string
+	// connectURL says that a command connects with URL rather than DSN,
+	// which is container.Server.ConnectURL.
+	connectURL bool
 
 	// Principals is every user a test reaches the server as, the
 	// administrator first, with the connection string of each. It is empty
@@ -320,6 +323,7 @@ func targets() []target {
 			Startup:       s.Startup,
 			Settle:        s.Settle,
 			Remove:        s.RemoveArgs(s.Name()),
+			connectURL:    s.ConnectURL,
 		})
 	}
 	for _, m := range container.Machines() {
@@ -345,10 +349,14 @@ func targets() []target {
 }
 
 // connectDSN is the connection string a command connects with. It is the
-// secret one for a hosted service, and the DSN for everything else.
+// secret one for a hosted service, the URL for a server whose driver takes
+// only the URL, such as libSQL (D160), and the DSN for everything else.
 func (t target) connectDSN() string {
-	if t.Kind == kindHosted {
+	switch {
+	case t.Kind == kindHosted:
 		return t.secret
+	case t.connectURL:
+		return t.URL
 	}
 	return t.DSN
 }

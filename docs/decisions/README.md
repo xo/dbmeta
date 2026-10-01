@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-52 of them amend or replace an earlier one, and a decision read without its
+55 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -63,7 +63,7 @@ file.
 | [D42](D042-four-releases-per-push-every-release-nightly.md) | Four releases per push, every release nightly | Supersedes D24, amended by D69 |
 | [D43](D043-ask-several-models-before-a-dialect-is-declared.md) | Ask several models before a dialect is declared finished | Decided |
 | [D44](D044-a-version-key-names-the-product-a-number-alone.md) | A version key names the product. A number alone never does | Decided |
-| [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query can answer partially, once, and must say so | Decided |
+| [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query can answer partially, once, and must say so | Amended by D161 |
 | [D46](D046-five-object-kinds-are-missing-and-two-consumers.md) | Five object kinds are missing, and two consumers say which | Decided |
 | [D47](D047-dbmeta-supplies-the-data-the-consumer-decides.md) | dbmeta supplies the data. The consumer decides what to show | Amended by D146 |
 | [D48](D048-cgo-is-allowed-in-the-test-module-and-nowhere.md) | cgo is allowed in the test module, and nowhere else | Amends D26 and D29, supersedes D35 |
@@ -164,15 +164,23 @@ file.
 | [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided |
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
-| [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67 |
+| [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159 |
 | [D147](D147-the-fields-psql-prints-that-usql-needed.md) | The fields psql prints that usql needed | Decided |
 | [D148](D148-rqlite-shares-the-sqlite3-model.md) | rqlite shares the sqlite3 model | Amended by D151 |
 | [D149](D149-oracle-and-singlestore-answer-extended-statistics.md) | Oracle and SingleStore answer extended statistics | Decided |
 | [D150](D150-oracle-11g-reads-two-views-slowly.md) | Oracle 11g reads two views slowly | Decided |
 | [D151](D151-rqlite-tests-use-dbimps-driver.md) | The rqlite tests use dbimp's driver | Amends D148 |
 | [D152](D152-influxdb-3-reads-datafusions-information-schema.md) | InfluxDB 3 reads DataFusion's information_schema | Decided |
-| [D153](D153-libsql-has-an-ordinary-user-through-a-jwt.md) | libSQL has an ordinary user through a JWT | Amends D112 |
+| [D153](D153-libsql-has-an-ordinary-user-through-a-jwt.md) | libSQL has an ordinary user through a JWT | Amends D112, amended by D160 |
 | [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157 |
 | [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
 | [D156](D156-a-test-checks-the-simple-english-rules-a-machine-can.md) | A test checks the simple English rules that a machine can check | Decided |
 | [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154 |
+| [D158](D158-h2-and-voltdb-wait.md) | H2 and VoltDB wait | Decided |
+| [D159](D159-influxql-can-walk-show-statements.md) | InfluxQL can walk SHOW statements | Amends D146 |
+| [D160](D160-libsql-shares-the-sqlite3-model.md) | libSQL shares the sqlite3 model | Amends D153 |
+| [D162](D162-neo4j-maps-a-database-to-a-schema-and-a-label-to-a.md) | Neo4j maps a database to a schema and a label to a table | Decided |
+| [D161](D161-ydb-reads-its-sys-views-and-a-directory-is-a-schema.md) | YDB reads its .sys views, and a directory is a schema | Amends D45 |
+| [D163](D163-arangodb-maps-a-collection-onto-a-table.md) | ArangoDB maps a collection onto a table | Proposed |
+| [D165](D165-influxql-maps-a-database-to-a-schema-and-a.md) | InfluxQL maps a database to a schema and a measurement to a table | Decided |
+| [D164](D164-surrealdb-maps-a-namespace-to-a-catalog-and-a-field-to-a.md) | SurrealDB maps a namespace to a catalog and a defined field to a column | Decided |

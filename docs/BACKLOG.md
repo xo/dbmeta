@@ -23,6 +23,19 @@ Cassandra today. So the move waits until dburl names dbimp's driver.
 
 ## Servers
 
+### Build the H2 model when a driver reaches H2
+
+D158 left H2 Staged, because h2go, the driver dburl names, fails against H2
+2.4.240 and 2.5.252 with "Can't read all data needed" (D118). When a driver
+that dburl names reaches both releases, build the model. H2 has an
+`INFORMATION_SCHEMA`, so the model is likely a short one.
+
+### Build the VoltDB model when a license file is here
+
+D158 left VoltDB Staged, because the developer edition does not start without
+a license file and none is on this machine. When Ken places one where
+`docs/DBRUN.md` says, under License files, build the model.
+
 ### Measure the memory that Oracle 19c needs to start
 
 On 2026-10-01 a fresh `oracle-19c` sat at 36% of its database creation for 20

@@ -88,13 +88,45 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	return set, nil
 }
 
-// systemTables are the tables SQLite keeps for itself. Every one of them is
-// named with the sqlite_ prefix, which is reserved, so one pattern covers them
-// all and a new one does not need this list updated.
-const systemTables = `m.name LIKE 'sqlite\_%' ESCAPE '\'`
+// LibSQL is the version key that the libsql model records, because libSQL
+// shares these statements and keeps tables of its own beside SQLite's. A
+// fragment written for libSQL gates on it. No SQL statement names the sqld
+// release, so the version under the key is unknown. See D160.
+const LibSQL = "libsql"
 
-// notSystem excludes them unless the caller asked for them.
-const notSystem = `(@with_system OR NOT ` + systemTables + `)`
+// notSystem excludes the tables SQLite keeps for itself, unless the caller
+// asked for them, where col names a table. Every one of them is named with
+// the sqlite_ prefix, which is reserved, so one pattern covers them all and a
+// new one does not need this list updated.
+//
+// libSQL keeps two more kinds of table for its vector indexes, and its
+// fragment excludes those too. libsql_vector_meta_shadow lists every vector
+// index, and libSQL makes it for the first one and never drops it. Each
+// vector index keeps its data in a table named for the index with _shadow
+// after it, which [vectorIndexes] finds. The libsql_ prefix is not reserved,
+// so the fragment names the one table rather than the prefix.
+func notSystem(col string) dbmeta.Choice {
+	sqlite := `NOT ` + col + ` LIKE 'sqlite\_%' ESCAPE '\'`
+	return dbmeta.Choice{
+		{Query: `AND (@with_system OR ` + sqlite + `)`},
+		{Key: LibSQL, Query: `AND (@with_system OR (` + sqlite +
+			` AND ` + col + ` <> 'libsql_vector_meta_shadow'` +
+			` AND ` + col + ` NOT IN (SELECT x.name || '_shadow' FROM (` + vectorIndexes + `) x)))`},
+	}
+}
+
+// vectorIndexes selects the name of every vector index that libSQL holds.
+// The statement that made one names libsql_vector_idx, and libSQL keeps the
+// index in a table named for it with _shadow after it, so a name is selected
+// only when both hold. sqlite_schema keeps the statement as it was written,
+// so the pattern takes any case and any space before the parenthesis.
+//
+// It is a subquery that does not refer to the outer row, so SQLite runs it
+// once for the statement, and the cost grows with the catalog rather than
+// with its square.
+const vectorIndexes = `SELECT v.name FROM sqlite_schema v` +
+	` JOIN sqlite_schema s ON s.type = 'table' AND s.name = v.name || '_shadow'` +
+	` WHERE v.type = 'index' AND v.sql LIKE '%libsql\_vector\_idx%(%' ESCAPE '\'`
 
 // The schema of an object. SQLite calls an attached database a schema and
 // reaches it by name, and sqlite_schema is the one of the main database. A

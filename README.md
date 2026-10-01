@@ -171,7 +171,13 @@ call and filter in the loop.
 | Amazon Redshift | native        | 11      | Written, not run |
 | Apache Impala | native          | 11      | In progress |
 | rqlite     | native             | 14      | In progress |
+| libSQL     | native             | 14      | In progress |
 | InfluxDB 3 | native             | 8       | In progress |
+| Neo4j      | native             | 17      | In progress |
+| YDB        | native             | 7       | In progress |
+| ArangoDB   | native             | 5       | In progress |
+| InfluxQL   | native             | 7       | In progress |
+| SurrealDB  | native             | 18      | In progress |
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
@@ -316,7 +322,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 157 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 52 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 165 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 55 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

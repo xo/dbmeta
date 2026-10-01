@@ -344,7 +344,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if err := r.waitReady(ctx, up, t.timeout(o)); err != nil {
 			return fmt.Errorf("it is running and not ready: %w", err)
 		}
-		fmt.Printf("  %-*s already up%s: %s=%s\n", nameWidth(), t.Name, note, t.Env, t.DSN)
+		fmt.Printf("  %-*s already up%s: %s=%s\n", nameWidth(), t.Name, note, t.Env, t.connectDSN())
 		return nil
 	}
 	// A stopped container belongs to nobody. Its owner can be a session that
@@ -409,9 +409,9 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 			return err
 		}
 	}
-	fmt.Printf("  %-*s up: %s=%s\n", nameWidth(), t.Name, t.Env, t.DSN)
+	fmt.Printf("  %-*s up: %s=%s\n", nameWidth(), t.Name, t.Env, t.connectDSN())
 	for _, e := range t.AlsoEnv {
-		fmt.Printf("  %-*s also: %s=%s\n", nameWidth(), "", e, t.DSN)
+		fmt.Printf("  %-*s also: %s=%s\n", nameWidth(), "", e, t.connectDSN())
 	}
 	return nil
 }

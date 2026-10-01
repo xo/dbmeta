@@ -1,6 +1,6 @@
 # D45. A query can answer partially, once, and must say so
 
-Status: Decided.
+Status: Amended by D161.
 
 `Constraints` on SQLite returns primary key, unique and foreign key rows and
 never returns a check constraint. It is the only query in `dbmeta` that answers

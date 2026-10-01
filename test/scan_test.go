@@ -121,6 +121,20 @@ var foldQueries = map[dbmeta.Dialect]string{
 	dbmeta.Firebird:  `SELECT 1 AS DbMeta_Fold FROM rdb$database`,
 	dbmeta.HANA:      `SELECT 1 AS DbMeta_Fold FROM DUMMY`,
 	dbmeta.Cassandra: `SELECT key AS DbMeta_Fold FROM system.local`,
+	dbmeta.Neo4j:     `RETURN 1 AS DbMeta_Fold`,
+	// AQL has no SELECT, and an object's keys are the columns.
+	dbmeta.ArangoDB: `RETURN {DbMeta_Fold: 1}`,
+	// InfluxQL selects from a measurement, and the fixture makes author.
+	dbmeta.InfluxQL:  `SELECT rating AS DbMeta_Fold FROM author`,
+	dbmeta.SurrealDB: `SELECT 1 AS DbMeta_Fold FROM ONLY {}`,
+}
+
+// foldColumns is the position of the alias in the answer, for a product
+// whose answer has more columns than the one the query names. dbimp's
+// influxdb driver puts measurement first, and InfluxQL puts time before the
+// rest (dbimp D81).
+var foldColumns = map[dbmeta.Dialect]int{
+	dbmeta.InfluxQL: 2,
 }
 
 // foldTables are the products whose alias does not say how a name is
@@ -177,8 +191,9 @@ func checkFold(t *testing.T, m *dbmeta.Meta, db *sql.DB) {
 	}
 	defer rows.Close()
 	cols, err := rows.Columns()
-	if err != nil || len(cols) != 1 {
-		t.Errorf("fold: expected one column, got %v, %v", cols, err)
+	at := foldColumns[m.Dialect()]
+	if err != nil || len(cols) != at+1 {
+		t.Errorf("fold: expected %d columns, got %v, %v", at+1, cols, err)
 		return
 	}
 	for rows.Next() {
@@ -187,10 +202,10 @@ func checkFold(t *testing.T, m *dbmeta.Meta, db *sql.DB) {
 		t.Errorf("fold: reading the row: %v", err)
 		return
 	}
-	if want := m.Dialect().FoldIdentifier("DbMeta_Fold"); cols[0] != want {
-		t.Errorf("fold: the product stores DbMeta_Fold as %q, and FoldIdentifier says %q", cols[0], want)
+	if want := m.Dialect().FoldIdentifier("DbMeta_Fold"); cols[at] != want {
+		t.Errorf("fold: the product stores DbMeta_Fold as %q, and FoldIdentifier says %q", cols[at], want)
 	}
-	t.Logf("fold: DbMeta_Fold is %s", cols[0])
+	t.Logf("fold: DbMeta_Fold is %s", cols[at])
 }
 
 // checkTypes checks that the types parameter of Tables returns exactly the
@@ -338,6 +353,7 @@ func TestEveryModelScansEveryQuery(t *testing.T) {
 		{"hive", openHive, setupHive},
 		{"exasol", openExasol, setupExasol},
 		{"vertica", openVertica, setupVertica},
+		{"ydb", openYDB, setupYDB},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			db := c.open(t)

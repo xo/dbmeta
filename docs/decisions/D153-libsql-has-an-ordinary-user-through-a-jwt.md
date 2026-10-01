@@ -1,6 +1,6 @@
 # D153. libSQL has an ordinary user through a JWT
 
-Status: Amends D112.
+Status: Amends D112, amended by D160.
 
 ## The decision
 

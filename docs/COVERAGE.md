@@ -54,8 +54,14 @@ rather than reading one.
 | `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
 | `models/redshift` | 11 | 56 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
+| `models/neo4j` | 17 | 56 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
 | `models/influxdb` | 8 | 56 | InfluxDB 3 Core 3.9.13, 3.10.6 and 3.11.5, from DataFusion's information_schema, with dbimp's driver (D152) |
+| `models/ydb` | 7 | 56 | YDB 26.2.1.14 and 26.3.1.17, from the .sys views, with ydb-go-sdk (D161) |
+| `models/influxql` | 7 | 56 | InfluxDB 1.11.8 and 1.13.1, and 2.8.0 and 2.9.1, which answer 4 of the 7. Most kinds are a walk of SHOW statements, with dbimp's driver (D159, D165) |
+| `models/surrealdb` | 18 | 56 | SurrealDB 3.1.6, 3.2.4 and 3.3.0, and 2.7.0, which answers the current schema alone, because a 2.x statement cannot read INFO as a value. With dbimp's driver (D164) |
 | `models/rqlite` | 14 | 56 | rqlite 9.4.5 and 10.3.6, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
+| `models/libsql` | 14 | 56 | libSQL 0.24.33, the sqld server, with dbimp's driver. Every statement is the sqlite3 model's, with a fragment for the vector index (D160) |
+| `models/arangodb` | 5 | 56 | ArangoDB 3.12.12, in AQL through dbimp's driver. A collection is a table, and its JSON schema rule gives its columns (D163) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -2047,6 +2053,7 @@ that varies is what kind of principal they are.
 | Trino 476, 483 | other principal | none. The image configures no authenticator |
 | Presto 0.299 | other principal | none, for the same reason |
 | Couchbase 7.6, 8.0 | ordinary user | `functions`, `privileges`, `role_grants`, `roles`, `routine_parameters` |
+| Neo4j 5.26, 2026.09 | ordinary user | `privileges`, `role_grants`, `role_settings`, `roles`, `settings` |
 
 `current_user` and `current_schema` are left out of the table and are in the
 file. They answer a question about the connection, so a run where they agree
@@ -2066,11 +2073,11 @@ InfluxDB 3 Core has one kind of token, the administrator's (D152).
 
 ### One release answers differently
 
-`test/testdata/parity.txt` has a section per product, and fourteen releases
+`test/testdata/parity.txt` has a section per product, and fifteen releases
 have one of their own: `postgres@10`, `postgres@11`, `postgres@12`,
 `postgres@13`, `mariadb@10`, `exasol@2025`, `vertica@7`, `vertica@9`,
 `vertica@10`, `couchbase@8`, `cockroachdb@24.3`, `cockroachdb@26.2`,
-`questdb@9.4` and `tidb@8.5`. A section named for a release wins over the shared one, and
+`questdb@9.4`, `tidb@8.5` and `influxql@1`. A section named for a release wins over the shared one, and
 a name carrying a minor wins over one carrying only the major.
 
 PostgreSQL restricts a column of `pg_subscription` from an ordinary role. The
@@ -2224,9 +2231,10 @@ says which of the seven it answers. The SQL standard defines
 to the standard answers those four. That was not the expectation: the two the
 consumers wanted most turned out to be the two the standard already had.
 
-`CurrentUser` is answered by every model but four: SQLite and rqlite, which
-have no users, Cassandra, which has no CQL expression for it, and InfluxDB 3,
-where no statement names a user. It is
+`CurrentUser` is answered by every model but seven: SQLite, rqlite and
+libSQL, which have no users in SQL, Cassandra, which has no CQL expression for
+it, InfluxDB 3 and InfluxQL, where no statement names a user, and YDB, where
+the function for it returns the empty string. It is
 the one question here that reads no catalog at all on the shared model, because
 `CURRENT_USER` is a standard SQL expression rather than a view. It came from
 auditing `usql` for database specific SQL outside its metadata readers, which
@@ -3440,6 +3448,120 @@ The entry declares `dbmeta_user`, who can query and execute and nothing else.
 rqlite has no grant on a table, so the user reads every answer the
 administrator reads, and the section in `test/testdata/parity.txt` is empty.
 
+## libSQL
+
+`models/libsql` answers 14 of the 56 on 0.24.33, measured on 2026-10-01
+through dbimp's libSQL driver, which dburl names and usql imports, from dbimp
+v0.10.0. libSQL is the fork of SQLite by Turso, and sqld is the server that
+serves it over HTTP. sqld 0.24.33 runs SQLite 3.45.1. Every statement is the
+sqlite3 model's, shared with `Query.Share`, and the model reads
+`sqlite_schema` and the table valued pragmas, as the SQLite section above
+says. Every check the SQLite tests make runs on libSQL too, and the
+conformance report is line for line SQLite's. See D160.
+
+### The vector index, which is what libSQL adds
+
+libSQL adds a vector index. `CREATE INDEX i ON t (libsql_vector_idx(c))`
+makes one on a column of a vector type, such as `F32_BLOB(3)`.
+`pragma_index_list` reports it as an ordinary index that someone created, and
+`pragma_index_xinfo` reports its one column as an expression. So the shared
+statement called it `btree`, which it is not.
+
+libSQL also keeps two kinds of table for vector indexes, and the shared
+statements listed both as tables a person made:
+
+- `libsql_vector_meta_shadow` holds a row for each vector index. libSQL makes
+  it with the first vector index and never drops it.
+- Each vector index keeps its data in a table named for the index with
+  `_shadow` after it, and that table has an index named with `_shadow_idx`
+  after the index name. Dropping the vector index drops both.
+
+`pragma_table_list` reports both kinds as `table` rather than `shadow`. A
+user can drop the shadow table, which breaks the vector index, and the
+`libsql_` prefix is not reserved: a user can make `libsql_x`. So the prefix
+is not a test, and the model names the one table.
+
+Two pieces of the sqlite3 model's statements now have a fragment for libSQL,
+which gates on the version key `libsql`. The libsql model records that key,
+with an unknown version, because no SQL statement names the sqld release.
+The system filter of every statement that reads `sqlite_schema` leaves out
+`libsql_vector_meta_shadow` and each shadow table, unless the caller asks for
+the system objects. The type of an index is `diskann` for a vector index,
+which is the name libSQL gives the method in its `type=diskann` option. A
+vector index is found by the statement that made it, which names
+`libsql_vector_idx`, and by the shadow table that libSQL made for it. The
+subquery that finds them does not refer to the outer row, so SQLite runs it
+once for each statement. `TestLibSQLVectorIndex` checks all of this.
+
+A vector column reads its declared type, such as `F32_BLOB(3)`, which is
+already the answer. Its options, such as `metric=cosine`, are only in the
+text of the statement in `sqlite_schema.sql`, and dbmeta does not parse DDL.
+
+### What libSQL adds that is not an answer
+
+`ALTER TABLE ... ALTER COLUMN` changes a column, and the pragmas read the
+result. It is a statement and not an object.
+
+`RANDOM ROWID` makes a table whose rowid is random. No pragma reports it,
+and `pragma_table_list` reports the table as an ordinary one. It is only in
+the text of the statement in `sqlite_schema.sql`.
+
+A function in WebAssembly, `CREATE FUNCTION ... LANGUAGE wasm`, is refused by
+sqld 0.24.33 with a parse error, so this build has none to list.
+
+`libsql_server_database_name()` returns the namespace of the request,
+`default` on this server. The `Databases` statement reads
+`pragma_database_list`, which names `main`, as on SQLite. A namespace is
+what sqld calls a database, and the list of namespaces is in the admin HTTP
+API, which no SQL statement reaches.
+
+sqld registers about 200 functions of its own beside SQLite's, most of them
+from the sqlean extensions: math, text, crypto, fuzzy matching, regular
+expressions, UUIDs and statistics. `pragma_function_list` reports each one
+with `builtin` 0, so `Functions` lists them without the system objects, and
+its `language` is `extension`. Six of them have the name of a function built
+into SQLite: `concat`, `concat_ws`, `ltrim`, `rtrim`, `octet_length` and
+`soundex`. So those names have two rows, one for each language, and
+`TestSQLiteFunctions` keys on the language too.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked about the 42 unanswered kinds on 2026-10-01,
+as hard rule 14 requires. Both said libSQL adds nothing that SQL can read for
+any of them. Their leads were these, and each was run on 0.24.33:
+
+- `sqlite_sequence` for `Sequences`, from both. The SQLite section rejects
+  it, and libSQL changes nothing.
+- `sqlite_stat1` for `ColumnStats` and `sqlite_stat4` for `ExtendedStats`,
+  from Gemini. This build has `ENABLE_STAT4`, where rqlite's has not. But
+  sqld refuses `ANALYZE` and `PRAGMA optimize` with "unsupported statement",
+  so neither table can exist. The SQLite section rejects both for SQLite
+  anyway.
+- The type `a` of `pragma_function_list` for `Aggregates`, from both. On
+  libSQL it matches 26 functions, which are the sqlean statistics functions
+  such as `median` and `stddev`. `sum` and `count` still report `w`, so the
+  reason the SQLite section gives still holds. DeepSeek wrote the type as
+  `aggregate`, which matches nothing.
+- The declared types of the columns for `Types`, from DeepSeek. The SQLite
+  section rejects it.
+
+`pragma_module_list` names `vector_top_k`, the table valued function that
+searches a vector index. It is a module, which the SQLite section rejects
+for `Extensions`.
+
+### What the fixture builds
+
+The fixture is SQLite's and one table more: `embedding`, with a vector
+column and a vector index, `embedding_vector`. The core objects are SQLite's,
+so the conformance report is SQLite's.
+
+### Parity
+
+The entry declares `dbmeta_user`, whose token has the claim `{"a":"ro"}` and
+can read and not write (D153). sqld has no grant on a table, so the user
+reads every answer the administrator reads, and the section in
+`test/testdata/parity.txt` is empty.
+
 ## InfluxDB 3
 
 `models/influxdb` answers 8 of the 56 on InfluxDB 3 Core, measured on
@@ -3447,7 +3569,7 @@ administrator reads, and the section in `test/testdata/parity.txt` is empty.
 influxdb scheme opens and what usql uses. InfluxDB 3 answers SQL with Apache
 DataFusion, and DataFusion keeps an information_schema, which the model
 reads. InfluxQL is the dialect influxql, which answers InfluxDB 1, 2 and 3,
-and no model reads it. See D152.
+and `models/influxql` reads it, under InfluxQL below. See D152 and D165.
 
 ### What it answers
 
@@ -3527,6 +3649,736 @@ again replaces its points.
 
 Nothing. InfluxDB 3 Core has one kind of token, the administrator's, so there
 is no lesser principal, and InfluxDB is exempt from parity with that reason.
+
+## Neo4j
+
+`models/neo4j` answers 17 of the 56 on 2026.09.0 and 13 on 5.26.31, measured
+on 2026-10-01 through dbimp's neo4j driver, which is what dburl's neo4j scheme
+opens and what usql uses. Both releases are Tested. D162 holds the mapping
+and the reasons for it, for Ken to review.
+
+### It reads SHOW commands and procedures
+
+Neo4j has no relational catalog. Its catalog is a set of SHOW commands, such
+as SHOW DATABASES, SHOW INDEXES and SHOW CONSTRAINTS, and a set of
+procedures, such as `db.labels()`. A SHOW command takes YIELD, WHERE and
+RETURN, so it filters and projects like a SELECT, and every kind is one
+statement.
+
+A database is the schema. A database has no namespace inside it, and each
+statement reads the database the connection is in, which is the path of the
+URL. So Schemas and CurrentSchema return that database alone, and every
+object names it as its schema. Databases lists every database on the server.
+
+A node label and a relationship type are the two kinds of table, with the
+types `node label` and `relationship type`. An index and a constraint are on
+one of them.
+
+Four things about writing Cypher for it, all measured:
+
+1. Cypher has no LIKE. A pattern is turned into a Java regular expression
+   inside the statement, one character at a time. `TestNeo4jPatterns` checks
+   it against `dbmeta.Like`, with `.`, `(`, `[`, a trailing backslash and an
+   escaped `_` among the patterns.
+2. On 5.26 a SHOW command cannot be in a subquery or a UNION, and no UNWIND
+   can follow it. It can hold a subquery expression, so `COLLECT { CALL
+   db.info() ... }` names the database in each row on both releases.
+3. From 2026.05, in Cypher 25, SHOW INDEXES, SHOW CONSTRAINTS, SHOW FUNCTIONS
+   and SHOW PROCEDURES can be joined with other clauses. SHOW USERS, SHOW
+   ROLES and SHOW PRIVILEGES cannot, on any release.
+4. An administration command, such as SHOW USERS, runs from the database the
+   connection is in, and Neo4j sends it to the system database itself.
+
+### What it answers
+
+Databases, schemas, the current schema, tables, indexes, constraints,
+aggregates, roles, role grants, role settings, privileges, the current user
+and settings, on both releases. Index columns, constraint columns, functions
+and routine parameters from 2026.05, because each needs a SHOW command joined
+with other clauses. 5.26 reports `TooOld` for those four.
+
+Six answer with an analogue:
+
+| Kind | Neo4j | Why it is a fair answer |
+| --- | --- | --- |
+| `Schemas` | the database of the connection | a database has no namespace inside it, and no statement reads the labels of another database |
+| `Tables` | node labels and relationship types | an index and a constraint are on one of them, and `db.labels()` lists a label from the count Neo4j keeps, not from the data |
+| `Roles` | users | a user logs in and holds roles. A role holds privileges and cannot log in, and SHOW ROLES cannot be joined with SHOW USERS |
+| `RoleGrants` | the roles each user holds | SHOW ROLES WITH USERS, with PUBLIC for every user |
+| `RoleSettings` | the home database of a user | the one setting Neo4j keeps for a user, which decides where a session that names no database runs. D162 asks Ken to confirm it |
+| `Privileges` | SHOW PRIVILEGES, grouped by graph, segment and resource | a privilege on one property is a row of its own, with the property in the type, such as `property(rating)` |
+
+A node key and a relationship key read `primary key`, a uniqueness constraint
+`unique`, and an existence constraint `not null`. Any other constraint keeps
+the Neo4j name in lower case. A full text index on two labels is one row, with
+its table written `book|author`, and a pattern on its table matches either
+label. A token lookup index has an empty table.
+
+Functions and procedures belong to the server, so their schema is empty and
+the namespace is part of the name, such as `db.labels`. A procedure is
+always listed, because SHOW PROCEDURES does not say which are built in. The
+columns a procedure yields read mode `table` in routine parameters.
+
+### What it cannot answer, and why
+
+39 kinds on 2026.09, and 43 on 5.26.
+
+`Columns` is the largest gap. Neo4j keeps no catalog of the properties of a
+label. The only source is `db.schema.nodeTypeProperties()` and
+`db.schema.relTypeProperties()`, which read every node and every
+relationship. On 2026.09.0 the first took 0.37 seconds for 1 million nodes and
+0.95 seconds for 4 million, so its cost grows with the data, and D47 forbids
+that. Ken chose on 2026-10-01 to leave Columns unsupported for that reason.
+`TestNeo4jColumnsIsNotSupported` holds it. The same test was applied to every
+other kind. `db.labels()` and `db.relationshipTypes()` took 0.015 seconds
+together on an empty database and 0.024 seconds with 8 million nodes, on
+5.26.31, so they read the counts and not the data.
+
+Six more are close and rejected, which D162 lists with the reasons:
+`AccessMethods` from the providers of existing indexes, `TextSearchConfigs`
+from the full text analyzers, `Types` and `Domains` from the property types,
+`Casts` from the conversion functions, `ForeignServers` and `UserMappings`
+from a remote database alias, and `ColumnStats` and `EnumValues`, which read
+the data.
+
+The rest are absent from the product: views, sequences, triggers, comments,
+collations, conversions, languages, large objects, event triggers, operators
+and their classes and families, extensions, extended statistics,
+publications, subscriptions, tablespaces, partitioned tables, foreign data
+wrappers, foreign tables, default privileges and the other text search kinds.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked about the kinds it cannot answer on 2026-10-01, as hard rule
+14 requires. Each lead was run against 2026.09.0.
+
+| Lead | Who | What the server says |
+| --- | --- | --- |
+| `AccessMethods` from the providers in SHOW INDEXES | both | it lists the providers of indexes that exist, such as `range-1.0`, and nothing lists the providers no index uses. A stretch |
+| `Casts` from conversion functions such as `toInteger` | both | they are in SHOW FUNCTIONS, which Functions reads. No catalog lists a cast from one type to another |
+| `Types` from the Cypher property types | both | SHOW TYPES is a syntax error, and no procedure lists the types |
+| `Domains` from property type constraints | Gemini | a property type constraint is a constraint, and Constraints reads it |
+| `TextSearchConfigs` from SHOW FULLTEXT ANALYZERS | Gemini | there is no such command. `db.index.fulltext.listAvailableAnalyzers()` lists 45 analyzers with their stop words, and an analyzer has no parser or dictionary to report. A stretch |
+| `ExtensionObjects` from SHOW PROCEDURES and SHOW FUNCTIONS | DeepSeek | no catalog says which plugin a routine came from, and `dbms.components()` lists only the kernel and Cypher |
+| `Sequences` from a counter node | Gemini | that is data a program keeps, not a catalog object |
+| `EnumValues` and `ColumnStats` from distinct values and counts | Gemini | each reads the data, which D47 forbids |
+
+No lead answers a kind. The full text analyzers and the remote database
+aliases are the nearest, and D162 records why each is a stretch.
+
+### What the fixture builds, and what it cannot build
+
+`models/neo4j/fixture` builds in the database `dbmeta`, as the administrator.
+The core tables are the labels author, book, region and shipment, each with a
+node key, and nodes that carry them, because a label exists while a node
+carries it. The relationship types written_by and ships_to join them. There
+are a uniqueness constraint, two existence constraints, a property type
+constraint, a relationship key, the core index `book_published`, an index on
+two properties, a text index, a full text index on two labels, and an index on
+a relationship type. A role `dbmeta_reader` has a grant and a denial, and the
+ordinary user holds it and has a home database.
+
+It cannot build a view, a foreign key, a check constraint, a default, a
+comment, a trigger, a sequence or a type, because Neo4j has none. It cannot
+build a user defined function or procedure, because each is a Java plugin in
+the plugins directory of the server, so routines are read from the built in
+ones with the system objects.
+
+### What the conformance test says
+
+The `neo4j` section holds the four core labels and nothing else, on both
+releases. There is no column catalog, and the report compares no constraint
+where it has no column, so `agreementExcluded` names Neo4j.
+
+### Which answers depend on who is asking
+
+Neo4j has no containment and no object owner. A user belongs to the server
+and holds roles, so there is one lesser kind of principal. It is
+`dbmeta_user`, which the `dbrun` setup makes with the role publisher, which
+reads and writes and cannot manage the server.
+
+`Roles`, `RoleGrants`, `RoleSettings` and `Privileges` are refused to the
+user, because SHOW USERS, SHOW ROLES and SHOW PRIVILEGES need privileges that
+publisher does not hold. `Settings` returns no rows to the user rather than a
+refusal. `Functions` and `Aggregates` leave `access` absent for the user,
+because SHOW FUNCTIONS and SHOW PROCEDURES report no roles to a user who
+cannot see the roles. The parity scene asks for the schema `dbmeta`,
+where a routine of the server has no row, so the file does not show that
+difference. Both releases answer the same, and one section,
+`neo4j/same/user`, holds them.
+
+## YDB
+
+`models/ydb` answers 7 of the 56, measured on 2026-10-01 on 26.2.1.14 and
+26.3.1.17 through ydb-go-sdk, which is the driver dburl names and usql uses.
+YQL has no information_schema, so the model reads the views in the directory
+`.sys` of the database, and nothing else. See D161.
+
+### A path, not a catalog
+
+YDB keeps its objects in a tree of directories. A database is a path, such as
+/local, and a table is a path inside it, such as
+/local/dbmeta/dbmeta_fixture/author. The catalog is the path of the
+database. A schema is a directory, named by its path relative to the
+database, such as dbmeta/dbmeta_fixture, and a nested directory is a schema
+of its own. A table at the root of the database has the empty schema.
+
+### What it answers
+
+Databases, schemas, tables, tablespaces, roles, role grants and privileges.
+
+`auth_owners` holds every path with its owner and nothing that says what the
+path is. `partition_stats` holds every partition of every table, so a table
+is a path in both. The tables that implement an index are in
+`partition_stats` and not in `auth_owners`, so the join leaves them out. A
+directory is a path that holds another path. The database is the shortest
+path, because it is a prefix of every other.
+
+A tablespace is a storage pool from `ds_storage_pools`, which is where a
+database keeps its data. A column family of a table names the kind of pool,
+such as ssd or hdd, and the options carry the kind and the erasure.
+
+A role is a user from `auth_users` or a group from `auth_groups`. A user can
+log in while it is enabled, and a group never can. A role grant is a row of
+`auth_group_members`. A privilege is the explicit grants on a path from
+`auth_permissions`, as sid=permission, and the type of the path is table,
+directory, or object for a path no view names.
+
+### Two answers that are partial, and say so
+
+Tables lists no view, and Schemas lists no empty directory. A view, a topic,
+an empty directory and every other kind of object is a path with no
+partitions and no children, and no view tells them apart. The part each
+returns is exact, the field description says what is missing, and
+`TestYDBFixtureObjects` builds a view and an empty directory and asserts
+that neither is listed. D161 amends D45 for these two.
+
+Every table reads table, and a column table does too. `hive_tablets` tells a
+column shard from a row shard, and a new column table reports tablet 0 in
+`partition_stats` for about a minute, measured on 26.3, so the join gives a
+wrong answer for that minute.
+
+### What it cannot answer, and why
+
+49 kinds. The schema of an object holds its columns, its indexes, its key,
+its changefeeds and its column families, and YDB gives it only to a gRPC call
+per object, DescribeTable and its relatives. No SELECT reaches it, and D146
+allows a walk for Impala alone. So columns, indexes, index columns,
+constraints, constraint columns, views, sequences and partitioned tables are
+unanswered although YDB has every one of them. A Serial column makes a
+sequence, and `hive_tablets` lists its sequence shard without a path.
+
+Indexes are the closest. The name of each index and its table are exact, from
+the path of the table that implements it, `<table>/<index>/indexImplTable`.
+Nothing says whether the index is unique, and `Index.Unique` is a plain bool,
+so a unique index would read as not unique.
+
+YQL has no catalog of functions, types, collations or settings, and YDB has
+no trigger, no comment, no extension, no domain and no foreign key. YDB has
+external data sources, external tables and asynchronous replications, and no
+`.sys` view names one, so foreign servers, foreign tables and subscriptions
+are unanswered. The fixture builds none of them. A changefeed is not even a
+path in `auth_owners`, measured on 26.3.
+
+The current user is unanswered. `CurrentAuthenticatedUser()` returns the
+empty string for root and for dbmetauser. The current schema is unanswered,
+because a session has no current directory and `PRAGMA TablePathPrefix`
+holds for one statement and nothing reads it back.
+
+PostgreSQL syntax has a `pg_catalog`, and the server refuses it with
+"PostgreSQL syntax is not supported" unless a feature flag is set, which a
+consumer cannot count on.
+
+### A fault in the server
+
+A read of a `.sys` view fails with an internal error, "requirement
+!Meta->GetReads()[0].GetKeyRanges().empty() failed", when its filter is false
+before any row is read, measured on 26.3. `WHERE $p0 = 'x'` fails and
+`WHERE $p0 = 'x' OR Path IS NULL` returns no rows. The types filter of
+Tables names no column of its own, because every table has one type, so it
+also tests the name, which is never absent.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked about the 49 kinds on 2026-10-01, as hard rule
+14 requires. DeepSeek answered after several attempts timed out, and named
+nine views: `.sys/columns`, `indexes`, `views`, `sequences`, `changefeeds`,
+`topics`, `external_tables`, `settings` and `current_user`. None exists. Each
+was read on 26.3 and each failed with "Cannot find table". So did `tables`,
+`pg_tables` and `pg_class`, which a PostgreSQL compatible catalog would
+have.
+
+Gemini said that no `.sys` view lists any of them and named two leads. The
+first reads the columns of one table from the type of `TableRow()`. It
+answers one table per statement, and only a table that holds a row, which is
+a walk. The second finds the current user in `.sys/query_sessions`, whose
+`UserSID` names the user of each session. It holds, and the only way to find
+this session's row is to match the text of the statement, so two connections
+that ask at once can each read the other's row. Both are left unanswered.
+
+### What the fixture builds
+
+`models/ydb/fixture` builds the directory dbmeta/dbmeta_fixture, because the
+user dbrun makes can read and describe dbmeta. It holds author, book, region
+and shipment, with a NOT NULL column, a default, a composite key, a Serial
+column and three global indexes, one of them unique, and the view recent.
+YDB has no foreign key, no check and no unique constraint. It also builds a
+column table in two partitions, a topic, a changefeed, an empty directory,
+a user, a group, a membership and a grant.
+
+YQL has no statement that makes or removes a directory. A table makes one,
+and the empty directory is made by making a table in it and dropping it. The
+teardown leaves the directories behind.
+
+The year of A Wizard of Earthsea is 1968, and a Date holds nothing before
+1970, so book.published is a Date32.
+
+### What the conformance test says
+
+The section holds the four tables and nothing else. There is no column
+catalog and no constraint catalog, and recent is a view, which Tables does
+not list. YDB is in `agreementExcluded` for that reason, and it agrees with
+every other database on the four lines all of them share.
+
+### Which answers depend on who is asking
+
+Every one. Every `.sys` view refuses a user that is not an administrator,
+with "Cannot find table ... because it does not exist or you do not have
+access permissions". dbmetauser can read and describe /local/dbmeta and is
+refused all seven, and the parity file records each refusal.
+
+## ArangoDB
+
+`models/arangodb` answers 5 of the 56 on ArangoDB 3.12.12, measured on
+2026-10-01 through dbimp's arangodb driver, which is what dburl's arangodb
+scheme opens and what usql uses. ArangoDB is queried in AQL rather than SQL,
+and it has no relational catalog. D163 proposes the mapping and Ken reviews
+it.
+
+### What AQL reads
+
+The model reads what one AQL statement reads for the whole database:
+`COLLECTIONS()`, `SCHEMA_GET`, the system collection `_aqlfunctions`, and the
+functions `CURRENT_DATABASE()` and `CURRENT_USER()`. The HTTP API describes
+much more, and it does so one call for each collection where it goes deeper.
+Ken chose on 2026-10-01 that a walk (D146) is not allowed for ArangoDB, so a
+kind that only the HTTP API answers is not answered.
+
+A database is the catalog, because a connection names one in its path and AQL
+cannot reach another. There is no schema, because AQL names a collection with
+no qualifier, and none is invented, as on Firebird. Every row has an empty
+schema, and Schemas and CurrentSchema are not answered.
+
+### What it answers
+
+Tables, columns, constraints, functions and the current user.
+
+A collection is a table, of the type `collection`. `COLLECTIONS()` has no
+type, so it does not say whether a collection holds documents or edges.
+`with_system` adds the collections whose names start with `_`.
+
+A document has no fixed shape, and ArangoDB keeps no catalog of the
+attributes of a collection's documents. Ken chose on 2026-10-01 that D47's
+cost test is strict here, as it is for Neo4j, so an attribute that only the
+documents show is not a column. A column is a top-level property of the
+collection's JSON schema rule, which `SCHEMA_GET` reads from the collection's
+properties, in the order the rule lists it. `data_type` is the JSON schema
+type, `nullable` is false where the rule requires the attribute and its type
+does not take null, and `primary_key` is true for `_key`. A rule checks a
+document as its level says, and it does not check a document stored before
+it was set, so the field description says that a stored document can still
+lack a required attribute.
+
+A schema rule is also one constraint of the type `check`, with no name,
+whose definition is the whole schema as JSON. The server refuses a document
+that breaks it with error 1620.
+
+A function is a user defined AQL function from `_aqlfunctions`, with its
+namespace in its name, such as `dbmeta::full_title`. Its volatility is
+`immutable` where it was registered as deterministic and `volatile`
+otherwise, and its source is the JavaScript the server keeps. The built in
+functions are in no collection AQL reads, so `with_system` adds none.
+
+The version is `RETURN VERSION()`, which is also usql's statement.
+
+### The cost
+
+On a database of 2000 collections, each with a rule of three properties, the
+columns query returned 6000 rows in 11 milliseconds and the tables query
+2000 rows in 4 milliseconds, as the server timed them. The plan of the columns
+query reads no collection: it is an enumeration over the list
+`COLLECTIONS()` returns and a calculation for each item. Measured on
+2026-10-01, in a database made for it and then dropped.
+
+### What it cannot answer, and why
+
+51 kinds.
+
+- Indexes, index columns, views and databases. Only the HTTP API lists them.
+  `INDEXES()`, `VIEWS()`, `DATABASES()` and `COLLECTION_TYPE()` are each
+  error 1540, an unknown function.
+- Roles, role grants and privileges. The users and their grants are in
+  `_users` in `_system`, which AQL in another database cannot read and the
+  ordinary user cannot reach.
+- Routine parameters. A function's parameters are only in its JavaScript
+  source.
+- Constraint columns. A rule checks the whole document.
+- Sequences, triggers, types, domains, comments and the rest are absent from
+  ArangoDB. A collection's key generator is a property that AQL does not read.
+
+### What a second opinion found
+
+Gemini, as gemini-3.1-pro-preview because gemini-3.8-flash closed the
+connection, and DeepSeek, as deepseek-flash, were asked about the
+unanswered kinds on 2026-10-01, as hard rule 14 requires. Both said that AQL
+lists no index and no view, that it cannot tell an edge collection from a
+document collection, and that `_graphs` names only the edge collections a
+graph uses. Each lead was run against 3.12.12:
+
+- `CURRENT_DATABASE()` for the current schema, from both. It holds under the
+  other mapping, where a database is a schema, and D163 sets that out for
+  Ken. Under the mapping the model uses, there is no schema.
+- `_apps` for extensions, from both. A Foxx service is an application
+  mounted at a path, and it adds no object to the database. A stretch.
+- An `enum` in a rule for enum values, from both. It is a check on one
+  property, not a type with labels. A stretch.
+- `SCHEMA_GET` for constraints, from Gemini. It holds, and the model answers
+  it. Gemini also named the property keys of a rule for constraint columns,
+  which is a stretch, because a rule checks the whole document.
+- `_analyzers` for text search configurations, and for collations, from
+  Gemini. An analyzer of the type `text` splits, folds and stems, so it is a
+  configuration, a parser and a dictionary at once, which is why CrateDB's
+  analyzers were left out (D131). `_analyzers` also holds only the analyzers
+  the database defines: the HTTP API listed 14 where `_analyzers` held 1,
+  because the 13 built in analyzers are in no collection. An analyzer's
+  locale is not a collation. Neither is answered.
+- A regular expression over a function's source for routine parameters, from
+  Gemini. JavaScript allows a default value, an arrow function and a rest
+  parameter, so a pattern is a guess rather than a catalog read. Not
+  answered.
+
+A graph fits no kind. Its edge definitions look like foreign keys, and
+ArangoDB does not enforce them on an AQL write: an edge from `book` to
+`author` in the graph `authorship`, defined from `author` to `book`, was
+accepted.
+
+### What the fixture builds
+
+`models/arangodb/fixture` builds in the database `dbmeta`. The driver makes
+the collections and the index, and the HTTP API makes everything else,
+because AQL has no DDL. The core collections author, book, region and
+shipment each have a strict rule whose properties are the core columns.
+`note` has a rule with `_key`, a property with no type, a type that is a
+list, and a required property that takes null, at the level `new`. `loose`
+has no rule. There are two functions, one deterministic.
+
+It also makes the core view `recent`, the index `book_published`, the edge
+collection `wrote`, the graph `authorship` and the analyzer `dbmeta_text`,
+which no query reads. `TestArangoDBFixtureObjects` checks that `recent` is not
+a table and that `wrote` is a collection, so each gap stays a decision.
+
+### What the conformance test says
+
+The four core collections and their columns, with every NOT NULL where the
+other databases have one. No column is a primary key, because a rule names
+no key, and there is no view and no constraint line, so ArangoDB is in
+`agreementExcluded` with that reason.
+
+### Which answers depend on who is asking
+
+`dbmeta_user`, with read and write on the database, gets the
+administrator's answer to every query but the current user. The parity test
+also makes `dbmeta_reader`, with read only access to the database and none
+to the collection `note`. `COLLECTIONS()` leaves out a collection the user
+cannot access, so the reader gets fewer tables, columns and constraints.
+`_aqlfunctions` answers both users the same.
+
+## InfluxQL
+
+`models/influxql` answers 7 of the 56 on InfluxDB 1, measured on 2026-10-01
+on 1.13.1 and 1.11.8 through dbimp's influxdb driver, which is what dburl's
+influxql scheme opens and what usql uses. InfluxDB 2.9.1 and 2.8.0 answer 4
+of the 7 through their v1 API, and so does the InfluxQL of InfluxDB 3 Core.
+InfluxQL reads metadata only through SHOW statements, and each one reads one
+database, so most kinds are a walk (D159). D165 holds the mapping.
+
+### What it answers
+
+| Kind | InfluxQL | Statements | Releases |
+| --- | --- | --- | --- |
+| Schemas, Databases | each database, from SHOW DATABASES | one | 1, 2 and 3 |
+| Tables | each measurement, from SHOW MEASUREMENTS ON | one, and one for each database | 1, 2 and 3 |
+| Columns | time, and each tag and field, from SHOW FIELD KEYS ON and SHOW TAG KEYS ON | one, and two for each database | 1, 2 and 3 |
+| Roles | each user, from SHOW USERS | one | 1 |
+| Privileges | each database with every grant on it, from SHOW GRANTS FOR | one, and one for each user | 1 |
+| Settings | the configuration, from SHOW DIAGNOSTICS | one | 1 |
+
+A database is the schema, and the catalog is empty. A measurement is a table.
+Its columns are time, with the type `timestamp`, each tag, with the type
+`tag`, and each field, with its InfluxQL type: float, integer, unsigned,
+string or boolean. The ordinal is the position in the answer of SELECT *:
+time first, then every tag and field by name. Time is the only column that
+is NOT NULL.
+
+On InfluxDB 2, SHOW DATABASES lists the buckets, because InfluxDB 2 maps a
+database named for each bucket to it. `_internal`, `_monitoring` and `_tasks`
+are system objects.
+
+No InfluxQL statement names the release. Only `GET /ping` does, so
+`dbmeta.InfluxQL.Version` reports an unknown version. A caller that reads
+the release from the driver passes it to `dbmeta.InfluxQL.ParseVersion`, and
+usql already reads it from there. With an unknown version, Roles, Privileges
+and Settings report Supported on every release, and InfluxDB 2 and 3 refuse
+each one: InfluxDB 2 answers "not implemented", and InfluxDB 3 does not parse
+the statement.
+
+### What it cannot answer, and why
+
+49 kinds. Most are absent from InfluxDB: constraints, triggers, sequences,
+functions, types, collations and comments among them. InfluxQL has functions
+such as MEAN, and no statement lists them.
+
+`CurrentSchema` and `CurrentUser` are not answered. The request carries the
+database and the user, and no statement returns either.
+
+Five kinds have something close, and each is a stretch. A retention policy
+is close to a tablespace, and it belongs to one database, so every database
+has its own `autogen`. A continuous query is close to a view, and no
+statement selects from it by its name. An InfluxDB subscription sends each
+write to an outside address, which is the opposite of a PostgreSQL
+subscription. SHOW TAG VALUES CARDINALITY counts the values of one tag across
+every measurement, which is a statement for each tag, and no count for a
+field leaves the points alone. SHOW SERIES CARDINALITY counts series and is
+not an object. D165 has each reason.
+
+### The cost of reading the columns
+
+D47 leaves a kind unsupported when its only source reads the points. SHOW
+FIELD KEYS and SHOW TAG KEYS read the index. On 1.13.1, both took 0.0004
+seconds with 1,000 points and with 5,000,000 points, where SELECT count took
+0.117 seconds over the same points. SHOW TAG KEYS took 0.011 seconds with
+100,000 series and 0.122 seconds with 1,000,000 series on InfluxDB 1, whose
+default index is in memory, and 0.0013 seconds with 1,100,000 series on
+2.9.1, whose index is on disk. So neither reads the points, and SHOW TAG KEYS
+on InfluxDB 1 grows with the index. D165 has the table.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked about the 49 kinds on 2026-10-01, as hard rule
+14 requires. Each lead was run against 1.13.1, 2.9.1 or 3.11.5.
+
+Both named SHOW SUBSCRIPTIONS for subscriptions, and both named SHOW TAG KEYS
+for index columns, because the index of series holds every tag. A
+subscription sends writes to an outside address, and the index of series is
+not an object that a statement makes, so both are stretches. DeepSeek named
+SHOW CONTINUOUS QUERIES for views, and Gemini called a continuous query a
+materialized view and named no kind for it. No statement selects from a
+continuous query, so it is not a view. Gemini named the cardinality
+statements for column statistics and SHOW SERIES CARDINALITY for extended
+statistics. Measured on 1.13.1, SHOW TAG VALUES CARDINALITY counts the values
+of one tag across every measurement, and the cardinality statements do not
+exist on InfluxDB 2. DeepSeek named SHOW GRANTS for role grants, and a grant
+is a privilege on a database rather than a membership of a role, so
+Privileges answers it. DeepSeek named SHOW DIAGNOSTICS for the version, which
+answers only an administrator on InfluxDB 1, and InfluxDB 2 and 3 do not have
+it. Both put every other kind in the absent group, and none of their answers
+named a source that this section does not.
+
+### What the fixture builds
+
+`models/influxql/fixture` writes four measurements, author, book, region and
+shipment, with the INSERT that dbimp's driver turns into line protocol, and a
+tag, an integer, a float, a string and a boolean among their columns. It is
+the InfluxDB 3 fixture, in the database dbmeta. It makes no user, no grant
+and no database, because InfluxDB 2 and 3 refuse CREATE USER, GRANT and
+CREATE DATABASE, and no statement names the release, so a step for
+InfluxDB 1 alone cannot be skipped elsewhere. The dbrun entry makes the user
+`dbmeta_user` with READ on dbmeta on InfluxDB 1, and Roles and Privileges
+read it.
+
+### What the conformance test says
+
+The section is the same on InfluxDB 1, 2 and 3: the four measurements and
+their columns. It agrees with InfluxDB 3's section in every line but the
+ordinal, because InfluxDB 3 counts time last and SELECT * puts it first.
+InfluxQL is out of the agreement count for the reason InfluxDB 3 is.
+
+### Which answers depend on who is asking
+
+On InfluxDB 1, Roles, Privileges and Settings are refused to `dbmeta_user`,
+who can read dbmeta and nothing else: SHOW USERS and SHOW DIAGNOSTICS need an
+administrator. The other four give the administrator's answer, because SHOW
+DATABASES lists only what a user can read and the fixture is in dbmeta. On
+InfluxDB 2 the user is a v1 authorization that can read the bucket dbmeta,
+and every answer agrees, because the three kinds are refused to the
+administrator too. InfluxDB 3 Core has no user with fewer rights than the
+administrator, so the test skips it.
+
+## SurrealDB
+
+`models/surrealdb` answers 18 of the 56 on 3.1.6, 3.2.4 and 3.3.0, and 1 on
+2.7.0, measured on 2026-10-01 through dbimp's surrealdb driver at v0.10.0,
+which is what dburl's surrealdb scheme opens and what usql uses. 2.7.0 and
+3.3.0 are Tested, and 3.1.6 and 3.2.4 are Nightly. D164 holds the mapping
+and the reasons for it, for Ken to review.
+
+### It reads INFO as a value
+
+SurrealDB has no relational catalog. INFO FOR ROOT, INFO FOR NS, INFO FOR DB
+and INFO FOR TABLE return the namespaces, the databases, the tables, the
+functions, the sequences, the users, the fields, the indexes and the events,
+and with STRUCTURE each one is an object with its parts. From 3.0 an INFO
+statement is a value that a SELECT reads. `INFO FOR TABLE $t.name` takes its
+table from a variable, so `array::map` over the tables reads INFO FOR TABLE
+for each table inside one statement. No kind is a walk, which Ken ruled out
+for SurrealDB on 2026-10-01.
+
+A namespace is the catalog and a database is the schema. Every kind below a
+schema reads the database the connection is in, which the path of the URL
+names, so a pattern that names another database matches nothing.
+
+Five things about writing SurrealQL for it, all measured:
+
+1. On 2.7.0 INFO is never a value. `RETURN (INFO FOR DB)`, `LET $i = INFO FOR
+   DB` and `SELECT * FROM (INFO FOR DB)` are parse errors. So 2.7.0 answers
+   only the current schema, from `session::ns()` and `session::db()`, and
+   reports `TooOld` for every other kind.
+2. The server sorts the keys of every object it returns, and the driver takes
+   the columns from the keys. So every query declares its fields in the order
+   of their names.
+3. SurrealQL has named parameters only. The dialect sets `Info.Named`, so a
+   parameter is `$p1`, `$p2` and so on, bound with `sql.Named`.
+4. SurrealQL has no LIKE. A pattern is turned into a regular expression with
+   `array::fold`. `TestSurrealDBPatterns` checks it against `dbmeta.Like`, with
+   `.`, `*`, `(`, `[`, `$`, `^`, `#`, `<`, a space, a trailing backslash and an
+   escaped `_` among the patterns. 3.x names the string tests
+   `string::is_alphanum` and `string::is_ascii`.
+5. 3.1 refuses an ORDER BY on a field the SELECT does not return, and 3.3
+   takes it. The server also refuses a statement whose expressions nest too
+   deep, which ConstraintColumns reached once, so the two constraint kinds
+   match the table pattern in the WHERE.
+
+The cost was measured on 3.3.0 with 2000 tables of 5 fields each. Tables
+took 0.02 seconds. Columns took 0.34 seconds for all 10000 fields, and 0.08
+seconds for one table, because a kind below a table reads INFO FOR TABLE only
+for the tables that match its table pattern.
+
+### What it answers
+
+Databases, schemas, the current schema, tables, views, columns, indexes,
+index columns, constraints, constraint columns, triggers, functions, routine
+parameters, sequences, roles, role grants, privileges and comments, on 3.x.
+The current schema on 2.7.0.
+
+Eight answer with an analogue:
+
+| Kind | SurrealDB | Why it is a fair answer |
+| --- | --- | --- |
+| `Databases` | namespaces | a namespace holds databases as a PostgreSQL database holds schemas |
+| `Schemas` | the databases of the namespace of the connection | each holds tables, and INFO FOR NS lists every one |
+| `Columns` | a DEFINE FIELD | the other fields of a schemaless table are known only from the records, which D47 forbids. Ken chose this for Neo4j on 2026-10-01 |
+| `Constraints` | a UNIQUE index, and the ASSERT of a field as a check | both refuse a write, and an ASSERT takes the name of its field |
+| `Triggers` | a DEFINE EVENT | it runs when a record of its table changes |
+| `Roles` | system users on the root, the namespace and the database | a user signs in and holds a role. OWNER on the root is the superuser |
+| `RoleGrants` | the roles OWNER, EDITOR and VIEWER that each user holds | the three roles are fixed, and a user holds them at its level |
+| `Privileges` | the PERMISSIONS of a table and of its fields | they say what a record user can do. D164 asks Ken to confirm it |
+
+A view is a table defined AS SELECT, and a table defined TYPE RELATION has
+the type `relation`. The type of a column is its TYPE, and `any` where it has
+none. A field with a VALUE clause reads `generated` `s`, and a COMPUTED field
+reads `v`. The record id is the key of every table, and a column is
+`primary_key` only when a DEFINE FIELD names `id`. SurrealDB records no
+position for a field, so `ordinal` is the place in the order of the names.
+
+### What it cannot answer, and why
+
+38 kinds on 3.x, and 55 on 2.7.0.
+
+`CurrentUser` is absent. No function names the system user a session signed
+in as, `$auth` is NONE for a system user, and `$session` names no user,
+measured on 3.3.0. `TestSurrealDBCurrentUserIsNotSupported` holds it.
+
+Six more are close and rejected, which D164 lists with the reasons:
+`Settings` from DEFINE PARAM and DEFINE CONFIG, `TextSearchConfigs` from
+DEFINE ANALYZER, `Extensions` from the modules and the models, `EnumValues`
+from a union of literals, `AccessMethods` from the kinds of index, and
+`ForeignServers` and `ForeignTables` from DEFINE API and DEFINE BUCKET. A
+foreign key from REFERENCE is rejected too, because a field with REFERENCE
+took a link to a record that does not exist.
+
+The rest are absent from the product: types, domains, collations, casts,
+conversions, operators and their classes and families, languages, large
+objects, event triggers, tablespaces, partitioned tables, publications,
+subscriptions, foreign data wrappers, user mappings, default privileges,
+extended statistics, column statistics, role settings, aggregates and the
+other text search kinds.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked about the kinds it cannot answer on
+2026-10-01, as hard rule 14 requires. Each lead was run against 3.3.0.
+
+| Lead | Who | What the server says |
+| --- | --- | --- |
+| `session::user()` for the current user | DeepSeek | a parse error, "Invalid function/constant path". Gemini said no function names a system user, which is right |
+| `Types` and `Domains` from an INFO FOR DB key types | DeepSeek | INFO FOR DB has no such key on 3.3.0 |
+| `Extensions` from an INFO FOR DB key plugins | DeepSeek | no such key. The keys are modules and models, which D164 rejects |
+| `Settings` from params on the root, the namespace and the database | Gemini | INFO FOR ROOT and INFO FOR NS list no params. INFO FOR DB lists them, and a param is a value and not a setting |
+| `Settings` from DEFINE CONFIG | Gemini | it holds the GraphQL setup, such as `{graphql: {functions: AUTO, tables: AUTO}}`, which is the shape of an interface |
+| `Privileges` from the PERMISSIONS of tables and fields | both | answered: INFO lists them for select, create, update and delete |
+| `TextSearchConfigs`, parsers and dictionaries from the analyzers | both | an analyzer has tokenizers and filters and no parser or dictionary. A stretch |
+| `EnumValues` from a union of literals | both | it is the type of one field and not a named type. A stretch |
+| a foreign key from REFERENCE | Gemini | REFERENCE ON DELETE REJECT took `rbook:missing`, so it does not check that a link exists |
+| `ForeignTables` from DEFINE API and DEFINE BUCKET | Gemini | an API is an endpoint the server serves and a bucket is a store for files |
+| `AccessMethods` from the kinds of index | Gemini | a fixed set that no catalog lists. Indexes returns the kind of each index |
+| INFO as rows on 2.x | both said no | right: every form is a parse error on 2.7.0 |
+
+One lead answers a kind, Privileges, which was already planned. The others
+are absent or a stretch.
+
+### What the fixture builds, and what it cannot build
+
+`models/surrealdb/fixture` builds in the database `dbmeta` of the namespace
+`dbmeta`, as the root user. author, book, region and shipment are SCHEMAFULL
+tables with DEFINE FIELD columns: a field that is not null, an optional one,
+one with a default, one with a VALUE clause and, on 3.x, a COMPUTED one.
+There are an ASSERT on book.title, a UNIQUE index on book.title, the core
+index `book_published`, an index on two fields, a UNIQUE index on
+region.country and region.area, which stands in for the composite key, and a
+full text index. recent is a table defined AS SELECT, wrote is a TYPE
+RELATION table, and region carries PERMISSIONS on the table and on a field.
+There are an event, a function with two parameters and a result type, a
+param, an analyzer and, on 3.x, a sequence. Several carry a COMMENT.
+
+It cannot build a foreign key or a composite key, because SurrealDB has
+neither, and it cannot build a type, a domain, a collation or a cast. The
+ordinary user and the root user are the dbrun setup's.
+
+### What the conformance test says
+
+The `surrealdb` section holds the five core tables, their columns and three
+constraints, on 3.x. No column reads `primary_key`, because no DEFINE FIELD
+names `id`, there is no foreign key, and the ordinal is the place in the order
+of the names. So `agreementExcluded` names SurrealDB. 2.7.0 is skipped,
+because it answers the current schema alone.
+
+### Which answers depend on who is asking
+
+SurrealDB defines a system user on the root, on a namespace or on a database,
+with one of three roles there. The administrator is the OWNER on the root.
+The parity test asks as three lesser principals: `dbmeta_user`, the EDITOR on
+the database that the dbrun setup makes, a VIEWER on the database, and an
+EDITOR on the namespace. A record user signs in through a DEFINE ACCESS, and
+the driver signs in system users only, so it is not measured.
+
+`Databases`, `Roles` and `RoleGrants` read INFO FOR ROOT, which only a user on
+the root reads, so all three lesser principals are refused them. `Schemas`
+reads INFO FOR NS, which a user on the database is refused and a user on the
+namespace reads. Every other kind gives the administrator's answer to all
+three, because a user on a database reads INFO FOR DB and INFO FOR TABLE.
+The three 3.x releases answer the same, and 2.7.0 answers only the current
+schema, which every principal reads. The sections `surrealdb/same/user`,
+`surrealdb/same/viewer` and `surrealdb/same/namespace` hold them.
 
 ## Releases that need a license file
 

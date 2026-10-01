@@ -3,15 +3,17 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The libSQL releases dbrun starts.
 //
-// dbmeta has no libSQL model. The release is here so that dbrun can start a
-// server for the tests of the libSQL driver in github.com/xo/dbimp, which
-// reads the Hrana HTTP API of sqld, the libSQL server. Turso speaks the same
-// protocol. No dialect is named yet, because dbimp settles the name with the
-// driver. See D112.
+// libSQL is the fork of SQLite by Turso, and sqld is its server. The model,
+// models/libsql, shares the statements of the sqlite3 model (D160). The
+// release was here first for the tests of the libSQL driver in
+// github.com/xo/dbimp (D112), which reads the Hrana HTTP API of sqld. The
+// tests here use that driver too. Turso speaks the same protocol.
 //
 // # The range
 //
@@ -61,6 +63,7 @@ const (
 
 // libsql is the libSQL server image.
 var libsql = product{
+	dialect:   dbmeta.LibSQL,
 	name:      "libsql",
 	image:     "ghcr.io/tursodatabase/libsql-server",
 	tagPrefix: "v",
@@ -73,8 +76,11 @@ var libsql = product{
 exec 3<>/dev/tcp/127.0.0.1/8080 &&
 printf 'POST /v2/pipeline HTTP/1.0\r\nHost: 127.0.0.1\r\nAuthorization: Bearer ` + LibSQLAdminToken + `\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s' ${#b} "$b" >&3 &&
 grep -q '"type":"ok"' <&3`},
-	dsn: keyHTTP(libsqlAdmin, LibSQLAdminToken),
-	url: libsqlURL(libsqlAdmin, LibSQLAdminToken),
+	// dbimp's driver takes only the libsql:// URL, and the DSN stays the
+	// http:// address for dbimp's recorder (D153, D160).
+	connectURL: true,
+	dsn:        keyHTTP(libsqlAdmin, LibSQLAdminToken),
+	url:        libsqlURL(libsqlAdmin, LibSQLAdminToken),
 	users: []Principal{{
 		Role: User, User: LibSQLUser,
 		dsn: keyHTTP(LibSQLUser, LibSQLUserToken),
@@ -99,9 +105,6 @@ func libsqlURL(user, token string) func(port int) string {
 	}
 }
 
-// LibSQL is every libSQL release dbrun starts.
-//
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var LibSQL = list{}.staged(libsql, Tested, "0.24.33")
+// LibSQL is every libSQL release dbrun starts. It is Tested, the cadence it
+// recorded while it was Staged (D120).
+var LibSQL = list{}.add(libsql, Tested, "0.24.33")

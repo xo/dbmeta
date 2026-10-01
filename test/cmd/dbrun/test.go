@@ -25,10 +25,15 @@ import (
 	_ "github.com/trinodb/trino-go-client/trino"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cql"
+	_ "github.com/xo/dbimp/arangodb"
 	_ "github.com/xo/dbimp/couchbase"
 	_ "github.com/xo/dbimp/databend"
 	_ "github.com/xo/dbimp/influxdb"
+	_ "github.com/xo/dbimp/libsql"
+	_ "github.com/xo/dbimp/neo4j"
 	_ "github.com/xo/dbimp/rqlite"
+	_ "github.com/xo/dbimp/surrealdb"
+	_ "github.com/ydb-platform/ydb-go-sdk/v3"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
@@ -73,6 +78,13 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Impala:     "impala",
 	dbmeta.Rqlite:     "rqlite",
 	dbmeta.InfluxDB:   "influxdb",
+	dbmeta.LibSQL:     "libsql",
+	dbmeta.Neo4j:      "neo4j",
+	dbmeta.YDB:        "ydb",
+	dbmeta.ArangoDB:   "arangodb",
+	// influxql:// opens the same driver, with sqlmode=disable (D165).
+	dbmeta.InfluxQL:  "influxdb",
+	dbmeta.SurrealDB: "surrealdb",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the

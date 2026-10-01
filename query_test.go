@@ -17,6 +17,11 @@ func init() {
 		Stmt:   Always(`SELECT 1 WHERE (@name = '' OR a LIKE @name)`),
 		Params: []Param{{Name: "name", Default: ""}},
 	})
+	RegisterDialect(namedDialect, &Info{Named: true})
+	repeatedQuery.Register(namedDialect, &Binding[Table]{
+		Stmt:   Always(`SELECT 1 WHERE (@name = '' OR a LIKE @name) AND @system`),
+		Params: []Param{{Name: "name", Default: ""}, {Name: "system", Default: false}},
+	})
 	RegisterDialect(testDialect, &Info{
 		Placeholder:    func(n int) string { return "$" + string(rune('0'+n)) },
 		VersionQuery:   `SHOW server_version`,
@@ -311,6 +316,33 @@ func TestRepeatedParamBindsTwice(t *testing.T) {
 	}
 	if len(args) != 2 || args[0] != "x" || args[1] != "x" {
 		t.Errorf("expected the value twice, got %v", args)
+	}
+}
+
+// namedDialect binds by name, as SurrealDB does. See Info.Named and D164.
+const namedDialect Dialect = "nameddb"
+
+// TestNamedBindsEachValueByName checks that a dialect whose drivers take a
+// named argument only gets $p1, $p2 and so on, and a sql.NamedArg for each
+// value, in order. Placeholder is nil, so a call to it panics.
+func TestNamedBindsEachValueByName(t *testing.T) {
+	t.Parallel()
+	m := &Meta{dialect: namedDialect}
+	s, args, err := repeatedQuery.Build(m, map[string]any{"name": "x", "system": true})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if want := `SELECT 1 WHERE ($p1 = '' OR a LIKE $p2) AND $p3`; s != want {
+		t.Errorf("expected\n%s\ngot\n%s", want, s)
+	}
+	want := []any{sql.Named("p1", "x"), sql.Named("p2", "x"), sql.Named("p3", true)}
+	if len(args) != len(want) {
+		t.Fatalf("expected %d values, got %v", len(want), args)
+	}
+	for i, arg := range args {
+		if arg != want[i] {
+			t.Errorf("value %d: expected %#v, got %#v", i+1, want[i], arg)
+		}
 	}
 }
 

@@ -68,7 +68,11 @@ than from memory.
 | DuckDB | 8 | `IndexColumns`: DuckDB names an index and does not list the columns of it |
 | SQLite | 8 | `RoutineParameters`: a SQLite function has no named parameters |
 | rqlite | 8 | the same as SQLite, whose statements it shares |
+| libSQL | 8 | the same as SQLite, whose statements it shares |
 | InfluxDB 3 | 6 | `TableIndexes`, `IndexColumns` and `TableForeignKeys`: InfluxDB 3 has no index and no key. `Procs` lists DataFusion's built in functions, and only with the system objects |
+| YDB | 1 | every one but `Tables`: the columns, indexes and keys of a table are in its schema, which only a gRPC call per table reads, YQL has no function list, and a session has no current directory |
+| ArangoDB | 4 | `TableIndexes`, `IndexColumns`, `ProcParams`, `TableForeignKeys` and `Schema`: AQL lists no index, a function's parameters are in its JavaScript source, ArangoDB has no foreign key, and there is no schema. `TableColumns` reads a collection's schema rule, and a collection with no rule has no column |
+| InfluxQL | 3 | everything but `Tables`, `TableColumns` and `TableSequences`: InfluxDB has no index, no key, no function list and no current database a statement returns |
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
 | ScyllaDB | 7 | the same two as Cassandra, for the same reasons |
@@ -80,6 +84,7 @@ than from memory.
 | Exasol | 8 | `RoutineParameters`: Exasol keeps the parameters of a function or a script only inside its text, and no catalog view lists them |
 | Vertica | 8 | `RoutineParameters`: a routine's arguments are one comma separated list of types on its own row, and the named parameters a library function declares are options rather than arguments |
 | Couchbase | 5 | `TableColumns`, `TableSequences`, `TableForeignKeys` and `Schema`: a document has no fixed shape, so there is no column and no key, and SQL++ has no expression for the current scope |
+| Neo4j | 7 | `TableColumns` and `TableSequences`: the only list of the properties of a label reads every node, which D47 forbids. `TableForeignKeys` answers and holds no foreign key, because Neo4j has none. On 5.26 `IndexColumns`, `Procs`, `ProcParams` and `TableForeignKeys` need 2026.05 (D162) |
 | CockroachDB | 9 | nothing. It shares the postgres model's statements for all nine |
 | CrateDB | 8 | `RoutineParameters`: a JavaScript function is not in `pg_proc`, and `information_schema` has no `parameters` view. Only `specific_name` holds the argument types, with no names |
 | QuestDB | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: a symbol index is listed only one table at a time, a built in function's arguments are one text, and QuestDB has no key of any kind. `Procs` lists the built in functions, and only with the system objects |
@@ -90,12 +95,14 @@ than from memory.
 | Snowflake | 5 | not run (D144). `TableIndexes` and `IndexColumns`: Snowflake has no index. `TableForeignKeys` and `ProcParams`: information_schema has no KEY_COLUMN_USAGE and no parameters view |
 | Amazon Redshift | 5 | not run (D144). `TableIndexes` and `IndexColumns`: Redshift has no index. `TableForeignKeys` and `ProcParams` are not read |
 | Apache Impala | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Impala has no index, and SHOW lists no key and no parameter names |
+| SurrealDB | 9 | nothing on 3.x, although no foreign key is ever listed, because SurrealDB has none. 2.7 answers `Schema` alone, because a 2.x statement cannot read INFO as a value (D164) |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
-Eight answer all nine: PostgreSQL, the MySQL dialect, SQL Server, Oracle, SAP
-HANA, CockroachDB, Vitess and SingleStore. A `dbtpl` built on `dbmeta` can
-generate from the first seven with nothing missing. SingleStore answers all
-nine and lists no foreign key, because it has none.
+Nine answer all nine: PostgreSQL, the MySQL dialect, SQL Server, Oracle, SAP
+HANA, CockroachDB, Vitess, SingleStore and SurrealDB from 3.0. A `dbtpl` built
+on `dbmeta` can generate from the first seven with nothing missing.
+SingleStore and SurrealDB answer all nine and list no foreign key, because
+neither has one.
 
 Every gap above is the product rather than the model, except on Redshift. The
 Redshift model does not read `TableForeignKeys` or `ProcParams`. `dbtpl` supports
@@ -117,7 +124,11 @@ dialect is added.
 | Oracle | yes | yes, all nine |
 | SQLite | yes | yes, without parameter names |
 | rqlite | no | yes, without parameter names, the same as SQLite |
+| libSQL | no | yes, without parameter names, the same as SQLite. A vector column reads its declared type, such as `F32_BLOB(3)`, which a generator has to map to a type of its own |
 | InfluxDB 3 | no | no. It has no key and no foreign key, so there is nothing to relate one measurement to another, and every column but time is nullable |
+| YDB | no | no. It answers the tables and none of their columns, so there is nothing to generate a type from |
+| ArangoDB | no | no. A collection has columns only where a schema rule names them, no column is a key, and there is no foreign key to follow. A graph's edge definitions are not enforced and no kind reads them |
+| InfluxQL | no | no, for the same reason as InfluxDB 3. A measurement has tags and fields and no key, and `Schema` has no answer, because no statement returns the database of the request |
 | DuckDB | no | yes, without index columns |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |
 | Cassandra | no | partly: no current keyspace expression and no parameter names |
@@ -130,6 +141,7 @@ dialect is added.
 | Vertica | no | yes, without parameter names. Every table, key and foreign key is there, and an index is a projection, which a generator can emit or leave out |
 | Exasol | no | partly: every table, key and foreign key is there to follow, and a routine has no parameters to read. The indexes are the engine's own, built and dropped as queries need them and named by object id, so a generator that emits an index emits a different set on another day |
 | Couchbase | no | no. A collection has no columns, so there is no field to generate |
+| Neo4j | no | no. A label has no column catalog, so there is no field to generate, and a relationship joins two nodes rather than a foreign key joining two tables |
 | CockroachDB | no | yes, all nine. A parameter declared integer reads as bigint, because CockroachDB makes integer 64 bits |
 | CrateDB | no | partly: no foreign key to follow and no parameter names. Every table, column and primary key is there |
 | QuestDB | no | no. It has no key and no foreign key, so there is nothing to relate one table to another, and every column is nullable |
@@ -139,6 +151,7 @@ dialect is added.
 | SingleStore | no | partly: no foreign key to follow, because SingleStore refuses one. Every table, key, index and routine is there |
 | Snowflake | no | no, until it has run (D144), and then partly: no foreign key to follow |
 | Amazon Redshift | no | no, until it has run (D144), and then partly: no foreign key to follow |
+| SurrealDB | no | partly, on 3.x: no foreign key to follow, because a link is a field of the type `record<t>` that the server does not check, and a schemaless table has no columns, because only a DEFINE FIELD is one. Every SCHEMAFULL table, field, index and function is there, and the record id is the key of every table. 2.7 has nothing to generate from (D164) |
 | Apache Impala | no | no. No key and no foreign key is listed, so there is nothing to relate one table to another, and every column is nullable |
 
 Trino is the first that is a clear no, and it is not the same as answering few
@@ -159,7 +172,7 @@ What follows is what each one became and what it still cannot do.
 Routine parameters became `dbmeta.RoutineParameters`, with a name,
 position, mode and type per parameter. PostgreSQL, the MySQL dialect, SQL
 Server, Oracle, DuckDB, Firebird, SAP HANA, Couchbase, CockroachDB, Vitess,
-SingleStore, InfluxDB 3 and the shared model answer it. SQLite cannot: a function there is compiled C with no
+SingleStore, InfluxDB 3, Neo4j from 2026.05 and the shared model answer it. SQLite cannot: a function there is compiled C with no
 named parameters.
 
 Group by `Routine` and, where the database overloads a name, by `RoutineID`.
@@ -169,8 +182,8 @@ database. On PostgreSQL it is the oid, which is what `dbtpl` uses today.
 Constraint columns became `dbmeta.ConstraintColumns`, with the column, its
 one based position within the constraint, and for a foreign key the catalog,
 schema, table and column it points at. Every model but ClickHouse, Trino,
-Presto, Couchbase, QuestDB, Snowflake, Redshift, Impala and InfluxDB 3 answers
-it, SQLite included.
+Presto, Couchbase, QuestDB, Snowflake, Redshift, Impala, InfluxDB 3 and YDB
+answers it, SQLite included.
 
 This was the largest gap, and it is closed exactly the way `dbtpl` needs: a
 composite key is several rows sharing a constraint name, ordered by `Ordinal`,
@@ -191,11 +204,11 @@ has the same limitation, so nothing is lost by keeping that where it is.
 The definition of a view became `dbmeta.Views`, a kind of its own rather
 than a field on `Table`. Reaching the definition costs a join or a function
 call per row, and a caller that lists tables does not pay it. Every model but
-Couchbase and InfluxDB 3 answers it.
+Couchbase, InfluxDB 3, Neo4j and YDB answers it.
 
 The current schema became `dbmeta.CurrentSchema`, which answers one row and
 is read with `dbmeta.First`. It is session dependent and says so. Every model
-but Cassandra, Firebird, Presto and Couchbase answers it.
+but Cassandra, Firebird, Presto, Couchbase and YDB answers it.
 
 ### The two smaller ones
 

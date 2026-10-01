@@ -244,6 +244,14 @@ type Server struct {
 	// value containing a space is one argument here and stays one, because
 	// nothing joins them.
 	Args []string
+	// ConnectURL says that the driver dburl names takes the URL and not the
+	// DSN, so that dbrun connects with [Server.URL] and gives it to the tests.
+	// The DSN stays what other projects read from dbrun. libSQL, Neo4j,
+	// ArangoDB, SurrealDB and InfluxDB 1 and 2 are the cases: the DSN of each
+	// is the http:// address that dbimp's tools read, and dbimp's drivers
+	// take only the URL. False for every other product. See D153, D160 and
+	// D162 to D165.
+	ConnectURL bool
 
 	// users are the ordinary users the setup creates, which
 	// [Server.Principals] lists after the administrator.
@@ -470,7 +478,9 @@ type product struct {
 	license   string
 	startup   time.Duration
 	settle    time.Duration
-	dsn       func(port int) string
+	// connectURL is [Server.ConnectURL].
+	connectURL bool
+	dsn        func(port int) string
 	// url is the dburl style URL, where it differs from the DSN. See
 	// [Server.URL].
 	url func(port int) string
@@ -523,6 +533,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			License:    p.license,
 			Startup:    p.startup,
 			Settle:     p.settle,
+			ConnectURL: p.connectURL,
 			dsn:        p.dsn,
 			url:        p.url,
 			users:      p.users,

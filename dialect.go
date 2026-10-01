@@ -43,6 +43,8 @@ type Dialect string
 // renamed its scheme couchbase, when the driver moved to github.com/xo/dbimp
 // (D101). Read these as constants and never as literals.
 const (
+	// ArangoDB is queried in AQL rather than SQL, over HTTP.
+	ArangoDB   Dialect = "arangodb"
 	Athena     Dialect = "awsathena"
 	BigQuery   Dialect = "bigquery"
 	Cassandra  Dialect = "cql"
@@ -68,9 +70,12 @@ const (
 	HANA     Dialect = "hdb"
 	// Impala is Apache Impala, which serves HiveServer2's protocol and has
 	// a catalog of its own. See D145.
-	Impala     Dialect = "impala"
-	InfluxDB   Dialect = "influxdb"
-	InfluxQL   Dialect = "influxql"
+	Impala   Dialect = "impala"
+	InfluxDB Dialect = "influxdb"
+	InfluxQL Dialect = "influxql"
+	// LibSQL is libSQL, the fork of SQLite by Turso, which sqld serves
+	// over HTTP.
+	LibSQL     Dialect = "libsql"
 	MaxCompute Dialect = "maxcompute"
 	// MemSQL is SingleStore, which speaks MySQL's protocol. dburl names
 	// its scheme memsql, the name SingleStore had until 2020.
@@ -99,6 +104,9 @@ const (
 	Vertica Dialect = "vertica"
 	// Vitess speaks MySQL's protocol, and the mysql driver reaches it.
 	Vitess Dialect = "vitess"
+	// YDB is Yandex's distributed database, which ydb-go-sdk reaches over
+	// gRPC. See D161.
+	YDB Dialect = "ydb"
 )
 
 // Info is what a model declares about its database.
@@ -130,6 +138,17 @@ type Info struct {
 	// Placeholder writes the bind parameter for position n, counting from 1.
 	// PostgreSQL writes $1, MySQL writes ?, Oracle writes :1.
 	Placeholder func(n int) string
+	// Named says that the drivers take a named argument only, so that a
+	// value is bound by its name and never by its position. Under it, the
+	// parameter at position n is written $p1, $p2 and so on, and its value
+	// is passed as sql.Named("p1", v), so [Query.Build] still returns the
+	// values in order and database/sql carries the names. Placeholder is not
+	// called. False for every product but SurrealDB.
+	//
+	// SurrealQL has named parameters only, and $1 is a parse error. dbimp's
+	// surrealdb driver refuses a positional argument for that reason
+	// (dbimp D50). See D164.
+	Named bool
 	// Literal renders one parameter value as a SQL literal, for a product
 	// whose protocol cannot carry a parameter at all. Nil for every
 	// product that can bind, which is every one but Apache Hive, and a

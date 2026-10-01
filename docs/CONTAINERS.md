@@ -102,7 +102,7 @@ that the ports moved.
    block in `dialect.go`, with the dburl driver name, if dbmeta has none yet.
    If the server is for a dbimp driver whose name dbimp has not settled,
    leave `dialect` empty. `dbrun` then names the test variable for the
-   product, such as `DBMETA_ARANGODB` (D112).
+   product, such as `DBMETA_PINOT` (D112).
 4. Read the image, as rule 11 says. Find the port the tests use, the
    administrator, how a password reaches it, the settings the tests need, and
    the tools inside it that a readiness check or a setup can run.

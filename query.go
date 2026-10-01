@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"iter"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -597,6 +598,14 @@ func bind(s string, info *Info, params []Param, args map[string]any) (string, []
 		}
 		if info.BindValue != nil {
 			v = info.BindValue(v)
+		}
+		// A dialect whose drivers take a named argument only binds each
+		// value under the name of its position. See Info.Named.
+		if info.Named {
+			name := "p" + strconv.Itoa(len(vals)+1)
+			vals = append(vals, sql.Named(name, v))
+			out.WriteString("$" + name)
+			continue
 		}
 		vals = append(vals, v)
 		out.WriteString(info.Placeholder(len(vals)))

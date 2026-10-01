@@ -377,14 +377,14 @@ and D40 make that distinction, and the table must not claim more than is true.
 | ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
 | Couchbase | 7.2.9 | 8.0.3 | Criterion 2. 7.2 is the oldest line the image still rebuilds, and 7.0 and 7.1 stopped in November 2024. The model's floor is 7.6, because 7.2 sends its columns in name order. 7.2.9 stays for the dbimp driver, and the model reports it too old (D104) |
 | Neo4j | 5.26.31 | 2026.09.0 | Criterion 2. 4.4.48, 5.26.31 and 2026.09.0 were rebuilt on 2026-09-26, and a monthly release stops being rebuilt when the next one arrives. 4.4 is out, because its Enterprise image starts only with the commercial license. The ceiling moves each month. There is no dbmeta model, and the entry is for dbimp's driver (D106) |
-| SurrealDB | 2.7.0 | 3.3.0 | Criterion 2. 2.7.0 was rebuilt on 2026-09-23 and 3.3.0 on 2026-09-24, and between them 3.1.6 on 2026-09-01 and 3.2.4 on 2026-08-03. 1.5.6 was last rebuilt in November 2024, and 2.6.5 and 3.0.5 in March 2026. There is no dbmeta model, and the entry is for dbimp's driver |
-| ArangoDB | 3.12.12 | 3.12.12 | Criterion 2. Only the 3.12 line is still built: 3.12.12 was rebuilt on 2026-09-24, and 3.11.14 was last built on 2025-05-24. The release moves with each patch. The entry is for dbimp's driver (D112) |
+| SurrealDB | 2.7.0 | 3.3.0 | Criterion 2. 2.7.0 was rebuilt on 2026-09-23 and 3.3.0 on 2026-09-24, and between them 3.1.6 on 2026-09-01 and 3.2.4 on 2026-08-03. 1.5.6 was last rebuilt in November 2024, and 2.6.5 and 3.0.5 in March 2026. `models/surrealdb` reads all four, and dbimp's driver tests against them (D164) |
+| ArangoDB | 3.12.12 | 3.12.12 | Criterion 2. Only the 3.12 line is still built: 3.12.12 was rebuilt on 2026-09-24, and 3.11.14 was last built on 2025-05-24. The release moves with each patch. The entry was for dbimp's driver (D112), and `models/arangodb` reads it, so it is Tested (D163) |
 | InfluxDB | 1.11.8 | 3.11.5 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. Ken chose the releases in dbimp's D79. The entries were for dbimp's driver. `models/influxdb` reads InfluxDB 3, whose releases are Tested and Nightly (D152), and InfluxDB 1 and 2 stay Staged (D112, D114, D119) |
 | CrateDB | 6.3.7 | 6.4.5 | Criterion 2. 6.4.5 and 6.3.7 were rebuilt in September 2026, and 6.2 last on 2026-07-09. Reached on the PostgreSQL port, with a dialect and a model of its own, cratedb (D112, D123) |
 | Apache Pinot | 1.4.0 | 1.5.1 | The rule for an image that is never rebuilt (D112). Apache supports only the newest release. The entry is for dbimp's driver |
 | Databend | 1.2.881 | 1.2.948 | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. `models/databend` reads it, and dbimp's driver tests against it (D140) |
 | rqlite | 9.4.5 | 10.3.6 | The rule for an image that is never rebuilt (D112). The entry was for dbimp's driver, and `models/rqlite` reads it (D148) |
-| libSQL | 0.24.33 | 0.24.33 | The rule for an image that is never rebuilt (D112). libSQL has one line, and its newest release was built on 2025-12-19. The entry is for dbimp's driver |
+| libSQL | 0.24.33 | 0.24.33 | The rule for an image that is never rebuilt (D112). libSQL has one line, and its newest release was built on 2025-12-19. The entry was for dbimp's driver, and `models/libsql` reads it (D160) |
 | chai, csvq, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
 | Avatica | 1.28.0 | 1.29.0 | The rule for an image that is never rebuilt (D112). The standalone server over HSQLDB, which the Calcite project builds. The entry is for dbimp's Avatica driver (D113) |
 | Apache Phoenix | 2.0-5.0 | 2.0-5.0 | An exception to step 2, which Ken made (D113). The Phoenix project publishes no image, and the only one that runs in one container, boostport/hbase-phoenix-all-in-one, was last pushed on 2023-03-14. The entry is for dbimp's Avatica driver |
@@ -402,7 +402,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | MongoDB | 7.0.43 | 8.3.11 | Criterion 2. 8.3.11, 8.0.32 and 7.0.43 were rebuilt in September 2026, and 6.0 last in May. 8.0.32, the line with long term support, is between them. The entry is for dbimp's driver (D118) |
 | Elasticsearch | 8.19.22 | 9.5.3 | Each tag is built once, and 8.19 is still patched, so it is the floor. 9.4.6 is between them. The entry is for dbimp's driver (D118) |
 | Dgraph | 25.3.8 | 25.4.1 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
-| YDB | 26.2.1.14 | 26.3.1.17 | The rule for an image that is never rebuilt (D112). usql reaches it with ydb-go-sdk, and dbmeta has no model yet (D118) |
+| YDB | 26.2.1.14 | 26.3.1.17 | The rule for an image that is never rebuilt (D112). usql reaches it with ydb-go-sdk, and models/ydb reads both (D118, D161) |
 | Spanner | 1.5.58 | 1.5.58 | The rule for an image that is never rebuilt (D112). The emulator has one line. The image is built here, because Google's has no shell (D118) |
 | BigQuery | 0.7.2 | 0.8.1 | The rule for an image that is never rebuilt (D112). A community emulator, with a smaller INFORMATION_SCHEMA than the service (D118) |
 | GizmoSQL | 1.38.5 | 1.39.0 | The rule for an image that is never rebuilt (D112). The maintained Arrow Flight SQL server, for usql's flightsql driver (D118) |
@@ -519,9 +519,9 @@ it.
 `podman-run.sh`. The products dbmeta already has a model for are started by
 `dbrun` from `container/`, and that list is the one copy of their images,
 ports, environment and passwords, so nothing of theirs was carried over.
-CockroachDB has a model now (D123), and Flight SQL, H2 and YDB have Staged
-entries, which D118 added from the vendors' current images rather than from
-these. Apache Ignite is
+CockroachDB and YDB have a model now (D123, D161), and Flight SQL and H2
+have Staged entries. D118 added those three entries from the vendors'
+current images rather than from these. Apache Ignite is
 gone: usql removed its driver on 2026-09-27 and dburl v0.31.0 dropped the
 scheme, and a product nothing reads is removed (D118).
 

@@ -21,6 +21,42 @@ func TestEveryStagedTargetHasACadence(t *testing.T) {
 	}
 }
 
+// TestAServerConnectsWithItsURLWhenItSaysSo holds D160. The tests and dbrun
+// version connect to libSQL with the libsql:// URL, which is the only form
+// dbimp's driver takes, and dsn prints the http:// address as before, which
+// dbimp's recorder reads (D153).
+func TestAServerConnectsWithItsURLWhenItSaysSo(t *testing.T) {
+	var found bool
+	for _, x := range targets() {
+		if x.Kind != kindContainer {
+			continue
+		}
+		want := x.DSN
+		if x.connectURL {
+			want = x.URL
+		}
+		if got := x.connectDSN(); got != want {
+			t.Errorf("%s connects with %q, and the expected string is %q", x.Name, got, want)
+		}
+		if x.Product != "libsql" {
+			continue
+		}
+		found = true
+		if !x.connectURL {
+			t.Errorf("%s does not connect with its URL", x.Name)
+		}
+		if env := x.env()[0]; env != x.Env+"="+x.URL {
+			t.Errorf("%s: the test variable is %q, and the expected value is the URL", x.Name, env)
+		}
+		if x.DSN == x.URL {
+			t.Errorf("%s: the DSN is the URL, %q, and dbimp's recorder reads the http:// address", x.Name, x.DSN)
+		}
+	}
+	if !found {
+		t.Error("expected a libSQL server")
+	}
+}
+
 // TestEveryModelledServerHasADriver holds that dbrun version can read every
 // server a model reads. A dialect missing from drivers answered "no driver
 // for cockroachdb" the day its model arrived.

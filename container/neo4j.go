@@ -9,10 +9,9 @@ import (
 
 // The Neo4j releases dbrun starts.
 //
-// dbmeta has no Neo4j model. The releases are here so that dbrun can start a
-// server for the tests of the Neo4j driver in github.com/xo/dbimp, which is
-// its third driver. Ken agreed to the product and to its license on
-// 2026-09-27. See D106.
+// models/neo4j reads them, and dbrun also starts them for the tests of the
+// Neo4j driver in github.com/xo/dbimp, which is its third driver. Ken agreed
+// to the product and to its license on 2026-09-27. See D106 and D162.
 //
 // # The range, by the docs/EVALUATION.md procedure
 //
@@ -93,8 +92,11 @@ var neo4j = product{
 		neo4jShell("neo4j", "system") + " 'GRANT ROLE publisher TO " + Neo4jUser + "'\n" +
 		neo4jShell(Neo4jUser, neo4jDatabase) + " 'RETURN 1'\n",
 	},
-	dsn: neo4jHTTP("neo4j"),
-	url: neo4jURL("neo4j"),
+	// dbimp's driver takes only the neo4j:// URL, and the DSN stays the
+	// http:// address of the HTTP API (D109, D162).
+	connectURL: true,
+	dsn:        neo4jHTTP("neo4j"),
+	url:        neo4jURL("neo4j"),
 	users: []Principal{{
 		Role: User, User: Neo4jUser,
 		dsn: neo4jHTTP(Neo4jUser), url: neo4jURL(Neo4jUser),
@@ -128,9 +130,9 @@ func neo4jURL(user string) func(port int) string {
 	}
 }
 
-// Neo4j is every Neo4j release dbrun starts.
+// Neo4j is every Neo4j release dbmeta is tested against.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var Neo4j = list{}.staged(neo4j, Tested, "5.26.31", "2026.09.0")
+// models/neo4j reads both, so each takes the cadence it recorded while it was
+// Staged, and both run on every push (D120, D162). 5.26.31 is the floor of the
+// model and 2026.09.0 the newest monthly release.
+var Neo4j = list{}.add(neo4j, Tested, "5.26.31", "2026.09.0")
