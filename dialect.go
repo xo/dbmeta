@@ -484,6 +484,20 @@ func New(d Dialect, versions VersionSet) (*Meta, error) {
 	return &Meta{dialect: d, versions: versions}, nil
 }
 
+// Open reads the version of the server behind db and returns the metadata
+// for it, which is Version followed by New. If the version cannot be read,
+// Open returns the error and no Meta. A caller that wants to go on without a
+// version calls New with an empty VersionSet, which takes the newest
+// fragments, and decides that for itself, because on an old server those
+// statements can be wrong.
+func Open(ctx context.Context, d Dialect, db Queryer) (*Meta, error) {
+	versions, err := d.Version(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("reading the version of %s: %w", d, err)
+	}
+	return New(d, versions)
+}
+
 // Dialect returns the dialect m was built for.
 func (m *Meta) Dialect() Dialect { return m.dialect }
 

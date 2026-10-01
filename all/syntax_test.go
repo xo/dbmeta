@@ -32,3 +32,33 @@ func TestFoldIdentifier(t *testing.T) {
 		}
 	}
 }
+
+// TestPattern checks how a psql pattern splits and folds: at the first dot
+// outside double quotes, with the text outside them folded as the product
+// folds a name, and * and ? made LIKE wildcards. See D169.
+func TestPattern(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		dialect      dbmeta.Dialect
+		in           string
+		schema, name string
+	}{
+		{dbmeta.PostgreSQL, "", "", ""},
+		{dbmeta.PostgreSQL, "film*", "", "film%"},
+		{dbmeta.PostgreSQL, "Public.Film?", "public", "film_"},
+		{dbmeta.PostgreSQL, `"Public"."Film*"`, "Public", "Film*"},
+		{dbmeta.PostgreSQL, `"a.b".c`, "a.b", "c"},
+		{dbmeta.PostgreSQL, `x."a""b"`, "x", `a"b`},
+		{dbmeta.PostgreSQL, "a.b.c", "a", "b.c"},
+		{dbmeta.PostgreSQL, `my"Table"x`, "", "myTablex"},
+		{dbmeta.Oracle, "hr.emp*", "HR", "EMP%"},
+		{dbmeta.Oracle, `hr."emp"`, "HR", "emp"},
+		{dbmeta.MySQL, "Shop.Film*", "Shop", "Film%"},
+		{dbmeta.Dialect("no such dialect"), "A.b*", "A", "b%"},
+	} {
+		schema, name := c.dialect.Pattern(c.in)
+		if schema != c.schema || name != c.name {
+			t.Errorf("%s: Pattern(%q) = %q, %q, want %q, %q", c.dialect, c.in, schema, name, c.schema, c.name)
+		}
+	}
+}

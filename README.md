@@ -108,6 +108,28 @@ for t, err := range dbmeta.Tables.All(ctx, m, db, dbmeta.Args{Schema: "public"}.
 There is one query value per kind of object, such as `dbmeta.Tables` and
 `dbmeta.Columns`. Name the value and the result type follows from it.
 
+`dbmeta.Open` does the version and `New` in one step, and returns the error
+when the version cannot be read. `Query.Each` takes an `Args` rather than a
+map and passes only the arguments the query takes, so one `Args` serves every
+kind of object. `All` refuses an argument the query does not take, which
+catches a misspelled name. `Dialect.Pattern` turns a psql pattern, such as
+`public.film*`, into a schema pattern and a name pattern, folded as the
+product folds a name. See D169.
+
+```go
+m, err := dbmeta.Open(ctx, dbmeta.PostgreSQL, db)
+if err != nil {
+    return err
+}
+schema, name := dbmeta.PostgreSQL.Pattern("public.film*")
+for t, err := range dbmeta.Tables.Each(ctx, m, db, dbmeta.Args{Schema: schema, Name: name}) {
+    if err != nil {
+        return err
+    }
+    fmt.Println(t.Schema, t.Name, t.Type)
+}
+```
+
 ## Running the statement yourself
 
 A caller that prints statements, or that runs them its own way, asks for the
@@ -322,7 +344,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 168 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 58 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 169 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 58 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

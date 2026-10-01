@@ -496,6 +496,32 @@ func (q *Query[T]) All(ctx context.Context, m *Meta, db Queryer, args map[string
 	}
 }
 
+// Each runs the query with args, as All does, and passes only the arguments
+// the query takes. All refuses an argument the query does not take, which
+// catches a misspelled name in a map. A caller that asks every kind of object
+// with one set of arguments, such as a describe command, a completer or a
+// code generator, sets the fields once in an Args and calls Each.
+//
+// A query that the model does not answer yields ErrNotSupported, and one that
+// no model was built for yields ErrModelNotBuilt, as All does.
+func (q *Query[T]) Each(ctx context.Context, m *Meta, db Queryer, args Args) iter.Seq2[T, error] {
+	params, err := q.Params(m)
+	if err != nil {
+		return func(yield func(T, error) bool) {
+			var zero T
+			yield(zero, err)
+		}
+	}
+	all := args.Map()
+	given := make(map[string]any, len(params))
+	for _, p := range params {
+		if v, ok := all[p.Name]; ok {
+			given[p.Name] = v
+		}
+	}
+	return q.All(ctx, m, db, given)
+}
+
 // binding returns the registered binding for d, or nil.
 func (q *Query[T]) binding(d Dialect) *Binding[T] {
 	q.mu.RLock()

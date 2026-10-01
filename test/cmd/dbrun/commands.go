@@ -278,6 +278,17 @@ func whose(ctx context.Context, r runner, t target) string {
 	}
 }
 
+// startLine prints what start says about one server: its state, the
+// variable the tests read with its DSN, and the URL that usql takes, which is
+// what a person pastes. A hosted service's DSN and URL are masked (D117).
+func startLine(t target, state, dsn, suffix string) {
+	line := fmt.Sprintf("  %-*s %s: %s=%s", nameWidth(), t.Name, state, t.Env, dsn)
+	if t.URL != "" {
+		line += "  usql: " + t.URL
+	}
+	fmt.Println(line + suffix)
+}
+
 // doStart brings a server up and leaves it there.
 //
 // A container that exists and is stopped is started rather than rebuilt, so
@@ -287,7 +298,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	switch t.Kind {
 	case kindHosted:
 		// Nothing to start. The service runs somewhere else.
-		fmt.Printf("  %-*s hosted: %s=%s  (%s)\n", nameWidth(), t.Name, t.Env, t.DSN, t.Credential)
+		startLine(t, "hosted", t.DSN, "  ("+t.Credential+")")
 		return nil
 	case kindEmbedded:
 		// Nothing to start, and the file is made by whatever opens it. A
@@ -296,7 +307,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if err := extractSamples(t); err != nil {
 			return err
 		}
-		fmt.Printf("  %-*s embedded: %s=%s\n", nameWidth(), t.Name, t.Env, t.DSN)
+		startLine(t, "embedded", t.DSN, "")
 		return nil
 	case kindMachine:
 		if !r.exists(ctx, t.Name) {
@@ -344,7 +355,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if err := r.waitReady(ctx, up, t.timeout(o)); err != nil {
 			return fmt.Errorf("it is running and not ready: %w", err)
 		}
-		fmt.Printf("  %-*s already up%s: %s=%s\n", nameWidth(), t.Name, note, t.Env, t.connectDSN())
+		startLine(t, "already up"+note, t.connectDSN(), "")
 		return nil
 	}
 	// A stopped container belongs to nobody. Its owner can be a session that
@@ -409,7 +420,7 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 			return err
 		}
 	}
-	fmt.Printf("  %-*s up: %s=%s\n", nameWidth(), t.Name, t.Env, t.connectDSN())
+	startLine(t, "up", t.connectDSN(), "")
 	for _, e := range t.AlsoEnv {
 		fmt.Printf("  %-*s also: %s=%s\n", nameWidth(), "", e, t.connectDSN())
 	}

@@ -177,7 +177,7 @@ dbrun logs postgres-18
 
 | Command | What it does | Changes anything |
 | --- | --- | --- |
-| `start` | Starts the server, waits until it answers, runs its setup, and prints its connection string. The server stays running. | yes |
+| `start` | Starts the server, waits until it answers, runs its setup, and prints the variable the tests read with its DSN, and then the URL that usql takes. The server stays running. | yes |
 | `stop` | Stops the server and keeps the container, so that `start` resumes it. | yes |
 | `remove` | Stops the server and deletes the container. A machine asks first, because it takes an hour to rebuild. | yes |
 | `status` | Prints each running server, its URL and its owner. For a machine, it prints whether the database answers yet. `-a` or `--all` also prints each stopped server, marked `stopped`, with who made it, the way `podman ps -a` does. | no |

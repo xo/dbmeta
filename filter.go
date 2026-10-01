@@ -19,18 +19,30 @@ type Args struct {
 	// and view. Only Tables takes it, and every model's Tables does. It is
 	// bound as one string with the items joined by commas. See D138.
 	Types []string
+	// AccessMethod is the name pattern of an access method, which the
+	// operator classes and families of PostgreSQL take.
+	AccessMethod string
+	// Server is the name pattern of a foreign server, which the user mappings
+	// of PostgreSQL and the foreign tables of CrateDB take.
+	Server string
+	// Database is the name pattern of a database, which the role settings of
+	// PostgreSQL take.
+	Database string
 	// WithSystem includes the objects the database keeps for itself.
 	WithSystem bool
 }
 
 // Map returns the arguments as a map, leaving out every field that is unset.
 func (a Args) Map() map[string]any {
-	m := make(map[string]any, 6)
+	m := make(map[string]any, 9)
 	for name, v := range map[string]string{
-		"catalog": a.Catalog,
-		"schema":  a.Schema,
-		"parent":  a.Parent,
-		"name":    a.Name,
+		"catalog":       a.Catalog,
+		"schema":        a.Schema,
+		"parent":        a.Parent,
+		"name":          a.Name,
+		"access_method": a.AccessMethod,
+		"server":        a.Server,
+		"database":      a.Database,
 	} {
 		if v != "" {
 			m[name] = v

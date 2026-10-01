@@ -7,28 +7,22 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-On 2026-10-02 `main` and `origin/main` are at 724e64e, and CI passed on
-3a0ff0f, the commit before it.
+On 2026-10-02 `main` and `origin/main` are at f8a6338, and CI passed on it.
+
+That commit holds D167, which makes the DSN what `sql.Open` takes and adds
+the `api` field, D168, which is Ken's review of the six dialects of
+2026-10-01, and DuckDB's DollarQuotes. dbimp has the commit hash and changes
+its docs/DRIVER.md to read `api`.
 
 Staged and not committed:
 
-- D167. The DSN is what `sql.Open` takes. `container.Server.ConnectURL` is
-  gone. The DSN of libSQL, Neo4j, ArangoDB, SurrealDB and InfluxDB 1 and 2 is
-  now their URL, and a new `api` field, on the server and on each principal,
-  holds the `http://` address that dbimp's tools read. dbimp agreed to the
-  name and changes its docs/DRIVER.md when this lands.
-- D168, Ken's review of the six dialects of 2026-10-01. ArangoDB makes a
-  database the schema and answers 7 kinds. SurrealDB's Schemas lists only the
-  database of the connection.
-- Measured live on 2026-10-02: neo4j-2026.09.0, arangodb-3.12.12 and
-  surrealdb-3.3.0 pass. The parity and conformance files were recorded again
-  for ArangoDB, which only sorted their sections.
-
-- DuckDB's Syntax sets DollarQuotes, at usql's request. DuckDB 1.5.5 reads
-  `$$x;y$$` and `$tag$a;b$tag$` as strings, measured on 2026-10-02.
+- D169. `Query.Each` takes an `Args` and passes only what the query takes,
+  `Args` gains `AccessMethod`, `Server` and `Database`, `Dialect.Pattern`
+  turns a psql pattern into a schema pattern and a name pattern, and
+  `dbmeta.Open` reads the version and calls `New`. usql asked for all three
+  so that its metadata layer stays thin.
+- `dbrun start` prints the URL that usql takes after the test variable.
 
 ## Waiting
 
 - Nothing waits for Ken.
-- When this is pushed, send dbimp the commit hash for the `api` field.
-

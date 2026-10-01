@@ -100,3 +100,50 @@ func (d Dialect) FoldIdentifier(name string) string {
 	}
 	return name
 }
+
+// Pattern splits a psql pattern, such as public.film*, into a schema pattern
+// and a name pattern that a query takes, as psql does before it matches the
+// catalog.
+//
+// The pattern splits at the first dot outside double quotes. Text outside
+// double quotes is folded as the product folds a name, which is
+// FoldIdentifier, and text inside them is kept as it is written, with a
+// doubled quote made single. Outside double quotes, * becomes % and ?
+// becomes _. A pattern with no dot is a name pattern, and the schema pattern
+// is empty. A % or an _ in the pattern stays a wildcard, because the queries
+// take a LIKE pattern with no escape.
+func (d Dialect) Pattern(p string) (schema, name string) {
+	var first, second, run strings.Builder
+	cur, split, quote := &first, false, false
+	flush := func() {
+		cur.WriteString(d.FoldIdentifier(run.String()))
+		run.Reset()
+	}
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		switch {
+		case quote && c == '"' && i+1 < len(p) && p[i+1] == '"':
+			cur.WriteByte('"')
+			i++
+		case c == '"':
+			flush()
+			quote = !quote
+		case quote:
+			cur.WriteByte(c)
+		case c == '.' && !split:
+			flush()
+			cur, split = &second, true
+		case c == '*':
+			run.WriteByte('%')
+		case c == '?':
+			run.WriteByte('_')
+		default:
+			run.WriteByte(c)
+		}
+	}
+	flush()
+	if !split {
+		return "", first.String()
+	}
+	return first.String(), second.String()
+}
