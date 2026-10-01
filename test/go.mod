@@ -16,7 +16,6 @@ require (
 	github.com/nakagami/firebirdsql v0.9.21
 	github.com/prestodb/presto-go-client/v2 v2.1.2
 	github.com/sclgo/impala-go v1.8.0
-	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/sijms/go-ora/v3 v3.0.2-0.20260914154503-360b4b7ac9e9
 	github.com/snowflakedb/gosnowflake/v2 v2.2.0
 	github.com/trinodb/trino-go-client v0.336.0

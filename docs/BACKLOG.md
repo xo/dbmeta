@@ -23,6 +23,19 @@ Cassandra today. So the move waits until dburl names dbimp's driver.
 
 ## Servers
 
+### Measure the memory that Oracle 19c needs to start
+
+On 2026-10-01 a fresh `oracle-19c` sat at 36% of its database creation for 20
+minutes, at its 4 GB limit, 4.28 GB of 4.30 GB, and at 330% CPU. The load on
+the machine was 30, from other sessions. D157 records 19c as not measured on
+that run. D59 had measured 19c on the same go-ora commit, so 4 GB was enough at
+least once. When the machine is quiet, start 19c alone and record its peak
+memory during the first start. If it needs more than `container.MemoryLimit`,
+give the 19c entry a `Memory` with that number beside it, as SAP HANA has.
+Also record how long the first start takes. The entry waits five minutes by
+default, and the first start creates the database, which takes longer than
+that.
+
 ### Find why the Hive setup fails on a slow machine
 
 The Hive setup fails on a GitHub runner, soon after HiveServer2 first answers,

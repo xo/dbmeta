@@ -1,6 +1,6 @@
 # D136. Oracle binds a flag as a number, and is tested on go-ora v3 too
 
-Status: Amends D59.
+Status: Amends D59, amended by D157.
 
 ## What was found
 

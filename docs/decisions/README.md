@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-51 of them amend or replace an earlier one, and a decision read without its
+52 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -77,7 +77,7 @@ file.
 | [D56](D056-the-password-statement-is-built-here-and-run-by.md) | The password statement is built here and run by the caller | Amends D5, amended by D127 |
 | [D57](D057-a-windows-machine-is-how-a-pre-2017-sql-server.md) | A Windows machine is how a pre 2017 SQL Server gets tested, and it is Verified | Decided |
 | [D58](D058-one-gitignore-in-the-repository-root.md) | One .gitignore, in the repository root | Decided |
-| [D59](D059-oracle-is-tested-with-go-ora-v2-until-v3-tags.md) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52, amended by D136 |
+| [D59](D059-oracle-is-tested-with-go-ora-v2-until-v3-tags.md) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52, amended by D136 and D157 |
 | [D60](D060-the-oracle-model-reads-all-views-and-there-is-no.md) | The Oracle model reads ALL_ views, and there is no DBA_ variant | Decided |
 | [D61](D061-every-dialect-is-measured-against-every.md) | Every dialect is measured against every principal the product has | Amended in place |
 | [D62](D062-cql-cannot-compute-so-the-cassandra-model.md) | CQL cannot compute, so the Cassandra model computes in Scan | Amended by D93 |
@@ -154,7 +154,7 @@ file.
 | [D133](D133-tidb-shares-the-mysql-model.md) | TiDB shares the mysql model | Decided |
 | [D134](D134-tdengine-is-removed.md) | TDengine is removed | Amends D112 |
 | [D135](D135-vitess-shares-the-mysql-model.md) | Vitess shares the mysql model and names a schema by its keyspace | Decided |
-| [D136](D136-oracle-binds-a-flag-as-a-number.md) | Oracle binds a flag as a number, and is tested on go-ora v3 too | Amends D59 |
+| [D136](D136-oracle-binds-a-flag-as-a-number.md) | Oracle binds a flag as a number, and is tested on go-ora v3 too | Amends D59, amended by D157 |
 | [D137](D137-a-child-kind-takes-parent-for-its-owner.md) | A child kind takes parent for its owner and name for itself | Decided |
 | [D138](D138-tables-takes-types.md) | Tables takes types, bound as one string | Decided |
 | [D139](D139-a-column-has-a-collation.md) | A column has a collation | Decided |
@@ -172,6 +172,7 @@ file.
 | [D151](D151-rqlite-tests-use-dbimps-driver.md) | The rqlite tests use dbimp's driver | Amends D148 |
 | [D152](D152-influxdb-3-reads-datafusions-information-schema.md) | InfluxDB 3 reads DataFusion's information_schema | Decided |
 | [D153](D153-libsql-has-an-ordinary-user-through-a-jwt.md) | libSQL has an ordinary user through a JWT | Amends D112 |
-| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80 |
+| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157 |
 | [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
 | [D156](D156-a-test-checks-the-simple-english-rules-a-machine-can.md) | A test checks the simple English rules that a machine can check | Decided |
+| [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154 |

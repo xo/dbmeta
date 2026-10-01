@@ -65,8 +65,8 @@ If two schemes of one dialect name two packages, test both, as subtests named
 for the driver. SQLite and PostgreSQL both do this: `sqlite3` and
 `moderncsqlite`, `postgres` and `pgx`.
 
-D154 lists the exceptions. Oracle is tested on `go-ora/v2` rather than the v3
-that dburl names (D59), and `godror` and `mymysql` are not tested.
+D154 lists the exceptions. `godror` and `mymysql` are not tested, and Oracle
+is tested on `go-ora/v3` at a commit rather than a tag (D157).
 
 ## Standing the server up
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/sijms/go-ora/v2"
+	_ "github.com/sijms/go-ora/v3"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/oracle"
@@ -268,4 +268,96 @@ func TestOracleExtendedStats(t *testing.T) {
 	if !found {
 		t.Error("expected the column group on author")
 	}
+}
+
+// oracleMeta returns the metadata for the server without the fixture, for a
+// test that makes its own objects.
+func oracleMeta(t *testing.T, db *sql.DB) *dbmeta.Meta {
+	t.Helper()
+	m, err := dbmeta.New(dbmeta.Oracle, mustVersion(t, db))
+	if err != nil {
+		t.Fatalf("building the metadata: %v", err)
+	}
+	return m
+}
+
+// TestOracleColumnsOfOneTable asks for the columns of one table by parent,
+// which is how every model is asked, and reads them through the typed Scan.
+func TestOracleColumnsOfOneTable(t *testing.T) {
+	db := openOracle(t)
+	m := oracleMeta(t, db)
+	args := dbmeta.Args{Schema: "SYS", Parent: "DUAL", WithSystem: true}.Map()
+	var names []string
+	for v, err := range dbmeta.Columns.All(t.Context(), m, db, args) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		if v.Table != "DUAL" {
+			t.Errorf("expected only DUAL, got %s.%s", v.Table, v.Name)
+		}
+		names = append(names, v.Name)
+	}
+	if len(names) != 1 || names[0] != "DUMMY" {
+		t.Errorf("expected the one column DUMMY, got %v", names)
+	}
+}
+
+// TestOracleChildrenOfOneTable reads every child kind of one table by parent,
+// with the system objects, through the typed Scan. usql asked this way for a
+// table in SYSTEM with a primary key and a check, on 2026-09-30, and saw the
+// indexes fail.
+func TestOracleChildrenOfOneTable(t *testing.T) {
+	db := openOracle(t)
+	m := oracleMeta(t, db)
+	ctx := t.Context()
+	const table = "DBMETA_CHILD"
+	//nolint:errcheck // a table left by a failed run is dropped first
+	db.ExecContext(ctx, "DROP TABLE "+table)
+	if _, err := db.ExecContext(ctx, "CREATE TABLE "+table+
+		" (id INT PRIMARY KEY, qty INT CHECK (qty > 0), note VARCHAR2(30))"); err != nil {
+		t.Fatalf("creating the table: %v", err)
+	}
+	t.Cleanup(func() {
+		//nolint:errcheck // the test has already reported what matters
+		db.ExecContext(context.WithoutCancel(ctx), "DROP TABLE "+table)
+	})
+	var user string
+	if err := db.QueryRowContext(ctx, "SELECT USER FROM dual").Scan(&user); err != nil {
+		t.Fatalf("reading the user: %v", err)
+	}
+	args := dbmeta.Args{Schema: user, Parent: table, WithSystem: true}.Map()
+	count := func(name string, n int, err error) {
+		t.Helper()
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			return
+		}
+		if n == 0 {
+			t.Errorf("%s: expected a row for %s", name, table)
+		}
+		t.Logf("%-20s %d rows", name, n)
+	}
+	count(drainNamed(ctx, dbmeta.Columns, m, db, args))
+	count(drainNamed(ctx, dbmeta.Indexes, m, db, args))
+	count(drainNamed(ctx, dbmeta.IndexColumns, m, db, args))
+	name, n, err := drainNamed(ctx, dbmeta.Constraints, m, db, args)
+	count(name, n, err)
+	// The primary key and the check. Oracle names both SYS_C, and before
+	// 12c the check cannot be told apart from a NOT NULL.
+	if want := 2; m.Version().Main().Compare(dbmeta.V(12)) >= 0 && n != want {
+		t.Errorf("constraints: expected %d, the key and the unnamed check, got %d", want, n)
+	}
+	count(drainNamed(ctx, dbmeta.ConstraintColumns, m, db, args))
+}
+
+// drainNamed reads every row of q and returns its name and the count.
+func drainNamed[T any](ctx context.Context, q *dbmeta.Query[T], m *dbmeta.Meta, db *sql.DB, args map[string]any) (string, int, error) {
+	var n int
+	for _, err := range q.All(ctx, m, db, args) {
+		if err != nil {
+			return q.Name(), n, err
+		}
+		n++
+	}
+	return q.Name(), n, nil
 }

@@ -327,10 +327,22 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 	}
 	// A server that is already up is shared, whoever started it, so two
 	// sessions that test one release use one server. Only its owner stops it.
+	//
+	// A running container is not always a server that answers. Oracle 19c
+	// creates its database on the first start, which takes longer than the
+	// default timeout. A test started again against it found the listener
+	// up and the database not yet open. So the ready check runs here too,
+	// and it costs one check on a server that is ready. A settle is for a
+	// server that has just begun to answer, so it is not waited out again.
 	if r.running(ctx, t.Name) {
 		note := ""
 		if owner != me {
 			note = ", started by " + r.who(ctx, t.Name)
+		}
+		up := t
+		up.Settle = 0
+		if err := r.waitReady(ctx, up, t.timeout(o)); err != nil {
+			return fmt.Errorf("it is running and not ready: %w", err)
 		}
 		fmt.Printf("  %-*s already up%s: %s=%s\n", nameWidth(), t.Name, note, t.Env, t.DSN)
 		return nil

@@ -32,8 +32,8 @@ projects has a defect and the disagreement is the finding.
 The version. D52 requires the same package and allows a different version, and
 the version lives in `usql`'s `go.mod`. Step 3 now reads two things: the
 registry for the package, and that `go.mod` for the version `usql` pins.
-Oracle is the standing example, because D59 holds `dbmeta` on `go-ora/v2`
-while the registry and `usql` both name v3.
+Oracle was the standing example, because D59 held `dbmeta` on `go-ora/v2`
+while the registry and `usql` both named v3. D157 moved it to v3.
 
 A scheme with no `GoPackage` is not a hole. It is how the registry says the
 scheme borrows another scheme's driver, and it is the same fact

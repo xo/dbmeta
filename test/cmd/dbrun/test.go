@@ -20,7 +20,7 @@ import (
 	_ "github.com/nakagami/firebirdsql"
 	_ "github.com/prestodb/presto-go-client/v2"
 	_ "github.com/sclgo/impala-go"
-	_ "github.com/sijms/go-ora/v2"
+	_ "github.com/sijms/go-ora/v3"
 	_ "github.com/snowflakedb/gosnowflake/v2"
 	_ "github.com/trinodb/trino-go-client/trino"
 	_ "github.com/vertica/vertica-sql-go"

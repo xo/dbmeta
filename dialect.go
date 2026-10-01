@@ -168,9 +168,9 @@ type Info struct {
 	//
 	// Oracle is the case because it has no boolean before 23ai, and
 	// go-ora/v3 refuses a Go bool with "no parameter coder registered for
-	// go type bool". go-ora/v2 binds one as a number. The Oracle model
-	// compares with_system with 1, so it binds a bool as 1 or 0, which both
-	// drivers carry. usql found it on 2026-09-30. See D136.
+	// go type bool". The Oracle model compares with_system with 1, so it
+	// binds a bool as 1 or 0, which every go-ora release carries. usql found
+	// it on 2026-09-30. See D136.
 	BindValue func(v any) any
 
 	// VersionQuery reads the server version. An empty string means the database

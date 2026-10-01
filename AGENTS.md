@@ -35,7 +35,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 156. Read the status, because 51
+`docs/decisions/README.md` is a table of all 157. Read the status, because 52
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -183,13 +183,11 @@ something is written down, it is not written down, and it is an open question.
    module's own, because the registry carries none. Where two schemes of one
    dialect name two packages, test both as subtests named for the driver:
    SQLite runs on `mattn/go-sqlite3` and `modernc.org/sqlite`, and PostgreSQL
-   on `jackc/pgx/v5/stdlib` and `lib/pq`. There are two exceptions. Parity is
-   one, and D52 says why. Oracle is the other, and D59 says why: the
-   `go-ora/v3` that dburl names panics rather than connecting on 11g and 18c.
-   It is fixed upstream and untagged, so the Oracle tests use v2 until v3 tags
-   the fix, and then go back. `test/oraclev3` runs every Oracle query through
-   v3 at the commit that fixes it, because v3 binds a parameter differently
-   and refused every query once (D136). If what `usql` imports differs from
+   on `jackc/pgx/v5/stdlib` and `lib/pq`. Parity is the one exception, and
+   D52 says why. The `go-ora/v3` release that dburl names panics rather than
+   connecting on 11g and 18c, and the fix is upstream and untagged. So the
+   Oracle tests pin v3 at the commit that fixes it, and move to the tag when
+   one holds the fix (D59, D157). If what `usql` imports differs from
    what dburl names, the fault is in one of those two, and the fix goes
    there. A query that works here and fails on the driver dburl names is a
    query that does not work. See D52, D80 and D154.

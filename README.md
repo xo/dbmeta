@@ -12,11 +12,17 @@
 
 [![Unit Tests][dbmeta-ci-status]][dbmeta-ci]
 [![Go Reference][goref-dbmeta-status]][goref-dbmeta]
+[![Releases][release-status]][releases]
+[![Discord Discussion][discord-status]][discord]
 
 [dbmeta-ci]: https://github.com/xo/dbmeta/actions/workflows/test.yml "Test CI"
 [dbmeta-ci-status]: https://github.com/xo/dbmeta/actions/workflows/test.yml/badge.svg "Test CI"
 [goref-dbmeta]: https://pkg.go.dev/github.com/xo/dbmeta "Go Reference"
 [goref-dbmeta-status]: https://pkg.go.dev/badge/github.com/xo/dbmeta.svg "Go Reference"
+[release-status]: https://img.shields.io/github/v/release/xo/dbmeta?display_name=tag "Latest Release"
+[releases]: https://github.com/xo/dbmeta/releases "Releases"
+[discord]: https://discord.gg/WDWAgXwJqN "Discord Discussion"
+[discord-status]: https://img.shields.io/discord/829150509658013727.svg?label=Discord&logo=Discord&colorB=7289da&style=flat-square "Discord Discussion"
 
 # About
 
@@ -310,7 +316,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 156 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 51 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 157 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 52 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -413,6 +419,20 @@ Tests in this module never open a database connection. They render statements,
 resolve versions, and read rows from a fake driver replaying recorded data, so
 they need nothing installed and they cover releases whose container images no
 longer start.
+
+<br/>
+
+<div align="center">
+  <a href="https://github.com/xo/usql" title="A command line client for many databases">usql</a> |
+  <a href="https://github.com/xo/dburl" title="Database connection URLs">dburl</a> |
+  <a href="https://github.com/xo/dbmeta" title="Database metadata, this project">dbmeta</a> |
+  <a href="https://github.com/xo/dbimp" title="Database drivers in pure Go">dbimp</a> |
+  <a href="https://github.com/xo/cql" title="A database/sql driver for Cassandra">cql</a> |
+  <a href="https://github.com/xo/dbtpl" title="Go code generated from a database">dbtpl</a> |
+  <a href="https://github.com/xo/tblfmt" title="Tables of database results">tblfmt</a> |
+  <a href="https://github.com/xo/rline" title="The line editor of usql">rline</a> |
+  <a href="https://github.com/xo/transit" title="tree-sitter in pure Go">transit</a>
+</div>
 
 [usql]: https://github.com/xo/usql "usql"
 [dbtpl]: https://github.com/xo/dbtpl "dbtpl"

@@ -1,6 +1,6 @@
 # D154. A test driver is the one dburl names
 
-Status: Amends D52 and D80.
+Status: Amends D52 and D80, amended by D157.
 
 ## The decision
 
@@ -33,9 +33,10 @@ that does not work. The consumer's driver is the one dburl names.
 
 The exceptions stand, and each has its own decision:
 
-- Oracle is tested on `go-ora/v2`, because the `go-ora/v3` that dburl names
-  panics on 11g and 18c, and `test/oraclev3` runs every query through v3 at
-  the commit that fixes it (D59, D136).
+- Oracle is tested on the `go-ora/v3` that dburl names, at the commit that
+  fixes its panic on 11g and 18c, because no tag holds the fix yet (D157).
+  This was an exception until D157. It is listed here because the pin is
+  not a tag.
 - `godror` is not tested. dburl names it for the scheme godror, and it needs
   Oracle's client libraries rather than only a C compiler (D48).
 - `mymysql` is not tested, on the measurement in D52: it reaches neither
