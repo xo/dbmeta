@@ -420,3 +420,33 @@ func TestSurrealDBPatterns(t *testing.T) {
 		}
 	}
 }
+
+// TestSurrealDBSchemasIsTheConnectedDatabase holds D168. Every kind below a
+// schema reads only the database of the connection, so Schemas lists that
+// one alone, even when the namespace holds another.
+func TestSurrealDBSchemasIsTheConnectedDatabase(t *testing.T) {
+	db := openSurrealDB(t)
+	m := setupSurrealDB(t, db)
+	if !m.Version().Main().AtLeast(srINFO) {
+		t.Skipf("the server is %s, which answers the current schema alone", m.Version())
+	}
+	ctx := t.Context()
+	const other = "dbmeta_other"
+	if _, err := db.ExecContext(ctx, "DEFINE DATABASE IF NOT EXISTS "+other); err != nil {
+		t.Fatalf("making the database %s: %v", other, err)
+	}
+	t.Cleanup(func() {
+		//nolint:errcheck // the test has already reported what matters
+		db.ExecContext(context.WithoutCancel(ctx), "REMOVE DATABASE IF EXISTS "+other)
+	})
+	var names []string
+	for v, err := range dbmeta.Schemas.All(ctx, m, db, nil) {
+		if err != nil {
+			t.Fatalf("reading schemas: %v", err)
+		}
+		names = append(names, v.Name)
+	}
+	if want := srfixture.Everything.Schema; len(names) != 1 || names[0] != want {
+		t.Errorf("schemas: got %v, want only %s", names, want)
+	}
+}

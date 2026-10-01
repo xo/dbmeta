@@ -71,7 +71,7 @@ than from memory.
 | libSQL | 8 | the same as SQLite, whose statements it shares |
 | InfluxDB 3 | 6 | `TableIndexes`, `IndexColumns` and `TableForeignKeys`: InfluxDB 3 has no index and no key. `Procs` lists DataFusion's built in functions, and only with the system objects |
 | YDB | 1 | every one but `Tables`: the columns, indexes and keys of a table are in its schema, which only a gRPC call per table reads, YQL has no function list, and a session has no current directory |
-| ArangoDB | 4 | `TableIndexes`, `IndexColumns`, `ProcParams`, `TableForeignKeys` and `Schema`: AQL lists no index, a function's parameters are in its JavaScript source, ArangoDB has no foreign key, and there is no schema. `TableColumns` reads a collection's schema rule, and a collection with no rule has no column |
+| ArangoDB | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: AQL lists no index, a function's parameters are in its JavaScript source, and ArangoDB has no foreign key. `Schema` is the database of the connection (D168). `TableColumns` reads a collection's schema rule, and a collection with no rule has no column |
 | InfluxQL | 3 | everything but `Tables`, `TableColumns` and `TableSequences`: InfluxDB has no index, no key, no function list and no current database a statement returns |
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |

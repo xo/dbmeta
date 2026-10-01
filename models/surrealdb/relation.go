@@ -66,20 +66,23 @@ func registerRelations() {
 		},
 	})
 
-	// \dn. A database is the schema, and its namespace is its catalog. A
-	// user defined on a database is refused INFO FOR NS.
+	// \dn. A database is the schema, and its namespace is its catalog. Every
+	// other kind reads only the database of the connection, so Schemas
+	// lists that one alone, and a database whose tables are never returned
+	// is not listed (D168). INFO FOR NS holds its comment, and a user
+	// defined on a database is refused INFO FOR NS.
 	dbmeta.Schemas.Register(dbmeta.SurrealDB, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: from3("SELECT " + currentNS + " AS catalog, comment, name, '' AS owner" +
 			" FROM (INFO FOR NS STRUCTURE).databases" +
-			" WHERE " + like("name", "@name") +
+			" WHERE name = " + currentDB + " AND " + like("name", "@name") +
 			" ORDER BY name"),
 		Fields: []dbmeta.Field{
 			{Name: "catalog", Desc: "the namespace the connection is in"},
 			{Name: "comment"},
-			{Name: "name", Desc: "the database"},
+			{Name: "name", Desc: "the database the connection is in, which is the only one the other kinds read"},
 			{Name: "owner", Desc: "always empty: a database has no owner"},
 		},
-		Params: []dbmeta.Param{{Name: "name", Desc: "database name pattern, empty for every database", Default: ""}},
+		Params: []dbmeta.Param{{Name: "name", Desc: "database name pattern, empty for the database of the connection", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var v dbmeta.Schema
 			err := rows.Scan(&v.Catalog, &v.Comment, &v.Name, &v.Owner)

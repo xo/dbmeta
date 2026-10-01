@@ -92,14 +92,13 @@ var neo4j = product{
 		neo4jShell("neo4j", "system") + " 'GRANT ROLE publisher TO " + Neo4jUser + "'\n" +
 		neo4jShell(Neo4jUser, neo4jDatabase) + " 'RETURN 1'\n",
 	},
-	// dbimp's driver takes only the neo4j:// URL, and the DSN stays the
-	// http:// address of the HTTP API (D109, D162).
-	connectURL: true,
-	dsn:        neo4jHTTP("neo4j"),
-	url:        neo4jURL("neo4j"),
+	// dbimp's driver takes only the neo4j:// URL, so the DSN is that URL,
+	// and the api is the http:// address that dbimp's tools read (D167).
+	dsn: neo4jURL("neo4j"),
+	api: neo4jHTTP("neo4j"),
 	users: []Principal{{
 		Role: User, User: Neo4jUser,
-		dsn: neo4jHTTP(Neo4jUser), url: neo4jURL(Neo4jUser),
+		dsn: neo4jURL(Neo4jUser), api: neo4jHTTP(Neo4jUser),
 	}},
 }
 

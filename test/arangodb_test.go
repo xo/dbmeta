@@ -191,8 +191,8 @@ func TestArangoDBEveryQueryRuns(t *testing.T) {
 		}
 		ran++
 	}
-	if ran != 5 {
-		t.Errorf("%d queries ran, and the model answers 5: change this test with the model", ran)
+	if ran != 7 {
+		t.Errorf("%d queries ran, and the model answers 7: change this test with the model", ran)
 	}
 }
 
@@ -217,8 +217,8 @@ func TestArangoDBFixtureObjects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reading tables: %v", err)
 		}
-		if v.Catalog != fx.Catalog || v.Schema != "" {
-			t.Errorf("table %s: catalog %q and schema %q, want %q and none", v.Name, v.Catalog, v.Schema, fx.Catalog)
+		if v.Catalog != "" || v.Schema != fx.Schema {
+			t.Errorf("table %s: catalog %q and schema %q, want none and %q", v.Name, v.Catalog, v.Schema, fx.Schema)
 		}
 		tables[v.Name] = v.Type
 	}
@@ -321,7 +321,7 @@ func TestArangoDBFixtureObjects(t *testing.T) {
 
 // TestArangoDBLeavesOut checks the kinds the model does not answer, although
 // the fixture makes an object of each: AQL lists no index, no view, no
-// database and no user, and there is no schema to be current.
+// database and no user.
 func TestArangoDBLeavesOut(t *testing.T) {
 	m, err := dbmeta.New(dbmeta.ArangoDB, dbmeta.VersionSet{})
 	if err != nil {
@@ -329,7 +329,7 @@ func TestArangoDBLeavesOut(t *testing.T) {
 	}
 	for _, q := range []dbmeta.AnyQuery{
 		dbmeta.Indexes, dbmeta.IndexColumns, dbmeta.Views, dbmeta.Databases,
-		dbmeta.Schemas, dbmeta.CurrentSchema, dbmeta.Roles, dbmeta.Privileges,
+		dbmeta.Roles, dbmeta.Privileges,
 		dbmeta.TextSearchDictionaries, dbmeta.RoutineParameters,
 	} {
 		if s := q.Support(m); s != dbmeta.NotSupported {
@@ -338,5 +338,41 @@ func TestArangoDBLeavesOut(t *testing.T) {
 	}
 	if _, _, err := dbmeta.Indexes.Build(m, nil); !errors.Is(err, dbmeta.ErrNotSupported) {
 		t.Errorf("indexes: expected ErrNotSupported, got %v", err)
+	}
+}
+
+// TestArangoDBSchemaIsTheDatabase holds D168: the database of the connection
+// is the one schema, and the current one.
+func TestArangoDBSchemaIsTheDatabase(t *testing.T) {
+	db := openArangoDB(t)
+	m := setupArangoDB(t, db)
+	ctx := t.Context()
+	want := arfixture.Everything.Schema
+	var names []string
+	for v, err := range dbmeta.Schemas.All(ctx, m, db, nil) {
+		if err != nil {
+			t.Fatalf("reading schemas: %v", err)
+		}
+		if v.Catalog != "" {
+			t.Errorf("schema %s: catalog %q, want none", v.Name, v.Catalog)
+		}
+		names = append(names, v.Name)
+	}
+	if len(names) != 1 || names[0] != want {
+		t.Errorf("schemas: got %v, want only %s", names, want)
+	}
+	for v, err := range dbmeta.CurrentSchema.All(ctx, m, db, nil) {
+		if err != nil {
+			t.Fatalf("reading the current schema: %v", err)
+		}
+		if v.Name != want {
+			t.Errorf("current schema: got %s, want %s", v.Name, want)
+		}
+	}
+	for _, err := range dbmeta.Schemas.All(ctx, m, db, dbmeta.Args{Schema: "other"}.Map()) {
+		if err != nil {
+			t.Fatalf("reading schemas: %v", err)
+		}
+		t.Error("schemas: a pattern for another database returned a row")
 	}
 }

@@ -17,11 +17,10 @@
 //
 // # The mapping
 //
-// A database is the catalog. A connection names one database in its path,
-// and AQL cannot reach another one, which is how a PostgreSQL database
-// behaves. Nothing sits between the database and the collection, and AQL
-// names a collection with no qualifier, so there is no schema and none is
-// invented, as on Firebird (D74). A collection is the table. A collection's
+// A database is the schema, as it is on MySQL and ClickHouse, and the catalog
+// is empty. A connection names one database in its path, and AQL cannot reach
+// another one, so Schemas and CurrentSchema return that database alone. Ken
+// chose this on 2026-10-02 (D168). A collection is the table. A collection's
 // JSON schema rule, when it has one, gives the columns and one check
 // constraint. A user defined AQL function is a function.
 //
@@ -34,13 +33,14 @@
 //
 // # What it answers
 //
-// 5 of the 56. Collections as tables, the properties of a schema rule as
-// columns, a schema rule as a check constraint, user defined functions and
-// the current user.
+// 7 of the 56. The database of the connection as the schema and the current
+// schema, collections as tables, the properties of a schema rule as columns,
+// a schema rule as a check constraint, user defined functions and the
+// current user.
 //
 // # What is missing
 //
-// 51 kinds. AQL cannot list the databases, the indexes, the views, the
+// 49 kinds. AQL cannot list the databases, the indexes, the views, the
 // analyzers or the users, which only the HTTP API describes. COLLECTIONS()
 // does not say whether a collection holds documents or edges. There is no
 // sequence, no trigger, no user defined type and no comment. A graph is
@@ -102,20 +102,21 @@ func like(expr, param string) string {
 	return `(` + param + ` == '' OR ` + expr + ` LIKE ` + param + `)`
 }
 
-// noSchema is the filter on the schema parameter. ArangoDB has no schema, so
-// only an empty pattern, or one that matches the empty string, returns rows.
-const noSchema = `(@schema == '' OR '' LIKE @schema)`
+// noSchema is the filter on the schema parameter. A database is the schema,
+// and AQL reaches only the database of the connection, so only a pattern
+// that matches its name returns rows.
+var noSchema = like(`CURRENT_DATABASE()`, `@schema`)
 
 // schemaParam is the schema parameter of every query that takes one.
 var schemaParam = dbmeta.Param{
 	Name: "schema",
-	Desc: "schema name pattern. ArangoDB has no schemas, so only an" +
-		" empty value or a pattern matching the empty string returns rows",
+	Desc: "database name pattern, empty for the database of the connection," +
+		" which is the only one AQL reaches",
 	Default: "",
 }
 
 // schemaDesc describes the schema field of every row.
-const schemaDesc = "always empty: AQL names a collection with no qualifier, so there is no level between the database and the collection"
+const schemaDesc = "the database of the connection, which is the only one AQL reaches"
 
 // catalogDesc describes the catalog field of every row.
-const catalogDesc = "the database of the connection, which is the only one AQL reaches"
+const catalogDesc = "always empty: ArangoDB has nothing above a database"

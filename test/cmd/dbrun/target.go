@@ -94,6 +94,10 @@ type target struct {
 	// not a URL.
 	DSN string `json:"dsn,omitempty"`
 	URL string `json:"url,omitempty"`
+	// API is the address of the server's HTTP API, which dbimp's tools read,
+	// and is empty for a server that has none. See container.Server.API and
+	// D167.
+	API string `json:"api,omitempty"`
 	// SecondAddress is the host and port that a container's second port is
 	// published on, such as the controller of Pinot, and is empty when the
 	// container has no second port. See D124.
@@ -107,9 +111,6 @@ type target struct {
 	// product that does not start without one. See D118.
 	License string `json:"license,omitempty"`
 	secret  string
-	// connectURL says that a command connects with URL rather than DSN,
-	// which is container.Server.ConnectURL.
-	connectURL bool
 
 	// Principals is every user a test reaches the server as, the
 	// administrator first, with the connection string of each. It is empty
@@ -313,6 +314,7 @@ func targets() []target {
 			AlsoEnv:       alsoEnv(s.Also),
 			DSN:           s.DSN(port),
 			URL:           s.URL(port),
+			API:           s.API(port),
 			SecondAddress: secondAddress(s, port),
 			Principals:    principalsOf(s, port),
 			Run:           s.RunArgs(s.Name(), port, flags...),
@@ -323,7 +325,6 @@ func targets() []target {
 			Startup:       s.Startup,
 			Settle:        s.Settle,
 			Remove:        s.RemoveArgs(s.Name()),
-			connectURL:    s.ConnectURL,
 		})
 	}
 	for _, m := range container.Machines() {
@@ -349,14 +350,10 @@ func targets() []target {
 }
 
 // connectDSN is the connection string a command connects with. It is the
-// secret one for a hosted service, the URL for a server whose driver takes
-// only the URL, such as libSQL (D160), and the DSN for everything else.
+// secret one for a hosted service, and the DSN for everything else.
 func (t target) connectDSN() string {
-	switch {
-	case t.Kind == kindHosted:
+	if t.Kind == kindHosted {
 		return t.secret
-	case t.connectURL:
-		return t.URL
 	}
 	return t.DSN
 }
@@ -367,13 +364,14 @@ type principal struct {
 	User string `json:"user,omitempty"`
 	DSN  string `json:"dsn"`
 	URL  string `json:"url"`
+	API  string `json:"api,omitempty"`
 }
 
 // principalsOf lists every principal of a container server on its host port.
 func principalsOf(s container.Server, port int) []principal {
 	var out []principal
 	for _, p := range s.Principals() {
-		out = append(out, principal{Role: p.Role, User: p.User, DSN: p.DSN(port), URL: p.URL(port)})
+		out = append(out, principal{Role: p.Role, User: p.User, DSN: p.DSN(port), URL: p.URL(port), API: p.API(port)})
 	}
 	return out
 }

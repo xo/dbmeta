@@ -162,4 +162,7 @@ the tests the `url` and connects `dbrun version` with it. The `dsn` stays the
 plain `http://` address, as D109 says, so what other projects read from
 `dbrun dsn` does not change.
 
+D167 later removed the flag. The DSN of the entry is now the URL that the
+driver takes, and the `http://` address is its `api`.
+
 The two releases move from Staged to Tested, the cadence each recorded (D120).

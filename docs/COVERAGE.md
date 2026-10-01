@@ -61,7 +61,7 @@ rather than reading one.
 | `models/surrealdb` | 18 | 56 | SurrealDB 3.1.6, 3.2.4 and 3.3.0, and 2.7.0, which answers the current schema alone, because a 2.x statement cannot read INFO as a value. With dbimp's driver (D164) |
 | `models/rqlite` | 14 | 56 | rqlite 9.4.5 and 10.3.6, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
 | `models/libsql` | 14 | 56 | libSQL 0.24.33, the sqld server, with dbimp's driver. Every statement is the sqlite3 model's, with a fragment for the vector index (D160) |
-| `models/arangodb` | 5 | 56 | ArangoDB 3.12.12, in AQL through dbimp's driver. A collection is a table, and its JSON schema rule gives its columns (D163) |
+| `models/arangodb` | 7 | 56 | ArangoDB 3.12.12, in AQL through dbimp's driver. A database is the schema, a collection is a table, and its JSON schema rule gives its columns (D163, D168) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -3949,11 +3949,11 @@ refused all seven, and the parity file records each refusal.
 
 ## ArangoDB
 
-`models/arangodb` answers 5 of the 56 on ArangoDB 3.12.12, measured on
-2026-10-01 through dbimp's arangodb driver, which is what dburl's arangodb
-scheme opens and what usql uses. ArangoDB is queried in AQL rather than SQL,
-and it has no relational catalog. D163 proposes the mapping and Ken reviews
-it.
+`models/arangodb` answers 7 of the 56 on ArangoDB 3.12.12, measured on
+2026-10-01 and 2026-10-02 through dbimp's arangodb driver, which is what
+dburl's arangodb scheme opens and what usql uses. ArangoDB is queried in AQL
+rather than SQL, and it has no relational catalog. D163 holds the mapping,
+and D168 holds what Ken changed in it.
 
 ### What AQL reads
 
@@ -3964,14 +3964,16 @@ much more, and it does so one call for each collection where it goes deeper.
 Ken chose on 2026-10-01 that a walk (D146) is not allowed for ArangoDB, so a
 kind that only the HTTP API answers is not answered.
 
-A database is the catalog, because a connection names one in its path and AQL
-cannot reach another. There is no schema, because AQL names a collection with
-no qualifier, and none is invented, as on Firebird. Every row has an empty
-schema, and Schemas and CurrentSchema are not answered.
+A database is the schema, and the catalog is empty, as on MySQL and
+ClickHouse. A connection names one database in its path and AQL cannot reach
+another, so Schemas and CurrentSchema return the database of the connection,
+from `CURRENT_DATABASE()`. Ken chose this on 2026-10-02 (D168). D163 first
+made the database the catalog, with no schema, as on Firebird.
 
 ### What it answers
 
-Tables, columns, constraints, functions and the current user.
+Schemas, the current schema, tables, columns, constraints, functions and the
+current user.
 
 A collection is a table, of the type `collection`. `COLLECTIONS()` has no
 type, so it does not say whether a collection holds documents or edges.
@@ -4275,7 +4277,7 @@ Eight answer with an analogue:
 | Kind | SurrealDB | Why it is a fair answer |
 | --- | --- | --- |
 | `Databases` | namespaces | a namespace holds databases as a PostgreSQL database holds schemas |
-| `Schemas` | the databases of the namespace of the connection | each holds tables, and INFO FOR NS lists every one |
+| `Schemas` | the database of the connection | each kind below reads only that database, so it is the only schema listed (D168) |
 | `Columns` | a DEFINE FIELD | the other fields of a schemaless table are known only from the records, which D47 forbids. Ken chose this for Neo4j on 2026-10-01 |
 | `Constraints` | a UNIQUE index, and the ASSERT of a field as a check | both refuse a write, and an ASSERT takes the name of its field |
 | `Triggers` | a DEFINE EVENT | it runs when a record of its table changes |

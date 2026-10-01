@@ -74,14 +74,13 @@ var surrealdb = product{
 		"DEFINE DATABASE IF NOT EXISTS " + surrealDBName + ";\n" +
 		"DEFINE USER OVERWRITE " + SurrealDBUser + " ON DATABASE PASSWORD '" + Password +
 		"' ROLES EDITOR;\n",
-	// The driver takes only the surrealdb:// URL, so dbrun connects with
-	// it, and the DSN stays the http:// address that other projects read.
-	connectURL: true,
-	dsn:        surrealDBHTTP("root"),
-	url:        surrealDBURL("root", ""),
+	// dbimp's driver takes only the surrealdb:// URL, so the DSN is that URL,
+	// and the api is the http:// address that dbimp's tools read (D167).
+	dsn: surrealDBURL("root", ""),
+	api: surrealDBHTTP("root"),
 	users: []Principal{{
 		Role: User, User: SurrealDBUser,
-		dsn: surrealDBHTTP(SurrealDBUser), url: surrealDBURL(SurrealDBUser, "database"),
+		dsn: surrealDBURL(SurrealDBUser, "database"), api: surrealDBHTTP(SurrealDBUser),
 	}},
 }
 

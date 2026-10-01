@@ -359,36 +359,30 @@ with these fields:
 | `env` | the environment variable that dbmeta's tests read the DSN from, such as `DBMETA_COUCHBASE` |
 | `also`, `alsoEnv` | every other dialect the server answers, and the variable of each, which dbrun sets to the same DSN. InfluxDB 3 answers `influxql` beside `influxdb` (D114) |
 | `dsn` | the connection string that the Go driver takes |
-| `url` | the dburl URL, which is what `usql` takes |
+| `url` | the dburl URL, which is what `dburl.Open` and `usql` take |
+| `api` | the `http://` address of the server's HTTP API, with credentials, which dbimp's tools read. It is absent for a server that has none (D167) |
 | `secondAddress` | the host and port of a container's second port, such as the controller of Pinot, and absent when it has none (D124) |
 | `credential` | for a hosted service, where its connection string came from, such as `env DBMETA_SNOWFLAKE_DSN`. It never holds the secret (D117) |
 | `license` | the license file on the host that dbrun mounts, for a product that needs one (D118) |
 | `viewer` | for a machine, the port of its screen viewer |
-| `principals` | every user a test reaches the server as, the administrator first. Each has `role`, which is `administrator` or `user`, `user`, `dsn` and `url` |
+| `principals` | every user a test reaches the server as, the administrator first. Each has `role`, which is `administrator` or `user`, `user`, `dsn`, `url` and, where the server has one, `api` |
 
 The `dsn` and `url` fields can differ. The `dsn` field is what `sql.Open`
 takes for the driver that dbmeta tests with, and the `url` field is what
 `dburl` parses. On MySQL and Cassandra the driver takes a form that is not a
 URL. On Couchbase both are the same `couchbase://` URL.
 
-Five products keep the `http://` address as the `dsn`, because dbimp's tools
-read it, and dbimp's driver for each takes only the `url`:
-
-- SurrealDB, whose `url` names the database in its path (D109).
-- Neo4j, whose `url` names the database in its path, such as
-  `neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` (D109).
-- libSQL, whose `url` is the `libsql://` form that ends in `?tls=false`
-  (D153).
-- ArangoDB, whose `url` is the `arangodb://` form.
-- InfluxDB 1 and 2, whose `url` is the `influxdb://` form, which names the
-  database `dbmeta` in its path (D165).
-
-For each of them `dbrun` sets the test variable, such as `DBMETA_NEO4J`, to
-the `url`, and `dbrun version` connects with it (D160, D162 to D165).
+On libSQL, Neo4j, ArangoDB, SurrealDB and InfluxDB 1 and 2 the `dsn` is the
+same URL as the `url`, because dbimp's driver for each takes only that form,
+and the `http://` address of the HTTP API is the `api` (D167). On SurrealDB
+and Neo4j the `url` names the database in its path, such as
+`neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` (D109). On libSQL it ends
+in `?tls=false` (D153). On InfluxDB 1 and 2 it names the database `dbmeta`
+(D165).
 
 On the standalone Avatica server and Phoenix the `dsn` is the `http://`
-address, and the `url` is the `avatica://` form that dbimp's driver takes,
-with no path (D155).
+address, which is also the `api`, and the `url` is the `avatica://` form that
+dbimp's driver takes, with no path (D155). No dbmeta model reads them yet.
 On rqlite and InfluxDB 3 both are the same URL, `rqlite://` and
 `influxdb://`, because dbimp's drivers take only that form.
 

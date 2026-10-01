@@ -51,9 +51,13 @@ const Reference = "1.5.5"
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.DuckDB, &dbmeta.Info{
-		// The syntax is usql's lexer flags for this product, and the fold
-		// is measured by scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{BlockComments: true},
+		// The syntax was usql's lexer flags for this product, and the fold
+		// is measured by scanEveryQuery (D143). DuckDB's parser comes from
+		// PostgreSQL's, and on 1.5.5 it reads `$$x;y$$` and `$tag$a;b$tag$` as
+		// strings, which usql's flags left out. It reads `E''` strings with
+		// backslash escapes, it refuses a backtick and a `#` comment, and
+		// `//` is integer division. Measured on 2026-10-02.
+		Syntax: dbmeta.Syntax{DollarQuotes: true, BlockComments: true},
 		// DuckDB is a library, the same as SQLite.
 		Embedded:       true,
 		Placeholder:    func(int) string { return "?" },

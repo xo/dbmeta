@@ -117,8 +117,8 @@ func schema(collection, rule, level string) Step {
 // read, and the objects they leave out.
 var Everything = Fixture{
 	Name:    "everything",
-	Catalog: "dbmeta",
-	Schema:  "",
+	Catalog: "",
+	Schema:  "dbmeta",
 	Setup: []Step{
 		// The core tables of D53, as collections, and their columns as the
 		// properties of a rule. A property the rule requires, whose type

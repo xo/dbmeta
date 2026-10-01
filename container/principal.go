@@ -17,6 +17,7 @@ type Principal struct {
 
 	dsn func(port int) string
 	url func(port int) string
+	api func(port int) string
 }
 
 // Principal roles.
@@ -31,6 +32,12 @@ const (
 // in the form the Go driver takes.
 func (p Principal) DSN(port int) string { return p.dsn(port) }
 
+// API returns the address of the HTTP API for this principal on port, and is
+// empty where the server sets none. See [Server.API].
+func (p Principal) API(port int) string {
+	return apiOf(p.api, p.dsn, port)
+}
+
 // URL returns the dburl style URL for this principal on port.
 func (p Principal) URL(port int) string {
 	if p.url != nil {
@@ -41,7 +48,7 @@ func (p Principal) URL(port int) string {
 
 // Principals returns every principal of the server, the administrator first.
 func (s Server) Principals() []Principal {
-	admin := Principal{Role: Administrator, User: userOf(s.URL(0)), dsn: s.dsn, url: s.url}
+	admin := Principal{Role: Administrator, User: userOf(s.URL(0)), dsn: s.dsn, url: s.url, api: s.api}
 	return append([]Principal{admin}, s.users...)
 }
 

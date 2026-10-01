@@ -99,14 +99,13 @@ var influxdb1 = product{
 	init: []string{"sh", "-c", "set -e\n" +
 		influx1("SET PASSWORD FOR "+InfluxDBUser+" = '"+Password+"'") + "\n" +
 		influx1("GRANT READ ON "+influxDatabase+" TO "+InfluxDBUser) + "\n"},
-	// dbimp's driver takes only the influxdb:// URL, and the DSN stays the
-	// http:// address that dbimp's tools read (D160, D165).
-	connectURL: true,
-	dsn:        influxHTTP(influxAdmin, Password),
-	url:        influxURL(influxAdmin, Password),
+	// dbimp's driver takes only the influxdb:// URL, so the DSN is that URL,
+	// and the api is the http:// address that dbimp's tools read (D167).
+	dsn: influxURL(influxAdmin, Password),
+	api: influxHTTP(influxAdmin, Password),
 	users: []Principal{{
 		Role: User, User: InfluxDBUser,
-		dsn: influxHTTP(InfluxDBUser, Password), url: influxURL(InfluxDBUser, Password),
+		dsn: influxURL(InfluxDBUser, Password), api: influxHTTP(InfluxDBUser, Password),
 	}},
 }
 
@@ -149,12 +148,11 @@ var influxdb2 = product{
 		" --token \"$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN\" > /dev/null"},
 	init: []string{"sh", "-c", influx2Setup},
 	// The same as InfluxDB 1 (D160, D165).
-	connectURL: true,
-	dsn:        influxHTTP(influxTokenName, InfluxDBToken),
-	url:        influxURL(influxTokenName, InfluxDBToken),
+	dsn: influxURL(influxTokenName, InfluxDBToken),
+	api: influxHTTP(influxTokenName, InfluxDBToken),
 	users: []Principal{{
 		Role: User, User: InfluxDBUser,
-		dsn: influxHTTP(InfluxDBUser, Password), url: influxURL(InfluxDBUser, Password),
+		dsn: influxURL(InfluxDBUser, Password), api: influxHTTP(InfluxDBUser, Password),
 	}},
 }
 

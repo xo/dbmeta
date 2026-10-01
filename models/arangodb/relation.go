@@ -22,6 +22,36 @@ const (
 )
 
 func registerRelations() {
+	// \dn. A database is the schema, and AQL reaches only the database of
+	// the connection, so this is that database alone (D168).
+	schemaFields := []dbmeta.Field{
+		{Name: "catalog", Desc: catalogDesc},
+		{Name: "name", Desc: "the database of the connection"},
+		{Name: "owner", Desc: "always empty: AQL does not read the users of a database"},
+		{Name: "comment", Desc: "always absent: a database carries no comment"},
+	}
+	scanSchema := func(rows *sql.Rows) (dbmeta.Schema, error) {
+		var v dbmeta.Schema
+		err := rows.Scan(&v.Catalog, &v.Name, &v.Owner, &v.Comment)
+		return v, err
+	}
+	dbmeta.Schemas.Register(dbmeta.ArangoDB, &dbmeta.Binding[dbmeta.Schema]{
+		Stmt: dbmeta.Stmt{
+			always(`FILTER ` + noSchema),
+			always(`RETURN {catalog: '', name: CURRENT_DATABASE(), owner: '', comment: null}`),
+		},
+		Fields: schemaFields,
+		Params: []dbmeta.Param{schemaParam},
+		Scan:   scanSchema,
+	})
+	dbmeta.CurrentSchema.Register(dbmeta.ArangoDB, &dbmeta.Binding[dbmeta.Schema]{
+		Stmt: dbmeta.Stmt{
+			always(`RETURN {catalog: '', name: CURRENT_DATABASE(), owner: '', comment: null}`),
+		},
+		Fields: schemaFields,
+		Scan:   scanSchema,
+	})
+
 	// \dt. COLLECTIONS() names every collection of the database, the
 	// system ones among them, and nothing else: it has no type, and no
 	// view, because an ArangoSearch view is not a collection.
@@ -33,7 +63,7 @@ func registerRelations() {
 			always(`FILTER ` + like(`c.name`, `@name`)),
 			always(`FILTER (@types == '' OR 'collection' IN SPLIT(@types, ','))`),
 			always(`SORT c.name`),
-			always(`RETURN {catalog: CURRENT_DATABASE(), schema: '', name: c.name, type: 'collection', comment: null}`),
+			always(`RETURN {catalog: '', schema: CURRENT_DATABASE(), name: c.name, type: 'collection', comment: null}`),
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog", Desc: catalogDesc},
@@ -77,7 +107,7 @@ func registerRelations() {
 			always(`LET p = ps[i]`),
 			always(`FILTER ` + like(`p[0]`, `@name`)),
 			always(`SORT c.name, i`),
-			always(`RETURN {catalog: CURRENT_DATABASE(), schema: '', table: c.name, name: p[0], ordinal: i + 1,`),
+			always(`RETURN {catalog: '', schema: CURRENT_DATABASE(), table: c.name, name: p[0], ordinal: i + 1,`),
 			always(` data_type: IS_STRING(` + propType + `) ? ` + propType + ` : (IS_ARRAY(` + propType + `) ? CONCAT_SEPARATOR(', ', ` + propType + `) : ''),`),
 			always(` nullable: NOT (p[0] IN s.rule.required) OR ` + propNulls + `,`),
 			always(` default: null, primary_key: p[0] == '_key', identity: null, generated: null, comment: null, collation: null}`),
@@ -135,7 +165,7 @@ func registerRelations() {
 			always(`LET s = SCHEMA_GET(c.name)`),
 			always(`FILTER s != null`),
 			always(`SORT c.name`),
-			always(`RETURN {schema: '', table: c.name, name: '', type: 'check',`),
+			always(`RETURN {schema: CURRENT_DATABASE(), table: c.name, name: '', type: 'check',`),
 			always(` definition: JSON_STRINGIFY(s), deferrable: false, deferred: false, comment: null}`),
 		},
 		Fields: []dbmeta.Field{

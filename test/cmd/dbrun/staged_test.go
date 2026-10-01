@@ -1,8 +1,10 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
 )
 
@@ -21,39 +23,47 @@ func TestEveryStagedTargetHasACadence(t *testing.T) {
 	}
 }
 
-// TestAServerConnectsWithItsURLWhenItSaysSo holds D160. The tests and dbrun
-// version connect to libSQL with the libsql:// URL, which is the only form
-// dbimp's driver takes, and dsn prints the http:// address as before, which
-// dbimp's recorder reads (D153).
-func TestAServerConnectsWithItsURLWhenItSaysSo(t *testing.T) {
-	var found bool
+// TestTheDSNIsWhatTheDriverTakes holds D167. Every command and test connects
+// with the DSN. A product whose driver takes another form than its HTTP
+// address has that form as its DSN, and gives the HTTP address, which
+// dbimp's tools read, as its API. A server whose DSN is an HTTP address
+// gives that as its API.
+func TestTheDSNIsWhatTheDriverTakes(t *testing.T) {
+	ownAPI := map[string]bool{
+		"libsql": true, "neo4j": true, "arangodb": true, "surrealdb": true,
+	}
+	var found int
 	for _, x := range targets() {
 		if x.Kind != kindContainer {
 			continue
 		}
-		want := x.DSN
-		if x.connectURL {
-			want = x.URL
+		if got := x.connectDSN(); got != x.DSN {
+			t.Errorf("%s connects with %q, and the expected string is its DSN %q", x.Name, got, x.DSN)
 		}
-		if got := x.connectDSN(); got != want {
-			t.Errorf("%s connects with %q, and the expected string is %q", x.Name, got, want)
+		http := strings.HasPrefix(x.DSN, "http://") || strings.HasPrefix(x.DSN, "https://")
+		if http && x.API != x.DSN {
+			t.Errorf("%s: the API is %q, and the expected value is the DSN %q", x.Name, x.API, x.DSN)
 		}
-		if x.Product != "libsql" {
+		// InfluxDB 3 is the same product and takes its URL as its DSN.
+		own := ownAPI[x.Product] || x.Product == "influxdb" && x.Dialect == dbmeta.InfluxQL
+		if !own {
 			continue
 		}
-		found = true
-		if !x.connectURL {
-			t.Errorf("%s does not connect with its URL", x.Name)
+		found++
+		if http {
+			t.Errorf("%s: the DSN is the HTTP address %q, and the driver takes another form", x.Name, x.DSN)
 		}
-		if env := x.env()[0]; env != x.Env+"="+x.URL {
-			t.Errorf("%s: the test variable is %q, and the expected value is the URL", x.Name, env)
+		if len(x.Principals) < 2 {
+			t.Errorf("%s names %d principals, and the expected number is at least two", x.Name, len(x.Principals))
 		}
-		if x.DSN == x.URL {
-			t.Errorf("%s: the DSN is the URL, %q, and dbimp's recorder reads the http:// address", x.Name, x.DSN)
+		for _, p := range x.Principals {
+			if !strings.HasPrefix(p.API, "http://") {
+				t.Errorf("%s: the %s has the API %q, and the expected value is an http:// address", x.Name, p.Role, p.API)
+			}
 		}
 	}
-	if !found {
-		t.Error("expected a libSQL server")
+	if found == 0 {
+		t.Error("expected servers that give an API of their own")
 	}
 }
 

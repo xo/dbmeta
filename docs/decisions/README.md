@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-56 of them amend or replace an earlier one, and a decision read without its
+58 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -178,10 +178,12 @@ file.
 | [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154, amended by D166 |
 | [D158](D158-h2-and-voltdb-wait.md) | H2 and VoltDB wait | Decided |
 | [D159](D159-influxql-can-walk-show-statements.md) | InfluxQL can walk SHOW statements | Amends D146 |
-| [D160](D160-libsql-shares-the-sqlite3-model.md) | libSQL shares the sqlite3 model | Amends D153 |
+| [D160](D160-libsql-shares-the-sqlite3-model.md) | libSQL shares the sqlite3 model | Amends D153, amended by D167 |
 | [D162](D162-neo4j-maps-a-database-to-a-schema-and-a-label-to-a.md) | Neo4j maps a database to a schema and a label to a table | Decided |
 | [D161](D161-ydb-reads-its-sys-views-and-a-directory-is-a-schema.md) | YDB reads its .sys views, and a directory is a schema | Amends D45 |
-| [D163](D163-arangodb-maps-a-collection-onto-a-table.md) | ArangoDB maps a collection onto a table | Proposed |
+| [D163](D163-arangodb-maps-a-collection-onto-a-table.md) | ArangoDB maps a collection onto a table | Amended by D168 |
 | [D165](D165-influxql-maps-a-database-to-a-schema-and-a.md) | InfluxQL maps a database to a schema and a measurement to a table | Decided |
-| [D164](D164-surrealdb-maps-a-namespace-to-a-catalog-and-a-field-to-a.md) | SurrealDB maps a namespace to a catalog and a defined field to a column | Decided |
+| [D164](D164-surrealdb-maps-a-namespace-to-a-catalog-and-a-field-to-a.md) | SurrealDB maps a namespace to a catalog and a defined field to a column | Amended by D168 |
 | [D166](D166-oracle-19c-pinot-and-the-influxdb-release-wait.md) | Oracle 19c, Pinot and the InfluxDB release wait | Amends D157 |
+| [D167](D167-the-dsn-is-what-sql-open-takes-and-api-is-the-http-address.md) | The DSN is what sql.Open takes, and api is the HTTP address | Amends D160 |
+| [D168](D168-ken-reviews-the-six-dialects-of-2026-10-01.md) | Ken reviews the six dialects of 2026-10-01 | Amends D163 and D164 |

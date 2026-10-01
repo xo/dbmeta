@@ -7,30 +7,28 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-On 2026-10-02 `main` and `origin/main` are at 3a0ff0f, and CI passes on it.
+On 2026-10-02 `main` and `origin/main` are at 724e64e, and CI passed on
+3a0ff0f, the commit before it.
 
 Staged and not committed:
 
-- D166, which records three choices Ken made on 2026-10-02. Oracle 19c is not
-  measured further. Apache Pinot gets no model for now. usql reads the
-  InfluxDB release from `GET /ping`.
-- The backlog drops the item for the memory of Oracle 19c, and its Pinot item
-  becomes one item for a generic SQL layer, which is not a priority.
-- The decision counts for D166.
-- This file.
+- D167. The DSN is what `sql.Open` takes. `container.Server.ConnectURL` is
+  gone. The DSN of libSQL, Neo4j, ArangoDB, SurrealDB and InfluxDB 1 and 2 is
+  now their URL, and a new `api` field, on the server and on each principal,
+  holds the `http://` address that dbimp's tools read. dbimp agreed to the
+  name and changes its docs/DRIVER.md when this lands.
+- D168, Ken's review of the six dialects of 2026-10-01. ArangoDB makes a
+  database the schema and answers 7 kinds. SurrealDB's Schemas lists only the
+  database of the connection.
+- Measured live on 2026-10-02: neo4j-2026.09.0, arangodb-3.12.12 and
+  surrealdb-3.3.0 pass. The parity and conformance files were recorded again
+  for ArangoDB, which only sorted their sections.
 
-## Waiting for Ken
+- DuckDB's Syntax sets DollarQuotes, at usql's request. DuckDB 1.5.5 reads
+  `$$x;y$$` and `$tag$a;b$tag$` as strings, measured on 2026-10-02.
 
-- Review the mappings in D160 to D165. The six new dialects place a database
-  in different ways. Neo4j and InfluxQL make a database the schema. SurrealDB
-  makes its namespace the catalog and a database the schema. ArangoDB makes a
-  database the catalog, with no schema level.
-- D163 counts the JSON schema rule of an ArangoDB collection as a check
-  constraint. If Ken calls that a stretch, ArangoDB answers 4 kinds, not 5.
+## Waiting
 
-## Done in this session
+- Nothing waits for Ken.
+- When this is pushed, send dbimp the commit hash for the `api` field.
 
-- The usql session knows that Ken chose `GET /ping` for the InfluxDB release
-  (D166). usql now lets a driver's own version hook win over dbmeta's version
-  for its banner, so `influxdb://` shows the release from `GET /ping` again.
-  That change is in usql, not committed.

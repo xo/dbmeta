@@ -170,14 +170,14 @@ views the same rows with different values
 
 [hive/same/other]
 
-[libsql/same/user]
-
 [influxql/same/user]
 
 [influxql@1/same/user]
 privileges refused: running SHOW USERS: influxdb: status 403: error authorizing query: dbmeta_user not authorized to execute statement 'SHOW USERS', requires admin privilege
 roles refused: running SHOW USERS: influxdb: status 403: error authorizing query: dbmeta_user not authorized to execute statement 'SHOW USERS', requires admin privilege
 settings refused: running SHOW DIAGNOSTICS: influxdb: status 403: error authorizing query: dbmeta_user not authorized to execute statement 'SHOW DIAGNOSTICS', requires admin privilege
+
+[libsql/same/user]
 
 [mariadb/same/grantee]
 aggregates refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`proc`

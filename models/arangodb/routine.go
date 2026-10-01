@@ -19,7 +19,7 @@ func registerRoutines() {
 			always(`FILTER ` + noSchema),
 			always(`FILTER ` + like(`f.name`, `@name`)),
 			always(`SORT f.name`),
-			always(`RETURN {catalog: CURRENT_DATABASE(), schema: '', name: f.name, id: null, kind: 'func',`),
+			always(`RETURN {catalog: '', schema: CURRENT_DATABASE(), name: f.name, id: null, kind: 'func',`),
 			always(` result_type: null, arg_types: null,`),
 			always(` volatility: f.isDeterministic == true ? 'immutable' : 'volatile',`),
 			always(` parallel: '', owner: null, security: '', access: null, language: 'javascript',`),

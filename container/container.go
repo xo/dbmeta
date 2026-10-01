@@ -244,21 +244,15 @@ type Server struct {
 	// value containing a space is one argument here and stays one, because
 	// nothing joins them.
 	Args []string
-	// ConnectURL says that the driver dburl names takes the URL and not the
-	// DSN, so that dbrun connects with [Server.URL] and gives it to the tests.
-	// The DSN stays what other projects read from dbrun. libSQL, Neo4j,
-	// ArangoDB, SurrealDB and InfluxDB 1 and 2 are the cases: the DSN of each
-	// is the http:// address that dbimp's tools read, and dbimp's drivers
-	// take only the URL. False for every other product. See D153, D160 and
-	// D162 to D165.
-	ConnectURL bool
-
 	// users are the ordinary users the setup creates, which
 	// [Server.Principals] lists after the administrator.
 	users []Principal
 
 	// dsn builds a connection string for a port on the host.
 	dsn func(port int) string
+	// api is the address of the product's HTTP API, where that is not the
+	// DSN. See [Server.API].
+	api func(port int) string
 	// url is the dburl style URL a person types, where that differs from the
 	// DSN the driver takes. Nil means they are the same string.
 	//
@@ -385,11 +379,33 @@ func (s Server) Name() string {
 // inside the container when more than one server runs at a time.
 func (s Server) DSN(port int) string { return s.dsn(port) }
 
+// API returns the address of the server's HTTP API on this port, with the
+// administrator's credentials, and is empty for a server that has none.
+// dbimp's tools, which speak HTTP, read it.
+//
+// A server whose DSN is an http:// or https:// address gives the DSN. A
+// server whose driver takes another form sets its own, and its DSN is that
+// form: libSQL, Neo4j, ArangoDB, SurrealDB and InfluxDB 1 and 2 do. See D167.
+func (s Server) API(port int) string {
+	return apiOf(s.api, s.dsn, port)
+}
+
+// apiOf is the address of an HTTP API: api where it is set, and otherwise
+// the DSN where that is an HTTP address.
+func apiOf(api, dsn func(int) string, port int) string {
+	if api != nil {
+		return api(port)
+	}
+	if d := dsn(port); strings.HasPrefix(d, "http://") || strings.HasPrefix(d, "https://") {
+		return d
+	}
+	return ""
+}
+
 // URL returns the dburl style URL for the server on this port, which is what
 // usql takes. For most products it is the DSN, because the driver takes a URL
 // too. A product sets its own where the two differ: MySQL's driver takes a
-// form that is not a URL at all, and libSQL's DSN is the http:// address that
-// dbimp's recorder takes, among others.
+// form that is not a URL at all.
 func (s Server) URL(port int) string {
 	if s.url != nil {
 		return s.url(port)
@@ -478,9 +494,9 @@ type product struct {
 	license   string
 	startup   time.Duration
 	settle    time.Duration
-	// connectURL is [Server.ConnectURL].
-	connectURL bool
-	dsn        func(port int) string
+	dsn       func(port int) string
+	// api is the address of the HTTP API. See [Server.API].
+	api func(port int) string
 	// url is the dburl style URL, where it differs from the DSN. See
 	// [Server.URL].
 	url func(port int) string
@@ -533,8 +549,8 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			License:    p.license,
 			Startup:    p.startup,
 			Settle:     p.settle,
-			ConnectURL: p.connectURL,
 			dsn:        p.dsn,
+			api:        p.api,
 			url:        p.url,
 			users:      p.users,
 		})

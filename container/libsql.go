@@ -76,23 +76,21 @@ var libsql = product{
 exec 3<>/dev/tcp/127.0.0.1/8080 &&
 printf 'POST /v2/pipeline HTTP/1.0\r\nHost: 127.0.0.1\r\nAuthorization: Bearer ` + LibSQLAdminToken + `\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s' ${#b} "$b" >&3 &&
 grep -q '"type":"ok"' <&3`},
-	// dbimp's driver takes only the libsql:// URL, and the DSN stays the
-	// http:// address for dbimp's recorder (D153, D160).
-	connectURL: true,
-	dsn:        keyHTTP(libsqlAdmin, LibSQLAdminToken),
-	url:        libsqlURL(libsqlAdmin, LibSQLAdminToken),
+	// dbimp's driver takes only the libsql:// URL, so the DSN is that URL,
+	// and the api is the http:// address that dbimp's tools read (D167).
+	dsn: libsqlURL(libsqlAdmin, LibSQLAdminToken),
+	api: keyHTTP(libsqlAdmin, LibSQLAdminToken),
 	users: []Principal{{
 		Role: User, User: LibSQLUser,
-		dsn: keyHTTP(LibSQLUser, LibSQLUserToken),
-		url: libsqlURL(LibSQLUser, LibSQLUserToken),
+		dsn: libsqlURL(LibSQLUser, LibSQLUserToken),
+		api: keyHTTP(LibSQLUser, LibSQLUserToken),
 	}},
 }
 
 // libsqlURL is the address in the form dbimp's libSQL driver takes (dbimp
 // D148). TLS is on by default for a libsql:// URL, so the local server needs
 // tls=false, and with it the URL names a port. The token is the password,
-// which the driver sends as Bearer. The dsn stays http:// for dbimp's
-// recorder.
+// which the driver sends as Bearer. The api is the http:// address (D167).
 func libsqlURL(user, token string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{

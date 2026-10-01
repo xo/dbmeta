@@ -196,6 +196,9 @@ it. The `dsn` stays the plain `http://` address, so what dbimp's tools read
 from `dbrun dsn` does not change. The tests add `sqlmode=disable` to the URL,
 as dburl's influxql scheme does, so that InfluxDB 3 speaks InfluxQL too.
 
+D167 later removed the flag. The DSN of the entry is now the URL that the
+driver takes, and the `http://` address is its `api`.
+
 ## Walks in the parity test
 
 `TestPrivilegeParity` asked each query with its one statement, and a walk has

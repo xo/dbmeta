@@ -1,6 +1,6 @@
 # D160. libSQL shares the sqlite3 model
 
-Status: Amends D153.
+Status: Amends D153, amended by D167.
 
 ## The decision
 
@@ -67,6 +67,9 @@ Avatica entries have an `http://` dsn for the same reason (D155), and they
 can set the field when a model reads them. The coordinator chose this on
 2026-10-01 over making the dsn the url, as D151 did for rqlite. That
 changes what dbimp's recorder reads.
+
+D167 later removed the flag. The DSN of the entry is now the URL that the
+driver takes, and the `http://` address is its `api`.
 
 ## What was measured
 

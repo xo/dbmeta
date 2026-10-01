@@ -1,6 +1,6 @@
 # D163. ArangoDB maps a collection onto a table
 
-Status: Proposed.
+Status: Amended by D168.
 
 ## The decision
 
@@ -11,6 +11,9 @@ release 3.12.12 takes the cadence it recorded while it was Staged, which is
 Tested (D120). dbimp's driver takes only the `arangodb://` form, so the
 entry sets `connectURL` (D160), and dbrun gives the tests the url. The dsn
 stays the `http://` address for the administrator and for `dbmeta_user`.
+
+D167 later removed the flag. The DSN of the entry is now the URL that the
+driver takes, and the `http://` address is its `api`.
 
 ArangoDB has no relational catalog. This decision proposes how its objects
 map onto the kinds of dbmeta, and Ken reviews it. Each part was measured on

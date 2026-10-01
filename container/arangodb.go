@@ -75,14 +75,13 @@ var arangodb = product{
 if (!db._databases().includes("` + arangoDatabase + `")) { db._createDatabase("` + arangoDatabase + `"); }
 if (u.exists("` + ArangoDBUser + `")) { u.update("` + ArangoDBUser + `", "` + Password + `"); } else { u.save("` + ArangoDBUser + `", "` + Password + `"); }
 u.grantDatabase("` + ArangoDBUser + `", "` + arangoDatabase + `", "rw");`),
-	// dbimp's driver takes only the arangodb:// URL, and the DSN stays the
-	// http:// address of the HTTP API (D112, D163).
-	connectURL: true,
-	dsn:        arangoHTTP("root"),
-	url:        arangoURL("root"),
+	// dbimp's driver takes only the arangodb:// URL, so the DSN is that URL,
+	// and the api is the http:// address that dbimp's tools read (D167).
+	dsn: arangoURL("root"),
+	api: arangoHTTP("root"),
 	users: []Principal{{
 		Role: User, User: ArangoDBUser,
-		dsn: arangoHTTP(ArangoDBUser), url: arangoURL(ArangoDBUser),
+		dsn: arangoURL(ArangoDBUser), api: arangoHTTP(ArangoDBUser),
 	}},
 }
 

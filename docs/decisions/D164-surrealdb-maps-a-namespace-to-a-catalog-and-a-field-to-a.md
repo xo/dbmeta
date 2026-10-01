@@ -1,6 +1,6 @@
 # D164. SurrealDB maps a namespace to a catalog and a defined field to a column
 
-Status: Decided.
+Status: Amended by D168.
 
 ## The decision
 
@@ -223,6 +223,9 @@ dbimp's driver takes only the `surrealdb://` URL. The entry sets
 `connectURL`, which D160 added for libSQL, so dbrun gives the tests the `url`
 and connects `dbrun version` with it. The `dsn` stays the plain `http://`
 address, as D109 says. Each principal keeps its `url`, which dbimp's CI reads.
+
+D167 later removed the flag. The DSN of the entry is now the URL that the
+driver takes, and the `http://` address is its `api`.
 
 The four releases move from Staged to the cadence each recorded (D120):
 2.7.0 and 3.3.0 to Tested, and 3.1.6 and 3.2.4 to Nightly.
