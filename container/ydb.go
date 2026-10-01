@@ -59,7 +59,12 @@ var ydb = product{
 	image:   "docker.io/ydbplatform/local-ydb",
 	port:    2136,
 	env:     map[string]string{"GRPC_PORT": "2136"},
-	ready:   []string{"bash", "-c", ydbAnonymous + " sql -s 'SELECT 1'"},
+	// The server answers SELECT 1 before the deploy script has made the
+	// storage pools, and a table cannot be made until it has. A slow CI runner
+	// made the fixture fail in that gap, with "database doesn't have storage
+	// pools at all". So the server is ready when it lists a storage pool.
+	ready: []string{"bash", "-c", ydbAnonymous +
+		" sql -s 'SELECT COUNT(*) FROM `.sys/ds_storage_pools`' --format csv | grep -q '[1-9]'"},
 	init: []string{"bash", "-c", `set -e
 ` + ydbCLI + ` sql -s 'SELECT 1' >/dev/null 2>&1 || ` + ydbAnonymous + ` sql -s "ALTER USER root PASSWORD '` + Password + `'"
 ` + ydbCLI + ` sql -s "CREATE USER ` + YDBUser + ` PASSWORD '` + Password + `'" 2>/dev/null ||
