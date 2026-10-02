@@ -7,21 +7,21 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-On 2026-10-02 `main` and `origin/main` are at f8a6338, and CI passed on it.
+On 2026-10-02 dbmeta has its first release, v0.1.0, tagged on the commit
+that holds this text. Ken chose v0.1.0, and chose that CI stands in for the
+run of every tier before this release: the Tested tier passed on 380e597,
+and the Nightly tier passed on 3a0ff0f. The Verified tier was not run again
+for it.
 
-That commit holds D167, which makes the DSN what `sql.Open` takes and adds
-the `api` field, D168, which is Ken's review of the six dialects of
-2026-10-01, and DuckDB's DollarQuotes. dbimp has the commit hash and changes
-its docs/DRIVER.md to read `api`.
+The last three commits:
 
-Staged and not committed:
-
-- D169. `Query.Each` takes an `Args` and passes only what the query takes,
-  `Args` gains `AccessMethod`, `Server` and `Database`, `Dialect.Pattern`
-  turns a psql pattern into a schema pattern and a name pattern, and
-  `dbmeta.Open` reads the version and calls `New`. usql asked for all three
-  so that its metadata layer stays thin.
-- `dbrun start` prints the URL that usql takes after the test variable.
+- 380e597 holds D169, which adds `Query.Each`, `Dialect.Pattern` and
+  `dbmeta.Open` for usql, and makes `dbrun start` print the URL that usql
+  takes. usql has the hash and builds on it.
+- f8a6338 holds D167, which makes the DSN what `sql.Open` takes and adds the
+  `api` field, D168, which is Ken's review of the six dialects of
+  2026-10-01, and DuckDB's DollarQuotes. dbimp has the hash.
+- 724e64e holds D166: Oracle 19c, Pinot and the InfluxDB release wait.
 
 ## Waiting
 
