@@ -95,7 +95,13 @@ var influxdb1 = product{
 		// The usage report that goes to the vendor.
 		"INFLUXDB_REPORTING_DISABLED": "true",
 	},
-	ready: []string{"sh", "-c", influx1("SHOW DATABASES")},
+	// The image first starts a temporary server with authentication off,
+	// bound to 127.0.0.1 inside the container, makes the users, and then
+	// restarts as the real server. A check with credentials passes on both,
+	// and a nightly run on 2026-10-06 connected from the host in the gap, and
+	// the connection was reset. The real server alone refuses a query with no
+	// credentials, so the check needs that refusal as well.
+	ready: []string{"sh", "-c", influx1("SHOW DATABASES") + " >/dev/null && ! influx -execute 'SHOW DATABASES' >/dev/null 2>&1"},
 	init: []string{"sh", "-c", "set -e\n" +
 		influx1("SET PASSWORD FOR "+InfluxDBUser+" = '"+Password+"'") + "\n" +
 		influx1("GRANT READ ON "+influxDatabase+" TO "+InfluxDBUser) + "\n"},
