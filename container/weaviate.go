@@ -11,8 +11,8 @@ package container
 //
 // docker.io/semitechnologies/weaviate builds each release tag once, and an
 // older line still gets new releases, so the rule in D112 applies: the newest
-// release of each of the last two lines. Checked on 2026-09-28, that is
-// 1.39.7, of 2026-09-25, and 1.38.17, of 2026-09-22. A tag with a commit hash
+// release of each of the last two lines. Checked on 2026-10-07, that is
+// 1.40.0 and 1.39.10. A tag with a commit hash
 // in it is a preview build. Weaviate is under the BSD 3-Clause license.
 //
 // # Keys, not passwords
@@ -72,4 +72,4 @@ var weaviate = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Weaviate = list{}.staged(weaviate, Tested, "1.38.17", "1.39.7")
+var Weaviate = list{}.staged(weaviate, Tested, "1.39.10", "1.40.0")

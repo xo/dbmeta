@@ -71,22 +71,13 @@ Neo4j's is the newest monthly release (D106, D112). When a newer release is
 published, replace it in the file in `container/` and in the row in
 `EVALUATION.md`.
 
-### Answer Triggers on InfluxDB 3
-
-A processing engine trigger whose specification is `table:<name>` runs on
-each write to that table, and `system.processing_engine_triggers` lists it
-(D152). The influxdb entry configures no plugin directory, and the server
-refuses a trigger with HTTP 400 without one. Give the entry a plugin
-directory and a plugin that does nothing, make a trigger in its setup, and
-measure whether the model can answer Triggers from the view.
-
 ### Build the Apache Druid model
 
 Ken asked for a Druid dialect on 2026-10-01 and chose to wait. He then
 decided that Druid gets a driver of its own in dbimp, on Druid's SQL API,
 which registers the name druid (dbimp D154). So the dialect will be druid.
 dburl has no druid scheme yet, and the driver comes later in dbimp's order.
-When both exist, build the model. dbrun starts Druid 36.0.0 and 37.0.0
+When both exist, build the model. dbrun starts Druid 37.0.0 and 38.0.0
 already (D113).
 
 ### Consider a SQL layer for what a product does not answer

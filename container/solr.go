@@ -108,8 +108,9 @@ var solr = product{
 		" [ \"$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8983/solr/admin/collections?action=LIST')\" = 401 ]"},
 	init: []string{"sh", "-c", solrCurl + "'http://127.0.0.1:8983/solr/admin/collections?action=LIST' | grep -q '\"dbmeta\"' || " +
 		solrCurl + "-o /dev/null 'http://127.0.0.1:8983/solr/admin/collections?action=CREATE&name=dbmeta&numShards=1&collection.configName=_default'"},
-	dsn:   keyHTTP("admin", Password),
-	users: []Principal{{Role: User, User: SolrUser, dsn: keyHTTP(SolrUser, Password)}},
+	dsn:   keyURL("solr", "admin"),
+	api:   keyHTTP("admin", Password),
+	users: []Principal{{Role: User, User: SolrUser, dsn: keyURL("solr", SolrUser), api: keyHTTP(SolrUser, Password)}},
 }
 
 // Solr is every Apache Solr release dbrun starts.

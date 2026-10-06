@@ -17,7 +17,7 @@ import (
 //
 // docker.io/getmeili/meilisearch builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is v1.54.0, of 2026-09-21, and v1.53.2, of 2026-09-07. A
+// 2026-10-07, that is v1.54.3 and v1.53.3. A
 // minor release arrives about every two weeks, so the range goes stale fast.
 // The community edition is under the MIT license.
 //
@@ -84,4 +84,4 @@ var meilisearch = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Meilisearch = list{}.staged(meilisearch, Tested, "1.53.2", "1.54.0")
+var Meilisearch = list{}.staged(meilisearch, Tested, "1.53.3", "1.54.3")

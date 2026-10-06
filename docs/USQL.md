@@ -180,7 +180,7 @@ reading code.
 | SQLite | 10/11 | 4/5 | `\dp`, and the sequence section |
 | rqlite | 10/11 | 4/5 | the same as SQLite, whose statements it shares (D148) |
 | libSQL | 10/11 | 4/5 | the same as SQLite, whose statements it shares (D160) |
-| InfluxDB 3 | 8/11 | 0/5 | `\l`, because a query names its database and no SQL lists them, `\di`, because InfluxDB 3 has no index, and `\dp`, because Core has one token. Every section: no key, constraint, trigger or sequence (D152) |
+| InfluxDB 3 | 8/11 | 0/5 | `\l`, because a query names its database and no SQL lists them, `\di`, because InfluxDB 3 has no index, and `\dp`, because Core has one token. Every section but triggers: no key, constraint or sequence (D152, D170) |
 | Neo4j | 11/11 | 3/5 | the trigger and sequence sections: Neo4j has neither. `\d NAME` also needs Columns to print anything, and a label has no column catalog, so it prints nothing. On 5.26 `\df` and `\da` lose the procedures, and the index column and constraint column sections need 2026.05 (D162) |
 | YDB | 8/11 | 0/5 | `\di`, `\df` and `\da`, and every section: the columns, indexes and keys of a table are in its schema, which only a gRPC call per table reads, and YQL has no function list. `\d NAME` also needs Columns to print anything. Every command answers only for an administrator (D161) |
 | ArangoDB | 8/11 | 1/5 | `\l`, `\di` and `\dp`: AQL lists no database, index or user. `\dn` lists the database of the connection, which is the schema (D168). A collection's columns are the properties of its schema rule, so `\d NAME` prints nothing for a collection with no rule. Every section but constraints, because a rule is a check with no columns behind it (D163) |

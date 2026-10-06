@@ -22,9 +22,10 @@ import (
 // docs/EVALUATION.md applies. Checked on 2026-09-28, 1.13.1, 1.11.8, 2.9.1 and
 // 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.11.5,
 // 3.10.6 and 3.9.13 between 2026-09-16 and 2026-09-18. Ken chose the releases
-// in dbimp's D79.
+// in dbimp's D79. On 2026-10-07 3.12.0 had arrived, so the InfluxDB 3 window
+// moved up one line to 3.10.6, 3.11.6 and 3.12.0.
 //
-// The InfluxDB 3 tag is the release with -core, such as 3.11.5-core. InfluxDB 3
+// The InfluxDB 3 tag is the release with -core, such as 3.12.0-core. InfluxDB 3
 // Enterprise is not here: its free license and its trial both need a person to
 // follow a link in an email before the server starts.
 //
@@ -172,9 +173,22 @@ var influxdb2 = product{
 // telemetry upload goes to the vendor, and it is off.
 const influxServe = `printf '{"token":"%s","name":"` + influxTokenName + `"}' "$INFLUXDB_TOKEN" > /home/influxdb3/admin.json &&
 chmod 600 /home/influxdb3/admin.json &&
+mkdir -p /home/influxdb3/plugins &&
 exec influxdb3 serve --node-id dbmeta --object-store file --data-dir /home/influxdb3/.influxdb3 \
 	--admin-token-file /home/influxdb3/admin.json --disable-telemetry-upload \
+	--plugin-dir /home/influxdb3/plugins \
 	--exec-mem-pool-bytes 536870912 --parquet-mem-cache-size 268435456`
+
+// The request that makes the trigger carries trigger_settings, which 3.11
+// requires and 3.12 does not.
+
+// InfluxDBTrigger is the name of the processing engine trigger that the setup
+// of InfluxDB 3 makes, on the table author. Its plugin does nothing. The
+// trigger is here so that the model has one to read (D170).
+const InfluxDBTrigger = "dbmeta_noop"
+
+// influxPlugin is the file in the plugin directory that the trigger runs.
+const influxPlugin = "dbmeta_noop.py"
 
 // influxdb is the InfluxDB 3 Core image.
 var influxdb = product{
@@ -191,7 +205,13 @@ var influxdb = product{
 	init: []string{"sh", "-c", `code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
 	-H "Authorization: Bearer $INFLUXDB_TOKEN" -H 'Content-Type: application/json' \
 	-d '{"db":"` + influxDatabase + `"}' http://127.0.0.1:8181/api/v3/configure/database)
-[ "$code" = 200 ] || [ "$code" = 409 ] || { echo "creating the database answered $code"; exit 1; }`},
+[ "$code" = 200 ] || [ "$code" = 409 ] || { echo "creating the database answered $code"; exit 1; }
+printf 'def process_writes(influxdb3_local, table_batches, args=None):\n    pass\n' > /home/influxdb3/plugins/` + influxPlugin + `
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+	-H "Authorization: Bearer $INFLUXDB_TOKEN" -H 'Content-Type: application/json' \
+	-d '{"db":"` + influxDatabase + `","plugin_filename":"` + influxPlugin + `","trigger_name":"` + InfluxDBTrigger + `","trigger_specification":"table:author","trigger_arguments":{},"disabled":false,"trigger_settings":{"run_async":false,"error_behavior":"log"}}' \
+	http://127.0.0.1:8181/api/v3/configure/processing_engine_trigger)
+[ "$code" = 200 ] || [ "$code" = 409 ] || { echo "creating the trigger answered $code"; exit 1; }`},
 	// models/influxdb reads it through dbimp's driver, which takes only the
 	// influxdb:// form, so the dsn is the url (D152).
 	dsn: influxURL(influxTokenName, InfluxDBToken),
@@ -235,5 +255,5 @@ var InfluxDB = list{}.add(influxdb1, Tested, "1.13.1").
 	add(influxdb1, Nightly, "1.11.8").
 	add(influxdb2, Tested, "2.9.1").
 	add(influxdb2, Nightly, "2.8.0").
-	add(influxdb, Tested, "3.9.13", "3.11.5").
-	add(influxdb, Nightly, "3.10.6")
+	add(influxdb, Tested, "3.10.6", "3.12.0").
+	add(influxdb, Nightly, "3.11.6")

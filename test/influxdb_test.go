@@ -9,6 +9,7 @@ import (
 	_ "github.com/xo/dbimp/influxdb"
 
 	"github.com/xo/dbmeta"
+	"github.com/xo/dbmeta/container"
 	_ "github.com/xo/dbmeta/models/influxdb"
 	ixfixture "github.com/xo/dbmeta/models/influxdb/fixture"
 )
@@ -81,6 +82,36 @@ func TestInfluxDBVersion(t *testing.T) {
 func TestInfluxDBScansEveryQuery(t *testing.T) {
 	db := openInfluxDB(t)
 	scanEveryQuery(t, setupInfluxDB(t, db), db)
+}
+
+// TestInfluxDBTriggers reads the trigger that the setup of the entry makes,
+// a do nothing plugin that runs on each write to author (D170).
+func TestInfluxDBTriggers(t *testing.T) {
+	db := openInfluxDB(t)
+	m := setupInfluxDB(t, db)
+	var got []dbmeta.Trigger
+	for v, err := range dbmeta.Triggers.All(t.Context(), m, db, nil) {
+		if err != nil {
+			t.Fatalf("reading triggers: %v", err)
+		}
+		got = append(got, v)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected the one trigger the setup makes, got %+v", got)
+	}
+	v := got[0]
+	if v.Schema != "iox" || v.Table != "author" || v.Name != container.InfluxDBTrigger || v.Enabled != "enabled" {
+		t.Errorf("expected enabled %s on iox.author, got %+v", container.InfluxDBTrigger, v)
+	}
+	if !strings.Contains(v.Definition, "single_table_wal_write") || v.Comment.Valid {
+		t.Errorf("expected the specification as the definition and no comment, got %+v", v)
+	}
+	// A pattern for another table and one for another trigger find nothing.
+	for _, args := range []dbmeta.Args{{Parent: "book"}, {Name: "other%"}, {Schema: "system"}} {
+		if _, ok, err := dbmeta.First(dbmeta.Triggers.All(t.Context(), m, db, args.Map())); err != nil || ok {
+			t.Errorf("%+v: expected no trigger, got %v, %v", args, ok, err)
+		}
+	}
 }
 
 // TestInfluxDBFixtureObjects reads the fixture's measurements and a function

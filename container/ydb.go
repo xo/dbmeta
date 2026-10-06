@@ -17,8 +17,8 @@ import (
 //
 // docker.io/ydbplatform/local-ydb builds each release tag once, and a tag
 // for a line does not follow its releases, so the rule in D112 applies: the
-// newest release of each of the last two lines. Checked on 2026-09-28, that
-// is 26.3.1.17, of 2026-09-21, and 26.2.1.14, of 2026-09-11. A tag that ends
+// newest release of each of the last two lines. Checked on 2026-10-07, that
+// is 26.3.1.19 and 26.2.1.14, of 2026-09-11. A tag that ends
 // in .ent, -rc or .hotfix is left out. YDB is under the Apache 2.0 license.
 //
 // # The users
@@ -89,4 +89,4 @@ func ydbURL(scheme, user string) func(port int) string {
 //
 // Both are Tested, which is the cadence each recorded while it was Staged.
 // See D119 and D120.
-var YDB = list{}.add(ydb, Tested, "26.2.1.14", "26.3.1.17")
+var YDB = list{}.add(ydb, Tested, "26.2.1.14", "26.3.1.19")

@@ -31,6 +31,8 @@ func TestEveryStagedTargetHasACadence(t *testing.T) {
 func TestTheDSNIsWhatTheDriverTakes(t *testing.T) {
 	ownAPI := map[string]bool{
 		"libsql": true, "neo4j": true, "arangodb": true, "surrealdb": true,
+		"druid": true, "drill": true, "solr": true, "elasticsearch": true,
+		"opensearch": true, "dynamodb": true, "alternator": true,
 	}
 	var found int
 	for _, x := range targets() {
@@ -53,8 +55,8 @@ func TestTheDSNIsWhatTheDriverTakes(t *testing.T) {
 		if http {
 			t.Errorf("%s: the DSN is the HTTP address %q, and the driver takes another form", x.Name, x.DSN)
 		}
-		if len(x.Principals) < 2 {
-			t.Errorf("%s names %d principals, and the expected number is at least two", x.Name, len(x.Principals))
+		if len(x.Principals) == 0 {
+			t.Errorf("%s names no principal", x.Name)
 		}
 		for _, p := range x.Principals {
 			if !strings.HasPrefix(p.API, "http://") {

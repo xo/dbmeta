@@ -72,8 +72,9 @@ var drill = product{
 	args:     []string{"-c", drillServe},
 	ready: bashRequest(8047, "POST", "/query.json", `{"queryType":"SQL","query":"SELECT 1"}`,
 		map[string]string{"Authorization": adminBasic}, 200),
-	dsn:   keyHTTP("admin", Password),
-	users: []Principal{{Role: User, User: DrillUser, dsn: keyHTTP(DrillUser, Password)}},
+	dsn:   keyURL("drill", "admin"),
+	api:   keyHTTP("admin", Password),
+	users: []Principal{{Role: User, User: DrillUser, dsn: keyURL("drill", DrillUser), api: keyHTTP(DrillUser, Password)}},
 }
 
 // Drill is every Apache Drill release dbrun starts.

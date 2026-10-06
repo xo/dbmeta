@@ -20,9 +20,8 @@ import (
 //
 // docker.io/apache/druid builds each release tag once and never again, so the
 // rule in D112 applies: the newest release of each of the last two lines.
-// Checked on 2026-09-28, that is 37.0.0, released on 2026-05-06, and 36.0.0, on
-// 2026-02-06. 38.0.0-rc1 is a candidate and not a release. Druid is under the
-// Apache 2.0 license.
+// Checked on 2026-10-07, that is 38.0.0 and 37.0.0, which was released on
+// 2026-05-06. Druid is under the Apache 2.0 license.
 //
 // # One container
 //
@@ -113,8 +112,9 @@ var druid = product{
 			`[{"resource":{"name":".*","type":"DATASOURCE"},"action":"READ"}]`) + "\n" +
 		druidPost("authorization/db/basic/users/"+DruidUser+"/roles/dbmeta_role", "") + " || true\n"},
 	startup: 5 * time.Minute,
-	dsn:     druidHTTP("admin"),
-	users:   []Principal{{Role: User, User: DruidUser, dsn: druidHTTP(DruidUser)}},
+	dsn:     keyURL("druid", "admin"),
+	api:     druidHTTP("admin"),
+	users:   []Principal{{Role: User, User: DruidUser, dsn: keyURL("druid", DruidUser), api: druidHTTP(DruidUser)}},
 }
 
 // druidHTTP is the address of the Router, with one user's credentials.
@@ -134,4 +134,4 @@ func druidHTTP(user string) func(port int) string {
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Druid = list{}.staged(druid, Tested, "36.0.0", "37.0.0")
+var Druid = list{}.staged(druid, Tested, "37.0.0", "38.0.0")

@@ -16,7 +16,7 @@ import (
 //
 // docker.io/qdrant/qdrant builds each release tag once, so the rule in D112
 // applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is v1.19.1, of 2026-09-03, and v1.18.3, of 2026-07-17.
+// 2026-10-07, that is v1.19.2 and v1.18.3, of 2026-07-17.
 // Qdrant is under the Apache 2.0 license.
 //
 // # Keys, not users
@@ -77,9 +77,23 @@ func keyHTTP(user, key string) func(port int) string {
 	}
 }
 
+// keyURL is the address of a product whose driver is its own, as a URL with the
+// scheme of the driver, the user and [Password], at the port on the host. The
+// driver takes this as its DSN, and keyHTTP gives the api (D167).
+func keyURL(scheme, user string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: scheme,
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		}
+		return u.String()
+	}
+}
+
 // Qdrant is every Qdrant release dbrun starts.
 //
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Qdrant = list{}.staged(qdrant, Tested, "1.18.3", "1.19.1")
+var Qdrant = list{}.staged(qdrant, Tested, "1.18.3", "1.19.2")

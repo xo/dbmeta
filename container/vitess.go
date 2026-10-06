@@ -18,7 +18,7 @@ import (
 //
 // docker.io/vitess/vttestserver builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is v24.0.3 and v23.0.6, both of 2026-09-03. The tag names
+// 2026-10-07, that is v24.0.4 and v23.0.7. The tag names
 // the MySQL it runs, and the entry takes -mysql84. Vitess is under the Apache
 // 2.0 license.
 //
@@ -61,4 +61,4 @@ var vitess = product{
 
 // Vitess is every Vitess release dbmeta is tested against. Both are Tested,
 // which is the cadence they kept while they were Staged (D120).
-var Vitess = list{}.add(vitess, Tested, "23.0.6", "24.0.3")
+var Vitess = list{}.add(vitess, Tested, "23.0.7", "24.0.4")

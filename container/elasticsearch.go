@@ -52,8 +52,9 @@ var elasticsearch = product{
 ` + esCurl + `-X PUT -d '{"indices":[{"names":["dbmeta*"],"privileges":["read","view_index_metadata"]}]}' http://127.0.0.1:9200/_security/role/dbmeta_role
 ` + esCurl + `-X PUT -d '{"password":"` + Password + `","roles":["dbmeta_role"]}' http://127.0.0.1:9200/_security/user/` + ElasticsearchUser + `
 ` + esCurl + `-I http://127.0.0.1:9200/dbmeta || ` + esCurl + `-X PUT http://127.0.0.1:9200/dbmeta`},
-	dsn:   keyHTTP("elastic", Password),
-	users: []Principal{{Role: User, User: ElasticsearchUser, dsn: keyHTTP(ElasticsearchUser, Password)}},
+	dsn:   keyURL("elasticsearch", "elastic"),
+	api:   keyHTTP("elastic", Password),
+	users: []Principal{{Role: User, User: ElasticsearchUser, dsn: keyURL("elasticsearch", ElasticsearchUser), api: keyHTTP(ElasticsearchUser, Password)}},
 }
 
 // Elasticsearch is every Elasticsearch release dbrun starts.

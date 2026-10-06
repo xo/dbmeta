@@ -1,6 +1,6 @@
 # D152. InfluxDB 3 reads DataFusion's information_schema
 
-Status: Decided.
+Status: Amended by D170.
 
 ## The decision
 

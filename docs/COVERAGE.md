@@ -48,18 +48,18 @@ rather than reading one.
 | `models/cratedb` | 26 | 56 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
 | `models/questdb` | 11 | 56 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
 | `models/tidb` | 19 | 56 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 16 of its statements are the mysql model's (D133) |
-| `models/vitess` | 20 | 56 | Vitess 23.0.6 and 24.0.3, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
-| `models/databend` | 20 | 56 | Databend 1.2.881 and 1.2.948, from the system database, with dbimp's driver (D140) |
+| `models/vitess` | 20 | 56 | Vitess 23.0.7 and 24.0.4, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
+| `models/databend` | 20 | 56 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 56 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
 | `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
 | `models/redshift` | 11 | 56 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
 | `models/neo4j` | 17 | 56 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
-| `models/influxdb` | 8 | 56 | InfluxDB 3 Core 3.9.13, 3.10.6 and 3.11.5, from DataFusion's information_schema, with dbimp's driver (D152) |
-| `models/ydb` | 7 | 56 | YDB 26.2.1.14 and 26.3.1.17, from the .sys views, with ydb-go-sdk (D161) |
+| `models/influxdb` | 9 | 56 | InfluxDB 3 Core 3.10.6, 3.11.6 and 3.12.0, from DataFusion's information_schema, with dbimp's driver (D152) |
+| `models/ydb` | 7 | 56 | YDB 26.2.1.14 and 26.3.1.19, from the .sys views, with ydb-go-sdk (D161) |
 | `models/influxql` | 7 | 56 | InfluxDB 1.11.8 and 1.13.1, and 2.8.0 and 2.9.1, which answer 4 of the 7. Most kinds are a walk of SHOW statements, with dbimp's driver (D159, D165) |
 | `models/surrealdb` | 18 | 56 | SurrealDB 3.1.6, 3.2.4 and 3.3.0, and 2.7.0, which answers the current schema alone, because a 2.x statement cannot read INFO as a value. With dbimp's driver (D164) |
-| `models/rqlite` | 14 | 56 | rqlite 9.4.5 and 10.3.6, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
+| `models/rqlite` | 14 | 56 | rqlite 9.4.5 and 10.5.2, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
 | `models/libsql` | 14 | 56 | libSQL 0.24.33, the sqld server, with dbimp's driver. Every statement is the sqlite3 model's, with a fragment for the vector index (D160) |
 | `models/arangodb` | 7 | 56 | ArangoDB 3.12.12, in AQL through dbimp's driver. A database is the schema, a collection is a table, and its JSON schema rule gives its columns (D163, D168) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
@@ -3564,8 +3564,8 @@ reads every answer the administrator reads, and the section in
 
 ## InfluxDB 3
 
-`models/influxdb` answers 8 of the 56 on InfluxDB 3 Core, measured on
-2026-10-01 on 3.11.5 through dbimp's influxdb driver, which is what dburl's
+`models/influxdb` answers 9 of the 56 on InfluxDB 3 Core, measured on
+2026-10-01 on 3.11.5 and on 2026-10-07 on 3.10.6, 3.11.6 and 3.12.0, through dbimp's influxdb driver, which is what dburl's
 influxdb scheme opens and what usql uses. InfluxDB 3 answers SQL with Apache
 DataFusion, and DataFusion keeps an information_schema, which the model
 reads. InfluxQL is the dialect influxql, which answers InfluxDB 1, 2 and 3,
@@ -3573,8 +3573,18 @@ and `models/influxql` reads it, under InfluxQL below. See D152 and D165.
 
 ### What it answers
 
-Schemas, the current schema, tables, columns, functions, aggregates, routine
-parameters and settings.
+Schemas, the current schema, tables, columns, triggers, functions, aggregates,
+routine parameters and settings.
+
+A trigger is a processing engine trigger. It runs a Python plugin on a write
+to one table, on a write to any table, on a schedule or on a request, and
+`system.processing_engine_triggers` lists it for the database of the
+connection, with the specification as JSON text. The table is read out of
+`{"single_table_wal_write":{"table_name":"author"}}`, and it is empty for the
+other three. The definition is the specification as the server keeps it. The
+plugin file, its arguments and its error behavior are not carried, because
+`Trigger` has no field for them. The setup of the entry makes one trigger, on
+`author`, with a plugin that does nothing (D170).
 
 A measurement is a table in the schema iox. Its tags and fields are its
 columns, and so is time, which is the only column that is NOT NULL. A tag
@@ -3603,7 +3613,7 @@ reports, and usql reads it from there through the driver's raw connection.
 
 ### What it cannot answer, and why
 
-48 kinds. InfluxDB 3's SQL writes nothing, so it has no CREATE of any kind,
+47 kinds. InfluxDB 3's SQL writes nothing, so it has no CREATE of any kind,
 and most kinds are absent from the product: indexes, constraints, sequences,
 types, domains, collations, comments, roles and privileges among them.
 
@@ -3616,19 +3626,11 @@ measurements included, with no definition, and InfluxDB 3 has no CREATE
 VIEW, so the only views are the server's own, `processing_engine_logs` and
 the views of information_schema.
 
-`Triggers` is a lead that stands and is not built. A processing engine
-trigger runs a Python plugin, and one whose specification is `table:<name>`
-runs on each write to that table, which is what a trigger is.
-`system.processing_engine_triggers` holds its name, plugin, specification
-and whether it is disabled. The entry configures no plugin directory, and
-the server refuses a trigger with HTTP 400 without one, so the fixture
-cannot build a trigger. `docs/BACKLOG.md` holds it.
-
 ### What a second opinion found
 
 Gemini and DeepSeek were asked about the 48 kinds on 2026-10-01, as hard rule
-14 requires. Both named `system.processing_engine_triggers` as triggers, the
-lead above. Gemini named `schemata` for databases, `views` for views, the
+14 requires. Both named `system.processing_engine_triggers` as triggers, which
+held, and the model answers it. Gemini named `schemata` for databases, `views` for views, the
 types of `columns` for types, the distinct and last value caches for indexes,
 and `parquet_files` for partitioned tables and column statistics. DeepSeek
 rejected the caches and `parquet_files`. `schemata` holds iox and system and

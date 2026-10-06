@@ -12,7 +12,7 @@ package container
 //
 // docker.io/opensearchproject/opensearch builds each release tag once, so the
 // rule in D112 applies: the newest release of each of the last two lines.
-// Checked on 2026-09-28, that is 3.8.0 and 2.19.6, both of 2026-09-15.
+// Checked on 2026-10-07, that is 3.9.0 and 2.19.6.
 // OpenSearch is under the Apache 2.0 license.
 //
 // # The password
@@ -87,8 +87,9 @@ api=http://127.0.0.1:9200/_plugins/_security/api
 ` + osCurl + `-X PUT -d '{"password":"` + Password + `"}' $api/internalusers/` + OpenSearchUser + `
 ` + osCurl + `-X PUT -d '{"users":["` + OpenSearchUser + `"]}' $api/rolesmapping/dbmeta_role
 ` + osCurl + `-I http://127.0.0.1:9200/dbmeta || ` + osCurl + `-X PUT http://127.0.0.1:9200/dbmeta`},
-	dsn:   keyHTTP("admin", Password),
-	users: []Principal{{Role: User, User: OpenSearchUser, dsn: keyHTTP(OpenSearchUser, Password)}},
+	dsn:   keyURL("opensearch", "admin"),
+	api:   keyHTTP("admin", Password),
+	users: []Principal{{Role: User, User: OpenSearchUser, dsn: keyURL("opensearch", OpenSearchUser), api: keyHTTP(OpenSearchUser, Password)}},
 }
 
 // OpenSearch is every OpenSearch release dbrun starts.
@@ -96,4 +97,4 @@ api=http://127.0.0.1:9200/_plugins/_security/api
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var OpenSearch = list{}.staged(opensearch, Tested, "2.19.6", "3.8.0")
+var OpenSearch = list{}.staged(opensearch, Tested, "2.19.6", "3.9.0")

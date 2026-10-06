@@ -28,6 +28,7 @@ func register() {
 	registerRelations()
 	registerRoutines()
 	registerServer()
+	registerTriggers()
 }
 
 // tableType is the word for a table's kind.

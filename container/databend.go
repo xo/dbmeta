@@ -18,13 +18,13 @@ import (
 //
 // docker.io/datafuselabs/databend builds each tag once and never again, so the
 // rule in D112 applies instead of step 2 of docs/EVALUATION.md. Ken chose the
-// newest stable release and the newest weekly release. Checked on 2026-09-28,
+// newest stable release and the newest weekly release. Checked on 2026-10-07,
 // the stable release is v1.2.881, of 2026-04-17, and the weekly release is
-// 1.2.948, of 2026-09-21. The vendor publishes the weekly releases as its
+// 1.2.951. The vendor publishes the weekly releases as its
 // releases, and a new one arrives almost every day, so the ceiling moves
 // often. It tags a weekly release with the suffix -nightly, as in
-// v1.2.948-nightly. The release is named without the suffix, so that the
-// server is databend-1.2.948, and the tag keeps it. The core of Databend is under the Apache 2.0 license.
+// v1.2.951-nightly. The release is named without the suffix, so that the
+// server is databend-1.2.951, and the tag keeps it. The core of Databend is under the Apache 2.0 license.
 //
 // # The telemetry is blocked
 //
@@ -120,5 +120,5 @@ func databendDSN(user, database string) func(port int) string {
 
 // Databend is every Databend release dbmeta is tested against. Both are
 // Tested, which is the cadence they kept while they were Staged (D120).
-var Databend = list{}.add(databend, Tested, "1.2.881", "1.2.948").
-	on("1.2.948", func(s *Server) { s.Tag = "v1.2.948-nightly" })
+var Databend = list{}.add(databend, Tested, "1.2.881", "1.2.951").
+	on("1.2.951", func(s *Server) { s.Tag = "v1.2.951-nightly" })

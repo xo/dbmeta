@@ -22,9 +22,17 @@ So the DSN of those five is now the form that their driver takes, which is
 the same string as the URL. The `http://` address moves to a new field,
 `api`, on the server and on each principal, which `dbrun dsn --json` prints.
 A server whose DSN is already an `http://` address gives that as its `api`,
-so every product with an HTTP interface has one, as dbimp asked. DynamoDB and
-Alternator have none, because their DSN names AWS keys and an endpoint, and
-no `http://` address with credentials exists for them.
+so every product with an HTTP interface has one, as dbimp asked.
+
+dbimp asked on 2026-10-07 for the same for six products whose driver has its
+own scheme: Druid, Drill, Solr, Elasticsearch, OpenSearch and DynamoDB, which
+Alternator shares. Their DSN and URL are now `druid://`, `drill://`,
+`solr://`, `elasticsearch://`, `opensearch://` and `dynamodb://`, with the
+user and the key, at the port on the host, and their `api` is the `http://`
+address they had. The DynamoDB DSN is
+`dynamodb://key:secret@host:port?region=us-east-1`, with the endpoint as the
+host, which replaces the godynamo form. Its `api` is `http://host:port` with
+no credentials, because a request there is signed with the key.
 
 dbimp agreed to the name on 2026-10-02. Nothing in dbimp's code read the DSN,
 and its docs/DRIVER.md reads `api` from this change.

@@ -372,8 +372,9 @@ takes for the driver that dbmeta tests with, and the `url` field is what
 `dburl` parses. On MySQL and Cassandra the driver takes a form that is not a
 URL. On Couchbase both are the same `couchbase://` URL.
 
-On libSQL, Neo4j, ArangoDB, SurrealDB and InfluxDB 1 and 2 the `dsn` is the
-same URL as the `url`, because dbimp's driver for each takes only that form,
+On libSQL, Neo4j, ArangoDB, SurrealDB, InfluxDB 1 and 2, Druid, Drill, Solr,
+Elasticsearch, OpenSearch and DynamoDB, which Alternator shares, the `dsn` is
+the same URL as the `url`, because dbimp's driver for each takes only that form,
 and the `http://` address of the HTTP API is the `api` (D167). On SurrealDB
 and Neo4j the `url` names the database in its path, such as
 `neo4j://neo4j:<password>@127.0.0.1:<port>/dbmeta` (D109). On libSQL it ends

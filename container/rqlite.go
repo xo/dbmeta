@@ -19,8 +19,8 @@ import (
 // rqlite never rebuilds a tag: each tag on docker.io/rqlite/rqlite is built
 // once, on the day of its release. So the rule in D112 applies instead of step
 // 2 of docs/EVALUATION.md: the newest release of each of the last two lines.
-// Checked on 2026-09-27, that is 10.3.6, released on 2026-09-22, and 9.4.5, the
-// last release of 9, on 2026-03-10. rqlite is under the MIT license.
+// Checked on 2026-10-07, that is 10.5.2 and 9.4.5, the last release of 9,
+// of 2026-03-10. rqlite is under the MIT license.
 //
 // # The users
 //
@@ -78,4 +78,4 @@ func rqliteAt(user string) func(port int) string {
 
 // Rqlite is every rqlite release dbrun starts. Both are Tested, the cadence
 // each recorded while it was Staged (D120).
-var Rqlite = list{}.add(rqlite, Tested, "9.4.5", "10.3.6")
+var Rqlite = list{}.add(rqlite, Tested, "9.4.5", "10.5.2")

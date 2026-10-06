@@ -11,11 +11,11 @@
 // what dburl's influxdb scheme opens and what usql uses. InfluxQL is another
 // dialect, influxql, and this model does not answer it. See D152.
 //
-// It answers 8 of the 56 questions, on 3.9.13, 3.10.6 and 3.11.5. A
+// It answers 9 of the 56 questions, on 3.10.6, 3.11.6 and 3.12.0. A
 // measurement is a table in the schema iox, its tags and fields are columns,
 // and the functions are DataFusion's own. InfluxDB 3 has no view a user can
 // make, no index, no constraint, no user a statement can list, and no
-// comment, and docs/COVERAGE.md says why each of the rest is not answered.
+// comment. A processing engine trigger is a trigger (D170), and docs/COVERAGE.md says why each of the rest is not answered.
 //
 // The version is the release of DataFusion, which version() returns and every
 // statement depends on. No SQL statement names the InfluxDB release, which

@@ -17,9 +17,9 @@ import (
 // # The range, by the docs/EVALUATION.md procedure
 //
 // Step 2 decides the container and it gives a floor of one. exasol/nano
-// carries one release line, 2026.2.0, published as nano.1 through nano.5.
-// nano.5 was pushed on 2026-09-24, three days before this was written, for
-// amd64 and arm64. Each nano build replaces the one before it rather than
+// carries one release line, 2026.2.0, published as nano.1 through nano.6.
+// nano.6 was the newest on 2026-10-07, and nano.5 was pushed on 2026-09-24,
+// for amd64 and arm64. Each nano build replaces the one before it rather than
 // being a release of its own, so the line is one release and the tag pins the
 // newest build.
 //
@@ -36,7 +36,7 @@ var exasol = product{
 	image:   "docker.io/exasol/nano",
 	// The release is the line and the suffix is the build. There is no
 	// bare 2026.2.0 tag.
-	tagSuffix: "-nano.5",
+	tagSuffix: "-nano.6",
 	port:      8563,
 	// The image has no shell and no client, so nothing can be run inside
 	// it to ask whether it is up. An empty readiness command tells dbrun to

@@ -71,31 +71,31 @@ var alternator = product{
 	init: []string{"bash", "-c", `cqlsh -u cassandra -p cassandra -e "
 CREATE ROLE IF NOT EXISTS ` + AlternatorUser + ` WITH HASHED PASSWORD = '` + strings.ReplaceAll(alternatorUserHash, `$`, `\$`) + `' AND LOGIN = true;
 GRANT SELECT ON ALL KEYSPACES TO ` + AlternatorUser + `;"`},
-	dsn:   dynamoDSN("cassandra", alternatorAdminHash),
-	url:   dynamoURL("cassandra", alternatorAdminHash),
-	users: []Principal{{Role: User, User: AlternatorUser, dsn: dynamoDSN(AlternatorUser, alternatorUserHash), url: dynamoURL(AlternatorUser, alternatorUserHash)}},
+	dsn:   dynamoURL("cassandra", alternatorAdminHash),
+	api:   dynamoAPI,
+	users: []Principal{{Role: User, User: AlternatorUser, dsn: dynamoURL(AlternatorUser, alternatorUserHash), api: dynamoAPI}},
 }
 
-// dynamoDSN is the godynamo connection string of one key, at the endpoint on
-// port.
-func dynamoDSN(key, secret string) func(port int) string {
-	return func(port int) string {
-		return fmt.Sprintf("Region=us-east-1;AkId=%s;Secret_Key=%s;Endpoint=http://127.0.0.1:%d", key, secret, port)
-	}
-}
-
-// dynamoURL is the dburl style URL of one key, at the endpoint on port.
+// dynamoURL is the DSN of one key, in the form of dbimp's DynamoDB driver
+// and dburl: the key and the secret as the user and the password, at the
+// endpoint on the port on the host. The region is the one every release here
+// uses (D167).
 func dynamoURL(key, secret string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
 			Scheme:   "dynamodb",
 			User:     url.UserPassword(key, secret),
-			Host:     "us-east-1",
-			Path:     "/",
-			RawQuery: url.Values{"Endpoint": {fmt.Sprintf("http://127.0.0.1:%d", port)}}.Encode(),
+			Host:     fmt.Sprintf("127.0.0.1:%d", port),
+			RawQuery: url.Values{"region": {"us-east-1"}}.Encode(),
 		}
 		return u.String()
 	}
+}
+
+// dynamoAPI is the address of the HTTP endpoint on the port. It carries no
+// credentials, because a request is signed with the key.
+func dynamoAPI(port int) string {
+	return fmt.Sprintf("http://127.0.0.1:%d", port)
 }
 
 // Alternator is every ScyllaDB Alternator release dbrun starts.

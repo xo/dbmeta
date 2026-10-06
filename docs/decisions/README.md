@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-58 of them amend or replace an earlier one, and a decision read without its
+59 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -170,7 +170,7 @@ file.
 | [D149](D149-oracle-and-singlestore-answer-extended-statistics.md) | Oracle and SingleStore answer extended statistics | Decided |
 | [D150](D150-oracle-11g-reads-two-views-slowly.md) | Oracle 11g reads two views slowly | Decided |
 | [D151](D151-rqlite-tests-use-dbimps-driver.md) | The rqlite tests use dbimp's driver | Amends D148 |
-| [D152](D152-influxdb-3-reads-datafusions-information-schema.md) | InfluxDB 3 reads DataFusion's information_schema | Decided |
+| [D152](D152-influxdb-3-reads-datafusions-information-schema.md) | InfluxDB 3 reads DataFusion's information_schema | Amended by D170 |
 | [D153](D153-libsql-has-an-ordinary-user-through-a-jwt.md) | libSQL has an ordinary user through a JWT | Amends D112, amended by D160 |
 | [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157 |
 | [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
@@ -188,3 +188,4 @@ file.
 | [D167](D167-the-dsn-is-what-sql-open-takes-and-api-is-the-http-address.md) | The DSN is what sql.Open takes, and api is the HTTP address | Amends D160 |
 | [D168](D168-ken-reviews-the-six-dialects-of-2026-10-01.md) | Ken reviews the six dialects of 2026-10-01 | Amends D163 and D164 |
 | [D169](D169-each-pattern-and-open-move-from-usql.md) | Each, Pattern and Open move from usql | Decided |
+| [D170](D170-influxdb-3-answers-triggers-from-the-processing-engine.md) | InfluxDB 3 answers Triggers from the processing engine | Amends D152 |
