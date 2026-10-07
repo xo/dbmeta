@@ -10,13 +10,13 @@
 // 9.6, do not run, and every statement here reads the pg_catalog tables 8.0
 // already had.
 //
-// # Not run yet
+// # Measured
 //
 // Ken chose on 2026-09-30 to write this model from Redshift's
-// documentation, before anyone has a cluster to run it against. Hard rule 9
-// says a query that has never run is not finished, and none here has. The
-// tests in the test module run when dbrun resolves a connection string for
-// Redshift (D117). See D144.
+// documentation before anyone had a cluster (D144). It first ran on
+// 2026-10-08 against Redshift Serverless, release 1.0.434008, and D182 holds
+// what that changed. Its tests run when dbrun resolves a connection string
+// for Redshift (D117).
 //
 // It answers 11 of the 56 questions.
 package redshift

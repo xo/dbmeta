@@ -4,8 +4,8 @@
 // worth checking. Hard rule 9 requires it, and D53 requires the core objects
 // to match every other fixture. A key is declared and not enforced.
 //
-// It was written from Redshift's documentation and has not run, because no
-// cluster is provisioned yet. See D144.
+// It was written from Redshift's documentation and first ran on 2026-10-08,
+// where every step was accepted as written. See D144 and D182.
 package fixture
 
 import (

@@ -342,6 +342,15 @@ current_user the same rows with different values
 
 [questdb@9.4/same/read-only]
 
+[redshift/same/grantee]
+current_user the same rows with different values
+
+[redshift/same/owner]
+current_user the same rows with different values
+
+[redshift/same/stranger]
+current_user the same rows with different values
+
 [rqlite/same/user]
 
 [scylla/same/grantee]

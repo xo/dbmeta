@@ -52,7 +52,7 @@ rather than reading one.
 | `models/databend` | 20 | 56 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 56 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
 | `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
-| `models/redshift` | 11 | 56 | not run: written from Redshift's documentation before a cluster was provisioned (D144) |
+| `models/redshift` | 11 | 56 | measured on Redshift Serverless 1.0.434008 on 2026-10-08. Written before a cluster existed (D144) and corrected by D182 |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
 | `models/neo4j` | 17 | 56 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
 | `models/influxdb` | 9 | 56 | InfluxDB 3 Core 3.10.6, 3.11.6 and 3.12.0, from DataFusion's information_schema, with dbimp's driver (D152) |
@@ -2063,7 +2063,7 @@ scene and says so instead of failing.
 
 Every dialect has a target or a recorded reason for having none, and
 `TestEveryDialectIsMeasuredForParity` fails when one has neither. SQLite and
-DuckDB have no user. Snowflake and Redshift have not run (D144). Impala and
+DuckDB have no user. Snowflake has not run (D144). Impala and
 Vitess run with no authentication, so every user is the same principal.
 InfluxDB 3 Core has one kind of token, the administrator's (D152).
 `parityExempt` in `test/parity_test.go` holds each reason.
@@ -3357,11 +3357,11 @@ of correlations covers two, and D149 shipped it.
 ## Snowflake and Amazon Redshift
 
 `models/snowflake` answers 13 of the 56 and `models/redshift` answers 11.
-Neither has run. Ken chose on 2026-09-30 to write both from the vendors'
-documentation before an account or a cluster was provisioned, and hard rule
-9 says a query that has never run is not finished. Their tests skip until
-dbrun resolves a connection string for each (D117), and running them is what
-finishes the models. See D144.
+Ken chose on 2026-09-30 to write both from the vendors' documentation before
+an account or a cluster was provisioned (D144). Snowflake has not run. Its
+tests skip until dbrun resolves a connection string (D117), and running them
+is what finishes it. Redshift ran on 2026-10-08 and D182 holds what that
+found.
 
 Snowflake reads the INFORMATION_SCHEMA of the database the connection is in.
 It has no KEY_COLUMN_USAGE, so no column is reported as a key, and no
@@ -3372,6 +3372,41 @@ Redshift reads the pg_catalog tables that PostgreSQL 8.0 already had, from
 which Redshift was built, because the postgres model's statements need 9.6.
 Its roles, grants, and the collation of a column are in SVV views, which the
 model does not read yet.
+
+### Measured on Redshift Serverless
+
+Measured on 2026-10-08 on Redshift Serverless in us-east-1, release
+1.0.434008, whose banner says PostgreSQL 8.0.2. Every statement ran,
+and roles needed a cast. The fixture built on the first try.
+
+- The server answers 11 of the 56 questions: schemas, databases, tables,
+  columns, views, constraints, functions, roles, comments, the current schema
+  and the current user. Every other kind has no source that the model reads.
+- pg_catalog hides nothing from a user without a grant. An owner, a grantee
+  and a user with no grant on the fixture all read the same rows as the
+  administrator, so parity differs only in current_user. The model reads no
+  SVV view, and the SVV views are the ones that filter by user.
+- pg_catalog also lists the objects of Redshift itself. The schemas
+  pg_auto_copy, pg_mv and pg_s3 are hidden by default beside the ones that
+  were already named. A schema of the user is the only one left.
+- pg_user lists a user of IAM identity, such as IAM:RootIdentity, beside the
+  database users. The roles query reports it as a user that can log in.
+- valid_until is the type abstime in pg_user, which Redshift refuses to cast
+  to text. The statement casts it to a timestamp first. A user with no expiry
+  reads as absent, and the administrator reads as infinity.
+- An IDENTITY column has the default `"identity"(<oid>, 0, '1,1'::text)`.
+  The column reports an identity kind of a, which means always, because an
+  INSERT cannot give it a value.
+- A foreign key reads with the schema qualified and the name of a table
+  quoted when it is a keyword, as in `REFERENCES dbmeta_fixture."region"(...)`.
+- A view definition ends with a semicolon.
+- A function has no pg_get_functiondef, so its definition is absent and the
+  source is the body between the dollar quotes.
+- Not read, and so not answered: the privileges and roles of the SVV views,
+  the collation of a column, external tables of Spectrum and datashares. Redshift has no index, sequence or trigger.
+- The database list includes awsdatacatalog, padb_harvest and sys:internal,
+  which Redshift keeps for itself. They are not hidden, because a database
+  has no system flag.
 
 ## Apache Impala
 

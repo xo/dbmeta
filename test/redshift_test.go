@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"strings"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -12,6 +13,15 @@ import (
 	_ "github.com/xo/dbmeta/models/redshift"
 	rsfixture "github.com/xo/dbmeta/models/redshift/fixture"
 )
+
+// pgxDSN rewrites the scheme that dburl names for Redshift, which is redshift,
+// to the one pgx reads, which is postgres. Any other address is unchanged.
+func pgxDSN(dsn string) string {
+	if rest, ok := strings.CutPrefix(dsn, "redshift://"); ok {
+		return "postgres://" + rest
+	}
+	return dsn
+}
 
 // openRedshift returns a connection to the service named by DBMETA_REDSHIFT, which
 // dbrun resolves from the places D117 names. The model was written before
@@ -22,7 +32,7 @@ func openRedshift(t *testing.T) *sql.DB {
 	if dsn == "" {
 		t.Skip("set DBMETA_REDSHIFT to run against the service")
 	}
-	db, err := sql.Open("pgx", dsn)
+	db, err := sql.Open("pgx", pgxDSN(dsn))
 	if err != nil {
 		t.Fatalf("opening: %v", err)
 	}

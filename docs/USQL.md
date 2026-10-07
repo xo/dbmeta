@@ -169,7 +169,7 @@ reading code.
 | Databend | 10/11 | 4/5 | `\dp`, because a grant is listed only by show_grants for one role or user at a time, and the trigger section: Databend has no trigger |
 | SingleStore | 11/11 | 3/5 | the sequence and trigger sections: SingleStore has no sequence and refuses CREATE TRIGGER |
 | Snowflake | 10/11 | 2/5 | not run (D144). `\di`: Snowflake has no index. The index column, trigger and constraint column sections: information_schema has no KEY_COLUMN_USAGE |
-| Amazon Redshift | 9/11 | 1/5 | not run (D144). `\di`: Redshift has no index, and `\dp`: the privileges are in SVV views the model does not read. Every section but constraints |
+| Amazon Redshift | 9/11 | 1/5 | `\di`: Redshift has no index, and `\dp`: the privileges are in SVV views the model does not read. Every section but constraints. Measured on 2026-10-08 (D182) |
 | Apache Impala | 9/11 | 0/5 | `\di`: Impala has no index, and `\dp`: authorization is off in the image. Every section: SHOW lists no key, constraint, trigger or sequence |
 | MySQL | 11/11 | 4/5 | the sequence section: MySQL has no sequence |
 | ClickHouse | 11/11 | 2/5 | the sequence, trigger and constraint column sections |
@@ -365,7 +365,7 @@ a case where `usql` has no answer at all.
 | ArangoDB | `RETURN VERSION()` | the same, in the `Version` of usql's arangodb driver, through dbimp's driver | the same statement, and both print the word ArangoDB before the release. dbmeta's was measured on 3.12.12 on 2026-10-01, and usql's was read from its source |
 | InfluxDB 3 | `SELECT version()` | `GET /ping`, through the driver's raw connection, which no SQL statement reaches | different answers. `version()` names the release of DataFusion, such as 51.0.0, which the statements depend on, and only `/ping` names InfluxDB's. Measured on 3.11.5 on 2026-10-01 |
 | YDB | `SELECT version()` | `SELECT '<unknown>' AS version`, a literal | different answers. `version()` returns the release, such as 26.3.1.17, and usql prints "YDB <unknown>" for every server. Measured on 26.2.1.14 and 26.3.1.17 on 2026-10-01 |
-| Apache Druid | `SELECT version FROM sys.servers WHERE server_type = 'broker' LIMIT 1` | none: usql has no Druid driver, so there is no statement of its own to compare | no comparison is possible. Only an administrator can read `sys.servers`, so the ordinary user gets HTTP 403 with Insufficient permission to view servers. Measured on 37.0.0 and 38.0.0 on 2026-10-07 (D171) |
+| Apache Druid | `SELECT version FROM sys.servers WHERE server_type = 'broker' LIMIT 1` | `SELECT version();`, the generic fallback, because usql's druid driver declares no `Version`. Not measured on Druid | the two differ. Only an administrator can read `sys.servers`, so the ordinary user gets HTTP 403 with Insufficient permission to view servers. Measured on 37.0.0 and 38.0.0 on 2026-10-07 (D171) |
 | Apache Drill | `SELECT version FROM sys.version` | the same, in the `Version` of usql's drill driver, through dbimp's driver | the same statement. Both print Apache Drill before the release, and every user can read `sys.version`, so there is no refusal. dbmeta's was measured on 1.21.2 and 1.22.0 on 2026-10-08, and usql's was read from its source (D178) |
 | Elasticsearch | none: no SQL statement names the release, so `Dialect.Version` reports an unknown version, and `ParseVersion` takes the `version.number` a caller reads from `GET /` | the literal `Elasticsearch`, with no release, because its SQL has no function for it and `GET /` is refused to the ordinary user | different answers. usql prints the product and no release for every server, and dbmeta reports an unknown version unless the caller passes the release of `GET /`, which only the administrator can read. Measured on 8.19.22, 9.4.6 and 9.5.3 on 2026-10-08 (D177) |
 | OpenSearch | none: no SQL statement names the release, so `Dialect.Version` reports an unknown version, and `ParseVersion` takes the `version.number` a caller reads from `GET /` | the literal `OpenSearch`, with no release, because `SELECT VERSION()` fails on every release and `GET /` is refused to the ordinary user | different answers. usql prints the product and no release for every server, and dbmeta reports an unknown version unless the caller passes the release of `GET /`, which only the administrator can read. Measured on 2.19.6 and 3.9.0 on 2026-10-08 (D181) |
@@ -396,7 +396,7 @@ a case where `usql` has no answer at all.
 | Databend | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement. It answers `Databend Query v1.2.948-nightly-...`, and `dbmeta` reads the release after the v. Measured on 1.2.881 and 1.2.948 on 2026-09-30 |
 | SingleStore | `SELECT VERSION(), @@memsql_version` | no function, so the generic `SELECT version();` | different answers. `version()` gives `5.7.32`, the MySQL release SingleStore claims, and only `@@memsql_version` names SingleStore's own, as `9.1.1`. `dbmeta` reads both and gates the statements it shares with the mysql model on the first (D141). Measured on 9.0 and 9.1 on 2026-09-30 |
 | Snowflake | `SELECT CURRENT_VERSION()` | no function, so the generic `SELECT version();` | not measured: no account is provisioned (D144). Snowflake documents CURRENT_VERSION() and no version() |
-| Amazon Redshift | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement. `dbmeta` reads the Redshift release after the word Redshift in the banner. Not measured: no cluster is provisioned (D144) |
+| Amazon Redshift | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement. `dbmeta` reads the Redshift release after the word Redshift in the banner. Measured on Redshift Serverless on 2026-10-08. The statement answers `PostgreSQL 8.0.2 on i686-pc-linux-gnu, ... Redshift 1.0.434008`, and the release is the number after the word Redshift (D182) |
 | Apache Impala | `SELECT version()` | no function, so the generic `SELECT version();` | the same statement. It answers `impalad version 4.5.2-RELEASE ...`, and `dbmeta` reads the release after the word version. Measured on 4.4.1 and 4.5.2 on 2026-09-30 |
 | SurrealDB | `RETURN IF (<set>[2, 1])[0] = 1 THEN '3' ELSE '2' END`, a probe of the major release | the RPC method `version`, through `surrealdb.Version` and the driver's raw connection, which no SurrealQL statement reaches | different answers. No statement returns the release, so the probe tells 3.x, which sorts a set, from 2.x, which does not, and prints SurrealDB 3. `usql` prints the full release, such as SurrealDB 3.3.0, and `ParseVersion` reads that answer too, so a caller that reads the RPC answer hands it to dbmeta. Ken chose this on 2026-10-01 (D164). The ordinary user reads both on 3.3.0. Measured on 2.7.0, 3.1.6, 3.2.4 and 3.3.0 on 2026-10-01 |
 | SQL Server | the `@@VERSION` banner and four `SERVERPROPERTY` values | three `SERVERPROPERTY` values | `dbmeta` reads more |
@@ -540,8 +540,10 @@ there is no session state to read. D87 has the rest.
 Every product whose driver in `usql` changes a password has a statement here.
 Netezza was the one other, and it is out of scope (D132). Each one is tested by setting every
 password in `hostilePasswords` on a real server and logging in with it (D127).
-Redshift and Snowflake are the exceptions, because no server is provisioned
-for either (D144). Vitess has no statement, because vtgate refuses ALTER USER.
+Snowflake is an exception, because no account is provisioned (D144), and
+Redshift is the other, because its documentation allows no quote, backslash,
+slash, at sign or space in a password and so the hostile passwords cannot be
+set. Its statement was not run (D182). Vitess has no statement, because vtgate refuses ALTER USER.
 
 | Product | Statement | Quoting |
 | --- | --- | --- |

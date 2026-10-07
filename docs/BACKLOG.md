@@ -84,13 +84,47 @@ one, can answer such statements, for example SHOW TABLES, DESCRIBE and
 a Pinot model can walk those statements, as Impala's does (D146), and the
 InfluxDB models can read the release with a statement.
 
-### Run the Snowflake and Redshift models
+### Give Elasticsearch, Solr and OpenSearch a version query
 
-`models/snowflake` and `models/redshift` were written from the vendors'
-documentation and have never run (D144). When a person provisions a
-connection string that dbrun resolves (D117), run their tests, fix each
-statement that fails, write their parity targets, and remove "Written, not
-run" from README.md and docs/COVERAGE.md.
+The three models report an unknown version, because a model has only a
+`Queryer` and the release is not a statement. Ken asked dbimp on 2026-10-08 to
+answer `SELECT version()` for a database that cannot return its release as a
+query (D183). When dbimp tags it, give each model a `VersionQuery` of that
+statement, and stop the tests reading the release over HTTP.
+
+### Read OpenSearch 2.19.6 Columns again
+
+dbimp v0.14.0 cannot read a `DESCRIBE TABLES` row on 2.19.6, because the
+server declares every column keyword and sends numbers in some of them (D181).
+So Columns has no answer there, and `describeReadable` in
+`test/opensearch_test.go` skips the column checks. Ken asked dbimp to read a
+number where the schema says keyword. When dbimp tags it, pin it, remove the
+skip, and run parity again.
+
+### Survey DynamoDB, Apache Pinot and Apache Avatica
+
+Ken chose the order on 2026-10-08: DynamoDB, then Pinot, then Avatica
+(Phoenix and Calcite). Each driver exists in dbimp and each product has an
+entry. Survey DynamoDB first, and check a statement that ends in a semicolon,
+because usql tried none. Then decide whether to build each one.
+
+### Finish the Redshift measurements
+
+Redshift ran once against Redshift Serverless (D182). It has no conformance
+target. The SVV views that filter by user are not read, so privileges, role
+grants and collations are open, and Spectrum external tables are not measured.
+`ChangePassword` cannot run, because Redshift forbids quotes, slashes, at
+signs and spaces in a password. The identity flag `a` of `columns.identity` is
+a reading of the documentation and was not measured. A run reads about 36,000
+columns and costs trial credit, so keep each pass small.
+
+### Run the Snowflake model
+
+`models/snowflake` was written from the vendor's documentation and has never
+run (D144). When a person provisions a connection string that dbrun resolves
+(D117), run its tests, fix each statement that fails, write its parity
+targets, and remove "Written, not run" from README.md and docs/COVERAGE.md.
+D182 did the same for Redshift.
 
 ## Consumers
 

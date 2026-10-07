@@ -1,6 +1,6 @@
 # D176. The search dialects follow Ken's answers to the survey
 
-Status: Decided.
+Status: Amended by D183.
 
 ## The decision
 

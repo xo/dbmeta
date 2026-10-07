@@ -17,7 +17,8 @@ func like(col, param string) string {
 // notSystem hides the schemas Redshift keeps for itself.
 func notSystem(col string) string {
 	return `(@with_system OR (` + col + ` NOT IN ('pg_catalog', 'information_schema',` +
-		` 'pg_internal', 'catalog_history', 'pg_automv', 'pg_toast')` +
+		` 'pg_internal', 'catalog_history', 'pg_automv', 'pg_toast',` +
+		` 'pg_auto_copy', 'pg_mv', 'pg_s3')` +
 		` AND ` + col + ` NOT LIKE 'pg_temp_%'))`
 }
 
@@ -138,7 +139,8 @@ func register() {
 			always(`, pg_get_expr(d.adbin, d.adrelid) AS "default"`),
 			always(`, EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conrelid = a.attrelid` +
 				` AND k.contype = 'p' AND a.attnum = ANY (k.conkey)) AS "primary_key"`),
-			always(`, NULL AS "identity"`),
+			always(`, CASE WHEN pg_get_expr(d.adbin, d.adrelid) LIKE '"identity"(%' THEN 'a'` +
+				` ELSE '' END AS "identity"`),
 			always(`, NULL AS "generated"`),
 			always(`, col_description(a.attrelid, a.attnum) AS "comment"`),
 			always(`, NULL AS "collation"`),
@@ -158,7 +160,7 @@ func register() {
 			{Name: "ordinal"}, {Name: "data_type"}, {Name: "nullable"},
 			{Name: "default", Desc: "the default expression, which for an IDENTITY column is Redshift's identity() call"},
 			{Name: "primary_key", Desc: "whether a declared primary key holds the column. Redshift does not enforce it"},
-			{Name: "identity", Desc: "always absent: pg_attribute of PostgreSQL 8.0 has no identity kind"},
+			{Name: "identity", Desc: "a, which is always, for a column whose default is the identity call, because an INSERT cannot give it a value. Empty otherwise"},
 			{Name: "generated", Desc: "always absent: Redshift has no generated column"},
 			{Name: "comment"},
 			{Name: "collation", Desc: "always absent: the collation of a column is in SVV_COLUMNS, which is not read"},
@@ -304,7 +306,7 @@ func register() {
 			always(`, FALSE AS "bypass_rls"`),
 			always(`, TRUE AS "inherit"`),
 			always(`, -1 AS "conn_limit"`),
-			always(`, CAST(u.valuntil AS text) AS "valid_until"`),
+			always(`, CAST(CAST(u.valuntil AS timestamp) AS varchar) AS "valid_until"`),
 			always(`, '' AS "member_of"`),
 			always(`, NULL AS "comment"`),
 			always(`FROM pg_user u`),

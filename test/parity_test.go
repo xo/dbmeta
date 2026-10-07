@@ -34,6 +34,7 @@ import (
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
 	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
+	rsfixture "github.com/xo/dbmeta/models/redshift/fixture"
 	rqfixture "github.com/xo/dbmeta/models/rqlite/fixture"
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	slfixture "github.com/xo/dbmeta/models/solr/fixture"
@@ -596,6 +597,21 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
+			// Redshift has no containment. A user belongs to the database,
+			// so there is the administrator, the owner of a schema, a
+			// grantee and a user with no grant (D182).
+			dialect: dbmeta.Redshift, driver: "pgx", env: "DBMETA_REDSHIFT",
+			open: openRedshift, build: setupRedshift, schema: rsfixture.Everything.Schema,
+			scenes: []parityScene{{
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "owner", make: makeRedshiftOwner},
+					{name: "grantee", make: makeRedshiftGrantee},
+					{name: "stranger", make: makeRedshiftStranger},
+				},
+			}},
+		},
+		{
 			dialect: dbmeta.Oracle, driver: "oracle", env: "DBMETA_ORACLE",
 			open: openOracle, build: setupOracle, schema: orfixture.Everything.Schema,
 			scenes: []parityScene{{
@@ -620,8 +636,6 @@ var parityExempt = map[dbmeta.Dialect]string{
 	dbmeta.SQLite3: "a file on disk. It has no user, so there is no second principal to be",
 	dbmeta.DuckDB:  "an embedded library. It has no user either",
 	dbmeta.Snowflake: "a hosted service, and no account is provisioned yet, so the model" +
-		" has not run and its principals are not measured. See D144",
-	dbmeta.Redshift: "a hosted service, and no cluster is provisioned yet, so the model" +
 		" has not run and its principals are not measured. See D144",
 	dbmeta.Impala: "the image configures no authentication, so every user is the same" +
 		" principal and nothing can be refused to one. See D146",
@@ -871,7 +885,7 @@ func parityName(dialect dbmeta.Dialect, m *dbmeta.Meta) string {
 // openAt connects and closes at the end of the test.
 func openAt(t *testing.T, driver, dsn string) *sql.DB {
 	t.Helper()
-	db, err := sql.Open(driver, dsn)
+	db, err := sql.Open(driver, pgxDSN(dsn))
 	if err != nil {
 		t.Fatalf("opening %s: %v", driver, err)
 	}

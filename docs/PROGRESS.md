@@ -7,10 +7,17 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has three releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
-on 39b74b2 on 2026-10-07, and v0.3.0 on 7cbe9bf on 2026-10-07. The Tested tier
-passed in CI on each tagged commit. Ken chose that CI stands in for a run of
-every tier, and the Verified tier was not run again for any of them.
+dbmeta has four releases and a fifth in preparation. v0.1.0 was tagged on
+dd70b7a on 2026-10-02, v0.2.0 on 39b74b2 on 2026-10-07, v0.3.0 on 7cbe9bf on
+2026-10-07, and v0.4.0 on 9388928 on 2026-10-08. The Tested tier passed in CI
+on each tagged commit. Ken chose that CI stands in for a run of every tier,
+and the Verified tier was not run again for any of them.
+
+v0.5.0 holds the OpenSearch dialect (D181), the first run of Redshift against
+Redshift Serverless (D182), and the amendment of D176 (D183).
+
+v0.4.0 holds the Drill (D178), Elasticsearch (D177) and Solr (D179) dialects,
+the wider role of the OpenSearch entry, and the fixed VoltDB entry (D180).
 
 v0.3.0 holds the Druid dialect (D171), the move of the Trino and Presto tests
 to dbimp's driver (D172), `api` for more products, the ClickHouse entry for
@@ -65,29 +72,28 @@ The ClickHouse tests use dbimp's driver, `github.com/xo/dbimp/clickhouse` at
 v0.13.0, which dburl v0.44.0 names (D174). The entry's DSN and URL are the
 HTTP form on the second port. All four releases pass.
 
-Elasticsearch and OpenSearch can walk SHOW statements (D175). Drill, Solr,
-Elasticsearch and OpenSearch are surveyed, and no model is built, because dbimp
-has not tagged the drivers. dburl v0.45.0 names the four and v0.46.0 names
-dynamodb on dbimp's driver. Ken answered the open questions in D176. The
-OpenSearch role is wider, and the DSN of every DynamoDB entry ends with
-`tls=false`. The `DynamoDB` dialect is now `dynamodb`.
+Elasticsearch and OpenSearch can walk SHOW statements (D175). Ken answered
+the questions of the surveys in D176. The `DynamoDB` dialect is now
+`dynamodb`, and the DSN of every DynamoDB entry ends with `tls=false`. The
+test module pins dbimp v0.14.0 and dburl v0.46.0.
 
 In progress:
 
-- Drill (D178), Elasticsearch (D177) and Solr (D179) are built and pass on
-  every release. VoltDB has no model, because its catalog kinds are
-  unanswered (D180), and its entry is fixed. The OpenSearch role is wider
-  and the DynamoDB DSN ends with tls=false.
-- Ken's order for the next models: OpenSearch, then DynamoDB (survey first,
-  and check the trailing semicolon), then Pinot, then Avatica.
-- v0.4.0 is released with the Drill, Elasticsearch and Solr models.
-- OpenSearch is built and staged (D181). On 2.19.6 Columns has no answer
-  through dbimp's driver until dbimp reads a number where the schema says
-  keyword. The 2.19.6 column checks skip under `describeReadable`.
-- Redshift is being run for the first time against the provisioned service,
-  with one pass and a teardown. Snowflake is not set up.
-- The OpenSearch role of D176 ran on 2.19.6. The ordinary user runs SHOW TABLES, DESCRIBE and a paged SELECT. 3.9.0 is not measured.
-
+- Drill (D178), Elasticsearch (D177), Solr (D179) and OpenSearch (D181) are
+  built and pass on every release they answer. VoltDB has no model, because
+  its catalog kinds are unanswered (D180), and its entry is fixed. The
+  OpenSearch role is wider and the DynamoDB DSN ends with `tls=false`. v0.4.0
+  holds Drill, Elasticsearch and Solr.
+- On OpenSearch 2.19.6 Columns has no answer through dbimp's driver until dbimp
+  reads a number where the schema says keyword. The 2.19.6 column checks skip
+  under `describeReadable`.
+- Elasticsearch, Solr and OpenSearch report an unknown version. Ken asked
+  dbimp to support `SELECT version()` for them (D183). When dbimp tags it, each
+  model gets a `VersionQuery`.
+- Redshift ran once against Redshift Serverless and passes, with 11 of the 56
+  kinds and three parity principals (D182). Snowflake is not set up.
+- Ken's order for the next models: DynamoDB (survey first, and check the
+  trailing semicolon), then Pinot, then Avatica.
 - A daily check of the nightly workflow runs at 18:07 local time in this
   session, and expires after 7 days, on 2026-10-14. It watches the InfluxDB 1
   fix.

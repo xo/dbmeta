@@ -57,14 +57,15 @@ of this file.
 
 ## What exists today
 
-`models/` holds 35 native models: arangodb, cassandra, clickhouse,
-cockroachdb, couchbase, cratedb, databend, drill, druid, duckdb, exasol, firebird, hana,
-hive, impala, influxdb, influxql, libsql, mysql, neo4j, oracle, postgres,
-presto, questdb, redshift, rqlite, singlestore, snowflake, sqlite3, sqlserver,
-surrealdb, tidb, trino, vertica, vitess and ydb. ScyllaDB is a flavor of the
-Cassandra model and MySQL a flavor of the MariaDB one. `models/informationschema` is the shared
-model for any database with a standard `information_schema`, and no native
-model builds on it. `COVERAGE.md` holds what each one answers.
+`models/` holds 39 native models: arangodb, cassandra, clickhouse,
+cockroachdb, couchbase, cratedb, databend, drill, druid, duckdb,
+elasticsearch, exasol, firebird, hana, hive, impala, influxdb, influxql,
+libsql, mysql, neo4j, opensearch, oracle, postgres, presto, questdb, redshift,
+rqlite, singlestore, snowflake, solr, sqlite3, sqlserver, surrealdb, tidb,
+trino, vertica, vitess and ydb. ScyllaDB is a flavor of the Cassandra model
+and MySQL a flavor of the MariaDB one. `models/informationschema` is the
+shared model for any database with a standard `information_schema`, and no
+native model builds on it. `COVERAGE.md` holds what each one answers.
 
 `container/` names every release the tests run against, and `dbrun` starts
 each one. `dbrun` also starts Staged servers that no model reads (D119).
