@@ -4,8 +4,8 @@
 // worth checking. Hard rule 9 requires it, and D53 requires the core objects
 // to match every other fixture. A key is declared and not enforced.
 //
-// It was written from Snowflake's documentation and has not run, because no
-// account is provisioned yet. See D144.
+// It ran on a trial account on 2026-10-08, release 10.36.101, and built on the
+// first try. See D144 and D190.
 package fixture
 
 import (

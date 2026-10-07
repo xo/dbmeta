@@ -120,6 +120,7 @@ var foldQueries = map[dbmeta.Dialect]string{
 	dbmeta.Oracle:    `SELECT 1 AS DbMeta_Fold FROM dual`,
 	dbmeta.Firebird:  `SELECT 1 AS DbMeta_Fold FROM rdb$database`,
 	dbmeta.HANA:      `SELECT 1 AS DbMeta_Fold FROM DUMMY`,
+	dbmeta.Avatica:   `SELECT 1 AS DbMeta_Fold FROM (VALUES (0))`,
 	dbmeta.Cassandra: `SELECT key AS DbMeta_Fold FROM system.local`,
 	dbmeta.Neo4j:     `RETURN 1 AS DbMeta_Fold`,
 	// AQL has no SELECT, and an object's keys are the columns.

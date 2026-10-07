@@ -96,9 +96,12 @@ linters:
             - github.com/sijms/go-ora
             - github.com/xo/cql
             - github.com/xo/dbimp
+            - github.com/xo/dburl
             - github.com/nakagami/firebirdsql
             - github.com/SAP/go-hdb
             - github.com/beltran/gohive
+            - github.com/apache/arrow-go
+            - google.golang.org/grpc
             - github.com/exasol/exasol-driver-go
             - github.com/vertica/vertica-sql-go
             - github.com/snowflakedb/gosnowflake
@@ -110,6 +113,8 @@ linters:
         - (*database/sql.Rows).Close
         - (*database/sql.DB).Close
         - (*database/sql.Stmt).Close
+        # The same, for the Flight SQL client that opens a GizmoSQL session.
+        - (*github.com/apache/arrow-go/v18/arrow/flight/flightsql.Client).Close
         # A deferred Close on a file being read returns an error nothing can
         # act on, and the read already reported what mattered.
         - (*os.File).Close

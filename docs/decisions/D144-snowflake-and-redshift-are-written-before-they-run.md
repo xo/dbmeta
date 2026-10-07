@@ -1,6 +1,6 @@
 # D144. Snowflake and Redshift are written before they run
 
-Status: Decided, amended by D182.
+Status: Decided, amended by D182 and D190.
 
 Ken asked on 2026-09-30 for dbmeta to answer for Snowflake and Amazon
 Redshift, because usql deletes its own readers in W21. Both are hosted, and

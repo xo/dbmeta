@@ -7,11 +7,17 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has five releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0 on
+dbmeta has five releases and a sixth in preparation. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0 on
 39b74b2 on 2026-10-07, v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928 on
 2026-10-08, and v0.5.0 on 8f3115b on 2026-10-08. The Tested tier passed in CI
 on each tagged commit. Ken chose that CI stands in for a run of every tier,
 and the Verified tier was not run again for any of them.
+
+v0.6.0 holds the GizmoSQL (D187) and Avatica (D186) dialects, the first run of
+Snowflake against a trial account (D190), the OpenSearch 2.19.6 columns (D189),
+and the decisions that leave Pinot and DynamoDB without a model (D185, D184)
+and drop H2, VoltDB, chai and csvq (D188). dbrun connects a hosted service
+with the driver DSN.
 
 v0.5.0 holds the OpenSearch dialect (D181), the first run of Redshift against
 Redshift Serverless (D182), and the amendment of D176 (D183).
@@ -84,16 +90,15 @@ In progress:
   its catalog kinds are unanswered (D180), and its entry is fixed. The
   OpenSearch role is wider and the DynamoDB DSN ends with `tls=false`. v0.4.0
   holds Drill, Elasticsearch and Solr.
-- On OpenSearch 2.19.6 Columns has no answer through dbimp's driver until dbimp
-  reads a number where the schema says keyword. The 2.19.6 column checks skip
-  under `describeReadable`.
 - Elasticsearch, Solr and OpenSearch report an unknown version. Ken asked
   dbimp to support `SELECT version()` for them (D183). When dbimp tags it, each
   model gets a `VersionQuery`.
-- Redshift ran once against Redshift Serverless and passes, with 11 of the 56
-  kinds and three parity principals (D182). Snowflake is not set up.
-- Ken's order for the next models: DynamoDB (survey first, and check the
-  trailing semicolon), then Pinot, then Avatica.
+- Redshift (D182) and Snowflake (D190) ran against the provisioned services.
+  Redshift has three parity principals. Snowflake has none, because its role
+  cannot make a second login.
+- Every database that usql supports has a dialect, except H2, VoltDB, chai,
+  csvq, Pinot, DynamoDB and Phoenix, and the hosted services without a model
+  (D184, D185, D186, D188).
 - A daily check of the nightly workflow runs at 18:07 local time in this
   session, and expires after 7 days, on 2026-10-14. It watches the InfluxDB 1
   fix.

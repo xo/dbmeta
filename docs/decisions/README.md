@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-62 of them amend or replace an earlier one, and a decision read without its
+65 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -162,7 +162,7 @@ file.
 | [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no license | Amends D118 |
 | [D142](D142-ql-is-removed.md) | ql is removed | Amends D116, D119 and D129 |
 | [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided |
-| [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided, amended by D182 |
+| [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided, amended by D182 and D190 |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
 | [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159 and D175 |
 | [D147](D147-the-fields-psql-prints-that-usql-needed.md) | The fields psql prints that usql needed | Decided |
@@ -176,7 +176,7 @@ file.
 | [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
 | [D156](D156-a-test-checks-the-simple-english-rules-a-machine-can.md) | A test checks the simple English rules that a machine can check | Decided |
 | [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154, amended by D166 |
-| [D158](D158-h2-and-voltdb-wait.md) | H2 and VoltDB wait | Decided |
+| [D158](D158-h2-and-voltdb-wait.md) | H2 and VoltDB wait | Decided, amended by D188 |
 | [D159](D159-influxql-can-walk-show-statements.md) | InfluxQL can walk SHOW statements | Amends D146, amended by D175 |
 | [D160](D160-libsql-shares-the-sqlite3-model.md) | libSQL shares the sqlite3 model | Amends D153, amended by D167 |
 | [D162](D162-neo4j-maps-a-database-to-a-schema-and-a-label-to-a.md) | Neo4j maps a database to a schema and a label to a table | Decided |
@@ -196,9 +196,16 @@ file.
 | [D175](D175-elasticsearch-and-opensearch-can-walk-show-statements.md) | Elasticsearch and OpenSearch can walk SHOW statements | Amends D146 and D159 |
 | [D176](D176-the-first-search-dialects-follow-the-survey-answers.md) | The search dialects follow Ken's answers to the survey | Amended by D183 |
 | [D178](D178-drill-maps-a-workspace-to-a-schema-and-needs-the-metastore-for-file-tables.md) | Drill maps a workspace to a schema and needs the Metastore for file tables | Decided |
-| [D180](D180-voltdb-has-no-catalog-a-statement-can-reach.md) | VoltDB has no catalog that a statement can reach | Decided |
 | [D177](D177-elasticsearch-maps-an-index-to-a-table-and-walks-sys-and-show.md) | Elasticsearch maps an index to a table and walks SYS and SHOW | Decided |
 | [D179](D179-solr-maps-a-collection-to-a-table-under-a-fixed-schema.md) | Solr maps a collection to a table under a fixed schema | Decided |
-| [D181](D181-opensearch-maps-an-index-to-a-table-and-walks-show-and-describe.md) | OpenSearch maps an index to a table and walks SHOW and DESCRIBE | Decided |
+| [D180](D180-voltdb-has-no-catalog-a-statement-can-reach.md) | VoltDB has no catalog that a statement can reach | Decided |
+| [D181](D181-opensearch-maps-an-index-to-a-table-and-walks-show-and-describe.md) | OpenSearch maps an index to a table and walks SHOW and DESCRIBE | Decided, amended by D189 |
 | [D182](D182-redshift-ran-against-redshift-serverless.md) | Redshift ran against Redshift Serverless | Amends D144 |
 | [D183](D183-aliases-are-tables-and-dbimp-supplies-the-version.md) | Aliases are tables where SQL cannot tell them, and dbimp supplies the version | Amends D176 |
+| [D184](D184-dynamodb-has-no-catalog-a-statement-can-reach.md) | DynamoDB has no catalog that a statement can reach | Decided |
+| [D185](D185-pinot-has-no-catalog-a-statement-can-reach.md) | Apache Pinot has no catalog that a statement can reach | Decided |
+| [D186](D186-avatica-reads-the-hsqldb-catalog-and-phoenix-has-no-model.md) | Avatica reads the HSQLDB catalog, and Phoenix has no model | Decided |
+| [D187](D187-gizmosql-shares-the-duckdb-model-and-the-tests-open-the-session.md) | GizmoSQL shares the DuckDB model and the tests open the session | Decided |
+| [D188](D188-no-dialect-for-h2-voltdb-chai-or-csvq.md) | No dialect for H2, VoltDB, chai or csvq | Amends D158 |
+| [D189](D189-dbimp-reads-the-opensearch-2-19-6-describe-row.md) | dbimp reads the OpenSearch 2.19.6 DESCRIBE row | Amends D181 |
+| [D190](D190-snowflake-ran-against-a-trial-account.md) | Snowflake ran against a trial account | Amends D144 |

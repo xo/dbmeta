@@ -8,10 +8,11 @@ import (
 // The Apache Phoenix releases dbrun starts.
 //
 // The Phoenix Query Server speaks Avatica, the wire protocol of Apache
-// Calcite, in front of Phoenix on HBase. dbmeta has no Phoenix model. The
-// release is here so that dbrun can start a server for the tests of the
-// Avatica driver in github.com/xo/dbimp. No dialect is named yet, because
-// dbimp settles the name with the driver. See D113.
+// Calcite, in front of Phoenix on HBase. dbmeta has no Phoenix model, because
+// it shares no catalog statement, version or terminator with the standalone
+// Avatica server, which models/avatica reads (D186). The release is here so
+// that dbrun can start a server for the tests of the Avatica driver in
+// github.com/xo/dbimp. See D113.
 //
 // # The image is an exception
 //

@@ -13,10 +13,10 @@ import (
 // driver in github.com/apache/arrow-go, through dburl's gizmosql scheme from
 // v0.36.0. The DSN is the driver's flightsql form, and the URL is the
 // gizmosql one. The dialect is gizmosql, which is dburl's. It holds a
-// DuckDB database. dbmeta has no Flight SQL model. The entry is the server
-// for that driver, because Flight SQL is a protocol and GizmoSQL is the server
-// of it that is maintained: voltrondata/flight-sql stopped in 2024, and
-// voltrondata/sqlflite after it. See D118.
+// DuckDB database, which is the default backend. The model reads that engine
+// and shares the duckdb model's statements (D187). Flight SQL is a protocol and
+// GizmoSQL is the server of it that is maintained: voltrondata/flight-sql
+// stopped in 2024, and voltrondata/sqlflite after it. See D118.
 //
 // # The range
 //
@@ -27,6 +27,12 @@ import (
 // ends in -slim does not turn TLS on, and the other tags make a certificate
 // of their own. The core is under the Apache 2.0 license, and the enterprise
 // features need a license key that nothing here needs.
+//
+// # The session
+//
+// The flightsql driver never makes the handshake that opens a session, so a
+// connection with the DSN below fails on every statement. The tests make the
+// handshake and put the token in the DSN. See D187.
 //
 // # One user
 //
@@ -62,9 +68,6 @@ var gizmosql = product{
 	},
 }
 
-// GizmoSQL is every GizmoSQL release dbrun starts.
-//
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var GizmoSQL = list{}.staged(gizmosql, Tested, "1.40.0", "1.41.0")
+// GizmoSQL is every GizmoSQL release dbrun starts. They are Tested, the
+// cadence they recorded while they were Staged (D120).
+var GizmoSQL = list{}.add(gizmosql, Tested, "1.40.0", "1.41.0")

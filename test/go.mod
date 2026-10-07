@@ -4,6 +4,7 @@ go 1.27.1
 
 require (
 	github.com/SAP/go-hdb v1.18.11
+	github.com/apache/arrow-go/v18 v18.5.1
 	github.com/beltran/gohive/v2 v2.1.0
 	github.com/duckdb/duckdb-go/v2 v2.10505.0
 	github.com/exasol/exasol-driver-go v1.1.1
@@ -18,9 +19,11 @@ require (
 	github.com/snowflakedb/gosnowflake/v2 v2.2.0
 	github.com/vertica/vertica-sql-go v1.3.8
 	github.com/xo/cql v0.1.0
-	github.com/xo/dbimp v0.14.0
+	github.com/xo/dbimp v0.14.1
 	github.com/xo/dbmeta v0.0.0
+	github.com/xo/dburl v0.46.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.152.0
+	google.golang.org/grpc v1.79.3
 	modernc.org/sqlite v1.59.0
 )
 
@@ -32,7 +35,6 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.0.0 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
-	github.com/apache/arrow-go/v18 v18.5.1 // indirect
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.2 // indirect
 	github.com/apache/thrift v0.24.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.43.0 // indirect
@@ -106,7 +108,6 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
-	github.com/xo/dburl v0.46.0 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260810122915-65bfd5c4b705 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b // indirect
@@ -130,7 +131,6 @@ require (
 	golang.org/x/tools v0.49.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect

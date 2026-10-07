@@ -23,21 +23,6 @@ Cassandra today. So the move waits until dburl names dbimp's driver.
 
 ## Servers
 
-### Build the H2 model when a driver reaches H2
-
-D158 left H2 Staged, because h2go, the driver dburl names, fails against H2
-2.4.240 and 2.5.252 with "Can't read all data needed" (D118). When a driver
-that dburl names reaches both releases, build the model. H2 has an
-`INFORMATION_SCHEMA`, so the model is likely a short one.
-
-### Build the VoltDB model when a statement can run a procedure
-
-VoltDB has no catalog that a `Stmt` reaches. `@SystemCatalog` takes only a
-component name and has no filter, and `bind` reads the at sign of its name as
-a parameter. D180 holds the measurements. When Ken decides on a way to run a
-procedure, or on a filter in Go, build the model. Both releases are Staged
-with the cadence Verified, and they need Ken's license file (D118).
-
 ### Find why the Hive setup fails on a slow machine
 
 The Hive setup fails on a GitHub runner, soon after HiveServer2 first answers,
@@ -92,22 +77,6 @@ answer `SELECT version()` for a database that cannot return its release as a
 query (D183). When dbimp tags it, give each model a `VersionQuery` of that
 statement, and stop the tests reading the release over HTTP.
 
-### Read OpenSearch 2.19.6 Columns again
-
-dbimp v0.14.0 cannot read a `DESCRIBE TABLES` row on 2.19.6, because the
-server declares every column keyword and sends numbers in some of them (D181).
-So Columns has no answer there, and `describeReadable` in
-`test/opensearch_test.go` skips the column checks. Ken asked dbimp to read a
-number where the schema says keyword. When dbimp tags it, pin it, remove the
-skip, and run parity again.
-
-### Survey DynamoDB, Apache Pinot and Apache Avatica
-
-Ken chose the order on 2026-10-08: DynamoDB, then Pinot, then Avatica
-(Phoenix and Calcite). Each driver exists in dbimp and each product has an
-entry. Survey DynamoDB first, and check a statement that ends in a semicolon,
-because usql tried none. Then decide whether to build each one.
-
 ### Finish the Redshift measurements
 
 Redshift ran once against Redshift Serverless (D182). It has no conformance
@@ -118,13 +87,15 @@ signs and spaces in a password. The identity flag `a` of `columns.identity` is
 a reading of the documentation and was not measured. A run reads about 36,000
 columns and costs trial credit, so keep each pass small.
 
-### Run the Snowflake model
+### Measure Snowflake parity
 
-`models/snowflake` was written from the vendor's documentation and has never
-run (D144). When a person provisions a connection string that dbrun resolves
-(D117), run its tests, fix each statement that fails, write its parity
-targets, and remove "Written, not run" from README.md and docs/COVERAGE.md.
-D182 did the same for Redshift.
+`models/snowflake` ran against a trial account (D190). Parity is not measured,
+because the role of the test account holds no CREATE USER or CREATE ROLE grant
+and so cannot make a second principal. When Ken grants both to a role the
+tests use, add a parity target with an owner, a grantee and a stranger, as
+Redshift has (D182), and remove the Snowflake entry from `parityExempt`. The
+same run can measure `ChangePassword` on a user the test makes, and a
+conformance target.
 
 ## Consumers
 

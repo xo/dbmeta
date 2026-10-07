@@ -43,7 +43,7 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		always(`, COALESCE(f.comment, f.description) AS "comment"`),
 		always(`, NULL AS "definition"`),
 		always(`FROM duckdb_functions() f`),
-		always(`WHERE ` + internalOf("f")),
+		internalOf("WHERE", "f"),
 	}
 	if kindFilter != "" {
 		stmt = append(stmt, always(`AND f.function_type = '`+kindFilter+`'`))
@@ -120,7 +120,7 @@ func registerFunctions() {
 			always(`, NULL AS "default"`),
 			always(`FROM duckdb_functions() f,` +
 				` unnest(f.parameters) WITH ORDINALITY AS e(param, ordinality)`),
-			always(`WHERE ` + internalOf("f")),
+			internalOf("WHERE", "f"),
 			always(`AND (@schema = '' OR f.schema_name LIKE @schema)`),
 			always(`AND (@parent = '' OR f.function_name LIKE @parent)`),
 			always(`AND (@name = '' OR e.param LIKE @name)`),
@@ -163,7 +163,7 @@ func registerTypes() {
 			always(`, y.comment AS "comment"`),
 			always(`, CAST(y.type_size AS VARCHAR) AS "size"`),
 			always(`FROM duckdb_types() y`),
-			always(`WHERE ` + internalOf("y")),
+			internalOf("WHERE", "y"),
 			always(`AND (@schema = '' OR y.schema_name LIKE @schema)`),
 			always(`AND (@name = '' OR y.type_name LIKE @name)`),
 			always(`ORDER BY 2, 3`),
@@ -195,7 +195,7 @@ func registerTypes() {
 			always(`, e.label AS "label"`),
 			always(`, e.ordinality AS "ordinal"`),
 			always(`FROM duckdb_types() y, unnest(y.labels) WITH ORDINALITY AS e(label, ordinality)`),
-			always(`WHERE ` + internalOf("y")),
+			internalOf("WHERE", "y"),
 			always(`AND (@schema = '' OR y.schema_name LIKE @schema)`),
 			always(`AND (@name = '' OR y.type_name LIKE @name)`),
 			always(`ORDER BY 2, 3, 5`),

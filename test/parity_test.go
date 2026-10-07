@@ -13,6 +13,7 @@ import (
 
 	"github.com/xo/dbmeta"
 	arfixture "github.com/xo/dbmeta/models/arangodb/fixture"
+	avfixture "github.com/xo/dbmeta/models/avatica/fixture"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
@@ -334,6 +335,24 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
+			dialect: dbmeta.Avatica, driver: "avatica", env: "DBMETA_AVATICA",
+			open: openAvatica, build: setupAvatica,
+			schema: avfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// HSQLDB has no containment. A user belongs to the database.
+				// The user the dbrun entry makes can read one table in another
+				// schema and nothing else, so HSQLDB hides the rest from
+				// INFORMATION_SCHEMA. The grantee is a user holding the role
+				// dbmeta_reader, which can read the fixture table author, run
+				// a procedure and use a sequence.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "user", make: makeAvaticaUser},
+					{name: "grantee", make: makeAvaticaGrantee},
+				},
+			}},
+		},
+		{
 			dialect: dbmeta.Druid, driver: "druid", env: "DBMETA_DRUID",
 			open: openDruid, build: setupDruid,
 			schema: drfixture.Everything.Schema,
@@ -635,8 +654,12 @@ func parityTargets() []parityTarget {
 var parityExempt = map[dbmeta.Dialect]string{
 	dbmeta.SQLite3: "a file on disk. It has no user, so there is no second principal to be",
 	dbmeta.DuckDB:  "an embedded library. It has no user either",
-	dbmeta.Snowflake: "a hosted service, and no account is provisioned yet, so the model" +
-		" has not run and its principals are not measured. See D144",
+	dbmeta.GizmoSQL: "the core has one user, admin, and its engine is DuckDB, which has no" +
+		" user. The other roles need an identity provider or an enterprise license." +
+		" See D118 and D187",
+	dbmeta.Snowflake: "the role of the test account owns its own database and holds no CREATE" +
+		" USER or CREATE ROLE grant, so the test cannot make a second principal to compare." +
+		" Snowflake does have more than one kind of principal. See D190",
 	dbmeta.Impala: "the image configures no authentication, so every user is the same" +
 		" principal and nothing can be refused to one. See D146",
 	dbmeta.Vitess: "vttestserver starts vtcombo with no authentication and no table rules," +
@@ -885,7 +908,7 @@ func parityName(dialect dbmeta.Dialect, m *dbmeta.Meta) string {
 // openAt connects and closes at the end of the test.
 func openAt(t *testing.T, driver, dsn string) *sql.DB {
 	t.Helper()
-	db, err := sql.Open(driver, pgxDSN(dsn))
+	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		t.Fatalf("opening %s: %v", driver, err)
 	}

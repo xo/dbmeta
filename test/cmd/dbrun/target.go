@@ -105,12 +105,15 @@ type target struct {
 	// Credential says where a hosted service's connection string came from,
 	// such as env DBMETA_SNOWFLAKE_DSN, and never holds the secret. DSN and
 	// URL hold the connection string with its secret masked, and secret
-	// holds it whole, for the commands that connect. See D117.
+	// holds it whole, as the URL a person pastes. driverDSN holds what
+	// sql.Open takes, from the same URL, for the commands that connect.
+	// See D117 and D167.
 	Credential string `json:"credential,omitempty"`
 	// License is the license file on the host that dbrun mounts, for a
 	// product that does not start without one. See D118.
-	License string `json:"license,omitempty"`
-	secret  string
+	License   string `json:"license,omitempty"`
+	secret    string
+	driverDSN string
 
 	// Principals is every user a test reaches the server as, the
 	// administrator first, with the connection string of each. It is empty
@@ -349,11 +352,12 @@ func targets() []target {
 	return out
 }
 
-// connectDSN is the connection string a command connects with. It is the
-// secret one for a hosted service, and the DSN for everything else.
+// connectDSN is the connection string a command connects with. It is what
+// sql.Open takes with the secret in it for a hosted service, and the DSN for
+// everything else.
 func (t target) connectDSN() string {
 	if t.Kind == kindHosted {
-		return t.secret
+		return t.driverDSN
 	}
 	return t.DSN
 }

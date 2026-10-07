@@ -13,6 +13,7 @@ import (
 
 	"github.com/xo/dbmeta"
 	arfixture "github.com/xo/dbmeta/models/arangodb/fixture"
+	avfixture "github.com/xo/dbmeta/models/avatica/fixture"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
@@ -24,6 +25,7 @@ import (
 	esfixture "github.com/xo/dbmeta/models/elasticsearch/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
+	gzfixture "github.com/xo/dbmeta/models/gizmosql/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
 	imfixture "github.com/xo/dbmeta/models/impala/fixture"
@@ -96,10 +98,6 @@ type conformTarget struct {
 	schema string
 	// build runs the fixture and returns the meta.
 	build func(*testing.T, *sql.DB) *dbmeta.Meta
-	// skip gives the reason to skip a release, or is empty to run it. It is nil
-	// for every target but OpenSearch, whose 2.19.6 has no Columns through the
-	// driver.
-	skip func(*dbmeta.Meta) string
 }
 
 func conformTargets() []conformTarget {
@@ -170,6 +168,10 @@ func conformTargets() []conformTarget {
 			open: openDuckDB, schema: dkfixture.Everything.Schema, build: setupDuckDB,
 		},
 		{
+			name: "gizmosql", dialect: dbmeta.GizmoSQL,
+			open: openGizmoSQL, schema: gzfixture.Everything.Schema, build: setupGizmoSQL,
+		},
+		{
 			name: "sqlserver", dialect: dbmeta.SQLServer,
 			open: openSQLServer, schema: msfixture.Everything.Schema, build: setupSQLServer,
 		},
@@ -215,6 +217,10 @@ func conformTargets() []conformTarget {
 			},
 		},
 		{
+			name: "avatica", dialect: dbmeta.Avatica,
+			open: openAvatica, schema: avfixture.Everything.Schema, build: setupAvatica,
+		},
+		{
 			name: "drill", dialect: dbmeta.Drill,
 			open: openDrill, schema: dlfixture.Everything.Schema, build: setupDrill,
 		},
@@ -229,7 +235,6 @@ func conformTargets() []conformTarget {
 		{
 			name: "opensearch", dialect: dbmeta.OpenSearch,
 			open: openOpenSearch, schema: osfixture.Everything.Schema, build: setupOpenSearch,
-			skip: skipOpenSearchDescribe,
 		},
 		{
 			name: "solr", dialect: dbmeta.Solr,
@@ -295,11 +300,6 @@ func TestConformance(t *testing.T) {
 		t.Run(target.name, func(t *testing.T) {
 			db := target.open(t)
 			m := target.build(t, db)
-			if target.skip != nil {
-				if why := target.skip(m); why != "" {
-					t.Skip(why)
-				}
-			}
 			got := conformReport(t, m, db, target.schema)
 			section := conformSection(target.name, m, want)
 			ran++

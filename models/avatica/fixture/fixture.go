@@ -1,0 +1,216 @@
+// Package fixture builds the schema the Avatica queries read.
+//
+// The server is the standalone Avatica server in front of HSQLDB, so the
+// statements are HSQLDB's SQL, and a test sends them through dbimp's Avatica
+// driver. The fixture creates one of every object those queries report, so a
+// test has rows worth checking rather than an empty catalog. Hard rule 9
+// requires it, and D53 requires the core objects to match every other
+// fixture, so that the cross family comparison reads the same schema
+// everywhere.
+//
+// A name written without quotes is folded to upper case, which is the
+// standard's rule. The statements here are lower case and the catalog reports
+// them upper case, and the tests fold before comparing.
+//
+// # What HSQLDB cannot be asked for here
+//
+// No user. A user belongs to the database and not to a schema, and
+// test/parity_test.go makes its own principals, so the fixture makes two
+// roles and leaves the users to the entry in container/avatica.go.
+//
+// No comment on a routine, a sequence or an index. COMMENT ON takes a table,
+// a view and a column in HSQLDB 2.4.1, and nothing else.
+//
+// No collation of its own. HSQLDB 2.4.1 has SET DATABASE COLLATION, which
+// changes the whole database, and no CREATE COLLATION, so Collations reads
+// the 97 that the server lists and the fixture adds none.
+//
+// No synonym, assertion, text table or cached table. HSQLDB 2.4.1 lists a
+// synonym and an assertion and cannot create either, and the text table and
+// cached table need a file that the in memory server does not have.
+package fixture
+
+import (
+	"errors"
+
+	"github.com/xo/dbmeta"
+)
+
+// Step is one statement the fixture runs.
+type Step struct {
+	Name string
+	Stmt dbmeta.Stmt
+}
+
+// Result is what a step resolved to for one server.
+type Result struct {
+	Name    string
+	Query   string
+	Skipped bool
+	Reason  string
+}
+
+// Fixture is a database and the statements that build and remove it.
+type Fixture struct {
+	Name     string
+	Schema   string
+	Setup    []Step
+	Teardown []Step
+}
+
+// ResolveSetup returns the setup for a server.
+func (f Fixture) ResolveSetup(versions dbmeta.VersionSet) ([]Result, error) {
+	return resolve(f.Setup, versions)
+}
+
+// ResolveTeardown returns the teardown for a server.
+func (f Fixture) ResolveTeardown(versions dbmeta.VersionSet) ([]Result, error) {
+	return resolve(f.Teardown, versions)
+}
+
+func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
+	out := make([]Result, 0, len(steps))
+	for _, step := range steps {
+		query, err := step.Stmt.Build(versions)
+		switch {
+		case errors.Is(err, dbmeta.ErrVersionTooOld):
+			out = append(out, Result{
+				Name:    step.Name,
+				Skipped: true,
+				Reason:  "the server is older than this step needs",
+			})
+		case err != nil:
+			return nil, err
+		default:
+			out = append(out, Result{Name: step.Name, Query: query})
+		}
+	}
+	return out, nil
+}
+
+func at(name, query string) Step {
+	return Step{Name: name, Stmt: dbmeta.Always(query)}
+}
+
+// Everything holds one of every object the Avatica queries read.
+var Everything = Fixture{
+	Name:   "everything",
+	Schema: "DBMETA_FIXTURE",
+	Setup: []Step{
+		at("schema", `CREATE SCHEMA dbmeta_fixture`),
+
+		// The core objects D53 asks every fixture for.
+		at("author", `CREATE TABLE dbmeta_fixture.author (
+	author_id INTEGER NOT NULL,
+	name VARCHAR(128) NOT NULL,
+	rating INTEGER,
+	shade VARCHAR(16) DEFAULT 'plain',
+	CONSTRAINT author_pk PRIMARY KEY (author_id)
+)`),
+		at("book", `CREATE TABLE dbmeta_fixture.book (
+	book_id INTEGER NOT NULL,
+	author_id INTEGER NOT NULL,
+	title VARCHAR(255) NOT NULL,
+	published DATE,
+	CONSTRAINT book_pk PRIMARY KEY (book_id),
+	CONSTRAINT book_author_fk FOREIGN KEY (author_id)
+		REFERENCES dbmeta_fixture.author (author_id),
+	CONSTRAINT book_title_uq UNIQUE (title),
+	CONSTRAINT book_title_ck CHECK (CHAR_LENGTH(title) > 0)
+)`),
+		// An index somebody created, as against one a constraint created.
+		at("book_published", `CREATE INDEX book_published ON dbmeta_fixture.book (published)`),
+		// A composite primary key, and a composite foreign key into it.
+		at("region", `CREATE TABLE dbmeta_fixture.region (
+	country VARCHAR(64) NOT NULL,
+	area VARCHAR(64) NOT NULL,
+	CONSTRAINT region_pk PRIMARY KEY (country, area)
+)`),
+		at("shipment", `CREATE TABLE dbmeta_fixture.shipment (
+	shipment_id INTEGER NOT NULL,
+	country VARCHAR(64) NOT NULL,
+	area VARCHAR(64) NOT NULL,
+	amount DECIMAL(12, 2) NOT NULL,
+	CONSTRAINT shipment_pk PRIMARY KEY (shipment_id),
+	CONSTRAINT shipment_region_fk FOREIGN KEY (country, area)
+		REFERENCES dbmeta_fixture.region (country, area)
+)`),
+		at("recent", `CREATE VIEW dbmeta_fixture.recent AS
+	SELECT book_id, title FROM dbmeta_fixture.book WHERE book_id > 0
+	WITH CHECK OPTION`),
+
+		// An identity column and a generated column, on a table of their
+		// own so that the core tables stay the same shape everywhere.
+		at("ticket", `CREATE TABLE dbmeta_fixture.ticket (
+	ticket_id INTEGER GENERATED BY DEFAULT AS IDENTITY (START WITH 1),
+	note VARCHAR(64),
+	twice INTEGER GENERATED ALWAYS AS (ticket_id * 2),
+	CONSTRAINT ticket_pk PRIMARY KEY (ticket_id)
+)`),
+		// A table of another kind, so that Tables has more than one type.
+		at("scratch", `CREATE GLOBAL TEMPORARY TABLE dbmeta_fixture.scratch (
+	id INTEGER
+) ON COMMIT DELETE ROWS`),
+
+		at("sequence", `CREATE SEQUENCE dbmeta_fixture.dbmeta_counter AS BIGINT
+	START WITH 5 INCREMENT BY 2 MINVALUE 1 MAXVALUE 1000 CYCLE`),
+
+		// A domain with a constraint, and a distinct type.
+		at("domain", `CREATE DOMAIN dbmeta_fixture.dbmeta_rating AS INTEGER DEFAULT 0
+	CONSTRAINT rating_ck CHECK (VALUE BETWEEN 0 AND 10)`),
+		at("type", `CREATE TYPE dbmeta_fixture.dbmeta_money AS DECIMAL(12, 2) FINAL`),
+
+		// A function, a procedure and an aggregate, so Functions has a row of
+		// each kind and RoutineParameters has an input, an output and an
+		// input and output.
+		at("function", `CREATE FUNCTION dbmeta_fixture.doubled (n INTEGER)
+	RETURNS INTEGER DETERMINISTIC RETURN n * 2`),
+		at("procedure", `CREATE PROCEDURE dbmeta_fixture.book_count (IN max_id INTEGER, OUT total INTEGER)
+	READS SQL DATA
+	BEGIN ATOMIC
+		SELECT COUNT(*) INTO total FROM dbmeta_fixture.book WHERE book_id <= max_id;
+	END`),
+		at("aggregate", `CREATE AGGREGATE FUNCTION dbmeta_fixture.dbmeta_total
+	(IN x DOUBLE, IN flag BOOLEAN, INOUT acc DOUBLE, INOUT counter INT)
+	RETURNS DOUBLE CONTAINS SQL
+	BEGIN ATOMIC
+		IF flag THEN
+			RETURN acc;
+		ELSE
+			SET acc = COALESCE(acc, 0) + COALESCE(x, 0);
+			SET counter = COALESCE(counter, 0) + 1;
+			RETURN NULL;
+		END IF;
+	END`),
+
+		at("trigger", `CREATE TRIGGER dbmeta_fixture.book_bi
+	BEFORE INSERT ON dbmeta_fixture.book
+	REFERENCING NEW ROW AS newrow
+	FOR EACH ROW
+	BEGIN ATOMIC
+		SET newrow.title = TRIM(newrow.title);
+	END`),
+
+		// Two roles, one granted to the other, and grants to them, so Roles,
+		// RoleGrants and Privileges have rows the fixture put there. A
+		// column grant and a sequence grant are the two that a table grant
+		// does not cover.
+		at("role", `CREATE ROLE dbmeta_reader`),
+		at("member role", `CREATE ROLE dbmeta_member`),
+		at("grant role", `GRANT dbmeta_member TO dbmeta_reader`),
+		at("grant table", `GRANT SELECT ON dbmeta_fixture.author TO dbmeta_reader`),
+		at("grant columns", `GRANT SELECT (name), UPDATE (rating) ON dbmeta_fixture.author TO dbmeta_member`),
+		at("grant execute", `GRANT EXECUTE ON PROCEDURE dbmeta_fixture.book_count TO dbmeta_reader`),
+		at("grant sequence", `GRANT USAGE ON SEQUENCE dbmeta_fixture.dbmeta_counter TO dbmeta_reader`),
+
+		// Comments, one of each kind HSQLDB takes.
+		at("table comment", `COMMENT ON TABLE dbmeta_fixture.author IS 'people who write'`),
+		at("column comment", `COMMENT ON COLUMN dbmeta_fixture.author.name IS 'the author name'`),
+		at("view comment", `COMMENT ON TABLE dbmeta_fixture.recent IS 'the newest books'`),
+	},
+	Teardown: []Step{
+		at("schema", `DROP SCHEMA dbmeta_fixture CASCADE`),
+		at("reader", `DROP ROLE dbmeta_reader`),
+		at("member", `DROP ROLE dbmeta_member`),
+	},
+}

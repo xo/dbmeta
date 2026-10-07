@@ -1,6 +1,6 @@
 # D181. OpenSearch maps an index to a table and walks SHOW and DESCRIBE
 
-Status: Decided.
+Status: Decided, amended by D189.
 
 ## The decision
 

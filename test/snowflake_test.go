@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"strings"
 	"testing"
 
 	_ "github.com/snowflakedb/gosnowflake/v2"
@@ -15,7 +16,7 @@ import (
 
 // openSnowflake returns a connection to the service named by DBMETA_SNOWFLAKE, which
 // dbrun resolves from the places D117 names. The model was written before
-// an account was provisioned, and these tests are what finish it (D144).
+// an account was provisioned, and D190 holds what the first run found.
 func openSnowflake(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_SNOWFLAKE")
@@ -112,4 +113,101 @@ func TestSnowflakeSmoke(t *testing.T) {
 func TestSnowflakeScansEveryQuery(t *testing.T) {
 	db := openSnowflake(t)
 	scanEveryQuery(t, setupSnowflake(t, db), db)
+}
+
+// sfArgs reads the fixture schema, which Snowflake folds to upper case.
+func sfArgs() map[string]any {
+	return dbmeta.Args{Schema: sffixture.Everything.Schema}.Map()
+}
+
+// TestSnowflakeFixtureObjects reads the fixture back through the typed API and
+// checks the values that are Snowflake's own.
+func TestSnowflakeFixtureObjects(t *testing.T) {
+	db := openSnowflake(t)
+	ctx := t.Context()
+	m := setupSnowflake(t, db)
+
+	types := map[string]string{}
+	for v, err := range dbmeta.Tables.All(ctx, m, db, sfArgs()) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		types[v.Name] = v.Type
+		if v.Name == "AUTHOR" && v.Comment.V != "people who write" {
+			t.Errorf("AUTHOR: expected its comment, got %+v", v.Comment)
+		}
+	}
+	for name, want := range map[string]string{"AUTHOR": "table", "BOOK": "table", "RECENT": "view"} {
+		if types[name] != want {
+			t.Errorf("%s: expected %s, got %q", name, want, types[name])
+		}
+	}
+
+	for v, err := range dbmeta.Columns.All(ctx, m, db, sfArgs()) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		switch v.Table + "." + v.Name {
+		case "AUTHOR.AUTHOR_ID":
+			if v.Nullable || v.Identity.V != "by default" || v.Comment.V != "surrogate key" {
+				t.Errorf("AUTHOR_ID: expected not nullable, an identity and its comment, got %+v", v)
+			}
+		case "AUTHOR.SHADE":
+			if v.Default.V != "'red'" {
+				t.Errorf("SHADE: expected the default 'red', got %q", v.Default.V)
+			}
+		case "BOOK.TITLE":
+			if v.Collation.V != "en-ci" {
+				t.Errorf("TITLE: expected the collation en-ci, got %q", v.Collation.V)
+			}
+		}
+	}
+
+	kinds := map[string]int{}
+	for v, err := range dbmeta.Constraints.All(ctx, m, db, sfArgs()) {
+		if err != nil {
+			t.Fatalf("reading constraints: %v", err)
+		}
+		kinds[v.Type]++
+	}
+	if kinds["primary key"] != 4 || kinds["foreign key"] != 2 || kinds["unique"] != 1 {
+		t.Errorf("expected 4 primary keys, 2 foreign keys and 1 unique key, got %v", kinds)
+	}
+
+	for v, err := range dbmeta.Sequences.All(ctx, m, db, sfArgs()) {
+		if err != nil {
+			t.Fatalf("reading sequences: %v", err)
+		}
+		if v.Name != "COUNTER" || v.Start.V != "10" || v.Increment.V != "2" {
+			t.Errorf("expected COUNTER from 10 by 2, got %+v", v)
+		}
+	}
+
+	routines := map[string]string{}
+	for v, err := range dbmeta.Functions.All(ctx, m, db, sfArgs()) {
+		if err != nil {
+			t.Fatalf("reading functions: %v", err)
+		}
+		routines[v.Name] = v.Kind
+	}
+	if routines["SHOUT"] != "func" || routines["ADDUP"] != "proc" {
+		t.Errorf("expected SHOUT as a function and ADDUP as a procedure, got %v", routines)
+	}
+
+	// The type of a grant on a view is view, and not table.
+	var granted bool
+	for v, err := range dbmeta.Privileges.All(ctx, m, db, sfArgs()) {
+		if err != nil {
+			t.Fatalf("reading privileges: %v", err)
+		}
+		if v.Name == "RECENT" {
+			granted = true
+			if v.Type != "view" || !strings.HasPrefix(v.Access.V, "DBMETA_ROLE=OWNERSHIP/") {
+				t.Errorf("RECENT: expected an ownership grant on a view, got %+v", v)
+			}
+		}
+	}
+	if !granted {
+		t.Error("RECENT: expected a grant")
+	}
 }

@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xo/dburl"
+
 	"github.com/xo/dbmeta/container"
 	"github.com/xo/dbmeta/hosted"
 )
@@ -160,9 +162,22 @@ func resolveHosted(ctx context.Context, services []hosted.Service) ([]target, []
 			URL:        masked,
 			Credential: c.source,
 			secret:     c.dsn,
+			driverDSN:  driverDSN(c.dsn),
 		})
 	}
 	return out, problems
+}
+
+// driverDSN is what sql.Open takes for a secret URL. The scheme of the URL
+// is dburl's, and a driver can read it as part of the user name, such as
+// gosnowflake, or refuse it, such as pgx on redshift. If dburl cannot parse
+// the URL, the URL itself is returned and the connection reports the fault.
+func driverDSN(secret string) string {
+	u, err := dburl.Parse(secret)
+	if err != nil || u.DSN == "" {
+		return secret
+	}
+	return u.DSN
 }
 
 // secretKeys are the query parameters whose values are masked, matched

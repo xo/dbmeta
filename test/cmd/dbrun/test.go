@@ -11,6 +11,7 @@ import (
 	"time"
 
 	_ "github.com/SAP/go-hdb/driver"
+	_ "github.com/apache/arrow-go/v18/arrow/flight/flightsql/driver"
 	_ "github.com/beltran/gohive/v2"
 	_ "github.com/exasol/exasol-driver-go"
 	_ "github.com/go-sql-driver/mysql"
@@ -23,6 +24,7 @@ import (
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cql"
 	_ "github.com/xo/dbimp/arangodb"
+	_ "github.com/xo/dbimp/avatica"
 	_ "github.com/xo/dbimp/clickhouse"
 	_ "github.com/xo/dbimp/couchbase"
 	_ "github.com/xo/dbimp/databend"
@@ -41,6 +43,7 @@ import (
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
+	"github.com/xo/dbmeta/test/internal/gizmosql"
 )
 
 // drivers names the driver each dialect connects with. It is the one the
@@ -95,10 +98,17 @@ var drivers = map[dbmeta.Dialect]string{
 	// opensearch:// opens dbimp's driver (D181).
 	dbmeta.OpenSearch: "opensearch",
 
+	// avatica:// opens dbimp's driver, in front of HSQLDB (D186).
+	dbmeta.Avatica: "avatica",
+
 	// influxql:// opens the same driver, with sqlmode=disable (D165).
 	dbmeta.InfluxQL:  "influxdb",
 	dbmeta.SurrealDB: "surrealdb",
 	dbmeta.Solr:      "solr",
+
+	// gizmosql:// opens the Arrow Flight SQL driver, which needs the session
+	// that readVersion opens first (D187).
+	dbmeta.GizmoSQL: "flightsql",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the
@@ -130,7 +140,16 @@ func readVersion(ctx context.Context, t target) (dbmeta.VersionSet, error) {
 	if !ok {
 		return dbmeta.VersionSet{}, fmt.Errorf("no driver for %s", t.Dialect)
 	}
-	db, err := sql.Open(driver, t.connectDSN())
+	dsn := t.connectDSN()
+	if t.Dialect == dbmeta.GizmoSQL {
+		// The driver never makes the handshake that GizmoSQL needs, so the
+		// DSN carries the session token that internal/gizmosql opens.
+		var err error
+		if dsn, err = gizmosql.DSN(ctx, dsn); err != nil {
+			return dbmeta.VersionSet{}, fmt.Errorf("opening a session: %w", err)
+		}
+	}
+	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		return dbmeta.VersionSet{}, fmt.Errorf("opening: %w", err)
 	}

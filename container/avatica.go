@@ -3,18 +3,19 @@ package container
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The standalone Avatica releases dbrun starts.
 //
 // Avatica is the wire protocol of Apache Calcite: JDBC calls over HTTP, in
-// protobuf or JSON. dbmeta has no Avatica model. The releases are here so that
-// dbrun can start a server for the tests of the Avatica driver in
-// github.com/xo/dbimp, which tests one driver against each product that speaks
-// the protocol. This is the standalone server, and Phoenix is the other.
-// Druid was a third until dbimp gave it a driver of its own (D155). No
-// dialect is named yet, because dbimp settles the name with the driver. See
-// D113.
+// protobuf or JSON. models/avatica reads this server through the driver of
+// github.com/xo/dbimp, which dburl's avatica scheme opens (D186). The server
+// is Avatica over HSQLDB, so what the model reads is the catalog of HSQLDB.
+// Phoenix is the other product that speaks the protocol, and no model reads
+// it, because it shares no catalog statement with HSQLDB (D186). Druid was a
+// third until dbimp gave it a driver of its own (D155). See D113.
 //
 // # The range
 //
@@ -81,9 +82,10 @@ case "$out" in *'"response":"executeResults"'*) ;; *) echo "reading DBMETA.READA
 
 // avatica is the standalone Avatica server over an in-memory HSQLDB.
 var avatica = product{
-	name:  "avatica",
-	image: "docker.io/apache/calcite-avatica-hypersql",
-	port:  8765,
+	dialect: dbmeta.Avatica,
+	name:    "avatica",
+	image:   "docker.io/apache/calcite-avatica-hypersql",
+	port:    8765,
 	// The entry names Java and the whole command. The entrypoint of 1.28.0
 	// and 1.27.0 runs /usr/bin/java, which those images do not have: Java is
 	// in /opt/java/openjdk, and 1.29.0 fixed the path. The image's own
@@ -97,22 +99,26 @@ var avatica = product{
 	},
 	ready: []string{"sh", "-c", avaticaReady},
 	init:  []string{"sh", "-c", avaticaSetup},
-	// SA is the administrator of HSQLDB, and it has no password there.
-	dsn: avaticaHTTP("SA"),
+	// SA is the administrator of HSQLDB, and it has no password there. The
+	// dsn is what sql.Open takes, which is the URL of the driver, and the
+	// api is the HTTP address (D167, D186).
+	dsn: avaticaURL(url.User("SA")),
 	url: avaticaURL(url.User("SA")),
+	api: avaticaHTTP("SA"),
 	users: []Principal{{
 		Role: User, User: AvaticaUser,
-		dsn: func(port int) string {
+		dsn: avaticaURL(url.UserPassword(AvaticaUser, Password)),
+		url: avaticaURL(url.UserPassword(AvaticaUser, Password)),
+		api: func(port int) string {
 			return (&url.URL{Scheme: "http", User: url.UserPassword(AvaticaUser, Password),
 				Host: fmt.Sprintf("127.0.0.1:%d", port)}).String()
 		},
-		url: avaticaURL(url.UserPassword(AvaticaUser, Password)),
 	}},
 }
 
 // avaticaURL is the address in the form dbimp's Avatica driver takes, with no
 // path (dbimp D156). The driver sends the user and the password in the info of
-// openConnection. The dsn stays http:// for dbimp's recorder.
+// openConnection.
 func avaticaURL(user *url.Userinfo) func(port int) string {
 	return func(port int) string {
 		return (&url.URL{Scheme: "avatica", User: user, Host: fmt.Sprintf("127.0.0.1:%d", port)}).String()
@@ -130,7 +136,6 @@ func avaticaHTTP(user string) func(port int) string {
 
 // Avatica is every standalone Avatica release dbrun starts.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var Avatica = list{}.staged(avatica, Tested, "1.28.0", "1.29.0")
+// models/avatica reads them, so each keeps the cadence it recorded while it
+// was Staged (D120, D186).
+var Avatica = list{}.add(avatica, Tested, "1.28.0", "1.29.0")

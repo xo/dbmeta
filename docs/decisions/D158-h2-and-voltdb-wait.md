@@ -1,6 +1,6 @@
 # D158. H2 and VoltDB wait
 
-Status: Decided.
+Status: Decided, amended by D188.
 
 ## The decision
 

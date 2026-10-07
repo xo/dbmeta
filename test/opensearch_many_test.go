@@ -20,9 +20,6 @@ import (
 func TestOpenSearchManyIndices(t *testing.T) {
 	db := openOpenSearch(t)
 	m := setupOpenSearch(t, db)
-	if !describeReadable(m) {
-		t.Skip("the driver cannot read a row of DESCRIBE TABLES on this release")
-	}
 	ctx := t.Context()
 	dsn := os.Getenv("DBMETA_OPENSEARCH")
 	const indices, fields = 100, 5

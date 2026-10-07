@@ -66,6 +66,7 @@ than from memory.
 | SQL Server | 9 | nothing |
 | Oracle | 9 | nothing |
 | DuckDB | 8 | `IndexColumns`: DuckDB names an index and does not list the columns of it |
+| GizmoSQL | 8 | the same as DuckDB, whose statements it shares |
 | SQLite | 8 | `RoutineParameters`: a SQLite function has no named parameters |
 | rqlite | 8 | the same as SQLite, whose statements it shares |
 | libSQL | 8 | the same as SQLite, whose statements it shares |
@@ -76,6 +77,7 @@ than from memory.
 | Apache Drill | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Drill has no index and no key, and sys.functions lists a function's argument types as text. `Procs` lists the built in functions, and only with the system objects. `Schema` has a row only after the session names a default schema (D178) |
 | Elasticsearch | 4 | `TableIndexes`, `IndexColumns`, `ProcParams`, `TableForeignKeys` and `Schema`: Elasticsearch has no index its SQL lists, no key and no schema. `Procs` lists the built in functions, and only with the system objects (D177) |
 | OpenSearch | 3 | `TableIndexes`, `IndexColumns`, `Procs`, `ProcParams`, `TableForeignKeys` and `Schema`: OpenSearch has no index its SQL lists, no key, no function list and no schema. `TableColumns` and `TableSequences` answer on 3.9.0 alone, because dbimp's driver cannot read DESCRIBE on 2.19.6 (D181) |
+| Apache Avatica | 9 | nothing. The standalone server runs HSQLDB, which has keys, indexes, routines and a current schema (D186) |
 | Apache Solr | 4 | `TableIndexes`, `IndexColumns`, `TableForeignKeys`, `Procs` and `ProcParams`: Solr has no index, no key and no function that SQL lists (D179) |
 | InfluxQL | 3 | everything but `Tables`, `TableColumns` and `TableSequences`: InfluxDB has no index, no key, no function list and no current database a statement returns |
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
@@ -137,9 +139,11 @@ dialect is added.
 | Apache Drill | no | no. A table has no key and no foreign key, so there is nothing to relate one table to another. A file table is listed only when the Metastore is on, and the columns of a view are all type ANY and nullable |
 | Elasticsearch | no | no. An index has no key and no foreign key, so there is nothing to relate one index to another, every field is nullable, and a field of an object is a column named with a dot |
 | OpenSearch | no | no. An index has no key and no foreign key, so there is nothing to relate one index to another, every field is nullable, and a field of an object is a column named with a dot |
+| Apache Avatica | no | yes, all nine. The version is the release of HSQLDB. A NOT NULL is a check named SYS_CT and a number, a type reads as CHARACTER VARYING(n) with its length, and an index that a key made has a name with a number that changes between runs (D186) |
 | Apache Solr | no | no. A collection has no key and no foreign key in SQL, so there is nothing to relate one collection to another, and every column reads nullable, the unique key included |
 | InfluxQL | no | no, for the same reason as InfluxDB 3. A measurement has tags and fields and no key, and `Schema` has no answer, because no statement returns the database of the request |
 | DuckDB | no | yes, without index columns |
+| GizmoSQL | no | yes, without index columns, the same as DuckDB. A generator needs a driver that opens a session, and the one dburl names does not (D187) |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |
 | Cassandra | no | partly: no current keyspace expression and no parameter names |
 | ScyllaDB | no | partly: the same as Cassandra |

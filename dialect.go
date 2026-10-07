@@ -44,8 +44,12 @@ type Dialect string
 // (D101). Read these as constants and never as literals.
 const (
 	// ArangoDB is queried in AQL rather than SQL, over HTTP.
-	ArangoDB   Dialect = "arangodb"
-	Athena     Dialect = "awsathena"
+	ArangoDB Dialect = "arangodb"
+	Athena   Dialect = "awsathena"
+	// Avatica is the standalone Avatica server, which stands in front of
+	// HSQLDB and which dbimp's avatica driver reaches. Phoenix speaks the same
+	// protocol and has no model. See D186.
+	Avatica    Dialect = "avatica"
 	BigQuery   Dialect = "bigquery"
 	Cassandra  Dialect = "cql"
 	Chai       Dialect = "chai"

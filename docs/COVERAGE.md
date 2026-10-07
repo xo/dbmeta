@@ -51,7 +51,7 @@ rather than reading one.
 | `models/vitess` | 20 | 56 | Vitess 23.0.7 and 24.0.4, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
 | `models/databend` | 20 | 56 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 56 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
-| `models/snowflake` | 13 | 56 | not run: written from Snowflake's documentation before an account was provisioned (D144) |
+| `models/snowflake` | 13 | 56 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08. Written before an account existed (D144) and corrected by D190. Parity is not measured |
 | `models/redshift` | 11 | 56 | measured on Redshift Serverless 1.0.434008 on 2026-10-08. Written before a cluster existed (D144) and corrected by D182 |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
 | `models/neo4j` | 17 | 56 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
@@ -65,8 +65,10 @@ rather than reading one.
 | `models/druid` | 7 | 56 | Apache Druid 37.0.0 and 38.0.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. The version and the settings need an administrator (D171) |
 | `models/drill` | 10 | 56 | Apache Drill 1.21.2 and 1.22.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. A file table is listed only when the Metastore is on (D178) |
 | `models/elasticsearch` | 8 | 56 | Elasticsearch 8.19.22, 9.4.6 and 9.5.3, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from GET / and needs an administrator (D177) |
-| `models/opensearch` | 3 | 56 | OpenSearch 3.9.0, and 2.19.6, which answers 2 of the 3, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver. The driver cannot read DESCRIBE on 2.19.6. The release comes from GET / and needs an administrator (D181) |
+| `models/opensearch` | 3 | 56 | OpenSearch 3.9.0 and 2.19.6, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from GET / and needs an administrator (D181, D189) |
 | `models/solr` | 4 | 56 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release is read over HTTP by an administrator (D179) |
+| `models/gizmosql` | 20 | 56 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
+| `models/avatica` | 24 | 56 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -2063,7 +2065,8 @@ scene and says so instead of failing.
 
 Every dialect has a target or a recorded reason for having none, and
 `TestEveryDialectIsMeasuredForParity` fails when one has neither. SQLite and
-DuckDB have no user. Snowflake has not run (D144). Impala and
+DuckDB have no user. Snowflake has principals, but the role of the test
+account cannot make a second one (D190). Impala and
 Vitess run with no authentication, so every user is the same principal.
 InfluxDB 3 Core has one kind of token, the administrator's (D152).
 `parityExempt` in `test/parity_test.go` holds each reason.
@@ -3358,15 +3361,61 @@ of correlations covers two, and D149 shipped it.
 
 `models/snowflake` answers 13 of the 56 and `models/redshift` answers 11.
 Ken chose on 2026-09-30 to write both from the vendors' documentation before
-an account or a cluster was provisioned (D144). Snowflake has not run. Its
-tests skip until dbrun resolves a connection string (D117), and running them
-is what finishes it. Redshift ran on 2026-10-08 and D182 holds what that
-found.
+an account or a cluster was provisioned (D144). Both ran on 2026-10-08.
+D182 holds what Redshift found and D190 holds what Snowflake found. The tests
+skip until dbrun resolves a connection string (D117).
 
 Snowflake reads the INFORMATION_SCHEMA of the database the connection is in.
 It has no KEY_COLUMN_USAGE, so no column is reported as a key, and no
 constraint's columns are listed. It has no index. The fold is upper case, as
 Snowflake documents.
+
+### Measured on Snowflake
+
+Measured on 2026-10-08 on a trial account, release 10.36.101, as the role
+DBMETA_ROLE, which owns the database DBMETA and uses the warehouse DBMETA_WH.
+
+- The server answers 13 of the 56 questions: schemas, databases, tables,
+  columns, views, constraints, sequences, functions, comments, privileges,
+  role grants, the current schema and the current user.
+- One statement failed. INCREMENT is a keyword, so `s.increment` in the
+  sequences statement is a syntax error. The statement now writes
+  `s."INCREMENT"`. Every other statement, the fixture and the version query
+  ran as written.
+- The privileges statement named every object a table. It now joins
+  information_schema.tables and reports the type of the object, so a grant on
+  a view reads view.
+- SNOWFLAKE.ACCOUNT_USAGE is refused to this role with "does not exist or not
+  authorized". The model reads none of it, which is what the model assumed.
+- A role that owns its database sees every database it can use in
+  information_schema.databases, including SNOWFLAKE_SAMPLE_DATA. The
+  databases query lists them all, because a database has no system flag.
+- A constraint is reported with IS_DEFERRABLE of NO and INITIALLY_DEFERRED of
+  YES, and ENFORCED of NO. The constraints query passes both through, so
+  deferrable is false and deferred is true for every key. A consumer must not
+  read deferred as meaning that the key is checked later.
+- A primary key without a name reads as SYS_CONSTRAINT_ and a UUID.
+- APPLICABLE_ROLES lists the grant of PUBLIC to the user twice. The role
+  grants query passes the duplicate through.
+- AUTOINCREMENT reports IS_IDENTITY of YES, and the column has no default
+  value. The identity kind is by default.
+- The view definition is the CREATE VIEW statement as it was written, with its
+  own line breaks and tabs.
+- A procedure shows its argument signature as `(A NUMBER, B NUMBER)` and a
+  result type of `NUMBER(38,0)`, where a function with a VARCHAR result shows
+  `VARCHAR(134217728)`.
+- The role cannot make a user or a role, because it holds no CREATE USER or
+  CREATE ROLE on the account. It can make a database role in DBMETA, and a
+  database role is not a login. So parity is not measured, and the reason is
+  in `parityExempt`. If Ken grants a role that can make users, the target is
+  an owner, a grantee and a stranger, the way Redshift's is.
+- Not read and not answered: ACCOUNT_USAGE, the columns of a key, the
+  referenced table of a foreign key, tags and masking policies, stages,
+  streams, tasks, pipes and dynamic tables. No conformance target exists.
+- `ChangePassword` was not run, because the only login is the account's own
+  key pair user and the statement would change its password.
+- Each test pass ran once, and the warehouse is XSMALL with a 60 second
+  auto suspend.
 
 Redshift reads the pg_catalog tables that PostgreSQL 8.0 already had, from
 which Redshift was built, because the postgres model's statements need 9.6.
@@ -4937,13 +4986,12 @@ The version is not a SQL statement. `GET /` reports it as `version.number` to th
 administrator, and `Dialect.Version` reports an unknown version. A caller passes
 the release to `Dialect.ParseVersion`.
 
-### What does not work on 2.19.6
+### Columns on 2.19.6
 
-dbimp's driver cannot read a row of DESCRIBE TABLES on 2.19.6. That release
-declares every column of the answer keyword and sends numbers in some of them,
-and the driver fails the row with ErrInvalidValue for NUM_PREC_RADIX. So Columns
-has no answer on 2.19.6, and tests that need it skip with that reason, under the
-condition `describeReadable`. dbimp's open question 15 holds the fault.
+dbimp v0.14.0 did not read a row of DESCRIBE TABLES on 2.19.6, because that
+release declares every column of the answer keyword and sends numbers in some
+of them. dbimp v0.14.1 reads the number as the value that arrived. So Columns
+answers on both releases, with the position counting from 0 (D189).
 
 ### What it cannot answer, and why
 
@@ -4988,8 +5036,8 @@ them are not answered.
 
 OpenSearch is out of the main agreement count. An index has no key, no
 constraint and no NOT NULL, the report removes the prefix `dbmeta_`, and DESCRIBE
-lists an object and a nested field as columns. The test skips 2.19.6, because
-the driver cannot read DESCRIBE there.
+lists an object and a nested field as columns. 2.19.6 has a section of its own,
+`opensearch@2`, because it lists the alias `recent` as a table.
 
 ### Which answers depend on who is asking
 
@@ -5002,8 +5050,8 @@ SHOW TABLES, because the plugin needs `indices:admin/get` on every index to run
 it, so Tables, Databases and Columns are refused to the reader. A lister who has
 `indices:admin/get` on every index and nothing else gets every table and no
 column. The sections `opensearch/same/user`, `opensearch/same/reader` and
-`opensearch/same/lister` hold the rest. On 2.19.6 the Columns answer is an error
-for every principal, so the sections of `opensearch@2` record no difference.
+`opensearch/same/lister` hold the rest. The sections of `opensearch@2` record the same
+differences on 2.19.6.
 
 `GET /` needs the cluster permission `cluster:monitor/main`, and the role of the
 ordinary user has none, so the release is refused with HTTP 403 and
@@ -5015,11 +5063,93 @@ sends none.
 
 The two answered the fixture the same way for SHOW TABLES and DESCRIBE, with
 three differences. 2.19.6 lists an alias in SHOW TABLES and 3.9.0 does not. 2.19.6
-declares the columns of DESCRIBE as keyword and 3.9.0 declares integers, which is
-what the driver cannot read. The survey also said that the position starts at 1
+declares the columns of DESCRIBE as keyword and 3.9.0 declares integers, and
+dbimp v0.14.1 reads both. The survey also said that the position starts at 1
 on 3.9.0, that 3.9.0 lists every mapping type, and that DESCRIBE of an index with
 no mapping fails with HTTP 500 on 3.9.0. None of that held when it was measured
 again, and the position starts at 0 on both.
+
+## GizmoSQL
+
+`models/gizmosql` answers 20 of the 56 on GizmoSQL 1.40.0 and 1.41.0, measured
+on 2026-10-08 through the Arrow Flight SQL driver in `arrow-go`, which dburl
+names for the scheme gizmosql. Both releases run DuckDB 1.5.6 and are Tested.
+GizmoSQL is a server for Arrow Flight SQL, and its engine is DuckDB, or SQLite
+when it starts with `--backend sqlite`. The entry starts DuckDB, and this model
+is for that backend only. D187 holds the decisions.
+
+### What it reads
+
+The DuckDB catalog, through the same statements as [DuckDB](#duckdb). The model
+shares all 20 bindings of `models/duckdb` and writes none. How much is shared:
+every statement, and the fixture. The answers on the fixture are line for line
+DuckDB's, and the conformance section of `gizmosql` is the same as the one of
+`duckdb`.
+
+Two things differ from the library, and each is a fragment of the duckdb
+model.
+
+- GizmoSQL attaches a database named `_gizmosql_system`, which holds two views
+  for the Flight SQL metadata calls. DuckDB does not flag it internal, so a
+  fragment that gates on the version key `gizmosql` leaves it out unless the
+  caller asks for the system objects. `TestGizmoSQLSystemDatabase` checks it.
+- The `types` filter of Tables casts its parameter to VARCHAR. Without the
+  cast, DuckDB cannot type the parameter when it prepares the statement,
+  GizmoSQL reports every parameter as a string, and the driver refuses the
+  boolean one.
+
+### The driver, which opens no session
+
+The driver sends the user and the password on each call and never makes the
+handshake that GizmoSQL needs, so every statement fails with "No session ID in
+request context". usql's gizmosql driver is in its bad group for the same
+reason. The tests make the handshake themselves, with the Flight client of the
+same module, and hand the driver the token (`test/internal/gizmosql`). The
+fault is in `arrow-go`.
+
+### What the driver returns
+
+Every column the model selects arrives as a typed Go value. The driver names no
+database type: `ColumnTypeDatabaseTypeName` is empty for every column. It
+refuses an unsigned 64 bit integer, a date, a list, a map, a struct, an enum
+and an interval, and reads `HUGEINT` and `DECIMAL` as a `float64`. No statement
+of the model returns one of those. A statement that ends in a semicolon runs,
+so the model does not strip it. A query of 3,000 tables, 1,000 views and
+1,000 indexes takes at most 25 ms for any kind, against a catalog of 4,005
+tables and 17,016 columns, measured with the fixture also in place.
+
+### What it cannot answer
+
+The 36 kinds that DuckDB cannot answer, for the same reasons: no role, grant,
+trigger, partition, foreign object, replication, text search or operator
+catalog. The core has one user, and GizmoSQL adds no SQL catalog of its own in
+the core. `gizmosql_metrics()` needs an enterprise license.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked. Gemini named `duckdb_indexes()` for index
+columns, which DuckDB rejected already because the columns are text in a list,
+`summarize` and `PRAGMA storage_info` for column statistics, which scan the
+data (D162), `duckdb_extensions()` for extension objects, which is the
+extensions kind and not the objects of an extension, and `duckdb_types()` for
+domains, which DuckDB does not have. It said the core adds no catalog. That
+held. DeepSeek named `gizmosql.sessions` and `gizmosql.users`,
+`pg_catalog.pg_roles`, `pg_user` and `pg_cast`, and `information_schema`
+views for roles, privileges, triggers and domains. None of the nine exists on
+1.40.0 and the server says so for each. Every lead of DeepSeek was invented.
+
+### Flight SQL metadata calls
+
+`GetCatalogs`, `GetDbSchemas`, `GetTables`, `GetPrimaryKeys`, `GetSqlInfo`
+and the others are calls of the protocol, and SQL does not reach them. The
+model does not use them. `GetSqlInfo` names the server `gizmosql` and the
+engine `duckdb v1.5.6`, and does not give the GizmoSQL release.
+
+### Which answers depend on who is asking
+
+Not measured. The core has one user, `admin`, and the other roles need an
+identity provider or an enterprise license, so the model has no parity target
+(`parityExempt`, D187).
 
 ## Releases that need a license file
 
@@ -5037,3 +5167,110 @@ and CI never runs one. See D118 and D119.
 Put each file at `$XDG_CONFIG_HOME/dbmeta/licenses/<product>`, where the
 product is `stardog`, `graphdb` or `voltdb`, or name its path in
 `DBMETA_<PRODUCT>_LICENSE`. `docs/DBRUN.md` says the same under License files.
+
+## Apache Avatica
+
+`models/avatica` answers 24 of the 56 on the standalone Avatica server 1.28.0 and
+1.29.0, measured on 2026-10-08 through dbimp's avatica driver, which is what
+dburl's avatica scheme opens. Both releases are Tested. Avatica is the wire
+protocol of Apache Calcite, and the standalone server runs HSQLDB 2.4.1 in
+memory, so the model reads the catalog of HSQLDB. D186 holds the mapping and the
+reasons for it, for Ken to review.
+
+### What it reads
+
+HSQLDB has an INFORMATION_SCHEMA of the SQL standard, with 64 views, and 27 more
+whose names begin with SYSTEM_. The SYSTEM_ views hold the metadata of JDBC, such
+as SYSTEM_INDEXINFO, SYSTEM_COMMENTS and SYSTEM_PROPERTIES. Every query is one
+statement over them, and no kind is a walk (D146). A view that HSQLDB computes
+each time it is read is slow to join, so three statements read a derived table or
+a grouped union where a plain join took seconds. D186 has the numbers.
+
+### What it answers
+
+Databases, schemas, the current schema, the current user, tables, views, columns,
+indexes, index columns, constraints, constraint columns, triggers, sequences,
+functions, aggregates, routine parameters, types, domains, collations, comments,
+settings, roles, role grants and privileges.
+
+The catalog is always PUBLIC. A table has a type that says where HSQLDB keeps the
+rows, such as `memory table`. A NOT NULL is a check named SYS_CT and a number, so
+Constraints lists one for every such column. A key makes an index named SYS_IDX_
+and a number, and the number changes between runs. Privileges are one row for
+each object, and every object has the grants of its owner. The aggregate has no
+column that says so, and the definition text does.
+
+The version is the release of HSQLDB, which is 2.4.1 on both releases, and not
+the release of Avatica. usql reads it with the same statement.
+
+### What it cannot answer, and why
+
+32 kinds. HSQLDB has no tablespace, access method, language, conversion, cast,
+event trigger, role setting, default privilege, foreign data wrapper, foreign
+server, user mapping, publication, subscription, text search object, operator
+object, extension, extended statistic, partitioned table or enumerated type.
+Four are analogues that were found and not answered:
+
+- Large objects. SYSTEM_LOBS.LOB_IDS lists the LOB values that are stored, one row
+  for each value, with a length and a count of uses. A row is data and not an
+  object, and only an administrator can read it, so this follows D162.
+- Foreign tables. A text table keeps its rows in a CSV file, as file_fdw does,
+  and SYSTEM_TEXTTABLES lists them. It has no server and no wrapper, so the four
+  foreign kinds stay unanswered. The fixture cannot build one on an in memory
+  server.
+- Tablespaces. SYSTEM_TABLESTATS has a SPACE_ID. It is NULL for every table on an
+  in memory server, so no row could be checked.
+- Column statistics. SYSTEM_TABLESTATS has a row count and the space of a table
+  and no statistic of a column.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked on 2026-10-08, as hard rule 14 requires. Gemini
+Flash timed out on all five tries, and Gemini Pro answered. DeepSeek spent its
+whole budget on reasoning in three tries, and answered the fourth with a limit of
+20,000 tokens. Each lead was run against 1.29.0.
+
+| Lead | Who | Result |
+| --- | --- | --- |
+| SYSTEM_TABLESPACES holds tablespaces | DeepSeek | Invented. The view does not exist |
+| SYSTEM_LANGUAGES holds languages | DeepSeek | Invented. The view does not exist |
+| SYSTEM_JARS holds jars | DeepSeek | Invented. JARS exists, and it is empty and has no kind here |
+| SYSTEM_LOBS holds large objects | DeepSeek | A schema of the LOB store and not a catalog. LOB_IDS lists values. Not answered |
+| SYSTEM_TEXTTABLES holds foreign tables | both | The view exists and is empty. A stretch, as above. Not answered |
+| SYSTEM_SYNONYMS holds synonyms | DeepSeek | The view exists. No kind lists a synonym, and HSQLDB 2.4.1 cannot create one |
+| SYSTEM_TABLESTATS holds tablespaces | Gemini | A stretch. SPACE_ID is NULL on an in memory server. Not answered |
+| Casts, text search, extensions, column statistics, partitioned tables, enums | both | Held as absent |
+
+### What the fixture builds
+
+`models/avatica/fixture` is SQL, because HSQLDB takes DDL and the driver runs it.
+It makes the four core tables of D53 and the view recent. It adds a table with an
+identity column and a generated column, a global temporary table, a sequence, a
+domain, a distinct type, a function, a procedure, an aggregate, a trigger, two
+roles with grants to them, and a comment on a table, a view and a column. It
+cannot build a text table, a cached table, a collation of its own or a comment on
+a routine, a sequence or an index, and the package comment says why.
+
+### What the conformance test says
+
+Avatica agrees with PostgreSQL on the whole core schema, and it needs no entry in
+the list of differences. A table is a table, recent is a view, every key and
+every foreign key is there, and a primary key column reads NOT NULL. A NOT NULL
+check has no row in the constraint columns, so the report holds none.
+
+### Which answers depend on who is asking
+
+HSQLDB hides what a user cannot access and refuses no statement. The user that
+the entry makes can read one table, DBMETA.READABLE. It sees that table and its
+columns, three schemas, itself among the roles, and the settings. SCHEMATA lists
+only the schemas a user owns, so the owner of every schema is empty for it. The
+grantee that holds the role dbmeta_reader sees the table author, its columns, the
+two roles and the sequence. It does not see the procedure it may execute.
+The sections `avatica/same/user` and `avatica/same/grantee` of
+`test/testdata/parity.txt` hold the rest. Every user can read the version and the
+settings.
+
+### What stays out, and why
+
+Phoenix speaks the same protocol and has no model. Its catalog, its version, its
+terminator and its users differ, and D186 says what a Phoenix dialect would need.

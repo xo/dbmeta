@@ -9,13 +9,11 @@
 // answers more and lags behind by as much as three hours, and needs a grant
 // an ordinary role does not have, so it is not read.
 //
-// # Not run yet
+// # Measured
 //
-// Ken chose on 2026-09-30 to write this model from Snowflake's
-// documentation, before anyone has an account to run it against. Hard rule 9
-// says a query that has never run is not finished, and none here has. The
-// tests in the test module run when dbrun resolves a connection string for
-// Snowflake (D117). See D144.
+// The model ran on 2026-10-08 against a trial account, release 10.36.101. One
+// statement needed a change, and D190 holds what the run found. Parity is not
+// measured, because the role of the test account cannot make a second user.
 //
 // It answers 13 of the 56 questions.
 package snowflake

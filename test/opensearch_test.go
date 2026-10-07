@@ -153,25 +153,6 @@ func setupOpenSearch(t *testing.T, _ *sql.DB) *dbmeta.Meta {
 	return m
 }
 
-// describeReadable says whether dbimp's driver can read the rows of DESCRIBE
-// TABLES on the release. 2.19.6 declares every column of its answer keyword and
-// sends numbers in some of them, and the driver fails the row with
-// ErrInvalidValue for NUM_PREC_RADIX. So Columns has no answer there until the
-// driver reads the row. Remove this condition, and the skips that call it, when
-// dbimp fixes that (open question 15 in the record of dbimp for OpenSearch, and D181).
-func describeReadable(m *dbmeta.Meta) bool {
-	return m.Version().Main().Parts[0] >= 3
-}
-
-// skipOpenSearchDescribe returns the reason to skip a test that reads Columns
-// on a release whose DESCRIBE the driver cannot read, and empty for any other.
-func skipOpenSearchDescribe(m *dbmeta.Meta) string {
-	if describeReadable(m) {
-		return ""
-	}
-	return "the driver cannot read a row of DESCRIBE TABLES on " + m.Version().Main().String()
-}
-
 // TestOpenSearchVersion checks that no SQL statement reads the version, and
 // that the release of GET / parses.
 func TestOpenSearchVersion(t *testing.T) {
@@ -241,9 +222,6 @@ func TestOpenSearchEveryQueryRuns(t *testing.T) {
 func TestOpenSearchScansEveryQuery(t *testing.T) {
 	db := openOpenSearch(t)
 	m := setupOpenSearch(t, db)
-	if !describeReadable(m) {
-		t.Skip("the driver cannot read a row of DESCRIBE TABLES on this release")
-	}
 	scanEveryQuery(t, m, db)
 }
 
@@ -326,10 +304,6 @@ func TestOpenSearchFixtureObjects(t *testing.T) {
 		t.Errorf("expected no database for a pattern that does not match, got %d", n)
 	}
 
-	if !describeReadable(m) {
-		t.Log("skipping the columns: the driver cannot read a row of DESCRIBE TABLES on this release")
-		return
-	}
 	cols := map[string]map[string]dbmeta.Column{}
 	for v, err := range dbmeta.Columns.All(ctx, m, db, dbmeta.Args{Parent: "dbmeta%"}.Map()) {
 		if err != nil {
@@ -548,9 +522,6 @@ func TestOpenSearchTheUserReadsNoSecret(t *testing.T) {
 		t.Skip("set DBMETA_OPENSEARCH to run against a real server")
 	}
 	m := setupOpenSearch(t, openOpenSearch(t))
-	if !describeReadable(m) {
-		t.Skip("the driver cannot read a row of DESCRIBE TABLES on this release")
-	}
 	u, err := url.Parse(dsn)
 	if err != nil {
 		t.Fatalf("parsing %s: %v", dsn, err)

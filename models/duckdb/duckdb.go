@@ -84,12 +84,31 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	return set, nil
 }
 
+// GizmoSQL is the version key that the gizmosql model records. GizmoSQL runs
+// DuckDB, shares these statements, and keeps a database of its own beside the
+// caller's. A fragment written for GizmoSQL gates on it. No SQL statement
+// names the GizmoSQL release, so the version under the key is unknown. See
+// D187.
+const GizmoSQL = "gizmosql"
+
+// gizmoSystem is the database that GizmoSQL attaches for its own views. It is
+// not flagged internal, so the flag cannot exclude it.
+const gizmoSystem = "_gizmosql_system"
+
 // internalOf excludes the objects DuckDB ships with itself, for one catalog
-// alias. Every catalog function carries the flag, so this is the whole of the
-// system object rule and there is no list of schema names to keep up to date.
-// Every other model here carries such a list.
-func internalOf(alias string) string {
-	return `(@with_system OR NOT ` + alias + `.internal)`
+// alias, in a line that starts with prefix, which is WHERE or AND. Every
+// catalog function carries the flag, so this is the whole of the system object
+// rule and there is no list of schema names to keep up to date. Every other
+// model here carries such a list.
+//
+// GizmoSQL also attaches a database of its own, which DuckDB does not flag, so
+// its fragment excludes that database by name.
+func internalOf(prefix, alias string) dbmeta.Choice {
+	return dbmeta.Choice{
+		{Query: prefix + ` (@with_system OR NOT ` + alias + `.internal)`},
+		{Key: GizmoSQL, Query: prefix + ` (@with_system OR (NOT ` + alias + `.internal` +
+			` AND ` + alias + `.database_name <> '` + gizmoSystem + `'))`},
+	}
 }
 
 func schemaNameSystem(kind string) []dbmeta.Param {
