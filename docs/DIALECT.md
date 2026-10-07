@@ -548,8 +548,8 @@ A walk is for a product that offers nothing a SELECT reads, and for nothing
 else. If one statement answers a kind, write the statement. Write the cost of
 a walk beside it: one statement for each database, and one for each table
 where the walk goes deeper. Trino shows the limit. Its function list exists
-only behind `SHOW FUNCTIONS`, and a walk is allowed for Impala (D146) and
-InfluxQL (D159) alone, so Functions is unanswered on Trino while everything
+only behind `SHOW FUNCTIONS`, and a walk is allowed for Impala (D146), InfluxQL
+(D159), Elasticsearch and OpenSearch (D175) alone, so Functions is unanswered on Trino while everything
 with a table behind it is answered. A walk for any other product is a
 decision for Ken.
 

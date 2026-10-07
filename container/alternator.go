@@ -79,14 +79,15 @@ GRANT SELECT ON ALL KEYSPACES TO ` + AlternatorUser + `;"`},
 // dynamoURL is the DSN of one key, in the form of dbimp's DynamoDB driver
 // and dburl: the key and the secret as the user and the password, at the
 // endpoint on the port on the host. The region is the one every release here
-// uses (D167).
+// uses (D167). Every endpoint here is plain HTTP, and the driver turns TLS on
+// unless the DSN says tls=false.
 func dynamoURL(key, secret string) func(port int) string {
 	return func(port int) string {
 		u := url.URL{
 			Scheme:   "dynamodb",
 			User:     url.UserPassword(key, secret),
 			Host:     fmt.Sprintf("127.0.0.1:%d", port),
-			RawQuery: url.Values{"region": {"us-east-1"}}.Encode(),
+			RawQuery: url.Values{"region": {"us-east-1"}, "tls": {"false"}}.Encode(),
 		}
 		return u.String()
 	}

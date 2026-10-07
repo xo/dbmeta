@@ -18,7 +18,7 @@ require (
 	github.com/snowflakedb/gosnowflake/v2 v2.2.0
 	github.com/vertica/vertica-sql-go v1.3.8
 	github.com/xo/cql v0.1.0
-	github.com/xo/dbimp v0.13.0
+	github.com/xo/dbimp v0.14.0
 	github.com/xo/dbmeta v0.0.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.152.0
 	modernc.org/sqlite v1.59.0
@@ -106,6 +106,7 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
+	github.com/xo/dburl v0.46.0 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260810122915-65bfd5c4b705 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b // indirect

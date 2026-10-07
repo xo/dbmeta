@@ -64,7 +64,7 @@ const (
 	// API of the Router. See D171.
 	Druid    Dialect = "druid"
 	DuckDB   Dialect = "duckdb"
-	DynamoDB Dialect = "godynamo"
+	DynamoDB Dialect = "dynamodb"
 	Exasol   Dialect = "exasol"
 	Firebird Dialect = "firebirdsql"
 	// GizmoSQL serves Arrow Flight SQL, and the flightsql driver reaches it.

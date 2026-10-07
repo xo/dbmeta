@@ -1,6 +1,6 @@
 # D159. InfluxQL can walk SHOW statements
 
-Status: Amends D146.
+Status: Amends D146, amended by D175.
 
 ## The decision
 

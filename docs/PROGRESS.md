@@ -65,7 +65,17 @@ The ClickHouse tests use dbimp's driver, `github.com/xo/dbimp/clickhouse` at
 v0.13.0, which dburl v0.44.0 names (D174). The entry's DSN and URL are the
 HTTP form on the second port. All four releases pass.
 
+Elasticsearch and OpenSearch can walk SHOW statements (D175). Drill, Solr,
+Elasticsearch and OpenSearch are surveyed, and no model is built, because dbimp
+has not tagged the drivers. dburl v0.45.0 names the four and v0.46.0 names
+dynamodb on dbimp's driver. Ken answered the open questions in D176. The
+OpenSearch role is wider, and the DSN of every DynamoDB entry ends with
+`tls=false`. The `DynamoDB` dialect is now `dynamodb`.
+
 In progress:
+
+- Elasticsearch is the first model to build, once dbimp tags v0.14.0.
+- The OpenSearch role of D176 ran on 2.19.6. The ordinary user runs SHOW TABLES, DESCRIBE and a paged SELECT. 3.9.0 is not measured.
 
 - A daily check of the nightly workflow runs at 18:07 local time in this
   session, and expires after 7 days, on 2026-10-14. It watches the InfluxDB 1
@@ -73,4 +83,6 @@ In progress:
 
 ## Waiting
 
-- Nothing waits for Ken.
+- Solr needs the cost check of D47 against thousands of collections.
+- Snowflake and Redshift need a connection string, and VoltDB needs a license
+  file.

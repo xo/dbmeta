@@ -38,9 +38,15 @@ package container
 // Init makes the role dbmeta_role, which can read the indices whose names
 // start with dbmeta, [OpenSearchUser], and the mapping of the one to the
 // other, and the index dbmeta. Each is a PUT, which is safe to run twice.
+//
+// The role also holds indices:admin/get and indices:data/read/search on every
+// index, and the cluster permission cluster:monitor/health. The SQL plugin
+// needs the first to list indices and to describe one, and a plain SELECT
+// needs the second to open a cursor. The cost is that the user sees the name
+// of every index. See D176.
 
-// OpenSearchUser can only read the indices whose names start with dbmeta.
-// Its password is [Password].
+// OpenSearchUser can read the indices whose names start with dbmeta, and see
+// the name of every index. Its password is [Password].
 const OpenSearchUser = "dbmeta_user"
 
 // openSearchBootstrap is the password the first start gives admin, strong
@@ -83,7 +89,7 @@ var opensearch = product{
 	args:     []string{"-c", openSearchServe},
 	init: []string{"sh", "-c", `set -e
 api=http://127.0.0.1:9200/_plugins/_security/api
-` + osCurl + `-X PUT -d '{"index_permissions":[{"index_patterns":["dbmeta*"],"allowed_actions":["read","indices:admin/mappings/get","indices:monitor/settings/get"]}]}' $api/roles/dbmeta_role
+` + osCurl + `-X PUT -d '{"cluster_permissions":["cluster:monitor/health"],"index_permissions":[{"index_patterns":["dbmeta*"],"allowed_actions":["read","indices:admin/mappings/get","indices:monitor/settings/get"]},{"index_patterns":["*"],"allowed_actions":["indices:admin/get","indices:data/read/search"]}]}' $api/roles/dbmeta_role
 ` + osCurl + `-X PUT -d '{"password":"` + Password + `"}' $api/internalusers/` + OpenSearchUser + `
 ` + osCurl + `-X PUT -d '{"users":["` + OpenSearchUser + `"]}' $api/rolesmapping/dbmeta_role
 ` + osCurl + `-I http://127.0.0.1:9200/dbmeta || ` + osCurl + `-X PUT http://127.0.0.1:9200/dbmeta`},
