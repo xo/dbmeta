@@ -189,3 +189,6 @@ file.
 | [D168](D168-ken-reviews-the-six-dialects-of-2026-10-01.md) | Ken reviews the six dialects of 2026-10-01 | Amends D163 and D164 |
 | [D169](D169-each-pattern-and-open-move-from-usql.md) | Each, Pattern and Open move from usql | Decided |
 | [D170](D170-influxdb-3-answers-triggers-from-the-processing-engine.md) | InfluxDB 3 answers Triggers from the processing engine | Amends D152 |
+| [D171](D171-druid-maps-a-datasource-to-a-table-and-reads-information-schema.md) | Druid maps a datasource to a table and reads INFORMATION_SCHEMA | Decided |
+| [D172](D172-the-trino-and-presto-tests-use-dbimps-driver.md) | The Trino and Presto tests use dbimp's driver | Decided |
+| [D173](D173-the-odbc-fallback-belongs-to-the-client.md) | The ODBC fallback belongs to the client | Decided |

@@ -94,10 +94,12 @@ var databend = product{
 		databendSQL("GRANT ROLE "+databendRole+" TO "+DatabendUser) + "\n"},
 	dsn: databendDSN("root", "default"),
 	url: databendDSN("root", "default"),
+	api: keyHTTP("root", Password),
 	users: []Principal{{
 		Role: User, User: DatabendUser,
 		dsn: databendDSN(DatabendUser, databendDatabase),
 		url: databendDSN(DatabendUser, databendDatabase),
+		api: keyHTTP(DatabendUser, Password),
 	}},
 }
 

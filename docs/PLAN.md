@@ -57,8 +57,8 @@ of this file.
 
 ## What exists today
 
-`models/` holds 34 native models: arangodb, cassandra, clickhouse,
-cockroachdb, couchbase, cratedb, databend, duckdb, exasol, firebird, hana,
+`models/` holds 35 native models: arangodb, cassandra, clickhouse,
+cockroachdb, couchbase, cratedb, databend, druid, duckdb, exasol, firebird, hana,
 hive, impala, influxdb, influxql, libsql, mysql, neo4j, oracle, postgres,
 presto, questdb, redshift, rqlite, singlestore, snowflake, sqlite3, sqlserver,
 surrealdb, tidb, trino, vertica, vitess and ydb. ScyllaDB is a flavor of the
@@ -70,8 +70,7 @@ model builds on it. `COVERAGE.md` holds what each one answers.
 each one. `dbrun` also starts Staged servers that no model reads (D119).
 Many are for dbimp's drivers, such as the products of D112 that have no model
 (Apache Pinot), and
-the servers of D113. Two of those, Avatica and Phoenix, speak JSON (D155), and
-Druid waits for a driver of its own in dbimp. The rest are for the flavors
+the servers of D113. Two of those, Avatica and Phoenix, speak JSON (D155). The rest are for the flavors
 usql reaches and the emulators of hosted services (D118). `dbrun list staged`
 names every one. It knows the embedded databases too, including two, chai and csvq, that
 have no model yet (D116 and D119). `README.md` holds the support tiers.

@@ -215,6 +215,7 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
 	// models/influxdb reads it through dbimp's driver, which takes only the
 	// influxdb:// form, so the dsn is the url (D152).
 	dsn: influxURL(influxTokenName, InfluxDBToken),
+	api: influxHTTP(influxTokenName, InfluxDBToken),
 }
 
 // influxURL is the address of the database dbmeta as one user, in the form

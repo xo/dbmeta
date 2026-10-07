@@ -78,18 +78,11 @@ var presto = product{
 	//
 	// Twelve seconds is two of those refreshes and a margin. See D83.
 	settle: 12 * time.Second,
-	// presto-go-client/v2 takes the catalog and schema in the path and
-	// refuses them as query parameters, where it reads any unknown name as a
-	// session property and the server rejects it:
-	//
-	//	INVALID_SESSION_PROPERTY: Unknown session property schema
-	//
-	// It also refuses http://, which is the scheme the Trino driver wants. So
-	// the DSN and the URL are the same string here, which is unusual and is
-	// the driver's doing. v1 of this driver took the http:// form, so the
-	// disagreement arrived with v2.
+	// dbimp's driver takes trino://user@host:port/catalog/schema for both
+	// products, and tells Presto from Trino by GET /v1/info (dbimp D175,
+	// D172). The test image takes no password, so there is no ordinary user.
 	dsn: func(port int) string {
-		return fmt.Sprintf("presto://presto@127.0.0.1:%d/memory/default", port)
+		return fmt.Sprintf("trino://presto@127.0.0.1:%d/memory/default", port)
 	},
 }
 

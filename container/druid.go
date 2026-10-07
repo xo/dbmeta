@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	"github.com/xo/dbmeta"
 )
 
 // The Apache Druid releases dbrun starts.
 //
-// Druid speaks Avatica, the wire protocol of Apache Calcite, on its Router at
-// /druid/v2/sql/avatica-protobuf/. dbmeta has no Druid model. The releases
-// were here first for the tests of the Avatica driver in github.com/xo/dbimp
-// (D113). dbimp now gives Druid a driver of its own, named druid, on its SQL
-// API (dbimp D154). The entry stays as D113 describes it until that driver
-// asks for more (D155).
+// Druid answers SQL on its Router at /druid/v2/sql, and speaks Avatica, the
+// wire protocol of Apache Calcite, at /druid/v2/sql/avatica-protobuf/. The
+// releases were here first for the tests of the Avatica driver in
+// github.com/xo/dbimp (D113). dbimp gives Druid a driver of its own, named
+// druid, on the SQL API (dbimp D154), and models/druid reads it (D171).
 //
 // # The range
 //
@@ -92,6 +93,7 @@ func druidPost(path, body string) string {
 
 // druid is the Apache Druid image.
 var druid = product{
+	dialect:  dbmeta.Druid,
 	name:     "druid",
 	image:    "docker.io/apache/druid",
 	port:     8888,
@@ -131,7 +133,6 @@ func druidHTTP(user string) func(port int) string {
 
 // Druid is every Apache Druid release dbrun starts.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var Druid = list{}.staged(druid, Tested, "37.0.0", "38.0.0")
+// models/druid reads them, so each keeps the cadence it recorded while it was
+// Staged (D120, D171).
+var Druid = list{}.add(druid, Tested, "37.0.0", "38.0.0")

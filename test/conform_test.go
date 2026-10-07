@@ -18,6 +18,7 @@ import (
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
+	drfixture "github.com/xo/dbmeta/models/druid/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
@@ -204,6 +205,10 @@ func conformTargets() []conformTarget {
 				}
 				return m
 			},
+		},
+		{
+			name: "druid", dialect: dbmeta.Druid,
+			open: openDruid, schema: drfixture.Everything.Schema, build: setupDruid,
 		},
 		{
 			name: "clickhouse", dialect: dbmeta.ClickHouse,
@@ -658,6 +663,10 @@ var agreementExcluded = map[string]string{
 		" schema rule, which has no key, so no column reads a primary key, AQL lists" +
 		" no view, and a rule is one check with no columns behind it, so there are no" +
 		" constraint lines",
+	"druid": "not relational: a datasource has no key, no constraint and no view, and every" +
+		" one has the column __time, so no column reads a primary key, there are no" +
+		" constraint lines, and the section holds the four datasources and their columns" +
+		" alone (D171)",
 	"influxql": "not relational, for the same reason as influxdb: a measurement has" +
 		" no key, no constraint and no view, and every one has a time column, so the" +
 		" section holds the four measurements and their tags and fields alone (D165)",

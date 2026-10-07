@@ -18,21 +18,21 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/nakagami/firebirdsql"
-	_ "github.com/prestodb/presto-go-client/v2"
 	_ "github.com/sclgo/impala-go"
 	_ "github.com/sijms/go-ora/v3"
 	_ "github.com/snowflakedb/gosnowflake/v2"
-	_ "github.com/trinodb/trino-go-client/trino"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cql"
 	_ "github.com/xo/dbimp/arangodb"
 	_ "github.com/xo/dbimp/couchbase"
 	_ "github.com/xo/dbimp/databend"
+	_ "github.com/xo/dbimp/druid"
 	_ "github.com/xo/dbimp/influxdb"
 	_ "github.com/xo/dbimp/libsql"
 	_ "github.com/xo/dbimp/neo4j"
 	_ "github.com/xo/dbimp/rqlite"
 	_ "github.com/xo/dbimp/surrealdb"
+	_ "github.com/xo/dbimp/trino"
 	_ "github.com/ydb-platform/ydb-go-sdk/v3"
 
 	"github.com/xo/dbmeta"
@@ -67,7 +67,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Cassandra:  "cql",
 	dbmeta.ClickHouse: "clickhouse",
 	dbmeta.Trino:      "trino",
-	dbmeta.Presto:     "presto",
+	dbmeta.Presto:     "trino",
 	dbmeta.Firebird:   "firebirdsql",
 	dbmeta.HANA:       "hdb",
 	dbmeta.Hive:       "hive",
@@ -75,6 +75,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Vertica:    "vertica",
 	dbmeta.Couchbase:  "couchbase",
 	dbmeta.Databend:   "databend",
+	dbmeta.Druid:      "druid",
 	dbmeta.Impala:     "impala",
 	dbmeta.Rqlite:     "rqlite",
 	dbmeta.InfluxDB:   "influxdb",

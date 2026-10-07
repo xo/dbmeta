@@ -58,9 +58,11 @@ var rqlite = product{
 	// dbimp's driver takes rqlite:// with no path and no query, and refuses
 	// http:// (dbimp D141).
 	dsn: rqliteAt(rqliteAdmin),
+	api: keyHTTP(rqliteAdmin, Password),
 	users: []Principal{{
 		Role: User, User: RqliteUser,
 		dsn: rqliteAt(RqliteUser),
+		api: keyHTTP(RqliteUser, Password),
 	}},
 }
 

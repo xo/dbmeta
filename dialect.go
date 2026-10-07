@@ -60,10 +60,13 @@ const (
 	CSVQ       Dialect = "csvq"
 	Databricks Dialect = "databricks"
 	Databend   Dialect = "databend"
-	DuckDB     Dialect = "duckdb"
-	DynamoDB   Dialect = "godynamo"
-	Exasol     Dialect = "exasol"
-	Firebird   Dialect = "firebirdsql"
+	// Druid is Apache Druid, which dbimp's druid driver reaches on the SQL
+	// API of the Router. See D171.
+	Druid    Dialect = "druid"
+	DuckDB   Dialect = "duckdb"
+	DynamoDB Dialect = "godynamo"
+	Exasol   Dialect = "exasol"
+	Firebird Dialect = "firebirdsql"
 	// GizmoSQL serves Arrow Flight SQL, and the flightsql driver reaches it.
 	GizmoSQL Dialect = "gizmosql"
 	Hive     Dialect = "hive"

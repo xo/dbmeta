@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/prestodb/presto-go-client/v2"
+	_ "github.com/xo/dbimp/trino"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/presto"
@@ -20,7 +20,7 @@ func openPresto(t *testing.T) *sql.DB {
 	if dsn == "" {
 		t.Skip("set DBMETA_PRESTO to run against a real server")
 	}
-	db, err := sql.Open("presto", dsn)
+	db, err := sql.Open("trino", dsn)
 	if err != nil {
 		t.Fatalf("opening: %v", err)
 	}

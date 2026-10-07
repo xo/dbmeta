@@ -35,6 +35,7 @@ var bigquery = product{
 	dsn: func(port int) string {
 		return fmt.Sprintf("bigquery://admin@dbmeta/dbmeta?endpoint=http%%3A%%2F%%2F127.0.0.1%%3A%d&disable_auth=true", port)
 	},
+	api: bareHTTP,
 }
 
 // BigQuery is every BigQuery emulator release dbrun starts.

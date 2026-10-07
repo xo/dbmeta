@@ -71,15 +71,6 @@ Neo4j's is the newest monthly release (D106, D112). When a newer release is
 published, replace it in the file in `container/` and in the row in
 `EVALUATION.md`.
 
-### Build the Apache Druid model
-
-Ken asked for a Druid dialect on 2026-10-01 and chose to wait. He then
-decided that Druid gets a driver of its own in dbimp, on Druid's SQL API,
-which registers the name druid (dbimp D154). So the dialect will be druid.
-dburl has no druid scheme yet, and the driver comes later in dbimp's order.
-When both exist, build the model. dbrun starts Druid 37.0.0 and 38.0.0
-already (D113).
-
 ### Consider a SQL layer for what a product does not answer
 
 This is not a priority (D166). Apache Pinot keeps its catalog only in the

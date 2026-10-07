@@ -72,8 +72,8 @@ var alternator = product{
 CREATE ROLE IF NOT EXISTS ` + AlternatorUser + ` WITH HASHED PASSWORD = '` + strings.ReplaceAll(alternatorUserHash, `$`, `\$`) + `' AND LOGIN = true;
 GRANT SELECT ON ALL KEYSPACES TO ` + AlternatorUser + `;"`},
 	dsn:   dynamoURL("cassandra", alternatorAdminHash),
-	api:   dynamoAPI,
-	users: []Principal{{Role: User, User: AlternatorUser, dsn: dynamoURL(AlternatorUser, alternatorUserHash), api: dynamoAPI}},
+	api:   bareHTTP,
+	users: []Principal{{Role: User, User: AlternatorUser, dsn: dynamoURL(AlternatorUser, alternatorUserHash), api: bareHTTP}},
 }
 
 // dynamoURL is the DSN of one key, in the form of dbimp's DynamoDB driver
@@ -92,9 +92,10 @@ func dynamoURL(key, secret string) func(port int) string {
 	}
 }
 
-// dynamoAPI is the address of the HTTP endpoint on the port. It carries no
-// credentials, because a request is signed with the key.
-func dynamoAPI(port int) string {
+// bareHTTP is the address of the HTTP endpoint on the port, with no
+// credentials. DynamoDB signs a request with the key, and the BigQuery
+// emulator takes no credential.
+func bareHTTP(port int) string {
 	return fmt.Sprintf("http://127.0.0.1:%d", port)
 }
 

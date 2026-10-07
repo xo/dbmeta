@@ -310,6 +310,9 @@ read, which goes by the name `dbmeta_user` in the DSN. CockroachDB and TiDB
 have `dbmeta_owner`, who owns `dbmeta`, and `dbmeta_user`, who can only read
 it. MongoDB, Elasticsearch and Dgraph have `dbmeta_user`, who can only read.
 YDB has `dbmetauser`, because YDB allows no underscore in a user name.
+ClickHouse has `dbmeta_user`, who can read and write the database `dbmeta` and
+read `system.processes`. Its HTTP interface, 8123, is on the second host port,
+and the `api` field names it.
 Virtuoso, Milvus, Alternator, OpenSearch, Solr, Drill, H2, Fuseki, PostgREST,
 Stardog, GraphDB and VoltDB have `dbmeta_user`, who can only read. QuestDB
 has `container.QuestDBUser`, the user of its PostgreSQL interface that can

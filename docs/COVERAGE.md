@@ -62,6 +62,7 @@ rather than reading one.
 | `models/rqlite` | 14 | 56 | rqlite 9.4.5 and 10.5.2, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
 | `models/libsql` | 14 | 56 | libSQL 0.24.33, the sqld server, with dbimp's driver. Every statement is the sqlite3 model's, with a fragment for the vector index (D160) |
 | `models/arangodb` | 7 | 56 | ArangoDB 3.12.12, in AQL through dbimp's driver. A database is the schema, a collection is a table, and its JSON schema rule gives its columns (D163, D168) |
+| `models/druid` | 7 | 56 | Apache Druid 37.0.0 and 38.0.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. The version and the settings need an administrator (D171) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -1475,32 +1476,24 @@ The numbering is the other half of D73. Presto is `0.299-7d50721`, which is
 release 299 and the build it was cut from. Trino is `483`. There is no version
 to compare, only a product to tell apart.
 
-### The two drivers want opposite DSNs
+### One driver, and two vendor clients before it
 
-`prestodb/presto-go-client/v2`, which is what `usql` pins, takes the catalog
-and schema in the path and refuses an `http://` scheme. It rejects the scheme
-before any network call, and reads any unrecognized query parameter as a
-Presto session property, so the server rejects the statement:
+Until 2026-10-07 the test module read the two products through their vendors'
+clients, and the two wanted opposite DSNs. `prestodb/presto-go-client/v2`
+took `presto://user@host:port/catalog/schema` and refused an `http://` scheme,
+and read any unknown query parameter as a session property. `trinodb/
+trino-go-client` took `http://` with the catalog and schema as query
+parameters. That was a measure of how far the two had drifted.
 
-```
-unsupported scheme "http": must be presto or trino
-INVALID_SESSION_PROPERTY: Unknown session property schema
-```
+dburl v0.43.0 names one package for both schemes, `github.com/xo/dbimp/trino`,
+and dbimp v0.12.0 holds it (D172). It takes `trino://user@host:port/catalog/
+schema` for both products and tells Presto from Trino by `GET /v1/info`. So the
+Trino and Presto entries print that form as their DSN and their URL, and the
+tests open the driver name `trino` for both. The test image takes no password,
+so there is no ordinary user.
 
-The form it takes is `presto://user@host:port/catalog/schema`, which is what
-`container/presto.go` generates. Trino wants the opposite:
-`trinodb/trino-go-client` takes `http://` with the catalog and schema as query
-parameters. v1 of the Presto driver took that form too, so this is a v2 break
-rather than a long standing fault.
-
-This is another measure of how far apart the two have drifted, and `dburl`
-found a sharper one. It had no `GenTrino` at all: the `trino` scheme was
-registered against `GenPresto`, one generator serving both since Trino was
-Presto, with the name left on the function that had quietly become the Trino
-one. `dburl` has since split them, and `GenTrino` generates the Trino DSN.
-
-`dbmeta` is not affected either way. It depends on nothing and generates its
-own DSNs in `container`, which is D19 and hard rule 1.
+`dbmeta` itself is not affected. It depends on nothing and generates its own
+DSNs in `container`, which is D19 and hard rule 1.
 
 ### What the fixture cannot build
 
@@ -4383,6 +4376,132 @@ three, because a user on a database reads INFO FOR DB and INFO FOR TABLE.
 The three 3.x releases answer the same, and 2.7.0 answers only the current
 schema, which every principal reads. The sections `surrealdb/same/user`,
 `surrealdb/same/viewer` and `surrealdb/same/namespace` hold them.
+
+## Apache Druid
+
+`models/druid` answers 7 of the 56 on Apache Druid 37.0.0 and 38.0.0, measured
+on 2026-10-07 through dbimp's druid driver, which is what dburl's druid scheme
+opens. Both releases are Tested. Druid answers SQL on the Router with Apache
+Calcite, and Calcite keeps an INFORMATION_SCHEMA and Druid adds a sys schema.
+D171 holds the mapping and the reasons for it, for Ken to review.
+
+### What it reads
+
+INFORMATION_SCHEMA has four tables: SCHEMATA, TABLES, COLUMNS and ROUTINES. It
+has no PARAMETERS and no VIEWS. The sys schema has the segments, the servers,
+the server properties, the server segments, the supervisors and the tasks.
+Every query is one statement over one of them, and no kind is a walk (D146).
+
+Druid has no DDL. A datasource appears when an ingestion task writes its first
+segment, and the task API takes INSERT and REPLACE only. So Druid has no
+index, constraint, trigger, sequence, type, domain, comment or view that a
+statement makes.
+
+### What it answers
+
+Schemas, the current schema, tables, columns, functions, aggregates and
+settings.
+
+A datasource is a table in the schema druid, and each one has the column
+`__time`, which is the only column that is NOT NULL. The other schemas are
+INFORMATION_SCHEMA and sys, which hold the server's own tables and are listed
+only with the system objects, and lookup and view, which are empty until
+somebody makes a lookup or a view. A column reads the SQL type of the
+datasource, such as BIGINT, VARCHAR or TIMESTAMP, and a column written as
+a timestamp other than `__time` is stored and read as a BIGINT. COLUMN_DEFAULT
+is the empty string for every column, so the model reads it as absent.
+COLLATION_NAME is the collation of the Calcite planner for a string column,
+which is not a setting of Druid, and the model reports it as the catalog
+gives it.
+
+There is no function that returns the current schema. Druid resolves a name in
+druid, and SCHEMATA names it.
+
+ROUTINES has one row for each function name, 226 of them on both releases, and
+41 are aggregates. Druid has no user defined function, so each one is built
+in and is listed only with the system objects. The row has no return type and
+no parameter table, so SIGNATURES, which is text with one overload on each
+line, is the field `arg_types`. It is not parsed.
+
+Settings read `sys.server_properties`, which holds the runtime properties of
+every service, one row for each property of each service. A name repeats, and
+the context says which service holds it. 38.0.0 adds the column
+error_message to that table, and the model does not read it. The driver reads
+a value that is a JSON array of two or more strings, such as the list of
+extensions, as a list, and the model writes it back as compact JSON.
+
+The version is `sys.servers.version` of the broker, such as 37.0.0. No Druid
+function returns the release, and `GET /status` is the only other source.
+
+### What it cannot answer, and why
+
+49 kinds. Most are absent from Druid.
+
+`CurrentUser` has no source. `CURRENT_USER` and `USER` are columns that do not
+exist in Druid SQL, measured on 37.0.0. The security API of the Coordinator
+holds the users and the roles, and it is an HTTP API that no SQL statement
+reaches, so roles, role grants and privileges are not answered.
+
+`Databases` is not answered. Druid has one catalog, named druid, and SCHEMATA
+lists schemas and not databases.
+
+`Views` is not answered. TABLES has a type VIEW, and Druid has no INFORMATION_SCHEMA.VIEWS
+and no statement that returns a view's definition.
+
+`RoutineParameters` is not answered. ROUTINES holds the signatures as text, and
+a row such as `'APPROX_COUNT_DISTINCT_DS_HLL(column, lgk)'` has no stable form
+to read the names and the types from.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked on 2026-10-07, as hard rule 14 requires. Gemini
+answered the whole list in two calls. DeepSeek spent its whole budget on
+reasoning in three tries, and timed out in one, and answered a short question
+on the fifth try, with a budget of 30000 tokens. Each lead was run against 37.0.0.
+
+| Lead | Who | Result |
+| --- | --- | --- |
+| Databases from `SCHEMATA.CATALOG_NAME` | Gemini, DeepSeek | A stretch. There is one catalog, and SCHEMATA lists schemas. Not answered |
+| Types from `SELECT DISTINCT DATA_TYPE FROM COLUMNS` | Gemini, DeepSeek | A stretch. It lists the types that a column uses, which is a scan of the columns and not a type catalog (D162). Not answered |
+| Partitioned tables from `sys.segments` | Gemini, DeepSeek | A stretch. Every datasource is partitioned by time, and the segment granularity is not in the catalog. A segment row has a start, an end and a partition number, and the statement grows with the segments and not with the tables. Not answered |
+| Views from `INFORMATION_SCHEMA.TABLES` with the type VIEW | Gemini | Held in part. TABLES has the type, and the Tables query reports it. There is no definition, so Views is not answered |
+| The current user from `CURRENT_USER` | Gemini | Wrong. Druid refuses it: Column 'CURRENT_USER' not found in any table |
+| Extensions from the property `druid.extensions.loadList` | the author | A stretch. It is one JSON text for each service, and a statement cannot split it. Not answered |
+
+Both models called every other kind absent, and the survey agrees.
+
+### What the fixture builds
+
+`models/druid/fixture` makes the four core datasources, author, book, region
+and shipment, with a REPLACE of the multi-stage engine through
+`POST /druid/v2/sql/task`, which a test sends over HTTP because the driver
+reads and never writes. A task takes from 5 to 12 seconds and the nano
+quickstart has two slots, so the steps run one after the other and the setup
+skips a datasource that already answers. Druid has no DROP in SQL, so the
+fixture has no teardown. It cannot build an index, a constraint, a view or a
+function, and `TestDruidLeavesOut` asserts that those kinds are not answered.
+
+### What the conformance test says
+
+Druid is out of the main agreement count. A datasource has no key, no
+constraint and no view, so the section holds the four datasources and their
+columns, with `__time` first and the only column that is NOT NULL.
+
+### Which answers depend on who is asking
+
+Druid filters INFORMATION_SCHEMA by permission. The ordinary user, who can READ
+every datasource, sees what the administrator sees in schemas, tables,
+columns and functions. A reader who can READ the datasource author alone sees
+that datasource and no other, so tables and columns return fewer rows.
+
+Settings read `sys.server_properties`, and the version reads `sys.servers`.
+Both need the permission STATE, so Druid answers HTTP 403 with Insufficient
+permission to view servers to the ordinary user and to the reader. The
+settings query is refused, and so is the version query. A caller that has no
+version cannot build the metadata, so the administrator reads the version
+and passes it. `TestDruidVersionRefusedToAnOrdinaryUser` asserts the refusal.
+
+38.0.0 answers the same as 37.0.0 for all seven kinds, and for both principals.
 
 ## Releases that need a license file
 

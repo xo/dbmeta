@@ -82,10 +82,10 @@ var trino = product{
 	// system objects. An explicit heap size wins over the percentages, so
 	// the heap is held to 2.5 GB and the rest of the JVM fits in the limit.
 	env: map[string]string{"JAVA_TOOL_OPTIONS": "-Xms256m -Xmx2560m"},
+	// dbimp's driver takes trino://user@host:port/catalog/schema for both
+	// products, so the DSN and the URL are the same string (dbimp D175,
+	// D172). The test image takes no password, so there is no ordinary user.
 	dsn: func(port int) string {
-		return fmt.Sprintf("http://trino@127.0.0.1:%d?catalog=memory&schema=default", port)
-	},
-	url: func(port int) string {
 		return fmt.Sprintf("trino://trino@127.0.0.1:%d/memory/default", port)
 	},
 }

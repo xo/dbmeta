@@ -117,6 +117,14 @@ databases fewer rows than the administrator
 schemas fewer rows than the administrator
 settings refused: databend: 1063: Permission denied: privilege [Select] is required on 'default'.'system'.'settings' for user 'dbmeta_parity'@'client' with roles [dbmeta_parity_role,public]
 
+[druid/same/reader]
+columns fewer rows than the administrator
+settings refused: druid: 403: Insufficient permission to view servers: Unauthorized
+tables fewer rows than the administrator
+
+[druid/same/user]
+settings refused: druid: 403: Insufficient permission to view servers: Unauthorized
+
 [exasol/same/grantee]
 current_schema fewer rows than the administrator
 current_user the same rows with different values

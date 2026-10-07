@@ -36,7 +36,7 @@ var dynamodb = product{
 	ready: []string{"sh", "-c", `curl -sf -o /dev/null --aws-sigv4 'aws:amz:us-east-1:dynamodb' -u 'dbmeta:` + Password +
 		`' -H 'Content-Type: application/x-amz-json-1.0' -H 'X-Amz-Target: DynamoDB_20120810.ListTables' -d '{}' http://127.0.0.1:8000/`},
 	dsn: dynamoURL("dbmeta", Password),
-	api: dynamoAPI,
+	api: bareHTTP,
 }
 
 // DynamoDB is every DynamoDB Local release dbrun starts.

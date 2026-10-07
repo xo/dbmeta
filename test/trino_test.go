@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/trinodb/trino-go-client/trino"
+	_ "github.com/xo/dbimp/trino"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/trino"

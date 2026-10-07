@@ -93,10 +93,10 @@ func init() {
 		Syntax:     dbmeta.Syntax{BlockComments: true},
 		Terminator: dbmeta.TerminatorStripped,
 		Fold:       dbmeta.FoldLower,
-		// presto-go-client binds by position and writes a question mark. It
-		// sends the statement through PREPARE and EXECUTE, and a parameter
-		// repeated in the text is repeated in the values, which is what every
-		// filter here does.
+		// dbimp's driver binds by position and writes a question mark. It
+		// writes each value into the statement as the product writes a
+		// literal, and a parameter repeated in the text is repeated in the
+		// values, which is what every filter here does.
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,
 		VersionColumns: 1,

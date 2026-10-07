@@ -36,3 +36,10 @@ no credentials, because a request there is signed with the key.
 
 dbimp agreed to the name on 2026-10-02. Nothing in dbimp's code read the DSN,
 and its docs/DRIVER.md reads `api` from this change.
+
+Ken asked on 2026-10-07 that the products whose DSN is already the driver URL
+also have an `api`, where they have an HTTP interface the entry publishes.
+rqlite, Couchbase, Databend, the BigQuery emulator and InfluxDB 3 now set
+one. The BigQuery emulator's `api` carries no credentials, because it takes
+none. ClickHouse, Spanner, YDB, Hive, SAP HANA, Exasol, MongoDB and the rest
+publish a native or gRPC port and no HTTP one, so they have no `api`.

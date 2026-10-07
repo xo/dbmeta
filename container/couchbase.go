@@ -115,7 +115,8 @@ wait 'SELECT 1'
 wait 'CREATE PRIMARY INDEX IF NOT EXISTS ON dbmeta'
 wait 'SELECT RAW COUNT(*) FROM dbmeta'`},
 	dsn:   couchbaseDSN("Administrator"),
-	users: []Principal{{Role: User, User: CouchbaseUser, dsn: couchbaseDSN(CouchbaseUser)}},
+	api:   keyHTTP("Administrator", Password),
+	users: []Principal{{Role: User, User: CouchbaseUser, dsn: couchbaseDSN(CouchbaseUser), api: keyHTTP(CouchbaseUser, Password)}},
 }
 
 // couchbaseDSN builds the URL that github.com/xo/dbimp/couchbase takes, for

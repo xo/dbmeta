@@ -72,6 +72,7 @@ than from memory.
 | InfluxDB 3 | 6 | `TableIndexes`, `IndexColumns` and `TableForeignKeys`: InfluxDB 3 has no index and no key. `Procs` lists DataFusion's built in functions, and only with the system objects |
 | YDB | 1 | every one but `Tables`: the columns, indexes and keys of a table are in its schema, which only a gRPC call per table reads, YQL has no function list, and a session has no current directory |
 | ArangoDB | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: AQL lists no index, a function's parameters are in its JavaScript source, and ArangoDB has no foreign key. `Schema` is the database of the connection (D168). `TableColumns` reads a collection's schema rule, and a collection with no rule has no column |
+| Apache Druid | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Druid has no index and no key, and ROUTINES lists a function's signatures as text. `Procs` lists the built in functions, and only with the system objects (D171) |
 | InfluxQL | 3 | everything but `Tables`, `TableColumns` and `TableSequences`: InfluxDB has no index, no key, no function list and no current database a statement returns |
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
@@ -128,6 +129,7 @@ dialect is added.
 | InfluxDB 3 | no | no. It has no key and no foreign key, so there is nothing to relate one measurement to another, and every column but time is nullable |
 | YDB | no | no. It answers the tables and none of their columns, so there is nothing to generate a type from |
 | ArangoDB | no | no. A collection has columns only where a schema rule names them, no column is a key, and there is no foreign key to follow. A graph's edge definitions are not enforced and no kind reads them |
+| Apache Druid | no | no. A datasource has no key and no foreign key, so there is nothing to relate one datasource to another, and every column but `__time` is nullable |
 | InfluxQL | no | no, for the same reason as InfluxDB 3. A measurement has tags and fields and no key, and `Schema` has no answer, because no statement returns the database of the request |
 | DuckDB | no | yes, without index columns |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |

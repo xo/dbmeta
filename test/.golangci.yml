@@ -97,8 +97,6 @@ linters:
             - github.com/xo/cql
             - github.com/xo/dbimp
             - github.com/ClickHouse/clickhouse-go
-            - github.com/trinodb/trino-go-client
-            - github.com/prestodb/presto-go-client
             - github.com/nakagami/firebirdsql
             - github.com/SAP/go-hdb
             - github.com/beltran/gohive

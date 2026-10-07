@@ -18,6 +18,7 @@ import (
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
+	drfixture "github.com/xo/dbmeta/models/druid/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
@@ -230,7 +231,7 @@ func parityTargets() []parityTarget {
 			},
 		},
 		{
-			dialect: dbmeta.Presto, driver: "presto", env: "DBMETA_PRESTO",
+			dialect: dbmeta.Presto, driver: "trino", env: "DBMETA_PRESTO",
 			open: openPresto, build: setupPresto, schema: prfixture.Everything.Schema,
 			scenes: []parityScene{{
 				// The same shape as Trino. Presto has no containment and no
@@ -308,6 +309,24 @@ func parityTargets() []parityTarget {
 				principals: []parityPrincipal{
 					{name: "user", make: makeArangoDBUser},
 					{name: "reader", make: makeArangoDBReader},
+				},
+			}},
+		},
+		{
+			dialect: dbmeta.Druid, driver: "druid", env: "DBMETA_DRUID",
+			open: openDruid, build: setupDruid,
+			schema: drfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Druid has no containment. A user belongs to the cluster,
+				// and a role grants a permission on a resource. The user the
+				// dbrun setup makes can READ every datasource. The reader can
+				// READ the datasource author alone, and Druid hides the
+				// others from INFORMATION_SCHEMA. Neither can read sys.servers
+				// or sys.server_properties, so neither can read the version.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "user", make: makeDruidUser},
+					{name: "reader", make: makeDruidReader},
 				},
 			}},
 		},

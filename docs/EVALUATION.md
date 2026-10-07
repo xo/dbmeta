@@ -388,7 +388,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | chai, csvq, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
 | Avatica | 1.28.0 | 1.29.0 | The rule for an image that is never rebuilt (D112). The standalone server over HSQLDB, which the Calcite project builds. The entry is for dbimp's Avatica driver (D113) |
 | Apache Phoenix | 2.0-5.0 | 2.0-5.0 | An exception to step 2, which Ken made (D113). The Phoenix project publishes no image, and the only one that runs in one container, boostport/hbase-phoenix-all-in-one, was last pushed on 2023-03-14. The entry is for dbimp's Avatica driver |
-| Apache Druid | 37.0.0 | 38.0.0 | The rule for an image that is never rebuilt (D112). 38.0.0 was published by 2026-10-07, and 36.0.0 is out. The entry is for dbimp's Avatica driver (D113) |
+| Apache Druid | 37.0.0 | 38.0.0 | The rule for an image that is never rebuilt (D112). 38.0.0 was published by 2026-10-07, and 36.0.0 is out. `models/druid` reads both (D171) |
 | Qdrant | 1.18.3 | 1.19.2 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | Chroma | 1.4.1 | 1.5.9 | The rule for an image that is never rebuilt (D112). The 1.5.10.dev tags are development builds. The entry is for dbimp's driver (D118) |
 | Weaviate | 1.39.10 | 1.40.0 | The rule for an image that is never rebuilt (D112). 1.40.0 is a new line, so 1.38.17 is out. An older line still gets releases. The entry is for dbimp's driver (D118) |

@@ -31,9 +31,11 @@ var clickhouse = product{
 	dialect: dbmeta.ClickHouse,
 	name:    "clickhouse",
 	image:   "docker.io/clickhouse/clickhouse-server",
-	// The native protocol, which is what clickhouse-go speaks. 8123 is the
-	// HTTP interface and nothing here uses it.
-	port: 9000,
+	// The native protocol, which is what clickhouse-go speaks. The HTTP
+	// interface, 8123, is published on the second host port (D124), and
+	// dbimp's driver reads it.
+	port:   9000,
+	second: 8123,
 	env: map[string]string{
 		"CLICKHOUSE_PASSWORD": Password,
 		// Without this the default user cannot CREATE ROLE, CREATE USER or
@@ -51,10 +53,51 @@ var clickhouse = product{
 	// means building an image, which is not worth it for one query that is
 	// already verified to run.
 	ready: []string{"clickhouse-client", "--password", Password, "-q", "SELECT 1"},
-	dsn: func(port int) string {
-		return fmt.Sprintf("clickhouse://default:%s@127.0.0.1:%d/default",
-			url.QueryEscape(Password), port)
-	},
+	// The ordinary user reads and writes the database dbmeta, and can see its
+	// own queries. The user and the grants are set every time, so a start
+	// that finds them is safe (D105, D107).
+	init: []string{"clickhouse-client", "--password", Password, "--multiquery", "-q",
+		"CREATE DATABASE IF NOT EXISTS " + clickHouseDatabase + ";" +
+			" CREATE USER IF NOT EXISTS " + ClickHouseUser + " IDENTIFIED BY '" + Password + "';" +
+			" ALTER USER " + ClickHouseUser + " IDENTIFIED BY '" + Password + "';" +
+			" GRANT SELECT, INSERT, ALTER, CREATE, DROP, TRUNCATE, OPTIMIZE ON " + clickHouseDatabase + ".* TO " + ClickHouseUser + ";" +
+			" GRANT SELECT ON system.processes TO " + ClickHouseUser},
+	dsn: clickHouseDSN("default"),
+	api: clickHouseHTTP("default"),
+	users: []Principal{{
+		Role: User, User: ClickHouseUser,
+		dsn: clickHouseDSN(ClickHouseUser),
+		api: clickHouseHTTP(ClickHouseUser),
+	}},
+}
+
+// ClickHouseUser is the ordinary user of every ClickHouse release. Its
+// password is [Password].
+const ClickHouseUser = "dbmeta_user"
+
+// clickHouseDatabase is the database that the ordinary user can write.
+const clickHouseDatabase = "dbmeta"
+
+// clickHouseDSN is the address of the native port as one user, in the form of
+// clickhouse-go.
+func clickHouseDSN(user string) func(port int) string {
+	return func(port int) string {
+		return fmt.Sprintf("clickhouse://%s:%s@127.0.0.1:%d/default",
+			user, url.QueryEscape(Password), port)
+	}
+}
+
+// clickHouseHTTP is the address of the HTTP interface as one user, on the
+// second host port.
+func clickHouseHTTP(user string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: "http",
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", SecondHostPort(port)),
+		}
+		return u.String()
+	}
 }
 
 // ClickHouse is every ClickHouse release dbmeta is tested against.

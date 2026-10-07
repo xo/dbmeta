@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/container"
 )
 
@@ -33,6 +32,8 @@ func TestTheDSNIsWhatTheDriverTakes(t *testing.T) {
 		"libsql": true, "neo4j": true, "arangodb": true, "surrealdb": true,
 		"druid": true, "drill": true, "solr": true, "elasticsearch": true,
 		"opensearch": true, "dynamodb": true, "alternator": true,
+		"influxdb": true, "rqlite": true, "couchbase": true, "databend": true,
+		"bigquery": true, "clickhouse": true,
 	}
 	var found int
 	for _, x := range targets() {
@@ -46,9 +47,7 @@ func TestTheDSNIsWhatTheDriverTakes(t *testing.T) {
 		if http && x.API != x.DSN {
 			t.Errorf("%s: the API is %q, and the expected value is the DSN %q", x.Name, x.API, x.DSN)
 		}
-		// InfluxDB 3 is the same product and takes its URL as its DSN.
-		own := ownAPI[x.Product] || x.Product == "influxdb" && x.Dialect == dbmeta.InfluxQL
-		if !own {
+		if !ownAPI[x.Product] {
 			continue
 		}
 		found++
