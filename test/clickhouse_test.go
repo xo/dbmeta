@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/ClickHouse/clickhouse-go/v2"
+	_ "github.com/xo/dbimp/clickhouse"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/clickhouse"

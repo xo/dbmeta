@@ -3,7 +3,6 @@ module github.com/xo/dbmeta/test
 go 1.27.1
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
 	github.com/SAP/go-hdb v1.18.11
 	github.com/beltran/gohive/v2 v2.1.0
 	github.com/duckdb/duckdb-go/v2 v2.10505.0
@@ -19,7 +18,7 @@ require (
 	github.com/snowflakedb/gosnowflake/v2 v2.2.0
 	github.com/vertica/vertica-sql-go v1.3.8
 	github.com/xo/cql v0.1.0
-	github.com/xo/dbimp v0.12.0
+	github.com/xo/dbimp v0.13.0
 	github.com/xo/dbmeta v0.0.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.152.0
 	modernc.org/sqlite v1.59.0
@@ -33,8 +32,6 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.0.0 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
-	github.com/ClickHouse/ch-go v0.74.0 // indirect
-	github.com/andybalholm/brotli v1.2.3 // indirect
 	github.com/apache/arrow-go/v18 v18.5.1 // indirect
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.2 // indirect
 	github.com/apache/thrift v0.24.0 // indirect
@@ -74,8 +71,6 @@ require (
 	github.com/elastic/go-windows v1.0.0 // indirect
 	github.com/exasol/error-reporting-go v0.2.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.7 // indirect
-	github.com/go-faster/city v1.0.1 // indirect
-	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
@@ -102,14 +97,12 @@ require (
 	github.com/murfffi/gorich v0.3.0 // indirect
 	github.com/nakagami/chacha20 v0.1.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
-	github.com/paulmach/orb v0.13.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.30 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/samber/lo v1.53.0 // indirect
-	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
@@ -117,7 +110,11 @@ require (
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.44.0 // indirect
+	go.opentelemetry.io/otel/sdk/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect

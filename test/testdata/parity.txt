@@ -18,16 +18,16 @@ tables fewer rows than the administrator
 current_user the same rows with different values
 
 [clickhouse/same/grantee]
-constraints refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.constraints
+constraints refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.constraints.
 current_user the same rows with different values
 databases fewer rows than the administrator
-foreign_servers refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.named_collections
-index_columns refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices
-indexes refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices
-privileges refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.grants
-role_grants refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.role_grants
-roles refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users
-tablespaces refused: code: 497, message: dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies
+foreign_servers refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.named_collections.
+index_columns refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices.
+indexes refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices.
+privileges refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.grants.
+role_grants refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.role_grants.
+roles refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users.
+tablespaces refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.storage_policies.
 
 [cockroachdb/same/grantee]
 current_user the same rows with different values

@@ -31,9 +31,9 @@ var clickhouse = product{
 	dialect: dbmeta.ClickHouse,
 	name:    "clickhouse",
 	image:   "docker.io/clickhouse/clickhouse-server",
-	// The native protocol, which is what clickhouse-go speaks. The HTTP
-	// interface, 8123, is published on the second host port (D124), and
-	// dbimp's driver reads it.
+	// The native protocol, which nothing here uses since the tests moved to
+	// dbimp's driver (D174). The HTTP interface, 8123, is published on the
+	// second host port (D124), and dbimp's driver reads it.
 	port:   9000,
 	second: 8123,
 	env: map[string]string{
@@ -62,6 +62,9 @@ var clickhouse = product{
 			" ALTER USER " + ClickHouseUser + " IDENTIFIED BY '" + Password + "';" +
 			" GRANT SELECT, INSERT, ALTER, CREATE, DROP, TRUNCATE, OPTIMIZE ON " + clickHouseDatabase + ".* TO " + ClickHouseUser + ";" +
 			" GRANT SELECT ON system.processes TO " + ClickHouseUser},
+	// dbimp's driver takes clickhouse://user:password@host:port/database over
+	// the HTTP interface, which is on the second host port, so the DSN and
+	// the URL are the same string (dbimp D177, D174).
 	dsn: clickHouseDSN("default"),
 	api: clickHouseHTTP("default"),
 	users: []Principal{{
@@ -78,12 +81,12 @@ const ClickHouseUser = "dbmeta_user"
 // clickHouseDatabase is the database that the ordinary user can write.
 const clickHouseDatabase = "dbmeta"
 
-// clickHouseDSN is the address of the native port as one user, in the form of
-// clickhouse-go.
+// clickHouseDSN is the address of the HTTP interface as one user, in the form
+// of dbimp's driver. The interface is on the second host port.
 func clickHouseDSN(user string) func(port int) string {
 	return func(port int) string {
 		return fmt.Sprintf("clickhouse://%s:%s@127.0.0.1:%d/default",
-			user, url.QueryEscape(Password), port)
+			user, url.QueryEscape(Password), SecondHostPort(port))
 	}
 }
 

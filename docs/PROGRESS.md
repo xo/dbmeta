@@ -7,10 +7,14 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has two releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, and
-v0.2.0 on 39b74b2 on 2026-10-07. The Tested tier passed in CI on 39b74b2.
-Ken chose that CI stands in for a run of every tier, and the Verified tier was
-not run again for either release.
+dbmeta has three releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
+on 39b74b2 on 2026-10-07, and v0.3.0 on 7cbe9bf on 2026-10-07. The Tested tier
+passed in CI on each tagged commit. Ken chose that CI stands in for a run of
+every tier, and the Verified tier was not run again for any of them.
+
+v0.3.0 holds the Druid dialect (D171), the move of the Trino and Presto tests
+to dbimp's driver (D172), `api` for more products, the ClickHouse entry for
+dbimp's driver, and the ODBC decision (D173).
 
 v0.2.0 holds the container sweep of 2026-10-07, InfluxDB 3 Triggers (D170),
 the DSN and `api` change for the products of dbimp (D167), and the ready
@@ -56,6 +60,10 @@ in Init, as dbimp asked for its ClickHouse driver. All four releases pass the
 test module, and a stop and a start runs Init again without a fault. The user
 has the name that every other entry uses, and not `dbimp_user`, which
 dbimp's own recorded tests make for themselves.
+
+The ClickHouse tests use dbimp's driver, `github.com/xo/dbimp/clickhouse` at
+v0.13.0, which dburl v0.44.0 names (D174). The entry's DSN and URL are the
+HTTP form on the second port. All four releases pass.
 
 In progress:
 

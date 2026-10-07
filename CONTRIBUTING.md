@@ -13,7 +13,7 @@ imports it, for Claude Code.
 
 [`docs/decisions/`](docs/decisions/) holds every decision this project has made,
 one file each, with the reasoning and what was rejected. The index in
-[`docs/decisions/README.md`](docs/decisions/README.md) lists all 173 with their
+[`docs/decisions/README.md`](docs/decisions/README.md) lists all 174 with their
 status. Read the status: 59 of them amend or replace an earlier one.
 
 Do not decide an open question on your own. The open questions are at the end

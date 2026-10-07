@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	_ "github.com/ClickHouse/clickhouse-go/v2"
 	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/beltran/gohive/v2"
 	_ "github.com/exasol/exasol-driver-go"
@@ -24,6 +23,7 @@ import (
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cql"
 	_ "github.com/xo/dbimp/arangodb"
+	_ "github.com/xo/dbimp/clickhouse"
 	_ "github.com/xo/dbimp/couchbase"
 	_ "github.com/xo/dbimp/databend"
 	_ "github.com/xo/dbimp/druid"

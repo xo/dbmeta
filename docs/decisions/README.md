@@ -192,3 +192,4 @@ file.
 | [D171](D171-druid-maps-a-datasource-to-a-table-and-reads-information-schema.md) | Druid maps a datasource to a table and reads INFORMATION_SCHEMA | Decided |
 | [D172](D172-the-trino-and-presto-tests-use-dbimps-driver.md) | The Trino and Presto tests use dbimp's driver | Decided |
 | [D173](D173-the-odbc-fallback-belongs-to-the-client.md) | The ODBC fallback belongs to the client | Decided |
+| [D174](D174-the-clickhouse-tests-use-dbimps-driver.md) | The ClickHouse tests use dbimp's driver | Decided |

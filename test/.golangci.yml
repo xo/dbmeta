@@ -96,7 +96,6 @@ linters:
             - github.com/sijms/go-ora
             - github.com/xo/cql
             - github.com/xo/dbimp
-            - github.com/ClickHouse/clickhouse-go
             - github.com/nakagami/firebirdsql
             - github.com/SAP/go-hdb
             - github.com/beltran/gohive
