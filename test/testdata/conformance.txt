@@ -578,6 +578,34 @@ table book table
 table region table
 table shipment table
 
+[opensearch]
+table author table
+table book table
+table region table
+table shipment table
+column author.author_id ordinal=3 nullable=true primary_key=false has_default=false
+column author.name ordinal=0 nullable=true primary_key=false has_default=false
+column author.rating ordinal=1 nullable=true primary_key=false has_default=false
+column author.shade ordinal=2 nullable=true primary_key=false has_default=false
+column book.author_id ordinal=2 nullable=true primary_key=false has_default=false
+column book.book_id ordinal=0 nullable=true primary_key=false has_default=false
+column book.published ordinal=1 nullable=true primary_key=false has_default=false
+column book.title ordinal=3 nullable=true primary_key=false has_default=false
+column region.area ordinal=0 nullable=true primary_key=false has_default=false
+column region.country ordinal=1 nullable=true primary_key=false has_default=false
+column region.population ordinal=2 nullable=true primary_key=false has_default=false
+column shipment.amount ordinal=2 nullable=true primary_key=false has_default=false
+column shipment.area ordinal=0 nullable=true primary_key=false has_default=false
+column shipment.country ordinal=1 nullable=true primary_key=false has_default=false
+column shipment.dims ordinal=3 nullable=true primary_key=false has_default=false
+column shipment.dims.h ordinal=4 nullable=true primary_key=false has_default=false
+column shipment.dims.w ordinal=5 nullable=true primary_key=false has_default=false
+column shipment.fragile ordinal=7 nullable=true primary_key=false has_default=false
+column shipment.shipment_id ordinal=8 nullable=true primary_key=false has_default=false
+column shipment.tags ordinal=9 nullable=true primary_key=false has_default=false
+column shipment.tags.k ordinal=10 nullable=true primary_key=false has_default=false
+column shipment.weight ordinal=6 nullable=true primary_key=false has_default=false
+
 [oracle]
 table author table
 table book table

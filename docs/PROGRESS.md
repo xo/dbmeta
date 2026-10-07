@@ -80,7 +80,12 @@ In progress:
   and the DynamoDB DSN ends with tls=false.
 - Ken's order for the next models: OpenSearch, then DynamoDB (survey first,
   and check the trailing semicolon), then Pinot, then Avatica.
-- v0.4.0 holds the three models. Tell dbimp and usql when it is tagged.
+- v0.4.0 is released with the Drill, Elasticsearch and Solr models.
+- OpenSearch is built and staged (D181). On 2.19.6 Columns has no answer
+  through dbimp's driver until dbimp reads a number where the schema says
+  keyword. The 2.19.6 column checks skip under `describeReadable`.
+- Redshift is being run for the first time against the provisioned service,
+  with one pass and a teardown. Snowflake is not set up.
 - The OpenSearch role of D176 ran on 2.19.6. The ordinary user runs SHOW TABLES, DESCRIBE and a paged SELECT. 3.9.0 is not measured.
 
 - A daily check of the nightly workflow runs at 18:07 local time in this

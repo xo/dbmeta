@@ -32,6 +32,7 @@ import (
 	lsfixture "github.com/xo/dbmeta/models/libsql/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	njfixture "github.com/xo/dbmeta/models/neo4j/fixture"
+	osfixture "github.com/xo/dbmeta/models/opensearch/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
@@ -95,6 +96,10 @@ type conformTarget struct {
 	schema string
 	// build runs the fixture and returns the meta.
 	build func(*testing.T, *sql.DB) *dbmeta.Meta
+	// skip gives the reason to skip a release, or is empty to run it. It is nil
+	// for every target but OpenSearch, whose 2.19.6 has no Columns through the
+	// driver.
+	skip func(*dbmeta.Meta) string
 }
 
 func conformTargets() []conformTarget {
@@ -222,6 +227,11 @@ func conformTargets() []conformTarget {
 			open: openElasticsearch, schema: esfixture.Everything.Schema, build: setupElasticsearch,
 		},
 		{
+			name: "opensearch", dialect: dbmeta.OpenSearch,
+			open: openOpenSearch, schema: osfixture.Everything.Schema, build: setupOpenSearch,
+			skip: skipOpenSearchDescribe,
+		},
+		{
 			name: "solr", dialect: dbmeta.Solr,
 			open: openSolr, schema: slfixture.Everything.Schema, build: setupSolr,
 		},
@@ -285,6 +295,11 @@ func TestConformance(t *testing.T) {
 		t.Run(target.name, func(t *testing.T) {
 			db := target.open(t)
 			m := target.build(t, db)
+			if target.skip != nil {
+				if why := target.skip(m); why != "" {
+					t.Skip(why)
+				}
+			}
 			got := conformReport(t, m, db, target.schema)
 			section := conformSection(target.name, m, want)
 			ran++
@@ -332,7 +347,7 @@ func conformSection(name string, m *dbmeta.Meta, want map[string][]string) strin
 // ordinary user of Elasticsearch reads the indices that start with dbmeta, so
 // the fixture calls the core index author dbmeta_author, and the report reads
 // it as author.
-var conformPrefix = map[dbmeta.Dialect]string{dbmeta.Elasticsearch: "dbmeta_"}
+var conformPrefix = map[dbmeta.Dialect]string{dbmeta.Elasticsearch: "dbmeta_", dbmeta.OpenSearch: "dbmeta_"}
 
 // conformReport reads the core schema and returns the canonical answer, as
 // lines, sorted so that two databases can be compared line by line.
@@ -699,6 +714,12 @@ var agreementExcluded = map[string]string{
 		" and SYS COLUMNS sorts the fields of a mapping by name, so the ordinal is the" +
 		" position in that order. The section holds the four indices, the alias and their" +
 		" fields alone (D177)",
+	"opensearch": "not relational: an index has no key, no constraint and no NOT NULL, so no" +
+		" column reads a primary key or NOT NULL and there are no constraint lines, SQL cannot" +
+		" tell the alias from an index so there is no view, DESCRIBE lists an object and a" +
+		" nested field as columns, and the driver cannot read DESCRIBE on 2.19.6 so the" +
+		" columns are those of 3.9.0. The section holds the four indices and their fields" +
+		" alone (D181)",
 	"solr": "not relational: a collection has no key, no constraint and no view in SQL, every" +
 		" column reads nullable and none reads a primary key, and every collection has the" +
 		" columns _version_, _root_, _text_, _nest_path_, _query_, score and id, so the" +

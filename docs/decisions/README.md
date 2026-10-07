@@ -199,3 +199,4 @@ file.
 | [D180](D180-voltdb-has-no-catalog-a-statement-can-reach.md) | VoltDB has no catalog that a statement can reach | Decided |
 | [D177](D177-elasticsearch-maps-an-index-to-a-table-and-walks-sys-and-show.md) | Elasticsearch maps an index to a table and walks SYS and SHOW | Decided |
 | [D179](D179-solr-maps-a-collection-to-a-table-under-a-fixed-schema.md) | Solr maps a collection to a table under a fixed schema | Decided |
+| [D181](D181-opensearch-maps-an-index-to-a-table-and-walks-show-and-describe.md) | OpenSearch maps an index to a table and walks SHOW and DESCRIBE | Decided |

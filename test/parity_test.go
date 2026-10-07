@@ -29,6 +29,7 @@ import (
 	lsfixture "github.com/xo/dbmeta/models/libsql/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	njfixture "github.com/xo/dbmeta/models/neo4j/fixture"
+	osfixture "github.com/xo/dbmeta/models/opensearch/fixture"
 	orfixture "github.com/xo/dbmeta/models/oracle/fixture"
 	pgfixture "github.com/xo/dbmeta/models/postgres/fixture"
 	prfixture "github.com/xo/dbmeta/models/presto/fixture"
@@ -364,6 +365,26 @@ func parityTargets() []parityTarget {
 				principals: []parityPrincipal{
 					{name: "user", make: makeElasticsearchUser},
 					{name: "reader", make: makeElasticsearchReader},
+				},
+			}},
+		},
+		{
+			dialect: dbmeta.OpenSearch, driver: "opensearch", env: "DBMETA_OPENSEARCH",
+			open: openOpenSearch, build: setupOpenSearch,
+			schema: osfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// OpenSearch has no containment. A user belongs to the
+				// cluster, and a role grants a permission on index names. The
+				// user the dbrun entry makes can read the indices whose names
+				// start with dbmeta and can list every index. The reader can
+				// read, list and describe the index dbmeta_author alone, which
+				// SHOW TABLES refuses. The lister can list every index and
+				// describe none.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "user", make: makeOpenSearchUser},
+					{name: "reader", make: makeOpenSearchReader},
+					{name: "lister", make: makeOpenSearchLister},
 				},
 			}},
 		},

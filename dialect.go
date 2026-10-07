@@ -90,9 +90,14 @@ const (
 	MaxCompute Dialect = "maxcompute"
 	// MemSQL is SingleStore, which speaks MySQL's protocol. dburl names
 	// its scheme memsql, the name SingleStore had until 2020.
-	MemSQL     Dialect = "memsql"
-	MySQL      Dialect = "mysql"
-	Neo4j      Dialect = "neo4j"
+	MemSQL Dialect = "memsql"
+	MySQL  Dialect = "mysql"
+	Neo4j  Dialect = "neo4j"
+
+	// OpenSearch reaches its SQL on /_plugins/_sql, through dbimp's opensearch
+	// driver. See D181.
+	OpenSearch Dialect = "opensearch"
+
 	Oracle     Dialect = "oracle"
 	Presto     Dialect = "presto"
 	PostgreSQL Dialect = "postgres"

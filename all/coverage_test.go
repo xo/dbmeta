@@ -86,6 +86,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "druid", dialect: dbmeta.Druid},
 		{name: "drill", dialect: dbmeta.Drill},
 		{name: "elasticsearch", dialect: dbmeta.Elasticsearch},
+		{name: "opensearch", dialect: dbmeta.OpenSearch},
 		{name: "solr", dialect: dbmeta.Solr},
 	} {
 		// The newest release of each, because a count is what the model can
@@ -124,8 +125,8 @@ var displayNames = map[string]string{
 	"rqlite": "rqlite", "InfluxDB 3": "influxdb", "libSQL": "libsql", "Neo4j": "neo4j",
 	"YDB": "ydb", "ArangoDB": "arangodb", "InfluxQL": "influxql",
 	"SurrealDB": "surrealdb", "Apache Druid": "druid", "Apache Drill": "drill",
-	"Elasticsearch": "elasticsearch",
-	"Apache Solr":   "solr",
+	"Elasticsearch": "elasticsearch", "OpenSearch": "opensearch",
+	"Apache Solr": "solr",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -296,6 +297,7 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"ydb": "YDB", "arangodb": "ArangoDB", "influxql": "InfluxQL",
 			"surrealdb": "SurrealDB", "druid": "Apache Druid", "drill": "Apache Drill",
 			"elasticsearch": "Elasticsearch",
+			"opensearch":    "OpenSearch",
 			"solr":          "Apache Solr",
 		}[name]
 		if product == "" {
@@ -341,6 +343,7 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"ydb": "YDB", "arangodb": "ArangoDB", "influxql": "InfluxQL",
 			"surrealdb": "SurrealDB", "druid": "Apache Druid", "drill": "Apache Drill",
 			"elasticsearch": "Elasticsearch",
+			"opensearch":    "OpenSearch",
 			"solr":          "Apache Solr",
 		}[name]
 		if product == "" {

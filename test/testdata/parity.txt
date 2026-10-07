@@ -253,6 +253,25 @@ role_settings refused: neo4j: Neo.ClientError.Security.Forbidden: Permission has
 roles refused: neo4j: Neo.ClientError.Security.Forbidden: Permission has not been granted for SHOW USER. Try executing SHOW USER PRIVILEGES to determine the missing or denied privileges. In case of missing privileges, they need to be granted (See GRANT). In case of denied privileges, they need to be revoked (See REVOKE) and granted.
 settings fewer rows than the administrator
 
+[opensearch/same/lister]
+columns fewer rows than the administrator
+
+[opensearch/same/reader]
+columns refused: running SHOW TABLES LIKE %: opensearch: OpenSearchSecurityException: Error occurred in OpenSearch engine: no permissions for [indices:admin/get] and User [name=dbmeta_reader, backend_roles=[], requestedTenant=null]
+databases refused: running SHOW TABLES LIKE %: opensearch: OpenSearchSecurityException: Error occurred in OpenSearch engine: no permissions for [indices:admin/get] and User [name=dbmeta_reader, backend_roles=[], requestedTenant=null]
+tables refused: running SHOW TABLES LIKE %: opensearch: OpenSearchSecurityException: Error occurred in OpenSearch engine: no permissions for [indices:admin/get] and User [name=dbmeta_reader, backend_roles=[], requestedTenant=null]
+
+[opensearch/same/user]
+columns fewer rows than the administrator
+
+[opensearch@2/same/lister]
+
+[opensearch@2/same/reader]
+databases refused: running SHOW TABLES LIKE %: opensearch: OpenSearchSecurityException: Error occurred in OpenSearch engine: no permissions for [indices:admin/get] and User [name=dbmeta_reader, backend_roles=[], requestedTenant=null]
+tables refused: running SHOW TABLES LIKE %: opensearch: OpenSearchSecurityException: Error occurred in OpenSearch engine: no permissions for [indices:admin/get] and User [name=dbmeta_reader, backend_roles=[], requestedTenant=null]
+
+[opensearch@2/same/user]
+
 [oracle/same/local]
 current_schema the same rows with different values
 current_user the same rows with different values

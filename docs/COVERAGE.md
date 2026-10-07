@@ -65,6 +65,7 @@ rather than reading one.
 | `models/druid` | 7 | 56 | Apache Druid 37.0.0 and 38.0.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. The version and the settings need an administrator (D171) |
 | `models/drill` | 10 | 56 | Apache Drill 1.21.2 and 1.22.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. A file table is listed only when the Metastore is on (D178) |
 | `models/elasticsearch` | 8 | 56 | Elasticsearch 8.19.22, 9.4.6 and 9.5.3, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from GET / and needs an administrator (D177) |
+| `models/opensearch` | 3 | 56 | OpenSearch 3.9.0, and 2.19.6, which answers 2 of the 3, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver. The driver cannot read DESCRIBE on 2.19.6. The release comes from GET / and needs an administrator (D181) |
 | `models/solr` | 4 | 56 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release is read over HTTP by an administrator (D179) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
@@ -4857,6 +4858,133 @@ Nothing in the four queries. The ordinary user, who has the role search, sees
 the same rows as the administrator in all four, on all three releases. The
 administrator alone can read the release, and the ordinary user gets HTTP 403.
 A reader with less than the role search was not measured.
+
+## OpenSearch
+
+`models/opensearch` answers 3 of the 56 on OpenSearch 3.9.0, and 2 of the 3 on
+2.19.6, measured on 2026-10-08 through dbimp's opensearch driver, which is what
+dburl's opensearch scheme opens. Both releases are Tested. OpenSearch answers
+SQL on `POST /_plugins/_sql`. D181 holds the mapping and the reasons for it, for
+Ken to review.
+
+### What it reads
+
+Its SQL has no table that a SELECT reads. It has SHOW TABLES LIKE and DESCRIBE
+TABLES LIKE, and both need a pattern. So each kind is a walk (D175). One SHOW
+TABLES LIKE % lists every index, and one DESCRIBE TABLES LIKE for each index
+lists its fields. A pattern in DESCRIBE merges every index that matches into one
+table named for the pattern, and an underscore in SHOW TABLES LIKE is a wildcard
+with no escape. So the walk matches the name in Go and gives DESCRIBE the exact
+name of one index.
+
+400 indices were listed in 16 milliseconds and described in 1.7 seconds in the
+survey, and the cost check of D181 read 200 indices in 181 milliseconds on 3.9.0.
+The server reads the mapping in the cluster state and never a document.
+
+### What it answers
+
+Databases, tables and columns.
+
+The cluster is the catalog and the one database. There is no schema, so every
+schema is empty. An index is a table. A field is a column, and an object and a
+nested field are columns too, with the types object and nested. A subfield is a
+column of its own, such as `dims.h`. DESCRIBE leaves out a multi-field, such as
+`name.raw`, and a field of a type SQL cannot read, such as integer_range. The
+type is the name of the mapping type in lower case, and a date is `timestamp`.
+Every column is nullable and none has a key, a default or a comment. The
+position starts at 0.
+
+An alias is a table on 2.19.6, because SHOW TABLES lists it as BASE TABLE, the
+same as an index. 3.9.0 does not list an alias. So Views is not answered on
+either release.
+
+The version is not a SQL statement. `GET /` reports it as `version.number` to the
+administrator, and `Dialect.Version` reports an unknown version. A caller passes
+the release to `Dialect.ParseVersion`.
+
+### What does not work on 2.19.6
+
+dbimp's driver cannot read a row of DESCRIBE TABLES on 2.19.6. That release
+declares every column of the answer keyword and sends numbers in some of them,
+and the driver fails the row with ErrInvalidValue for NUM_PREC_RADIX. So Columns
+has no answer on 2.19.6, and tests that need it skip with that reason, under the
+condition `describeReadable`. dbimp's open question 15 holds the fault.
+
+### What it cannot answer, and why
+
+53 kinds. Most are absent from OpenSearch SQL. Roles, role grants and privileges
+are in the security plugin, which is HTTP. Settings are in the settings APIs.
+The `_meta.comment` of a mapping is stored, and SQL never shows it. SHOW
+SCHEMAS, CATALOGS, FUNCTIONS, COLUMNS, DATABASES, GRANTS and VARIABLES fail with
+HTTP 400, and so do `SELECT VERSION()`, `SELECT USER()` and `SELECT DATABASE()`.
+There is no information_schema.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked on 2026-10-08, as hard rule 14 requires. Both ran
+out of tokens on long questions, because DeepSeek spent its whole budget on
+reasoning, and Gemini timed out on three of five short ones. Each lead was run
+against 3.9.0.
+
+| Lead | Who | Result |
+| --- | --- | --- |
+| Views, roles, settings, comments and the current user are absent | both | Held |
+| Indexes from SHOW TABLES LIKE | both | Wrong. SHOW TABLES lists the indices as tables. It lists no index of SQL |
+| Function list from SHOW FUNCTIONS LIKE | DeepSeek | Wrong. The statement fails with HTTP 400 and the message that only SHOW TABLES LIKE exists. DeepSeek said that the premise of the question was incomplete, and it was not |
+| Data types from DESCRIBE | DeepSeek | A stretch. The distinct TYPE_NAME of the columns of a cluster is a list of types in use and not a list of types. Not answered |
+| Privileges, partitioned tables and the rest | DeepSeek | Held as absent |
+| Roles and privileges from the security plugin | the survey | HTTP and not SQL. Not answered |
+| Current user from `/_plugins/_security/authinfo` | the survey | HTTP and not SQL. Not answered |
+| Databases from TABLE_CAT of SHOW TABLES | the survey | Held, and a close call. It names the cluster only when the user sees an index |
+
+### What the fixture builds
+
+`models/opensearch/fixture` is a list of HTTP requests, because SQL cannot make
+anything. It makes `dbmeta_author`, `dbmeta_book`, `dbmeta_region` and
+`dbmeta_shipment`, which are the four core tables of D53, the alias
+`dbmeta_recent` over `dbmeta_book`, `dbmeta_types` with one field of each unusual
+type, `dbmeta_empty` with no field, and `secret_idx` for the parity test. Every
+name but the last starts with `dbmeta`, because the role of the ordinary user
+reads `dbmeta*`. A key, a foreign key, NOT NULL, a default and a field comment
+cannot be built, and `TestOpenSearchLeavesOut` asserts that the kinds that need
+them are not answered.
+
+### What the conformance test says
+
+OpenSearch is out of the main agreement count. An index has no key, no
+constraint and no NOT NULL, the report removes the prefix `dbmeta_`, and DESCRIBE
+lists an object and a nested field as columns. The test skips 2.19.6, because
+the driver cannot read DESCRIBE there.
+
+### Which answers depend on who is asking
+
+The role of the ordinary user holds `indices:admin/get` on every index, so the
+user sees the name of every index, `secret_idx` included. The plugin refuses
+DESCRIBE of an index that the role does not read, so Columns returns no row for
+`secret_idx`, and the walk goes on. Tables and Databases answer the same rows
+as for the administrator. A reader who can read `dbmeta_author` alone is refused
+SHOW TABLES, because the plugin needs `indices:admin/get` on every index to run
+it, so Tables, Databases and Columns are refused to the reader. A lister who has
+`indices:admin/get` on every index and nothing else gets every table and no
+column. The sections `opensearch/same/user`, `opensearch/same/reader` and
+`opensearch/same/lister` hold the rest. On 2.19.6 the Columns answer is an error
+for every principal, so the sections of `opensearch@2` record no difference.
+
+`GET /` needs the cluster permission `cluster:monitor/main`, and the role of the
+ordinary user has none, so the release is refused with HTTP 403 and
+`security_exception`. `TestOpenSearchVersionRefusedToAnOrdinaryUser` asserts it.
+3.9.0 sends the header `X-OpenSearch-Version` with every answer, and 2.19.6
+sends none.
+
+### How the two releases differ
+
+The two answered the fixture the same way for SHOW TABLES and DESCRIBE, with
+three differences. 2.19.6 lists an alias in SHOW TABLES and 3.9.0 does not. 2.19.6
+declares the columns of DESCRIBE as keyword and 3.9.0 declares integers, which is
+what the driver cannot read. The survey also said that the position starts at 1
+on 3.9.0, that 3.9.0 lists every mapping type, and that DESCRIBE of an index with
+no mapping fails with HTTP 500 on 3.9.0. None of that held when it was measured
+again, and the position starts at 0 on both.
 
 ## Releases that need a license file
 

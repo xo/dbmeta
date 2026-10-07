@@ -32,6 +32,7 @@ import (
 	_ "github.com/xo/dbimp/influxdb"
 	_ "github.com/xo/dbimp/libsql"
 	_ "github.com/xo/dbimp/neo4j"
+	_ "github.com/xo/dbimp/opensearch"
 	_ "github.com/xo/dbimp/rqlite"
 	_ "github.com/xo/dbimp/solr"
 	_ "github.com/xo/dbimp/surrealdb"
@@ -90,6 +91,9 @@ var drivers = map[dbmeta.Dialect]string{
 
 	// elasticsearch:// opens dbimp's driver (D177).
 	dbmeta.Elasticsearch: "elasticsearch",
+
+	// opensearch:// opens dbimp's driver (D181).
+	dbmeta.OpenSearch: "opensearch",
 
 	// influxql:// opens the same driver, with sqlmode=disable (D165).
 	dbmeta.InfluxQL:  "influxdb",

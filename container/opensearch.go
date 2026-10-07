@@ -1,12 +1,13 @@
 package container
 
+import "github.com/xo/dbmeta"
+
 // The OpenSearch releases dbrun starts.
 //
-// dbmeta has no OpenSearch model. The releases are here so that dbrun can
-// start a server for the tests of the OpenSearch driver in
-// github.com/xo/dbimp, which sends SQL to /_plugins/_sql on the HTTP
-// interface. No dialect is named yet, because dbimp settles the name with the
-// driver. See D118.
+// models/opensearch reads them through the driver of github.com/xo/dbimp,
+// which sends SQL to /_plugins/_sql on the HTTP interface, and which dburl's
+// opensearch scheme opens (D181). They were here first for the tests of that
+// driver (D118).
 //
 // # The range
 //
@@ -74,9 +75,10 @@ const osCurl = "curl -sf -o /dev/null -u 'admin:" + Password + "' -H 'Content-Ty
 
 // opensearch is the OpenSearch image.
 var opensearch = product{
-	name:  "opensearch",
-	image: "docker.io/opensearchproject/opensearch",
-	port:  9200,
+	dialect: dbmeta.OpenSearch,
+	name:    "opensearch",
+	image:   "docker.io/opensearchproject/opensearch",
+	port:    9200,
 	env: map[string]string{
 		"discovery.type":                    "single-node",
 		"plugins.security.ssl.http.enabled": "false",
@@ -100,7 +102,6 @@ api=http://127.0.0.1:9200/_plugins/_security/api
 
 // OpenSearch is every OpenSearch release dbrun starts.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var OpenSearch = list{}.staged(opensearch, Tested, "2.19.6", "3.9.0")
+// models/opensearch reads them, so each keeps the cadence it recorded while it
+// was Staged (D120, D181).
+var OpenSearch = list{}.add(opensearch, Tested, "2.19.6", "3.9.0")
