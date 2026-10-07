@@ -58,7 +58,7 @@ of this file.
 ## What exists today
 
 `models/` holds 35 native models: arangodb, cassandra, clickhouse,
-cockroachdb, couchbase, cratedb, databend, druid, duckdb, exasol, firebird, hana,
+cockroachdb, couchbase, cratedb, databend, drill, druid, duckdb, exasol, firebird, hana,
 hive, impala, influxdb, influxql, libsql, mysql, neo4j, oracle, postgres,
 presto, questdb, redshift, rqlite, singlestore, snowflake, sqlite3, sqlserver,
 surrealdb, tidb, trino, vertica, vitess and ydb. ScyllaDB is a flavor of the

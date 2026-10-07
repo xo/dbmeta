@@ -84,6 +84,9 @@ func answers(t *testing.T) map[string]int {
 		{name: "influxql", dialect: dbmeta.InfluxQL},
 		{name: "surrealdb", dialect: dbmeta.SurrealDB},
 		{name: "druid", dialect: dbmeta.Druid},
+		{name: "drill", dialect: dbmeta.Drill},
+		{name: "elasticsearch", dialect: dbmeta.Elasticsearch},
+		{name: "solr", dialect: dbmeta.Solr},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -120,7 +123,9 @@ var displayNames = map[string]string{
 	"QuestDB": "questdb", "TiDB": "tidb", "Vitess": "vitess", "Databend": "databend", "SingleStore": "singlestore", "Snowflake": "snowflake", "Amazon Redshift": "redshift", "Apache Impala": "impala",
 	"rqlite": "rqlite", "InfluxDB 3": "influxdb", "libSQL": "libsql", "Neo4j": "neo4j",
 	"YDB": "ydb", "ArangoDB": "arangodb", "InfluxQL": "influxql",
-	"SurrealDB": "surrealdb", "Apache Druid": "druid",
+	"SurrealDB": "surrealdb", "Apache Druid": "druid", "Apache Drill": "drill",
+	"Elasticsearch": "elasticsearch",
+	"Apache Solr":   "solr",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -289,7 +294,9 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"vitess": "Vitess", "databend": "Databend", "singlestore": "SingleStore", "snowflake": "Snowflake", "redshift": "Amazon Redshift", "impala": "Apache Impala",
 			"rqlite": "rqlite", "influxdb": "InfluxDB 3", "libsql": "libSQL", "neo4j": "Neo4j",
 			"ydb": "YDB", "arangodb": "ArangoDB", "influxql": "InfluxQL",
-			"surrealdb": "SurrealDB", "druid": "Apache Druid",
+			"surrealdb": "SurrealDB", "druid": "Apache Druid", "drill": "Apache Drill",
+			"elasticsearch": "Elasticsearch",
+			"solr":          "Apache Solr",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -332,7 +339,9 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"vitess": "Vitess", "databend": "Databend", "singlestore": "SingleStore", "snowflake": "Snowflake", "redshift": "Amazon Redshift", "impala": "Apache Impala",
 			"rqlite": "rqlite", "influxdb": "InfluxDB 3", "libsql": "libSQL", "neo4j": "Neo4j",
 			"ydb": "YDB", "arangodb": "ArangoDB", "influxql": "InfluxQL",
-			"surrealdb": "SurrealDB", "druid": "Apache Druid",
+			"surrealdb": "SurrealDB", "druid": "Apache Druid", "drill": "Apache Drill",
+			"elasticsearch": "Elasticsearch",
+			"solr":          "Apache Solr",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+

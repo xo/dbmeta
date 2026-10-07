@@ -18,7 +18,9 @@ import (
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
+	dlfixture "github.com/xo/dbmeta/models/drill/fixture"
 	drfixture "github.com/xo/dbmeta/models/druid/fixture"
+	esfixture "github.com/xo/dbmeta/models/elasticsearch/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
@@ -33,6 +35,7 @@ import (
 	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
 	rqfixture "github.com/xo/dbmeta/models/rqlite/fixture"
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
+	slfixture "github.com/xo/dbmeta/models/solr/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
 	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
@@ -313,6 +316,22 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
+			dialect: dbmeta.Drill, driver: "drill", env: "DBMETA_DRILL",
+			open: openDrill, build: setupDrill,
+			schema: dlfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Drill has no containment and no grant that the catalog
+				// reads. The administrator is the one user who can change an
+				// option or a storage plugin, and the ordinary user of the
+				// entry can query and cannot. Drill filters nothing in the
+				// catalog by user.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "user", make: makeDrillUser},
+				},
+			}},
+		},
+		{
 			dialect: dbmeta.Druid, driver: "druid", env: "DBMETA_DRUID",
 			open: openDruid, build: setupDruid,
 			schema: drfixture.Everything.Schema,
@@ -328,6 +347,39 @@ func parityTargets() []parityTarget {
 					{name: "user", make: makeDruidUser},
 					{name: "reader", make: makeDruidReader},
 				},
+			}},
+		},
+		{
+			dialect: dbmeta.Elasticsearch, driver: "elasticsearch", env: "DBMETA_ELASTICSEARCH",
+			open: openElasticsearch, build: setupElasticsearch,
+			schema: esfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Elasticsearch has no containment. A user belongs to the
+				// cluster, and a role grants a privilege on index names. The
+				// user the dbrun entry makes can read the indices whose names
+				// start with dbmeta, and has no cluster privilege. The reader
+				// can read the index dbmeta_author alone, and Elasticsearch
+				// leaves every other index out of its SQL catalog.
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "user", make: makeElasticsearchUser},
+					{name: "reader", make: makeElasticsearchReader},
+				},
+			}},
+		},
+		{
+			dialect: dbmeta.Solr, driver: "solr", env: "DBMETA_SOLR",
+			open: openSolr, build: setupSolr,
+			schema: slfixture.Everything.Schema,
+			scenes: []parityScene{{
+				// Solr has no containment. A user belongs to the cluster, and
+				// security.json gives it roles, and a permission names the
+				// roles that can reach a path. The user the dbrun setup makes
+				// has the role search, which can read a collection and run
+				// SQL on it. It cannot read the version or the Collections
+				// API, which are not statements of the model.
+				name:       "same",
+				principals: []parityPrincipal{{name: "user", make: makeSolrUser}},
 			}},
 		},
 		{

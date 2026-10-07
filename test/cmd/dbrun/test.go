@@ -26,11 +26,14 @@ import (
 	_ "github.com/xo/dbimp/clickhouse"
 	_ "github.com/xo/dbimp/couchbase"
 	_ "github.com/xo/dbimp/databend"
+	_ "github.com/xo/dbimp/drill"
 	_ "github.com/xo/dbimp/druid"
+	_ "github.com/xo/dbimp/elasticsearch"
 	_ "github.com/xo/dbimp/influxdb"
 	_ "github.com/xo/dbimp/libsql"
 	_ "github.com/xo/dbimp/neo4j"
 	_ "github.com/xo/dbimp/rqlite"
+	_ "github.com/xo/dbimp/solr"
 	_ "github.com/xo/dbimp/surrealdb"
 	_ "github.com/xo/dbimp/trino"
 	_ "github.com/ydb-platform/ydb-go-sdk/v3"
@@ -75,6 +78,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Vertica:    "vertica",
 	dbmeta.Couchbase:  "couchbase",
 	dbmeta.Databend:   "databend",
+	dbmeta.Drill:      "drill",
 	dbmeta.Druid:      "druid",
 	dbmeta.Impala:     "impala",
 	dbmeta.Rqlite:     "rqlite",
@@ -83,9 +87,14 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Neo4j:      "neo4j",
 	dbmeta.YDB:        "ydb",
 	dbmeta.ArangoDB:   "arangodb",
+
+	// elasticsearch:// opens dbimp's driver (D177).
+	dbmeta.Elasticsearch: "elasticsearch",
+
 	// influxql:// opens the same driver, with sqlmode=disable (D165).
 	dbmeta.InfluxQL:  "influxdb",
 	dbmeta.SurrealDB: "surrealdb",
+	dbmeta.Solr:      "solr",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the

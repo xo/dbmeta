@@ -176,6 +176,32 @@ column shipment.country ordinal=2 nullable=false primary_key=false has_default=f
 column shipment.shipment_id ordinal=1 nullable=false primary_key=false has_default=false
 constraint book check (title)
 
+[drill]
+table author table
+table book table
+table recent view
+table region table
+table shipment table
+column author.author_id ordinal=1 nullable=false primary_key=false has_default=false
+column author.name ordinal=2 nullable=false primary_key=false has_default=false
+column author.rating ordinal=3 nullable=true primary_key=false has_default=false
+column author.shade ordinal=4 nullable=false primary_key=false has_default=false
+column book.author_id ordinal=2 nullable=false primary_key=false has_default=false
+column book.book_id ordinal=1 nullable=false primary_key=false has_default=false
+column book.published ordinal=4 nullable=false primary_key=false has_default=false
+column book.title ordinal=3 nullable=false primary_key=false has_default=false
+column recent.amount ordinal=2 nullable=true primary_key=false has_default=false
+column recent.shipment_id ordinal=1 nullable=true primary_key=false has_default=false
+column region.area ordinal=2 nullable=false primary_key=false has_default=false
+column region.country ordinal=1 nullable=false primary_key=false has_default=false
+column region.population ordinal=3 nullable=false primary_key=false has_default=false
+column shipment.amount ordinal=4 nullable=false primary_key=false has_default=false
+column shipment.area ordinal=3 nullable=false primary_key=false has_default=false
+column shipment.country ordinal=2 nullable=false primary_key=false has_default=false
+column shipment.fragile ordinal=6 nullable=false primary_key=false has_default=false
+column shipment.shipment_id ordinal=1 nullable=false primary_key=false has_default=false
+column shipment.weight ordinal=5 nullable=false primary_key=false has_default=false
+
 [druid]
 table author table
 table book table
@@ -233,6 +259,37 @@ constraint book unique (title)
 constraint region primary key (country, area)
 constraint shipment foreign key (country, area) -> region(country, area)
 constraint shipment primary key (shipment_id)
+
+[elasticsearch]
+table author table
+table book table
+table recent view
+table region table
+table shipment table
+column author.author_id ordinal=1 nullable=true primary_key=false has_default=false
+column author.name ordinal=2 nullable=true primary_key=false has_default=false
+column author.name.raw ordinal=3 nullable=true primary_key=false has_default=false
+column author.rating ordinal=4 nullable=true primary_key=false has_default=false
+column author.shade ordinal=5 nullable=true primary_key=false has_default=false
+column book.author_id ordinal=1 nullable=true primary_key=false has_default=false
+column book.book_id ordinal=2 nullable=true primary_key=false has_default=false
+column book.published ordinal=3 nullable=true primary_key=false has_default=false
+column book.title ordinal=4 nullable=true primary_key=false has_default=false
+column recent.author_id ordinal=1 nullable=true primary_key=false has_default=false
+column recent.book_id ordinal=2 nullable=true primary_key=false has_default=false
+column recent.published ordinal=3 nullable=true primary_key=false has_default=false
+column recent.title ordinal=4 nullable=true primary_key=false has_default=false
+column region.area ordinal=1 nullable=true primary_key=false has_default=false
+column region.country ordinal=2 nullable=true primary_key=false has_default=false
+column region.population ordinal=3 nullable=true primary_key=false has_default=false
+column shipment.amount ordinal=1 nullable=true primary_key=false has_default=false
+column shipment.area ordinal=2 nullable=true primary_key=false has_default=false
+column shipment.country ordinal=3 nullable=true primary_key=false has_default=false
+column shipment.dims.h ordinal=5 nullable=true primary_key=false has_default=false
+column shipment.dims.w ordinal=6 nullable=true primary_key=false has_default=false
+column shipment.fragile ordinal=7 nullable=true primary_key=false has_default=false
+column shipment.shipment_id ordinal=8 nullable=true primary_key=false has_default=false
+column shipment.weight ordinal=10 nullable=true primary_key=false has_default=false
 
 [exasol]
 table author table
@@ -686,6 +743,69 @@ constraint book primary key (book_id)
 constraint book unique (title)
 constraint region primary key (country, area)
 constraint shipment primary key (shipment_id)
+
+[solr]
+table author table
+table book table
+table recent table
+table region table
+table shipment table
+column author._nest_path_ ordinal=1 nullable=true primary_key=false has_default=false
+column author._query_ ordinal=10 nullable=true primary_key=false has_default=false
+column author._root_ ordinal=2 nullable=true primary_key=false has_default=false
+column author._text_ ordinal=3 nullable=true primary_key=false has_default=false
+column author._version_ ordinal=4 nullable=true primary_key=false has_default=false
+column author.author_id ordinal=5 nullable=true primary_key=false has_default=false
+column author.id ordinal=6 nullable=true primary_key=false has_default=false
+column author.name ordinal=7 nullable=true primary_key=false has_default=false
+column author.rating ordinal=8 nullable=true primary_key=false has_default=false
+column author.score ordinal=11 nullable=true primary_key=false has_default=false
+column author.shade ordinal=9 nullable=true primary_key=false has_default=false
+column book._nest_path_ ordinal=1 nullable=true primary_key=false has_default=false
+column book._query_ ordinal=10 nullable=true primary_key=false has_default=false
+column book._root_ ordinal=2 nullable=true primary_key=false has_default=false
+column book._text_ ordinal=3 nullable=true primary_key=false has_default=false
+column book._version_ ordinal=4 nullable=true primary_key=false has_default=false
+column book.author_id ordinal=5 nullable=true primary_key=false has_default=false
+column book.book_id ordinal=6 nullable=true primary_key=false has_default=false
+column book.id ordinal=7 nullable=true primary_key=false has_default=false
+column book.published ordinal=8 nullable=true primary_key=false has_default=false
+column book.score ordinal=11 nullable=true primary_key=false has_default=false
+column book.title ordinal=9 nullable=true primary_key=false has_default=false
+column recent._nest_path_ ordinal=1 nullable=true primary_key=false has_default=false
+column recent._query_ ordinal=10 nullable=true primary_key=false has_default=false
+column recent._root_ ordinal=2 nullable=true primary_key=false has_default=false
+column recent._text_ ordinal=3 nullable=true primary_key=false has_default=false
+column recent._version_ ordinal=4 nullable=true primary_key=false has_default=false
+column recent.author_id ordinal=5 nullable=true primary_key=false has_default=false
+column recent.book_id ordinal=6 nullable=true primary_key=false has_default=false
+column recent.id ordinal=7 nullable=true primary_key=false has_default=false
+column recent.published ordinal=8 nullable=true primary_key=false has_default=false
+column recent.score ordinal=11 nullable=true primary_key=false has_default=false
+column recent.title ordinal=9 nullable=true primary_key=false has_default=false
+column region._nest_path_ ordinal=1 nullable=true primary_key=false has_default=false
+column region._query_ ordinal=9 nullable=true primary_key=false has_default=false
+column region._root_ ordinal=2 nullable=true primary_key=false has_default=false
+column region._text_ ordinal=3 nullable=true primary_key=false has_default=false
+column region._version_ ordinal=4 nullable=true primary_key=false has_default=false
+column region.area ordinal=5 nullable=true primary_key=false has_default=false
+column region.country ordinal=6 nullable=true primary_key=false has_default=false
+column region.id ordinal=7 nullable=true primary_key=false has_default=false
+column region.population ordinal=8 nullable=true primary_key=false has_default=false
+column region.score ordinal=10 nullable=true primary_key=false has_default=false
+column shipment._nest_path_ ordinal=1 nullable=true primary_key=false has_default=false
+column shipment._query_ ordinal=12 nullable=true primary_key=false has_default=false
+column shipment._root_ ordinal=2 nullable=true primary_key=false has_default=false
+column shipment._text_ ordinal=3 nullable=true primary_key=false has_default=false
+column shipment._version_ ordinal=4 nullable=true primary_key=false has_default=false
+column shipment.amount ordinal=5 nullable=true primary_key=false has_default=false
+column shipment.area ordinal=6 nullable=true primary_key=false has_default=false
+column shipment.country ordinal=7 nullable=true primary_key=false has_default=false
+column shipment.fragile ordinal=8 nullable=true primary_key=false has_default=false
+column shipment.id ordinal=9 nullable=true primary_key=false has_default=false
+column shipment.score ordinal=13 nullable=true primary_key=false has_default=false
+column shipment.shipment_id ordinal=10 nullable=true primary_key=false has_default=false
+column shipment.weight ordinal=11 nullable=true primary_key=false has_default=false
 
 [sqlite3]
 table author table

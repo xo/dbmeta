@@ -74,7 +74,13 @@ OpenSearch role is wider, and the DSN of every DynamoDB entry ends with
 
 In progress:
 
-- Elasticsearch is the first model to build, once dbimp tags v0.14.0.
+- Drill (D178), Elasticsearch (D177) and Solr (D179) are built and pass on
+  every release. VoltDB has no model, because its catalog kinds are
+  unanswered (D180), and its entry is fixed. The OpenSearch role is wider
+  and the DynamoDB DSN ends with tls=false.
+- Ken's order for the next models: OpenSearch, then DynamoDB (survey first,
+  and check the trailing semicolon), then Pinot, then Avatica.
+- v0.4.0 holds the three models. Tell dbimp and usql when it is tagged.
 - The OpenSearch role of D176 ran on 2.19.6. The ordinary user runs SHOW TABLES, DESCRIBE and a paged SELECT. 3.9.0 is not measured.
 
 - A daily check of the nightly workflow runs at 18:07 local time in this

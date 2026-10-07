@@ -3,14 +3,16 @@ package container
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+	"net/url"
+
+	"github.com/xo/dbmeta"
 )
 
 // The Apache Solr releases dbrun starts.
 //
-// dbmeta has no Solr model. The releases are here so that dbrun can start a
-// server for the tests of the Solr driver in github.com/xo/dbimp, which sends
-// SQL to /solr/{collection}/sql. No dialect is named yet, because dbimp
-// settles the name with the driver. See D118.
+// models/solr reads them, through the Solr driver in github.com/xo/dbimp, which
+// sends SQL to /solr/{collection}/sql. The dialect is solr. See D118 and D179.
 //
 // # The range
 //
@@ -34,6 +36,14 @@ import (
 // collection and run SQL on it. Solr stores a password as the SHA-256 of the
 // SHA-256 of a salt and the password, which [solrHash] computes. Init makes
 // the collection dbmeta.
+//
+// # The DSN
+//
+// The driver sends each statement to the SQL handler of the collection that
+// the path of the DSN names, and it refuses a statement when the path is empty.
+// The handler reads whichever collection the FROM names, so any collection that
+// the user can read serves. The DSN of each principal ends with /dbmeta, which
+// Init makes, so that the DSN is what sql.Open takes (D167, D179).
 
 // SolrUser can read a collection and run SQL on it. Its password is
 // [Password].
@@ -92,9 +102,10 @@ const solrCurl = "curl -sf -u 'admin:" + Password + "' "
 
 // solr is the Solr image.
 var solr = product{
-	name:  "solr",
-	image: "docker.io/library/solr",
-	port:  8983,
+	name:    "solr",
+	dialect: dbmeta.Solr,
+	image:   "docker.io/library/solr",
+	port:    8983,
 	env: map[string]string{
 		"SOLR_MODE":    "solrcloud",
 		"SOLR_MODULES": "sql",
@@ -108,15 +119,28 @@ var solr = product{
 		" [ \"$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8983/solr/admin/collections?action=LIST')\" = 401 ]"},
 	init: []string{"sh", "-c", solrCurl + "'http://127.0.0.1:8983/solr/admin/collections?action=LIST' | grep -q '\"dbmeta\"' || " +
 		solrCurl + "-o /dev/null 'http://127.0.0.1:8983/solr/admin/collections?action=CREATE&name=dbmeta&numShards=1&collection.configName=_default'"},
-	dsn:   keyURL("solr", "admin"),
+	dsn:   solrURL("admin"),
 	api:   keyHTTP("admin", Password),
-	users: []Principal{{Role: User, User: SolrUser, dsn: keyURL("solr", SolrUser), api: keyHTTP(SolrUser, Password)}},
+	users: []Principal{{Role: User, User: SolrUser, dsn: solrURL(SolrUser), api: keyHTTP(SolrUser, Password)}},
+}
+
+// solrURL is the DSN of the driver for one user, which names the collection
+// dbmeta in its path.
+func solrURL(user string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme: "solr",
+			User:   url.UserPassword(user, Password),
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+			Path:   "/dbmeta",
+		}
+		return u.String()
+	}
 }
 
 // Solr is every Apache Solr release dbrun starts.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var Solr = list{}.staged(solr, Tested, "9.9.0", "10.0.0").
-	staged(solr, Nightly, "9.10.1")
+// models/solr reads them, so each keeps the cadence it recorded while it was
+// Staged (D120, D179).
+var Solr = list{}.add(solr, Tested, "9.9.0", "10.0.0").
+	add(solr, Nightly, "9.10.1")

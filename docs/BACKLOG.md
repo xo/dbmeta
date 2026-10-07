@@ -30,11 +30,13 @@ D158 left H2 Staged, because h2go, the driver dburl names, fails against H2
 that dburl names reaches both releases, build the model. H2 has an
 `INFORMATION_SCHEMA`, so the model is likely a short one.
 
-### Build the VoltDB model when a license file is here
+### Build the VoltDB model when a statement can run a procedure
 
-D158 left VoltDB Staged, because the developer edition does not start without
-a license file and none is on this machine. When Ken places one where
-`docs/DBRUN.md` says, under License files, build the model.
+VoltDB has no catalog that a `Stmt` reaches. `@SystemCatalog` takes only a
+component name and has no filter, and `bind` reads the at sign of its name as
+a parameter. D180 holds the measurements. When Ken decides on a way to run a
+procedure, or on a filter in Go, build the model. Both releases are Staged
+with the cadence Verified, and they need Ken's license file (D118).
 
 ### Find why the Hive setup fails on a slow machine
 

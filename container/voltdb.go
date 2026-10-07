@@ -28,19 +28,33 @@ import (
 // releases only while it finds the file. CI has no license, and no model
 // reads them, so they are Staged.
 //
-// # Not yet measured
+// # Measured
 //
-// No release has started here, because no license file is provisioned yet.
-// The steps below follow the vendor's compose file and documentation and are
-// the first thing to measure when the file arrives.
+// Both releases started on 2026-10-08 with the steps below and answered the
+// ready check. One step was wrong and is fixed. The developer edition refuses
+// command logging, which a deployment file enables by default, with "Command
+// logging is not supported in the Developer Edition", so the file turns it
+// off. The role came after the user, and 15.2.0 warned that the user had a role
+// that did not exist, so the first init now loads a schema that makes the
+// role. The ordinary user reads and cannot write. A model still waits, because
+// no statement can reach the catalog (D180).
 //
 // # The users
 //
 // The command writes a deployment file with security on, which names admin,
 // an administrator, and [VoltDBUser], with the role dbmeta_reader, both with
 // [Password]. It makes the database directory once and starts the server on
-// it. Init makes the role, which can read. VoltDB has one database, so
-// nothing is named dbmeta.
+// it. Init checks that the role is there. VoltDB has one database, so nothing
+// is named dbmeta.
+//
+// # No HTTP interface
+//
+// dbimp asked for the HTTP and JSON interface on 8080 as the second port. Neither
+// release has one. A deployment file that enables httpd is dropped when init
+// converts it, nothing listens on 8080, the jar of 15.2.0 holds no class of the
+// listener, and OVERVIEW lists no HTTP port. The ports are the client port 21212,
+// the admin port 21211, the internal port 3021, ZooKeeper 7181, metrics 11781,
+// DR 5555 and topics 9092. So the entry has no second port and no API address.
 
 // VoltDBUser can read. Its password is [Password].
 const VoltDBUser = "dbmeta_user"
@@ -53,6 +67,7 @@ cat > /tmp/deployment.xml <<'XML'
 <?xml version="1.0"?>
 <deployment>
   <cluster kfactor="0"/>
+  <commandlog enabled="false"/>
   <security enabled="true" provider="hash"/>
   <users>
     <user name="admin" password="` + Password + `" roles="administrator"/>
@@ -60,7 +75,8 @@ cat > /tmp/deployment.xml <<'XML'
   </users>
 </deployment>
 XML
-[ -d $d/voltdbroot ] || voltdb init --dir=$d --config=/tmp/deployment.xml --license=/etc/voltdb/license.xml
+echo 'CREATE ROLE dbmeta_reader WITH SQLREAD;' > /tmp/schema.sql
+[ -d $d/voltdbroot ] || voltdb init --dir=$d --config=/tmp/deployment.xml --schema=/tmp/schema.sql --license=/etc/voltdb/license.xml
 exec voltdb start --dir=$d --ignore=thp --count=1 --host=localhost`
 
 // voltdb is the Volt Active Data developer image.
@@ -74,9 +90,12 @@ var voltdb = product{
 	args:      []string{"-c", voltdbServe},
 	ready:     []string{"sh", "-c", "sqlcmd --user=admin --password='" + Password + "' --query='exec @Ping;'"},
 	init: []string{"sh", "-c", "sqlcmd --user=admin --password='" + Password +
-		"' --query='CREATE ROLE dbmeta_reader WITH SQLREAD;' 2>&1 | grep -qi 'already exists\\|command succeeded'"},
-	dsn:   voltURL("admin"),
-	users: []Principal{{Role: User, User: VoltDBUser, dsn: voltURL(VoltDBUser)}},
+		"' --query='exec @SystemCatalog ROLES;' 2>&1 | grep -q dbmeta_reader"},
+	dsn: voltURL("admin"),
+	users: []Principal{{
+		Role: User, User: VoltDBUser,
+		dsn: voltURL(VoltDBUser),
+	}},
 }
 
 // voltURL is the address of the server as one user.

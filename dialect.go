@@ -60,11 +60,19 @@ const (
 	CSVQ       Dialect = "csvq"
 	Databricks Dialect = "databricks"
 	Databend   Dialect = "databend"
+	// Drill is Apache Drill, which dbimp's drill driver reaches on the REST
+	// interface of a Drillbit. See D178.
+	Drill Dialect = "drill"
 	// Druid is Apache Druid, which dbimp's druid driver reaches on the SQL
 	// API of the Router. See D171.
 	Druid    Dialect = "druid"
 	DuckDB   Dialect = "duckdb"
 	DynamoDB Dialect = "dynamodb"
+
+	// Elasticsearch reaches its SQL on /_sql, through dbimp's elasticsearch
+	// driver. See D177.
+	Elasticsearch Dialect = "elasticsearch"
+
 	Exasol   Dialect = "exasol"
 	Firebird Dialect = "firebirdsql"
 	// GizmoSQL serves Arrow Flight SQL, and the flightsql driver reaches it.
@@ -94,8 +102,11 @@ const (
 	// Redshift speaks PostgreSQL's protocol, and pgx reaches it.
 	Redshift Dialect = "redshift"
 	// Rqlite is rqlite, which runs SQLite behind an HTTP API.
-	Rqlite     Dialect = "rqlite"
-	Snowflake  Dialect = "snowflake"
+	Rqlite    Dialect = "rqlite"
+	Snowflake Dialect = "snowflake"
+	// Solr is Apache Solr, which dbimp's solr driver reaches on the SQL handler
+	// of a collection. See D179.
+	Solr       Dialect = "solr"
 	Spanner    Dialect = "spanner"
 	SQLite3    Dialect = "sqlite3"
 	SQLServer  Dialect = "sqlserver"

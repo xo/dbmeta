@@ -73,6 +73,9 @@ than from memory.
 | YDB | 1 | every one but `Tables`: the columns, indexes and keys of a table are in its schema, which only a gRPC call per table reads, YQL has no function list, and a session has no current directory |
 | ArangoDB | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: AQL lists no index, a function's parameters are in its JavaScript source, and ArangoDB has no foreign key. `Schema` is the database of the connection (D168). `TableColumns` reads a collection's schema rule, and a collection with no rule has no column |
 | Apache Druid | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Druid has no index and no key, and ROUTINES lists a function's signatures as text. `Procs` lists the built in functions, and only with the system objects (D171) |
+| Apache Drill | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Drill has no index and no key, and sys.functions lists a function's argument types as text. `Procs` lists the built in functions, and only with the system objects. `Schema` has a row only after the session names a default schema (D178) |
+| Elasticsearch | 4 | `TableIndexes`, `IndexColumns`, `ProcParams`, `TableForeignKeys` and `Schema`: Elasticsearch has no index its SQL lists, no key and no schema. `Procs` lists the built in functions, and only with the system objects (D177) |
+| Apache Solr | 4 | `TableIndexes`, `IndexColumns`, `TableForeignKeys`, `Procs` and `ProcParams`: Solr has no index, no key and no function that SQL lists (D179) |
 | InfluxQL | 3 | everything but `Tables`, `TableColumns` and `TableSequences`: InfluxDB has no index, no key, no function list and no current database a statement returns |
 | ClickHouse | 7 | `ConstraintColumns` and `RoutineParameters`: a CHECK holds an expression rather than columns, and a function is overloaded across types with no signature recorded |
 | Cassandra | 7 | `CurrentSchema` and `RoutineParameters`: CQL has no expression for the current keyspace, and arguments are two parallel lists on the function's own row |
@@ -130,6 +133,9 @@ dialect is added.
 | YDB | no | no. It answers the tables and none of their columns, so there is nothing to generate a type from |
 | ArangoDB | no | no. A collection has columns only where a schema rule names them, no column is a key, and there is no foreign key to follow. A graph's edge definitions are not enforced and no kind reads them |
 | Apache Druid | no | no. A datasource has no key and no foreign key, so there is nothing to relate one datasource to another, and every column but `__time` is nullable |
+| Apache Drill | no | no. A table has no key and no foreign key, so there is nothing to relate one table to another. A file table is listed only when the Metastore is on, and the columns of a view are all type ANY and nullable |
+| Elasticsearch | no | no. An index has no key and no foreign key, so there is nothing to relate one index to another, every field is nullable, and a field of an object is a column named with a dot |
+| Apache Solr | no | no. A collection has no key and no foreign key in SQL, so there is nothing to relate one collection to another, and every column reads nullable, the unique key included |
 | InfluxQL | no | no, for the same reason as InfluxDB 3. A measurement has tags and fields and no key, and `Schema` has no answer, because no statement returns the database of the request |
 | DuckDB | no | yes, without index columns |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |

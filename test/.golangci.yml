@@ -138,6 +138,10 @@ linters:
       - path: cmd/dbrun/runner.go
         linters:
           - tagliatelle
+      # Elasticsearch writes open_contexts, and the test reads it.
+      - path: elasticsearch_test.go
+        linters:
+          - tagliatelle
       # A command prints. That is what it is for.
       - path: cmd/
         linters:

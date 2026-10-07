@@ -63,6 +63,9 @@ rather than reading one.
 | `models/libsql` | 14 | 56 | libSQL 0.24.33, the sqld server, with dbimp's driver. Every statement is the sqlite3 model's, with a fragment for the vector index (D160) |
 | `models/arangodb` | 7 | 56 | ArangoDB 3.12.12, in AQL through dbimp's driver. A database is the schema, a collection is a table, and its JSON schema rule gives its columns (D163, D168) |
 | `models/druid` | 7 | 56 | Apache Druid 37.0.0 and 38.0.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. The version and the settings need an administrator (D171) |
+| `models/drill` | 10 | 56 | Apache Drill 1.21.2 and 1.22.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. A file table is listed only when the Metastore is on (D178) |
+| `models/elasticsearch` | 8 | 56 | Elasticsearch 8.19.22, 9.4.6 and 9.5.3, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from GET / and needs an administrator (D177) |
+| `models/solr` | 4 | 56 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release is read over HTTP by an administrator (D179) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
@@ -4502,6 +4505,358 @@ version cannot build the metadata, so the administrator reads the version
 and passes it. `TestDruidVersionRefusedToAnOrdinaryUser` asserts the refusal.
 
 38.0.0 answers the same as 37.0.0 for all seven kinds, and for both principals.
+
+## Apache Drill
+
+`models/drill` answers 10 of the 56 on Apache Drill 1.21.2 and 1.22.0,
+measured on 2026-10-08 through dbimp's drill driver, which is what dburl's
+drill scheme opens. Both releases are Tested. Drill answers SQL with Apache
+Calcite, and it has an INFORMATION_SCHEMA and a sys schema. D178 holds the
+mapping and the reasons for it, for Ken to review.
+
+### What it reads
+
+INFORMATION_SCHEMA has CATALOGS, SCHEMATA, TABLES, COLUMNS, VIEWS, PARTITIONS
+and FILES. The sys schema has the options, the functions, the version, the
+Drillbits, the memory, the threads, the connections, the profiles and two
+tables of aliases. Every query is one statement over one of them, and no kind
+is a walk (D146).
+
+Drill quotes a name with backticks. A double quoted alias fails with the state
+FAILED and no message, so every alias in the model is between backticks.
+`FILES` is a reserved word and needs backticks. A LIKE whose pattern is not a
+constant fails the same way, and the driver writes each argument as a literal,
+so the filters work. The planner of Drill takes the statistics columns of
+COLUMNS as never NULL and folds `IS NOT NULL` to true, so the statistics query
+tests `NUM_NULLS >= 0`.
+
+### What it answers
+
+Schemas, the current schema, tables, columns, views, databases, functions,
+column statistics, settings and the current user.
+
+The current schema has a row only when the session names a default schema,
+with `schema=` in the DSN or with `USE`. CURRENT_SCHEMA is the empty string
+otherwise, and the model returns no row and does not invent one.
+
+### The Metastore
+
+This is the price Ken accepted. INFORMATION_SCHEMA lists no file table by
+default. A Parquet table that CREATE TABLE AS made does not appear. A file
+table appears only when the Drill Metastore is on, which is the option
+`metastore.enabled`, and only after `ANALYZE TABLE ... REFRESH METADATA` ran
+for it. A model cannot set the option. If the Metastore is off, Tables lists
+the views and the system tables and no file table, and Drill gives no error.
+`TestDrillMetastoreOff` asserts that. A table that was analyzed and then
+dropped stays listed until `ANALYZE TABLE ... DROP METADATA` removes it, which
+the fixture does first.
+
+The columns of a view read the type ANY and nullable, because Drill knows no
+type until the view runs. The statistics of ColumnStats come from the same
+analysis, so they exist only for an analyzed table. The minimum and maximum of
+a DATE column read as the milliseconds since 1970-01-01. NDV is NULL on both
+releases, and `EST_NUM_NON_NULLS` is NULL too.
+
+### What it cannot answer
+
+46 kinds. Drill has no index, constraint, key, trigger, sequence, comment,
+type, domain or role that SQL lists, and a user defined function needs a JAR
+file that a statement cannot make. Its users come from the authenticator in
+the configuration. Its storage plugins are in `GET /storage.json`, an HTTP API
+for an administrator, and not in a table.
+
+`Aggregates` is not answered. sys.functions has no marker for an aggregate.
+`RoutineParameters` is not answered. The signature is the text
+`BIGINT-OPTIONAL,VARCHAR-REQUIRED`, which has no name, no position and no
+identifier for the overload. `PartitionedTables` is not answered. PARTITIONS has
+no rows. `Comments` is not answered. Drill has no COMMENT statement.
+
+### What the second opinions found
+
+| Lead | From | Result |
+| --- | --- | --- |
+| sys.storage_aliases as foreign servers | DeepSeek and the survey | Wrong. An alias names a storage plugin and is not a server. `CREATE PUBLIC ALIAS zzs FOR STORAGE dfs` works and the alias appears in sys.storage_aliases, but not in SCHEMATA or TABLES. A table alias was refused on 1.22.0 with no message. Not answered |
+| an aggregate flag in sys.functions | DeepSeek | Wrong. The columns are name, signature, returnType, source and internal, and `FUNCTION_TYPE` does not exist |
+| function parameters from sys.functions.signature | Gemini | A stretch. The text has no parameter name, no position and no overload identifier. Not answered |
+| indexes, constraints, roles, privileges, comments and sequences | both | Absent, and the survey agrees |
+| CATALOGS for the Databases kind | the survey | Held. It has one row, DRILL |
+
+Gemini timed out on the first three questions and answered the fourth in
+eight lines. DeepSeek spent its whole budget on reasoning until the question
+was cut to one list and told to answer directly.
+
+### What the fixture builds
+
+`models/drill/fixture` turns the Metastore on as the administrator with
+`ALTER SYSTEM`, makes the four core tables of D53 with CREATE TABLE AS in
+dfs.tmp, makes the view recent, and runs ANALYZE for each table. The setup
+drops everything first, so it is safe to run twice. It cannot build an index,
+a constraint, a key, a trigger, a sequence, a comment, a type, a role or a
+function. `TestDrillLeavesOut` asserts that those kinds are not answered.
+
+### What the conformance test says
+
+Drill is out of the main agreement count. A table has no key and no
+constraint, so the section holds the four tables, the view and their columns.
+The NOT NULL columns of the tables are an artifact of Parquet written from
+literals, and the columns of the view are nullable.
+
+### The cost check
+
+Measured on 1.22.0 with 1500 views and 300 analyzed tables in dfs.tmp, which
+is 1826 relations. TABLES answers in 0.2 seconds. COLUMNS answers in 2.2
+seconds for every column and for the two columns of one table, because the
+cost is Drill parsing each view, about 1.5 milliseconds for each, and a
+filter does not prune it. The statistics statement adds a hash join with TABLES
+and takes 2.7 seconds for all and 2.4 for one table. EXPLAIN shows the filter
+pushed into the scan and a HashJoin, with no per row statement. The cost grows
+with the number of views and not with the data. SCHEMATA and TABLES walk every
+enabled storage plugin, so a slow plugin slows them, which was not measured
+here because only file plugins exist.
+
+### Which answers depend on who is asking
+
+Nothing in the catalog. Drill filters INFORMATION_SCHEMA and sys by no user,
+and the ordinary user, who can query and cannot change an option, sees the
+rows of the administrator in every query. The current user differs, because
+it names the user. Both users read the version from sys.version. The parity
+file records one difference, `current_user`.
+
+1.22.0 and 1.21.2 answer the same for all ten kinds. sys.functions has 31
+more rows on 1.22.0.
+## Elasticsearch
+
+`models/elasticsearch` answers 8 of the 56 on Elasticsearch 8.19.22, 9.4.6 and
+9.5.3, measured on 2026-10-08 through dbimp's elasticsearch driver, which is
+what dburl's elasticsearch scheme opens. 8.19.22 and 9.5.3 are Tested and 9.4.6
+is Nightly. Elasticsearch answers SQL on `POST /_sql`. D177 holds the mapping
+and the reasons for it, for Ken to review.
+
+### What it reads
+
+Its SQL has no table that a SELECT reads. It has SYS TABLES, SYS COLUMNS, SYS
+TYPES, SHOW FUNCTIONS and SHOW CATALOGS, and none of them takes a WHERE or an
+ORDER BY. So each kind but the current user is a walk (D175), and each walk is
+one statement. The walk matches the patterns of the caller in Go.
+
+SYS COLUMNS answers 1000 rows to a page and gives a cursor. The driver follows
+the cursor, and closes it on the server when the caller stops. A catalog of
+3000 indices and 24000 columns was read in 1.7 seconds, and the first row came
+after 250 milliseconds. A `parent` pattern does not make it cheaper. SYS
+COLUMNS can take a pattern, and then TABLE_NAME holds the pattern and not the
+name of the index.
+
+Elasticsearch has no DDL in SQL, so it has no index, constraint, trigger,
+sequence or comment that a statement makes.
+
+### What it answers
+
+Databases, tables, views, columns, functions, aggregates, types and the
+current user.
+
+The cluster is the catalog and the one database. There is no schema, so every
+schema is empty. An index is a table and an alias is a view, and so is a data
+stream. A field is a column, and a subfield is a column of its own, such as
+`name.raw` and `dims.h`. SYS COLUMNS leaves out an object, a nested field and a
+field of the type dense_vector, flattened, a range or aggregate_metric_double,
+and its ordinal counts the fields it leaves out. Every column is nullable and
+none has a key, a default or a comment. The type is the name of the mapping type
+in upper case.
+
+A data stream is listed under its backing index in SYS COLUMNS. The backing index
+is hidden and its name starts with a dot, so the model lists its columns, and
+the table of the backing index, only with the system objects.
+
+SHOW FUNCTIONS lists 161 names on 9.5.3 and 19 are aggregates. Every one is
+built in, so they are listed only with the system objects. The type that
+SHOW FUNCTIONS gives, SCALAR, CONDITIONAL, GROUPING or SCORE, has no field to go
+in, so every function that is not an aggregate reads func. SYS TYPES lists 38
+types. Elasticsearch gives no return type and no argument type of a function.
+
+The version is not a SQL statement. `GET /` reports it as `version.number` to
+the administrator, and `Dialect.Version` reports an unknown version. A caller
+passes the release to `Dialect.ParseVersion`.
+
+### What it cannot answer, and why
+
+48 kinds. Most are absent from Elasticsearch SQL.
+
+Roles, role grants and privileges are in the security API. The restricted index
+`.security-7` holds the native users and roles as documents, and no SQL
+statement reads it. Settings are in the settings API of the cluster and of each
+index. `_meta.comment` of a mapping is stored, and SQL never shows it: REMARKS
+is empty for a table and NULL for a column.
+
+Schemas and the current schema are not answered, because there is no schema
+(D176). SHOW SCHEMAS gives no row.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked on 2026-10-08, as hard rule 14 requires.
+DeepSeek spent its whole budget on reasoning when the question listed 20 kinds,
+and answered a short one. Gemini timed out twice and answered the third, shortest
+question. Each lead was run against 9.5.3.
+
+| Lead | Who | Result |
+| --- | --- | --- |
+| Roles, privileges, settings, comments and constraints are absent | both | Held. No SYS or SHOW statement lists them |
+| Indexes from SHOW TABLES, with the kind INDEX | DeepSeek | Wrong. SHOW TABLES lists the indices as tables. The kind INDEX is the index itself and not an index of SQL |
+| Partitioned tables from SHOW TABLES, with the kind DATA_STREAM | DeepSeek | Wrong. A data stream has the type VIEW and the kind ALIAS, and its backing index is a TABLE and an INDEX. SQL reports no partition. Not answered |
+| Databases from SHOW CATALOGS | the survey | Held, and a close call. It lists the cluster, and a remote cluster beside it |
+| Types from SYS TYPES | the survey | Held |
+| The current user from USER() | the survey | Held |
+| Roles and privileges from a read of `.security-7` | the survey | A stretch. It needs a document read of a restricted index, only native users are in it, and no role name is. Not answered |
+| Routine parameters from SHOW FUNCTIONS | the survey | A stretch. It has no synopsis. Not answered |
+
+### What the fixture builds
+
+`models/elasticsearch/fixture` is a list of HTTP requests, because SQL cannot
+make anything. It makes `dbmeta_author`, `dbmeta_book`, `dbmeta_region` and
+`dbmeta_shipment`, which are the four core tables of D53, the alias
+`dbmeta_recent` over `dbmeta_book`, `dbmeta_types` with one field of each unusual
+type, the data stream `dbmeta_stream`, and `secret_idx` for the parity test.
+Every name but the last starts with `dbmeta`, because the role of the ordinary
+user reads `dbmeta*`. A key, a foreign key, NOT NULL, a default and a field
+comment cannot be built, and `TestElasticsearchLeavesOut` asserts that the kinds
+that need them are not answered.
+
+### What the conformance test says
+
+Elasticsearch is out of the main agreement count. An index has no key, no
+constraint and no NOT NULL, and the report removes the prefix `dbmeta_`. SYS
+COLUMNS sorts the fields of a mapping by name, so the ordinal is the position in
+that order, and `name.raw` and `dims.h` are columns.
+
+### Which answers depend on who is asking
+
+Elasticsearch shows a user the indices that the role of the user can read. The
+ordinary user, who can read `dbmeta*`, sees every index of the fixture and not
+`secret_idx`, so tables and columns return fewer rows than the administrator.
+A reader who can read `dbmeta_author` alone sees that index, so tables, columns
+and views return fewer rows. No query is refused to either principal. The
+current user differs, as it does everywhere.
+
+`GET /` needs the cluster privilege `monitor`, and the role of the ordinary user
+has none, so the release is refused with HTTP 403 and `security_exception`.
+`TestElasticsearchVersionRefusedToAnOrdinaryUser` asserts it. The sections
+`elasticsearch/same/user` and `elasticsearch/same/reader` hold the rest.
+
+8.19.22, 9.4.6 and 9.5.3 answer the same for all eight kinds and for both
+principals.
+## Apache Solr
+
+`models/solr` answers 4 of the 56 on Apache Solr 9.9.0, 9.10.1 and 10.0.0,
+measured on 2026-10-08 through dbimp's solr driver, which is what dburl's solr
+scheme opens. 9.9.0 and 10.0.0 are Tested and 9.10.1 is Nightly. Solr answers
+SQL with Apache Calcite, at `POST /solr/{collection}/sql`, and the three
+releases answer every statement the same way. D179 holds the mapping and the
+reasons for it, for Ken to review.
+
+### What it reads
+
+Solr SQL has one catalog, the schema `metadata`, with two tables: TABLES and
+COLUMNS. They are in the form of JDBC's DatabaseMetaData. There is no
+INFORMATION_SCHEMA, no SCHEMAS and no FUNCTIONS table, and SHOW is a syntax
+error. Every query is one statement over one of the two, and no kind is a
+walk.
+
+Solr has no DDL in SQL. A collection, a field and an alias come from the
+Collections API and the Schema API.
+
+### What it answers
+
+Schemas, the current schema, tables and columns.
+
+A collection is a table, and an alias is a table too, because SQL lists it as
+TABLE and cannot tell it from a collection. Every collection is in the schema
+`solr`. Solr itself names the schema with the address of ZooKeeper, which
+changes with the machine, so the model reports the fixed name `solr` (D176).
+The catalog is `solr` for the same reason. The two tables of `metadata` are
+tables of the type `system table` in the schema `metadata`, and they are listed
+only with the system objects.
+
+A column is a field. Solr adds `_nest_path_`, `_root_`, `_text_`, `_version_`,
+`_query_` and `score` to the fields of the schema. Every column reads
+nullable, with no default and no key, including the unique key `id`, because
+the SQL module reports nothing else. The type is VARCHAR, BIGINT, DOUBLE,
+TIMESTAMP or ANY. A boolean field reads VARCHAR and a multi-valued field reads
+ANY, and the type of the field in the schema is not there. The ordinal is the
+position that COLUMNS gives: the fixed fields first, then the fields of the
+collection by name, then `_query_` and `score`.
+
+The version has no statement. `GET /solr/admin/info/system` holds it as
+`lucene.solr-spec-version`, and only an administrator can read it. So
+`Dialect.Version` reports an unknown version, and a caller that reads the
+release over HTTP passes it to `Dialect.ParseVersion`.
+
+### What it cannot answer, and why
+
+52 kinds. Most are absent from Solr SQL.
+
+`Views` is not answered. An alias is the nearest thing, and `LISTALIASES` of
+the Collections API is the only source that tells it from a collection. It is
+HTTP and not a statement. `PartitionedTables` is the same: `CLUSTERSTATUS`
+holds the shards. `Roles`, `RoleGrants` and `Privileges` are in security.json,
+which is an HTTP read for an administrator. `Settings` are the configuration
+of each collection, also HTTP. `Databases` is not answered, because Solr names
+no cluster in SQL. `Functions` is not answered, because Calcite lists none in
+a table. `CurrentUser` is not answered: `CURRENT_USER` and `USER` return `sa`
+for every user, which is a constant of Calcite and not the user.
+
+### What a second opinion found
+
+Gemini and DeepSeek were asked on 2026-10-08, as hard rule 14 requires. The
+first long questions ran out of tokens for both. Gemini answered a short one
+on the third try, and DeepSeek answered a short one with a budget of 8000
+tokens. Each lead was run against 10.0.0.
+
+| Lead | Who | Result |
+| --- | --- | --- |
+| Every other kind from a table in `metadata` | DeepSeek | Absent. FUNCTIONS, SCHEMAS and information_schema tables all fail as unknown objects |
+| The current user from `CURRENT_USER`, `USER` and `SESSION_USER` | Gemini | Wrong. They return `sa` for the administrator and for the ordinary user, a constant of Calcite |
+| The current schema from `CURRENT_SCHEMA` | Gemini | Wrong. Solr answers Unable to implement. The model reads the fixed schema instead |
+| The current catalog from `CURRENT_CATALOG` | Gemini | Held, and empty. It names no catalog |
+| Indexes from `GET /solr/{collection}/schema/fields` | Gemini | A stretch. It is HTTP, only an administrator can read it, and a field flag is not an index. Not answered |
+| The release from a statement | both | Absent. `version()` does not exist. Only the system handler has it |
+
+Both models called every other kind absent, and the survey agrees. The Luke
+handler and the StatsComponent work for the ordinary user and need one request
+for each collection or field, which is not a statement. Neither is answered.
+
+### What the fixture builds
+
+`models/solr/fixture` makes the four core collections, author, book, region
+and shipment, and the alias `recent` of book. A test sends the requests over
+HTTP as the administrator, because the driver reads and never writes. Each
+collection has a configuration set of its own, because collections made from
+`_default` share one managed schema. It cannot build a foreign key, a default,
+an index, a trigger, a sequence, a comment or a type, and `TestSolrLeavesOut`
+asserts that those kinds are not answered.
+
+### What the conformance test says
+
+Solr is out of the main agreement count. A collection has no key, no
+constraint and no view in SQL, so the section holds the four collections, the
+alias, and their columns, all nullable, with no key.
+
+### What it costs
+
+metadata.TABLES and metadata.COLUMNS read every collection of the cluster, and
+a filter does not prune. The cost is linear and about 1 ms for each
+collection while the heap is not under pressure. Each collection takes 3 to
+4 MB of heap, so a node with the heap of the entry, 1 GB, died at about 300
+collections, and one with 3 GB died between 800 and 1600. At 1062 collections
+on 3 GB, TABLES took 70 ms and COLUMNS 0.95 s. Under memory pressure they
+took 9 to 31 s, and COLUMNS left 114 of 1065 collections out with no error.
+D179 holds the measurement. A consumer that reads a large cluster must read
+TABLES, which is cheap, and must not rely on COLUMNS to name every collection.
+
+### Which answers depend on who is asking
+
+Nothing in the four queries. The ordinary user, who has the role search, sees
+the same rows as the administrator in all four, on all three releases. The
+administrator alone can read the release, and the ordinary user gets HTTP 403.
+A reader with less than the role search was not measured.
 
 ## Releases that need a license file
 

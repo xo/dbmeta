@@ -195,3 +195,7 @@ file.
 | [D174](D174-the-clickhouse-tests-use-dbimps-driver.md) | The ClickHouse tests use dbimp's driver | Decided |
 | [D175](D175-elasticsearch-and-opensearch-can-walk-show-statements.md) | Elasticsearch and OpenSearch can walk SHOW statements | Amends D146 and D159 |
 | [D176](D176-the-first-search-dialects-follow-the-survey-answers.md) | The search dialects follow Ken's answers to the survey | Decided |
+| [D178](D178-drill-maps-a-workspace-to-a-schema-and-needs-the-metastore-for-file-tables.md) | Drill maps a workspace to a schema and needs the Metastore for file tables | Decided |
+| [D180](D180-voltdb-has-no-catalog-a-statement-can-reach.md) | VoltDB has no catalog that a statement can reach | Decided |
+| [D177](D177-elasticsearch-maps-an-index-to-a-table-and-walks-sys-and-show.md) | Elasticsearch maps an index to a table and walks SYS and SHOW | Decided |
+| [D179](D179-solr-maps-a-collection-to-a-table-under-a-fixed-schema.md) | Solr maps a collection to a table under a fixed schema | Decided |

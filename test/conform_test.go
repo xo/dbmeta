@@ -18,8 +18,10 @@ import (
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
+	dlfixture "github.com/xo/dbmeta/models/drill/fixture"
 	drfixture "github.com/xo/dbmeta/models/druid/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
+	esfixture "github.com/xo/dbmeta/models/elasticsearch/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
@@ -36,6 +38,7 @@ import (
 	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
 	rqfixture "github.com/xo/dbmeta/models/rqlite/fixture"
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
+	slfixture "github.com/xo/dbmeta/models/solr/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
@@ -207,8 +210,20 @@ func conformTargets() []conformTarget {
 			},
 		},
 		{
+			name: "drill", dialect: dbmeta.Drill,
+			open: openDrill, schema: dlfixture.Everything.Schema, build: setupDrill,
+		},
+		{
 			name: "druid", dialect: dbmeta.Druid,
 			open: openDruid, schema: drfixture.Everything.Schema, build: setupDruid,
+		},
+		{
+			name: "elasticsearch", dialect: dbmeta.Elasticsearch,
+			open: openElasticsearch, schema: esfixture.Everything.Schema, build: setupElasticsearch,
+		},
+		{
+			name: "solr", dialect: dbmeta.Solr,
+			open: openSolr, schema: slfixture.Everything.Schema, build: setupSolr,
 		},
 		{
 			name: "clickhouse", dialect: dbmeta.ClickHouse,
@@ -312,6 +327,13 @@ func conformSection(name string, m *dbmeta.Meta, want map[string][]string) strin
 	return name
 }
 
+// conformPrefix is what a product's fixture writes before the name of every
+// core object, where the product cannot name them plainly. The role of the
+// ordinary user of Elasticsearch reads the indices that start with dbmeta, so
+// the fixture calls the core index author dbmeta_author, and the report reads
+// it as author.
+var conformPrefix = map[dbmeta.Dialect]string{dbmeta.Elasticsearch: "dbmeta_"}
+
 // conformReport reads the core schema and returns the canonical answer, as
 // lines, sorted so that two databases can be compared line by line.
 func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []string {
@@ -333,6 +355,7 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 		if err != nil {
 			t.Fatalf("reading tables: %v", err)
 		}
+		v.Name = strings.TrimPrefix(v.Name, conformPrefix[m.Dialect()])
 		if !core[fold(v.Name)] {
 			continue
 		}
@@ -362,6 +385,7 @@ func conformReport(t *testing.T, m *dbmeta.Meta, db *sql.DB, schema string) []st
 		if err != nil {
 			t.Fatalf("reading columns: %v", err)
 		}
+		v.Table = strings.TrimPrefix(v.Table, conformPrefix[m.Dialect()])
 		if !core[fold(v.Table)] {
 			continue
 		}
@@ -663,10 +687,22 @@ var agreementExcluded = map[string]string{
 		" schema rule, which has no key, so no column reads a primary key, AQL lists" +
 		" no view, and a rule is one check with no columns behind it, so there are no" +
 		" constraint lines",
+	"drill": "not relational: a table has no key and no constraint, and the view recent has" +
+		" columns of type ANY that are always nullable, so no column reads a primary key," +
+		" there are no constraint lines, and the type names are Drill's own (D178)",
 	"druid": "not relational: a datasource has no key, no constraint and no view, and every" +
 		" one has the column __time, so no column reads a primary key, there are no" +
 		" constraint lines, and the section holds the four datasources and their columns" +
 		" alone (D171)",
+	"elasticsearch": "not relational: an index has no key, no constraint and no NOT NULL," +
+		" so no column reads a primary key or NOT NULL and there are no constraint lines," +
+		" and SYS COLUMNS sorts the fields of a mapping by name, so the ordinal is the" +
+		" position in that order. The section holds the four indices, the alias and their" +
+		" fields alone (D177)",
+	"solr": "not relational: a collection has no key, no constraint and no view in SQL, every" +
+		" column reads nullable and none reads a primary key, and every collection has the" +
+		" columns _version_, _root_, _text_, _nest_path_, _query_, score and id, so the" +
+		" section holds the four collections and their columns alone (D179)",
 	"influxql": "not relational, for the same reason as influxdb: a measurement has" +
 		" no key, no constraint and no view, and every one has a time column, so the" +
 		" section holds the four measurements and their tags and fields alone (D165)",

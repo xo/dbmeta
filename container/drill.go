@@ -1,11 +1,12 @@
 package container
 
+import "github.com/xo/dbmeta"
+
 // The Apache Drill releases dbrun starts.
 //
-// dbmeta has no Drill model. The releases are here so that dbrun can start a
-// server for the tests of the Drill driver in github.com/xo/dbimp, which sends
-// SQL to /query.json on the HTTP interface. No dialect is named yet, because
-// dbimp settles the name with the driver. See D118.
+// models/drill reads them through the Drill driver in github.com/xo/dbimp,
+// which sends SQL to /query.json on the HTTP interface. The dialect is drill
+// (D118, D178).
 //
 // # The range
 //
@@ -58,9 +59,10 @@ exec $DRILL_HOME/bin/drill-embedded -n admin -p '` + Password + `'`
 
 // drill is the Apache Drill image.
 var drill = product{
-	name:  "drill",
-	image: "docker.io/apache/drill",
-	port:  8047,
+	dialect: dbmeta.Drill,
+	name:    "drill",
+	image:   "docker.io/apache/drill",
+	port:    8047,
 	env: map[string]string{
 		// The Java of 1.22.0 is 17.0.2, which fails with a
 		// NullPointerException in CgroupV2Subsystem when it reads the
@@ -79,7 +81,6 @@ var drill = product{
 
 // Drill is every Apache Drill release dbrun starts.
 //
-// Staged, because dbmeta has no model that reads it, so CI runs none of
-// them. Each keeps the cadence it will have if a model reads it, which is
-// what dbimp runs on each push and at night. See D119 and D120.
-var Drill = list{}.staged(drill, Tested, "1.21.2", "1.22.0")
+// models/drill reads them, so each keeps the cadence it recorded while it was
+// Staged (D120, D178).
+var Drill = list{}.add(drill, Tested, "1.21.2", "1.22.0")
