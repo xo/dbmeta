@@ -7,11 +7,12 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has five releases and a sixth in preparation. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0 on
+dbmeta has six releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0 on
 39b74b2 on 2026-10-07, v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928 on
-2026-10-08, and v0.5.0 on 8f3115b on 2026-10-08. The Tested tier passed in CI
-on each tagged commit. Ken chose that CI stands in for a run of every tier,
-and the Verified tier was not run again for any of them.
+2026-10-08, v0.5.0 on 8f3115b on 2026-10-08, and v0.6.0 on 90d0261 on
+2026-10-08. The Tested tier passed in CI on each tagged commit. Ken chose that
+CI stands in for a run of every tier, and the Verified tier was not run again
+for any of them.
 
 v0.6.0 holds the GizmoSQL (D187) and Avatica (D186) dialects, the first run of
 Snowflake against a trial account (D190), the OpenSearch 2.19.6 columns (D189),
