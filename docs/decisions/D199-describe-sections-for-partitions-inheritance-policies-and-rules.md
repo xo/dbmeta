@@ -1,6 +1,6 @@
 # D199. Describe sections for partitions, inheritance, policies and rules
 
-Status: Decided.
+Status: Decided, amended by D201.
 
 ## The decision
 

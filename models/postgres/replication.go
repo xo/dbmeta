@@ -45,6 +45,13 @@ func registerPublications() {
 				{Min: v13, Query: `, p.pubviaroot AS "via_root"`},
 			},
 			{{Min: v10, Query: `, pg_catalog.obj_description(p.oid, 'pg_publication') AS "comment"`}},
+			// release 18 can publish stored generated columns. Before it none
+			// was published, which is none and not unknown, as psql says.
+			{
+				{Min: v10, Query: `, 'none' AS "generated_columns"`},
+				{Min: v18, Query: `, CASE p.pubgencols WHEN 'n' THEN 'none' WHEN 's' THEN 'stored'` +
+					` ELSE p.pubgencols::text END AS "generated_columns"`},
+			},
 			{{Min: v10, Query: `FROM pg_catalog.pg_publication p`}},
 			{{Min: v10, Query: `WHERE (@name = '' OR p.pubname LIKE @name)`}},
 			{{Min: v10, Query: `ORDER BY 1`}},
@@ -59,12 +66,13 @@ func registerPublications() {
 			{Name: "truncate", Desc: "publishes truncate. Always false below release 11", Min: v10},
 			{Name: "via_root", Desc: "publishes via the root partition. Always false below release 13", Min: v10},
 			{Name: "comment", Min: v10},
+			{Name: "generated_columns", Desc: "none or stored. Always none below release 18", Min: v10},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "publication name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Publication, error) {
 			var v dbmeta.Publication
 			err := rows.Scan(&v.Name, &v.Owner, &v.AllTables, &v.Insert, &v.Update,
-				&v.Delete, &v.Truncate, &v.ViaRoot, &v.Comment)
+				&v.Delete, &v.Truncate, &v.ViaRoot, &v.Comment, &v.GeneratedColumns)
 			return v, err
 		},
 	})
@@ -163,6 +171,48 @@ func registerSubscriptions() {
 			{{Min: v10, Query: `, s.subsynccommit AS "synchronous"`}},
 			{{Min: v10, Query: `, s.subslotname AS "slot"`}},
 			{{Min: v10, Query: `, pg_catalog.shobj_description(s.oid, 'pg_subscription') AS "comment"`}},
+			// The properties below arrived one release after another. A
+			// release that has none answers NULL, because the subscription
+			// never chose. subconninfo is not here. See SubscriptionConnections.
+			{
+				{Min: v10, Query: `, NULL::boolean AS "binary"`},
+				{Min: v14, Query: `, s.subbinary AS "binary"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::text AS "streaming"`},
+				{Min: v14, Query: `, CASE WHEN s.substream THEN 'on' ELSE 'off' END AS "streaming"`},
+				{Min: v16, Query: `, CASE s.substream WHEN 'f' THEN 'off' WHEN 't' THEN 'on'` +
+					` WHEN 'p' THEN 'parallel' ELSE s.substream::text END AS "streaming"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::text AS "two_phase"`},
+				{Min: v15, Query: `, CASE s.subtwophasestate WHEN 'd' THEN 'disabled' WHEN 'p' THEN 'pending'` +
+					` WHEN 'e' THEN 'enabled' ELSE s.subtwophasestate::text END AS "two_phase"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::boolean AS "disable_on_error"`},
+				{Min: v15, Query: `, s.subdisableonerr AS "disable_on_error"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::text AS "origin"`},
+				{Min: v16, Query: `, s.suborigin AS "origin"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::boolean AS "password_required"`},
+				{Min: v16, Query: `, s.subpasswordrequired AS "password_required"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::boolean AS "run_as_owner"`},
+				{Min: v16, Query: `, s.subrunasowner AS "run_as_owner"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::boolean AS "failover"`},
+				{Min: v17, Query: `, s.subfailover AS "failover"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::text AS "skip_lsn"`},
+				{Min: v15, Query: `, s.subskiplsn::text AS "skip_lsn"`},
+			},
 			{{Min: v10, Query: `FROM pg_catalog.pg_subscription s`}},
 			{{Min: v10, Query: `WHERE (@name = '' OR s.subname LIKE @name)`}},
 			{{Min: v10, Query: `ORDER BY 1`}},
@@ -171,12 +221,46 @@ func registerSubscriptions() {
 			{Name: "name", Min: v10}, {Name: "owner", Min: v10}, {Name: "enabled", Min: v10},
 			{Name: "publications", Min: v10}, {Name: "synchronous", Min: v10},
 			{Name: "slot", Min: v10}, {Name: "comment", Min: v10},
+			{Name: "binary", Desc: "binary transfer, absent below release 14", Min: v14},
+			{Name: "streaming", Desc: "off or on, and parallel from release 16, absent below release 14", Min: v14},
+			{Name: "two_phase", Desc: "disabled, pending or enabled, absent below release 15", Min: v15},
+			{Name: "disable_on_error", Desc: "absent below release 15", Min: v15},
+			{Name: "origin", Desc: "absent below release 16", Min: v16},
+			{Name: "password_required", Desc: "absent below release 16", Min: v16},
+			{Name: "run_as_owner", Desc: "absent below release 16", Min: v16},
+			{Name: "failover", Desc: "absent below release 17", Min: v17},
+			{Name: "skip_lsn", Desc: "the LSN to skip, 0/0 for none, absent below release 15", Min: v15},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "subscription name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Subscription, error) {
 			var v dbmeta.Subscription
 			err := rows.Scan(&v.Name, &v.Owner, &v.Enabled, &v.Publications,
-				&v.Synchronous, &v.Slot, &v.Comment)
+				&v.Synchronous, &v.Slot, &v.Comment, &v.Binary, &v.Streaming, &v.TwoPhase,
+				&v.DisableOnError, &v.Origin, &v.PasswordRequired, &v.RunAsOwner,
+				&v.Failover, &v.SkipLSN)
+			return v, err
+		},
+	})
+
+	// subconninfo is the one column of pg_subscription that only a superuser
+	// can read. A statement that names it is refused for every other role
+	// before it runs, so it cannot be a column of Subscriptions. See D201.
+	dbmeta.SubscriptionConnections.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.SubscriptionConnection]{
+		Stmt: dbmeta.Stmt{
+			{{Min: v10, Query: `SELECT s.subname AS "name"`}},
+			{{Min: v10, Query: `, s.subconninfo AS "conninfo"`}},
+			{{Min: v10, Query: `FROM pg_catalog.pg_subscription s`}},
+			{{Min: v10, Query: `WHERE (@name = '' OR s.subname LIKE @name)`}},
+			{{Min: v10, Query: `ORDER BY 1`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Min: v10},
+			{Name: "conninfo", Desc: "the connection string, which only a superuser can read", Min: v10},
+		},
+		Params: []dbmeta.Param{{Name: "name", Desc: "subscription name pattern, empty for every one", Default: ""}},
+		Scan: func(rows *sql.Rows) (dbmeta.SubscriptionConnection, error) {
+			var v dbmeta.SubscriptionConnection
+			err := rows.Scan(&v.Name, &v.Conninfo)
 			return v, err
 		},
 	})
@@ -204,6 +288,38 @@ func registerTextSearch() {
 		},
 	})
 
+	// The five functions of a parser are columns of pg_ts_parser and each has
+	// a comment, which psql's \dFp+ prints beside it. VALUES makes the five
+	// rows of one parser, and the statement reads nothing but the parser. See
+	// D201.
+	dbmeta.TextSearchParserFunctions.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.TextSearchParserFunction]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, p.prsname AS "parser"`}},
+			{{Query: `, m.method AS "method"`}},
+			{{Query: `, m.ordinal AS "ordinal"`}},
+			{{Query: `, m.fn::pg_catalog.regproc::text AS "function"`}},
+			{{Query: `, pg_catalog.obj_description(m.fn, 'pg_proc') AS "comment"`}},
+			{{Query: `FROM pg_catalog.pg_ts_parser p`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.prsnamespace`}},
+			{{Query: `CROSS JOIN LATERAL (VALUES ('start', 1, p.prsstart::pg_catalog.oid),` +
+				` ('token', 2, p.prstoken::pg_catalog.oid), ('end', 3, p.prsend::pg_catalog.oid),` +
+				` ('headline', 4, p.prsheadline::pg_catalog.oid), ('lextype', 5, p.prslextype::pg_catalog.oid))` +
+				` AS m(method, ordinal, fn)`}},
+			{{Query: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR p.prsname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2, 4`}},
+		},
+		Fields: fields("schema", "parser", "method", "ordinal", "function", "comment"),
+		Params: schemaNameSystem("parser"),
+		Scan: func(rows *sql.Rows) (dbmeta.TextSearchParserFunction, error) {
+			var v dbmeta.TextSearchParserFunction
+			err := rows.Scan(&v.Schema, &v.Parser, &v.Method, &v.Ordinal, &v.Function, &v.Comment)
+			return v, err
+		},
+	})
+
 	dbmeta.TextSearchDictionaries.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.TextSearchDictionary]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT n.nspname AS "schema"`}},
@@ -211,18 +327,20 @@ func registerTextSearch() {
 			{{Query: `, t.tmplname AS "template"`}},
 			{{Query: `, d.dictinitoption AS "options"`}},
 			{{Query: `, pg_catalog.obj_description(d.oid, 'pg_ts_dict') AS "comment"`}},
+			{{Query: `, tn.nspname AS "template_schema"`}},
 			{{Query: `FROM pg_catalog.pg_ts_dict d`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = d.dictnamespace`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_ts_template t ON t.oid = d.dicttemplate`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace tn ON tn.oid = t.tmplnamespace`}},
 			{{Query: `WHERE (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR d.dictname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2`}},
 		},
-		Fields: fields("schema", "name", "template", "options", "comment"),
+		Fields: fields("schema", "name", "template", "options", "comment", "template_schema"),
 		Params: schemaNameSystem("dictionary"),
 		Scan: func(rows *sql.Rows) (dbmeta.TextSearchDictionary, error) {
 			var v dbmeta.TextSearchDictionary
-			err := rows.Scan(&v.Schema, &v.Name, &v.Template, &v.Options, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Template, &v.Options, &v.Comment, &v.TemplateSchema)
 			return v, err
 		},
 	})
@@ -311,6 +429,14 @@ func registerTextSearchConfigMaps() {
 }
 
 // registerOperatorFamilies backs \dAc, \dAf, \dAo and \dAp.
+//
+// The statements follow listOperatorClasses, listOperatorFamilies,
+// listOpFamilyOperators and listOpFamilyFunctions of psql 18, and each one
+// sorts the rows the way psql does, because a caller must not reorder what the
+// library returns. An operator class is one row for each class, so two classes
+// that take one type, such as jsonb_ops and jsonb_path_ops of gin, are two
+// rows. The visibility of the class or the family says whether psql prints its
+// schema. See D201.
 func registerOperatorFamilies() {
 	dbmeta.OperatorClasses.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.OperatorClass]{
 		Stmt: dbmeta.Stmt{
@@ -323,46 +449,78 @@ func registerOperatorFamilies() {
 			{{Query: `, pg_catalog.pg_get_userbyid(c.opcowner) AS "owner"`}},
 			{{Query: `, CASE WHEN c.opckeytype <> 0 AND c.opckeytype <> c.opcintype` +
 				` THEN pg_catalog.format_type(c.opckeytype, NULL) END AS "storage_type"`}},
+			{
+				{Query: `, pg_catalog.pg_opclass_is_visible(c.oid) AS "visible"`},
+				{Key: "cockroachdb", Query: `, NULL::boolean AS "visible"`},
+			},
+			{
+				{Query: `, pg_catalog.pg_opfamily_is_visible(f.oid) AS "family_visible"`},
+				{Key: "cockroachdb", Query: `, NULL::boolean AS "family_visible"`},
+			},
+			{{Query: `, fn.nspname AS "family_schema"`}},
 			{{Query: `FROM pg_catalog.pg_opclass c`}},
 			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = c.opcmethod`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.opcnamespace`}},
 			{{Query: `JOIN pg_catalog.pg_opfamily f ON f.oid = c.opcfamily`}},
+			{{Query: `JOIN pg_catalog.pg_namespace fn ON fn.oid = f.opfnamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_type t ON t.oid = c.opcintype`}},
 			{{Query: `WHERE (@access_method = '' OR am.amname LIKE @access_method)`}},
 			{{Query: `AND (@name = '' OR c.opcname LIKE @name)`}},
-			{{Query: `ORDER BY 1, 2, 3`}},
+			{{Query: `AND (@type = '' OR t.typname LIKE @type OR pg_catalog.format_type(c.opcintype, NULL) LIKE @type)`}},
+			{{Query: `ORDER BY 1, 4, 3`}},
 		},
 		Fields: fields("access_method", "schema", "name", "input_type", "default", "family", "owner",
-			"storage_type"),
-		Params: accessMethodName("operator class"),
+			"storage_type", "visible", "family_visible", "family_schema"),
+		Params: append(accessMethodName("operator class"),
+			dbmeta.Param{Name: "type", Desc: "input type name pattern, empty for every type", Default: ""}),
 		Scan: func(rows *sql.Rows) (dbmeta.OperatorClass, error) {
 			var v dbmeta.OperatorClass
 			err := rows.Scan(&v.AccessMethod, &v.Schema, &v.Name, &v.InputType,
-				&v.Default, &v.Family, &v.Owner, &v.StorageType)
+				&v.Default, &v.Family, &v.Owner, &v.StorageType, &v.Visible,
+				&v.FamilyVisible, &v.FamilySchema)
 			return v, err
 		},
 	})
 
+	// psql lists the types of a family in the order of the catalog, which has
+	// no other order, and the library keeps it by the position in the heap.
 	dbmeta.OperatorFamilies.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.OperatorFamily]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT am.amname AS "access_method"`}},
 			{{Query: `, n.nspname AS "schema"`}},
 			{{Query: `, f.opfname AS "name"`}},
 			{{Query: `, pg_catalog.pg_get_userbyid(f.opfowner) AS "owner"`}},
-			{{Query: `, (SELECT pg_catalog.string_agg(pg_catalog.format_type(c.opcintype, NULL), ', '` +
-				` ORDER BY pg_catalog.format_type(c.opcintype, NULL))` +
-				` FROM pg_catalog.pg_opclass c WHERE c.opcfamily = f.oid) AS "applies_to"`}},
+			// CockroachDB has no ctid, and keeps the order by type name that
+			// the statement had before D201.
+			{
+				{Query: `, (SELECT pg_catalog.string_agg(pg_catalog.format_type(c.opcintype, NULL), ', '` +
+					` ORDER BY c.ctid)` +
+					` FROM pg_catalog.pg_opclass c WHERE c.opcfamily = f.oid) AS "applies_to"`},
+				{Key: "cockroachdb", Query: `, (SELECT pg_catalog.string_agg(pg_catalog.format_type(c.opcintype, NULL), ', '` +
+					` ORDER BY pg_catalog.format_type(c.opcintype, NULL))` +
+					` FROM pg_catalog.pg_opclass c WHERE c.opcfamily = f.oid) AS "applies_to"`},
+			},
+			{
+				{Query: `, pg_catalog.pg_opfamily_is_visible(f.oid) AS "visible"`},
+				{Key: "cockroachdb", Query: `, NULL::boolean AS "visible"`},
+			},
 			{{Query: `FROM pg_catalog.pg_opfamily f`}},
 			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = f.opfmethod`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = f.opfnamespace`}},
 			{{Query: `WHERE (@access_method = '' OR am.amname LIKE @access_method)`}},
 			{{Query: `AND (@name = '' OR f.opfname LIKE @name)`}},
-			{{Query: `ORDER BY 1, 2, 3`}},
+			{{Query: `AND (@type = '' OR EXISTS (SELECT 1 FROM pg_catalog.pg_opclass tc` +
+				` JOIN pg_catalog.pg_type t ON t.oid = tc.opcintype` +
+				` WHERE tc.opcfamily = f.oid AND (t.typname LIKE @type` +
+				` OR pg_catalog.format_type(t.oid, NULL) LIKE @type)))`}},
+			{{Query: `ORDER BY 1, 3, 2`}},
 		},
-		Fields: fields("access_method", "schema", "name", "owner", "applies_to"),
-		Params: accessMethodName("operator family"),
+		Fields: fields("access_method", "schema", "name", "owner", "applies_to", "visible"),
+		Params: append(accessMethodName("operator family"),
+			dbmeta.Param{Name: "type", Desc: "name pattern of a type an operator class takes, empty for every type", Default: ""}),
 		Scan: func(rows *sql.Rows) (dbmeta.OperatorFamily, error) {
 			var v dbmeta.OperatorFamily
-			err := rows.Scan(&v.AccessMethod, &v.Schema, &v.Name, &v.Owner, &v.AppliesTo)
+			err := rows.Scan(&v.AccessMethod, &v.Schema, &v.Name, &v.Owner, &v.AppliesTo, &v.Visible)
 			return v, err
 		},
 	})
@@ -375,18 +533,31 @@ func registerOperatorFamilies() {
 			{{Query: `, o.amopstrategy AS "strategy"`}},
 			{{Query: `, CASE o.amoppurpose WHEN 'o' THEN 'ordering' WHEN 's' THEN 'search'` +
 				` ELSE o.amoppurpose::text END AS "purpose"`}},
+			{{Query: `, pg_catalog.format_type(o.amoplefttype, NULL) AS "left_type"`}},
+			{{Query: `, pg_catalog.format_type(o.amoprighttype, NULL) AS "right_type"`}},
+			{{Query: `, sf.opfname AS "sort_family"`}},
+			{{Query: `, COALESCE(p.proleakproof, false) AS "leakproof"`}},
+			{{Query: `, pg_catalog.pg_opfamily_is_visible(f.oid) AS "visible"`}},
+			{{Query: `, n.nspname AS "family_schema"`}},
 			{{Query: `FROM pg_catalog.pg_amop o`}},
 			{{Query: `JOIN pg_catalog.pg_opfamily f ON f.oid = o.amopfamily`}},
-			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = f.opfmethod`}},
+			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = f.opfmethod AND am.oid = o.amopmethod`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = f.opfnamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_opfamily sf ON sf.oid = o.amopsortfamily`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_operator op ON op.oid = o.amopopr`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_proc p ON p.oid = op.oprcode`}},
 			{{Query: `WHERE (@access_method = '' OR am.amname LIKE @access_method)`}},
 			{{Query: `AND (@name = '' OR f.opfname LIKE @name)`}},
-			{{Query: `ORDER BY 1, 2, 4`}},
+			{{Query: `ORDER BY 1, 2, o.amoplefttype = o.amoprighttype DESC, 6, 7, 4`}},
 		},
-		Fields: fields("access_method", "family", "operator", "strategy", "purpose"),
+		Fields: fields("access_method", "family", "operator", "strategy", "purpose", "left_type",
+			"right_type", "sort_family", "leakproof", "visible", "family_schema"),
 		Params: accessMethodName("operator family"),
 		Scan: func(rows *sql.Rows) (dbmeta.OperatorFamilyOperator, error) {
 			var v dbmeta.OperatorFamilyOperator
-			err := rows.Scan(&v.AccessMethod, &v.Family, &v.Operator, &v.Strategy, &v.Purpose)
+			err := rows.Scan(&v.AccessMethod, &v.Family, &v.Operator, &v.Strategy, &v.Purpose,
+				&v.LeftType, &v.RightType, &v.SortFamily, &v.Leakproof, &v.Visible,
+				&v.FamilySchema)
 			return v, err
 		},
 	})
@@ -399,19 +570,28 @@ func registerOperatorFamilies() {
 			{{Query: `, pg_catalog.format_type(p.amprocrighttype, NULL) AS "right_type"`}},
 			{{Query: `, p.amprocnum AS "number"`}},
 			{{Query: `, p.amproc::pg_catalog.regprocedure::text AS "function"`}},
+			{{Query: `, pr.proname::text AS "function_name"`}},
+			{
+				{Query: `, pg_catalog.pg_opfamily_is_visible(f.oid) AS "visible"`},
+				{Key: "cockroachdb", Query: `, NULL::boolean AS "visible"`},
+			},
+			{{Query: `, n.nspname AS "family_schema"`}},
 			{{Query: `FROM pg_catalog.pg_amproc p`}},
 			{{Query: `JOIN pg_catalog.pg_opfamily f ON f.oid = p.amprocfamily`}},
 			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = f.opfmethod`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = f.opfnamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_proc pr ON pr.oid = p.amproc`}},
 			{{Query: `WHERE (@access_method = '' OR am.amname LIKE @access_method)`}},
 			{{Query: `AND (@name = '' OR f.opfname LIKE @name)`}},
-			{{Query: `ORDER BY 1, 2, 5`}},
+			{{Query: `ORDER BY 1, 2, p.amproclefttype = p.amprocrighttype DESC, 3, 4, 5`}},
 		},
-		Fields: fields("access_method", "family", "left_type", "right_type", "number", "function"),
+		Fields: fields("access_method", "family", "left_type", "right_type", "number", "function",
+			"function_name", "visible", "family_schema"),
 		Params: accessMethodName("operator family"),
 		Scan: func(rows *sql.Rows) (dbmeta.OperatorFamilyFunction, error) {
 			var v dbmeta.OperatorFamilyFunction
 			err := rows.Scan(&v.AccessMethod, &v.Family, &v.LeftType, &v.RightType,
-				&v.Number, &v.Function)
+				&v.Number, &v.Function, &v.FunctionName, &v.Visible, &v.FamilySchema)
 			return v, err
 		},
 	})
@@ -425,16 +605,27 @@ func registerExtensions() {
 			{{Query: `, e.extversion AS "version"`}},
 			{{Query: `, n.nspname AS "schema"`}},
 			{{Query: `, pg_catalog.obj_description(e.oid, 'pg_extension') AS "comment"`}},
+			// psql reads the control files through pg_available_extensions().
+			// CockroachDB has no such function.
+			{
+				{Query: `, ae.default_version AS "default_version"`},
+				{Key: "cockroachdb", Query: `, NULL::text AS "default_version"`},
+			},
 			{{Query: `FROM pg_catalog.pg_extension e`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace`}},
+			{
+				{Query: `LEFT JOIN pg_catalog.pg_available_extensions() ae(name, default_version, comment)` +
+					` ON ae.name = e.extname`},
+				{Key: "cockroachdb", Query: ``},
+			},
 			{{Query: `WHERE (@name = '' OR e.extname LIKE @name)`}},
 			{{Query: `ORDER BY 1`}},
 		},
-		Fields: fields("name", "version", "schema", "comment"),
+		Fields: fields("name", "version", "schema", "comment", "default_version"),
 		Params: []dbmeta.Param{{Name: "name", Desc: "extension name pattern, empty for every one", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Extension, error) {
 			var v dbmeta.Extension
-			err := rows.Scan(&v.Name, &v.Version, &v.Schema, &v.Comment)
+			err := rows.Scan(&v.Name, &v.Version, &v.Schema, &v.Comment, &v.DefaultVersion)
 			return v, err
 		},
 	})
@@ -489,6 +680,7 @@ func registerExtensions() {
 				{Min: v10, Query: `, NULL::integer AS "stats_target"`},
 				{Min: v13, Query: `, NULLIF(s.stxstattarget, -1)::integer AS "stats_target"`},
 			},
+			{{Min: v10, Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "table_visible"`}},
 			{{Min: v10, Query: `FROM pg_catalog.pg_statistic_ext s`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_class c ON c.oid = s.stxrelid`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_namespace n ON n.oid = s.stxnamespace`}},
@@ -504,6 +696,7 @@ func registerExtensions() {
 			{Name: "ndistinct", Min: v10}, {Name: "dependencies", Min: v10},
 			{Name: "mcv", Desc: "whether the object holds most common values. Always false below release 12, which had no such kind", Min: v10},
 			{Name: "stats_target", Desc: "statistics target of the object, absent for the default and below release 13", Min: v13},
+			{Name: "table_visible", Desc: "the table is on the search path of the session", Min: v10},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern of the statistics object, empty for every schema", Default: ""},
@@ -514,7 +707,8 @@ func registerExtensions() {
 		Scan: func(rows *sql.Rows) (dbmeta.ExtendedStat, error) {
 			var v dbmeta.ExtendedStat
 			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment,
-				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV, &v.StatsTarget)
+				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV, &v.StatsTarget,
+				&v.TableVisible)
 			return v, err
 		},
 	})

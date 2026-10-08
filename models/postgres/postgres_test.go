@@ -359,3 +359,22 @@ func TestNoCoalesceOnCatalogColumns(t *testing.T) {
 		}
 	}
 }
+
+// TestArgsReachTheSections checks that the filter fields D201 added to Args
+// are parameters that the statements of the sections declare, on every release
+// that answers them.
+func TestArgsReachTheSections(t *testing.T) {
+	t.Parallel()
+	for _, ver := range releases[1:] {
+		m := meta(t, ver)
+		if _, _, err := dbmeta.Inherits.Build(m, dbmeta.Args{ParentSchema: "app", Parent: "base"}.Map()); err != nil {
+			t.Errorf("inherits at %s: expected parent_schema to be accepted, got: %v", ver, err)
+		}
+		if _, _, err := dbmeta.Partitions.Build(m, dbmeta.Args{PartitionSchema: "part", Name: "child"}.Map()); err != nil {
+			t.Errorf("partitions at %s: expected partition_schema to be accepted, got: %v", ver, err)
+		}
+		if _, _, err := dbmeta.PublicationTables.Build(m, dbmeta.Args{WithImplicit: true}.Map()); err != nil {
+			t.Errorf("publication_tables at %s: expected with_implicit to be accepted, got: %v", ver, err)
+		}
+	}
+}

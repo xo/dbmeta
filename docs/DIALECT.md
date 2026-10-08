@@ -251,7 +251,7 @@ supported without naming it.
 
 ### 7. Survey the catalog yourself first
 
-List every metadata source the product has and map it against the 61 object
+List every metadata source the product has and map it against the 65 object
 kinds. Run the statements. Read the columns back. A source that looks right in
 the documentation and returns nothing on a real server is not a source.
 
@@ -303,7 +303,7 @@ The package file holds the doc comment, the version query, `parseVersion`, the
 across files by what they describe, the way `relation.go`, `role.go` and
 `extra.go` do elsewhere.
 
-The package doc states how many of the 61 the model answers.
+The package doc states how many of the 65 the model answers.
 `TestEveryPackageCommentStatesItsCount` checks the number.
 
 Each object kind is a `Binding` registered from `init`, carrying the statement
@@ -547,7 +547,7 @@ D146 answered it for Impala. A `Binding` can set `Walk`, a function that runs
 several `SHOW` statements through the `Queryer`, one to its end before the
 next, and yields the rows. The caller's patterns are matched in Go with
 `dbmeta.Like`, because a `SHOW` statement takes none. `models/impala` answers
-11 of the 61, most of them with a walk.
+11 of the 65, most of them with a walk.
 
 A walk is for a product that offers nothing a SELECT reads, and for nothing
 else. If one statement answers a kind, write the statement. Write the cost of

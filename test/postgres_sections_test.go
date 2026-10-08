@@ -197,7 +197,7 @@ func TestSectionsReadBack(t *testing.T) {
 				return
 			}
 			idx := rows["sales_amount"]
-			if idx.Type != "index" || !idx.Table.Valid || idx.Table.V != schema+".sales" {
+			if idx.Type != "partitioned index" || !idx.Table.Valid || idx.Table.V != schema+".sales" {
 				t.Errorf("expected a partitioned index on sales, got %+v", idx)
 			}
 			if !idx.AccessMethod.Valid || idx.AccessMethod.V != "btree" {

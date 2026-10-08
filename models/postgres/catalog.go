@@ -37,17 +37,42 @@ func registerDatabases() {
 				` THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))` +
 				` ELSE 'no access' END AS "size"`}},
 			{{Query: `, pg_catalog.shobj_description(d.oid, 'pg_database') AS "comment"`}},
+			// The provider arrived in release 15. Before it every database used
+			// libc, so that is the answer and not a stand in, which is what
+			// psql prints. The locale was daticulocale in 15 and 16, and
+			// datlocale from 17. The ICU rules arrived in release 16.
+			{
+				{Query: `, 'libc' AS "locale_provider"`},
+				{Min: v15, Query: `, CASE d.datlocprovider WHEN 'b' THEN 'builtin' WHEN 'c' THEN 'libc'` +
+					` WHEN 'i' THEN 'icu' END AS "locale_provider"`},
+			},
+			{
+				{Query: `, NULL::text AS "locale"`},
+				{Min: v15, Query: `, d.daticulocale AS "locale"`},
+				{Min: v17, Query: `, d.datlocale AS "locale"`},
+			},
+			{
+				{Query: `, NULL::text AS "icu_rules"`},
+				{Min: v16, Query: `, d.daticurules AS "icu_rules"`},
+			},
 			{{Query: `FROM pg_catalog.pg_database d`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_tablespace t ON t.oid = d.dattablespace`}},
 			{{Query: `WHERE (@name = '' OR d.datname LIKE @name)`}},
 			{{Query: `ORDER BY 1`}},
 		},
-		Fields: fields("name", "owner", "encoding", "collate", "ctype", "access", "tablespace", "size", "comment"),
+		Fields: []dbmeta.Field{
+			{Name: "name"}, {Name: "owner"}, {Name: "encoding"}, {Name: "collate"}, {Name: "ctype"},
+			{Name: "access"}, {Name: "tablespace"}, {Name: "size"}, {Name: "comment"},
+			{Name: "locale_provider", Desc: "libc, icu or builtin. Always libc below release 15, which had no other provider"},
+			{Name: "locale", Desc: "the ICU or builtin locale, absent for libc and below release 15", Min: v15},
+			{Name: "icu_rules", Desc: "the ICU tailoring rules, absent below release 16", Min: v16},
+		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "database name pattern, empty for every database", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Database, error) {
 			var v dbmeta.Database
 			err := rows.Scan(&v.Name, &v.Owner, &v.Encoding, &v.Collate, &v.CType,
-				&v.Access, &v.Tablespace, &v.Size, &v.Comment)
+				&v.Access, &v.Tablespace, &v.Size, &v.Comment,
+				&v.LocaleProvider, &v.Locale, &v.ICURules)
 			return v, err
 		},
 	})

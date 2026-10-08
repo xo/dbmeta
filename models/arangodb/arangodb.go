@@ -33,7 +33,7 @@
 //
 // # What it answers
 //
-// 7 of the 61. The database of the connection as the schema and the current
+// 7 of the 65. The database of the connection as the schema and the current
 // schema, collections as tables, the properties of a schema rule as columns,
 // a schema rule as a check constraint, user defined functions and the
 // current user.

@@ -106,18 +106,14 @@ In progress:
 - Every database that usql supports has a dialect, except H2, VoltDB, chai,
   csvq, Pinot, DynamoDB and Phoenix, and the hosted services without a model
   (D184, D185, D186, D188).
-- The describe commands of usql are being brought up to psql 18 (usql asked on
-  2026-10-08). v0.8.0 holds groups A and B (D197, D198). The \d+ sections are
-  done and pushed (D199: the kinds `Partitions`, `Inherits`, `Policies`, `Rules`
-  and `NotNulls`, and fields for options, row security, partitioned table
-  sizes and `IndexColumn.Include`), and so is `Binding.Keep` for the Cassandra
-  filters (D200). Neither is tagged. Pass 3 is next, from usql's message of
-  2026-10-09, which is saved in the scratchpad as usql-pass3.md: `\dP`,
-  "partitioned table" in `Privilege.Type`, structured forms of the options and
-  elements and privileges that psql prints as text, the fields for `\dn+`,
-  `\dx`, `\l`, `\do+`, `\dC+`, `\dRp`, `\dRs+`, `\dFp+`, `\dAo+` and
-  sequence cache, and the value differences of `\dD`, `\dFd+` and the `\dA`
-  family.
+- The describe commands of usql were brought up to psql 18 (usql asked on
+  2026-10-08). v0.8.0 holds groups A and B (D197, D198). The \d+ sections
+  (D199), `Binding.Keep` for the Cassandra filters (D200) and the third group
+  (D201: structured options, column privileges, visibility flags, the index
+  definition and constraint type, and the fields for `\dn+`, `\dx`, `\l`,
+  `\dRs+` and the `\dA` family) are pushed and wait for the tag v0.9.0.
+  PostgreSQL answers 65 kinds on 18. usql holds its formatter commit for v0.9.0.
+  The next work is what usql finds against it.
 
 ## Waiting
 

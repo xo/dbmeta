@@ -109,6 +109,7 @@ func Example_sql() {
 	// , n.nspname AS "name"
 	// , pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"
 	// , pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"
+	// , pg_catalog.array_to_string(n.nspacl, E'\n') AS "access"
 	// FROM pg_catalog.pg_namespace n
 	// WHERE ($1 OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))
 	// AND ($2 = '' OR n.nspname LIKE $3)

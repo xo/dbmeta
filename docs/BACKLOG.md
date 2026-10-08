@@ -86,6 +86,26 @@ ENFORCED of NO. Not read at all: the columns of a key, the table that a
 foreign key points at, tags, masking policies, stages, streams, tasks, pipes
 and dynamic tables.
 
+## PostgreSQL model
+
+### Read the sections of `\d` that no kind answers
+
+D201 left four things out. psql's Referenced by section lists the constraints of
+other tables that name this one, and `Constraints` filters by the table that owns
+the constraint, so a kind or a filter on `confrelid` is needed. The token types
+that `\dFp+` prints come from `ts_token_type` of the parser. The index footer of
+`\d NAME` prints the tablespace of each index. `Subscriptions` lists the
+subscriptions of every database, and psql narrows to the current one.
+
+### Make the owner of a sequence cost what the rows cost
+
+The `owned_by` column of `Sequences` reads `pg_depend` by `objid` alone, and the
+index of that catalog starts with `classid`. Each sequence scans the table, so
+5005 sequences took 5.9 seconds on release 15, and one sequence by name takes
+0.2 ms. D201 measured it. The fix is to add the class of the sequence and of the
+table to the subselect. Measure it before and after, on a catalog of thousands
+of sequences.
+
 ## Consumers
 
 ### Move the rules of the products with no model out of usql

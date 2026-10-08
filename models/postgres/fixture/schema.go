@@ -36,7 +36,7 @@ var Everything = Fixture{
 		at("domain", `CREATE DOMAIN dbmeta_fixture.positive AS integer CHECK (VALUE > 0)`),
 		at("enum type", `CREATE TYPE dbmeta_fixture.colour AS ENUM ('red', 'green', 'blue')`),
 		at("composite type", `CREATE TYPE dbmeta_fixture.point AS (x integer, y integer)`),
-		at("sequence", `CREATE SEQUENCE dbmeta_fixture.counter START 10 INCREMENT 2`),
+		at("sequence", `CREATE SEQUENCE dbmeta_fixture.counter START 10 INCREMENT 2 CACHE 5`),
 		at("sequence comment", `COMMENT ON SEQUENCE dbmeta_fixture.counter IS 'a sequence'`),
 
 		at("author table", `CREATE TABLE dbmeta_fixture.author (
@@ -286,12 +286,65 @@ var Everything = Fixture{
 	ADD CONSTRAINT ledger_note_present NOT NULL note`),
 		from("not null with no inherit", v18, `ALTER TABLE dbmeta_fixture.ledger
 	ADD COLUMN stamp timestamptz CONSTRAINT ledger_stamp_present NOT NULL NO INHERIT`),
+
+		// What the third group of describe data reads. See D201.
+		//
+		// a grant on the schema, so that Schema.Access has an entry
+		at("schema usage grant", `GRANT USAGE ON SCHEMA dbmeta_fixture TO dbmeta_fixture_role`),
+
+		// Indexes that keep an operator class and a collation, which the
+		// whole of pg_get_indexdef shows and the column alone does not. A gin
+		// index on a jsonb column has two operator classes in the catalog,
+		// and the second is not the default. A unique constraint owns an
+		// index of its own.
+		at("tagged table", `CREATE TABLE dbmeta_fixture.tagged (
+	doc jsonb,
+	label text
+)`),
+		at("tagged jsonb path index", `CREATE INDEX tagged_doc_path ON dbmeta_fixture.tagged USING gin (doc jsonb_path_ops)`),
+		at("tagged jsonb index", `CREATE INDEX tagged_doc ON dbmeta_fixture.tagged USING gin (doc)`),
+		at("tagged collated index", `CREATE INDEX tagged_label ON dbmeta_fixture.tagged (label COLLATE "C" text_pattern_ops)`),
+		at("tagged unique constraint", `ALTER TABLE dbmeta_fixture.tagged ADD CONSTRAINT tagged_label_key UNIQUE (label)`),
+
+		// a domain that is NOT NULL has a NOT NULL entry in pg_constraint from
+		// release 17, which is not a check
+		at("required domain", `CREATE DOMAIN dbmeta_fixture.required AS text NOT NULL CHECK (VALUE <> '')`),
+
+		// access privileges of a column, one for a role and one for public
+		at("column privilege for a role", `GRANT SELECT (payload), UPDATE (payload) ON dbmeta_fixture.scratch TO dbmeta_fixture_role`),
+		at("column privilege for public", `GRANT SELECT (stamp) ON dbmeta_fixture.scratch TO PUBLIC`),
+
+		// Options of a wrapper, a server, a table and a mapping. One name is
+		// a keyword and quotes, and two values hold a comma and a space,
+		// which the text of Options cannot split back.
+		at("foreign data wrapper options", `ALTER FOREIGN DATA WRAPPER dbmeta_fixture_fdw OPTIONS (ADD debug 'on')`),
+		at("foreign server options", `ALTER SERVER dbmeta_fixture_server OPTIONS (ADD note 'a, b=c')`),
+		at("foreign table options", `ALTER FOREIGN TABLE dbmeta_fixture.remote_ledger OPTIONS (ADD "user" 'x, y')`),
+		at("user mapping", `CREATE USER MAPPING FOR dbmeta_fixture_role SERVER dbmeta_fixture_server
+	OPTIONS ("user" 'remote', password 'secret')`),
+
+		// release 18 can publish generated columns
+		from("publication of generated columns", v18, `CREATE PUBLICATION dbmeta_fixture_pub_gen
+	FOR TABLE dbmeta_fixture.extras WITH (publish_generated_columns = stored)`),
+
+		// A subscription that never connects. It has no slot, so that it can
+		// be dropped without a server to reach. The properties arrived one
+		// release after another.
+		from("subscription", v10, `CREATE SUBSCRIPTION dbmeta_fixture_sub
+	CONNECTION 'host=example.invalid dbname=nowhere' PUBLICATION dbmeta_fixture_pub
+	WITH (connect = false)`),
+		from("subscription without a slot", v10, `ALTER SUBSCRIPTION dbmeta_fixture_sub SET (slot_name = NONE)`),
+		from("subscription binary", v14, `ALTER SUBSCRIPTION dbmeta_fixture_sub SET (binary = true, streaming = on)`),
+		from("subscription disable on error", v15, `ALTER SUBSCRIPTION dbmeta_fixture_sub SET (disable_on_error = true)`),
+		from("subscription origin", v16, `ALTER SUBSCRIPTION dbmeta_fixture_sub SET (origin = none, streaming = parallel, run_as_owner = true)`),
 	},
 	Teardown: []Step{
 		from("drop publication", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub`),
 		from("drop publication with a filter", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub_rows`),
 		from("drop publication of a schema", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub_schema`),
 		from("drop publication of every table", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub_all`),
+		from("drop publication of generated columns", v18, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub_gen`),
+		from("drop subscription", v10, `DROP SUBSCRIPTION IF EXISTS dbmeta_fixture_sub`),
 		at("drop schema", `DROP SCHEMA IF EXISTS dbmeta_fixture CASCADE`),
 		at("drop foreign server", `DROP SERVER IF EXISTS dbmeta_fixture_server CASCADE`),
 		at("drop foreign data wrapper", `DROP FOREIGN DATA WRAPPER IF EXISTS dbmeta_fixture_fdw CASCADE`),

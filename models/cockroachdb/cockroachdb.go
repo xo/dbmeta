@@ -11,7 +11,7 @@
 // a statement of its own only where CockroachDB's catalog differs. It imports
 // the postgres model, which registers first. See D123.
 //
-// It answers 54 of the 61 questions, on every release measured: 24.3.36,
+// It answers 54 of the 65 questions, on every release measured: 24.3.36,
 // 26.2.7 and 26.3.2. 47 are the postgres model's statements and 7 are its
 // own. It does not answer column_stats, because CockroachDB keeps pg_stats
 // empty, or text_search_config_maps, because it has no text search

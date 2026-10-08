@@ -30,7 +30,7 @@
 //
 // # What it answers
 //
-// Twenty of the 61. The catalog is unusually complete for an embedded
+// Twenty of the 65. The catalog is unusually complete for an embedded
 // database: it has comments on most objects, real enumerated types,
 // sequences, and a constraint catalog that names the columns of a key and the columns it references.
 //

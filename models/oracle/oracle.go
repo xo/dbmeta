@@ -30,7 +30,7 @@
 //
 // # What it answers
 //
-// 26 of the 61. Schemas, tables, columns, indexes, index columns,
+// 26 of the 65. Schemas, tables, columns, indexes, index columns,
 // constraints, constraint columns, sequences, views, the current schema and
 // the current user. Then comments, triggers, event triggers, functions,
 // aggregates, routine parameters, types, domains, operators, privileges,

@@ -11,7 +11,7 @@
 // duckdb model's statements, shared with [dbmeta.Query.Share]. It imports the
 // duckdb model, which registers first. See D123 and D187.
 //
-// It answers 20 of the 61 questions, on 1.40.0 and 1.41.0, which are every
+// It answers 20 of the 65 questions, on 1.40.0 and 1.41.0, which are every
 // one the duckdb model answers, and the same way. GizmoSQL keeps a database of
 // its own, _gizmosql_system, which holds two views for the Flight SQL metadata
 // calls. DuckDB does not flag it internal, so a fragment of the duckdb model

@@ -18,6 +18,8 @@ func init() {
 	registerForeignServers()
 	registerUserMappings()
 	registerForeignTables()
+	registerForeignOptions()
+	registerColumnPrivileges()
 }
 
 // registerRoles backs \du and \dg, from describeRoles.
@@ -146,7 +148,9 @@ func registerPrivileges() {
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT n.nspname AS "schema"`}},
 			{{Query: `, c.relname AS "name"`}},
-			{{Query: `, CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'table'` +
+			// psql says partitioned table for a relation of the kind p, and
+			// so does Tables. See D201.
+			{{Query: `, CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned table'` +
 				` WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view'` +
 				` WHEN 'S' THEN 'sequence' WHEN 'f' THEN 'foreign table'` +
 				` ELSE c.relkind::text END AS "type"`}},
@@ -303,6 +307,123 @@ func registerForeignTables() {
 		Scan: func(rows *sql.Rows) (dbmeta.ForeignTable, error) {
 			var v dbmeta.ForeignTable
 			err := rows.Scan(&v.Schema, &v.Name, &v.Server, &v.Options, &v.Comment)
+			return v, err
+		},
+	})
+}
+
+// registerForeignOptions is the options of a foreign data wrapper, a foreign
+// server, a user mapping and a foreign table in rows.
+//
+// The Options field of each of those kinds is array_to_string of the catalog
+// array, which cannot be split back when a value holds a comma and a space.
+// pg_options_to_table splits the array in the server, and the ordinality keeps
+// the order of the array. The quoted column is what psql prints for the
+// option, built from quote_ident and quote_literal, because the rule that
+// quotes a name that is a keyword belongs to the server. pg_user_mappings
+// answers NULL for the options of a mapping the role cannot read, as it does
+// for UserMappings. See D201.
+func registerForeignOptions() {
+	const quoted = `pg_catalog.quote_ident(o.option_name) || ' ' || pg_catalog.quote_literal(o.option_value)`
+	dbmeta.ForeignOptions.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ForeignOption]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT 'foreign data wrapper' AS "kind", NULL::text AS "schema", w.fdwname::text AS "name"` +
+				`, NULL::text AS "server", o.ordinality AS "ordinal", o.option_name AS "option"` +
+				`, o.option_value AS "value", ` + quoted + ` AS "quoted"` +
+				` FROM pg_catalog.pg_foreign_data_wrapper w` +
+				` CROSS JOIN LATERAL pg_catalog.pg_options_to_table(w.fdwoptions)` +
+				` WITH ORDINALITY AS o(option_name, option_value, ordinality)` +
+				` WHERE (@kind = '' OR @kind = 'foreign data wrapper') AND @schema = '' AND @server = ''` +
+				` AND (@name = '' OR w.fdwname LIKE @name)`}},
+			{{Query: `UNION ALL SELECT 'foreign server', NULL::text, s.srvname::text, NULL::text` +
+				`, o.ordinality, o.option_name, o.option_value, ` + quoted +
+				` FROM pg_catalog.pg_foreign_server s` +
+				` CROSS JOIN LATERAL pg_catalog.pg_options_to_table(s.srvoptions)` +
+				` WITH ORDINALITY AS o(option_name, option_value, ordinality)` +
+				` WHERE (@kind = '' OR @kind = 'foreign server') AND @schema = ''` +
+				` AND (@name = '' OR s.srvname LIKE @name)` +
+				` AND (@server = '' OR s.srvname LIKE @server)`}},
+			{{Query: `UNION ALL SELECT 'user mapping', NULL::text, um.usename::text, um.srvname::text` +
+				`, o.ordinality, o.option_name, o.option_value, ` + quoted +
+				` FROM pg_catalog.pg_user_mappings um` +
+				` CROSS JOIN LATERAL pg_catalog.pg_options_to_table(um.umoptions)` +
+				` WITH ORDINALITY AS o(option_name, option_value, ordinality)` +
+				` WHERE (@kind = '' OR @kind = 'user mapping') AND @schema = ''` +
+				` AND (@name = '' OR um.usename LIKE @name)` +
+				` AND (@server = '' OR um.srvname LIKE @server)`}},
+			{{Query: `UNION ALL SELECT 'foreign table', n.nspname::text, c.relname::text, s.srvname::text` +
+				`, o.ordinality, o.option_name, o.option_value, ` + quoted +
+				` FROM pg_catalog.pg_foreign_table ft` +
+				` JOIN pg_catalog.pg_class c ON c.oid = ft.ftrelid` +
+				` JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace` +
+				` JOIN pg_catalog.pg_foreign_server s ON s.oid = ft.ftserver` +
+				` CROSS JOIN LATERAL pg_catalog.pg_options_to_table(ft.ftoptions)` +
+				` WITH ORDINALITY AS o(option_name, option_value, ordinality)` +
+				` WHERE (@kind = '' OR @kind = 'foreign table')` +
+				` AND (@schema = '' OR n.nspname LIKE @schema)` +
+				` AND (@name = '' OR c.relname LIKE @name)` +
+				` AND (@server = '' OR s.srvname LIKE @server)`}},
+			{{Query: `ORDER BY 1, 2, 3, 4, 5`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "kind", Desc: "foreign data wrapper, foreign server, user mapping or foreign table"},
+			{Name: "schema", Desc: "schema of a foreign table, and absent for the others"},
+			{Name: "name", Desc: "name of the object, and of the local role for a user mapping"},
+			{Name: "server", Desc: "server of a user mapping or a foreign table, and absent for the others"},
+			{Name: "ordinal", Desc: "position of the option in the list of the object"},
+			{Name: "option"}, {Name: "value"},
+			{Name: "quoted", Desc: "the option as psql prints it, such as \"user\" 'u'"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "kind", Desc: "foreign data wrapper, foreign server, user mapping or foreign table, empty for every kind", Default: ""},
+			{Name: "schema", Desc: "schema name pattern, which only a foreign table has, empty for every schema", Default: ""},
+			{Name: "name", Desc: "object name pattern, empty for every object", Default: ""},
+			{Name: "server", Desc: "server name pattern, empty for every server", Default: ""},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.ForeignOption, error) {
+			var v dbmeta.ForeignOption
+			err := rows.Scan(&v.Kind, &v.Schema, &v.Name, &v.Server, &v.Ordinal,
+				&v.Option, &v.Value, &v.Quoted)
+			return v, err
+		},
+	})
+}
+
+// registerColumnPrivileges is Privilege.ColumnAccess in rows.
+//
+// aclexplode names the grantee and the grantor, and the grantee 0 is public.
+// The letters of the entry are cut from its text, whose grantee is either a
+// quoted name or a run of characters with no equals sign. See D201.
+func registerColumnPrivileges() {
+	dbmeta.ColumnPrivileges.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ColumnPrivilege]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, c.relname AS "table"`}},
+			{{Query: `, a.attname AS "column"`}},
+			{{Query: `, k.ordinality AS "ordinal"`}},
+			{{Query: `, k.item::text AS "access"`}},
+			{{Query: `, CASE WHEN e.grantee = 0 THEN NULL ELSE pg_catalog.pg_get_userbyid(e.grantee) END AS "grantee"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(e.grantor) AS "grantor"`}},
+			{{Query: `, SUBSTRING(k.item::text FROM '^(?:"(?:[^"]|"")*"|[^=]*)=([^/]*)/') AS "privileges"`}},
+			{{Query: `FROM pg_catalog.pg_attribute a`}},
+			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = a.attrelid`}},
+			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `CROSS JOIN LATERAL pg_catalog.unnest(a.attacl) WITH ORDINALITY AS k(item, ordinality)`}},
+			{{Query: `LEFT JOIN LATERAL (SELECT x.grantee, x.grantor FROM pg_catalog.aclexplode(ARRAY[k.item]) x LIMIT 1) e ON true`}},
+			{{Query: `WHERE a.attnum > 0 AND NOT a.attisdropped AND a.attacl IS NOT NULL`}},
+			{{Query: `AND c.relkind IN ('r', 'p', 'v', 'm', 'f')`}},
+			{{Query: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@parent = '' OR c.relname LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR a.attname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2, a.attnum, 4`}},
+		},
+		Fields: fields("schema", "table", "column", "ordinal", "access", "grantee", "grantor", "privileges"),
+		Params: schemaParentOf("table", "column"),
+		Scan: func(rows *sql.Rows) (dbmeta.ColumnPrivilege, error) {
+			var v dbmeta.ColumnPrivilege
+			err := rows.Scan(&v.Schema, &v.Table, &v.Column, &v.Ordinal, &v.Access,
+				&v.Grantee, &v.Grantor, &v.Privileges)
 			return v, err
 		},
 	})

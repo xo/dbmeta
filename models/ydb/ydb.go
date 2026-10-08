@@ -42,7 +42,7 @@
 //
 // # What it answers
 //
-// 7 of the 61. Databases, schemas, tables, tablespaces, roles, role grants
+// 7 of the 65. Databases, schemas, tables, tablespaces, roles, role grants
 // and privileges.
 //
 // Columns, indexes, views, sequences and the rest are in the schema of each

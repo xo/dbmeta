@@ -172,8 +172,13 @@ func registerDomains() {
 				` AND t.typcollation <> bt.typcollation), '') AS "collation"`}},
 			{{Query: `, NOT t.typnotnull AS "nullable"`}},
 			{{Query: `, t.typdefault AS "default"`}},
+			// Release 17 records a NOT NULL on a domain in pg_constraint too,
+			// with the type n, and pg_get_constraintdef writes it as NOT NULL.
+			// psql shows that in Nullable only, and lists the checks alone in
+			// Check, so the type c is the one read. See D201.
 			{{Query: `, COALESCE((SELECT pg_catalog.string_agg(pg_catalog.pg_get_constraintdef(r.oid, true), ' '` +
-				` ORDER BY r.conname) FROM pg_catalog.pg_constraint r WHERE t.oid = r.contypid), '') AS "constraints"`}},
+				` ORDER BY r.conname) FROM pg_catalog.pg_constraint r WHERE t.oid = r.contypid` +
+				` AND r.contype = 'c'), '') AS "constraints"`}},
 			{{Query: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
 			{{Query: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
 			{{Query: `FROM pg_catalog.pg_type t`}},
@@ -211,19 +216,24 @@ func registerOperators() {
 			{{Query: `, o.oprcode::text AS "function"`}},
 			{{Query: `, COALESCE(pg_catalog.obj_description(o.oid, 'pg_operator'),` +
 				` pg_catalog.obj_description(o.oprcode, 'pg_proc')) AS "comment"`}},
+			// psql joins pg_proc on oprcode for \do+. A shell operator has no
+			// function and is not leakproof, which is false and not unknown.
+			{{Query: `, COALESCE(f.proleakproof, false) AS "leakproof"`}},
 			{{Query: `FROM pg_catalog.pg_operator o`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = o.oprnamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_proc f ON f.oid = o.oprcode`}},
 			{{Query: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR o.oprname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2, 3, 4`}},
 		},
-		Fields: fields("schema", "name", "left_type", "right_type", "result_type", "function", "comment"),
+		Fields: fields("schema", "name", "left_type", "right_type", "result_type", "function", "comment",
+			"leakproof"),
 		Params: schemaNameSystem("operator"),
 		Scan: func(rows *sql.Rows) (dbmeta.Operator, error) {
 			var v dbmeta.Operator
 			err := rows.Scan(&v.Schema, &v.Name, &v.LeftType, &v.RightType,
-				&v.ResultType, &v.Function, &v.Comment)
+				&v.ResultType, &v.Function, &v.Comment, &v.Leakproof)
 			return v, err
 		},
 	})

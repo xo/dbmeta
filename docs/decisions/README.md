@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-71 of them amend or replace an earlier one, and a decision read without its
+72 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -165,7 +165,7 @@ file.
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided, amended by D182 and D190 |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
 | [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159 and D175 |
-| [D147](D147-the-fields-psql-prints-that-usql-needed.md) | The fields psql prints that usql needed | Decided |
+| [D147](D147-the-fields-psql-prints-that-usql-needed.md) | The fields psql prints that usql needed | Decided, amended by D201 |
 | [D148](D148-rqlite-shares-the-sqlite3-model.md) | rqlite shares the sqlite3 model | Amended by D151 |
 | [D149](D149-oracle-and-singlestore-answer-extended-statistics.md) | Oracle and SingleStore answer extended statistics | Decided |
 | [D150](D150-oracle-11g-reads-two-views-slowly.md) | Oracle 11g reads two views slowly | Decided |
@@ -217,5 +217,6 @@ file.
 | [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |
 | [D197](D197-three-fields-can-be-null-in-the-postgresql-catalog.md) | Three fields can be NULL in the PostgreSQL catalog | Decided |
 | [D198](D198-describe-fields-for-relations-indexes-columns-and-functions.md) | Describe fields for relations, indexes, columns and functions | Decided |
-| [D199](D199-describe-sections-for-partitions-inheritance-policies-and-rules.md) | Describe sections for partitions, inheritance, policies and rules | Decided |
+| [D199](D199-describe-sections-for-partitions-inheritance-policies-and-rules.md) | Describe sections for partitions, inheritance, policies and rules | Decided, amended by D201 |
 | [D200](D200-a-binding-can-keep-rows-for-a-product-that-cannot-filter.md) | A binding can keep rows for a product that cannot filter | Amends D62 |
+| [D201](D201-the-third-group-of-describe-data-for-usql.md) | The third group of describe data for usql | Amends D147 and D199 |

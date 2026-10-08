@@ -46,11 +46,31 @@ func registerIndexes() {
 			{{Query: `, con.condeferrable AS "deferrable"`}},
 			{{Query: `, con.condeferred AS "initially_deferred"`}},
 			{{Query: `, NULLIF(pg_catalog.array_to_string(c.reloptions, ', '), '') AS "options"`}},
+			// The whole statement is what psql asks for, and it prints what
+			// follows the first " USING ". Both are returned, so that a caller
+			// needs no search of its own. The constraint is the one that owns
+			// the index, as above, and its text is what psql prints for an
+			// exclusion constraint. conperiod arrived in release 18, and an
+			// older release has no constraint WITHOUT OVERLAPS, which is a
+			// false for a constraint and still no answer for a plain index.
+			// See D201.
+			// pg_get_indexdef is the dearest call here, so the lateral join
+			// makes it once for each index and both columns read the result.
+			{{Query: `, def.text AS "definition"`}},
+			{{Query: `, SUBSTRING(def.text FROM ' USING (.*)$') AS "using"`}},
+			{{Query: `, con.contype::text AS "constraint_type"`}},
+			{{Query: `, pg_catalog.pg_get_constraintdef(con.oid, true) AS "constraint_definition"`}},
+			{
+				{Query: `, CASE WHEN con.oid IS NULL THEN NULL ELSE false END::boolean AS "constraint_period"`},
+				{Min: v18, Query: `, con.conperiod AS "constraint_period"`},
+			},
+			{{Query: `, pg_catalog.pg_table_is_visible(t.oid) AS "table_visible"`}},
 			{{Query: `FROM pg_catalog.pg_index i`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`}},
 			{{Query: `JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = c.relam`}},
+			{{Query: `CROSS JOIN LATERAL (SELECT pg_catalog.pg_get_indexdef(i.indexrelid, 0, true) AS text) def`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = i.indexrelid` +
 				` AND con.conrelid = i.indrelid AND con.contype IN ('p', 'u', 'x')`}},
 			{{Query: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
@@ -61,14 +81,16 @@ func registerIndexes() {
 		},
 		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment",
 			"owner", "persistence", "size", "predicate", "valid", "clustered", "replica_identity",
-			"deferrable", "initially_deferred", "options"),
+			"deferrable", "initially_deferred", "options", "definition", "using", "constraint_type",
+			"constraint_definition", "constraint_period", "table_visible"),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
 				&v.Unique, &v.Primary, &v.Comment, &v.Owner, &v.Persistence, &v.Size,
 				&v.Predicate, &v.Valid, &v.Clustered, &v.ReplicaIdentity,
-				&v.Deferrable, &v.InitiallyDeferred, &v.Options)
+				&v.Deferrable, &v.InitiallyDeferred, &v.Options, &v.Definition, &v.Using,
+				&v.ConstraintType, &v.ConstraintDefinition, &v.ConstraintPeriod, &v.TableVisible)
 			return v, err
 		},
 	})
@@ -230,6 +252,10 @@ func registerSequences() {
 				` JOIN pg_catalog.pg_attribute da ON da.attrelid = d.refobjid AND da.attnum = d.refobjsubid` +
 				` WHERE d.objid = c.oid AND d.deptype IN ('a', 'i') LIMIT 1), '') AS "owned_by"`}},
 			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
+			{
+				{Query: `, NULL::bigint AS "cache_size"`},
+				{Min: v10, Query: `, s.seqcache AS "cache_size"`},
+			},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{
@@ -248,12 +274,13 @@ func registerSequences() {
 			{Name: "minimum", Min: v10}, {Name: "maximum", Min: v10},
 			{Name: "increment", Min: v10}, {Name: "cycles", Min: v10},
 			{Name: "owned_by"}, {Name: "comment"},
+			{Name: "cache_size", Desc: "values a session takes at once, absent below release 10", Min: v10},
 		},
 		Params: schemaNameSystem("sequence"),
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
 			var v dbmeta.Sequence
 			err := rows.Scan(&v.Schema, &v.Name, &v.DataType, &v.Start, &v.Minimum,
-				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment)
+				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.CacheSize)
 			return v, err
 		},
 	})
@@ -273,7 +300,8 @@ func registerPartitionedTables() {
 			{{Min: v10, Query: `SELECT n.nspname AS "schema"`}},
 			{{Min: v10, Query: `, c.relname AS "name"`}},
 			{{Min: v10, Query: `, pg_catalog.pg_get_userbyid(c.relowner) AS "owner"`}},
-			{{Min: v10, Query: `, CASE c.relkind WHEN 'p' THEN 'table' WHEN 'I' THEN 'index'` +
+			// psql says partitioned table and partitioned index. See D201.
+			{{Min: v10, Query: `, CASE c.relkind WHEN 'p' THEN 'partitioned table' WHEN 'I' THEN 'partitioned index'` +
 				` ELSE c.relkind::text END AS "type"`}},
 			{{Min: v10, Query: `, COALESCE((SELECT pn.nspname || '.' || pc.relname` +
 				` FROM pg_catalog.pg_inherits h` +
@@ -286,6 +314,10 @@ func registerPartitionedTables() {
 			// the table of a partitioned index, and absent for a table
 			{{Min: v10, Query: `, tn.nspname || '.' || t.relname AS "table"`}},
 			{{Min: v10, Query: `, am.amname AS "access_method"`}},
+			// whether psql prints the parent and the table with no schema
+			{{Min: v10, Query: `, (SELECT pg_catalog.pg_table_is_visible(h.inhparent)` +
+				` FROM pg_catalog.pg_inherits h WHERE h.inhrelid = c.oid) AS "parent_visible"`}},
+			{{Min: v10, Query: `, pg_catalog.pg_table_is_visible(t.oid) AS "table_visible"`}},
 			// pg_partition_tree arrived in release 12. The root is a row of
 			// the tree at level 0 and has no file, so it adds 0. CockroachDB
 			// has no such function.
@@ -320,6 +352,8 @@ func registerPartitionedTables() {
 			{Name: "expression", Min: v10}, {Name: "comment", Min: v10},
 			{Name: "table", Desc: "the table of a partitioned index, absent for a table", Min: v10},
 			{Name: "access_method", Desc: "access method, absent for a table that has none", Min: v10},
+			{Name: "parent_visible", Desc: "the parent is on the search path of the session", Min: v10},
+			{Name: "table_visible", Desc: "the table of a partitioned index is on the search path of the session", Min: v10},
 			{Name: "direct_size", Desc: "bytes of the partitions one level down, absent below release 12", Min: v12},
 			{Name: "total_size", Desc: "bytes of every partition, absent below release 12", Min: v12},
 		},
@@ -328,7 +362,7 @@ func registerPartitionedTables() {
 			var v dbmeta.PartitionedTable
 			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, &v.Parent,
 				dbmeta.NullAsEmpty(&v.Strategy), dbmeta.NullAsEmpty(&v.Expression), &v.Comment, &v.Table, &v.AccessMethod,
-				&v.DirectSize, &v.TotalSize)
+				&v.ParentVisible, &v.TableVisible, &v.DirectSize, &v.TotalSize)
 			return v, err
 		},
 	})

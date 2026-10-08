@@ -73,6 +73,10 @@ type Schema struct {
 	Name    string
 	Owner   string
 	Comment sql.Null[string]
+	// Access is the access privileges of the schema, one per line, as psql's
+	// \dn+ prints them. It is absent when the privileges are the default.
+	// See D201.
+	Access sql.Null[string]
 }
 
 // Column is one column of a table.
@@ -156,6 +160,26 @@ type Index struct {
 	// Options are the storage parameters set on the index, such as
 	// fillfactor=70, joined by a comma and a space. See D199.
 	Options sql.Null[string]
+	// Definition is the whole CREATE INDEX statement, as pg_get_indexdef
+	// writes it with the pretty flag, and Using is the part of it that follows
+	// the first " USING ", which is what psql prints in the Indexes footer of
+	// \d name. Both keep the operator class and the collation of a key column
+	// that is not the default. See D201.
+	Definition sql.Null[string]
+	Using      sql.Null[string]
+	// ConstraintType is p, u or x for an index that a primary key, a unique
+	// constraint or an exclusion constraint owns, and absent for any other
+	// index. ConstraintDefinition is the text of that constraint, as
+	// pg_get_constraintdef writes it, such as EXCLUDE USING gist (...). psql
+	// prints it in place of the index text for an exclusion constraint and for
+	// a constraint WITHOUT OVERLAPS, which ConstraintPeriod reports. It is
+	// false below release 18, which has none. See D201.
+	ConstraintType       sql.Null[string]
+	ConstraintDefinition sql.Null[string]
+	ConstraintPeriod     sql.Null[bool]
+	// TableVisible reports that the table is on the search path of the
+	// session, so that psql prints its name with no schema. See D201.
+	TableVisible sql.Null[bool]
 }
 
 // Queries. One value per object kind.
@@ -181,6 +205,13 @@ type Database struct {
 	Tablespace sql.Null[string]
 	Size       sql.Null[string]
 	Comment    sql.Null[string]
+	// LocaleProvider is libc, icu or builtin. It is libc below release 15,
+	// which had no other provider. Locale is the ICU or builtin locale, and
+	// absent for libc. ICURules are the tailoring rules of an ICU locale, from
+	// release 16. See D201.
+	LocaleProvider sql.Null[string]
+	Locale         sql.Null[string]
+	ICURules       sql.Null[string]
 }
 
 // Tablespace is a location the server stores data in. psql lists them with \db.
@@ -388,6 +419,9 @@ type Operator struct {
 	ResultType string
 	Function   sql.Null[string]
 	Comment    sql.Null[string]
+	// Leakproof reports that the function behind the operator is leakproof.
+	// It is false for an operator with no function. See D201.
+	Leakproof bool
 }
 
 // Queries for routines and types.
@@ -517,6 +551,47 @@ type ForeignTable struct {
 	Comment sql.Null[string]
 }
 
+// ForeignOption is one option of a foreign data wrapper, a foreign server, a
+// user mapping or a foreign table. The Options field of each of them is the
+// catalog text, name=value joined by a comma and a space, which cannot be
+// split back when a value holds that text. This is the same fact in parts, one
+// row for each option, as D47 asks. See D201.
+//
+// Kind is foreign data wrapper, foreign server, user mapping or foreign table.
+// Name is the name of the object, and for a user mapping it is the name of the
+// local role, public for every role. Schema is set for a foreign table only.
+// Server is set for a user mapping and a foreign table. Ordinal is the
+// position of the option in the list the catalog holds. Quoted is the option
+// as psql prints it in the parentheses, such as "user" 'u', with the name
+// quoted when it needs it and the value always quoted.
+type ForeignOption struct {
+	Kind    string
+	Schema  sql.Null[string]
+	Name    sql.Null[string]
+	Server  sql.Null[string]
+	Ordinal int64
+	Option  string
+	Value   string
+	Quoted  string
+}
+
+// ColumnPrivilege is one entry of the access privileges of a column, which
+// psql prints under its name in the Column privileges of \dp. It is one row
+// for each entry, in the order the catalog holds them, so a column with two
+// grantees is two rows. Access is the entry as psql prints it, such as
+// pd_writer=w/postgres. Grantee is absent for public. Privileges are the
+// letters of the entry, such as arw*. See D201.
+type ColumnPrivilege struct {
+	Schema     string
+	Table      string
+	Column     string
+	Ordinal    int64
+	Access     string
+	Grantee    sql.Null[string]
+	Grantor    sql.Null[string]
+	Privileges string
+}
+
 // Queries for roles, privileges and foreign data.
 var (
 	// Roles lists the database roles.
@@ -537,6 +612,13 @@ var (
 	UserMappings = NewQuery[UserMapping]("user_mappings")
 	// ForeignTables lists the tables on a foreign server.
 	ForeignTables = NewQuery[ForeignTable]("foreign_tables")
+	// ForeignOptions lists the options of the foreign data wrappers, the
+	// foreign servers, the user mappings and the foreign tables, one row for
+	// each option. See D201.
+	ForeignOptions = NewQuery[ForeignOption]("foreign_options")
+	// ColumnPrivileges lists the access privileges of the columns, one row for
+	// each entry. See D201.
+	ColumnPrivileges = NewQuery[ColumnPrivilege]("column_privileges")
 )
 
 // Publication is a set of changes offered for replication. psql lists them
@@ -551,6 +633,10 @@ type Publication struct {
 	Truncate  bool
 	ViaRoot   bool
 	Comment   sql.Null[string]
+	// GeneratedColumns is none or stored, which says whether the publication
+	// sends generated columns. It is none below release 18, which cannot send them.
+	// See D201.
+	GeneratedColumns sql.Null[string]
 }
 
 // PublicationTable is one table a publication offers. psql shows them with
@@ -577,6 +663,31 @@ type Subscription struct {
 	Synchronous  sql.Null[string]
 	Slot         sql.Null[string]
 	Comment      sql.Null[string]
+	// The columns below are the ones psql's \dRs+ adds. Each is absent on a
+	// release that has no such property, because a subscription of that
+	// release did not choose. Binary arrives in release 14, DisableOnError,
+	// TwoPhase and SkipLSN in 15, Origin, PasswordRequired and RunAsOwner in
+	// 16, and Failover in 17. Streaming arrives in 14 as on or off and in 16
+	// as on, off or parallel. TwoPhase is disabled, pending or enabled. See
+	// D201.
+	Binary           sql.Null[bool]
+	Streaming        sql.Null[string]
+	TwoPhase         sql.Null[string]
+	DisableOnError   sql.Null[bool]
+	Origin           sql.Null[string]
+	PasswordRequired sql.Null[bool]
+	RunAsOwner       sql.Null[bool]
+	Failover         sql.Null[bool]
+	SkipLSN          sql.Null[string]
+}
+
+// SubscriptionConnection is the connection string of a subscription, which
+// psql's \dRs+ prints in Conninfo. It is a kind of its own because only a
+// superuser can read the column, and a statement that names it is refused for
+// every other role. Subscription is refused with it. See D201.
+type SubscriptionConnection struct {
+	Name     string
+	Conninfo string
 }
 
 // TextSearchParser splits text into tokens. psql lists them with \dFp.
@@ -592,6 +703,23 @@ type TextSearchDictionary struct {
 	Name     string
 	Template string
 	Options  sql.Null[string]
+	Comment  sql.Null[string]
+	// TemplateSchema is the schema of Template. psql's \dFd+ prints the two
+	// joined, such as pg_catalog.simple. See D201.
+	TemplateSchema sql.Null[string]
+}
+
+// TextSearchParserFunction is one of the five functions of a text search
+// parser, which psql's \dFp+ prints as Method and Function. Method is start,
+// token, end, headline or lextype, in the order psql prints them. Function is
+// the name as regproc writes it, and Comment the comment on the function. See
+// D201.
+type TextSearchParserFunction struct {
+	Schema   string
+	Parser   string
+	Method   string
+	Ordinal  int64
+	Function string
 	Comment  sql.Null[string]
 }
 
@@ -641,6 +769,12 @@ type OperatorClass struct {
 	// StorageType is the type the index stores, where it differs from the
 	// input type, as psql's \dAc+ prints it. See D147.
 	StorageType sql.Null[string]
+	// Visible and FamilyVisible report that the class and its family are on
+	// the search path of the session, so that psql prints their names with no
+	// schema. FamilySchema is the schema of Family. See D201.
+	Visible       sql.Null[bool]
+	FamilyVisible sql.Null[bool]
+	FamilySchema  string
 }
 
 // OperatorFamily groups operator classes. psql lists them with \dAf.
@@ -652,6 +786,9 @@ type OperatorFamily struct {
 	// AppliesTo is the input types of the family's operator classes, joined
 	// by commas, as psql's \dAf prints them. See D147.
 	AppliesTo sql.Null[string]
+	// Visible reports that the family is on the search path of the session,
+	// so that psql prints its name with no schema. See D201.
+	Visible sql.Null[bool]
 }
 
 // OperatorFamilyOperator is one operator of a family. psql lists them with
@@ -662,6 +799,20 @@ type OperatorFamilyOperator struct {
 	Operator     string
 	Strategy     int64
 	Purpose      string
+	// LeftType and RightType are the registered types, which with Strategy
+	// name one operator of the family, and by which psql orders the rows.
+	LeftType  string
+	RightType string
+	// SortFamily is the operator family an ordering operator sorts by, and
+	// absent for a search operator. Leakproof reports that the function of the
+	// operator is leakproof. psql's \dAo+ prints both. See D201.
+	SortFamily sql.Null[string]
+	Leakproof  bool
+	// Visible reports that the family is on the search path of the session,
+	// so that psql prints its name with no schema. FamilySchema is the schema
+	// of Family. See D201.
+	Visible      sql.Null[bool]
+	FamilySchema string
 }
 
 // OperatorFamilyFunction is one support function of a family. psql lists them
@@ -673,6 +824,14 @@ type OperatorFamilyFunction struct {
 	RightType    string
 	Number       int64
 	Function     string
+	// FunctionName is the function with no argument types, as psql's \dAp
+	// prints it. Function is the form with them, which \dAp+ prints. See
+	// D201.
+	FunctionName string
+	// Visible reports that the family is on the search path of the session.
+	// FamilySchema is the schema of Family. See D201.
+	Visible      sql.Null[bool]
+	FamilySchema string
 }
 
 // Extension is an installed extension. psql lists them with \dx.
@@ -681,6 +840,10 @@ type Extension struct {
 	Version string
 	Schema  string
 	Comment sql.Null[string]
+	// DefaultVersion is the version the server installs by default, from the
+	// control file of the extension. It is absent when the files of the
+	// extension are not on the server. psql's \dx prints it. See D201.
+	DefaultVersion sql.Null[string]
 }
 
 // ExtensionObject is one object an extension owns. psql lists them with \dx+.
@@ -711,6 +874,9 @@ type ExtendedStat struct {
 	// StatsTarget is the statistics target of the object, and absent for the
 	// default. PostgreSQL has it from release 13. See D199.
 	StatsTarget sql.Null[int64]
+	// TableVisible reports that the table is on the search path of the
+	// session, so that psql prints its name with no schema. See D201.
+	TableVisible sql.Null[bool]
 }
 
 // Comment is a comment on any object. psql shows them with \dd.
@@ -729,8 +895,14 @@ var (
 	PublicationTables = NewQuery[PublicationTable]("publication_tables")
 	// Subscriptions lists the subscriptions to a publication.
 	Subscriptions = NewQuery[Subscription]("subscriptions")
+	// SubscriptionConnections lists the connection string of each
+	// subscription. Only a superuser can read it. See D201.
+	SubscriptionConnections = NewQuery[SubscriptionConnection]("subscription_connections")
 	// TextSearchParsers lists the parsers that split text into tokens.
 	TextSearchParsers = NewQuery[TextSearchParser]("text_search_parsers")
+	// TextSearchParserFunctions lists the five functions of each text search
+	// parser. See D201.
+	TextSearchParserFunctions = NewQuery[TextSearchParserFunction]("text_search_parser_functions")
 	// TextSearchDictionaries lists the dictionaries that normalize tokens.
 	TextSearchDictionaries = NewQuery[TextSearchDictionary]("text_search_dictionaries")
 	// TextSearchTemplates lists the code behind the dictionaries.
@@ -818,6 +990,9 @@ type Sequence struct {
 	Cycles    sql.Null[bool]
 	OwnedBy   string
 	Comment   sql.Null[string]
+	// CacheSize is the number of values a session takes at once. It is absent
+	// below release 10, as the bounds are. See D201.
+	CacheSize sql.Null[int64]
 }
 
 // PartitionedTable is a table split into partitions. psql lists them with \dP.
@@ -841,6 +1016,11 @@ type PartitionedTable struct {
 	// no pg_partition_tree. See D199.
 	DirectSize sql.Null[int64]
 	TotalSize  sql.Null[int64]
+	// ParentVisible and TableVisible report that the parent, and the table of
+	// a partitioned index, are on the search path of the session, so that
+	// psql prints their names with no schema. See D201.
+	ParentVisible sql.Null[bool]
+	TableVisible  sql.Null[bool]
 }
 
 // Queries for the detail of a table.
@@ -895,6 +1075,11 @@ type Partition struct {
 	// DetachPending reports a DETACH CONCURRENTLY that has not finished.
 	// Releases below 14 have none, and that is a real false.
 	DetachPending bool
+	// TableVisible and PartitionVisible report that the parent and the
+	// partition are on the search path of the session, so that psql prints
+	// their names with no schema. See D201.
+	TableVisible     sql.Null[bool]
+	PartitionVisible sql.Null[bool]
 }
 
 // Inherit is one parent of a table by inheritance. psql prints the parents in
@@ -915,6 +1100,11 @@ type Inherit struct {
 	// Partition reports that the child is a partition of the parent. Releases
 	// below 10 have no partitions, and that is a real false.
 	Partition bool
+	// Visible and ParentVisible report that the child and the parent are on
+	// the search path of the session, so that psql prints their names with no
+	// schema. See D201.
+	Visible       sql.Null[bool]
+	ParentVisible sql.Null[bool]
 }
 
 // Policy is a row level security policy. psql prints them in Policies of \d+

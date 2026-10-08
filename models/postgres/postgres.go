@@ -92,6 +92,7 @@ func registerSchemas() {
 			{{Query: `, n.nspname AS "name"`}},
 			{{Query: `, pg_catalog.pg_get_userbyid(n.nspowner) AS "owner"`}},
 			{{Query: `, pg_catalog.obj_description(n.oid, 'pg_namespace') AS "comment"`}},
+			{{Query: `, pg_catalog.array_to_string(n.nspacl, E'\n') AS "access"`}},
 			{{Query: `FROM pg_catalog.pg_namespace n`}},
 			{{Query: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@name = '' OR n.nspname LIKE @name)`}},
@@ -102,6 +103,7 @@ func registerSchemas() {
 			{Name: "name", Desc: "schema name"},
 			{Name: "owner", Desc: "role that owns the schema"},
 			{Name: "comment", Desc: "comment on the schema"},
+			{Name: "access", Desc: "access privileges, one per line, absent for the default"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -109,7 +111,7 @@ func registerSchemas() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var s dbmeta.Schema
-			err := rows.Scan(&s.Catalog, &s.Name, &s.Owner, &s.Comment)
+			err := rows.Scan(&s.Catalog, &s.Name, &s.Owner, &s.Comment, &s.Access)
 			return s, err
 		},
 	})

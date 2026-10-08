@@ -18,7 +18,7 @@
 // what that changed. Its tests run when dbrun resolves a connection string
 // for Redshift (D117).
 //
-// It answers 11 of the 61 questions.
+// It answers 11 of the 65 questions.
 package redshift
 
 import (

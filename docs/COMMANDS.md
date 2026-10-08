@@ -86,6 +86,10 @@ and the cost.
 | A composite type | `dbmeta.Tables` with `types=composite type`, and `dbmeta.Columns` | `Table`, `Column` |
 | Not-null constraints, from release 18 | `dbmeta.NotNulls` | `NotNull` |
 | the INCLUDE columns of an index | the field `Include` of `dbmeta.IndexColumns` | `IndexColumn` |
+| the index text of the footer, such as `btree (label COLLATE "C" text_pattern_ops)` | the field `Using` of `dbmeta.Indexes`. `Definition` is the whole statement | `Index` |
+| the constraint kind of an index, and the text of an exclusion constraint | the fields `ConstraintType`, `ConstraintDefinition` and `ConstraintPeriod` of `dbmeta.Indexes` | `Index` |
+| the Cache of a sequence | the field `CacheSize` of `dbmeta.Sequences` | `Sequence` |
+| the names that psql prints with no schema | the `Visible` fields of `Partition`, `Inherit`, `PartitionedTable`, `ExtendedStat` and `Index`. D201 lists them | |
 
 ## Routines and types
 
@@ -118,6 +122,14 @@ triggers and window functions. They are the same query narrowed by
 
 `\z` and `\dp` are the same command in `psql`.
 
+The two parts of `\dp` that `psql` prints as text are rows too. D201 holds the
+reasons.
+
+| Part of the output | Go value | Yields |
+| --- | --- | --- |
+| Column privileges, one line for each entry | `dbmeta.ColumnPrivileges` with `Args{Schema, Parent}` | `ColumnPrivilege` |
+| Policies, with the command, the roles and the expressions | `dbmeta.Policies` with `Args{Schema, Parent}` | `Policy` |
+
 ## Storage and the server
 
 | Command | Go value | Yields | usql today |
@@ -140,6 +152,10 @@ triggers and window functions. They are the same query narrowed by
 | `\des` | `dbmeta.ForeignServers` | `ForeignServer` | no |
 | `\deu` | `dbmeta.UserMappings` | `UserMapping` | no |
 | `\det` | `dbmeta.ForeignTables` | `ForeignTable` | no |
+| the options of `\dew+`, `\des+`, `\deu+` and `\det+`, and of a foreign table in `\d+` | `dbmeta.ForeignOptions` | `ForeignOption` | no |
+
+`ForeignOption.Quoted` is the option as psql prints it inside the parentheses.
+`Options` of each kind is the catalog text and keeps its meaning.
 
 ## Replication
 
@@ -148,6 +164,10 @@ triggers and window functions. They are the same query narrowed by
 | `\dRp` | `dbmeta.Publications` | `Publication` | no |
 | `\dRp+` | `dbmeta.PublicationTables` | `PublicationTable` | no |
 | `\dRs` | `dbmeta.Subscriptions` | `Subscription` | no |
+| `\dRs+`, the Conninfo column | `dbmeta.SubscriptionConnections` | `SubscriptionConnection` | no |
+
+The other columns of `\dRs+` are fields of `Subscription`. Only a superuser can
+read the connection string, so it is a kind of its own. D201 says why.
 
 ## Text search
 
@@ -156,6 +176,7 @@ triggers and window functions. They are the same query narrowed by
 | `\dF` | `dbmeta.TextSearchConfigs` | `TextSearchConfig` | no |
 | `\dF+` | `dbmeta.TextSearchConfigMaps` | `TextSearchConfigMap` | no |
 | `\dFp` | `dbmeta.TextSearchParsers` | `TextSearchParser` | no |
+| `\dFp+`, the Method and Function rows | `dbmeta.TextSearchParserFunctions` | `TextSearchParserFunction` | no |
 | `\dFd` | `dbmeta.TextSearchDictionaries` | `TextSearchDictionary` | no |
 | `\dFt` | `dbmeta.TextSearchTemplates` | `TextSearchTemplate` | no |
 

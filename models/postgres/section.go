@@ -48,6 +48,9 @@ func registerPartitions() {
 				{Min: v10, Query: `, false AS "detach_pending"`},
 				{Min: v14, Query: `, h.inhdetachpending AS "detach_pending"`},
 			},
+			// whether psql prints the names with no schema. See D201.
+			{{Min: v10, Query: `, pg_catalog.pg_table_is_visible(p.oid) AS "table_visible"`}},
+			{{Min: v10, Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "partition_visible"`}},
 			{{Min: v10, Query: `FROM pg_catalog.pg_inherits h`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_class c ON c.oid = h.inhrelid`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_namespace cn ON cn.oid = c.relnamespace`}},
@@ -72,6 +75,8 @@ func registerPartitions() {
 			{Name: "constraint", Desc: "the implicit constraint the bound makes", Min: v10},
 			{Name: "partitioned", Desc: "whether the partition has partitions of its own", Min: v10},
 			{Name: "detach_pending", Desc: "whether a DETACH CONCURRENTLY did not finish. Always false below release 14", Min: v10},
+			{Name: "table_visible", Desc: "the parent is on the search path of the session", Min: v10},
+			{Name: "partition_visible", Desc: "the partition is on the search path of the session", Min: v10},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern of the partitioned table, empty for every schema", Default: ""},
@@ -83,7 +88,8 @@ func registerPartitions() {
 		Scan: func(rows *sql.Rows) (dbmeta.Partition, error) {
 			var v dbmeta.Partition
 			err := rows.Scan(&v.Schema, &v.Table, &v.PartitionSchema, &v.Partition, &v.Type,
-				&v.Bound, &v.Constraint, &v.Partitioned, &v.DetachPending)
+				&v.Bound, &v.Constraint, &v.Partitioned, &v.DetachPending,
+				&v.TableVisible, &v.PartitionVisible)
 			return v, err
 		},
 	})
@@ -110,6 +116,9 @@ func registerInherits() {
 				{Query: `, false AS "partition"`},
 				{Min: v10, Query: `, c.relispartition AS "partition"`},
 			},
+			// whether psql prints the names with no schema. See D201.
+			{{Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
+			{{Query: `, pg_catalog.pg_table_is_visible(p.oid) AS "parent_visible"`}},
 			{{Query: `FROM pg_catalog.pg_inherits h`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = h.inhrelid`}},
 			{{Query: `JOIN pg_catalog.pg_namespace cn ON cn.oid = c.relnamespace`}},
@@ -131,6 +140,8 @@ func registerInherits() {
 			{Name: "parent", Desc: "the table the child inherits from"},
 			{Name: "ordinal", Desc: "position of the parent among the parents of the child"},
 			{Name: "partition", Desc: "whether the child is a partition of the parent. Always false below release 10"},
+			{Name: "visible", Desc: "the child is on the search path of the session"},
+			{Name: "parent_visible", Desc: "the parent is on the search path of the session"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern of the child, empty for every schema", Default: ""},
@@ -142,7 +153,7 @@ func registerInherits() {
 		Scan: func(rows *sql.Rows) (dbmeta.Inherit, error) {
 			var v dbmeta.Inherit
 			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.ParentSchema, &v.Parent,
-				&v.Ordinal, &v.Partition)
+				&v.Ordinal, &v.Partition, &v.Visible, &v.ParentVisible)
 			return v, err
 		},
 	})

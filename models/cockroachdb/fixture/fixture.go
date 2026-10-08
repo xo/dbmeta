@@ -91,6 +91,27 @@ var left = map[string]string{
 	"foreign table":                "not measured on CockroachDB",
 	"named not null":               "not measured on CockroachDB",
 	"not null with no inherit":     "not measured on CockroachDB",
+	// These steps were added for the third group of describe data. They have
+	// not been run on CockroachDB. See D201.
+	"required domain":                  "not measured on CockroachDB",
+	"schema usage grant":               "not measured on CockroachDB",
+	"tagged table":                     "not measured on CockroachDB",
+	"tagged jsonb path index":          "not measured on CockroachDB",
+	"tagged jsonb index":               "not measured on CockroachDB",
+	"tagged collated index":            "not measured on CockroachDB",
+	"tagged unique constraint":         "not measured on CockroachDB",
+	"column privilege for a role":      "not measured on CockroachDB",
+	"column privilege for public":      "not measured on CockroachDB",
+	"foreign data wrapper options":     "not measured on CockroachDB",
+	"foreign server options":           "not measured on CockroachDB",
+	"foreign table options":            "not measured on CockroachDB",
+	"user mapping":                     "not measured on CockroachDB",
+	"publication of generated columns": "not measured on CockroachDB",
+	"subscription":                     "not measured on CockroachDB",
+	"subscription without a slot":      "not measured on CockroachDB",
+	"subscription binary":              "not measured on CockroachDB",
+	"subscription disable on error":    "not measured on CockroachDB",
+	"subscription origin":              "not measured on CockroachDB",
 }
 
 // since gates a PostgreSQL step on a CockroachDB release, so that an older

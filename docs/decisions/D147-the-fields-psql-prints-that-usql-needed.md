@@ -1,6 +1,6 @@
 # D147. The fields psql prints that usql needed
 
-Status: Decided.
+Status: Decided, amended by D201.
 
 ## The decision
 

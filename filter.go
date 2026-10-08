@@ -15,6 +15,12 @@ type Args struct {
 	Parent string
 	// Name is the name pattern the object itself must match.
 	Name string
+	// ParentSchema is the name pattern of the schema of the parent, for a
+	// kind whose rows name a parent of their own, such as the parents that
+	// Inherits reads. Partition and PartitionSchema are the same for the
+	// partition that Partitions reads. See D201.
+	ParentSchema    string
+	PartitionSchema string
 	// Types narrows a table to the kinds named, by Table.Type, such as table
 	// and view. Only Tables takes it, and every model's Tables does. It is
 	// bound as one string with the items joined by commas. See D138.
@@ -30,19 +36,25 @@ type Args struct {
 	Database string
 	// WithSystem includes the objects the database keeps for itself.
 	WithSystem bool
+	// WithImplicit adds the tables that a publication of a schema or of
+	// every table offers without naming them, which PublicationTables reads.
+	// See D199 and D201.
+	WithImplicit bool
 }
 
 // Map returns the arguments as a map, leaving out every field that is unset.
 func (a Args) Map() map[string]any {
-	m := make(map[string]any, 9)
+	m := make(map[string]any, 12)
 	for name, v := range map[string]string{
-		"catalog":       a.Catalog,
-		"schema":        a.Schema,
-		"parent":        a.Parent,
-		"name":          a.Name,
-		"access_method": a.AccessMethod,
-		"server":        a.Server,
-		"database":      a.Database,
+		"catalog":          a.Catalog,
+		"schema":           a.Schema,
+		"parent":           a.Parent,
+		"name":             a.Name,
+		"parent_schema":    a.ParentSchema,
+		"partition_schema": a.PartitionSchema,
+		"access_method":    a.AccessMethod,
+		"server":           a.Server,
+		"database":         a.Database,
 	} {
 		if v != "" {
 			m[name] = v
@@ -53,6 +65,9 @@ func (a Args) Map() map[string]any {
 	}
 	if a.WithSystem {
 		m["with_system"] = true
+	}
+	if a.WithImplicit {
+		m["with_implicit"] = true
 	}
 	return m
 }

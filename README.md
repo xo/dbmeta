@@ -163,7 +163,7 @@ call and filter in the loop.
 
 | Database   | Model              | Queries | Status      |
 | ---------- | ------------------ | ------- | ----------- |
-| PostgreSQL | native             | 61      | Complete    |
+| PostgreSQL | native             | 65      | Complete    |
 | any with an information_schema | shared | 12 | Ready to build on |
 | MariaDB    | native             | 29      | Complete    |
 | MySQL      | native             | 26      | Complete    |
@@ -233,7 +233,7 @@ indexes, and the native model here answers 32 kinds instead, including the
 sequences and constraints that reader turns off.
 
 [`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
-and which analogues were found and rejected. MariaDB answers 29 of the 61 and
+and which analogues were found and rejected. MariaDB answers 29 of the 65 and
 MySQL answers 26, because a native model beats the shared one by seventeen.
 
 MariaDB and MySQL share one model. A query written for one of them gates on the
@@ -351,7 +351,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 200 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 71 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 201 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 72 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
