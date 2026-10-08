@@ -7,12 +7,16 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has six releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0 on
+dbmeta has seven releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0 on
 39b74b2 on 2026-10-07, v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928 on
-2026-10-08, v0.5.0 on 8f3115b on 2026-10-08, and v0.6.0 on 90d0261 on
-2026-10-08. The Tested tier passed in CI on each tagged commit. Ken chose that
+2026-10-08, v0.5.0 on 8f3115b on 2026-10-08, and v0.6.0 on 90d0261 and v0.7.0 on abe2ca1,
+both on 2026-10-08. The Tested tier passed in CI on each tagged commit. Ken chose that
 CI stands in for a run of every tier, and the Verified tier was not run again
 for any of them.
+
+v0.7.0 holds the Cassandra rename (D196), the URL dsn and the ordinary user of
+the Cassandra and ScyllaDB entries (D195), and the release read for every user
+(D191, D192).
 
 v0.6.0 holds the GizmoSQL (D187) and Avatica (D186) dialects, the first run of
 Snowflake against a trial account (D190), the OpenSearch 2.19.6 columns (D189),
@@ -102,9 +106,18 @@ In progress:
 - Every database that usql supports has a dialect, except H2, VoltDB, chai,
   csvq, Pinot, DynamoDB and Phoenix, and the hosted services without a model
   (D184, D185, D186, D188).
-- A daily check of the nightly workflow runs at 18:07 local time in this
-  session, and expires after 7 days, on 2026-10-14. It watches the InfluxDB 1
-  fix.
+- The describe commands of usql are being brought up to psql 18 (usql asked on
+  2026-10-08). Group A is done and pushed in b192284 (D197): four fields are
+  `sql.Null` now (`IndexColumn.Descending`, `DefaultACL.Schema`,
+  `RoleSetting.Database` and `RoleSetting.Role`). It is not tagged. Group B is
+  next: Table `Owner`, `Persistence`, `AccessMethod`, `Size` and `Rows`, Index
+  `Owner`, `Persistence`, `Size` and the `WHERE` predicate, Column `Storage`,
+  `Compression` and `StatsTarget`, Function `Leakproof` and `Prosrc`, with the
+  D47 cost check for `Size`. The sections follow, then the value differences.
+  The full list is in usql's message of 2026-10-08.
+- Planned for the Cassandra model: `Binding.Keep`, a filter that the library
+  applies after Scan, so that the schema, name and system filters work for a
+  model that cannot filter in SQL. usql was told and has not objected.
 
 ## Waiting
 
