@@ -7,16 +7,16 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has nine releases and a tenth in preparation. v0.1.0 was tagged on
+dbmeta has ten releases. v0.1.0 was tagged on
 dd70b7a on 2026-10-02, v0.2.0 on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07,
 v0.4.0 on 9388928, v0.5.0 on 8f3115b, v0.6.0 on 90d0261 and v0.7.0 on abe2ca1
-on 2026-10-08, and v0.8.0 on cf48e36 and v0.9.0 on 609c60b on 2026-10-09. The
+on 2026-10-08, and v0.8.0 on cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. The
 Tested tier passed in CI on each tagged commit. Ken chose that CI stands in for
 a run of every tier, and the Verified tier was not run again for any of them.
 
 v0.10.0 holds the Snowflake dialect finished (D203), the Redshift dialect
 finished (D204), `ListHas` and `LikeFold` in the root package and the Cassandra
-filter that ignores case (D202). It is tagged after CI passes on its commit.
+filter that ignores case (D202).
 
 v0.9.0 holds the sections of `\d+` (D199), `Binding.Keep` for the Cassandra
 filters (D200) and the third group of data for usql's describe commands (D201).
