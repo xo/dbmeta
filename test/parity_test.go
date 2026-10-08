@@ -38,6 +38,7 @@ import (
 	rsfixture "github.com/xo/dbmeta/models/redshift/fixture"
 	rqfixture "github.com/xo/dbmeta/models/rqlite/fixture"
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
+	sffixture "github.com/xo/dbmeta/models/snowflake/fixture"
 	slfixture "github.com/xo/dbmeta/models/solr/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
@@ -636,6 +637,23 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
+			// Snowflake has no containment. A user belongs to the account
+			// and holds roles, and a role holds the grants. A role that
+			// holds USAGE on the schema and SELECT on one table, a role that
+			// can use the database and nothing in it, and a role with no
+			// grant at all, stand for the lesser principals (D193).
+			dialect: dbmeta.Snowflake, driver: "snowflake", env: "DBMETA_SNOWFLAKE",
+			open: openSnowflake, build: setupSnowflake, schema: sffixture.Everything.Schema,
+			scenes: []parityScene{{
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "grantee", make: makeSnowflakeGrantee},
+					{name: "visitor", make: makeSnowflakeVisitor},
+					{name: "stranger", make: makeSnowflakeStranger},
+				},
+			}},
+		},
+		{
 			dialect: dbmeta.Oracle, driver: "oracle", env: "DBMETA_ORACLE",
 			open: openOracle, build: setupOracle, schema: orfixture.Everything.Schema,
 			scenes: []parityScene{{
@@ -662,9 +680,6 @@ var parityExempt = map[dbmeta.Dialect]string{
 	dbmeta.GizmoSQL: "the core has one user, admin, and its engine is DuckDB, which has no" +
 		" user. The other roles need an identity provider or an enterprise license." +
 		" See D118 and D187",
-	dbmeta.Snowflake: "the role of the test account owns its own database and holds no CREATE" +
-		" USER or CREATE ROLE grant, so the test cannot make a second principal to compare." +
-		" Snowflake does have more than one kind of principal. See D190",
 	dbmeta.Impala: "the image configures no authentication, so every user is the same" +
 		" principal and nothing can be refused to one. See D146",
 	dbmeta.Vitess: "vttestserver starts vtcombo with no authentication and no table rules," +

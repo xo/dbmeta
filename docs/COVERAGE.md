@@ -51,7 +51,7 @@ rather than reading one.
 | `models/vitess` | 20 | 56 | Vitess 23.0.7 and 24.0.4, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
 | `models/databend` | 20 | 56 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 56 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
-| `models/snowflake` | 13 | 56 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08. Written before an account existed (D144) and corrected by D190. Parity is not measured |
+| `models/snowflake` | 13 | 56 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193 |
 | `models/redshift` | 11 | 56 | measured on Redshift Serverless 1.0.434008 on 2026-10-08. Written before a cluster existed (D144) and corrected by D182 |
 | `models/impala` | 11 | 56 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
 | `models/neo4j` | 17 | 56 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
@@ -2065,8 +2065,8 @@ scene and says so instead of failing.
 
 Every dialect has a target or a recorded reason for having none, and
 `TestEveryDialectIsMeasuredForParity` fails when one has neither. SQLite and
-DuckDB have no user. Snowflake has principals, but the role of the test
-account cannot make a second one (D190). Impala and
+DuckDB have no user. Snowflake has a grantee, a visitor and a stranger, which
+are roles of users that the test makes (D193). Impala and
 Vitess run with no authentication, so every user is the same principal.
 InfluxDB 3 Core has one kind of token, the administrator's (D152).
 `parityExempt` in `test/parity_test.go` holds each reason.
@@ -3404,18 +3404,28 @@ DBMETA_ROLE, which owns the database DBMETA and uses the warehouse DBMETA_WH.
 - A procedure shows its argument signature as `(A NUMBER, B NUMBER)` and a
   result type of `NUMBER(38,0)`, where a function with a VARCHAR result shows
   `VARCHAR(134217728)`.
-- The role cannot make a user or a role, because it holds no CREATE USER or
-  CREATE ROLE on the account. It can make a database role in DBMETA, and a
-  database role is not a login. So parity is not measured, and the reason is
-  in `parityExempt`. If Ken grants a role that can make users, the target is
-  an owner, a grantee and a stranger, the way Redshift's is.
+- Ken granted CREATE USER and CREATE ROLE to DBMETA_ROLE, and D193 measured
+  parity with three principals. INFORMATION_SCHEMA shows a role only what the
+  role holds a grant on. A grantee with one table reads fewer rows of tables,
+  columns, constraints, views, functions, sequences and privileges. A role
+  with USAGE on the database and nothing in it also reads fewer schemas. A role
+  with no grant has no current database and every catalog statement is
+  refused. A made user runs on SYSTEM$STREAMLIT_NOTEBOOK_WH, because
+  DBMETA_ROLE cannot grant the warehouse of the account.
+- The conformance target records that no column reads as a primary key, that
+  an AUTOINCREMENT column has no default, and that a view column reads as not
+  nullable where its table column is. Snowflake is in `agreementExcluded`.
+- `ChangePassword` ran against a user that the test made. All seven hostile
+  passwords set and logged in, with a 13 character prefix because the account
+  refuses a short password. A user cannot change its own password with the
+  statement, because the server asks for MODIFY on the user.
+- Every constraint reads ENFORCED of NO and RELY of NO beside the deferred
+  flags above. APPLICABLE_ROLES still lists PUBLIC twice for the user, and
+  ENABLED_ROLES lists it once.
 - Not read and not answered: ACCOUNT_USAGE, the columns of a key, the
   referenced table of a foreign key, tags and masking policies, stages,
-  streams, tasks, pipes and dynamic tables. No conformance target exists.
-- `ChangePassword` was not run, because the only login is the account's own
-  key pair user and the statement would change its password.
-- Each test pass ran once, and the warehouse is XSMALL with a 60 second
-  auto suspend.
+  streams, tasks, pipes and dynamic tables.
+- The warehouse is XSMALL with a 60 second auto suspend.
 
 Redshift reads the pg_catalog tables that PostgreSQL 8.0 already had, from
 which Redshift was built, because the postgres model's statements need 9.6.

@@ -89,15 +89,15 @@ signs and spaces in a password. The identity flag `a` of `columns.identity` is
 a reading of the documentation and was not measured. A run reads about 36,000
 columns and costs trial credit, so keep each pass small.
 
-### Measure Snowflake parity
+### Finish what D193 left open for Snowflake
 
-`models/snowflake` ran against a trial account (D190). Parity is not measured,
-because the role of the test account holds no CREATE USER or CREATE ROLE grant
-and so cannot make a second principal. When Ken grants both to a role the
-tests use, add a parity target with an owner, a grantee and a stranger, as
-Redshift has (D182), and remove the Snowflake entry from `parityExempt`. The
-same run can measure `ChangePassword` on a user the test makes, and a
-conformance target.
+Parity, conformance and `ChangePassword` ran on 2026-10-08 (D193). Two
+questions are open and Ken decides them. The `primary_key` field of a column
+is the literal false, and `docs/NULLS.md` says an absent column is NULL. The
+constraints query returns no ENFORCED column, and every Snowflake key reads
+ENFORCED of NO. Not read at all: the columns of a key, the table that a
+foreign key points at, tags, masking policies, stages, streams, tasks, pipes
+and dynamic tables.
 
 ## Consumers
 

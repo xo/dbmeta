@@ -544,8 +544,7 @@ there is no session state to read. D87 has the rest.
 Every product whose driver in `usql` changes a password has a statement here.
 Netezza was the one other, and it is out of scope (D132). Each one is tested by setting every
 password in `hostilePasswords` on a real server and logging in with it (D127).
-Snowflake is an exception, because its only login is the account's own key pair user, and the statement changes its password (D190), and
-Redshift is the other, because its documentation allows no quote, backslash,
+Snowflake is tested on a user that the test makes, and not on the account's own login (D193). Redshift is an exception, because its documentation allows no quote, backslash,
 slash, at sign or space in a password and so the hostile passwords cannot be
 set. Its statement was not run (D182). Vitess has no statement, because vtgate refuses ALTER USER.
 

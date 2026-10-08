@@ -95,9 +95,10 @@ In progress:
   since dbimp v0.15.0 (D191). Ken chose to grant the ordinary user the right to
   read it, so every user gets the release (D192). The SurrealDB model reads it
   the same way.
-- Redshift (D182) and Snowflake (D190) ran against the provisioned services.
-  Redshift has three parity principals. Snowflake has none, because its role
-  cannot make a second login.
+- Redshift (D182) and Snowflake (D190, D193) ran against the provisioned
+  services. Redshift has three parity principals. Snowflake has three too,
+  made in the test from a role and a user with a generated key pair, and it has
+  a conformance target.
 - Every database that usql supports has a dialect, except H2, VoltDB, chai,
   csvq, Pinot, DynamoDB and Phoenix, and the hosted services without a model
   (D184, D185, D186, D188).

@@ -406,6 +406,47 @@ role_settings refused: running query: User dbmeta_grantee has no SELECT permissi
 roles refused: running query: User dbmeta_grantee has no SELECT permission on <table system.roles> or any of its parents
 settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system.config> or any of its parents
 
+[snowflake/same/grantee]
+columns fewer rows than the administrator
+constraints fewer rows than the administrator
+current_schema fewer rows than the administrator
+current_user the same rows with different values
+functions fewer rows than the administrator
+privileges fewer rows than the administrator
+role_grants the same rows with different values
+sequences fewer rows than the administrator
+tables fewer rows than the administrator
+views fewer rows than the administrator
+
+[snowflake/same/stranger]
+columns refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+comments refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+constraints refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+current_schema refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+current_user the same rows with different values
+databases refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+functions refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+privileges refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+role_grants refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+schemas refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+sequences refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+tables refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+views refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+
+[snowflake/same/visitor]
+columns fewer rows than the administrator
+comments fewer rows than the administrator
+constraints fewer rows than the administrator
+current_schema fewer rows than the administrator
+current_user the same rows with different values
+functions fewer rows than the administrator
+privileges fewer rows than the administrator
+role_grants the same rows with different values
+schemas fewer rows than the administrator
+sequences fewer rows than the administrator
+tables fewer rows than the administrator
+views fewer rows than the administrator
+
 [solr/same/user]
 
 [sqlserver/contained/contained]

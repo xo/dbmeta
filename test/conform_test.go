@@ -41,6 +41,7 @@ import (
 	qdfixture "github.com/xo/dbmeta/models/questdb/fixture"
 	rqfixture "github.com/xo/dbmeta/models/rqlite/fixture"
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
+	sffixture "github.com/xo/dbmeta/models/snowflake/fixture"
 	slfixture "github.com/xo/dbmeta/models/solr/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
@@ -279,6 +280,11 @@ func conformTargets() []conformTarget {
 			name: "vertica", dialect: dbmeta.Vertica,
 			open: openVertica, schema: vefixture.Everything.Schema,
 			build: setupVertica,
+		},
+		{
+			name: "snowflake", dialect: dbmeta.Snowflake,
+			open: openSnowflake, schema: sffixture.Everything.Schema,
+			build: setupSnowflake,
 		},
 		{
 			name: "ydb", dialect: dbmeta.YDB,
@@ -720,6 +726,13 @@ var agreementExcluded = map[string]string{
 		" nested field as columns, and the driver cannot read DESCRIBE on 2.19.6 so the" +
 		" columns are those of 3.9.0. The section holds the four indices and their fields" +
 		" alone (D181)",
+	"snowflake": "no key column: information_schema has no KEY_COLUMN_USAGE and SHOW PRIMARY" +
+		" KEYS is not a SELECT, so no column reads a primary key and there are no" +
+		" constraint lines. An IDENTITY column has no default in the catalog, so" +
+		" author_id reads no default, and the fixture's other keys are plain columns." +
+		" A view column reads as not nullable where it comes from a NOT NULL table" +
+		" column, so the view recent reads not nullable where PostgreSQL reads" +
+		" nullable (D193)",
 	"solr": "not relational: a collection has no key, no constraint and no view in SQL, every" +
 		" column reads nullable and none reads a primary key, and every collection has the" +
 		" columns _version_, _root_, _text_, _nest_path_, _query_, score and id, so the" +
