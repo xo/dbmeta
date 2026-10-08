@@ -1,6 +1,6 @@
 # D179. Solr maps a collection to a table under a fixed schema
 
-Status: Decided.
+Status: Decided, amended by D191.
 
 ## The decision
 

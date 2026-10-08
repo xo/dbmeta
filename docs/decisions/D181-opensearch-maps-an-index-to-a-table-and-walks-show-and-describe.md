@@ -1,6 +1,6 @@
 # D181. OpenSearch maps an index to a table and walks SHOW and DESCRIBE
 
-Status: Decided, amended by D189.
+Status: Decided, amended by D189 and D191.
 
 ## The decision
 
@@ -139,8 +139,8 @@ model read the release over HTTP as the administrator. A model has only a
 `Queryer`, so the model follows Elasticsearch (D177): `Dialect.Version` reports
 an unknown version, and `Dialect.ParseVersion` reads the `version.number` that a
 caller got from `GET /`, and gives the line `OpenSearch 3.9.0`. The tests read
-it as the administrator, and `TestOpenSearchVersionRefusedToAnOrdinaryUser`
-asserts the refusal.
+it as the administrator, and `TestOpenSearchVersionForAnOrdinaryUser`
+asserts the refusal (D191).
 
 ## The kinds that are not answered
 

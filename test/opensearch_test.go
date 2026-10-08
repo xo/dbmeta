@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -81,32 +80,6 @@ func osCall(ctx context.Context, dsn string, r osfixture.Request) (int, []byte, 
 	return res.StatusCode, body, nil
 }
 
-// osRelease reads version.number from GET /, which only the administrator can
-// read, and parses it as a caller does. No SQL statement names the release
-// (D181).
-func osRelease(ctx context.Context, dsn string) (dbmeta.VersionSet, error) {
-	status, body, err := osCall(ctx, dsn, osfixture.Request{Method: http.MethodGet, Path: "/"})
-	if err != nil {
-		return dbmeta.VersionSet{}, err
-	}
-	if status != http.StatusOK {
-		return dbmeta.VersionSet{}, fmt.Errorf("GET / answered %d: %s", status, body)
-	}
-	var r struct {
-		Version struct {
-			Number string `json:"number"`
-		} `json:"version"`
-	}
-	if err := json.Unmarshal(body, &r); err != nil {
-		return dbmeta.VersionSet{}, fmt.Errorf("reading the release from %s: %w", body, err)
-	}
-	versions, err := dbmeta.OpenSearch.ParseVersion([]string{r.Version.Number})
-	if err != nil {
-		return dbmeta.VersionSet{}, fmt.Errorf("parsing the release %q: %w", r.Version.Number, err)
-	}
-	return versions, nil
-}
-
 // osRun sends the steps in order, and returns the first refusal. A step that
 // the server refuses with a status of 400 or above is an error, unless ignore
 // is true.
@@ -126,13 +99,13 @@ func osRun(ctx context.Context, dsn string, steps []osfixture.Step, ignore bool)
 // setupOpenSearch builds the fixture as the administrator and returns the
 // metadata for the server. It removes what an earlier run left, and removes
 // what it made when the test ends.
-func setupOpenSearch(t *testing.T, _ *sql.DB) *dbmeta.Meta {
+func setupOpenSearch(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	t.Helper()
 	ctx := t.Context()
 	dsn := os.Getenv("DBMETA_OPENSEARCH")
-	versions, err := osRelease(ctx, dsn)
+	versions, err := dbmeta.OpenSearch.Version(ctx, db)
 	if err != nil {
-		t.Fatalf("reading the release: %v", err)
+		t.Fatalf("reading the version: %v", err)
 	}
 	fx := osfixture.Everything
 	if err := osRun(ctx, dsn, fx.Teardown, true); err != nil {
@@ -153,47 +126,53 @@ func setupOpenSearch(t *testing.T, _ *sql.DB) *dbmeta.Meta {
 	return m
 }
 
-// TestOpenSearchVersion checks that no SQL statement reads the version, and
-// that the release of GET / parses.
+// TestOpenSearchVersion checks that SELECT version() gives the release to the
+// administrator and that the model parses it.
 func TestOpenSearchVersion(t *testing.T) {
 	db := openOpenSearch(t)
 	versions, err := dbmeta.OpenSearch.Version(t.Context(), db)
 	if err != nil {
 		t.Fatalf("reading the version: %v", err)
 	}
-	if !versions.Main().Unknown {
-		t.Errorf("expected an unknown version, because no SQL statement names it, got %s", versions)
+	if main := versions.Main(); main.Unknown || main.Parts[0] < 2 || !strings.HasPrefix(versions.String(), "OpenSearch ") {
+		t.Errorf("expected OpenSearch 2 or newer, got %s", versions)
 	}
-	release, err := osRelease(t.Context(), os.Getenv("DBMETA_OPENSEARCH"))
-	if err != nil {
-		t.Fatalf("reading the release: %v", err)
-	}
-	if main := release.Main(); main.Unknown || main.Parts[0] < 2 || !strings.HasPrefix(release.String(), "OpenSearch ") {
-		t.Errorf("expected OpenSearch 2 or newer, got %s", release)
-	}
-	t.Logf("server reports %s", release)
+	t.Logf("server reports %s", versions)
 }
 
-// TestOpenSearchVersionRefusedToAnOrdinaryUser checks that the user of the
-// entry cannot read the release. GET / needs the cluster privilege
-// cluster:monitor/main, which the role of the user does not hold, and the
-// server answers HTTP 403.
-func TestOpenSearchVersionRefusedToAnOrdinaryUser(t *testing.T) {
+// TestOpenSearchVersionForAnOrdinaryUser checks what the user of the entry
+// gets. On 2.x, GET / needs the cluster privilege cluster:monitor/main, which
+// the role of the user does not hold. The server answers HTTP 403 with a
+// security_exception, which the caller gets as the error and not as an unknown
+// version. On 3.x the driver reads the release from the header
+// X-OpenSearch-Version, which every user gets. D191 records that no other way
+// to read the release on 2.x is in the model.
+func TestOpenSearchVersionForAnOrdinaryUser(t *testing.T) {
 	dsn := os.Getenv("DBMETA_OPENSEARCH")
 	if dsn == "" {
 		t.Skip("set DBMETA_OPENSEARCH to run against a real server")
+	}
+	admin, err := dbmeta.OpenSearch.Version(t.Context(), openOpenSearch(t))
+	if err != nil {
+		t.Fatalf("reading the version as the administrator: %v", err)
 	}
 	u, err := url.Parse(dsn)
 	if err != nil {
 		t.Fatalf("parsing %s: %v", dsn, err)
 	}
 	u.User = url.UserPassword(container.OpenSearchUser, container.Password)
-	status, body, err := osCall(t.Context(), u.String(), osfixture.Request{Method: http.MethodGet, Path: "/"})
-	if err != nil {
-		t.Fatalf("asking: %v", err)
+	got, err := dbmeta.OpenSearch.Version(t.Context(), openOpenSearchAs(t, u.String()))
+	if admin.Main().Parts[0] < 3 {
+		if err == nil || !strings.Contains(err.Error(), "security_exception") {
+			t.Errorf("expected the ordinary user to be refused with a security_exception on %s, got %v", admin, err)
+		}
+		return
 	}
-	if status != http.StatusForbidden || !strings.Contains(string(body), "security_exception") {
-		t.Errorf("expected HTTP 403 and a security_exception, got %d: %s", status, body)
+	if err != nil {
+		t.Fatalf("reading the version as the ordinary user on %s: %v", admin, err)
+	}
+	if got.String() != admin.String() {
+		t.Errorf("expected the ordinary user to read %s, got %s", admin, got)
 	}
 }
 

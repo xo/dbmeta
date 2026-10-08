@@ -1,6 +1,6 @@
 # D183. Aliases are tables where SQL cannot tell them, and dbimp supplies the version
 
-Status: Amends D176.
+Status: Amends D176, amended by D191.
 
 ## The decision
 

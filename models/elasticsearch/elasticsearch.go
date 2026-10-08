@@ -57,11 +57,12 @@
 //
 // # The version
 //
-// No SQL statement names the release. Only GET / does, as the administrator,
-// and the ordinary user is refused with HTTP 403. So [dbmeta.Dialect.Version]
-// reports an unknown version, and a caller that reads version.number from
-// GET / passes it to [dbmeta.Dialect.ParseVersion]. No query here depends on
-// the release. See D177.
+// The version query is SELECT version(). The server has no such SQL function.
+// The driver of dbimp answers the statement from GET /, which holds
+// version.number, so it works for the administrator only. The ordinary user is
+// refused with HTTP 403, and [dbmeta.Dialect.Version] returns that error and
+// not an unknown version. No query here depends on the release. See D177, D183
+// and D191.
 package elasticsearch
 
 import (
@@ -80,15 +81,20 @@ func init() {
 		Terminator:  dbmeta.TerminatorStripped,
 		Fold:        dbmeta.FoldNone,
 		Placeholder: func(int) string { return "?" },
-		// The SQL has no statement for the release. See the package comment.
-		ParseVersion: parseVersion,
+		// The driver of dbimp answers this statement. See the package comment.
+		VersionQuery:   versionQuery,
+		VersionColumns: 1,
+		ParseVersion:   parseVersion,
 	})
 	registerRelations()
 	registerRoutines()
 }
 
-// parseVersion reads the release that GET / reports in version.number, such
-// as 9.5.3.
+// versionQuery reads the release, such as 9.5.3. The SQL of the server has no
+// statement for it, and the driver of dbimp answers this one from GET /.
+const versionQuery = `SELECT version()`
+
+// parseVersion reads the one column that versionQuery returns, such as 9.5.3.
 func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	if len(cols) < 1 {
 		return dbmeta.VersionSet{}, dbmeta.ErrInvalidVersion

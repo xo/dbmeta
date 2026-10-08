@@ -64,9 +64,9 @@ rather than reading one.
 | `models/arangodb` | 7 | 56 | ArangoDB 3.12.12, in AQL through dbimp's driver. A database is the schema, a collection is a table, and its JSON schema rule gives its columns (D163, D168) |
 | `models/druid` | 7 | 56 | Apache Druid 37.0.0 and 38.0.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. The version and the settings need an administrator (D171) |
 | `models/drill` | 10 | 56 | Apache Drill 1.21.2 and 1.22.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. A file table is listed only when the Metastore is on (D178) |
-| `models/elasticsearch` | 8 | 56 | Elasticsearch 8.19.22, 9.4.6 and 9.5.3, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from GET / and needs an administrator (D177) |
-| `models/opensearch` | 3 | 56 | OpenSearch 3.9.0 and 2.19.6, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from GET / and needs an administrator (D181, D189) |
-| `models/solr` | 4 | 56 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release is read over HTTP by an administrator (D179) |
+| `models/elasticsearch` | 8 | 56 | Elasticsearch 8.19.22, 9.4.6 and 9.5.3, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from `SELECT version()`, which needs an administrator (D177, D191) |
+| `models/opensearch` | 3 | 56 | OpenSearch 3.9.0 and 2.19.6, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which needs an administrator on 2.19.6 (D181, D189, D191) |
+| `models/solr` | 4 | 56 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which needs an administrator (D179, D191) |
 | `models/gizmosql` | 20 | 56 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
 | `models/avatica` | 24 | 56 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
 | `models/informationschema` | 12 | 56 | any database with a standard `information_schema` |
@@ -4758,9 +4758,10 @@ SHOW FUNCTIONS gives, SCALAR, CONDITIONAL, GROUPING or SCORE, has no field to go
 in, so every function that is not an aggregate reads func. SYS TYPES lists 38
 types. Elasticsearch gives no return type and no argument type of a function.
 
-The version is not a SQL statement. `GET /` reports it as `version.number` to
-the administrator, and `Dialect.Version` reports an unknown version. A caller
-passes the release to `Dialect.ParseVersion`.
+The version query is `SELECT version()`. The SQL of the server has no such
+function, and dbimp's driver answers it from `GET /`, which holds
+`version.number`. It works for the administrator. The ordinary user gets the
+HTTP 403 of the product as the error (D191).
 
 ### What it cannot answer, and why
 
@@ -4822,8 +4823,9 @@ and views return fewer rows. No query is refused to either principal. The
 current user differs, as it does everywhere.
 
 `GET /` needs the cluster privilege `monitor`, and the role of the ordinary user
-has none, so the release is refused with HTTP 403 and `security_exception`.
-`TestElasticsearchVersionRefusedToAnOrdinaryUser` asserts it. The sections
+has none, so `SELECT version()` is refused with HTTP 403 and
+`security_exception`. `TestElasticsearchVersionRefusedToAnOrdinaryUser`
+asserts it. The sections
 `elasticsearch/same/user` and `elasticsearch/same/reader` hold the rest.
 
 8.19.22, 9.4.6 and 9.5.3 answer the same for all eight kinds and for both
@@ -4869,10 +4871,10 @@ ANY, and the type of the field in the schema is not there. The ordinal is the
 position that COLUMNS gives: the fixed fields first, then the fields of the
 collection by name, then `_query_` and `score`.
 
-The version has no statement. `GET /solr/admin/info/system` holds it as
-`lucene.solr-spec-version`, and only an administrator can read it. So
-`Dialect.Version` reports an unknown version, and a caller that reads the
-release over HTTP passes it to `Dialect.ParseVersion`.
+The version query is `SELECT version()`. The SQL of Solr has no such function,
+and dbimp's driver answers it from `GET /solr/admin/info/system`, which holds
+`lucene.solr-spec-version`. Only an administrator can read it, and the ordinary
+user gets the HTTP 403 of the product as the error (D191).
 
 ### What it cannot answer, and why
 
@@ -4982,9 +4984,10 @@ An alias is a table on 2.19.6, because SHOW TABLES lists it as BASE TABLE, the
 same as an index. 3.9.0 does not list an alias. So Views is not answered on
 either release.
 
-The version is not a SQL statement. `GET /` reports it as `version.number` to the
-administrator, and `Dialect.Version` reports an unknown version. A caller passes
-the release to `Dialect.ParseVersion`.
+The version query is `SELECT version()`. The SQL of the server fails that
+statement, and dbimp's driver answers it from `GET /`, which holds
+`version.number`. On 2.19.6 only the administrator can read it. On 3.9.0 every
+user can, from the header `X-OpenSearch-Version` (D191).
 
 ### Columns on 2.19.6
 
@@ -5054,10 +5057,11 @@ column. The sections `opensearch/same/user`, `opensearch/same/reader` and
 differences on 2.19.6.
 
 `GET /` needs the cluster permission `cluster:monitor/main`, and the role of the
-ordinary user has none, so the release is refused with HTTP 403 and
-`security_exception`. `TestOpenSearchVersionRefusedToAnOrdinaryUser` asserts it.
-3.9.0 sends the header `X-OpenSearch-Version` with every answer, and 2.19.6
-sends none.
+ordinary user has none. So on 2.19.6 `SELECT version()` is refused to the
+ordinary user with HTTP 403 and `security_exception`. 3.9.0 sends the header
+`X-OpenSearch-Version` with every answer, and 2.19.6 sends none, so on 3.9.0 the
+ordinary user reads the release. `TestOpenSearchVersionForAnOrdinaryUser`
+asserts both.
 
 ### How the two releases differ
 

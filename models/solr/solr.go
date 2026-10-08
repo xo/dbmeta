@@ -51,11 +51,12 @@
 //
 // # The version
 //
-// No SQL statement returns the release. GET /solr/admin/info/system holds it as
-// lucene.solr-spec-version, and only an administrator can read it. So the model
-// has no version statement, and [dbmeta.Dialect.Version] reports an unknown
-// version. A caller that reads the release over HTTP passes it to
-// [dbmeta.Dialect.ParseVersion]. See D179.
+// The version query is SELECT version(). The SQL of the server has no such
+// function. The driver of dbimp answers the statement from
+// GET /solr/admin/info/system, which holds the release as
+// lucene.solr-spec-version, and only an administrator can read it. The
+// ordinary user gets HTTP 403 as the error, and [dbmeta.Dialect.Version]
+// returns it and not an unknown version. See D179, D183 and D191.
 package solr
 
 import (
@@ -64,8 +65,12 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// parseVersion reads the release that GET /solr/admin/info/system reports as
-// lucene.solr-spec-version, such as 10.0.0.
+// versionQuery reads the release, such as 10.0.0. The SQL of the server has no
+// function for it, and the driver of dbimp answers this statement from
+// GET /solr/admin/info/system.
+const versionQuery = `SELECT version()`
+
+// parseVersion reads the one column that versionQuery returns, such as 10.0.0.
 func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	var s dbmeta.VersionSet
 	if len(cols) != 1 || strings.TrimSpace(cols[0]) == "" {
@@ -92,8 +97,10 @@ func init() {
 		Terminator:  dbmeta.TerminatorStripped,
 		Fold:        dbmeta.FoldNone,
 		Placeholder: func(int) string { return "?" },
-		// No statement names the release, so there is no VersionQuery. See D179.
-		ParseVersion: parseVersion,
+		// The driver of dbimp answers this statement. See the package comment.
+		VersionQuery:   versionQuery,
+		VersionColumns: 1,
+		ParseVersion:   parseVersion,
 	})
 	registerRelations()
 }

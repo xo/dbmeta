@@ -19,7 +19,7 @@ require (
 	github.com/snowflakedb/gosnowflake/v2 v2.2.0
 	github.com/vertica/vertica-sql-go v1.3.8
 	github.com/xo/cql v0.1.0
-	github.com/xo/dbimp v0.14.1
+	github.com/xo/dbimp v0.15.0
 	github.com/xo/dbmeta v0.0.0
 	github.com/xo/dburl v0.46.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.152.0

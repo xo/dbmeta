@@ -79,14 +79,6 @@ one, can answer such statements, for example SHOW TABLES, DESCRIBE and
 a Pinot model can walk those statements, as Impala's does (D146), and the
 InfluxDB models can read the release with a statement.
 
-### Give Elasticsearch, Solr and OpenSearch a version query
-
-The three models report an unknown version, because a model has only a
-`Queryer` and the release is not a statement. Ken asked dbimp on 2026-10-08 to
-answer `SELECT version()` for a database that cannot return its release as a
-query (D183). When dbimp tags it, give each model a `VersionQuery` of that
-statement, and stop the tests reading the release over HTTP.
-
 ### Finish the Redshift measurements
 
 Redshift ran once against Redshift Serverless (D182). It has no conformance

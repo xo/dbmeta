@@ -1,6 +1,6 @@
 # D177. Elasticsearch maps an index to a table and walks SYS and SHOW
 
-Status: Decided.
+Status: Decided, amended by D191.
 
 ## The decision
 

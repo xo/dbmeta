@@ -74,29 +74,6 @@ func solrCall(ctx context.Context, dsn, method, path, body string) ([]byte, erro
 	return out, nil
 }
 
-// solrRelease reads the release the way a caller does, from
-// lucene.solr-spec-version of GET /solr/admin/info/system. No statement of
-// the SQL names it, and only an administrator can read it (D179).
-func solrRelease(ctx context.Context, dsn string) (string, error) {
-	out, err := solrCall(ctx, dsn, http.MethodGet, "/solr/admin/info/system?wt=json", "")
-	if err != nil {
-		return "", err
-	}
-	// Solr names the member solr-spec-version, which a struct tag cannot
-	// spell in the style that the linter wants, so it is read by name.
-	var r struct {
-		Lucene map[string]any `json:"lucene"`
-	}
-	if err := json.Unmarshal(out, &r); err != nil {
-		return "", fmt.Errorf("reading the release from %s: %w", out, err)
-	}
-	release, ok := r.Lucene["solr-spec-version"].(string)
-	if !ok {
-		return "", fmt.Errorf("reading the release from %s: no solr-spec-version", out)
-	}
-	return release, nil
-}
-
 // solrCollections lists the collections that the server has.
 func solrCollections(ctx context.Context, dsn string) ([]string, error) {
 	out, err := solrCall(ctx, dsn, http.MethodGet, "/solr/admin/collections?action=LIST&wt=json", "")
@@ -113,19 +90,15 @@ func solrCollections(ctx context.Context, dsn string) ([]string, error) {
 }
 
 // setupSolr builds the fixture as the administrator and returns the metadata
-// for the server, with the release that the server reports over HTTP. A step
+// for the server, with the release that SELECT version() reports. A step
 // of a collection that exists is skipped, so a second run changes nothing.
-func setupSolr(t *testing.T, _ *sql.DB) *dbmeta.Meta {
+func setupSolr(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	t.Helper()
 	ctx := t.Context()
 	dsn := os.Getenv("DBMETA_SOLR")
-	release, err := solrRelease(ctx, dsn)
+	versions, err := dbmeta.Solr.Version(ctx, db)
 	if err != nil {
-		t.Fatalf("reading the release: %v", err)
-	}
-	versions, err := dbmeta.Solr.ParseVersion([]string{release})
-	if err != nil {
-		t.Fatalf("parsing the release %q: %v", release, err)
+		t.Fatalf("reading the version: %v", err)
 	}
 	have, err := solrCollections(ctx, dsn)
 	if err != nil {
@@ -151,20 +124,13 @@ func setupSolr(t *testing.T, _ *sql.DB) *dbmeta.Meta {
 	return m
 }
 
-// TestSolrVersion reads the release over HTTP and checks what the model makes
-// of it. No statement reads it, so Dialect.Version reports an unknown version.
+// TestSolrVersion checks that SELECT version() gives the release to the
+// administrator and that the model parses it.
 func TestSolrVersion(t *testing.T) {
 	db := openSolr(t)
-	got, err := dbmeta.Solr.Version(t.Context(), db)
+	versions, err := dbmeta.Solr.Version(t.Context(), db)
 	if err != nil {
 		t.Fatalf("reading the version: %v", err)
-	}
-	if !got.Main().Unknown {
-		t.Errorf("expected an unknown version, because no Solr statement names it, got %s", got)
-	}
-	versions, err := dbmeta.Solr.ParseVersion([]string{mustSolrRelease(t)})
-	if err != nil {
-		t.Fatalf("parsing: %v", err)
 	}
 	if main := versions.Main(); main.Unknown || main.Parts[0] < 9 {
 		t.Errorf("expected release 9 or newer, got %s", main)
@@ -175,23 +141,10 @@ func TestSolrVersion(t *testing.T) {
 	t.Logf("server reports %s", versions)
 }
 
-// mustSolrRelease reads the release as the administrator.
-func mustSolrRelease(t *testing.T) string {
-	t.Helper()
-	dsn := os.Getenv("DBMETA_SOLR")
-	if dsn == "" {
-		t.Skip("set DBMETA_SOLR to run against a real server")
-	}
-	release, err := solrRelease(t.Context(), dsn)
-	if err != nil {
-		t.Fatalf("reading the release: %v", err)
-	}
-	return release
-}
-
 // TestSolrVersionRefusedToAnOrdinaryUser checks that a user who holds the role
 // search cannot read the release. Solr answers HTTP 403, so the caller gets an
-// error and not an unknown release.
+// error and not an unknown release. D191 records that no other way to read the
+// release is in the model.
 func TestSolrVersionRefusedToAnOrdinaryUser(t *testing.T) {
 	dsn := os.Getenv("DBMETA_SOLR")
 	if dsn == "" {
@@ -202,7 +155,12 @@ func TestSolrVersionRefusedToAnOrdinaryUser(t *testing.T) {
 		t.Fatalf("parsing %s: %v", dsn, err)
 	}
 	u.User = url.UserPassword(container.SolrUser, container.Password)
-	_, err = solrRelease(t.Context(), u.String())
+	db, err := sql.Open("solr", u.String())
+	if err != nil {
+		t.Fatalf("opening: %v", err)
+	}
+	defer db.Close()
+	_, err = dbmeta.Solr.Version(t.Context(), db)
 	if err == nil || !strings.Contains(err.Error(), "403") {
 		t.Errorf("expected the ordinary user to be refused with 403, got %v", err)
 	}

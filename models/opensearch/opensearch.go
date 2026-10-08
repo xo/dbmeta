@@ -61,11 +61,12 @@
 //
 // # The version
 //
-// No SQL statement names the release. SELECT VERSION() fails. Only GET / does,
-// as the administrator, and the ordinary user is refused with HTTP 403. So
-// [dbmeta.Dialect.Version] reports an unknown version, and a caller that reads
-// version.number from GET / passes it to [dbmeta.Dialect.ParseVersion]. No
-// query here depends on the release. See D181.
+// The version query is SELECT version(). The SQL of the server fails that
+// statement, and the driver of dbimp answers it from GET /, which holds
+// version.number. On 2.19.6 only the administrator can read it, and the
+// ordinary user gets HTTP 403 as the error. On 3.9.0 every user can read it,
+// from the header X-OpenSearch-Version. No query here depends on the release.
+// See D181, D183 and D191.
 package opensearch
 
 import (
@@ -86,14 +87,19 @@ func init() {
 		Terminator:  dbmeta.TerminatorKept,
 		Fold:        dbmeta.FoldNone,
 		Placeholder: func(int) string { return "?" },
-		// The SQL has no statement for the release. See the package comment.
-		ParseVersion: parseVersion,
+		// The driver of dbimp answers this statement. See the package comment.
+		VersionQuery:   versionQuery,
+		VersionColumns: 1,
+		ParseVersion:   parseVersion,
 	})
 	registerRelations()
 }
 
-// parseVersion reads the release that GET / reports in version.number, such
-// as 3.9.0.
+// versionQuery reads the release, such as 3.9.0. The SQL of the server fails
+// it, and the driver of dbimp answers it from GET /.
+const versionQuery = `SELECT version()`
+
+// parseVersion reads the one column that versionQuery returns, such as 3.9.0.
 func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	if len(cols) < 1 {
 		return dbmeta.VersionSet{}, dbmeta.ErrInvalidVersion

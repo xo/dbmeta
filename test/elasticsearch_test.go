@@ -81,32 +81,6 @@ func esCall(ctx context.Context, dsn string, r esfixture.Request) (int, []byte, 
 	return res.StatusCode, body, nil
 }
 
-// esRelease reads version.number from GET /, which only the administrator can
-// read, and parses it as a caller does. No SQL statement names the release
-// (D177).
-func esRelease(ctx context.Context, dsn string) (dbmeta.VersionSet, error) {
-	status, body, err := esCall(ctx, dsn, esfixture.Request{Method: http.MethodGet, Path: "/"})
-	if err != nil {
-		return dbmeta.VersionSet{}, err
-	}
-	if status != http.StatusOK {
-		return dbmeta.VersionSet{}, fmt.Errorf("GET / answered %d: %s", status, body)
-	}
-	var r struct {
-		Version struct {
-			Number string `json:"number"`
-		} `json:"version"`
-	}
-	if err := json.Unmarshal(body, &r); err != nil {
-		return dbmeta.VersionSet{}, fmt.Errorf("reading the release from %s: %w", body, err)
-	}
-	versions, err := dbmeta.Elasticsearch.ParseVersion([]string{r.Version.Number})
-	if err != nil {
-		return dbmeta.VersionSet{}, fmt.Errorf("parsing the release %q: %w", r.Version.Number, err)
-	}
-	return versions, nil
-}
-
 // esRun sends the steps in order, and returns the first refusal. A step that
 // the server refuses with a status of 400 or above is an error, unless ignore
 // is true.
@@ -126,13 +100,13 @@ func esRun(ctx context.Context, dsn string, steps []esfixture.Step, ignore bool)
 // setupElasticsearch builds the fixture as the administrator and returns the
 // metadata for the server. It removes what an earlier run left, and removes
 // what it made when the test ends.
-func setupElasticsearch(t *testing.T, _ *sql.DB) *dbmeta.Meta {
+func setupElasticsearch(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	t.Helper()
 	ctx := t.Context()
 	dsn := os.Getenv("DBMETA_ELASTICSEARCH")
-	versions, err := esRelease(ctx, dsn)
+	versions, err := dbmeta.Elasticsearch.Version(ctx, db)
 	if err != nil {
-		t.Fatalf("reading the release: %v", err)
+		t.Fatalf("reading the version: %v", err)
 	}
 	fx := esfixture.Everything
 	if err := esRun(ctx, dsn, fx.Teardown, true); err != nil {
@@ -153,31 +127,26 @@ func setupElasticsearch(t *testing.T, _ *sql.DB) *dbmeta.Meta {
 	return m
 }
 
-// TestElasticsearchVersion checks that no SQL statement reads the version,
-// and that the release of GET / parses.
+// TestElasticsearchVersion checks that SELECT version() gives the release to
+// the administrator and that the model parses it.
 func TestElasticsearchVersion(t *testing.T) {
 	db := openElasticsearch(t)
 	versions, err := dbmeta.Elasticsearch.Version(t.Context(), db)
 	if err != nil {
 		t.Fatalf("reading the version: %v", err)
 	}
-	if !versions.Main().Unknown {
-		t.Errorf("expected an unknown version, because no SQL statement names it, got %s", versions)
+	if main := versions.Main(); main.Unknown || main.Parts[0] < 8 || !strings.HasPrefix(versions.String(), "Elasticsearch ") {
+		t.Errorf("expected Elasticsearch 8 or newer, got %s", versions)
 	}
-	release, err := esRelease(t.Context(), os.Getenv("DBMETA_ELASTICSEARCH"))
-	if err != nil {
-		t.Fatalf("reading the release: %v", err)
-	}
-	if main := release.Main(); main.Unknown || main.Parts[0] < 8 || !strings.HasPrefix(release.String(), "Elasticsearch ") {
-		t.Errorf("expected Elasticsearch 8 or newer, got %s", release)
-	}
-	t.Logf("server reports %s", release)
+	t.Logf("server reports %s", versions)
 }
 
 // TestElasticsearchVersionRefusedToAnOrdinaryUser checks that the user of the
-// entry cannot read the release. GET / needs the cluster privilege
-// cluster:monitor/main, which the role of the user does not hold, and the
-// server answers HTTP 403.
+// entry cannot read the release. SELECT version() reads GET /, which needs
+// the cluster privilege cluster:monitor/main. The role of the user does not
+// hold it, and the server answers HTTP 403 with a security_exception, which the caller
+// gets as the error and not as an unknown version. D191 records that no other way to read
+// the release is in the model.
 func TestElasticsearchVersionRefusedToAnOrdinaryUser(t *testing.T) {
 	dsn := os.Getenv("DBMETA_ELASTICSEARCH")
 	if dsn == "" {
@@ -188,12 +157,14 @@ func TestElasticsearchVersionRefusedToAnOrdinaryUser(t *testing.T) {
 		t.Fatalf("parsing %s: %v", dsn, err)
 	}
 	u.User = url.UserPassword(container.ElasticsearchUser, container.Password)
-	status, body, err := esCall(t.Context(), u.String(), esfixture.Request{Method: http.MethodGet, Path: "/"})
+	db, err := sql.Open("elasticsearch", u.String())
 	if err != nil {
-		t.Fatalf("asking: %v", err)
+		t.Fatalf("opening: %v", err)
 	}
-	if status != http.StatusForbidden || !strings.Contains(string(body), "security_exception") {
-		t.Errorf("expected HTTP 403 and a security_exception, got %d: %s", status, body)
+	defer db.Close()
+	_, err = dbmeta.Elasticsearch.Version(t.Context(), db)
+	if err == nil || !strings.Contains(err.Error(), "security_exception") {
+		t.Errorf("expected the ordinary user to be refused with a security_exception, got %v", err)
 	}
 }
 

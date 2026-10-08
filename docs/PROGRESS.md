@@ -91,9 +91,9 @@ In progress:
   its catalog kinds are unanswered (D180), and its entry is fixed. The
   OpenSearch role is wider and the DynamoDB DSN ends with `tls=false`. v0.4.0
   holds Drill, Elasticsearch and Solr.
-- Elasticsearch, Solr and OpenSearch report an unknown version. Ken asked
-  dbimp to support `SELECT version()` for them (D183). When dbimp tags it, each
-  model gets a `VersionQuery`.
+- Elasticsearch, Solr and OpenSearch read the release with `SELECT version()`
+  since dbimp v0.15.0 (D191). The ordinary user is refused on all but
+  OpenSearch 3.9.0. D191 lists the options and leaves them for Ken.
 - Redshift (D182) and Snowflake (D190) ran against the provisioned services.
   Redshift has three parity principals. Snowflake has none, because its role
   cannot make a second login.

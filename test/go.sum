@@ -302,8 +302,8 @@ github.com/vertica/vertica-sql-go v1.3.8 h1:FomjkM3cam9yE6zSic31flNWPLdsZbYGK9ih
 github.com/vertica/vertica-sql-go v1.3.8/go.mod h1:c4OZ8lq1Ztc18w8a0nG+dzQh69BzJRcKN2LZOnYbERI=
 github.com/xo/cql v0.1.0 h1:Gc7OwnPpIOoKRNbK+5CFW1bvYo+bXCGzx16zXuPf9xc=
 github.com/xo/cql v0.1.0/go.mod h1:VUz46cVi0f5+MSRL2q2EWlBe9gLKIgX6KZ8Ave6EcxU=
-github.com/xo/dbimp v0.14.1 h1:FXiJqe6/uuEh/0U/yxguMNGgeBG+EZmTbaKX0pICkFw=
-github.com/xo/dbimp v0.14.1/go.mod h1:aQzslxgd1TByjLVc5Whe8EuKQsq8SAgse4tQz1jWXd0=
+github.com/xo/dbimp v0.15.0 h1:4m5vEDuyA6acvYL0qMagG7a1bxGNH8IUmRoSfwz0zSQ=
+github.com/xo/dbimp v0.15.0/go.mod h1:aQzslxgd1TByjLVc5Whe8EuKQsq8SAgse4tQz1jWXd0=
 github.com/xo/dburl v0.46.0 h1:WkL4ZPwDZPZsTmr0EKRj9SU6rJuFnxJWf19JFat8u3k=
 github.com/xo/dburl v0.46.0/go.mod h1:uazlaAQxj4gkshhfuuYyvwCBouOmNnG2aDxTCFZpmL4=
 github.com/ydb-platform/ydb-go-genproto v0.0.0-20260810122915-65bfd5c4b705 h1:7VKlOrBIQ8L8acJ9wFCt6lWzLDbOhc05VLpL31743tU=

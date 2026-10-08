@@ -380,7 +380,9 @@ func parityTargets() []parityTarget {
 				// user the dbrun entry makes can read the indices whose names
 				// start with dbmeta, and has no cluster privilege. The reader
 				// can read the index dbmeta_author alone, and Elasticsearch
-				// leaves every other index out of its SQL catalog.
+				// leaves every other index out of its SQL catalog. SELECT
+				// version() gives the user HTTP 403, and
+				// TestElasticsearchVersionRefusedToAnOrdinaryUser asserts it.
 				name: "same",
 				principals: []parityPrincipal{
 					{name: "user", make: makeElasticsearchUser},
@@ -399,7 +401,9 @@ func parityTargets() []parityTarget {
 				// start with dbmeta and can list every index. The reader can
 				// read, list and describe the index dbmeta_author alone, which
 				// SHOW TABLES refuses. The lister can list every index and
-				// describe none.
+				// describe none. SELECT version() gives the user HTTP 403 on
+				// 2.19.6 and the release on 3.9.0, and
+				// TestOpenSearchVersionForAnOrdinaryUser asserts both.
 				name: "same",
 				principals: []parityPrincipal{
 					{name: "user", make: makeOpenSearchUser},
@@ -417,8 +421,9 @@ func parityTargets() []parityTarget {
 				// security.json gives it roles, and a permission names the
 				// roles that can reach a path. The user the dbrun setup makes
 				// has the role search, which can read a collection and run
-				// SQL on it. It cannot read the version or the Collections
-				// API, which are not statements of the model.
+				// SQL on it. It cannot read the Collections API, which is not
+				// a statement of the model. SELECT version() gives it HTTP
+				// 403, and TestSolrVersionRefusedToAnOrdinaryUser asserts it.
 				name:       "same",
 				principals: []parityPrincipal{{name: "user", make: makeSolrUser}},
 			}},
