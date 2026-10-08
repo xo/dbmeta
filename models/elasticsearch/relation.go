@@ -74,7 +74,7 @@ func readTables[T any](ctx context.Context, db dbmeta.Queryer, args map[string]a
 		keep := visible(args, t.name) &&
 			dbmeta.Like(arg(args, "schema"), "") &&
 			dbmeta.Like(arg(args, "name"), t.name) &&
-			oneOf(types, t.typ)
+			dbmeta.ListHas(types, t.typ)
 		return build(t), keep, nil
 	})
 }

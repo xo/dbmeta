@@ -498,9 +498,9 @@ So every statement returns every row, and each binding sets `Keep`
 (D200). `Query.All` calls it after `Scan` and does not yield a row that it
 rejects. `schema` matches the keyspace, `name` matches the name of the
 object, and `parent` matches the table that a column, an index, a constraint
-or a trigger belongs to. The match is `dbmeta.Like`, so `%` is any run of
-characters, `_` is one, and a name is case sensitive, as a quoted Cassandra
-name is. `types` on Tables keeps `table`, which is the only type this query
+or a trigger belongs to. The match is `dbmeta.LikeFold`, so `%` is any run of
+characters, `_` is one, and the case of letters does not matter, because an
+unquoted CQL name is case insensitive (D202). `types` on Tables keeps `table`, which is the only type this query
 returns. A role, a role grant, a role setting and a setting belong to no
 keyspace, so a `schema` pattern other than empty or `%` matches nothing for
 them.

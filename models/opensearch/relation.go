@@ -48,7 +48,7 @@ func registerRelations() {
 				}
 				for t, err := range showTables(ctx, db, func(t showTable) bool {
 					return visible(args, t.name) && dbmeta.Like(arg(args, "name"), t.name) &&
-						oneOf(arg(args, "types"), "table")
+						dbmeta.ListHas(arg(args, "types"), "table")
 				}) {
 					if err != nil {
 						yield(dbmeta.Table{}, err)

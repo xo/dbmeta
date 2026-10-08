@@ -65,7 +65,6 @@ package cassandra
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 
@@ -243,9 +242,10 @@ func fixed(prefix, literal, standIn, name string) dbmeta.Choice {
 // filters declares the filters of a kind that belongs to a keyspace.
 //
 // CQL cannot express an optional filter, so no statement here filters. The
-// binding's Keep function does, after Scan, with [dbmeta.Like], which is the
-// match every other model gets from LIKE. A name is case sensitive, as a
-// quoted Cassandra name is. See D62 and D200.
+// binding's Keep function does, after Scan, with [dbmeta.LikeFold], which is
+// the match every other model gets from LIKE, with the case of letters
+// ignored, because an unquoted CQL name is case insensitive. See D62, D200
+// and D202.
 func filters(kind string) []dbmeta.Param {
 	return []dbmeta.Param{
 		{
@@ -338,12 +338,6 @@ var systemKeyspaces = map[string]bool{
 	"audit":                         true,
 }
 
-// oneOf reports whether list, which is a list of words joined by commas, is
-// empty or names word.
-func oneOf(list, word string) bool {
-	return list == "" || slices.Contains(strings.Split(list, ","), word)
-}
-
 // arg returns a string argument, and the empty string when it is absent.
 func arg(args map[string]any, name string) string {
 	s, _ := args[name].(string)
@@ -366,9 +360,9 @@ func keep[T any](schema, parent, name func(T) string) func(T, map[string]any) bo
 		if with, _ := args["with_system"].(bool); !with && systemKeyspaces[ks] {
 			return false
 		}
-		return dbmeta.Like(arg(args, "schema"), ks) &&
-			dbmeta.Like(arg(args, "parent"), read(parent, v)) &&
-			dbmeta.Like(arg(args, "name"), read(name, v))
+		return dbmeta.LikeFold(arg(args, "schema"), ks) &&
+			dbmeta.LikeFold(arg(args, "parent"), read(parent, v)) &&
+			dbmeta.LikeFold(arg(args, "name"), read(name, v))
 	}
 }
 

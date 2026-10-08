@@ -63,7 +63,7 @@ func registerSchema() {
 		},
 		Params: tableFilters(),
 		Keep: func(v dbmeta.Table, args map[string]any) bool {
-			return keep(func(v dbmeta.Table) string { return v.Schema }, nil, func(v dbmeta.Table) string { return v.Name })(v, args) && oneOf(arg(args, "types"), v.Type)
+			return keep(func(v dbmeta.Table) string { return v.Schema }, nil, func(v dbmeta.Table) string { return v.Name })(v, args) && dbmeta.ListHas(arg(args, "types"), v.Type)
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"iter"
-	"slices"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -62,10 +61,4 @@ func withSystem(args map[string]any) bool {
 // starts with a dot is a hidden index, and a walk keeps it only for with_system.
 func visible(args map[string]any, name string) bool {
 	return withSystem(args) || !strings.HasPrefix(name, ".")
-}
-
-// oneOf reports whether list, which is a list of words joined by commas, is
-// empty or names word.
-func oneOf(list, word string) bool {
-	return list == "" || slices.Contains(strings.Split(list, ","), word)
 }

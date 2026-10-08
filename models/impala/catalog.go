@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"iter"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -119,7 +118,7 @@ func register() {
 						yield(dbmeta.Table{}, err)
 						return
 					}
-					if types != "" && !inList(types, v.Type) {
+					if types != "" && !dbmeta.ListHas(types, v.Type) {
 						continue
 					}
 					if !yield(v, nil) {
@@ -447,9 +446,4 @@ func describe(ctx context.Context, db dbmeta.Queryer, r relation) (dbmeta.Table,
 		}
 	}
 	return v, nil
-}
-
-// inList reports whether item is one of the items of list, joined by commas.
-func inList(list, item string) bool {
-	return slices.Contains(strings.Split(list, ","), item)
 }

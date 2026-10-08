@@ -30,3 +30,42 @@ func TestLike(t *testing.T) {
 		}
 	}
 }
+
+func TestLikeFold(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		pattern, s string
+		want       bool
+	}{
+		{"", "Anything", true},
+		{"BOOK", "book", true},
+		{"bo%", "BOOK", true},
+		{"b_OK", "Book", true},
+		{`DB\_x`, "db_X", true},
+		{`DB\_x`, "dbaX", false},
+		{"book", "books", false},
+	} {
+		if got := dbmeta.LikeFold(c.pattern, c.s); got != c.want {
+			t.Errorf("LikeFold(%q, %q) = %v, want %v", c.pattern, c.s, got, c.want)
+		}
+	}
+}
+
+func TestListHas(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		list, word string
+		want       bool
+	}{
+		{"", "table", true},
+		{"table", "table", true},
+		{"table,view", "view", true},
+		{"table,view", "views", false},
+		{"table,view", "tab", false},
+		{"table, view", "view", false},
+	} {
+		if got := dbmeta.ListHas(c.list, c.word); got != c.want {
+			t.Errorf("ListHas(%q, %q) = %v, want %v", c.list, c.word, got, c.want)
+		}
+	}
+}

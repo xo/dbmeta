@@ -6,7 +6,6 @@ import (
 	"iter"
 	"maps"
 	"slices"
-	"strings"
 
 	"github.com/xo/dbmeta"
 )
@@ -91,7 +90,7 @@ func registerRelations() {
 		Walk: func(ctx context.Context, db dbmeta.Queryer, args map[string]any) iter.Seq2[dbmeta.Table, error] {
 			ms, err := measurements(ctx, db, args, "name")
 			var out []dbmeta.Table
-			if types := arg(args, "types"); types == "" || slices.Contains(strings.Split(types, ","), "table") {
+			if dbmeta.ListHas(arg(args, "types"), "table") {
 				for _, m := range ms {
 					out = append(out, dbmeta.Table{Schema: m.schema, Name: m.name, Type: "table"})
 				}

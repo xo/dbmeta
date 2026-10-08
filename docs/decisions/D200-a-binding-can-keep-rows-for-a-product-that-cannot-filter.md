@@ -1,6 +1,6 @@
 # D200. A binding can keep rows for a product that cannot filter
 
-Status: Amends D62.
+Status: Amends D62, amended by D202.
 
 ## The decision
 

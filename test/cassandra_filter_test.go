@@ -58,8 +58,8 @@ func TestCassandraFilters(t *testing.T) {
 	if got := schemas(dbmeta.Args{Name: "system_%", WithSystem: true}); !got["system_schema"] || got[fix] {
 		t.Errorf("expected the system keyspaces for a name pattern, got %v", got)
 	}
-	if got := schemas(dbmeta.Args{Schema: strings.ToUpper(fix)}); len(got) != 0 {
-		t.Errorf("expected a pattern to be case sensitive, got %v", got)
+	if got := schemas(dbmeta.Args{Schema: strings.ToUpper(fix)}); len(got) != 1 || !got[fix] {
+		t.Errorf("expected a pattern to ignore case, got %v", got)
 	}
 
 	// Tables: schema, name, types and with_system.

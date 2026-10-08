@@ -30,20 +30,6 @@ func visible(args map[string]any, name string) bool {
 	return withSystem(args) || !strings.HasPrefix(name, ".")
 }
 
-// oneOf reports whether list, which is a list of words joined by commas, is
-// empty or names word.
-func oneOf(list, word string) bool {
-	if list == "" {
-		return true
-	}
-	for w := range strings.SplitSeq(list, ",") {
-		if w == word {
-			return true
-		}
-	}
-	return false
-}
-
 // showTable is one row of SHOW TABLES LIKE.
 type showTable struct {
 	catalog, name, typ string

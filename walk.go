@@ -82,3 +82,26 @@ func Like(pattern, s string) bool {
 	}
 	return match(0, 0)
 }
+
+// LikeFold is [Like] with the case of letters ignored, for a product whose
+// unquoted names are case insensitive, as CQL's are. A caller passes the
+// pattern the way a person typed it, and the model folds both sides. See D202.
+func LikeFold(pattern, s string) bool {
+	return Like(strings.ToLower(pattern), strings.ToLower(s))
+}
+
+// ListHas reports whether list, which is words joined by commas, is empty or
+// names word. It reads a parameter such as types, which holds a list, for a
+// model that filters in Go. An empty list means every word, as every
+// parameter here means by empty. [InList] is the same test as SQL.
+func ListHas(list, word string) bool {
+	if list == "" {
+		return true
+	}
+	for w := range strings.SplitSeq(list, ",") {
+		if w == word {
+			return true
+		}
+	}
+	return false
+}
