@@ -103,10 +103,8 @@ const imageHint = "The Apache image refuses a user defined function, a" +
 
 // caArgs is the filter the fixture's objects sit behind.
 //
-// Cassandra ignores every one of them, which D62 explains and every parameter
-// description says. It is passed anyway, because a caller passing a filter is
-// the case worth testing and the result has to hold the fixture's rows among
-// the rest.
+// The model narrows every result to it, in the Keep function of each binding,
+// which D200 explains. TestCassandraFilters checks each filter on its own.
 func caArgs() map[string]any {
 	return dbmeta.Args{Schema: cafixture.Everything.Schema}.Map()
 }

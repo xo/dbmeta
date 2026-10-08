@@ -48,7 +48,8 @@ func registerRoles() {
 			{Name: "member_of", Desc: "the roles granted to this one, as one text"},
 			{Name: "comment", Desc: "always absent: a role carries no comment"},
 		},
-		Params: filters("role"),
+		Params: clusterFilters("role"),
+		Keep:   keep(nil, nil, func(v dbmeta.Role) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Role, error) {
 			var (
 				v        dbmeta.Role
@@ -99,7 +100,8 @@ func registerRoles() {
 					" service_level=reporting. A role with two has two rows",
 			},
 		},
-		Params: filters("role"),
+		Params: clusterFilters("role"),
+		Keep:   keep(nil, nil, func(v dbmeta.RoleSetting) string { return v.Role.V }),
 		Scan: func(rows *sql.Rows) (dbmeta.RoleSetting, error) {
 			var (
 				v           dbmeta.RoleSetting
@@ -139,7 +141,8 @@ func registerRoles() {
 			{Name: "inherit", Desc: "always true: a granted role is always inherited"},
 			{Name: "set", Desc: "always true: there is no SET ROLE to withhold"},
 		},
-		Params: filters("role"),
+		Params: clusterFilters("role"),
+		Keep:   keep(nil, nil, func(v dbmeta.RoleGrant) string { return v.Role }),
 		Scan: func(rows *sql.Rows) (dbmeta.RoleGrant, error) {
 			var v dbmeta.RoleGrant
 			err := rows.Scan(&v.Role, &v.MemberOf, pad{}, pad{}, pad{}, pad{})
@@ -176,6 +179,7 @@ func registerRoles() {
 			},
 		},
 		Params: filters("resource"),
+		Keep:   keep(func(v dbmeta.Privilege) string { return v.Schema.V }, nil, func(v dbmeta.Privilege) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {
 			// The resource is selected three times, once for each field it
 			// feeds, so that the query returns as many columns as it
@@ -239,7 +243,8 @@ func registerRoles() {
 			},
 			{Name: "display", Desc: "always absent: neither product shows a value in one form, which is value"},
 		},
-		Params: filters("setting"),
+		Params: clusterFilters("setting"),
+		Keep:   keep(nil, nil, func(v dbmeta.Setting) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			// The type is scanned into the field rather than into pad,
 			// because on ScyllaDB it is a real column. On Cassandra it is
@@ -274,6 +279,7 @@ func registerRoles() {
 		},
 		Fields: routineFields("function"),
 		Params: filters("function"),
+		Keep:   keep(func(v dbmeta.Function) string { return v.Schema }, nil, func(v dbmeta.Function) string { return v.Name }),
 		Scan:   scanRoutine("function"),
 	})
 
@@ -301,6 +307,7 @@ func registerRoles() {
 		},
 		Fields: aggregateFields(),
 		Params: filters("aggregate"),
+		Keep:   keep(func(v dbmeta.Function) string { return v.Schema }, nil, func(v dbmeta.Function) string { return v.Name }),
 		Scan:   scanRoutine("aggregate"),
 	})
 }

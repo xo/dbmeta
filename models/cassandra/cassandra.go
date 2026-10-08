@@ -13,10 +13,12 @@
 //
 // Second, a filter cannot be optional. CQL has no OR and no IS NULL, and a
 // partition key takes only = or IN, so the form every other model writes,
-// (@schema IS NULL OR col LIKE @schema), cannot be expressed. Every query here
-// returns every row and each parameter says so. A consumer narrows the result
-// itself, which usql already does to match psql. That includes the system
-// keyspaces, because NOT IN is not available either.
+// (@schema IS NULL OR col LIKE @schema), cannot be expressed. Every statement here
+// returns every row, and the Keep function of each binding narrows the rows in
+// Go with dbmeta.Like, after Scan. That includes the system keyspaces, because
+// NOT IN is not available either. One statement reads the whole catalog and
+// the filter runs on what it returns, so the cost grows with the catalog,
+// which for Cassandra is small. See D62 and D200.
 //
 // Third, there is no order across partitions. CQL orders rows only within one
 // partition and only by a clustering column, so a result arrives in token
@@ -63,6 +65,7 @@ package cassandra
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -237,47 +240,136 @@ func fixed(prefix, literal, standIn, name string) dbmeta.Choice {
 	return dbmeta.Choice{{Query: prefix + literal + as}, scylla(prefix + standIn + as)}
 }
 
-// filters declares the filters a caller can pass.
+// filters declares the filters of a kind that belongs to a keyspace.
 //
-// None of them narrows anything. CQL cannot express an optional filter, so
-// every query returns every row and the caller narrows the result. They are
-// declared rather than left out so that a caller passing one gets the rows
-// rather than ErrUnknownParam, and every description says plainly that it does
-// nothing. See D62.
+// CQL cannot express an optional filter, so no statement here filters. The
+// binding's Keep function does, after Scan, with [dbmeta.Like], which is the
+// match every other model gets from LIKE. A name is case sensitive, as a
+// quoted Cassandra name is. See D62 and D200.
 func filters(kind string) []dbmeta.Param {
-	const why = ", which Cassandra ignores: CQL cannot express an optional" +
-		" filter, so every row is returned and the caller narrows it"
 	return []dbmeta.Param{
-		{Name: "schema", Desc: "keyspace name" + why, Default: ""},
-		{Name: "name", Desc: kind + " name" + why, Default: ""},
+		{
+			Name:    "schema",
+			Desc:    "keyspace name pattern, empty for every keyspace",
+			Default: "",
+		},
+		{
+			Name:    "name",
+			Desc:    kind + " name pattern, empty for every " + kind,
+			Default: "",
+		},
 		{
 			Name:    "with_system",
-			Desc:    "include the keyspaces Cassandra keeps for itself" + why,
+			Desc:    "include the keyspaces Cassandra keeps for itself",
 			Default: false,
 		},
 	}
 }
 
-// tableFilters declares the filters of Tables, which narrow nothing either,
-// for the same reason as [filters]. types is declared because every other
-// model takes it.
+// clusterFilters declares the filters of a kind that belongs to the cluster
+// and not to a keyspace, such as a role or a setting. It has no keyspace, so a
+// schema pattern other than empty or % matches nothing, and with_system
+// changes nothing. They are declared because every other model takes them.
+func clusterFilters(kind string) []dbmeta.Param {
+	return []dbmeta.Param{
+		{
+			Name: "schema",
+			Desc: "keyspace name pattern. A " + kind + " belongs to no keyspace," +
+				" so a pattern other than empty or % matches nothing",
+			Default: "",
+		},
+		{
+			Name:    "name",
+			Desc:    kind + " name pattern, empty for every " + kind,
+			Default: "",
+		},
+		{
+			Name:    "with_system",
+			Desc:    "has no effect: a " + kind + " is not in a keyspace",
+			Default: false,
+		},
+	}
+}
+
+// tableFilters declares the filters of Tables, which are those of [filters]
+// and the types that every other model takes.
 func tableFilters() []dbmeta.Param {
-	const why = ", which Cassandra ignores: CQL cannot express an optional" +
-		" filter, so every row is returned and the caller narrows it"
-	types := dbmeta.TypesParam()
-	types.Desc += why
-	return append(filters("table"), types)
+	return append(filters("table"), dbmeta.TypesParam())
 }
 
 // childFilters declares the filters of a kind whose objects belong to a
-// table, such as a column. They narrow nothing either, for the same reason as
-// [filters], and parent is declared because every other model takes it for
-// the table a child belongs to.
+// table, such as a column. parent is the table a child belongs to.
 func childFilters(kind string) []dbmeta.Param {
-	const why = ", which Cassandra ignores: CQL cannot express an optional" +
-		" filter, so every row is returned and the caller narrows it"
-	return append([]dbmeta.Param{{Name: "parent", Desc: "table name" + why, Default: ""}},
-		filters(kind)...)
+	return append([]dbmeta.Param{{
+		Name:    "parent",
+		Desc:    "table name pattern, empty for every table",
+		Default: "",
+	}}, filters(kind)...)
+}
+
+// systemKeyspaces holds the keyspaces Cassandra and ScyllaDB keep for
+// themselves, which with_system includes and hides otherwise. CQL has no NOT
+// IN, so a statement cannot leave them out and [keep] does.
+//
+// The list is what the servers report. system_schema.keyspaces on Cassandra
+// 3.11 holds system, system_schema, system_auth, system_distributed and
+// system_traces. Cassandra 4.0 added the two virtual keyspaces system_views
+// and system_virtual_schema, which its documentation names.
+// ScyllaDB lists the first five and adds three of its own, measured on 2025.1
+// and 2026.3. Cassandra 3.11 and 5.0 list the five of the first group in
+// system_schema.keyspaces. The two virtual keyspaces of 4.0 are in
+// system_virtual_schema.keyspaces on 5.0 and not in system_schema, so no
+// statement here returns them, and the list names them so that a future one
+// that does stays hidden. A keyspace that a caller creates under one of
+// these names is hidden too. See D200.
+var systemKeyspaces = map[string]bool{
+	"system":                true,
+	"system_schema":         true,
+	"system_auth":           true,
+	"system_distributed":    true,
+	"system_traces":         true,
+	"system_views":          true,
+	"system_virtual_schema": true,
+	// ScyllaDB, as system_schema.keyspaces lists it on 2025.1 and 2026.3.
+	// 2025.1 has system_distributed_everywhere and 2026.3 has audit, which
+	// is where ScyllaDB keeps its audit log.
+	"system_replicated_keys":        true,
+	"system_distributed_everywhere": true,
+	"audit":                         true,
+}
+
+// oneOf reports whether list, which is a list of words joined by commas, is
+// empty or names word.
+func oneOf(list, word string) bool {
+	return list == "" || slices.Contains(strings.Split(list, ","), word)
+}
+
+// arg returns a string argument, and the empty string when it is absent.
+func arg(args map[string]any, name string) string {
+	s, _ := args[name].(string)
+	return s
+}
+
+// keep returns the Keep function of a kind. Each of schema, parent and name
+// reads the value that the filter of that name matches, and a nil one means
+// the kind has none, so only a pattern that matches the empty string keeps
+// the row. A row in a system keyspace is kept for with_system only.
+func keep[T any](schema, parent, name func(T) string) func(T, map[string]any) bool {
+	read := func(f func(T) string, v T) string {
+		if f == nil {
+			return ""
+		}
+		return f(v)
+	}
+	return func(v T, args map[string]any) bool {
+		ks := read(schema, v)
+		if with, _ := args["with_system"].(bool); !with && systemKeyspaces[ks] {
+			return false
+		}
+		return dbmeta.Like(arg(args, "schema"), ks) &&
+			dbmeta.Like(arg(args, "parent"), read(parent, v)) &&
+			dbmeta.Like(arg(args, "name"), read(name, v))
+	}
 }
 
 // pad is the scan target for a column whose value Scan already knows: a

@@ -216,6 +216,18 @@ type Binding[T any] struct {
 	// needed.
 	Scan func(*sql.Rows) (T, error)
 
+	// Keep decides whether a row is yielded. It is for a product that cannot
+	// filter in SQL, such as Cassandra, where CQL has no OR and no IS NULL, so
+	// every statement returns every row. Query.All calls it after Scan, with
+	// the row and the arguments with the defaults filled in, which is the map
+	// that Walk receives. A row for which it returns false is not yielded. A
+	// model that filters in its statement leaves it nil, and every row is
+	// yielded. A consumer does not narrow the rows itself, so it needs no
+	// knowledge of the product. The match is the model's, and the model
+	// usually makes it with [Like]. It is not called for a row that Scan
+	// failed to read, and it is not used when Walk is set. See D200.
+	Keep func(row T, args map[string]any) bool
+
 	// Walk answers the query with several statements, for a product whose
 	// catalog lists a kind only inside one parent at a time, as Impala lists
 	// tables only with SHOW TABLES IN one database. It runs its statements
@@ -484,8 +496,18 @@ func (q *Query[T]) All(ctx context.Context, m *Meta, db Queryer, args map[string
 		}
 		defer rows.Close()
 		b := q.binding(m.dialect)
+		var all map[string]any
+		if b.Keep != nil {
+			if all, err = withDefaults(b.Params, args); err != nil {
+				yield(zero, err)
+				return
+			}
+		}
 		for rows.Next() {
 			v, err := b.Scan(rows)
+			if err == nil && b.Keep != nil && !b.Keep(v, all) {
+				continue
+			}
 			if !yield(v, err) {
 				return
 			}

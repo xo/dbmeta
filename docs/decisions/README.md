@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-70 of them amend or replace an earlier one, and a decision read without its
+71 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -80,7 +80,7 @@ file.
 | [D59](D059-oracle-is-tested-with-go-ora-v2-until-v3-tags.md) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52, amended by D136 and D157 |
 | [D60](D060-the-oracle-model-reads-all-views-and-there-is-no.md) | The Oracle model reads ALL_ views, and there is no DBA_ variant | Decided |
 | [D61](D061-every-dialect-is-measured-against-every.md) | Every dialect is measured against every principal the product has | Amended in place |
-| [D62](D062-cql-cannot-compute-so-the-cassandra-model.md) | CQL cannot compute, so the Cassandra model computes in Scan | Amended by D93 |
+| [D62](D062-cql-cannot-compute-so-the-cassandra-model.md) | CQL cannot compute, so the Cassandra model computes in Scan | Amended by D93 and D200 |
 | [D63](D063-support-says-when-a-release-is-too-old.md) | Support says when a release is too old | Amends D54 |
 | [D64](D064-the-verified-tier-is-checked-against-the.md) | The Verified tier is checked against the document | Decided |
 | [D65](D065-a-windows-machine-rearms-its-evaluation-before.md) | A Windows machine rearms its evaluation before it expires | Decided |
@@ -217,3 +217,4 @@ file.
 | [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |
 | [D197](D197-three-fields-can-be-null-in-the-postgresql-catalog.md) | Three fields can be NULL in the PostgreSQL catalog | Decided |
 | [D198](D198-describe-fields-for-relations-indexes-columns-and-functions.md) | Describe fields for relations, indexes, columns and functions | Decided |
+| [D200](D200-a-binding-can-keep-rows-for-a-product-that-cannot-filter.md) | A binding can keep rows for a product that cannot filter | Amends D62 |

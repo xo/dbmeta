@@ -28,6 +28,7 @@ func registerSchema() {
 			{Name: "comment", Desc: "always absent: a keyspace carries no comment"},
 		},
 		Params: filters("keyspace"),
+		Keep:   keep(func(v dbmeta.Schema) string { return v.Name }, nil, func(v dbmeta.Schema) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var v dbmeta.Schema
 			err := rows.Scan(pad{}, &v.Name, pad{}, pad{})
@@ -61,6 +62,9 @@ func registerSchema() {
 			{Name: "comment"},
 		},
 		Params: tableFilters(),
+		Keep: func(v dbmeta.Table, args map[string]any) bool {
+			return keep(func(v dbmeta.Table) string { return v.Schema }, nil, func(v dbmeta.Table) string { return v.Name })(v, args) && oneOf(arg(args, "types"), v.Type)
+		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(pad{}, &v.Schema, &v.Name, pad{}, &v.Comment)
@@ -119,6 +123,7 @@ func registerSchema() {
 			{Name: "collation", Desc: "always absent: Cassandra has no collation"},
 		},
 		Params: childFilters("column"),
+		Keep:   keep(func(v dbmeta.Column) string { return v.Schema }, func(v dbmeta.Column) string { return v.Table }, func(v dbmeta.Column) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			// Both hold the column kind. The statement selects it twice,
 			// once under each name, so the names say which field each copy
@@ -167,6 +172,7 @@ func registerSchema() {
 			{Name: "comment"},
 		},
 		Params: filters("view"),
+		Keep:   keep(func(v dbmeta.View) string { return v.Schema }, nil, func(v dbmeta.View) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.View, error) {
 			var v dbmeta.View
 			err := rows.Scan(pad{}, &v.Schema, &v.Name, &v.Definition,

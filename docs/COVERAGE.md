@@ -441,18 +441,43 @@ else answers on every release from 3.11 up. That is the only fragment gated on
 a Cassandra release, which is why the tested pair spans it. The other
 fragments gate on the `scylla` key.
 
-### No query filters, and every query returns the system keyspaces
+### No statement filters, and the Keep function of each binding does
 
 CQL has no `OR`, no `IS NULL` outside a materialized view definition, and a
 partition key takes only `=` or `IN`. The form every other model uses,
 `(@schema IS NULL OR col LIKE @schema)`, cannot be written. There is no
 `NOT IN` either, so the keyspaces Cassandra keeps for itself cannot be
-excluded.
+excluded in a statement.
 
-So every query returns every row, including `system`, `system_schema`,
-`system_auth`, `system_distributed` and `system_traces`. The filter parameters
-are still declared and every description says Cassandra ignores it. A consumer
-narrows the result, which `usql` already does to match `psql`.
+So every statement returns every row, and each binding sets `Keep`
+(D200). `Query.All` calls it after `Scan` and does not yield a row that it
+rejects. `schema` matches the keyspace, `name` matches the name of the
+object, and `parent` matches the table that a column, an index, a constraint
+or a trigger belongs to. The match is `dbmeta.Like`, so `%` is any run of
+characters, `_` is one, and a name is case sensitive, as a quoted Cassandra
+name is. `types` on Tables keeps `table`, which is the only type this query
+returns. A role, a role grant, a role setting and a setting belong to no
+keyspace, so a `schema` pattern other than empty or `%` matches nothing for
+them.
+
+`with_system` is false by default, as it is for every model. It hides the
+keyspaces `system`, `system_schema`, `system_auth`, `system_distributed` and
+`system_traces`, which Cassandra 3.11 and 5.0 list in `system_schema.keyspaces`.
+ScyllaDB lists those and also `system_replicated_keys`, which both releases
+have, `system_distributed_everywhere`, which 2025.1 has, and `audit`, which
+2026.3 has. The model holds the list as data. The virtual keyspaces
+`system_views` and `system_virtual_schema` are in the list too, but Cassandra
+5.0 keeps them in `system_virtual_schema.keyspaces`, so no statement here
+returns them. A privilege on a resource inside a system keyspace is hidden too.
+
+The cost is that one statement reads every row of the catalog and the filter
+runs in Go, so the work grows with the whole catalog and not with the rows
+returned. D47 does not allow that for a model that can filter in SQL, and this
+one cannot. The catalog of Cassandra is small. Measured on Cassandra 3.11 with
+a scratch keyspace of 300 tables and 1200 columns beside the 36 tables and 234
+columns of the system keyspaces: Tables read 336 rows in 3 ms and returned
+300 of them, and Columns read 1434 rows in 9 ms without a filter and in 5 ms
+with one, on a local container.
 
 ### A derived field is derived in Go
 

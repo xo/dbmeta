@@ -1,6 +1,6 @@
 # D62. CQL cannot compute, so the Cassandra model computes in Scan
 
-Status: Amended by D93.
+Status: Amended by D93 and D200.
 
 A CQL statement selects columns and nothing else. There is no CASE, no
 expression, no function that turns one value into another. Every other model

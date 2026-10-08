@@ -311,6 +311,11 @@ as `Stmt`, the `Fields` it returns, the `Params` it takes and a `Scan`. A
 product that offers nothing a SELECT reads sets `Walk` instead of `Stmt` and
 `Scan`, which runs several statements (D146). The last section says when.
 
+A product whose statement cannot take a filter sets `Keep` instead, a function
+of the row and of the arguments with their defaults filled in. `Query.All`
+calls it after `Scan` and drops a row that it rejects. Leave it nil when the
+statement filters. Only Cassandra and ScyllaDB set it today (D200).
+
 If the product imitates another product's catalog, as CockroachDB imitates
 PostgreSQL's, do not copy that model's statements. Import the model and share
 each binding that answers with `Query.Share`, and register a statement of

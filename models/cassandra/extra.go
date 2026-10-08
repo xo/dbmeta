@@ -35,6 +35,7 @@ func registerExtra() {
 			{Name: "comment", Desc: "always absent: an index carries no comment"},
 		},
 		Params: childFilters("index"),
+		Keep:   keep(func(v dbmeta.Index) string { return v.Schema }, func(v dbmeta.Index) string { return v.Table }, func(v dbmeta.Index) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Name, &v.Type,
@@ -79,6 +80,7 @@ func registerExtra() {
 			},
 		},
 		Params: childFilters("index"),
+		Keep:   keep(func(v dbmeta.IndexColumn) string { return v.Schema }, func(v dbmeta.IndexColumn) string { return v.Table }, func(v dbmeta.IndexColumn) string { return v.Index }),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			// The options map is selected twice, once for each field it
 			// feeds, so that the query returns as many columns as it
@@ -158,6 +160,7 @@ func registerExtra() {
 			{Name: "comment", Desc: "always absent: a key carries no comment"},
 		},
 		Params: childFilters("constraint"),
+		Keep:   keep(func(v dbmeta.Constraint) string { return v.Schema }, func(v dbmeta.Constraint) string { return v.Table }, func(v dbmeta.Constraint) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, pad{}, &v.Definition,
@@ -204,6 +207,7 @@ func registerExtra() {
 				{Name: "foreign_name", Desc: "always absent, for the same reason"},
 			},
 			Params: childFilters("constraint"),
+			Keep:   keep(func(v dbmeta.ConstraintColumn) string { return v.Schema }, func(v dbmeta.ConstraintColumn) string { return v.Table }, func(v dbmeta.ConstraintColumn) string { return v.Constraint }),
 			Scan: func(rows *sql.Rows) (dbmeta.ConstraintColumn, error) {
 				var v dbmeta.ConstraintColumn
 				err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Constraint,
@@ -239,6 +243,7 @@ func registerExtra() {
 			{Name: "comment", Desc: "always absent: a trigger carries no comment"},
 		},
 		Params: childFilters("trigger"),
+		Keep:   keep(func(v dbmeta.Trigger) string { return v.Schema }, func(v dbmeta.Trigger) string { return v.Table }, func(v dbmeta.Trigger) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Trigger, error) {
 			var (
 				v       dbmeta.Trigger
@@ -274,6 +279,7 @@ func registerExtra() {
 			},
 		},
 		Params: filters("table"),
+		Keep:   keep(func(v dbmeta.Comment) string { return v.Schema }, nil, func(v dbmeta.Comment) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Comment, error) {
 			var v dbmeta.Comment
 			err := rows.Scan(&v.Schema, &v.Name, pad{}, &v.Comment)
@@ -313,6 +319,7 @@ func registerExtra() {
 			{Name: "size", Desc: "always tuple, the word psql uses for a composite type"},
 		},
 		Params: filters("type"),
+		Keep:   keep(func(v dbmeta.Type) string { return v.Schema }, nil, func(v dbmeta.Type) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var (
 				v      dbmeta.Type
