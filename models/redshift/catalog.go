@@ -30,9 +30,9 @@ func schemaNameSystem(kind string) []dbmeta.Param {
 	}
 }
 
-func childParams(parent, kind string) []dbmeta.Param {
+func childParams(kind string) []dbmeta.Param {
 	return append([]dbmeta.Param{
-		{Name: "parent", Desc: parent + " name pattern, empty for every " + parent, Default: ""},
+		{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
 	}, schemaNameSystem(kind)...)
 }
 
@@ -41,6 +41,8 @@ const relationType = `CASE c.relkind WHEN 'r' THEN 'table' WHEN 'v' THEN 'view'`
 	` ELSE CAST(c.relkind AS text) END`
 
 func register() {
+	registerAccess()
+
 	dbmeta.Schemas.Register(dbmeta.Redshift, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT current_database() AS "catalog"`),
@@ -140,14 +142,17 @@ func register() {
 			always(`, EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conrelid = a.attrelid` +
 				` AND k.contype = 'p' AND a.attnum = ANY (k.conkey)) AS "primary_key"`),
 			always(`, CASE WHEN pg_get_expr(d.adbin, d.adrelid) LIKE '"identity"(%' THEN 'a'` +
+				` WHEN pg_get_expr(d.adbin, d.adrelid) LIKE 'default_identity(%' THEN 'd'` +
 				` ELSE '' END AS "identity"`),
 			always(`, NULL AS "generated"`),
 			always(`, col_description(a.attrelid, a.attnum) AS "comment"`),
-			always(`, NULL AS "collation"`),
+			always(`, s.collation_name AS "collation"`),
 			always(`FROM pg_attribute a`),
 			always(`JOIN pg_class c ON c.oid = a.attrelid`),
 			always(`JOIN pg_namespace n ON n.oid = c.relnamespace`),
 			always(`LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum`),
+			always(`LEFT JOIN svv_columns s ON s.table_schema = n.nspname` +
+				` AND s.table_name = c.relname AND s.column_name = a.attname`),
 			always(`WHERE a.attnum > 0 AND NOT a.attisdropped AND c.relkind IN ('r', 'v')`),
 			always(`AND ` + notSystem("n.nspname")),
 			always(`AND ` + like("n.nspname", "@schema")),
@@ -158,14 +163,14 @@ func register() {
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "table"}, {Name: "name"},
 			{Name: "ordinal"}, {Name: "data_type"}, {Name: "nullable"},
-			{Name: "default", Desc: "the default expression, which for an IDENTITY column is Redshift's identity() call"},
+			{Name: "default", Desc: "the default expression, which for an IDENTITY column is Redshift's identity() or default_identity() call"},
 			{Name: "primary_key", Desc: "whether a declared primary key holds the column. Redshift does not enforce it"},
-			{Name: "identity", Desc: "a, which is always, for a column whose default is the identity call, because an INSERT cannot give it a value. Empty otherwise"},
-			{Name: "generated", Desc: "always absent: Redshift has no generated column"},
+			{Name: "identity", Desc: "a, which is always, for an identity() default, because an INSERT cannot give it a value, and d, which is by default, for a default_identity() default. Empty otherwise"},
+			{Name: "generated", Desc: "always absent: Redshift has no generated column, and GENERATED ALWAYS AS (expression) is a syntax error"},
 			{Name: "comment"},
-			{Name: "collation", Desc: "always absent: the collation of a column is in SVV_COLUMNS, which is not read"},
+			{Name: "collation", Desc: "case_sensitive or case_insensitive for a character column, from SVV_COLUMNS, and absent for any other type"},
 		},
-		Params: childParams("table", "column"),
+		Params: childParams("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
@@ -233,7 +238,7 @@ func register() {
 			{Name: "type", Desc: "primary key, unique or foreign key, which Redshift declares and does not enforce"},
 			{Name: "definition"}, {Name: "deferrable"}, {Name: "deferred"}, {Name: "comment"},
 		},
-		Params: childParams("table", "constraint"),
+		Params: childParams("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
@@ -293,41 +298,45 @@ func register() {
 		},
 	})
 
-	// A user from pg_user. A Redshift role is in SVV_ROLES, which is not
-	// read, so a role is not listed.
+	// A user from pg_user, a group from pg_group and a role from SVV_ROLES.
+	// A group and a role cannot log in. None of the three has a source for
+	// the flags below that Redshift does not record, so they read as they
+	// always did.
 	dbmeta.Roles.Register(dbmeta.Redshift, &dbmeta.Binding[dbmeta.Role]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT u.usename AS "name"`),
-			always(`, u.usesuper AS "superuser"`),
-			always(`, FALSE AS "create_role"`),
-			always(`, u.usecreatedb AS "create_db"`),
-			always(`, TRUE AS "can_login"`),
-			always(`, FALSE AS "replication"`),
-			always(`, FALSE AS "bypass_rls"`),
-			always(`, TRUE AS "inherit"`),
-			always(`, -1 AS "conn_limit"`),
-			always(`, CAST(CAST(u.valuntil AS timestamp) AS varchar) AS "valid_until"`),
-			always(`, '' AS "member_of"`),
-			always(`, NULL AS "comment"`),
-			always(`FROM pg_user u`),
-			always(`WHERE ` + like("u.usename", "@name")),
+			always(`SELECT r."name", r.superuser, r.create_role, r.create_db, r.can_login`),
+			always(`, r.replication, r.bypass_rls, r."inherit", r.conn_limit, r.valid_until`),
+			always(`, r.member_of, r."comment"`),
+			always(`FROM (`),
+			always(`SELECT u.usename AS "name", u.usesuper AS superuser, FALSE AS create_role` +
+				`, u.usecreatedb AS create_db, TRUE AS can_login, FALSE AS replication` +
+				`, FALSE AS bypass_rls, TRUE AS "inherit", -1 AS conn_limit` +
+				`, CAST(CAST(u.valuntil AS timestamp) AS varchar) AS valid_until` +
+				`, '' AS member_of, CAST(NULL AS varchar) AS "comment" FROM pg_user u`),
+			always(`UNION ALL SELECT g.groname, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, -1` +
+				`, CAST(NULL AS varchar), '', CAST(NULL AS varchar) FROM pg_group g`),
+			always(`UNION ALL SELECT o.role_name, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, -1` +
+				`, CAST(NULL AS varchar), '', CAST(NULL AS varchar) FROM svv_roles o`),
+			always(`) r`),
+			always(`WHERE ` + like(`r."name"`, "@name")),
 			always(`ORDER BY 1`),
 		},
 		Fields: []dbmeta.Field{
-			{Name: "name"}, {Name: "superuser"},
+			{Name: "name", Desc: "a user, a group or a role"},
+			{Name: "superuser", Desc: "from pg_user. False for a group and a role"},
 			{Name: "create_role", Desc: "always false: it is a grant rather than a flag"},
 			{Name: "create_db"},
-			{Name: "can_login", Desc: "always true: pg_user lists users, which log in"},
+			{Name: "can_login", Desc: "true for a user, false for a group and a role"},
 			{Name: "replication", Desc: "always false: Redshift has no replication role"},
 			{Name: "bypass_rls", Desc: "always false: pg_user records no such flag"},
 			{Name: "inherit", Desc: "always true: a granted role is always inherited"},
-			{Name: "conn_limit", Desc: "always -1: the limit is in SVV_USER_INFO, which is not read"},
+			{Name: "conn_limit", Desc: "always -1: the limit is in SVV_USER_INFO, which shows a user only its own row, so no user can read the others"},
 			{Name: "valid_until"},
-			{Name: "member_of", Desc: "always empty: a user's roles are in SVV_USER_GRANTS, which is not read"},
-			{Name: "comment", Desc: "always absent: a user takes no comment"},
+			{Name: "member_of", Desc: "always empty: RoleGrants answers it, because SVV_USER_GRANTS shows a user only its own grants"},
+			{Name: "comment", Desc: "always absent: a user, a group and a role take no comment"},
 		},
 		Params: []dbmeta.Param{
-			{Name: "name", Desc: "user name pattern, empty for every user", Default: ""},
+			{Name: "name", Desc: "name pattern, empty for every user, group and role", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Role, error) {
 			var v dbmeta.Role

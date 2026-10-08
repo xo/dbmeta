@@ -403,13 +403,18 @@ current_user the same rows with different values
 [questdb@9.4/same/read-only]
 
 [redshift/same/grantee]
+column_privileges fewer rows than the administrator
 current_user the same rows with different values
+role_grants fewer rows than the administrator
 
 [redshift/same/owner]
 current_user the same rows with different values
+role_grants fewer rows than the administrator
 
 [redshift/same/stranger]
+column_privileges fewer rows than the administrator
 current_user the same rows with different values
+role_grants fewer rows than the administrator
 
 [rqlite/same/user]
 
@@ -429,6 +434,7 @@ settings refused: running query: User dbmeta_user has no SELECT permission on <t
 
 [snowflake/same/grantee]
 columns fewer rows than the administrator
+constraint_columns fewer rows than the administrator
 constraints fewer rows than the administrator
 current_schema fewer rows than the administrator
 current_user the same rows with different values
@@ -440,8 +446,9 @@ tables fewer rows than the administrator
 views fewer rows than the administrator
 
 [snowflake/same/stranger]
-columns refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+columns refused: 090105 (22000): Uncaught exception of type 'STATEMENT_ERROR' on line 1 at position 34 : Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
 comments refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
+constraint_columns fewer rows than the administrator
 constraints refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
 current_schema refused: 090105 (22000): Cannot perform SELECT. This session does not have a current database. Call 'USE DATABASE', or use a qualified name.
 current_user the same rows with different values
@@ -457,6 +464,7 @@ views refused: 090105 (22000): Cannot perform SELECT. This session does not have
 [snowflake/same/visitor]
 columns fewer rows than the administrator
 comments fewer rows than the administrator
+constraint_columns fewer rows than the administrator
 constraints fewer rows than the administrator
 current_schema fewer rows than the administrator
 current_user the same rows with different values

@@ -268,7 +268,7 @@ DeepSeek wrote that users of other databases get "PG-shaped wrong answers".
 The concern is real but the reading is too strong. D9 makes PostgreSQL the
 reference for the shape and the behavior of an object that two databases both
 have. It does not require every database to answer every kind, which was 48
-then and is 56 now. The
+then and is 65 now. The
 capability mechanism covers the gap.
 
 One phrase invited the misreading. "When they disagree, follow PostgreSQL" read
@@ -350,7 +350,7 @@ not the source of the data. Three of the phase 3 databases have no
 
 ### Phase 1. Translate the PostgreSQL queries from the PostgreSQL source
 
-Done. `models/postgres` answers all 56 kinds on 10 to 18, and 51 on 9.6, which
+Done. `models/postgres` answers 65 kinds on 18, 64 on 10 to 17 and 57 on 9.6, which
 has no publications, publication tables, subscriptions, extended statistics
 or partitioned tables.
 

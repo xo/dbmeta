@@ -51,8 +51,8 @@ rather than reading one.
 | `models/vitess` | 20 | 65 | Vitess 23.0.7 and 24.0.4, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
 | `models/databend` | 20 | 65 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 65 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
-| `models/snowflake` | 13 | 65 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193 |
-| `models/redshift` | 11 | 65 | measured on Redshift Serverless 1.0.434008 on 2026-10-08. Written before a cluster existed (D144) and corrected by D182 |
+| `models/snowflake` | 15 | 65 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08 and 2026-10-09. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193, and D203 reads the columns of a key |
+| `models/redshift` | 18 | 65 | measured on Redshift Serverless 1.0.434008 on 2026-10-08 and 2026-10-09. Written before a cluster existed (D144) and corrected by D182 and D204 |
 | `models/impala` | 11 | 65 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
 | `models/neo4j` | 17 | 65 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
 | `models/influxdb` | 9 | 65 | InfluxDB 3 Core 3.10.6, 3.11.6 and 3.12.0, from DataFusion's information_schema, with dbimp's driver (D152) |
@@ -3475,16 +3475,17 @@ of correlations covers two, and D149 shipped it.
 
 ## Snowflake and Amazon Redshift
 
-`models/snowflake` answers 13 of the 65 and `models/redshift` answers 11.
+`models/snowflake` answers 15 of the 65 and `models/redshift` answers 18.
 Ken chose on 2026-09-30 to write both from the vendors' documentation before
 an account or a cluster was provisioned (D144). Both ran on 2026-10-08.
 D182 holds what Redshift found and D190 holds what Snowflake found. The tests
 skip until dbrun resolves a connection string (D117).
 
 Snowflake reads the INFORMATION_SCHEMA of the database the connection is in.
-It has no KEY_COLUMN_USAGE, so no column is reported as a key, and no
-constraint's columns are listed. It has no index. The fold is upper case, as
-Snowflake documents.
+It has no KEY_COLUMN_USAGE, so the columns of a key come from SHOW PRIMARY
+KEYS, SHOW UNIQUE KEYS and SHOW IMPORTED KEYS, which the pipe operator turns
+into one statement (D203). It has no index outside a hybrid table. The fold is
+upper case, as Snowflake documents.
 
 ### Measured on Snowflake
 
@@ -3526,11 +3527,12 @@ DBMETA_ROLE, which owns the database DBMETA and uses the warehouse DBMETA_WH.
   columns, constraints, views, functions, sequences and privileges. A role
   with USAGE on the database and nothing in it also reads fewer schemas. A role
   with no grant has no current database and every catalog statement is
-  refused. A made user runs on SYSTEM$STREAMLIT_NOTEBOOK_WH, because
-  DBMETA_ROLE cannot grant the warehouse of the account.
-- The conformance target records that no column reads as a primary key, that
-  an AUTOINCREMENT column has no default, and that a view column reads as not
-  nullable where its table column is. Snowflake is in `agreementExcluded`.
+  refused. A made user runs on DBMETA_WH since 2026-10-09, because DBMETA_ROLE
+  owns it and grants USAGE on it to each role the test makes (D203).
+- The conformance target records that an AUTOINCREMENT column has no default,
+  and that a view column reads as not nullable where its table column is.
+  Snowflake is in `agreementExcluded`. Since D203 the keys agree with
+  PostgreSQL, and the golden file has the primary keys and the constraint lines.
 - `ChangePassword` ran against a user that the test made. All seven hostile
   passwords set and logged in, with a 13 character prefix because the account
   refuses a short password. A user cannot change its own password with the
@@ -3538,15 +3540,109 @@ DBMETA_ROLE, which owns the database DBMETA and uses the warehouse DBMETA_WH.
 - Every constraint reads ENFORCED of NO and RELY of NO beside the deferred
   flags above. APPLICABLE_ROLES still lists PUBLIC twice for the user, and
   ENABLED_ROLES lists it once.
-- Not read and not answered: ACCOUNT_USAGE, the columns of a key, the
-  referenced table of a foreign key, tags and masking policies, stages,
-  streams, tasks, pipes and dynamic tables.
+- Not read and not answered: ACCOUNT_USAGE, and the kinds listed under
+  Measured on 2026-10-09 below.
 - The warehouse is XSMALL with a 60 second auto suspend.
+
+### Measured on Snowflake on 2026-10-09
+
+D203 measured what INFORMATION_SCHEMA and SHOW expose, on the same trial
+account, release 10.36.101. The model answers 15 of the 65 questions: the 13
+above, the columns of a constraint, and the session parameters as settings.
+
+- The columns of a key. INFORMATION_SCHEMA has no view of them. SHOW PRIMARY
+  KEYS, SHOW UNIQUE KEYS and SHOW IMPORTED KEYS list them, and the pipe
+  operator, `SHOW X ->> SELECT ... FROM $1`, makes one statement of a SHOW and
+  a select. The select can join INFORMATION_SCHEMA.COLUMNS to `$1`, so
+  `primary_key` is a real fact and stays a plain bool. Three SHOW stages in one
+  pipe read `$1` as the latest result, `$2` as the one before and `$3` as the
+  first. SHOW IMPORTED KEYS names the referenced table and column, so
+  constraint columns carry the foreign key target.
+- A SHOW with no scope reads the current schema, and a session can change that.
+  Every stage names a scope. SHOW listed 10803 primary key rows at once, so
+  there is no cap of 10000.
+- A bind parameter is refused after the pipe, with "invalid identifier '1'".
+  Ken decided to write the values into the statement, so the Snowflake dialect
+  sets `Info.Literal` (D78) and every statement of the model has its values
+  written in. The scope of each SHOW is a derived value (`Binding.Derived`):
+  `IN TABLE "schema"."table"` for an exact schema and table, `IN SCHEMA
+  "catalog"."schema"` for an exact catalog and schema, and `IN DATABASE`
+  otherwise. SHOW refuses a schema without its database, and a statement cannot
+  name the current database, so the key statements take a `catalog` parameter.
+  A pattern is exact when it has no `%`, `_` or backslash, so a name with an
+  underscore reads the database scope. A missing table in the table scope is a
+  server error. A session with no current database makes SHOW IN DATABASE read
+  every database the role can see, so the constraint columns statement keeps
+  the rows of CURRENT_DATABASE().
+- GET_DDL answers one text for a schema, with `primary key (A, B)` inside. It
+  is a function, it is prose, and a schema of thousands of tables does not fit
+  in one value, so it is not used. Gemini and DeepSeek both said that one
+  plain select cannot read the columns of a key. The pipe operator was the lead
+  that neither of them named.
+- ENFORCED is in INFORMATION_SCHEMA.TABLE_CONSTRAINTS, and `Constraint.Enforced`
+  carries it. It reads false for every key.
+- `INFORMATION_SCHEMA.FUNCTIONS` has VOLATILITY, which the model had marked as
+  not recorded. It reads `volatile` for a function that has no other keyword,
+  and a procedure has none.
+- A dynamic table is a base table to TABLE_TYPE. IS_DYNAMIC, IS_ICEBERG and
+  IS_HYBRID say which, so the Tables type now reads dynamic table, iceberg
+  table or hybrid table. A hybrid and an Iceberg table were not created, so
+  those two words are read from the flags and not measured.
+- Settings read SHOW PARAMETERS, with the key as the name and the level as the
+  context. The session read 161 parameters. The statement has no access and no
+  display.
+
+What each unread object maps onto, measured on the trial account:
+
+| Object | Source | Answer |
+| --- | --- | --- |
+| Tags | SHOW TAGS, and the TAG_REFERENCES table functions, one object per call | no kind: unsupported, because only Snowflake has a tag |
+| Masking policies | SHOW MASKING POLICIES | the trial refuses CREATE as "Unsupported feature". The SHOW answers no rows. No kind: unsupported |
+| Row access policies | SHOW ROW ACCESS POLICIES | the trial refuses the feature. It maps onto Policies in principle, and is unsupported until an account can make one |
+| Stages, file formats, pipes | INFORMATION_SCHEMA.STAGES, FILE_FORMATS, PIPES | answered by one statement each, and no kind: unsupported |
+| Streams, tasks | SHOW STREAMS, SHOW TASKS | answered, and no kind. A task runs on a schedule and a stream records changes, so neither is a trigger: unsupported |
+| External tables | INFORMATION_SCHEMA.EXTERNAL_TABLES | the view answers no rows, because an external table needs an external stage and a trial has none. Tables lists the type from TABLE_TYPE |
+| Dynamic tables | INFORMATION_SCHEMA.TABLES, IS_DYNAMIC | a Tables row of type dynamic table, measured |
+| Materialized views | INFORMATION_SCHEMA.TABLES | the trial refuses the feature. Tables would read materialized view from TABLE_TYPE |
+| Hybrid tables and indexes | INFORMATION_SCHEMA.INDEXES and INDEX_COLUMNS | the trial refuses a hybrid table. Both views exist and answer no rows, so Indexes and IndexColumns are answerable in principle and are not added, because no row was read |
+| Sequences, functions, procedures | INFORMATION_SCHEMA | answered, and read again on 2026-10-09 |
+| Roles | SHOW ROLES, which answers with the pipe operator | answerable, and not added: Role has a bool for superuser, create role, create database and replication, which Snowflake has no source for |
+| Default privileges | SHOW FUTURE GRANTS IN DATABASE | answers no rows here. Not added |
+| Routine parameters | the argument signature | one text, so unsupported. SHOW PARAMETERS IN FUNCTION lists session parameters and not arguments |
+
+Rule 14 ran with Gemini and DeepSeek on 2026-10-09. Gemini answered one short
+question. DeepSeek Flash ran out of tokens twice on the long one and DeepSeek
+Pro answered the short one. Each lead was run on the server. SHOW ROLES, SHOW
+INDEXES, SHOW FUTURE GRANTS, SHOW EXTERNAL TABLES and SHOW PARAMETERS all ran.
+The settings lead was added. The models called the policies and the external
+tables present under other names, which matches the table above.
+
+Cost, on a scratch schema of 2000 tables with 14000 columns, a primary key of
+four columns, a unique key and a foreign key of four columns on each, in the
+database DBMETA (D47). Each number is one run on an XSMALL warehouse and varies
+by a few seconds. The names have no underscore, so each reads its scope.
+
+| Arguments | Columns | Constraint columns |
+| --- | --- | --- |
+| one table, schema and table exact | 7 rows, 1.4 s | 9 rows, 1.4 s |
+| one schema, database and schema exact | 14000 rows, 19.3 s | 17996 rows, 18.4 s |
+| a wildcard table | 777 rows, 6.4 s | 999 rows, 32.2 s |
+| the whole database | 14000 rows, 8.0 s | 17996 rows, 21.0 s |
+
+Before the scope, with the filter in Go, one table cost 10.1 s for columns and
+24.4 s for constraint columns. A plain read of the columns of one table cost
+1.5 s. The schema was the only one in the database, so its scope read the same
+rows as the database. A wildcard or a name with an underscore reads the
+database, and the cost grows with it, because SHOW has no filter. The
+constraints statement does not use SHOW and read one table in 0.8 s and the
+schema in 24.6 s. D203 holds both sets of numbers.
+
+The 2000 tables took 8 minutes to create, and every scratch schema was dropped.
 
 Redshift reads the pg_catalog tables that PostgreSQL 8.0 already had, from
 which Redshift was built, because the postgres model's statements need 9.6.
-Its roles, grants, and the collation of a column are in SVV views, which the
-model does not read yet.
+D204 added the kinds that need an SVV view, and the notes below say where each
+one reads one.
 
 ### Measured on Redshift Serverless
 
@@ -3554,13 +3650,21 @@ Measured on 2026-10-08 on Redshift Serverless in us-east-1, release
 1.0.434008, whose banner says PostgreSQL 8.0.2. Every statement ran,
 and roles needed a cast. The fixture built on the first try.
 
-- The server answers 11 of the 65 questions: schemas, databases, tables,
-  columns, views, constraints, functions, roles, comments, the current schema
-  and the current user. Every other kind has no source that the model reads.
+- The server answers 18 of the 65 questions: schemas, databases, tables,
+  columns, views, constraints, constraint columns, functions, roles, role
+  grants, privileges, column privileges, default ACLs, languages, settings,
+  comments, the current schema and the current user. The other 47 are covered
+  by the last note of this list.
 - pg_catalog hides nothing from a user without a grant. An owner, a grantee
   and a user with no grant on the fixture all read the same rows as the
-  administrator, so parity differs only in current_user. The model reads no
-  SVV view, and the SVV views are the ones that filter by user.
+  administrator. The SVV views are the ones that filter by user. A user reads
+  only its own rows of SVV_USER_GRANTS, SVV_ROLE_GRANTS, SVV_USER_INFO and
+  SVV_ALL_TABLES, and only the grants that name it in SVV_COLUMN_PRIVILEGES
+  and SVV_RELATION_PRIVILEGES. SVV_ROLES and pg_group show every user the
+  same rows. Parity (D204) records that role grants and column privileges
+  read fewer rows for a user that is not the administrator, and that
+  privileges, roles, default ACLs, languages, settings and constraint columns
+  read the same rows for everybody.
 - pg_catalog also lists the objects of Redshift itself. The schemas
   pg_auto_copy, pg_mv and pg_s3 are hidden by default beside the ones that
   were already named. A schema of the user is the only one left.
@@ -3569,16 +3673,64 @@ and roles needed a cast. The fixture built on the first try.
 - valid_until is the type abstime in pg_user, which Redshift refuses to cast
   to text. The statement casts it to a timestamp first. A user with no expiry
   reads as absent, and the administrator reads as infinity.
-- An IDENTITY column has the default `"identity"(<oid>, 0, '1,1'::text)`.
-  The column reports an identity kind of a, which means always, because an
-  INSERT cannot give it a value.
+- An IDENTITY(seed, step) column and a GENERATED ALWAYS AS IDENTITY column
+  have the default `"identity"(<oid>, 0, '1,1'::text)`, and an INSERT of a value
+  into one fails with "cannot set an identity column to a value". The column
+  reports the identity kind a, which means always. A GENERATED BY DEFAULT AS
+  IDENTITY column has the default `default_identity(<oid>, 0, '5,2'::text)`,
+  accepts a value and reports the kind d. D182 read the first from the
+  documentation and D204 measured both.
+- The collation of a column is in SVV_COLUMNS, as case_sensitive or
+  case_insensitive, and it is absent for a column that is not a character
+  type. A correlated subquery on SVV_COLUMNS fails with "plan should not
+  reference subplan's variable", so the columns statement joins it. The join
+  costs about one second more for 8,500 columns and nothing for a schema with
+  no rows. Redshift has no generated column, and GENERATED ALWAYS AS
+  (expression) is a syntax error. It has no CHECK constraint, and a table
+  definition with one is refused.
+- A grant to a user or a group is in the ACL of pg_class, pg_namespace and
+  pg_proc, which every user reads in full. A grant to a role is not in the
+  ACL. It is only in SVV_RELATION_PRIVILEGES, which shows a user the rows that
+  name it, so the privileges kind does not report a grant to a role. A column
+  grant is only in SVV_COLUMN_PRIVILEGES. pg_attribute has no ACL.
+- Redshift has three kinds of principal that hold a grant: a user, a group in
+  pg_group and a role in SVV_ROLES. The roles kind lists all three. A group
+  and a role cannot log in. SVV_ROLES lists five roles of the system, such as
+  sys:dba, that start with sys:.
+- Redshift has no unnest, so the constraint columns statement stands a series
+  of 32 positions in for it, and joins the key array at each position.
+- Every password that Redshift documents as forbidden sets and logs in
+  (D204). The server refuses a password of fewer than 8 characters or one with
+  no digit, no upper case letter or no lower case letter, and it says so in
+  words.
+- A Redshift string has no E'' form, so a newline is chr(10).
 - A foreign key reads with the schema qualified and the name of a table
   quoted when it is a keyword, as in `REFERENCES dbmeta_fixture."region"(...)`.
 - A view definition ends with a semicolon.
 - A function has no pg_get_functiondef, so its definition is absent and the
   source is the body between the dollar quotes.
-- Not read, and so not answered: the privileges and roles of the SVV views,
-  the collation of a column, external tables of Spectrum and datashares. Redshift has no index, sequence or trigger.
+- Spectrum is not measurable here. CREATE EXTERNAL SCHEMA is refused with
+  "Cannot find default IAM role on this cluster", because the namespace has no
+  IAM role. On the empty catalog SVV_EXTERNAL_SCHEMAS, SVV_EXTERNAL_TABLES,
+  SVV_EXTERNAL_COLUMNS, SVV_EXTERNAL_DATABASES and SVV_DATASHARES return no row.
+  No fixture step makes an external table.
+- Rule 14 of AGENTS.md. Gemini and DeepSeek sorted the unanswered kinds. Both
+  named SVV_ROLE_GRANTS, SVV_RELATION_PRIVILEGES, SVV_COLUMN_PRIVILEGES,
+  SVV_EXTERNAL_TABLES and SVV_DATASHARES. DeepSeek also named SVV_COLLATIONS,
+  SVV_SEQUENCES, SVV_POLICIES and SVV_CONSTRAINT_COLUMNS, and Gemini named
+  SVV_RLS_POLICY. The first four do not exist. SVV_RLS_POLICY does and is not
+  read. Both agreed that indexes, tablespaces, large objects, domains,
+  extensions, triggers, sequences, partitions and inheritance are absent. The
+  server has a pg_tablespace that lists only pg_default and pg_global, and a
+  pg_trigger and a pg_inherits that were not read, because Redshift has no
+  trigger and no inheritance. It has no pg_collation, pg_policy, pg_extension
+  or pg_enum.
+- Left unanswered with a source in pg_catalog: the routine parameters, types,
+  casts, aggregates, operators, conversions and column statistics. The row
+  level security policies are in SVV_RLS_POLICY and the datashares in
+  SVV_DATASHARES, which are empty here. There is no collation kind, because
+  Redshift has two fixed collations and no list of them. Redshift has no
+  index, sequence or trigger.
 - The database list includes awsdatacatalog, padb_harvest and sys:internal,
   which Redshift keeps for itself. They are not hidden, because a database
   has no system flag.

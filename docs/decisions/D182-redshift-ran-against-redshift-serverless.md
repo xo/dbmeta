@@ -1,6 +1,6 @@
 # D182. Redshift ran against Redshift Serverless
 
-Status: Amends D144.
+Status: Amends D144, amended by D204.
 
 ## The decision
 

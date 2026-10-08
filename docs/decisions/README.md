@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-73 of them amend or replace an earlier one, and a decision read without its
+75 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -200,7 +200,7 @@ file.
 | [D179](D179-solr-maps-a-collection-to-a-table-under-a-fixed-schema.md) | Solr maps a collection to a table under a fixed schema | Decided, amended by D191 |
 | [D180](D180-voltdb-has-no-catalog-a-statement-can-reach.md) | VoltDB has no catalog that a statement can reach | Decided |
 | [D181](D181-opensearch-maps-an-index-to-a-table-and-walks-show-and-describe.md) | OpenSearch maps an index to a table and walks SHOW and DESCRIBE | Decided, amended by D189 and D191 |
-| [D182](D182-redshift-ran-against-redshift-serverless.md) | Redshift ran against Redshift Serverless | Amends D144 |
+| [D182](D182-redshift-ran-against-redshift-serverless.md) | Redshift ran against Redshift Serverless | Amends D144, amended by D204 |
 | [D183](D183-aliases-are-tables-and-dbimp-supplies-the-version.md) | Aliases are tables where SQL cannot tell them, and dbimp supplies the version | Amends D176, amended by D191 |
 | [D184](D184-dynamodb-has-no-catalog-a-statement-can-reach.md) | DynamoDB has no catalog that a statement can reach | Decided |
 | [D185](D185-pinot-has-no-catalog-a-statement-can-reach.md) | Apache Pinot has no catalog that a statement can reach | Decided |
@@ -208,10 +208,10 @@ file.
 | [D187](D187-gizmosql-shares-the-duckdb-model-and-the-tests-open-the-session.md) | GizmoSQL shares the DuckDB model and the tests open the session | Decided |
 | [D188](D188-no-dialect-for-h2-voltdb-chai-or-csvq.md) | No dialect for H2, VoltDB, chai or csvq | Amends D158, amended by D194 |
 | [D189](D189-dbimp-reads-the-opensearch-2-19-6-describe-row.md) | dbimp reads the OpenSearch 2.19.6 DESCRIBE row | Amends D181 |
-| [D190](D190-snowflake-ran-against-a-trial-account.md) | Snowflake ran against a trial account | Amends D144, amended by D193 |
+| [D190](D190-snowflake-ran-against-a-trial-account.md) | Snowflake ran against a trial account | Amends D144, amended by D193 and D203 |
 | [D191](D191-elasticsearch-solr-and-opensearch-read-the-release-with-select-version.md) | Elasticsearch, Solr and OpenSearch read the release with SELECT version() | Amends D177, D179, D181 and D183, amended by D192 |
 | [D192](D192-the-ordinary-user-reads-the-release-and-surrealdb-reads-it-with-select-version.md) | The ordinary user reads the release, and SurrealDB reads it with SELECT version() | Amends D191, D176 and D164 |
-| [D193](D193-snowflake-parity-conformance-and-password-were-measured.md) | Snowflake parity, conformance and the password statement were measured | Amends D190 |
+| [D193](D193-snowflake-parity-conformance-and-password-were-measured.md) | Snowflake parity, conformance and the password statement were measured | Amends D190, amended by D203 |
 | [D194](D194-no-models-for-hosted-services-beyond-redshift-and-snowflake.md) | No models for hosted services beyond Redshift and Snowflake | Amends D188 |
 | [D195](D195-cassandra-and-scylladb-have-a-url-dsn-and-an-ordinary-user.md) | Cassandra and ScyllaDB have a URL DSN and an ordinary user | Decided, amended by D196 |
 | [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |
@@ -221,3 +221,5 @@ file.
 | [D200](D200-a-binding-can-keep-rows-for-a-product-that-cannot-filter.md) | A binding can keep rows for a product that cannot filter | Amends D62, amended by D202 |
 | [D201](D201-the-third-group-of-describe-data-for-usql.md) | The third group of describe data for usql | Amends D147 and D199 |
 | [D202](D202-cassandra-matches-names-ignoring-case-and-the-models-share-two-helpers.md) | Cassandra matches names ignoring case, and the models share two helpers | Amends D200 |
+| [D203](D203-snowflake-reads-the-columns-of-a-key-through-the-pipe-operator.md) | Snowflake reads the columns of a key through the pipe operator | Amends D190 and D193 |
+| [D204](D204-redshift-answers-the-grants-and-the-roles-and-takes-every-password.md) | Redshift answers the grants and the roles, and takes every password | Amends D182 |

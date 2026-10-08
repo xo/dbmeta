@@ -2,6 +2,7 @@ package snowflake
 
 import (
 	"database/sql"
+	"strings"
 
 	"github.com/xo/dbmeta"
 )
@@ -28,20 +29,120 @@ func schemaNameSystem(kind string) []dbmeta.Param {
 	}
 }
 
+// keyParams are childParams and the catalog pattern, which a key statement
+// reads to scope its SHOW. See keyScope.
+func keyParams(parent, kind string) []dbmeta.Param {
+	return append([]dbmeta.Param{
+		{Name: "catalog", Desc: "database name pattern, empty for the current database", Default: ""},
+	}, childParams(parent, kind)...)
+}
+
 func childParams(parent, kind string) []dbmeta.Param {
 	return append([]dbmeta.Param{
 		{Name: "parent", Desc: parent + " name pattern, empty for every " + parent, Default: ""},
 	}, schemaNameSystem(kind)...)
 }
 
-// tableType is the word for the kind of the table t.
+// tableType is the word for the kind of the table t. A dynamic, an Iceberg and
+// a hybrid table are base tables to table_type and have a flag of their own.
 const tableType = `CASE t.table_type WHEN 'BASE TABLE' THEN` +
-	` CASE WHEN t.is_transient = 'YES' THEN 'transient table' ELSE 'table' END` +
+	` CASE WHEN t.is_dynamic = 'YES' THEN 'dynamic table'` +
+	` WHEN t.is_iceberg = 'YES' THEN 'iceberg table'` +
+	` WHEN t.is_hybrid = 'YES' THEN 'hybrid table'` +
+	` WHEN t.is_transient = 'YES' THEN 'transient table' ELSE 'table' END` +
 	` ELSE LOWER(t.table_type) END`
+
+// piped is a chain of SHOW statements and the select that reads them, as one
+// statement. SHOW is not a table, but Snowflake chains a statement onto it
+// with the pipe operator, and the select after it reads the result of the
+// latest stage as $1, the stage before as $2 and so on.
+//
+// A bind parameter is refused after the pipe, so the dialect writes its values
+// into the statement (D203). A SHOW with no scope reads the current schema, which a session can
+// change, so every stage names a scope. The scope is the derived value
+// @scope, which keyScope computes. A session with no database reads every
+// database that the role can see, so a statement that does not read
+// information_schema also keeps the rows of CURRENT_DATABASE().
+func piped(shows ...string) string {
+	return strings.Join(shows, ` ->> `) + ` ->> `
+}
+
+// keyFilter is the filter of a statement that reads a SHOW result, on the
+// columns that hold the database, the schema, the table and the constraint.
+func keyFilter(catalog, schema, table, constraint string) string {
+	return like(catalog, "@catalog") + ` AND ` + notSystem(schema) + ` AND ` + like(schema, "@schema") +
+		` AND ` + like(table, "@parent") + ` AND ` + like(constraint, "@name")
+}
+
+// scope is a piece of SQL that a binding derived and the dialect writes into a
+// statement as it is. Only keyScope makes one, and it quotes every name.
+type scope string
+
+// keyScope is the scope of the SHOW statements that read keys. It is the
+// narrowest one that cannot lose a row: IN TABLE when the schema and the table
+// are both exact names, IN SCHEMA when the database and the schema are, and IN
+// DATABASE otherwise, which with no name is the current database.
+//
+// A pattern is an exact name when it holds no wildcard, so it can match only
+// one name. The server stores the name as the caller wrote it, because every
+// other statement here matches with LIKE, which is case sensitive, so the name
+// is quoted as it is and never folded. The statement filters the rows with the
+// same patterns, so the scope only decides how many rows the server reads.
+//
+// SHOW refuses a schema without its database, "Must specify the full search
+// path starting from database", and the statement cannot name the current
+// database. So a schema scope needs the catalog pattern to be exact as well.
+// A table scope does not, because a name of two parts starts at the current
+// database. A table that does not exist, or that the role cannot see, is an
+// error from the server in that scope, where the wide scope answers no rows.
+func keyScope(args map[string]any) any {
+	catalog, hasCatalog := exactName(arg(args, "catalog"))
+	prefix := ""
+	if hasCatalog {
+		prefix = quote(catalog) + "."
+	}
+	schema, ok := exactName(arg(args, "schema"))
+	if !ok {
+		if hasCatalog {
+			return scope("DATABASE " + quote(catalog))
+		}
+		return scope("DATABASE")
+	}
+	if table, ok := exactName(arg(args, "parent")); ok {
+		return scope("TABLE " + prefix + quote(schema) + "." + quote(table))
+	}
+	if hasCatalog {
+		return scope("SCHEMA " + prefix + quote(schema))
+	}
+	return scope("DATABASE")
+}
+
+// quote writes a name as a quoted Snowflake identifier. A double quote in the
+// name is doubled, which is what keeps a hostile name inside the quotes.
+func quote(name string) string { return dbmeta.QuoteIdentifier(name, `"`, `"`) }
+
+// exactName reads a LIKE pattern as one name. It returns false for the empty
+// pattern, which means every name, and for a pattern with %, _ or a backslash.
+// A backslash can escape a wildcard, and whether the server reads it so
+// depends on the statement, so a pattern with one is not an exact name and the
+// scope stays wide. A wider scope reads more rows and loses none.
+func exactName(pattern string) (string, bool) {
+	if pattern == "" || strings.ContainsAny(pattern, `%_\`) {
+		return "", false
+	}
+	return pattern, true
+}
+
+// arg returns a string argument, and the empty string when it is absent.
+func arg(args map[string]any, name string) string {
+	s, _ := args[name].(string)
+	return s
+}
 
 func register() {
 	registerRelations()
 	registerRoutines()
+	registerSettings()
 }
 
 func registerRelations() {
@@ -124,7 +225,7 @@ func registerRelations() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
-			{Name: "type", Desc: "table, transient table, view, materialized view, external table or event table, from table_type"},
+			{Name: "type", Desc: "table, transient table, dynamic table, iceberg table, hybrid table, view, materialized view, external table or event table, from table_type and the flags beside it"},
 			{Name: "comment"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
@@ -135,11 +236,14 @@ func registerRelations() {
 		},
 	})
 
-	// information_schema has no KEY_COLUMN_USAGE, so which columns a key
-	// holds is only in SHOW PRIMARY KEYS, and primary_key is false.
+	// information_schema has no KEY_COLUMN_USAGE, so the columns of a key are
+	// only in SHOW PRIMARY KEYS. The pipe operator chains one select onto it,
+	// and that select joins the columns view to the keys. The statement is
+	// scoped to the table or the schema when the patterns name one, and the
+	// filters of the other statements apply to the rows. See D203.
 	dbmeta.Columns.Register(dbmeta.Snowflake, &dbmeta.Binding[dbmeta.Column]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT c.table_catalog AS "catalog"`),
+			always(piped(`SHOW PRIMARY KEYS IN @scope`) + `SELECT c.table_catalog AS "catalog"`),
 			always(`, c.table_schema AS "schema"`),
 			always(`, c.table_name AS "table"`),
 			always(`, c.column_name AS "name"`),
@@ -147,13 +251,17 @@ func registerRelations() {
 			always(`, c.data_type AS "data_type"`),
 			always(`, c.is_nullable = 'YES' AS "nullable"`),
 			always(`, c.column_default AS "default"`),
-			always(`, FALSE AS "primary_key"`),
+			always(`, k."key_sequence" IS NOT NULL AS "primary_key"`),
 			always(`, CASE WHEN c.is_identity = 'YES' THEN 'by default' END AS "identity"`),
 			always(`, NULL AS "generated"`),
 			always(`, c.comment AS "comment"`),
 			always(`, c.collation_name AS "collation"`),
 			always(`FROM information_schema.columns c`),
-			always(`WHERE ` + notSystem("c.table_schema")),
+			always(`LEFT JOIN $1 k ON k."database_name" = c.table_catalog`),
+			always(`AND k."schema_name" = c.table_schema AND k."table_name" = c.table_name`),
+			always(`AND k."column_name" = c.column_name`),
+			always(`WHERE ` + like("c.table_catalog", "@catalog")),
+			always(`AND ` + notSystem("c.table_schema")),
 			always(`AND ` + like("c.table_schema", "@schema")),
 			always(`AND ` + like("c.table_name", "@parent")),
 			always(`AND ` + like("c.column_name", "@name")),
@@ -164,13 +272,14 @@ func registerRelations() {
 			{Name: "ordinal"},
 			{Name: "data_type", Desc: "the type as Snowflake writes it, such as NUMBER or TEXT"},
 			{Name: "nullable"}, {Name: "default"},
-			{Name: "primary_key", Desc: "always false: information_schema has no KEY_COLUMN_USAGE, and SHOW PRIMARY KEYS is not a SELECT"},
+			{Name: "primary_key", Desc: "true when SHOW PRIMARY KEYS lists the column"},
 			{Name: "identity", Desc: "by default for an IDENTITY or AUTOINCREMENT column, which accepts a value of its own"},
 			{Name: "generated", Desc: "always absent: Snowflake has no generated column"},
 			{Name: "comment"},
 			{Name: "collation", Desc: "the COLLATE of a text column, and absent where it has none"},
 		},
-		Params: childParams("table", "column"),
+		Params:  keyParams("table", "column"),
+		Derived: []dbmeta.Derived{{Name: "scope", From: keyScope}},
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
@@ -180,7 +289,7 @@ func registerRelations() {
 		},
 	})
 
-	// A key is declared and not enforced, except NOT NULL.
+	// A key is declared and not enforced, except NOT NULL. ENFORCED says so.
 	dbmeta.Constraints.Register(dbmeta.Snowflake, &dbmeta.Binding[dbmeta.Constraint]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT k.table_schema AS "schema"`),
@@ -191,6 +300,7 @@ func registerRelations() {
 			always(`, k.is_deferrable = 'YES' AS "deferrable"`),
 			always(`, k.initially_deferred = 'YES' AS "deferred"`),
 			always(`, k.comment AS "comment"`),
+			always(`, k.enforced = 'YES' AS "enforced"`),
 			always(`FROM information_schema.table_constraints k`),
 			always(`WHERE ` + notSystem("k.table_schema")),
 			always(`AND ` + like("k.table_schema", "@schema")),
@@ -202,13 +312,60 @@ func registerRelations() {
 			{Name: "schema"}, {Name: "table"}, {Name: "name"},
 			{Name: "type", Desc: "primary key, unique or foreign key. Snowflake declares them and enforces none"},
 			{Name: "definition", Desc: "always absent: information_schema records no key's columns"},
-			{Name: "deferrable"}, {Name: "deferred"}, {Name: "comment"},
+			{Name: "deferrable", Desc: "IS_DEFERRABLE as the server says it, which is NO for every key"},
+			{Name: "deferred", Desc: "INITIALLY_DEFERRED as the server says it, which is YES for every key. Read enforced first"},
+			{Name: "comment"},
+			{Name: "enforced", Desc: "ENFORCED, which is NO for every key. Only NOT NULL is checked"},
 		},
 		Params: childParams("table", "constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
+			return v, err
+		},
+	})
+
+	// The columns of a primary key, a unique key and a foreign key, and the
+	// column a foreign key points at. Each SHOW is one stage of the pipe, and
+	// the select reads the result of the latest stage as $1, the one before as
+	// $2 and the first as $3. See D203.
+	dbmeta.ConstraintColumns.Register(dbmeta.Snowflake, &dbmeta.Binding[dbmeta.ConstraintColumn]{
+		Stmt: dbmeta.Stmt{
+			always(piped(`SHOW PRIMARY KEYS IN @scope`, `SHOW UNIQUE KEYS IN @scope`, `SHOW IMPORTED KEYS IN @scope`) +
+				`SELECT "database_name" AS "catalog", "schema_name" AS "schema"`),
+			always(`, "table_name" AS "table", "constraint_name" AS "constraint"`),
+			always(`, "column_name" AS "name", "key_sequence" AS "ordinal"`),
+			always(`, NULL AS "foreign_catalog", NULL AS "foreign_schema"`),
+			always(`, NULL AS "foreign_table", NULL AS "foreign_name"`),
+			always(`FROM $3`),
+			always(`WHERE "database_name" = CURRENT_DATABASE()`),
+			always(`AND ` + keyFilter(`"database_name"`, `"schema_name"`, `"table_name"`, `"constraint_name"`)),
+			always(`UNION ALL SELECT "database_name", "schema_name", "table_name", "constraint_name",`),
+			always(` "column_name", "key_sequence", NULL, NULL, NULL, NULL FROM $2`),
+			always(`WHERE "database_name" = CURRENT_DATABASE()`),
+			always(`AND ` + keyFilter(`"database_name"`, `"schema_name"`, `"table_name"`, `"constraint_name"`)),
+			always(`UNION ALL SELECT "fk_database_name", "fk_schema_name", "fk_table_name", "fk_name",`),
+			always(` "fk_column_name", "key_sequence", "pk_database_name", "pk_schema_name",`),
+			always(` "pk_table_name", "pk_column_name" FROM $1`),
+			always(`WHERE "fk_database_name" = CURRENT_DATABASE()`),
+			always(`AND ` + keyFilter(`"fk_database_name"`, `"fk_schema_name"`, `"fk_table_name"`, `"fk_name"`)),
+			always(`ORDER BY 2, 3, 4, 6`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "catalog"}, {Name: "schema"}, {Name: "table"}, {Name: "constraint"},
+			{Name: "name"}, {Name: "ordinal"},
+			{Name: "foreign_catalog", Desc: "set for a foreign key only"},
+			{Name: "foreign_schema", Desc: "set for a foreign key only"},
+			{Name: "foreign_table", Desc: "set for a foreign key only"},
+			{Name: "foreign_name", Desc: "the column the key points at, set for a foreign key only"},
+		},
+		Params:  keyParams("table", "constraint"),
+		Derived: []dbmeta.Derived{{Name: "scope", From: keyScope}},
+		Scan: func(rows *sql.Rows) (dbmeta.ConstraintColumn, error) {
+			var v dbmeta.ConstraintColumn
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Constraint, &v.Name,
+				&v.Ordinal, &v.ForeignCatalog, &v.ForeignSchema, &v.ForeignTable, &v.ForeignName)
 			return v, err
 		},
 	})
@@ -412,7 +569,7 @@ func routineStmt() dbmeta.Stmt {
 		always(`, 'func' AS "kind"`),
 		always(`, f.data_type AS "result_type"`),
 		always(`, f.argument_signature AS "arg_types"`),
-		always(`, '' AS "volatility"`),
+		always(`, LOWER(f.volatility) AS "volatility"`),
 		always(`, '' AS "parallel"`),
 		always(`, f.function_owner AS "owner"`),
 		always(`, CASE WHEN f.is_secure = 'YES' THEN 'secure' ELSE '' END AS "security"`),
@@ -446,7 +603,7 @@ func registerRoutines() {
 			{Name: "kind", Desc: "func or proc"},
 			{Name: "result_type"},
 			{Name: "arg_types", Desc: "the argument signature, such as (S VARCHAR)"},
-			{Name: "volatility", Desc: "always empty: information_schema does not record it"},
+			{Name: "volatility", Desc: "volatile or immutable for a function, and empty for a procedure"},
 			{Name: "parallel", Desc: "always empty: Snowflake does not record it"},
 			{Name: "owner"},
 			{Name: "security", Desc: "secure for a secure function, and empty otherwise"},
@@ -459,8 +616,40 @@ func registerRoutines() {
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
-				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
+				&v.ArgTypes, dbmeta.NullAsEmpty(&v.Volatility), &v.Parallel, &v.Owner, &v.Security, &v.Access,
 				&v.Language, &v.Source, &v.Comment, &v.Definition)
+			return v, err
+		},
+	})
+}
+
+// registerSettings reads the parameters of the session. SHOW PARAMETERS is the
+// only source, and the pipe operator turns it into one select. See D203.
+func registerSettings() {
+	dbmeta.Settings.Register(dbmeta.Snowflake, &dbmeta.Binding[dbmeta.Setting]{
+		Stmt: dbmeta.Stmt{
+			always(piped(`SHOW PARAMETERS`) + `SELECT "key" AS "name"`),
+			always(`, "value" AS "value"`),
+			always(`, "type" AS "type"`),
+			always(`, "level" AS "context"`),
+			always(`, NULL AS "access"`),
+			always(`, NULL AS "display"`),
+			always(`FROM $1`),
+			always(`WHERE ` + like(`"key"`, "@name")),
+			always(`ORDER BY 1`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name"}, {Name: "value"}, {Name: "type"},
+			{Name: "context", Desc: "the level the value is set at, which is empty for the default, or ACCOUNT, SESSION or an object"},
+			{Name: "access", Desc: "always absent: SHOW PARAMETERS records no access"},
+			{Name: "display", Desc: "always absent: Snowflake shows a value in one form, which is value"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "name", Desc: "parameter name pattern, empty for every one", Default: ""},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
+			var v dbmeta.Setting
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
 			return v, err
 		},
 	})

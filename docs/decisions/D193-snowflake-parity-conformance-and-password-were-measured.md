@@ -1,6 +1,6 @@
 # D193. Snowflake parity, conformance and the password statement were measured
 
-Status: Amends D190.
+Status: Amends D190, amended by D203.
 
 ## The decision
 

@@ -99,8 +99,8 @@ than from memory.
 | Vitess | 9 | nothing. Every one is the mysql model's statement |
 | Databend | 8 | `ProcParams`: a procedure's arguments are one text, such as addup(Int32,Int32) RETURN (Int32), and a function's are a variant |
 | SingleStore | 9 | nothing, although no foreign key is ever listed, because SingleStore has none |
-| Snowflake | 5 | not run (D144). `TableIndexes` and `IndexColumns`: Snowflake has no index. `TableForeignKeys` and `ProcParams`: information_schema has no KEY_COLUMN_USAGE and no parameters view |
-| Amazon Redshift | 5 | not run (D144). `TableIndexes` and `IndexColumns`: Redshift has no index. `TableForeignKeys` and `ProcParams` are not read |
+| Snowflake | 6 | measured on 2026-10-08 and 2026-10-09 (D190, D203). `TableIndexes` and `IndexColumns`: Snowflake has no index outside a hybrid table, which a trial account refuses. `ProcParams`: information_schema has no parameters view, and the argument signature is one text. `TableForeignKeys` is answered by SHOW IMPORTED KEYS, read through the pipe operator |
+| Amazon Redshift | 6 | `TableIndexes` and `IndexColumns`: Redshift has no index. `ProcParams` is not read (D204) |
 | Apache Impala | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Impala has no index, and SHOW lists no key and no parameter names |
 | SurrealDB | 9 | nothing on 3.x, although no foreign key is ever listed, because SurrealDB has none. 2.7 answers `Schema` alone, because a 2.x statement cannot read INFO as a value (D164) |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
@@ -112,7 +112,7 @@ SingleStore and SurrealDB answer all nine and list no foreign key, because
 neither has one.
 
 Every gap above is the product rather than the model, except on Redshift. The
-Redshift model does not read `TableForeignKeys` or `ProcParams`. `dbtpl` supports
+Redshift model does not read `ProcParams`. `dbtpl` supports
 PostgreSQL, MySQL, SQL Server, Oracle and SQLite today, so the only one of its
 own databases that is short is SQLite, by one query, for a reason `dbtpl`
 already knows: it writes no parameter names for SQLite either.
@@ -163,8 +163,8 @@ dialect is added.
 | Vitess | no | yes, all nine. A schema is the keyspace, which is the name vtgate accepts in a query (D135) |
 | Databend | no | partly: no key and no foreign key to follow, because Databend has neither. Every table and column is there, and a CHECK and its columns |
 | SingleStore | no | partly: no foreign key to follow, because SingleStore refuses one. Every table, key, index and routine is there |
-| Snowflake | no | no, until it has run (D144), and then partly: no foreign key to follow |
-| Amazon Redshift | no | no, until it has run (D144), and then partly: no foreign key to follow |
+| Snowflake | no | partly (D203): every table, column, primary key and foreign key is there, and the key columns are filtered in Go, because the statement takes no filter. A key is declared and not checked, so `Constraint.Enforced` reads false |
+| Amazon Redshift | no | partly: no parameter names. Every table, column, primary key and foreign key is there. Redshift declares a key and does not enforce it |
 | SurrealDB | no | partly, on 3.x: no foreign key to follow, because a link is a field of the type `record<t>` that the server does not check, and a schemaless table has no columns, because only a DEFINE FIELD is one. Every SCHEMAFULL table, field, index and function is there, and the record id is the key of every table. 2.7 has nothing to generate from (D164) |
 | Apache Impala | no | no. No key and no foreign key is listed, so there is nothing to relate one table to another, and every column is nullable |
 
@@ -196,7 +196,7 @@ database. On PostgreSQL it is the oid, which is what `dbtpl` uses today.
 Constraint columns became `dbmeta.ConstraintColumns`, with the column, its
 one based position within the constraint, and for a foreign key the catalog,
 schema, table and column it points at. Every model but ClickHouse, Trino,
-Presto, Couchbase, QuestDB, Snowflake, Redshift, Impala, InfluxDB 3 and YDB
+Presto, Couchbase, QuestDB, Redshift, Impala, InfluxDB 3 and YDB
 answers it, SQLite included.
 
 This was the largest gap, and it is closed exactly the way `dbtpl` needs: a

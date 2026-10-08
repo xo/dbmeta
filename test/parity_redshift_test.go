@@ -69,8 +69,8 @@ func makeRedshiftGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 }
 
 // makeRedshiftStranger makes a user with no grant on the fixture at all.
-// Redshift hides nothing in pg_catalog from it, which is what the golden file
-// records.
+// Redshift hides nothing in pg_catalog from it. The SVV views show it only the
+// rows that concern it, which is what the golden file records (D204).
 func makeRedshiftStranger(t *testing.T, db *sql.DB, dsn, schema string) string {
 	t.Helper()
 	dropRedshiftUser(t, db, "dbmeta_stranger", schema)

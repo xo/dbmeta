@@ -961,6 +961,12 @@ type Constraint struct {
 	Deferrable bool
 	Deferred   bool
 	Comment    sql.Null[string]
+	// Enforced reports whether the server checks the constraint. It is absent
+	// where the model does not read it, which is every model but Snowflake.
+	// Snowflake records a key and checks none, so it reads false for each of
+	// them, and deferred of true beside it means only that the server says so.
+	// See D203.
+	Enforced sql.Null[bool]
 }
 
 // Trigger fires on a change to a table. psql shows them inside \d name.

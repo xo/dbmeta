@@ -70,25 +70,28 @@ one, can answer such statements, for example SHOW TABLES, DESCRIBE and
 a Pinot model can walk those statements, as Impala's does (D146), and the
 InfluxDB models can read the release with a statement.
 
-### Finish the Redshift measurements
+### Finish what D204 left open for Redshift
 
-Redshift ran once against Redshift Serverless (D182). It has no conformance
-target. The SVV views that filter by user are not read, so privileges, role
-grants and collations are open, and Spectrum external tables are not measured.
-`ChangePassword` cannot run, because Redshift forbids quotes, slashes, at
-signs and spaces in a password. The identity flag `a` of `columns.identity` is
-a reading of the documentation and was not measured. A run reads about 36,000
-columns and costs trial credit, so keep each pass small.
+Spectrum external tables are not measured, because the namespace has no
+default IAM role and `CREATE EXTERNAL SCHEMA` is refused with "Cannot find
+default IAM role on this cluster". Ken must associate a role that reads a Glue
+catalog or an S3 bucket before the external tables can be measured. A grant of
+a table to a role is not in `Privileges`, because only SVV_RELATION_PRIVILEGES
+lists it and that view shows a user only the rows of that user. The routine
+parameters, the types, the casts, the aggregates and the operators have a
+source in pg_catalog and are not read.
 
-### Finish what D193 left open for Snowflake
+### Read what Snowflake answers and no kind holds
 
-Parity, conformance and `ChangePassword` ran on 2026-10-08 (D193). Two
-questions are open and Ken decides them. The `primary_key` field of a column
-is the literal false, and `docs/NULLS.md` says an absent column is NULL. The
-constraints query returns no ENFORCED column, and every Snowflake key reads
-ENFORCED of NO. Not read at all: the columns of a key, the table that a
-foreign key points at, tags, masking policies, stages, streams, tasks, pipes
-and dynamic tables.
+Measured by D203 and left out. `Roles` is answerable by SHOW ROLES, and Role has
+bools that Snowflake has no source for. `Indexes` and `IndexColumns` are
+answerable by INFORMATION_SCHEMA.INDEXES and INDEX_COLUMNS for a hybrid table,
+which a trial account refuses to make, so no row was read. The same account
+refuses masking policies, row access policies and materialized views. A run on
+an Enterprise account with a hybrid table and a row access policy finishes
+them. MySQL and MariaDB have ENFORCED in TABLE_CONSTRAINTS from 8.0.16 and
+10.2, and `Constraint.Enforced` is absent from both models. That needs a
+fragment gated on each product and a run on each.
 
 ## PostgreSQL model
 

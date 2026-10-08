@@ -27,11 +27,13 @@ import (
 // administrator's with the user, the role and the key replaced, which
 // gosnowflake parses and writes. The test never prints it.
 
-// sfWarehouse is the warehouse a made user runs on. A made role holds no grant
-// on the warehouse of the account, and the role of the test account cannot
-// give one because it holds USAGE without the grant option. Snowflake grants
-// USAGE on this warehouse to PUBLIC, which every role has.
-const sfWarehouse = "SYSTEM$STREAMLIT_NOTEBOOK_WH"
+// sfWarehouse is the warehouse a made user runs on. The role of the test
+// account owns it, and holds USAGE on it with the grant option, so the test
+// grants USAGE to each role it makes and the drop of the role removes the
+// grant. The test never alters, suspends, resizes or drops the warehouse, and
+// it grants nothing to a role it did not make, because dbimp uses the same
+// warehouse. See D203.
+const sfWarehouse = "DBMETA_WH"
 
 // sfPad is put before every password in a test, because the password policy
 // of the account refuses a short one.
@@ -65,6 +67,14 @@ func dropSnowflakePrincipal(t *testing.T, db *sql.DB, name string) {
 	cleanup(t, db, `DROP ROLE IF EXISTS `+name)
 }
 
+// grantWarehouse gives a role that the test made USAGE on the warehouse, and
+// revokes it when the test ends, before the role is dropped.
+func grantWarehouse(t *testing.T, db *sql.DB, role string) {
+	t.Helper()
+	exec(t, db, `GRANT USAGE ON WAREHOUSE `+sfWarehouse+` TO ROLE `+role)
+	t.Cleanup(func() { cleanup(t, db, `REVOKE USAGE ON WAREHOUSE `+sfWarehouse+` FROM ROLE `+role) })
+}
+
 // makeSnowflakePrincipal makes a role that holds the grants, and a user that
 // holds the role and logs in with a key pair. It returns the connection
 // string of the user.
@@ -77,6 +87,7 @@ func makeSnowflakePrincipal(t *testing.T, db *sql.DB, dsn, name string, open fun
 	dropSnowflakePrincipal(t, db, name)
 	t.Cleanup(func() { dropSnowflakePrincipal(t, db, name) })
 	exec(t, db, `CREATE ROLE `+name)
+	grantWarehouse(t, db, name)
 	for _, grant := range grants {
 		exec(t, db, grant+` TO ROLE `+name)
 	}
@@ -138,12 +149,13 @@ func makeSnowflakeVisitor(t *testing.T, db *sql.DB, dsn, _ string) string {
 	}, `GRANT USAGE ON DATABASE `+database)
 }
 
-// sfPasswordLogin opens a connection as a user with a password.
+// sfPasswordLogin opens a connection as a user with a password, in the role of
+// the same name.
 func sfPasswordLogin(t *testing.T, adminDSN, user, password string) *sql.DB {
 	t.Helper()
 	dsn := sfLogin(t, adminDSN, func(cfg *gosnowflake.Config) {
-		cfg.User, cfg.Password, cfg.Role = user, password, "PUBLIC"
-		// PUBLIC holds no grant on the database of the account.
+		cfg.User, cfg.Password, cfg.Role = user, password, user
+		// The role holds no grant on the database of the account.
 		cfg.Database, cfg.Schema = "", ""
 	})
 	return openAt(t, "snowflake", dsn)
@@ -162,8 +174,12 @@ func TestChangePasswordSnowflake(t *testing.T) {
 	dropSnowflakePrincipal(t, db, user)
 	// TYPE = LEGACY_SERVICE is the kind of user that a password alone can
 	// log in, with no second factor.
+	exec(t, db, `CREATE ROLE `+user)
+	t.Cleanup(func() { dropSnowflakePrincipal(t, db, user) })
+	grantWarehouse(t, db, user)
 	exec(t, db, `CREATE USER `+user+` PASSWORD = '`+start+`' MUST_CHANGE_PASSWORD = FALSE`+
-		` TYPE = LEGACY_SERVICE DEFAULT_ROLE = PUBLIC`)
+		` TYPE = LEGACY_SERVICE DEFAULT_ROLE = `+user)
+	exec(t, db, `GRANT ROLE `+user+` TO USER `+user)
 	t.Cleanup(func() { dropSnowflakePrincipal(t, db, user) })
 	for _, c := range hostilePasswords {
 		t.Run(c.name, func(t *testing.T) {

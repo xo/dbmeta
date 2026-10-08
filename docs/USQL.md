@@ -124,7 +124,7 @@ that does that, and it is deliberate.
 ### It does not raise the command count for PostgreSQL
 
 PostgreSQL already answers 11 of 11. What changes there is the number of object
-kinds: 14 against 56. `COMMANDS.md` maps every `psql` metadata command to the
+kinds: 14 against 65. `COMMANDS.md` maps every `psql` metadata command to the
 Go value that answers it, and 37 of them have no reader interface in `usql`
 today. Tablespaces, types, domains, operators, text search, publications,
 extensions, roles, access methods and the rest are all readable from `dbmeta`
@@ -168,8 +168,8 @@ reading code.
 | Vitess | 10/11 | 4/5 | `\dp`, because privileges list the accounts of the tablet's MySQL, which no client of vtgate logs in as. The trigger section, because vtgate refuses CREATE TRIGGER. A schema is the keyspace (D135) |
 | Databend | 10/11 | 4/5 | `\dp`, because a grant is listed only by show_grants for one role or user at a time, and the trigger section: Databend has no trigger |
 | SingleStore | 11/11 | 3/5 | the sequence and trigger sections: SingleStore has no sequence and refuses CREATE TRIGGER |
-| Snowflake | 10/11 | 2/5 | measured on 2026-10-08 (D190). `\di`: Snowflake has no index. The index column, trigger and constraint column sections: information_schema has no KEY_COLUMN_USAGE |
-| Amazon Redshift | 9/11 | 1/5 | `\di`: Redshift has no index, and `\dp`: the privileges are in SVV views the model does not read. Every section but constraints. Measured on 2026-10-08 (D182) |
+| Snowflake | 10/11 | 3/5 | measured on 2026-10-08 (D190) and again on 2026-10-09 (D203). `\di`: Snowflake has no index outside a hybrid table, which a trial account refuses. The index column and trigger sections: Snowflake has no trigger. The constraint column section is answered, by SHOW read through the pipe operator |
+| Amazon Redshift | 10/11 | 2/5 | `\di`: Redshift has no index. Every section but constraints and constraint columns. A privilege to a role is not in `\dp`, because only an SVV view shows it. Measured on 2026-10-09 (D182, D204) |
 | Apache Impala | 9/11 | 0/5 | `\di`: Impala has no index, and `\dp`: authorization is off in the image. Every section: SHOW lists no key, constraint, trigger or sequence |
 | MySQL | 11/11 | 4/5 | the sequence section: MySQL has no sequence |
 | ClickHouse | 11/11 | 2/5 | the sequence, trigger and constraint column sections |
@@ -204,8 +204,9 @@ reading code.
 Seven answer every command and every section: PostgreSQL, MariaDB, SQL
 Server, SAP HANA, CockroachDB, Vertica, and SurrealDB from 3.0. Almost every gap in the table is the
 product having no such object rather than the model being unfinished. There
-are two exceptions. The Redshift model does not read the SVV views that hold
-the privileges, and on Impala `\dp` fails because authorization is off in the
+are two exceptions. The Redshift model cannot show a privilege that was granted
+to a role, because only an SVV view lists it and that view shows a user only
+its own rows, and on Impala `\dp` fails because authorization is off in the
 image. Each gap says so with `NotSupported` rather than returning no rows.
 
 The `usql` side of the comparison is not in this table, because it is
@@ -544,9 +545,9 @@ there is no session state to read. D87 has the rest.
 Every product whose driver in `usql` changes a password has a statement here.
 Netezza was the one other, and it is out of scope (D132). Each one is tested by setting every
 password in `hostilePasswords` on a real server and logging in with it (D127).
-Snowflake is tested on a user that the test makes, and not on the account's own login (D193). Redshift is an exception, because its documentation allows no quote, backslash,
-slash, at sign or space in a password and so the hostile passwords cannot be
-set. Its statement was not run (D182). Vitess has no statement, because vtgate refuses ALTER USER.
+Snowflake is tested on a user that the test makes, and not on the account's own login (D193). Redshift is tested on a user that the test makes as well (D204). Its documentation
+forbids a quote, a double quote, a backslash, a slash, an at sign and a space in a
+password, and the server accepts all of them. Every hostile password sets and logs in. Vitess has no statement, because vtgate refuses ALTER USER.
 
 | Product | Statement | Quoting |
 | --- | --- | --- |
@@ -558,6 +559,6 @@ set. Its statement was not run (D182). Vitess has no statement, because vtgate r
 | Exasol | `ALTER USER "<user>" IDENTIFIED BY "<password>"`, and `REPLACE` when given | a quoted identifier, with a double quote doubled |
 | ClickHouse | ``ALTER USER `<user>` IDENTIFIED BY '<password>'`` | a backslash always doubled, in the literal and in the name |
 | Cassandra and ScyllaDB | `ALTER ROLE "<role>" WITH PASSWORD = '<password>'` | a string literal with no backslash escape |
-| Amazon Redshift | `ALTER USER "<user>" PASSWORD '<password>'` | a string literal, with a backslash always doubled |
+| Amazon Redshift | `ALTER USER "<user>" PASSWORD '<password>'` | a string literal, with a backslash always doubled. The server wants 8 characters with an upper case letter, a lower case letter and a digit |
 | Snowflake | `ALTER USER "<user>" SET PASSWORD = '<password>'` | a string literal, with a backslash always doubled |
 | Databend | `ALTER USER '<user>' IDENTIFIED BY '<password>'` | a string literal for the user and the password, with a backslash always doubled |

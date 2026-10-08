@@ -15,10 +15,11 @@
 // Ken chose on 2026-09-30 to write this model from Redshift's
 // documentation before anyone had a cluster (D144). It first ran on
 // 2026-10-08 against Redshift Serverless, release 1.0.434008, and D182 holds
-// what that changed. Its tests run when dbrun resolves a connection string
-// for Redshift (D117).
+// what that changed. D204 ran it again on 2026-10-09 and added the grants,
+// the role grants and the constraint columns. Its tests run when dbrun
+// resolves a connection string for Redshift (D117).
 //
-// It answers 11 of the 65 questions.
+// It answers 18 of the 65 questions.
 package redshift
 
 import (
@@ -74,6 +75,15 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 // changePassword builds ALTER USER. A backslash escapes the next character
 // in a Redshift string.
+//
+// The documentation says that a password cannot hold a single quote, a double
+// quote, a backslash, a slash, an at sign or a space, and that it must not
+// pass 64 characters. D204 measured that on Redshift Serverless 1.0.434008 and
+// the server accepts all of them, and a login with each one works. The
+// statement refuses only a password of fewer than 8 characters or without an
+// upper case letter, a lower case letter and a digit, and it says so in its
+// own words. So nothing here refuses a character, and the escaping above is
+// the only rule.
 func changePassword(c dbmeta.PasswordChange, _ dbmeta.Quoting) (string, error) {
 	backslashes := dbmeta.Quoting{BackslashEscapes: sql.Null[bool]{V: true, Valid: true}}
 	return "ALTER USER " + dbmeta.QuoteIdentifier(c.User, `"`, `"`) +

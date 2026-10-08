@@ -1,6 +1,6 @@
 # D190. Snowflake ran against a trial account
 
-Status: Amends D144, amended by D193.
+Status: Amends D144, amended by D193 and D203.
 
 ## The decision
 

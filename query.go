@@ -204,6 +204,21 @@ type Param struct {
 	Default any
 }
 
+// Derived is a value that a statement reads as a parameter and a caller never
+// passes. From computes it from the arguments of the call, with the defaults
+// filled in, so a statement can use a fact that no single argument holds, such
+// as the scope of a SHOW that depends on whether two patterns are exact names.
+//
+// It is for a dialect that sets [Info.Literal], where what From returns is
+// rendered by that function, so the dialect decides how a derived value is
+// written. A statement names it with an at sign, as it names a [Param], and a
+// caller that passes its name gets ErrUnknownParam. Only the Snowflake model
+// has one. See D203.
+type Derived struct {
+	Name string
+	From func(args map[string]any) any
+}
+
 // Binding is everything one dialect provides for one query.
 type Binding[T any] struct {
 	// Stmt is the versioned statement.
@@ -212,6 +227,9 @@ type Binding[T any] struct {
 	Fields []Field
 	// Params are the parameters the statement takes.
 	Params []Param
+	// Derived are the values the statement reads that a caller does not pass.
+	// They are not in Params.
+	Derived []Derived
 	// Scan reads one row. The model writes it by hand, so no reflection is
 	// needed.
 	Scan func(*sql.Rows) (T, error)
@@ -458,7 +476,7 @@ func (q *Query[T]) Build(m *Meta, args map[string]any) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	return bind(s, info, b.Params, args)
+	return bind(s, info, b.Params, b.Derived, args)
 }
 
 // All runs the query against db and yields one value per row.
@@ -578,7 +596,7 @@ func First[T any](seq iter.Seq2[T, error]) (T, bool, error) {
 
 // bind rewrites the named parameters of s into the placeholders the dialect
 // wants, and returns the values in matching order.
-func bind(s string, info *Info, params []Param, args map[string]any) (string, []any, error) {
+func bind(s string, info *Info, params []Param, derived []Derived, args map[string]any) (string, []any, error) {
 	known := make(map[string]Param, len(params))
 	for _, p := range params {
 		known[p.Name] = p
@@ -587,6 +605,10 @@ func bind(s string, info *Info, params []Param, args map[string]any) (string, []
 		if _, ok := known[name]; !ok {
 			return "", nil, ErrUnknownParam
 		}
+	}
+	deriving := make(map[string]Derived, len(derived))
+	for _, d := range derived {
+		deriving[d.Name] = d
 	}
 	var (
 		out  strings.Builder
@@ -610,16 +632,22 @@ func bind(s string, info *Info, params []Param, args map[string]any) (string, []
 			out.WriteByte('@')
 			continue
 		}
-		p, ok := known[name]
-		if !ok {
-			return "", nil, ErrUnknownParam
-		}
-		v, given := args[name]
-		if !given {
-			if p.Default == nil {
-				return "", nil, ErrMissingParam
+		var v any
+		if d, isDerived := deriving[name]; isDerived {
+			v = d.From(withKnown(params, args))
+		} else {
+			p, ok := known[name]
+			if !ok {
+				return "", nil, ErrUnknownParam
 			}
-			v = p.Default
+			var given bool
+			v, given = args[name]
+			if !given {
+				if p.Default == nil {
+					return "", nil, ErrMissingParam
+				}
+				v = p.Default
+			}
 		}
 		// A list is bound as one string, its items joined by commas, because
 		// no driver here binds a slice, and a statement matches one item by
@@ -659,4 +687,19 @@ func bind(s string, info *Info, params []Param, args map[string]any) (string, []
 		out.WriteString(info.Placeholder(len(vals)))
 	}
 	return out.String(), vals, nil
+}
+
+// withKnown returns args with the default of each parameter that the caller
+// left out and that has one. A parameter with neither is absent, so a function
+// that derives a value reads the empty value of it.
+func withKnown(params []Param, args map[string]any) map[string]any {
+	out := make(map[string]any, len(params))
+	for _, p := range params {
+		if v, ok := args[p.Name]; ok {
+			out[p.Name] = v
+		} else if p.Default != nil {
+			out[p.Name] = p.Default
+		}
+	}
+	return out
 }

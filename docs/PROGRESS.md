@@ -7,12 +7,22 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has seven releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0 on
-39b74b2 on 2026-10-07, v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928 on
-2026-10-08, v0.5.0 on 8f3115b on 2026-10-08, and v0.6.0 on 90d0261 and v0.7.0 on abe2ca1,
-both on 2026-10-08. The Tested tier passed in CI on each tagged commit. Ken chose that
-CI stands in for a run of every tier, and the Verified tier was not run again
-for any of them.
+dbmeta has nine releases and a tenth in preparation. v0.1.0 was tagged on
+dd70b7a on 2026-10-02, v0.2.0 on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07,
+v0.4.0 on 9388928, v0.5.0 on 8f3115b, v0.6.0 on 90d0261 and v0.7.0 on abe2ca1
+on 2026-10-08, and v0.8.0 on cf48e36 and v0.9.0 on 609c60b on 2026-10-09. The
+Tested tier passed in CI on each tagged commit. Ken chose that CI stands in for
+a run of every tier, and the Verified tier was not run again for any of them.
+
+v0.10.0 holds the Snowflake dialect finished (D203), the Redshift dialect
+finished (D204), `ListHas` and `LikeFold` in the root package and the Cassandra
+filter that ignores case (D202). It is tagged after CI passes on its commit.
+
+v0.9.0 holds the sections of `\d+` (D199), `Binding.Keep` for the Cassandra
+filters (D200) and the third group of data for usql's describe commands (D201).
+
+v0.8.0 holds the NULL fields (D197) and the first fields for tables, indexes,
+columns and functions (D198), which usql needs for its describe commands.
 
 v0.7.0 holds the Cassandra rename (D196), the URL dsn and the ordinary user of
 the Cassandra and ScyllaDB entries (D195), and the release read for every user
@@ -90,33 +100,26 @@ test module pins dbimp v0.14.0 and dburl v0.46.0.
 
 In progress:
 
-- Drill (D178), Elasticsearch (D177), Solr (D179) and OpenSearch (D181) are
-  built and pass on every release they answer. VoltDB has no model, because
-  its catalog kinds are unanswered (D180), and its entry is fixed. The
-  OpenSearch role is wider and the DynamoDB DSN ends with `tls=false`. v0.4.0
-  holds Drill, Elasticsearch and Solr.
-- Elasticsearch, Solr and OpenSearch read the release with `SELECT version()`
-  since dbimp v0.15.0 (D191). Ken chose to grant the ordinary user the right to
-  read it, so every user gets the release (D192). The SurrealDB model reads it
-  the same way.
-- Redshift (D182) and Snowflake (D190, D193) ran against the provisioned
-  services. Redshift has three parity principals. Snowflake has three too,
-  made in the test from a role and a user with a generated key pair, and it has
-  a conformance target.
-- Every database that usql supports has a dialect, except H2, VoltDB, chai,
-  csvq, Pinot, DynamoDB and Phoenix, and the hosted services without a model
-  (D184, D185, D186, D188).
-- The describe commands of usql were brought up to psql 18 (usql asked on
-  2026-10-08). v0.8.0 holds groups A and B (D197, D198). The \d+ sections
-  (D199), `Binding.Keep` for the Cassandra filters (D200) and the third group
-  (D201: structured options, column privileges, visibility flags, the index
-  definition and constraint type, and the fields for `\dn+`, `\dx`, `\l`,
-  `\dRs+` and the `\dA` family) are pushed and wait for the tag v0.9.0.
-  PostgreSQL answers 65 kinds on 18. usql holds its formatter commit for v0.9.0.
-  The next work is what usql finds against it.
+- The dialects are built or decided for everything that usql supports, except
+  H2, VoltDB, chai, csvq, Pinot, DynamoDB, Phoenix and the hosted services
+  other than Redshift and Snowflake (D184, D185, D186, D188, D194).
+- Snowflake answers 15 of the 65 kinds and Redshift 18, both measured on the
+  provisioned services. The key columns of Snowflake come from a SHOW through
+  the pipe operator, scoped with `Info.Literal` and the new `Derived` values
+  (D203). Redshift's Spectrum tables cannot be measured, because the namespace
+  has no IAM role.
+- The describe commands of usql are at the level of psql 18 for PostgreSQL.
+  PostgreSQL answers 65 kinds on 18. The next work is what usql finds against
+  v0.9.0 and later, and the other databases, one at a time, which usql said
+  will follow.
+- Known and not done is in `BACKLOG.md`: the cost of `Sequences`, the sections
+  of `\d` that D201 left out, the SQL layer for Pinot and the rest, the
+  oracle-26ai failure in CI, and the old items for Hive, Databend and Oracle 21c.
 
 ## Waiting
 
-- Solr needs the cost check of D47 against thousands of collections.
-- Snowflake and Redshift need a connection string, and VoltDB needs a license
-  file.
+- Redshift Spectrum waits for an IAM role on the namespace, which Ken owns.
+- usql sends what it finds against the new fields, and the next database to
+  bring to psql's level.
+- The arrow-go handshake that GizmoSQL needs is fixed upstream, and until then
+  the tests open the session themselves.

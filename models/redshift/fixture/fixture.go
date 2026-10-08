@@ -5,7 +5,8 @@
 // to match every other fixture. A key is declared and not enforced.
 //
 // It was written from Redshift's documentation and first ran on 2026-10-08,
-// where every step was accepted as written. See D144 and D182.
+// where every step was accepted as written. See D144 and D182. D204 added the
+// roles, the group and the grants that the privilege kinds read.
 package fixture
 
 import (
@@ -107,8 +108,22 @@ var Everything = Fixture{
 	SELECT book_id, title FROM dbmeta_fixture.book WHERE published IS NOT NULL`),
 		at("function", `CREATE FUNCTION dbmeta_fixture.f_shout(VARCHAR) RETURNS VARCHAR`+
 			` STABLE AS $$ SELECT UPPER($1) $$ LANGUAGE sql`),
+		at("role", `CREATE ROLE dbmeta_fixture_role`),
+		at("member role", `CREATE ROLE dbmeta_fixture_member`),
+		at("role grant", `GRANT ROLE dbmeta_fixture_role TO ROLE dbmeta_fixture_member`),
+		at("group", `CREATE GROUP dbmeta_fixture_group`),
+		at("table grant", `GRANT SELECT ON TABLE dbmeta_fixture.author TO GROUP dbmeta_fixture_group`),
+		at("column grant", `GRANT SELECT (title) ON TABLE dbmeta_fixture.book TO GROUP dbmeta_fixture_group`),
+		at("default grant", `ALTER DEFAULT PRIVILEGES IN SCHEMA dbmeta_fixture`+
+			` GRANT SELECT ON TABLES TO GROUP dbmeta_fixture_group`),
 	},
 	Teardown: []Step{
+		at("default grant", `ALTER DEFAULT PRIVILEGES IN SCHEMA dbmeta_fixture`+
+			` REVOKE SELECT ON TABLES FROM GROUP dbmeta_fixture_group`),
+		at("role grant", `REVOKE ROLE dbmeta_fixture_role FROM ROLE dbmeta_fixture_member`),
 		at("schema", `DROP SCHEMA IF EXISTS dbmeta_fixture CASCADE`),
+		at("group", `DROP GROUP dbmeta_fixture_group`),
+		at("member role", `DROP ROLE dbmeta_fixture_member`),
+		at("role", `DROP ROLE dbmeta_fixture_role`),
 	},
 }

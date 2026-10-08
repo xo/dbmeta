@@ -189,8 +189,8 @@ call and filter in the loop.
 | Vitess     | native             | 20      | In progress |
 | Databend   | native             | 20      | In progress |
 | SingleStore | native            | 23      | In progress |
-| Snowflake  | native             | 13      | In progress |
-| Amazon Redshift | native        | 11      | In progress |
+| Snowflake  | native             | 15      | In progress |
+| Amazon Redshift | native        | 18      | In progress |
 | Apache Impala | native          | 11      | In progress |
 | rqlite     | native             | 14      | In progress |
 | libSQL     | native             | 14      | In progress |
@@ -210,7 +210,7 @@ call and filter in the loop.
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
-It answers 12 object kinds where the native PostgreSQL model answers 56, and
+It answers 12 object kinds where the native PostgreSQL model answers 65, and
 answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
@@ -351,7 +351,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 202 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 73 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 204 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 75 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
