@@ -243,7 +243,7 @@ func registerRoles() {
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			// The type is scanned into the field rather than into pad,
 			// because on ScyllaDB it is a real column. On Cassandra it is
-			// the padded NULL, which github.com/xo/cql reports as one, so
+			// the padded NULL, which github.com/xo/cassandra reports as one, so
 			// the field is absent there by itself.
 			var v dbmeta.Setting
 			err := rows.Scan(&v.Name, &v.Value, &v.Type, pad{}, pad{}, pad{})

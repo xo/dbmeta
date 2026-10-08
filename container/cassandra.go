@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/xo/dbmeta"
 )
@@ -41,9 +42,21 @@ import (
 // one product here that does not use [Password], because the password is not
 // ours to choose at startup.
 //
+// # The ordinary user
+//
+// Init makes [CassandraUser], a role that can log in, is no superuser, and
+// holds no permission. Its password is [Password]. Every role reads system
+// and system_schema, which is all the catalog queries need, so a grant adds
+// nothing. A grant on all keyspaces also reaches system.roles on ScyllaDB,
+// which holds the password hashes. The roles, the role grants and
+// the privileges stay refused to it, which is what an ordinary user ought to
+// get. Init runs on every start, so the statement is safe to run twice. It
+// works only after system_auth can answer, which the ready command proves.
+// See D195.
+//
 // # ScyllaDB
 //
-// Cassandra is the reference product for the cql dialect, and ScyllaDB is the
+// Cassandra is the reference product for the cassandra dialect, and ScyllaDB is the
 // flavor. [Scylla] holds its releases, and models/cassandra reads both. See
 // D91.
 //
@@ -75,19 +88,66 @@ var cassandra = product{
 	// can answer, and a cqlsh that does not authenticate reports ready too
 	// early.
 	ready: []string{"bash", "-c", "echo exit | cqlsh -u cassandra -p cassandra"},
-	// A host list and query options rather than a URL, which is the form
-	// dburl's GenCassandra produces. github.com/xo/cql reads it and the URL
-	// form both.
-	dsn: func(port int) string {
-		return fmt.Sprintf(
-			"127.0.0.1:%d?username=cassandra&password=cassandra"+
-				"&timeout=30s&connectTimeout=30s", port)
-	},
-	// The DSN above is a host list rather than a URL, so a person needs the
-	// other form to paste into usql.
+	init:  cassandraInit,
+	// The DSN is a URL, because the driver reads only that form, with the
+	// options as query keys. The URL a person pastes into usql is the same
+	// string without the options. See D167 and D195.
+	dsn: cassandraDSN("cassandra", "cassandra"),
 	url: func(port int) string {
 		return fmt.Sprintf("cassandra://cassandra:cassandra@127.0.0.1:%d/", port)
 	},
+	users: []Principal{{
+		Role: User,
+		User: CassandraUser,
+		dsn:  cassandraDSN(CassandraUser, Password),
+		url: func(port int) string {
+			return cassandraURL("cassandra", CassandraUser, Password, port)
+		},
+	}},
+}
+
+// CassandraUser is the ordinary user that Init makes on every Cassandra and
+// ScyllaDB release. Its password is [Password]. A consumer reads the name
+// from here rather than writing it again.
+const CassandraUser = "dbmeta_user"
+
+// cassandraInit makes [CassandraUser]. cqlsh stops at the first statement
+// that the server refuses and exits with a status that says so, so the
+// command fails where a failure matters. The role holds no permission. See
+// D195.
+var cassandraInit = []string{
+	"cqlsh", "-u", "cassandra", "-p", "cassandra", "-e",
+	"CREATE ROLE IF NOT EXISTS " + CassandraUser + " WITH PASSWORD = '" + Password +
+		"' AND LOGIN = true AND SUPERUSER = false",
+}
+
+// cassandraDSN builds the DSN for one user on the published port. It is a
+// cassandra:// URL with a request timeout and a connect timeout of 30
+// seconds, because a first connection to a server that has just started can
+// be slow. ScyllaDB uses it too, because the driver reads no other scheme.
+func cassandraDSN(user, password string) func(port int) string {
+	return func(port int) string {
+		u := url.URL{
+			Scheme:   "cassandra",
+			User:     url.UserPassword(user, password),
+			Host:     fmt.Sprintf("127.0.0.1:%d", port),
+			Path:     "/",
+			RawQuery: "connectTimeout=30s&timeout=30s",
+		}
+		return u.String()
+	}
+}
+
+// cassandraURL builds the URL that dburl takes for one user, under the
+// scheme that a person types.
+func cassandraURL(scheme, user, password string, port int) string {
+	u := url.URL{
+		Scheme: scheme,
+		User:   url.UserPassword(user, password),
+		Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		Path:   "/",
+	}
+	return u.String()
 }
 
 // Cassandra is every Cassandra release dbmeta is tested against.

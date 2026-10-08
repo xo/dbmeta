@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-69 of them amend or replace an earlier one, and a decision read without its
+70 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -99,7 +99,7 @@ file.
 | [D78](D078-hive-reads-sys-and-is-a-model.md) | Hive reads sys, and is a model | Decided |
 | [D79](D079-a-dialect-that-cannot-bind-renders-its-values.md) | A dialect that cannot bind renders its values | Decided |
 | [D80](D080-the-driver-registry-is-dburl-s-and-reading-it-is.md) | The driver registry is dburl's, and reading it is not importing it | Amended by D125 and D154 |
-| [D81](D081-the-cassandra-dialect-is-cql.md) | The Cassandra dialect is cql | Decided |
+| [D81](D081-the-cassandra-dialect-is-cql.md) | The Cassandra dialect is cql | Decided, amended by D196 |
 | [D82](D082-ci-compiles-once-and-every-job-runs-the-binary.md) | CI compiles once and every job runs the binary | Decided |
 | [D83](D083-a-server-is-ready-when-it-can-run-a-query-and.md) | A server is ready when it can run a query, and keeps being able to | Decided |
 | [D84](D084-exasol-runs-after-all-on-the-nano-image.md) | Exasol runs after all, on the nano image | Amends D77 |
@@ -111,7 +111,7 @@ file.
 | [D90](D090-a-database-qualifies-when-it-is-free-to-run-for.md) | A database qualifies when it is free to run for development and testing | Decided |
 | [D91](D091-scylladb-is-a-flavor-of-the-cassandra-model.md) | ScyllaDB is a flavor of the Cassandra model | Amends D66, amended by D92 |
 | [D92](D092-a-second-version-statement-reads-the-scylladb.md) | A second version statement reads the ScyllaDB release | Amends D91 |
-| [D93](D093-the-cql-tests-use-github-com-xo-cql-which.md) | The cql tests use github.com/xo/cql, which reports a NULL | Amends D62 |
+| [D93](D093-the-cql-tests-use-github-com-xo-cql-which.md) | The cql tests use github.com/xo/cql, which reports a NULL | Amends D62, amended by D196 |
 | [D94](D094-couchbase-runs-under-dbrun-and-its-model-waits.md) | Couchbase runs under dbrun, and its model waits for the n1ql rewrite | Amends D66, amended by D95, D96 and D104 |
 | [D95](D095-the-couchbase-model-waits-for-the-dbimp-driver.md) | The Couchbase model waits for the dbimp driver | Amends D94, amended by D101 and D104 |
 | [D96](D096-couchbase-gets-an-ordinary-user-and-starts-again.md) | Couchbase gets an ordinary user, and starts again after a stop | Amends D94, amended by D104 |
@@ -213,3 +213,5 @@ file.
 | [D192](D192-the-ordinary-user-reads-the-release-and-surrealdb-reads-it-with-select-version.md) | The ordinary user reads the release, and SurrealDB reads it with SELECT version() | Amends D191, D176 and D164 |
 | [D193](D193-snowflake-parity-conformance-and-password-were-measured.md) | Snowflake parity, conformance and the password statement were measured | Amends D190 |
 | [D194](D194-no-models-for-hosted-services-beyond-redshift-and-snowflake.md) | No models for hosted services beyond Redshift and Snowflake | Amends D188 |
+| [D195](D195-cassandra-and-scylladb-have-a-url-dsn-and-an-ordinary-user.md) | Cassandra and ScyllaDB have a URL DSN and an ordinary user | Decided, amended by D196 |
+| [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |

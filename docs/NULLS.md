@@ -164,7 +164,7 @@ on a database that has no defaults. The model scanned a padded column into a
 target that discards the value, so that the field kept its invalid Null. See
 D62.
 
-The tests now use `github.com/xo/cql`, which reports a null as one. A real
+The tests now use `github.com/xo/cassandra`, which reports a null as one. A real
 catalog column that is null now reaches the caller as NULL. The change also
 exposed a Scan that read a padded column into a plain string, which only the
 old driver's empty string had kept working. See D93.

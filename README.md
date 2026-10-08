@@ -351,7 +351,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 194 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 69 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 196 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 70 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -463,7 +463,7 @@ longer start.
   <a href="https://github.com/xo/dburl" title="Database connection URLs">dburl</a> |
   <a href="https://github.com/xo/dbmeta" title="Database metadata, this project">dbmeta</a> |
   <a href="https://github.com/xo/dbimp" title="Database drivers in pure Go">dbimp</a> |
-  <a href="https://github.com/xo/cql" title="A database/sql driver for Cassandra">cql</a> |
+  <a href="https://github.com/xo/cassandra" title="A database/sql driver for Cassandra">cassandra</a> |
   <a href="https://github.com/xo/dbtpl" title="Go code generated from a database">dbtpl</a> |
   <a href="https://github.com/xo/tblfmt" title="Tables of database results">tblfmt</a> |
   <a href="https://github.com/xo/rline" title="The line editor of usql">rline</a> |

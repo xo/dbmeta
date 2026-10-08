@@ -1,6 +1,6 @@
 # D93. The cql tests use github.com/xo/cql, which reports a NULL
 
-Status: Amends D62.
+Status: Amends D62, amended by D196.
 
 The `test` module now reads Cassandra and ScyllaDB through
 `github.com/xo/cql` v0.1.0 in place of `github.com/MichaelS11/go-cql-driver`.

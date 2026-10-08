@@ -8,24 +8,25 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/xo/cql"
+	_ "github.com/xo/cassandra"
 
 	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/models/cassandra"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 )
 
-// openCassandra returns a connection to the server named by DBMETA_CQL.
+// openCassandra returns a connection to the server named by DBMETA_CASSANDRA.
 //
-// The DSN is a host list and query options rather than a URL. github.com/xo/cql
-// takes both forms, and dbrun writes this one.
+// The DSN is a cassandra:// URL with the options as query keys, which is the
+// one form that both the old and the new driver read. dbrun writes it. See
+// D195.
 func openCassandra(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn := os.Getenv("DBMETA_CQL")
+	dsn := os.Getenv("DBMETA_CASSANDRA")
 	if dsn == "" {
-		t.Skip("set DBMETA_CQL to run against a real server")
+		t.Skip("set DBMETA_CASSANDRA to run against a real server")
 	}
-	db, err := sql.Open("cql", dsn)
+	db, err := sql.Open("cassandra", dsn)
 	if err != nil {
 		t.Fatalf("opening: %v", err)
 	}
@@ -499,7 +500,7 @@ func drain[T any](t *testing.T, q *dbmeta.Query[T], m *dbmeta.Meta, db *sql.DB) 
 }
 
 // TestScyllaIsItsOwnProduct checks what the model makes of the product it is
-// connected to. ScyllaDB and Cassandra share the cql dialect, and the version
+// connected to. ScyllaDB and Cassandra share the cassandra dialect, and the version
 // row is the only place the two are told apart, so a wrong answer there sends
 // every ScyllaDB fragment to the wrong server. See D91.
 func TestScyllaIsItsOwnProduct(t *testing.T) {
@@ -537,7 +538,7 @@ func TestScyllaIsItsOwnProduct(t *testing.T) {
 	exec(t, db, `CREATE ROLE IF NOT EXISTS dbmeta_nobody WITH PASSWORD = '`+
 		parityPassword+`' AND LOGIN = true`)
 	t.Cleanup(func() { cleanup(t, db, `DROP ROLE IF EXISTS dbmeta_nobody`) })
-	nobody := openAt(t, "cql", cqlUser(t, os.Getenv("DBMETA_CQL"), "dbmeta_nobody", parityPassword))
+	nobody := openAt(t, "cassandra", replaceUser(t, os.Getenv("DBMETA_CASSANDRA"), "dbmeta_nobody", parityPassword))
 	theirs, err := dbmeta.Cassandra.Version(t.Context(), nobody)
 	if err != nil {
 		t.Fatalf("reading the version as a role granted nothing: %v", err)

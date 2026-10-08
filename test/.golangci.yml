@@ -94,7 +94,7 @@ linters:
             - github.com/lib/pq
             - github.com/microsoft/go-mssqldb
             - github.com/sijms/go-ora
-            - github.com/xo/cql
+            - github.com/xo/cassandra
             - github.com/xo/dbimp
             - github.com/xo/dburl
             - github.com/nakagami/firebirdsql

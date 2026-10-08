@@ -22,7 +22,7 @@ import (
 	_ "github.com/sijms/go-ora/v3"
 	_ "github.com/snowflakedb/gosnowflake/v2"
 	_ "github.com/vertica/vertica-sql-go"
-	_ "github.com/xo/cql"
+	_ "github.com/xo/cassandra"
 	_ "github.com/xo/dbimp/arangodb"
 	_ "github.com/xo/dbimp/avatica"
 	_ "github.com/xo/dbimp/clickhouse"
@@ -71,7 +71,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Vitess:     "mysql",
 	dbmeta.SQLServer:  "sqlserver",
 	dbmeta.Oracle:     "oracle",
-	dbmeta.Cassandra:  "cql",
+	dbmeta.Cassandra:  "cassandra",
 	dbmeta.ClickHouse: "clickhouse",
 	dbmeta.Trino:      "trino",
 	dbmeta.Presto:     "trino",

@@ -397,6 +397,16 @@ The superuser is `cassandra` and so is its password. It is the one product
 here that does not use the shared test password, because Cassandra creates
 that pair and it is the only one that works until somebody changes it.
 
+The setup also makes the ordinary user `dbmeta_user` on every release, with the
+shared test password. It can log in, it is no superuser, and it holds no
+permission. Every role reads `system` and `system_schema`, so it gets the same
+answers as the administrator except for the tables that hold roles and
+permissions. On Cassandra, `Roles`, `RoleGrants` and `Privileges` are refused
+to it, and so is `Settings` from 4.0, which reads `system_views`. On ScyllaDB,
+`Privileges`, `RoleGrants`, `RoleSettings`, `Roles` and `Settings` are refused.
+`test/testdata/parity.txt` holds the answer under `[cassandra/same/user]` and
+`[scylla/same/user]`. D195 has the reasoning.
+
 ### What it answers
 
 Keyspaces as schemas, tables, columns, materialized views as views, user
@@ -462,7 +472,7 @@ no rows anywhere. It is the one registered query with no fixture object.
 
 ### A null arrives as a null
 
-The tests use `github.com/xo/cql`, which reports a CQL null as NULL. The
+The tests use `github.com/xo/cassandra`, which reports a CQL null as NULL. The
 driver before it sent an empty string for every null, and D62 worked around
 that by discarding each padded column. D93 records the change.
 

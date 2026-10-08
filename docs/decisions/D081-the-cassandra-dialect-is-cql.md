@@ -1,6 +1,6 @@
 # D81. The Cassandra dialect is cql
 
-Status: Decided.
+Status: Decided, amended by D196.
 
 `dbmeta.Cassandra` is `"cql"`. It was `"cassandra"` and that was wrong.
 

@@ -119,7 +119,7 @@ type parityTarget struct {
 	dialect dbmeta.Dialect
 	// driver is the database/sql driver, which is not always the dialect.
 	// PostgreSQL is read through pgx, and the two coincide for Cassandra,
-	// whose dialect is cql because that is the name the driver registers.
+	// whose dialect is cassandra because that is the name the driver registers.
 	driver string
 	env    string
 	// open returns the administrator connection, or skips.
@@ -261,15 +261,18 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
-			dialect: dbmeta.Cassandra, driver: "cql", env: "DBMETA_CQL",
+			dialect: dbmeta.Cassandra, driver: "cassandra", env: "DBMETA_CASSANDRA",
 			open: openCassandra, build: setupCassandra,
 			schema: cafixture.Everything.Schema,
 			scenes: []parityScene{{
 				// Cassandra has no containment. A role belongs to the
 				// cluster and a keyspace is only a grant scope, so there is
 				// the superuser and there is everybody else.
-				name:       "same",
-				principals: []parityPrincipal{{name: "grantee", make: makeCassandraGrantee}},
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "grantee", make: makeCassandraGrantee},
+					{name: "user", make: makeCassandraUser},
+				},
 			}},
 		},
 		{
@@ -834,8 +837,8 @@ func TestPrivilegeParity(t *testing.T) {
 //
 // Only these are looked up. Cassandra records a version under cql and another
 // under protocol, and neither is a product: a read of every key here files
-// its answers under cql. ScyllaDB is a product, so its key is listed, and a
-// Cassandra server, which reports no such key, stays under cql.
+// its answers under cassandra. ScyllaDB is a product, so its key is listed, and
+// a Cassandra server, which reports no such key, stays under cassandra.
 var parityFlavors = map[dbmeta.Dialect][]string{
 	dbmeta.MySQL:     {"mariadb", "mysql"},
 	dbmeta.Cassandra: {"scylla"},

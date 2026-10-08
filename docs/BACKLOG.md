@@ -8,19 +8,6 @@ A question for Ken goes at the end of [`PLAN.md`](PLAN.md), under Open questions
 for Ken. When an item here is done, delete it, and record in `decisions/`
 anything that was decided on the way (D110).
 
-## Drivers
-
-### Move the Cassandra tests to the dbimp driver
-
-The test module reads Cassandra and ScyllaDB through `github.com/xo/cql`
-(D93). Ken decided on 2026-09-27 that `xo/cql` gets no further work, and that
-a clean driver in `github.com/xo/dbimp` replaces it. When dbimp has that
-driver, move the tests to it and run the Cassandra and ScyllaDB tests on every
-release again. Couchbase is the precedent: D101 moved its tests to dbimp's
-driver before `usql` imported it, and `usql` followed. Hard rule 10 asks for
-the package that dburl names (D154), and dburl names `github.com/xo/cql` for
-Cassandra today. So the move waits until dburl names dbimp's driver.
-
 ## Servers
 
 ### Find why the Hive setup fails on a slow machine

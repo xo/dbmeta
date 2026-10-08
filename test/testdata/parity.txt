@@ -114,11 +114,17 @@ role_grants refused: reading the result: couchbase: 13014: User does not have cr
 roles refused: reading the result: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
 routine_parameters fewer rows than the administrator
 
-[cql/same/grantee]
+[cassandra/same/grantee]
 privileges refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
 role_grants refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
 roles refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
 settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
+
+[cassandra/same/user]
+privileges refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.role_permissions> or any of its parents
+role_grants refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.role_members> or any of its parents
+roles refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.roles> or any of its parents
+settings refused: running query: User dbmeta_user has no SELECT permission on <table system_views.settings> or any of its parents
 
 [cratedb/same/all]
 current_user the same rows with different values
@@ -405,6 +411,13 @@ role_grants refused: running query: User dbmeta_grantee has no SELECT permission
 role_settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system.role_attributes> or any of its parents
 roles refused: running query: User dbmeta_grantee has no SELECT permission on <table system.roles> or any of its parents
 settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system.config> or any of its parents
+
+[scylla/same/user]
+privileges refused: running query: User dbmeta_user has no SELECT permission on <table system.role_permissions> or any of its parents
+role_grants refused: running query: User dbmeta_user has no SELECT permission on <table system.role_members> or any of its parents
+role_settings refused: running query: User dbmeta_user has no SELECT permission on <table system.role_attributes> or any of its parents
+roles refused: running query: User dbmeta_user has no SELECT permission on <table system.roles> or any of its parents
+settings refused: running query: User dbmeta_user has no SELECT permission on <table system.config> or any of its parents
 
 [snowflake/same/grantee]
 columns fewer rows than the administrator

@@ -107,7 +107,7 @@ missing on Oracle, godror, SQLite, ClickHouse and Impala, because none
 implements `PrivilegeSummaryReader`. Nothing is missing `\dt`, `\dn` or `\d`.
 
 At `382e1da`, the 30 with no reader at all included avatica, awsathena,
-bigquery, chai, cosmos, cql, csvq, databricks, exasol, firebirdsql, flightsql,
+bigquery, cassandra, chai, cosmos, csvq, databricks, exasol, firebirdsql, flightsql,
 h2, hdb, hive, ignite, maxcompute, n1ql, ots, presto, ql, spanner, tds,
 vertica, voltdb and ydb.
 

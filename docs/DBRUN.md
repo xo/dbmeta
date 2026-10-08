@@ -314,7 +314,10 @@ ClickHouse has `dbmeta_user`, who can read and write the database `dbmeta` and
 read `system.processes`. Its HTTP interface, 8123, is on the second host port,
 and the `api` field names it.
 Virtuoso, Milvus, Alternator, OpenSearch, Solr, Drill, H2, Fuseki, PostgREST,
-Stardog, GraphDB and VoltDB have `dbmeta_user`, who can only read. QuestDB
+Stardog, GraphDB and VoltDB have `dbmeta_user`, who can only read. Cassandra
+and ScyllaDB have `container.CassandraUser`, a role that can log in, is no
+superuser, and holds no permission. It reads `system` and `system_schema`, and
+it cannot read the tables that hold roles and permissions (D195). QuestDB
 has `container.QuestDBUser`, the user of its PostgreSQL interface that can
 only read. Chroma, GizmoSQL, Spanner, BigQuery, Vitess,
 DynamoDB, Cosmos and ksqlDB have none, and D118 says why. `dsn --json`
@@ -372,8 +375,12 @@ with these fields:
 
 The `dsn` and `url` fields can differ. The `dsn` field is what `sql.Open`
 takes for the driver that dbmeta tests with, and the `url` field is what
-`dburl` parses. On MySQL and Cassandra the driver takes a form that is not a
-URL. On Couchbase both are the same `couchbase://` URL.
+`dburl` parses. On MySQL the driver takes a form that is not a URL. On
+Couchbase both are the same `couchbase://` URL. On Cassandra and ScyllaDB the
+`dsn` is a `cassandra://` URL with the options `connectTimeout=30s` and
+`timeout=30s`, because the driver reads only that scheme. The `url` has no
+options, and on ScyllaDB it keeps the `scylla://` scheme that dburl reads as
+another name for `cassandra` (D195).
 
 On libSQL, Neo4j, ArangoDB, SurrealDB, InfluxDB 1 and 2, Druid, Drill, Solr,
 Elasticsearch, OpenSearch and DynamoDB, which Alternator shares, the `dsn` is

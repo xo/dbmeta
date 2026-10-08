@@ -446,7 +446,7 @@ func TestChangePasswordClickHouse(t *testing.T) {
 // once before it changes any.
 func TestChangePasswordCassandra(t *testing.T) {
 	db := openCassandra(t)
-	base := dsnOf(t, "DBMETA_CQL")
+	base := dsnOf(t, "DBMETA_CASSANDRA")
 	users := make([]string, len(hostilePasswords))
 	for i := range hostilePasswords {
 		users[i] = fmt.Sprintf("dbmeta_pw%d", i)
@@ -463,7 +463,7 @@ func TestChangePasswordCassandra(t *testing.T) {
 				t.Fatalf("building the statement: %v", err)
 			}
 			exec(t, db, stmt)
-			login(t, "cql", cqlUser(t, base, users[i], c.password), `SELECT release_version FROM system.local`, "")
+			login(t, "cassandra", replaceUser(t, base, users[i], c.password), `SELECT release_version FROM system.local`, "")
 		})
 	}
 }

@@ -246,24 +246,17 @@ func makeCassandraGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 		`' AND LOGIN = true`)
 	t.Cleanup(func() { cleanup(t, db, `DROP ROLE IF EXISTS dbmeta_grantee`) })
 	exec(t, db, `GRANT ALL PERMISSIONS ON KEYSPACE `+schema+` TO dbmeta_grantee`)
-	return cqlUser(t, dsn, "dbmeta_grantee", parityPassword)
+	return replaceUser(t, dsn, "dbmeta_grantee", parityPassword)
 }
 
-// cqlUser rewrites the credentials of a cql DSN in the host list form.
+// makeCassandraUser connects as the ordinary user the dbrun setup makes.
 //
-// The DSN is a host list and then query options, which is neither a URL nor
-// the MySQL shape, so it gets its own helper. The user and the password are
-// options rather than a userinfo part.
-func cqlUser(t *testing.T, dsn, user, password string) string {
+// The setup makes the role on every start. It can log in, it is no superuser,
+// and it holds no permission. So becoming it is a change to the credentials of
+// the URL (D195).
+func makeCassandraUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
 	t.Helper()
-	host, rawQuery, _ := strings.Cut(dsn, "?")
-	q, err := url.ParseQuery(rawQuery)
-	if err != nil {
-		t.Fatalf("parsing the options of %s: %v", dsn, err)
-	}
-	q.Set("username", user)
-	q.Set("password", password)
-	return host + "?" + q.Encode()
+	return replaceUser(t, dsn, container.CassandraUser, container.Password)
 }
 
 // makeClickHouseGrantee makes a user with every privilege on the fixture

@@ -9,9 +9,9 @@ import (
 // The ScyllaDB releases dbmeta is tested against.
 //
 // ScyllaDB is the flavor and Apache Cassandra is the reference product. The
-// two share the cql dialect and one model, models/cassandra, and a query is
+// two share the cassandra dialect and one model, models/cassandra, and a query is
 // written against Cassandra first. dburl reads scylla and scy as aliases of
-// the cql scheme, so a consumer reaches this model with no change.
+// the cassandra scheme, so a consumer reaches this model with no change.
 //
 // # The floor, by the docs/EVALUATION.md procedure
 //
@@ -86,14 +86,24 @@ var scylla = product{
 	// PasswordAuthenticator a connection is accepted before the roles can
 	// answer, and only a login proves that they can.
 	ready: []string{"bash", "-c", "echo exit | cqlsh -u cassandra -p cassandra"},
-	dsn: func(port int) string {
-		return fmt.Sprintf(
-			"127.0.0.1:%d?username=cassandra&password=cassandra"+
-				"&timeout=30s&connectTimeout=30s", port)
-	},
+	// The same ordinary user as Cassandra has, made by the same statement.
+	// See [CassandraUser] and D195.
+	init: cassandraInit,
+	// The DSN is the one Cassandra has, under the scheme cassandra, because
+	// the driver reads no other. The URL a person pastes into usql keeps
+	// scylla, which dburl reads as another name for the same scheme.
+	dsn: cassandraDSN("cassandra", "cassandra"),
 	url: func(port int) string {
 		return fmt.Sprintf("scylla://cassandra:cassandra@127.0.0.1:%d/", port)
 	},
+	users: []Principal{{
+		Role: User,
+		User: CassandraUser,
+		dsn:  cassandraDSN(CassandraUser, Password),
+		url: func(port int) string {
+			return cassandraURL("scylla", CassandraUser, Password, port)
+		},
+	}},
 }
 
 // Scylla is every ScyllaDB release dbmeta is tested against.

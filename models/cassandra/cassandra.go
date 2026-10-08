@@ -292,7 +292,7 @@ func childFilters(kind string) []dbmeta.Param {
 //
 // It began as a workaround for a driver fault. go-cql-driver sent an empty
 // string for a CQL null, so a padded column arrived valid and empty.
-// github.com/xo/cql reports a null as one, and D93 records the change.
+// github.com/xo/cassandra reports a null as one, and D93 records the change.
 type pad struct{}
 
 // Scan discards the value and satisfies sql.Scanner.

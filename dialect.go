@@ -32,15 +32,11 @@ type Dialect string
 //
 // The name is what the database calls itself. The value is the `dburl` driver
 // name, which is not always the same word. PostgreSQL calls itself PostgreSQL
-// and its driver is postgres, and Cassandra calls itself Cassandra and its
-// driver is cql.
-//
-// Cassandra is the one that was written down wrong. It held "cassandra" until
-// the `dburl` session checked all thirteen of these against the registry:
-// cassandra is an alias of the cql scheme, and cql is what the driver passes
-// to sql.Register, both github.com/xo/cql and the go-cql-driver it replaced,
-// so nothing answers to the old value. Couchbase was n1ql until dburl v0.33.0
-// renamed its scheme couchbase, when the driver moved to github.com/xo/dbimp
+// and its driver is postgres. Cassandra calls itself Cassandra and its driver
+// is cassandra, since the driver moved from github.com/xo/cql to
+// github.com/xo/cassandra and dburl v0.47.0 renamed its scheme (D196).
+// Couchbase was n1ql until dburl v0.33.0 renamed its scheme couchbase, when the
+// driver moved to github.com/xo/dbimp
 // (D101). Read these as constants and never as literals.
 const (
 	// ArangoDB is queried in AQL rather than SQL, over HTTP.
@@ -51,7 +47,7 @@ const (
 	// protocol and has no model. See D186.
 	Avatica    Dialect = "avatica"
 	BigQuery   Dialect = "bigquery"
-	Cassandra  Dialect = "cql"
+	Cassandra  Dialect = "cassandra"
 	Chai       Dialect = "chai"
 	ClickHouse Dialect = "clickhouse"
 	// CockroachDB speaks PostgreSQL's protocol, and pgx reaches it.
@@ -227,9 +223,9 @@ type Info struct {
 	ParseVersion func(cols []string) (VersionSet, error)
 	// FollowUpQuery returns a second version statement, and how many columns
 	// it returns, when what the first one found calls for it. It returns an
-	// empty statement when none is needed. Nil for every dialect but cql.
+	// empty statement when none is needed. Nil for every dialect but cassandra.
 	//
-	// It exists because two products share the cql dialect and only one
+	// It exists because two products share the cassandra dialect and only one
 	// table both have. ScyllaDB reports the Cassandra release it keeps
 	// compatible with in system.local, and keeps its own release in
 	// system.versions, which Cassandra does not have. The first statement
@@ -356,7 +352,7 @@ func (d Dialect) ParseVersion(cols []string) (VersionSet, error) {
 //
 // The caller runs it after the first statement and passes its columns to
 // [Dialect.ParseFollowUp]. The third result is false when the dialect needs no
-// second statement for this server, which is every dialect but cql, and cql
+// second statement for this server, which is every dialect but cassandra, and cassandra
 // on Cassandra. See D92.
 func (d Dialect) FollowUpQuery(s VersionSet) (query string, cols int, ok bool) {
 	info, found := d.Info()
