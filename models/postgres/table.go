@@ -45,6 +45,7 @@ func registerIndexes() {
 			// one index is one row. See D198.
 			{{Query: `, con.condeferrable AS "deferrable"`}},
 			{{Query: `, con.condeferred AS "initially_deferred"`}},
+			{{Query: `, NULLIF(pg_catalog.array_to_string(c.reloptions, ', '), '') AS "options"`}},
 			{{Query: `FROM pg_catalog.pg_index i`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`}},
 			{{Query: `JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
@@ -60,14 +61,14 @@ func registerIndexes() {
 		},
 		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment",
 			"owner", "persistence", "size", "predicate", "valid", "clustered", "replica_identity",
-			"deferrable", "initially_deferred"),
+			"deferrable", "initially_deferred", "options"),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
 				&v.Unique, &v.Primary, &v.Comment, &v.Owner, &v.Persistence, &v.Size,
 				&v.Predicate, &v.Valid, &v.Clustered, &v.ReplicaIdentity,
-				&v.Deferrable, &v.InitiallyDeferred)
+				&v.Deferrable, &v.InitiallyDeferred, &v.Options)
 			return v, err
 		},
 	})
@@ -85,6 +86,12 @@ func registerIndexColumns() {
 			{{Query: `, k.ordinality AS "ordinal"`}},
 			{{Query: `, pg_catalog.pg_get_indexdef(i.indexrelid, k.ordinality::int, true) AS "expression"`}},
 			{{Query: `, pg_catalog.pg_index_column_has_property(i.indexrelid, k.ordinality::int, 'desc') AS "descending"`}},
+			// indnkeyatts arrived in release 11 with INCLUDE. Before it every
+			// column is a key column, which is false and not unknown.
+			{
+				{Query: `, false AS "include"`},
+				{Min: v11, Query: `, k.ordinality > i.indnkeyatts AS "include"`},
+			},
 			{{Query: `FROM pg_catalog.pg_index i`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`}},
 			{{Query: `JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
@@ -97,12 +104,12 @@ func registerIndexColumns() {
 			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2, 3, 5`}},
 		},
-		Fields: fields("schema", "table", "index", "name", "ordinal", "expression", "descending"),
+		Fields: fields("schema", "table", "index", "name", "ordinal", "expression", "descending", "include"),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
 			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &v.Name, &v.Ordinal,
-				&v.Expression, &v.Descending)
+				&v.Expression, &v.Descending, &v.Include)
 			return v, err
 		},
 	})
@@ -256,6 +263,10 @@ func registerSequences() {
 //
 // Declarative partitioning arrived in release 10, so this reports the version
 // as too old below it rather than an empty result.
+//
+// A partitioned index has no partition key, and pg_get_partkeydef answers NULL
+// for it. Strategy and Expression are plain strings, so the scan reads that
+// NULL as an empty string, which is how an index with no key reads.
 func registerPartitionedTables() {
 	dbmeta.PartitionedTables.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.PartitionedTable]{
 		Stmt: dbmeta.Stmt{
@@ -272,8 +283,31 @@ func registerPartitionedTables() {
 			{{Min: v10, Query: `, SUBSTRING(pg_catalog.pg_get_partkeydef(c.oid) FROM '^[A-Za-z]+') AS "strategy"`}},
 			{{Min: v10, Query: `, pg_catalog.pg_get_partkeydef(c.oid) AS "expression"`}},
 			{{Min: v10, Query: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
+			// the table of a partitioned index, and absent for a table
+			{{Min: v10, Query: `, tn.nspname || '.' || t.relname AS "table"`}},
+			{{Min: v10, Query: `, am.amname AS "access_method"`}},
+			// pg_partition_tree arrived in release 12. The root is a row of
+			// the tree at level 0 and has no file, so it adds 0. CockroachDB
+			// has no such function.
+			{
+				{Min: v10, Query: `, NULL::bigint AS "direct_size"`},
+				{Key: "cockroachdb", Query: `, NULL::bigint AS "direct_size"`},
+				{Min: v12, Query: `, (SELECT sum(CASE WHEN ppt.isleaf AND ppt.level = 1` +
+					` THEN pg_catalog.pg_table_size(ppt.relid) ELSE 0 END)::bigint` +
+					` FROM pg_catalog.pg_partition_tree(c.oid) ppt) AS "direct_size"`},
+			},
+			{
+				{Min: v10, Query: `, NULL::bigint AS "total_size"`},
+				{Key: "cockroachdb", Query: `, NULL::bigint AS "total_size"`},
+				{Min: v12, Query: `, (SELECT sum(pg_catalog.pg_table_size(ppt.relid))::bigint` +
+					` FROM pg_catalog.pg_partition_tree(c.oid) ppt) AS "total_size"`},
+			},
 			{{Min: v10, Query: `FROM pg_catalog.pg_class c`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Min: v10, Query: `LEFT JOIN pg_catalog.pg_am am ON am.oid = c.relam`}},
+			{{Min: v10, Query: `LEFT JOIN pg_catalog.pg_index i ON i.indexrelid = c.oid`}},
+			{{Min: v10, Query: `LEFT JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
+			{{Min: v10, Query: `LEFT JOIN pg_catalog.pg_namespace tn ON tn.oid = t.relnamespace`}},
 			{{Min: v10, Query: `WHERE c.relkind IN ('p', 'I')`}},
 			{{Min: v10, Query: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{Min: v10, Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
@@ -284,12 +318,17 @@ func registerPartitionedTables() {
 			{Name: "schema", Min: v10}, {Name: "name", Min: v10}, {Name: "owner", Min: v10},
 			{Name: "type", Min: v10}, {Name: "parent", Min: v10}, {Name: "strategy", Min: v10},
 			{Name: "expression", Min: v10}, {Name: "comment", Min: v10},
+			{Name: "table", Desc: "the table of a partitioned index, absent for a table", Min: v10},
+			{Name: "access_method", Desc: "access method, absent for a table that has none", Min: v10},
+			{Name: "direct_size", Desc: "bytes of the partitions one level down, absent below release 12", Min: v12},
+			{Name: "total_size", Desc: "bytes of every partition, absent below release 12", Min: v12},
 		},
 		Params: schemaNameSystem("partitioned table"),
 		Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 			var v dbmeta.PartitionedTable
 			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, &v.Parent,
-				&v.Strategy, &v.Expression, &v.Comment)
+				dbmeta.NullAsEmpty(&v.Strategy), dbmeta.NullAsEmpty(&v.Expression), &v.Comment, &v.Table, &v.AccessMethod,
+				&v.DirectSize, &v.TotalSize)
 			return v, err
 		},
 	})

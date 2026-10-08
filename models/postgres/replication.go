@@ -90,11 +90,44 @@ func registerPublicationTables() {
 				{Min: v10, Query: `, '' AS "where"`},
 				{Min: v15, Query: `, pg_catalog.pg_get_expr(pr.prqual, c.oid) AS "where"`},
 			},
+			{{Min: v10, Query: `, 'table' AS "via"`}},
 			{{Min: v10, Query: `FROM pg_catalog.pg_publication p`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_publication_rel pr ON pr.prpubid = p.oid`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_class c ON c.oid = pr.prrelid`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Min: v10, Query: `WHERE (@name = '' OR p.pubname LIKE @name)`}},
+			{{Min: v10, Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Min: v10, Query: `AND (@parent = '' OR c.relname LIKE @parent)`}},
+			// The tables that a publication offers without naming them.
+			// A publication of a schema arrived in release 15. They are read
+			// only when the caller asks, because a publication of every
+			// table has a row for every table. CockroachDB has no
+			// publications to offer them, and no function that tells one.
+			{
+				{Min: v10, Query: ``},
+				{Min: v15, Query: `UNION ALL SELECT p.pubname, n.nspname, c.relname, '', NULL::text, 'schema'` +
+					` FROM pg_catalog.pg_publication p` +
+					` JOIN pg_catalog.pg_publication_namespace pn ON pn.pnpubid = p.oid` +
+					` JOIN pg_catalog.pg_class c ON c.relnamespace = pn.pnnspid AND c.relkind IN ('r', 'p')` +
+					` JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace` +
+					` WHERE @with_implicit AND (@name = '' OR p.pubname LIKE @name)` +
+					` AND (@schema = '' OR n.nspname LIKE @schema)` +
+					` AND (@parent = '' OR c.relname LIKE @parent)` +
+					` AND pg_catalog.pg_relation_is_publishable(c.oid)`},
+				{Key: "cockroachdb", Query: ``},
+			},
+			{
+				{Min: v10, Query: `UNION ALL SELECT p.pubname, n.nspname, c.relname, '', NULL::text, 'all tables'` +
+					` FROM pg_catalog.pg_publication p` +
+					` CROSS JOIN pg_catalog.pg_class c` +
+					` JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace` +
+					` WHERE @with_implicit AND p.puballtables AND c.relkind IN ('r', 'p')` +
+					` AND (@name = '' OR p.pubname LIKE @name)` +
+					` AND (@schema = '' OR n.nspname LIKE @schema)` +
+					` AND (@parent = '' OR c.relname LIKE @parent)` +
+					` AND pg_catalog.pg_relation_is_publishable(c.oid)`},
+				{Key: "cockroachdb", Query: ``},
+			},
 			{{Min: v10, Query: `ORDER BY 1, 2, 3`}},
 		},
 		Fields: []dbmeta.Field{
@@ -103,11 +136,17 @@ func registerPublicationTables() {
 			// every column and filtered no rows, which is what empty means
 			{Name: "columns", Desc: "published columns, empty for every column. Always empty below release 15", Min: v10},
 			{Name: "where", Desc: "row filter, empty for every row. Always empty below release 15", Min: v10},
+			{Name: "via", Desc: "table, schema or all tables", Min: v10},
 		},
-		Params: []dbmeta.Param{{Name: "name", Desc: "publication name pattern, empty for every one", Default: ""}},
+		Params: []dbmeta.Param{
+			{Name: "name", Desc: "publication name pattern, empty for every one", Default: ""},
+			{Name: "schema", Desc: "schema name pattern of the table, empty for every schema", Default: ""},
+			{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+			{Name: "with_implicit", Desc: "also read the tables that a publication of a schema or of every table offers", Default: false},
+		},
 		Scan: func(rows *sql.Rows) (dbmeta.PublicationTable, error) {
 			var v dbmeta.PublicationTable
-			err := rows.Scan(&v.Publication, &v.Schema, &v.Name, &v.Columns, &v.Where)
+			err := rows.Scan(&v.Publication, &v.Schema, &v.Name, &v.Columns, &v.Where, &v.Via)
 			return v, err
 		},
 	})
@@ -444,10 +483,17 @@ func registerExtensions() {
 			// the kind arrived in release 12. Below it no object has one, so
 			// false is the answer and not a stand in.
 			{{Min: v10, Query: `, 'm' = ANY(s.stxkind) AS "mcv"`}},
+			// stxstattarget arrived in release 13. It is -1 for the default
+			// until release 17, and NULL from it.
+			{
+				{Min: v10, Query: `, NULL::integer AS "stats_target"`},
+				{Min: v13, Query: `, NULLIF(s.stxstattarget, -1)::integer AS "stats_target"`},
+			},
 			{{Min: v10, Query: `FROM pg_catalog.pg_statistic_ext s`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_class c ON c.oid = s.stxrelid`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_namespace n ON n.oid = s.stxnamespace`}},
 			{{Min: v10, Query: `WHERE (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Min: v10, Query: `AND (@parent = '' OR c.relname LIKE @parent)`}},
 			{{Min: v10, Query: `AND (@name = '' OR s.stxname LIKE @name)`}},
 			{{Min: v10, Query: `ORDER BY 1, 2`}},
 		},
@@ -457,12 +503,18 @@ func registerExtensions() {
 			{Name: "definition", Desc: "columns and expressions the object covers, and their table", Min: v10},
 			{Name: "ndistinct", Min: v10}, {Name: "dependencies", Min: v10},
 			{Name: "mcv", Desc: "whether the object holds most common values. Always false below release 12, which had no such kind", Min: v10},
+			{Name: "stats_target", Desc: "statistics target of the object, absent for the default and below release 13", Min: v13},
 		},
-		Params: schemaNameSystem("statistics object"),
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "schema name pattern of the statistics object, empty for every schema", Default: ""},
+			{Name: "parent", Desc: "name pattern of the table the object is on, empty for every table", Default: ""},
+			{Name: "name", Desc: "statistics object name pattern, empty for every one", Default: ""},
+			{Name: "with_system", Desc: "include the objects PostgreSQL keeps for itself", Default: false},
+		},
 		Scan: func(rows *sql.Rows) (dbmeta.ExtendedStat, error) {
 			var v dbmeta.ExtendedStat
 			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment,
-				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV)
+				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV, &v.StatsTarget)
 			return v, err
 		},
 	})

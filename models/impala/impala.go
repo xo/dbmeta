@@ -19,7 +19,7 @@
 // HiveServer2, which Impala serves, carries no parameter, so a statement
 // here binds nothing.
 //
-// It answers 11 of the 56 questions, on 4.4.1 and 4.5.2.
+// It answers 11 of the 61 questions, on 4.4.1 and 4.5.2.
 package impala
 
 import (

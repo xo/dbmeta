@@ -45,7 +45,7 @@
 //
 // # What it answers
 //
-// 3 of the 56. The cluster as the database, indices as tables, and the fields
+// 3 of the 61. The cluster as the database, indices as tables, and the fields
 // of a mapping as columns. Columns needs DESCRIBE, and dbimp's driver cannot
 // read a DESCRIBE row on 2.19.6, because that release declares every column
 // keyword and sends numbers in some of them. So Columns answers on 3.9.0 only,

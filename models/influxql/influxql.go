@@ -25,7 +25,7 @@
 // sqlmode=disable, which dburl adds. InfluxDB 3 answers InfluxQL too, and
 // its SQL is another dialect, influxdb, which models/influxdb reads (D152).
 //
-// It answers 7 of the 56 questions on 1.11.8 and 1.13.1. On 2.8.0 and
+// It answers 7 of the 61 questions on 1.11.8 and 1.13.1. On 2.8.0 and
 // 2.9.1, and on InfluxDB 3, the server answers four of them and refuses
 // Roles, Privileges and Settings, because it has no SHOW USERS, SHOW GRANTS
 // or SHOW DIAGNOSTICS. No InfluxQL statement names the release, so

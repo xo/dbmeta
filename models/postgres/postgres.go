@@ -123,6 +123,7 @@ const relationType = `CASE c.relkind` +
 	` WHEN 'm' THEN 'materialized view'` +
 	` WHEN 'S' THEN 'sequence'` +
 	` WHEN 'f' THEN 'foreign table'` +
+	` WHEN 'c' THEN 'composite type'` +
 	` ELSE c.relkind::text END`
 
 // persistence is the word for a relation's persistence, from
@@ -156,13 +157,23 @@ func registerTables() {
 			},
 			sizeOf("c.oid"),
 			{{Query: `, c.reltuples::bigint AS "rows"`}},
+			// The storage parameters of the TOAST table come after the
+			// table's own, with a prefix, as psql prints them. An empty list
+			// is none.
+			{{Query: `, NULLIF(pg_catalog.array_to_string(c.reloptions ||` +
+				` ARRAY(SELECT 'toast.' || x FROM pg_catalog.unnest(tc.reloptions) x), ', '), '') AS "options"`}},
+			{{Query: `, c.relrowsecurity AS "row_security"`}},
+			{{Query: `, c.relforcerowsecurity AS "row_security_forced"`}},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_class tc ON tc.oid = c.reltoastrelid`}},
 			{
 				{Query: ``},
 				{Min: v12, Query: `LEFT JOIN pg_catalog.pg_am am ON am.oid = c.relam`},
 			},
-			{{Query: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
+			// A composite type is not listed unless the caller names it in
+			// types, because psql lists none and describes one by name.
+			{{Query: `WHERE (c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f') OR (c.relkind = 'c' AND @types <> ''))`}},
 			{{Query: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
@@ -180,6 +191,9 @@ func registerTables() {
 			{Name: "access_method", Desc: "table access method, absent for a view and below release 12", Min: v12},
 			{Name: "size", Desc: "bytes on disk, as pg_table_size counts them"},
 			{Name: "rows", Desc: "the planner's estimate of the rows, which is -1 before the first analyze from release 14 and 0 before it"},
+			{Name: "options", Desc: "storage parameters, such as fillfactor=70, absent when none is set"},
+			{Name: "row_security", Desc: "whether row level security is on"},
+			{Name: "row_security_forced", Desc: "whether row level security applies to the owner too"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -190,7 +204,8 @@ func registerTables() {
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var t dbmeta.Table
 			err := rows.Scan(&t.Catalog, &t.Schema, &t.Name, &t.Type, &t.Comment,
-				&t.Owner, &t.Persistence, &t.AccessMethod, &t.Size, &t.Rows)
+				&t.Owner, &t.Persistence, &t.AccessMethod, &t.Size, &t.Rows,
+				&t.Options, &t.RowSecurity, &t.RowSecurityForced)
 			return t, err
 		},
 	})

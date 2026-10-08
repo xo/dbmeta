@@ -54,6 +54,17 @@ type Table struct {
 	// release 14 stores 0 for a relation that was never analyzed, and from
 	// 14 stores -1, so that 0 means an empty relation. See D198.
 	Rows sql.Null[int64]
+	// Options are the storage parameters set on the relation, such as
+	// fillfactor=70 or security_barrier=true, joined by a comma and a space.
+	// PostgreSQL adds the parameters of the TOAST table with a prefix of
+	// toast, as psql does. It is absent when none is set. See D199.
+	Options sql.Null[string]
+	// RowSecurity reports whether row level security is on for the table.
+	// It is absent where the product has none. See D199.
+	RowSecurity sql.Null[bool]
+	// RowSecurityForced reports whether row level security also applies to
+	// the owner of the table. See D199.
+	RowSecurityForced sql.Null[bool]
 }
 
 // Schema is a namespace within a catalog.
@@ -142,6 +153,9 @@ type Index struct {
 	// index, and are absent for an index no constraint owns. See D198.
 	Deferrable        sql.Null[bool]
 	InitiallyDeferred sql.Null[bool]
+	// Options are the storage parameters set on the index, such as
+	// fillfactor=70, joined by a comma and a space. See D199.
+	Options sql.Null[string]
 }
 
 // Queries. One value per object kind.
@@ -547,6 +561,11 @@ type PublicationTable struct {
 	Name        string
 	Columns     string
 	Where       sql.Null[string]
+	// Via says how the table is in the publication: table when the
+	// publication names it, schema when it names the schema of the table, and
+	// all tables when it names every table. Only table is read unless the
+	// caller asks for the others. See D199.
+	Via sql.Null[string]
 }
 
 // Subscription receives changes from a publication. psql lists them with \dRs.
@@ -689,6 +708,9 @@ type ExtendedStat struct {
 	Ndistinct    bool
 	Dependencies bool
 	MCV          bool
+	// StatsTarget is the statistics target of the object, and absent for the
+	// default. PostgreSQL has it from release 13. See D199.
+	StatsTarget sql.Null[int64]
 }
 
 // Comment is a comment on any object. psql shows them with \dd.
@@ -745,6 +767,11 @@ type IndexColumn struct {
 	Ordinal    int64
 	Expression sql.Null[string]
 	Descending sql.Null[bool]
+	// Include reports that the column is an INCLUDE column and not a key
+	// column of the index. It is false below PostgreSQL 11, which has no such
+	// column, and that is a real false. Every other model leaves it false.
+	// See D199.
+	Include bool
 }
 
 // Constraint is a check, unique, primary key, foreign key or exclusion
@@ -803,6 +830,17 @@ type PartitionedTable struct {
 	Strategy   string
 	Expression string
 	Comment    sql.Null[string]
+	// Table is the table a partitioned index is on, and absent for a table.
+	// AccessMethod is the access method of the index, and absent for a table
+	// on a release below 12. See D199.
+	Table        sql.Null[string]
+	AccessMethod sql.Null[string]
+	// DirectSize is the bytes that the partitions one level below take, and
+	// TotalSize the bytes that every partition below takes, both as
+	// pg_table_size counts them. They are absent below release 12, which has
+	// no pg_partition_tree. See D199.
+	DirectSize sql.Null[int64]
+	TotalSize  sql.Null[int64]
 }
 
 // Queries for the detail of a table.
@@ -817,7 +855,128 @@ var (
 	Sequences = NewQuery[Sequence]("sequences")
 	// PartitionedTables lists the tables split into partitions.
 	PartitionedTables = NewQuery[PartitionedTable]("partitioned_tables")
+	// Partitions lists the partitions of each partitioned table.
+	Partitions = NewQuery[Partition]("partitions")
+	// Inherits lists the inheritance of one table from another.
+	Inherits = NewQuery[Inherit]("inherits")
+	// Policies lists the row level security policies of a table.
+	Policies = NewQuery[Policy]("policies")
+	// Rules lists the rewrite rules of a table.
+	Rules = NewQuery[Rule]("rules")
+	// NotNulls lists the NOT NULL constraints of a table, as PostgreSQL
+	// 18 records them.
+	NotNulls = NewQuery[NotNull]("not_nulls")
 )
+
+// Partition is one partition of a partitioned table. psql prints it in the
+// Partitions list of \d+ name, and in Partition of for the partition itself.
+//
+// It is one row for each partition, so a partitioned table of many partitions
+// is many rows. A caller that wants the partitions of one table passes the
+// table as Parent. A partition that is itself partitioned is a row of its own
+// where it is the parent. See D199.
+type Partition struct {
+	// Schema and Table name the parent. PartitionSchema and Partition name the
+	// partition.
+	Schema          string
+	Table           string
+	PartitionSchema string
+	Partition       string
+	// Type is the relation type of the partition, as Table.Type spells it. A
+	// partitioned table and a foreign table are partitions too.
+	Type string
+	// Bound is what follows FOR VALUES, or DEFAULT, as pg_get_expr writes it.
+	Bound sql.Null[string]
+	// Constraint is the implicit constraint the partition bound makes, as
+	// pg_get_partition_constraintdef writes it.
+	Constraint sql.Null[string]
+	// Partitioned reports that the partition has partitions of its own.
+	Partitioned bool
+	// DetachPending reports a DETACH CONCURRENTLY that has not finished.
+	// Releases below 14 have none, and that is a real false.
+	DetachPending bool
+}
+
+// Inherit is one parent of a table by inheritance. psql prints the parents in
+// Inherits and the children in Child tables of \d+ name.
+//
+// A partition is in PostgreSQL's catalog as a child too. Partition says so, so
+// that a caller can leave it out the way psql does.
+type Inherit struct {
+	// Schema and Name name the child table. Type is its relation type.
+	Schema string
+	Name   string
+	Type   string
+	// ParentSchema and Parent name the table it inherits from.
+	ParentSchema string
+	Parent       string
+	// Ordinal is the position of the parent among the parents of the child.
+	Ordinal int64
+	// Partition reports that the child is a partition of the parent. Releases
+	// below 10 have no partitions, and that is a real false.
+	Partition bool
+}
+
+// Policy is a row level security policy. psql prints them in Policies of \d+
+// name.
+type Policy struct {
+	Schema string
+	Table  string
+	Name   string
+	// Command is all, select, insert, update or delete.
+	Command string
+	// Permissive is false for a restrictive policy. A release below 10 has
+	// only permissive policies, and that is a real true.
+	Permissive bool
+	// Roles are the roles the policy applies to, joined by a comma, and absent
+	// for public.
+	Roles sql.Null[string]
+	// Using and WithCheck are the expressions, as pg_get_expr writes them, and
+	// absent when the policy has none.
+	Using     sql.Null[string]
+	WithCheck sql.Null[string]
+	Comment   sql.Null[string]
+}
+
+// Rule is a rewrite rule of a table. psql prints them in Rules of \d+ name.
+//
+// The rule that makes a view is not here. It is named _RETURN and [View] holds
+// its definition.
+type Rule struct {
+	Schema string
+	Table  string
+	Name   string
+	// Event is select, update, insert or delete.
+	Event string
+	// Enabled is enabled, disabled, replica or always.
+	Enabled string
+	// Instead reports INSTEAD and not ALSO.
+	Instead bool
+	// Definition is the CREATE RULE statement, as pg_get_ruledef writes it,
+	// without the final semicolon.
+	Definition string
+	Comment    sql.Null[string]
+}
+
+// NotNull is a NOT NULL constraint that has a name, which PostgreSQL 18
+// records in pg_constraint. psql 18 prints them in Not-null constraints of
+// \d+ name. [Constraints] does not hold them, and [Column.Nullable] still
+// answers on every release. See D49 and D199.
+type NotNull struct {
+	Schema string
+	Table  string
+	Name   string
+	Column string
+	// NoInherit reports NO INHERIT.
+	NoInherit bool
+	// Local reports that the constraint was written on this table, and not
+	// only inherited.
+	Local bool
+	// Inherited reports that a parent table also holds it.
+	Inherited bool
+	// Validated is false for a constraint that was added NOT VALID.
+	Validated bool
+}
 
 // The kinds below are not in psql. They exist because a consumer measured in
 // D46 needs them and no psql command shows them, which D47 allows: psql sets

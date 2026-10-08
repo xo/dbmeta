@@ -38,7 +38,7 @@
 //
 // # What it answers
 //
-// 4 of the 56. Schemas, the current schema, tables and columns.
+// 4 of the 61. Schemas, the current schema, tables and columns.
 //
 // # What is missing
 //

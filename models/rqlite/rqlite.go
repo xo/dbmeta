@@ -9,7 +9,7 @@
 // model's statements, shared with [dbmeta.Query.Share]. It imports the sqlite3
 // model, which registers first. See D123 and D148.
 //
-// It answers 14 of the 56 questions, on 9.4.5 and 10.5.2, which are every one
+// It answers 14 of the 61 questions, on 9.4.5 and 10.5.2, which are every one
 // the sqlite3 model answers, and the same way: the conformance report is line
 // for line SQLite's. rqlite adds users, which it reads from a file, and no
 // statement reaches them, so it answers nothing SQLite does not.

@@ -107,17 +107,17 @@ In progress:
   csvq, Pinot, DynamoDB and Phoenix, and the hosted services without a model
   (D184, D185, D186, D188).
 - The describe commands of usql are being brought up to psql 18 (usql asked on
-  2026-10-08). Group A is done and pushed in b192284 (D197): four fields are
-  `sql.Null` now (`IndexColumn.Descending`, `DefaultACL.Schema`,
-  `RoleSetting.Database` and `RoleSetting.Role`). It is not tagged. Group B is
-  next: Table `Owner`, `Persistence`, `AccessMethod`, `Size` and `Rows`, Index
-  `Owner`, `Persistence`, `Size` and the `WHERE` predicate, Column `Storage`,
-  `Compression` and `StatsTarget`, Function `Leakproof` and `Prosrc`, with the
-  D47 cost check for `Size`. The sections follow, then the value differences.
-  The full list is in usql's message of 2026-10-08.
-- Planned for the Cassandra model: `Binding.Keep`, a filter that the library
-  applies after Scan, so that the schema, name and system filters work for a
-  model that cannot filter in SQL. usql was told and has not objected.
+  2026-10-08). v0.8.0 holds groups A and B (D197, D198). The \d+ sections are
+  done and pushed (D199: the kinds `Partitions`, `Inherits`, `Policies`, `Rules`
+  and `NotNulls`, and fields for options, row security, partitioned table
+  sizes and `IndexColumn.Include`), and so is `Binding.Keep` for the Cassandra
+  filters (D200). Neither is tagged. Pass 3 is next, from usql's message of
+  2026-10-09, which is saved in the scratchpad as usql-pass3.md: `\dP`,
+  "partitioned table" in `Privilege.Type`, structured forms of the options and
+  elements and privileges that psql prints as text, the fields for `\dn+`,
+  `\dx`, `\l`, `\do+`, `\dC+`, `\dRp`, `\dRs+`, `\dFp+`, `\dAo+` and
+  sequence cache, and the value differences of `\dD`, `\dFd+` and the `\dA`
+  family.
 
 ## Waiting
 

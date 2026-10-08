@@ -34,7 +34,7 @@
 //
 // # What it answers
 //
-// 13 of the 56. Catalogs as databases, schemas, tables, columns, views,
+// 13 of the 61. Catalogs as databases, schemas, tables, columns, views,
 // comments, types, access methods, roles, role grants, privileges, the
 // current schema and the current user.
 //

@@ -204,8 +204,8 @@ func TestPlaceholders(t *testing.T) {
 	}
 	// a parameter named twice in the statement binds twice, because a
 	// placeholder style like MySQL's consumes one argument per placeholder
-	if len(args) != 7 {
-		t.Errorf("expected seven arguments, got %v", args)
+	if len(args) != 8 {
+		t.Errorf("expected eight arguments, got %v", args)
 	}
 }
 
@@ -224,8 +224,10 @@ func TestTypesBindAsOneString(t *testing.T) {
 			n++
 		}
 	}
-	if n != 2 {
-		t.Errorf("expected table,view bound twice, got %v", args)
+	// once for the test of an empty list, once for the match, and once for
+	// the composite type that only a named type can list
+	if n != 3 {
+		t.Errorf("expected table,view bound three times, got %v", args)
 	}
 }
 
@@ -348,7 +350,10 @@ func TestNoCoalesceOnCatalogColumns(t *testing.T) {
 			t.Fatalf("%s: expected no error, got: %v", q.Name(), err)
 		}
 		for _, name := range []string{"access", "comment", "default", "options"} {
-			if strings.Contains(s, `, '') AS "`+name+`"`) {
+			// NULLIF turns an empty list into NULL, which is the opposite
+			// of what this guards against.
+			end := strings.Index(s, `, '') AS "`+name+`"`)
+			if end >= 0 && strings.LastIndex(s[:end], "COALESCE(") > strings.LastIndex(s[:end], "NULLIF(") {
 				t.Errorf("%s: %q is a nullable catalog column and must not be coalesced", q.Name(), name)
 			}
 		}

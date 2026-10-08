@@ -15,7 +15,7 @@
 // statement needed a change, and D190 holds what the run found. Parity is not
 // measured, because the role of the test account cannot make a second user.
 //
-// It answers 13 of the 56 questions.
+// It answers 13 of the 61 questions.
 package snowflake
 
 import (

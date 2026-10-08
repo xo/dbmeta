@@ -29,7 +29,7 @@
 //     credential every local user reaches it with
 //   - a foreign table is a table on an engine that reads remote data
 //
-// This model answers 29 of the 56 questions on MariaDB and 26 on MySQL. Six
+// This model answers 29 of the 61 questions on MariaDB and 26 on MySQL. Six
 // of them on MariaDB, and four on MySQL, read the mysql schema and need
 // SELECT on it, because neither product publishes those tables through
 // information_schema.

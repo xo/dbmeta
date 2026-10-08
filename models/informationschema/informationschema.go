@@ -17,7 +17,7 @@
 //	}
 //
 // D9 makes this the secondary model. Prefer a native model where one exists,
-// because information_schema answers 12 of the 56 object kinds that psql
+// because information_schema answers 12 of the 61 object kinds that psql
 // describes and answers none of them completely. It has no size, owner or
 // access method for a table, no storage or index detail for a column, no
 // exclusion constraint, and no aggregate or window function. It is what a

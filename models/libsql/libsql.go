@@ -10,7 +10,7 @@
 // [dbmeta.Query.Share]. It imports the sqlite3 model, which registers first.
 // See D123 and D160.
 //
-// It answers 14 of the 56 questions, on 0.24.33, which are every one the
+// It answers 14 of the 61 questions, on 0.24.33, which are every one the
 // sqlite3 model answers, and the same way: the conformance report is line for
 // line SQLite's. libSQL adds a vector index. Two pieces of the sqlite3
 // model's statements have a fragment for libSQL, which gates on the version

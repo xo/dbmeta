@@ -14,7 +14,7 @@
 // postgres model, because that model's statements read catalogs and functions
 // QuestDB does not have.
 //
-// It answers 11 of the 56 questions, on 9.4.3 and 10.0.1. QuestDB has no
+// It answers 11 of the 61 questions, on 9.4.3 and 10.0.1. QuestDB has no
 // constraint, no index a statement can list, no role in the open source
 // edition, no comment, no trigger and no sequence, and docs/COVERAGE.md says
 // why each of the rest is not answered.

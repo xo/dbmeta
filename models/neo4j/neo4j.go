@@ -48,7 +48,7 @@
 //
 // # What it answers
 //
-// 17 of the 56 on 2026.09, and 13 on 5.26. Databases, schemas, the current
+// 17 of the 61 on 2026.09, and 13 on 5.26. Databases, schemas, the current
 // schema, tables, indexes, constraints, aggregates, roles, role grants, role
 // settings, privileges, the current user and settings on both. Index columns,
 // constraint columns, functions and routine parameters from 2026.05.

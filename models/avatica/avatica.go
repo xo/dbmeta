@@ -37,7 +37,7 @@
 //
 // # What it answers
 //
-// 24 of the 56. Databases, schemas, the current schema, the current user,
+// 24 of the 61. Databases, schemas, the current schema, the current user,
 // tables, views, columns, indexes, index columns, constraints, constraint
 // columns, triggers, sequences, functions, aggregates, routine parameters,
 // types, domains, collations, comments, settings, roles, role grants and

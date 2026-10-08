@@ -33,12 +33,12 @@ var answers = []struct {
 		},
 	}},
 	{"FROM pg_catalog.pg_class c", answer{
-		[]string{"catalog", "schema", "name", "type", "comment", "owner", "persistence", "access_method", "size", "rows"},
+		[]string{"catalog", "schema", "name", "type", "comment", "owner", "persistence", "access_method", "size", "rows", "options", "row_security", "row_security_forced"},
 		[][]driver.Value{
-			{"example", "public", "author", "table", "people who write", "postgres", "permanent", "heap", int64(8192), int64(3)},
+			{"example", "public", "author", "table", "people who write", "postgres", "permanent", "heap", int64(8192), int64(3), nil, false, false},
 			// a relation with no comment reports NULL, not an empty string
-			{"example", "public", "book", "table", nil, "postgres", "permanent", "heap", int64(16384), int64(40)},
-			{"example", "public", "recent_book", "view", nil, "postgres", "permanent", nil, int64(0), int64(-1)},
+			{"example", "public", "book", "table", nil, "postgres", "permanent", "heap", int64(16384), int64(40), "fillfactor=70", false, false},
+			{"example", "public", "recent_book", "view", nil, "postgres", "permanent", nil, int64(0), int64(-1), nil, nil, nil},
 		},
 	}},
 	{"FROM pg_catalog.pg_attribute a", answer{

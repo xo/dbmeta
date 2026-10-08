@@ -11,7 +11,7 @@
 // what dburl's influxdb scheme opens and what usql uses. InfluxQL is another
 // dialect, influxql, and this model does not answer it. See D152.
 //
-// It answers 9 of the 56 questions, on 3.10.6, 3.11.6 and 3.12.0. A
+// It answers 9 of the 61 questions, on 3.10.6, 3.11.6 and 3.12.0. A
 // measurement is a table in the schema iox, its tags and fields are columns,
 // and the functions are DataFusion's own. InfluxDB 3 has no view a user can
 // make, no index, no constraint, no user a statement can list, and no

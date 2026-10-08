@@ -38,7 +38,7 @@
 //
 // # What it answers
 //
-// 12 of the 56. Buckets as databases, scopes as schemas, collections as
+// 12 of the 61. Buckets as databases, scopes as schemas, collections as
 // tables, indexes, index columns, functions, routine parameters, sequences,
 // users as roles, a user's groups as role grants, privileges and the current
 // user. Sequences arrived in 7.6,

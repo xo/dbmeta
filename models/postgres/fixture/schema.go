@@ -7,8 +7,11 @@ var (
 	v10 = dbmeta.V(10)
 	v11 = dbmeta.V(11)
 	v12 = dbmeta.V(12)
+	v13 = dbmeta.V(13)
 	v14 = dbmeta.V(14)
+	v15 = dbmeta.V(15)
 	v16 = dbmeta.V(16)
+	v18 = dbmeta.V(18)
 )
 
 // Everything is a schema containing one of every object kind the PostgreSQL
@@ -194,10 +197,104 @@ var Everything = Fixture{
 		// LEAKPROOF needs a superuser, which the fixture runs as.
 		at("leakproof function", `CREATE FUNCTION dbmeta_fixture.same(integer) RETURNS integer
 	LANGUAGE sql IMMUTABLE LEAKPROOF AS 'SELECT $1'`),
+
+		// What the sections of \d+ name print. They are on tables of their
+		// own, so that the core tables stay the same on every database. See
+		// D199.
+		//
+		// ledger has storage parameters, with one for its TOAST table, a
+		// rule that is on and one that is off, a policy, a child by
+		// inheritance, a row filter and a column list in a publication.
+		at("ledger table", `CREATE TABLE dbmeta_fixture.ledger (
+	id integer NOT NULL,
+	note text
+) WITH (fillfactor = 70)`),
+		at("ledger toast options", `ALTER TABLE dbmeta_fixture.ledger SET (toast.autovacuum_enabled = false)`),
+		at("ledger index with options", `CREATE INDEX ledger_note ON dbmeta_fixture.ledger (note) WITH (fillfactor = 60)`),
+		at("ledger child", `CREATE TABLE dbmeta_fixture.ledger_child (
+	extra integer
+) INHERITS (dbmeta_fixture.ledger)`),
+		at("ledger rule", `CREATE RULE ledger_log AS ON INSERT TO dbmeta_fixture.ledger DO ALSO NOTIFY ledger_changed`),
+		at("ledger disabled rule", `CREATE RULE ledger_skip AS ON DELETE TO dbmeta_fixture.ledger DO INSTEAD NOTHING`),
+		at("ledger disable rule", `ALTER TABLE dbmeta_fixture.ledger DISABLE RULE ledger_skip`),
+		// a covering index, where the INCLUDE column is not a key column
+		from("ledger covering index", v11, `CREATE INDEX ledger_covering ON dbmeta_fixture.ledger (id) INCLUDE (note)`),
+		from("ledger statistics target", v13, `ALTER STATISTICS dbmeta_fixture.book_stats SET STATISTICS 200`),
+
+		// row level security arrived in release 9.5 and a restrictive policy
+		// in release 10
+		at("document table", `CREATE TABLE dbmeta_fixture.document (
+	document_id integer PRIMARY KEY,
+	owner_name text NOT NULL
+)`),
+		at("document row security", `ALTER TABLE dbmeta_fixture.document ENABLE ROW LEVEL SECURITY`),
+		at("document forced row security", `ALTER TABLE dbmeta_fixture.document FORCE ROW LEVEL SECURITY`),
+		at("document read policy", `CREATE POLICY document_read ON dbmeta_fixture.document
+	FOR SELECT TO dbmeta_fixture_role USING (owner_name = current_user)`),
+		at("document write policy", `CREATE POLICY document_write ON dbmeta_fixture.document
+	FOR UPDATE USING (owner_name = current_user) WITH CHECK (document_id > 0)`),
+		from("document restrictive policy", v10, `CREATE POLICY document_limit ON dbmeta_fixture.document
+	AS RESTRICTIVE FOR ALL USING (document_id < 1000000)`),
+
+		// a view with a storage parameter and a check option
+		at("ledger view", `CREATE VIEW dbmeta_fixture.ledger_view WITH (security_barrier = true) AS
+	SELECT id, note FROM dbmeta_fixture.ledger WHERE id > 0 WITH LOCAL CHECK OPTION`),
+
+		// an exclusion constraint, whose definition has an operator
+		at("booking table", `CREATE TABLE dbmeta_fixture.booking (
+	booking_id integer NOT NULL,
+	CONSTRAINT booking_no_overlap EXCLUDE USING gist (int4range(booking_id, booking_id + 1) WITH &&)
+)`),
+
+		// a second partition, a default partition, and a partitioned index.
+		// A default partition and an index on a partitioned table arrived in
+		// release 11.
+		from("second partition", v10, `CREATE TABLE dbmeta_fixture.sales_2027
+	PARTITION OF dbmeta_fixture.sales FOR VALUES FROM ('2027-01-01') TO ('2028-01-01')`),
+		from("default partition", v11, `CREATE TABLE dbmeta_fixture.sales_other
+	PARTITION OF dbmeta_fixture.sales DEFAULT`),
+		from("partitioned index", v11, `CREATE INDEX sales_amount ON dbmeta_fixture.sales (amount)`),
+		// a partition of a partition
+		from("nested partitioned table", v11, `CREATE TABLE dbmeta_fixture.region_sales (
+	region text NOT NULL,
+	sold_on date NOT NULL
+) PARTITION BY LIST (region)`),
+		from("nested partition", v11, `CREATE TABLE dbmeta_fixture.region_sales_east
+	PARTITION OF dbmeta_fixture.region_sales FOR VALUES IN ('east') PARTITION BY RANGE (sold_on)`),
+		from("nested leaf", v11, `CREATE TABLE dbmeta_fixture.region_sales_east_2026
+	PARTITION OF dbmeta_fixture.region_sales_east FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')`),
+
+		// a row filter and a column list arrived in release 15, and a
+		// publication of a schema with them
+		from("publication with a filter", v15, `CREATE PUBLICATION dbmeta_fixture_pub_rows
+	FOR TABLE dbmeta_fixture.ledger (id, note) WHERE (id > 0)`),
+		from("publication of a schema", v15, `CREATE PUBLICATION dbmeta_fixture_pub_schema
+	FOR TABLES IN SCHEMA dbmeta_fixture`),
+		from("publication of every table", v10, `CREATE PUBLICATION dbmeta_fixture_pub_all FOR ALL TABLES`),
+
+		// A wrapper with no handler accepts any option, so that no
+		// extension has to be installed.
+		at("foreign data wrapper", `CREATE FOREIGN DATA WRAPPER dbmeta_fixture_fdw`),
+		at("foreign server", `CREATE SERVER dbmeta_fixture_server FOREIGN DATA WRAPPER dbmeta_fixture_fdw
+	OPTIONS (host 'example.invalid')`),
+		at("foreign table", `CREATE FOREIGN TABLE dbmeta_fixture.remote_ledger (
+	id integer
+) SERVER dbmeta_fixture_server OPTIONS (schema_name 'public', table_name 'ledger')`),
+
+		// release 18 names every NOT NULL constraint and takes NO INHERIT
+		from("named not null", v18, `ALTER TABLE dbmeta_fixture.ledger
+	ADD CONSTRAINT ledger_note_present NOT NULL note`),
+		from("not null with no inherit", v18, `ALTER TABLE dbmeta_fixture.ledger
+	ADD COLUMN stamp timestamptz CONSTRAINT ledger_stamp_present NOT NULL NO INHERIT`),
 	},
 	Teardown: []Step{
 		from("drop publication", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub`),
+		from("drop publication with a filter", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub_rows`),
+		from("drop publication of a schema", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub_schema`),
+		from("drop publication of every table", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub_all`),
 		at("drop schema", `DROP SCHEMA IF EXISTS dbmeta_fixture CASCADE`),
+		at("drop foreign server", `DROP SERVER IF EXISTS dbmeta_fixture_server CASCADE`),
+		at("drop foreign data wrapper", `DROP FOREIGN DATA WRAPPER IF EXISTS dbmeta_fixture_fdw CASCADE`),
 		at("drop fixture role", `DO $$ BEGIN
 	IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'dbmeta_fixture_role') THEN
 		DROP OWNED BY dbmeta_fixture_role;

@@ -217,4 +217,5 @@ file.
 | [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |
 | [D197](D197-three-fields-can-be-null-in-the-postgresql-catalog.md) | Three fields can be NULL in the PostgreSQL catalog | Decided |
 | [D198](D198-describe-fields-for-relations-indexes-columns-and-functions.md) | Describe fields for relations, indexes, columns and functions | Decided |
+| [D199](D199-describe-sections-for-partitions-inheritance-policies-and-rules.md) | Describe sections for partitions, inheritance, policies and rules | Decided |
 | [D200](D200-a-binding-can-keep-rows-for-a-product-that-cannot-filter.md) | A binding can keep rows for a product that cannot filter | Amends D62 |

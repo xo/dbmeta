@@ -52,7 +52,7 @@
 //
 // # What it answers
 //
-// 18 of the 56 on 3.x, and 1 on 2.7. Databases, schemas, the current
+// 18 of the 61 on 3.x, and 1 on 2.7. Databases, schemas, the current
 // schema, tables, views, columns, indexes, index columns, constraints,
 // constraint columns, triggers, functions, routine parameters, sequences,
 // roles, role grants, privileges and comments on 3.x. The current schema on

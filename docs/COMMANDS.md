@@ -66,6 +66,27 @@ To reproduce `\d NAME`, read these with the same `Args{Schema, Parent}`:
 | the sequence detail, for a sequence | `dbmeta.Sequences` | `Sequence` |
 | the partition detail | `dbmeta.PartitionedTables` | `PartitionedTable` |
 
+The sections that `\d+ NAME` adds are read the same way. Each takes the
+parent filter, so one table costs one small statement. D199 holds the types
+and the cost.
+
+| Part of the output | Go value | Yields |
+| --- | --- | --- |
+| Partition key | `dbmeta.PartitionedTables`, the `Expression` field | `PartitionedTable` |
+| Partitions, and Partition of with its bound and constraint | `dbmeta.Partitions` | `Partition` |
+| Inherits and Child tables | `dbmeta.Inherits` | `Inherit` |
+| Policies | `dbmeta.Policies` | `Policy` |
+| Row security on and forced | the fields `RowSecurity` and `RowSecurityForced` of `dbmeta.Tables` | `Table` |
+| Publications | `dbmeta.PublicationTables` with `schema` and `parent` | `PublicationTable` |
+| Statistics objects | `dbmeta.ExtendedStats` with `parent` | `ExtendedStat` |
+| Rules | `dbmeta.Rules` | `Rule` |
+| Options of a table, a view or an index | the field `Options` of `dbmeta.Tables` and `dbmeta.Indexes` | `Table`, `Index` |
+| View definition | `dbmeta.Views` | `View` |
+| Server and FDW options of a foreign table | `dbmeta.ForeignTables` | `ForeignTable` |
+| A composite type | `dbmeta.Tables` with `types=composite type`, and `dbmeta.Columns` | `Table`, `Column` |
+| Not-null constraints, from release 18 | `dbmeta.NotNulls` | `NotNull` |
+| the INCLUDE columns of an index | the field `Include` of `dbmeta.IndexColumns` | `IndexColumn` |
+
 ## Routines and types
 
 | Command | Go value | Yields | usql today |
