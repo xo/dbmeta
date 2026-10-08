@@ -42,6 +42,13 @@ var left = map[string]string{
 	// COLLATION.
 	"text search configuration": "CockroachDB cannot create a text search configuration",
 	"collation with rules":      "CockroachDB cannot create a collation",
+	// These steps were added for the describe commands of psql. They have
+	// not been run on CockroachDB.
+	"book covering index":                "not measured on CockroachDB",
+	"book partial index":                 "not measured on CockroachDB",
+	"fixture role":                       "not measured on CockroachDB",
+	"role setting for every database":    "not measured on CockroachDB",
+	"default privilege for every schema": "not measured on CockroachDB",
 }
 
 // since gates a PostgreSQL step on a CockroachDB release, so that an older

@@ -259,7 +259,7 @@ func TestCouchbaseFixtureObjects(t *testing.T) {
 		keys[v.Index] = append(keys[v.Index], v)
 	}
 	if k := keys["book_author"]; len(k) != 2 || k[0].Name.V != "author_id" || k[1].Name.V != "title" ||
-		k[0].Descending || !k[1].Descending {
+		k[0].Descending.V || !k[1].Descending.V {
 		t.Errorf("book_author: expected author_id, then title DESC, got %+v", k)
 	}
 	if k := keys["book_tags"]; len(k) != 1 || k[0].Name.Valid || !k[0].Expression.Valid {

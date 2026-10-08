@@ -341,8 +341,8 @@ type Role struct {
 // RoleSetting is a configuration value set for a role, optionally in one
 // database. psql lists them with \drds.
 type RoleSetting struct {
-	Role     string
-	Database string
+	Role     sql.Null[string]
+	Database sql.Null[string]
 	Settings sql.Null[string]
 }
 
@@ -370,7 +370,7 @@ type Privilege struct {
 // them with \ddp.
 type DefaultACL struct {
 	Owner  string
-	Schema string
+	Schema sql.Null[string]
 	Type   string
 	Access sql.Null[string]
 }
@@ -676,7 +676,7 @@ type IndexColumn struct {
 	Name       sql.Null[string]
 	Ordinal    int64
 	Expression sql.Null[string]
-	Descending bool
+	Descending sql.Null[bool]
 }
 
 // Constraint is a check, unique, primary key, foreign key or exclusion

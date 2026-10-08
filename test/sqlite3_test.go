@@ -404,7 +404,7 @@ func TestSQLiteIndexes(t *testing.T) {
 			}
 			if v.Index == "book_title_desc" {
 				descending = true
-				if !v.Descending {
+				if !v.Descending.V {
 					t.Errorf("expected a descending column, got %+v", v)
 				}
 				if v.Name.V != "title" {

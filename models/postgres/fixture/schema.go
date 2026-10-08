@@ -54,6 +54,18 @@ var Everything = Fixture{
 )`),
 		at("book index", `CREATE INDEX book_published ON dbmeta_fixture.book (published DESC)`),
 		at("book expression index", `CREATE INDEX book_lower_title ON dbmeta_fixture.book (lower(title))`),
+		// An INCLUDE column is in the index and has no sort order, so its
+		// descending property is NULL. A partial index has a predicate.
+		from("book covering index", v11, `CREATE INDEX book_covering ON dbmeta_fixture.book (author_id) INCLUDE (title)`),
+		at("book partial index", `CREATE INDEX book_recent ON dbmeta_fixture.book (published) WHERE published > '2000-01-01'`),
+
+		// A role has no schema and belongs to no database. A default
+		// privilege without IN SCHEMA holds for every schema, and a setting
+		// without IN DATABASE holds for every database, so both read NULL
+		// where a catalog entry names one.
+		at("fixture role", `CREATE ROLE dbmeta_fixture_role`),
+		at("role setting for every database", `ALTER ROLE dbmeta_fixture_role SET search_path TO dbmeta_fixture, public`),
+		at("default privilege for every schema", `ALTER DEFAULT PRIVILEGES FOR ROLE dbmeta_fixture_role GRANT SELECT ON TABLES TO PUBLIC`),
 
 		// An identity column and a generated column go on a table of their
 		// own rather than on author or book. The core tables are the ones the
@@ -158,5 +170,11 @@ var Everything = Fixture{
 	Teardown: []Step{
 		from("drop publication", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub`),
 		at("drop schema", `DROP SCHEMA IF EXISTS dbmeta_fixture CASCADE`),
+		at("drop fixture role", `DO $$ BEGIN
+	IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'dbmeta_fixture_role') THEN
+		DROP OWNED BY dbmeta_fixture_role;
+		DROP ROLE dbmeta_fixture_role;
+	END IF;
+END $$`),
 	},
 }

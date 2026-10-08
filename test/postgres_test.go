@@ -738,3 +738,80 @@ type onlyQuery struct{ db *sql.DB }
 func (o onlyQuery) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
 	return o.db.QueryContext(ctx, query, args...)
 }
+
+// TestRolesAndColumnsWithNoValueAreNull covers three faults that psql's
+// describe commands found. An INCLUDE column has no sort order, a default
+// privilege without IN SCHEMA holds for every schema, and a setting without
+// IN DATABASE holds for every database. The catalog says nothing in each case,
+// so the field is NULL and the scan must take it (docs/NULLS.md).
+func TestRolesAndColumnsWithNoValueAreNull(t *testing.T) {
+	eachPostgres(t, func(t *testing.T, db *sql.DB, m *dbmeta.Meta) {
+		ctx := t.Context()
+
+		t.Run("an INCLUDE column has no sort order", func(t *testing.T) {
+			needStep(t, m, "book covering index")
+			if parts := m.Version().Main().Parts; len(parts) > 0 && parts[0] < 11 {
+				t.Skip("INCLUDE arrived in PostgreSQL 11")
+			}
+			var key, included *dbmeta.IndexColumn
+			for v, err := range dbmeta.IndexColumns.All(ctx, m, db, dbmeta.Args{Parent: "book", Name: "book_covering"}.Map()) {
+				if err != nil {
+					t.Fatalf("reading index columns: %v", err)
+				}
+				switch v.Ordinal {
+				case 1:
+					key = &v
+				case 2:
+					included = &v
+				}
+			}
+			if key == nil || included == nil {
+				t.Fatalf("expected two columns of book_covering, got key %v and included %v", key, included)
+			}
+			if !key.Descending.Valid || key.Descending.V {
+				t.Errorf("a key column sorts ascending, got %+v", key.Descending)
+			}
+			if included.Descending.Valid {
+				t.Errorf("an INCLUDE column has no sort order, got %+v", included.Descending)
+			}
+		})
+
+		t.Run("a default privilege for every schema has no schema", func(t *testing.T) {
+			needStep(t, m, "default privilege for every schema")
+			var found bool
+			for v, err := range dbmeta.DefaultACLs.All(ctx, m, db, dbmeta.Args{}.Map()) {
+				if err != nil {
+					t.Fatalf("reading default privileges: %v", err)
+				}
+				if v.Owner == "dbmeta_fixture_role" {
+					found = true
+					if v.Schema.Valid {
+						t.Errorf("expected no schema, got %q", v.Schema.V)
+					}
+				}
+			}
+			if !found {
+				t.Error("expected the default privilege of dbmeta_fixture_role")
+			}
+		})
+
+		t.Run("a role setting for every database has no database", func(t *testing.T) {
+			needStep(t, m, "role setting for every database")
+			var found bool
+			for v, err := range dbmeta.RoleSettings.All(ctx, m, db, dbmeta.Args{}.Map()) {
+				if err != nil {
+					t.Fatalf("reading role settings: %v", err)
+				}
+				if v.Role.V == "dbmeta_fixture_role" {
+					found = true
+					if v.Database.Valid {
+						t.Errorf("expected no database, got %q", v.Database.V)
+					}
+				}
+			}
+			if !found {
+				t.Error("expected the setting of dbmeta_fixture_role")
+			}
+		})
+	})
+}

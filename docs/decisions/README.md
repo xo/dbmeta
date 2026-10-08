@@ -215,3 +215,4 @@ file.
 | [D194](D194-no-models-for-hosted-services-beyond-redshift-and-snowflake.md) | No models for hosted services beyond Redshift and Snowflake | Amends D188 |
 | [D195](D195-cassandra-and-scylladb-have-a-url-dsn-and-an-ordinary-user.md) | Cassandra and ScyllaDB have a URL DSN and an ordinary user | Decided, amended by D196 |
 | [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |
+| [D197](D197-three-fields-can-be-null-in-the-postgresql-catalog.md) | Three fields can be NULL in the PostgreSQL catalog | Decided |

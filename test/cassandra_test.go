@@ -399,7 +399,7 @@ func TestCassandraFixtureObjects(t *testing.T) {
 				if err != nil {
 					return 0, err
 				}
-				if v.Role == "dbmeta_reader" && v.Settings.V == "service_level=dbmeta_level" {
+				if v.Role.V == "dbmeta_reader" && v.Settings.V == "service_level=dbmeta_level" {
 					n++
 				}
 			}
