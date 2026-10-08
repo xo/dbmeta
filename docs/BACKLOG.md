@@ -27,15 +27,19 @@ prints the last 20 lines of the container's log when a server never answers.
 When it happens again, read that log and decide whether the entry needs a
 change.
 
-### Find why oracle-26ai and QuestDB failed once in CI
+### Find why oracle-26ai and QuestDB failed in CI
 
 On 2026-10-08 the first CI run on 90d0261 failed two jobs, and both passed when
 rerun, so neither touches that change. `oracle-26ai` failed in the image's
 setup, when it reset the SYSTEM password, with ORA-65048 on `ALTER USER SYSTEM`.
-`questdb-9.4.3` failed in `TestQuestDBFixtureObjects` at `questdb_test.go:216`,
-with the view `recent` listed and the view `book` missing. The cause of
-neither is known. If one fails again, read its log and decide whether the entry
-or the fixture needs a wait.
+It failed again on 76f266b the same day, at the same statement, with ORA-04021,
+a timeout while it waited to lock an object. So the setup of the 26ai image
+races a job that the database starts itself, and two runs in about thirty
+lost. `questdb-9.4.3` failed once, in `TestQuestDBFixtureObjects` at
+`questdb_test.go:216`, with the view `recent` listed and the view `book`
+missing. The cause of neither is known. For Oracle, read what the image runs
+at start and whether `dbrun` can wait for it, or start the server again when
+that statement fails.
 
 ### Find why Databend's first start can fail
 

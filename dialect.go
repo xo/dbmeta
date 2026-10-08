@@ -13,7 +13,7 @@ import (
 //
 // Read URL.Dialect and never URL.Driver. A product with two Go drivers has two
 // schemes, and URL.Driver names the driver: pgx and postgres, moderncsqlite
-// and sqlite3, godror and oracle. Each pair has one Dialect. dbmeta holds no
+// and sqlite3. Each pair has one Dialect. dbmeta holds no
 // such list, because hard rule 1 keeps that taxonomy in dburl. See D99.
 //
 // A product that speaks another product's wire protocol has a Dialect of its

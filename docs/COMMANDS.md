@@ -263,9 +263,9 @@ string per driver, and `dbmeta.Dialect.Version` replaces that. The dialect is
 `dburl.URL.Dialect`, which dburl sets when it parses a URL, from v0.32.0.
 
 Read `URL.Dialect` and never `URL.Driver`. `dburl` registers a scheme per Go
-driver, so `URL.Driver` names the driver: `pgx`, `moderncsqlite` or `godror`,
+driver, so `URL.Driver` names the driver: `pgx` or `moderncsqlite`,
 and from dburl's D22 `pgx` for `postgres://` too. None of those is a dialect
-here. `URL.Dialect` is `postgres`, `sqlite3` or `oracle` for each of them,
+here. `URL.Dialect` is `postgres` or `sqlite3` for each of them,
 because dburl holds that taxonomy and hard rule 1 keeps it out of `dbmeta`.
 D99 in [`decisions/`](decisions/README.md) has it.
 
