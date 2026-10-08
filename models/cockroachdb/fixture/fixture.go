@@ -49,6 +49,15 @@ var left = map[string]string{
 	"fixture role":                       "not measured on CockroachDB",
 	"role setting for every database":    "not measured on CockroachDB",
 	"default privilege for every schema": "not measured on CockroachDB",
+	"scratch table":                      "not measured on CockroachDB",
+	"scratch storage and statistics":     "not measured on CockroachDB",
+	"scratch compression":                "not measured on CockroachDB",
+	"scratch replica identity index":     "not measured on CockroachDB",
+	"scratch replica identity":           "not measured on CockroachDB",
+	"scratch clustered index":            "not measured on CockroachDB",
+	"scratch cluster":                    "not measured on CockroachDB",
+	"scratch deferrable constraint":      "not measured on CockroachDB",
+	"leakproof function":                 "not measured on CockroachDB",
 }
 
 // since gates a PostgreSQL step on a CockroachDB release, so that an older

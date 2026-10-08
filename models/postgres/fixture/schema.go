@@ -166,6 +166,34 @@ var Everything = Fixture{
 		at("author rows", `INSERT INTO dbmeta_fixture.author (name, rating)
 	SELECT 'author ' || g, (g % 5) + 1 FROM generate_series(1, 200) g`),
 		at("analyze", `ANALYZE dbmeta_fixture.author`),
+
+		// A table of its own for what describe commands print about a
+		// relation, so that the core tables stay the same on every
+		// database. It is unlogged, one column stores outside the table and
+		// has its own statistics target, and its indexes are the replica
+		// identity, the clustered one, and the one a deferrable constraint
+		// owns. See D198.
+		at("scratch table", `CREATE UNLOGGED TABLE dbmeta_fixture.scratch (
+	scratch_id integer NOT NULL,
+	payload text,
+	stamp timestamptz
+)`),
+		at("scratch storage and statistics", `ALTER TABLE dbmeta_fixture.scratch
+	ALTER COLUMN payload SET STORAGE EXTERNAL,
+	ALTER COLUMN payload SET STATISTICS 500`),
+		// column compression arrived in release 14
+		from("scratch compression", v14,
+			`ALTER TABLE dbmeta_fixture.scratch ALTER COLUMN payload SET COMPRESSION pglz`),
+		at("scratch replica identity index", `CREATE UNIQUE INDEX scratch_key ON dbmeta_fixture.scratch (scratch_id)`),
+		at("scratch replica identity", `ALTER TABLE dbmeta_fixture.scratch REPLICA IDENTITY USING INDEX scratch_key`),
+		at("scratch clustered index", `CREATE INDEX scratch_stamp ON dbmeta_fixture.scratch (stamp)`),
+		at("scratch cluster", `CLUSTER dbmeta_fixture.scratch USING scratch_stamp`),
+		at("scratch deferrable constraint", `ALTER TABLE dbmeta_fixture.scratch
+	ADD CONSTRAINT scratch_payload_unique UNIQUE (payload) DEFERRABLE INITIALLY DEFERRED`),
+
+		// LEAKPROOF needs a superuser, which the fixture runs as.
+		at("leakproof function", `CREATE FUNCTION dbmeta_fixture.same(integer) RETURNS integer
+	LANGUAGE sql IMMUTABLE LEAKPROOF AS 'SELECT $1'`),
 	},
 	Teardown: []Step{
 		from("drop publication", v10, `DROP PUBLICATION IF EXISTS dbmeta_fixture_pub`),

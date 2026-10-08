@@ -33,21 +33,21 @@ var answers = []struct {
 		},
 	}},
 	{"FROM pg_catalog.pg_class c", answer{
-		[]string{"catalog", "schema", "name", "type", "comment"},
+		[]string{"catalog", "schema", "name", "type", "comment", "owner", "persistence", "access_method", "size", "rows"},
 		[][]driver.Value{
-			{"example", "public", "author", "table", "people who write"},
+			{"example", "public", "author", "table", "people who write", "postgres", "permanent", "heap", int64(8192), int64(3)},
 			// a relation with no comment reports NULL, not an empty string
-			{"example", "public", "book", "table", nil},
-			{"example", "public", "recent_book", "view", nil},
+			{"example", "public", "book", "table", nil, "postgres", "permanent", "heap", int64(16384), int64(40)},
+			{"example", "public", "recent_book", "view", nil, "postgres", "permanent", nil, int64(0), int64(-1)},
 		},
 	}},
 	{"FROM pg_catalog.pg_attribute a", answer{
-		[]string{"catalog", "schema", "table", "name", "ordinal", "data_type", "nullable", "default", "primary_key", "identity", "generated", "comment", "collation"},
+		[]string{"catalog", "schema", "table", "name", "ordinal", "data_type", "nullable", "default", "primary_key", "identity", "generated", "comment", "collation", "storage", "compression", "stats_target"},
 		[][]driver.Value{
-			{"example", "public", "book", "book_id", int64(1), "integer", false, nil, true, "a", nil, "surrogate key", nil},
-			{"example", "public", "book", "title", int64(2), "text", false, nil, false, nil, nil, nil, "default"},
-			{"example", "public", "book", "published", int64(3), "date", true, nil, false, nil, nil, nil, nil},
-			{"example", "public", "book", "slug", int64(4), "text", true, nil, false, nil, "s", "derived from the title", "default"},
+			{"example", "public", "book", "book_id", int64(1), "integer", false, nil, true, "a", nil, "surrogate key", nil, "plain", nil, nil},
+			{"example", "public", "book", "title", int64(2), "text", false, nil, false, nil, nil, nil, "default", "extended", nil, nil},
+			{"example", "public", "book", "published", int64(3), "date", true, nil, false, nil, nil, nil, nil, "plain", nil, nil},
+			{"example", "public", "book", "slug", int64(4), "text", true, nil, false, nil, "s", "derived from the title", "default", "extended", nil, nil},
 		},
 	}},
 }

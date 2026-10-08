@@ -118,18 +118,27 @@ func registerSchemas() {
 // relationType is the word for a relation's kind, from pg_class.relkind.
 const relationType = `CASE c.relkind` +
 	` WHEN 'r' THEN 'table'` +
-	` WHEN 'p' THEN 'table'` +
+	` WHEN 'p' THEN 'partitioned table'` +
 	` WHEN 'v' THEN 'view'` +
 	` WHEN 'm' THEN 'materialized view'` +
 	` WHEN 'S' THEN 'sequence'` +
 	` WHEN 'f' THEN 'foreign table'` +
 	` ELSE c.relkind::text END`
 
+// persistence is the word for a relation's persistence, from
+// pg_class.relpersistence, as psql spells it.
+const persistence = `CASE c.relpersistence WHEN 'p' THEN 'permanent'` +
+	` WHEN 'u' THEN 'unlogged' WHEN 't' THEN 'temporary'` +
+	` ELSE c.relpersistence::text END`
+
 // registerTables backs \dt, \dv, \dm and \ds.
 //
 // Translated from listTables. The relation kinds follow pg_class.relkind: r is
 // an ordinary table, p a partitioned table, v a view, m a materialized view, S
 // a sequence, f a foreign table.
+//
+// Size is pg_table_size, which is what \dt+ prints, and the access method
+// arrived in release 12. See D198.
 func registerTables() {
 	dbmeta.Tables.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
@@ -138,8 +147,21 @@ func registerTables() {
 			{{Query: `, c.relname AS "name"`}},
 			{{Query: `, ` + relationType + ` AS "type"`}},
 			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(c.relowner) AS "owner"`}},
+			{{Query: `, ` + persistence + ` AS "persistence"`}},
+			// relam holds the table access method from release 12
+			{
+				{Query: `, NULL AS "access_method"`},
+				{Min: v12, Query: `, am.amname AS "access_method"`},
+			},
+			sizeOf("c.oid"),
+			{{Query: `, c.reltuples::bigint AS "rows"`}},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{
+				{Query: ``},
+				{Min: v12, Query: `LEFT JOIN pg_catalog.pg_am am ON am.oid = c.relam`},
+			},
 			{{Query: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
 			{{Query: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
@@ -151,8 +173,13 @@ func registerTables() {
 			{Name: "catalog", Desc: "database the relation belongs to"},
 			{Name: "schema", Desc: "schema the relation belongs to"},
 			{Name: "name", Desc: "relation name"},
-			{Name: "type", Desc: "table, view, materialized view, sequence or foreign table"},
+			{Name: "type", Desc: "table, partitioned table, view, materialized view, sequence or foreign table"},
 			{Name: "comment", Desc: "comment on the relation"},
+			{Name: "owner", Desc: "role that owns the relation"},
+			{Name: "persistence", Desc: "permanent, unlogged or temporary"},
+			{Name: "access_method", Desc: "table access method, absent for a view and below release 12", Min: v12},
+			{Name: "size", Desc: "bytes on disk, as pg_table_size counts them"},
+			{Name: "rows", Desc: "the planner's estimate of the rows, which is -1 before the first analyze from release 14 and 0 before it"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -162,7 +189,8 @@ func registerTables() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var t dbmeta.Table
-			err := rows.Scan(&t.Catalog, &t.Schema, &t.Name, &t.Type, &t.Comment)
+			err := rows.Scan(&t.Catalog, &t.Schema, &t.Name, &t.Type, &t.Comment,
+				&t.Owner, &t.Persistence, &t.AccessMethod, &t.Size, &t.Rows)
 			return t, err
 		},
 	})
@@ -206,6 +234,16 @@ func registerColumns() {
 			{{Query: `, pg_catalog.col_description(c.oid, a.attnum) AS "comment"`}},
 			// attcollation is zero for a type that cannot be collated.
 			{{Query: `, co.collname AS "collation"`}},
+			{{Query: `, CASE a.attstorage WHEN 'p' THEN 'plain' WHEN 'm' THEN 'main'` +
+				` WHEN 'e' THEN 'external' WHEN 'x' THEN 'extended'` +
+				` ELSE a.attstorage::text END AS "storage"`}},
+			// attcompression arrived in release 14 and is empty for the default
+			{
+				{Query: `, NULL AS "compression"`},
+				{Min: v14, Query: `, CASE a.attcompression WHEN 'p' THEN 'pglz' WHEN 'l' THEN 'lz4' END AS "compression"`},
+			},
+			// attstattarget is -1 for the default until release 17, and NULL from it
+			{{Query: `, NULLIF(a.attstattarget, -1)::integer AS "stats_target"`}},
 			{{Query: `FROM pg_catalog.pg_attribute a`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = a.attrelid`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
@@ -232,6 +270,9 @@ func registerColumns() {
 			{Name: "generated", Desc: "generated kind, empty when the column is not generated", Min: v12},
 			{Name: "comment", Desc: "comment on the column"},
 			{Name: "collation", Desc: "the collation of the column, which is default where the column chose none, and absent for a type that cannot be collated"},
+			{Name: "storage", Desc: "plain, main, external or extended"},
+			{Name: "compression", Desc: "compression method set on the column, absent for the default", Min: v14},
+			{Name: "stats_target", Desc: "statistics target set on the column, absent for the default"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -244,6 +285,7 @@ func registerColumns() {
 				&c.Catalog, &c.Schema, &c.Table, &c.Name, &c.Ordinal,
 				&c.DataType, &c.Nullable, &c.Default, &c.PrimaryKey,
 				&c.Identity, &c.Generated, &c.Comment, &c.Collation,
+				&c.Storage, &c.Compression, &c.StatsTarget,
 			)
 			return c, err
 		},
@@ -276,4 +318,17 @@ func changePassword(c dbmeta.PasswordChange, q dbmeta.Quoting) (string, error) {
 	}
 	return "ALTER USER " + dbmeta.QuoteIdentifier(c.User, `"`, `"`) +
 		" PASSWORD " + dbmeta.QuoteLiteral(c.Password, q), nil
+}
+
+// sizeOf is the bytes on disk of a relation, as pg_table_size counts them. The
+// function is in PostgreSQL from 9.0 and in CockroachDB from 26.3, which
+// shares this statement, so a CockroachDB before 26.3 reads NULL. The key is
+// the one that models/cockroachdb sets as its Release.
+func sizeOf(oid string) dbmeta.Choice {
+	size := `, pg_catalog.pg_table_size(` + oid + `) AS "size"`
+	return dbmeta.Choice{
+		{Query: size},
+		{Key: "cockroachdb", Query: `, NULL AS "size"`},
+		{Key: "cockroachdb", Min: dbmeta.V(26, 3), Query: size},
+	}
 }

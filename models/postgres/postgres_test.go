@@ -162,7 +162,7 @@ func TestFieldMinMatchesTheGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	mins := map[string]string{"identity": "11", "generated": "12"}
+	mins := map[string]string{"identity": "11", "generated": "12", "compression": "14"}
 	for _, f := range fields {
 		want, gated := mins[f.Name]
 		switch {

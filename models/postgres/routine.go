@@ -62,6 +62,8 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 			{Query: `, CASE WHEN NOT p.proisagg THEN pg_catalog.pg_get_functiondef(p.oid) END AS "definition"`},
 			{Min: v11, Query: `, CASE WHEN p.prokind <> 'a' THEN pg_catalog.pg_get_functiondef(p.oid) END AS "definition"`},
 		},
+		{{Query: `, p.proleakproof AS "leakproof"`}},
+		{{Query: `, p.prosrc AS "prosrc"`}},
 		{{Query: `FROM pg_catalog.pg_proc p`}},
 		{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
 		{{Query: `LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang`}},
@@ -83,14 +85,14 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 func functionFields() []dbmeta.Field {
 	return fields("catalog", "schema", "name", "id", "kind", "result_type", "arg_types",
 		"volatility", "parallel", "owner", "security", "access", "language", "source", "comment",
-		"definition")
+		"definition", "leakproof", "prosrc")
 }
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType, &v.ArgTypes,
 		&v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access, &v.Language,
-		&v.Source, &v.Comment, &v.Definition)
+		&v.Source, &v.Comment, &v.Definition, &v.Leakproof, &v.Prosrc)
 	return v, err
 }
 

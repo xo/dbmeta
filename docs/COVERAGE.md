@@ -80,6 +80,28 @@ Four of those twelve arrived with the kinds D47 added, and they arrived for
 free: the standard defines `key_column_usage`, `parameters`, `views` and
 `schemata`, so every database close to the standard answers them.
 
+## PostgreSQL
+
+PostgreSQL answers all 56 questions on every release of the Tested tier, which
+is 9.6, 12, 15 and 18. Fields that psql prints for the describe commands
+arrived in D198, and a release below the one that has the source answers NULL
+for them.
+
+| Field | Source | Filled from |
+| --- | --- | --- |
+| `Table.Owner`, `Table.Persistence`, `Table.Size`, `Table.Rows` | `pg_class` | every release |
+| `Table.AccessMethod` | `pg_class.relam` and `pg_am` | 12. NULL for a view and a sequence |
+| `Index.Owner`, `Index.Persistence`, `Index.Size` | `pg_class` of the index | every release |
+| `Index.Predicate`, `Index.Valid`, `Index.Clustered`, `Index.ReplicaIdentity` | `pg_index` | every release |
+| `Index.Deferrable`, `Index.InitiallyDeferred` | `pg_constraint`, for a primary key, unique or exclusion constraint | every release. NULL for an index no constraint owns |
+| `Column.Storage`, `Column.StatsTarget` | `pg_attribute` | every release. `StatsTarget` is NULL for the default |
+| `Column.Compression` | `pg_attribute.attcompression` | 14. NULL for the default |
+| `Function.Leakproof`, `Function.Prosrc` | `pg_proc` | every release |
+
+`Table.Rows` is the estimate in `reltuples`. It is 0 before the first analyze
+on a release below 14 and -1 from 14. `Table.Type` says `partitioned table` for
+a partitioned table (D198).
+
 ## MariaDB and MySQL
 
 These are two products sharing one dialect and one model. Most of what follows
@@ -2864,6 +2886,12 @@ set's main version is the PostgreSQL release that CockroachDB claims, 13.0.0
 on 24.3 and 26.2 and 18.0.0 on 26.3, so a shared statement takes the fragments
 of that release. CockroachDB's own release is under the key `cockroachdb`.
 See D123.
+
+The fields of D198 run on CockroachDB 26.2.7 and 26.3.2 without a fault. The
+Tables, Columns, Indexes and Functions statements are shared. `size` is NULL
+before 26.3, which has no `pg_table_size`. The fixture leaves out the steps
+that build the objects the new fields read, so their values are not checked
+there.
 
 Seven statements are its own, because the postgres model's call a function or
 a type that CockroachDB lacks:

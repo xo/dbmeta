@@ -32,23 +32,42 @@ func registerIndexes() {
 			{{Query: `, i.indisunique AS "unique"`}},
 			{{Query: `, i.indisprimary AS "primary"`}},
 			{{Query: `, pg_catalog.obj_description(c.oid, 'pg_class') AS "comment"`}},
+			{{Query: `, pg_catalog.pg_get_userbyid(c.relowner) AS "owner"`}},
+			{{Query: `, ` + persistence + ` AS "persistence"`}},
+			sizeOf("c.oid"),
+			{{Query: `, pg_catalog.pg_get_expr(i.indpred, i.indrelid, true) AS "predicate"`}},
+			{{Query: `, i.indisvalid AS "valid"`}},
+			{{Query: `, i.indisclustered AS "clustered"`}},
+			{{Query: `, i.indisreplident AS "replica_identity"`}},
+			// Only a primary key, a unique constraint or an exclusion
+			// constraint owns an index. A foreign key names the index it
+			// reads in the same column, and the join leaves it out, so that
+			// one index is one row. See D198.
+			{{Query: `, con.condeferrable AS "deferrable"`}},
+			{{Query: `, con.condeferred AS "initially_deferred"`}},
 			{{Query: `FROM pg_catalog.pg_index i`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`}},
 			{{Query: `JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Query: `JOIN pg_catalog.pg_am am ON am.oid = c.relam`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = i.indexrelid` +
+				` AND con.conrelid = i.indrelid AND con.contype IN ('p', 'u', 'x')`}},
 			{{Query: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@parent = '' OR t.relname LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3, 4`}},
 		},
-		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment"),
+		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment",
+			"owner", "persistence", "size", "predicate", "valid", "clustered", "replica_identity",
+			"deferrable", "initially_deferred"),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Owner, &v.Persistence, &v.Size,
+				&v.Predicate, &v.Valid, &v.Clustered, &v.ReplicaIdentity,
+				&v.Deferrable, &v.InitiallyDeferred)
 			return v, err
 		},
 	})

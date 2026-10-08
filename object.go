@@ -31,6 +31,29 @@ type Table struct {
 	Name    string
 	Type    string
 	Comment sql.Null[string]
+	// Owner is the role that owns the relation. It is absent where the
+	// product has no owner of a relation. See D198.
+	Owner sql.Null[string]
+	// Persistence is permanent, unlogged or temporary, as psql's \dt+ says
+	// it. It is absent where the product has no such choice. See D198.
+	Persistence sql.Null[string]
+	// AccessMethod is the table access method, such as heap, and absent for
+	// a relation that has none, such as a view, or on a server that records
+	// none. PostgreSQL has it from release 12. See D198.
+	AccessMethod sql.Null[string]
+	// Size is the bytes the relation takes on disk, as pg_table_size counts
+	// them: the main data, the free space map, the visibility map and the
+	// TOAST table, and not the indexes. It is a number and not the text psql
+	// prints, because a caller can format a number and cannot add up text.
+	// A view and a foreign table have no file here, so PostgreSQL answers 0
+	// for them. It is absent where the relation was dropped while the
+	// statement ran, and where the product keeps no size. See D198.
+	Size sql.Null[int64]
+	// Rows is the planner's estimate of the rows, which is the number
+	// ANALYZE and VACUUM last stored. It is not a count. PostgreSQL before
+	// release 14 stores 0 for a relation that was never analyzed, and from
+	// 14 stores -1, so that 0 means an empty relation. See D198.
+	Rows sql.Null[int64]
 }
 
 // Schema is a namespace within a catalog.
@@ -72,6 +95,18 @@ type Column struct {
 	// catalog row. psql prints it only where it differs from the type's
 	// default, and a caller decides that. See D139.
 	Collation sql.Null[string]
+	// Storage is how PostgreSQL stores a value that is too large for a page:
+	// plain, main, external or extended. It is absent where the product has
+	// no such choice. See D198.
+	Storage sql.Null[string]
+	// Compression is the compression method that is set on the column, such
+	// as pglz or lz4. It is absent when the column uses the server default,
+	// and on a server that has no such setting, which is every release before
+	// 14. [Field.Present] says which. See D198.
+	Compression sql.Null[string]
+	// StatsTarget is the statistics target that was set on the column with
+	// ALTER TABLE, and absent when the column uses the default. See D198.
+	StatsTarget sql.Null[int64]
 }
 
 // Index is an index on a table.
@@ -84,6 +119,29 @@ type Index struct {
 	Unique  bool
 	Primary bool
 	Comment sql.Null[string]
+	// Owner is the role that owns the index. See D198.
+	Owner sql.Null[string]
+	// Persistence is permanent, unlogged or temporary. See D198.
+	Persistence sql.Null[string]
+	// Size is the bytes the index takes on disk, as pg_table_size counts
+	// them. It is absent if the index was dropped while the statement ran.
+	// See D198.
+	Size sql.Null[int64]
+	// Predicate is the WHERE clause of a partial index, as pg_get_expr writes
+	// it, and absent for an index that covers every row. See D198.
+	Predicate sql.Null[string]
+	// Valid is false while an index is built with CONCURRENTLY, and after
+	// that build failed. The planner does not use an index that is not valid.
+	Valid sql.Null[bool]
+	// Clustered reports whether the table was last clustered on this index.
+	Clustered sql.Null[bool]
+	// ReplicaIdentity reports whether this index is the table's replica
+	// identity for logical replication.
+	ReplicaIdentity sql.Null[bool]
+	// Deferrable and InitiallyDeferred describe the constraint that owns the
+	// index, and are absent for an index no constraint owns. See D198.
+	Deferrable        sql.Null[bool]
+	InitiallyDeferred sql.Null[bool]
 }
 
 // Queries. One value per object kind.
@@ -264,6 +322,16 @@ type Function struct {
 	// the product keeps only the body, which is Source, or keeps nothing.
 	// See D147.
 	Definition sql.Null[string]
+	// Leakproof reports whether the planner can trust the function not to
+	// reveal its arguments in an error. It is false where the product has no
+	// such property. See D198.
+	Leakproof bool
+	// Prosrc is the text PostgreSQL stores in pg_proc.prosrc for every
+	// language: the body for SQL, PL/pgSQL and the other languages, and the
+	// C function name or the link symbol for internal and C. Source holds it
+	// only for the last two. It is absent where the product keeps no such
+	// column. See D198.
+	Prosrc sql.Null[string]
 }
 
 // Type is a data type. psql lists them with \dT.
