@@ -1,6 +1,6 @@
 # D188. No dialect for H2, VoltDB, chai or csvq
 
-Status: Amends D158.
+Status: Amends D158, amended by D194.
 
 ## The decision
 
