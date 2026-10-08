@@ -13,9 +13,9 @@ import (
 
 // makeOpenSearchUser connects as the ordinary user the dbrun entry makes. Its
 // role reads and views the metadata of the indices whose names start with
-// dbmeta, can list every index, and holds only the cluster privilege
-// cluster:monitor/health, so GET / is refused to it. Becoming it is a change to
-// the credentials of the URL.
+// dbmeta, can list every index, and holds the cluster permissions
+// cluster:monitor/health and cluster:monitor/main, so it reads the release
+// (D192). Becoming it is a change to the credentials of the URL.
 func makeOpenSearchUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
 	t.Helper()
 	u, err := url.Parse(dsn)

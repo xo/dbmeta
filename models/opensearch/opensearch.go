@@ -63,10 +63,11 @@
 //
 // The version query is SELECT version(). The SQL of the server fails that
 // statement, and the driver of dbimp answers it from GET /, which holds
-// version.number. On 2.19.6 only the administrator can read it, and the
-// ordinary user gets HTTP 403 as the error. On 3.9.0 every user can read it,
-// from the header X-OpenSearch-Version. No query here depends on the release.
-// See D181, D183 and D191.
+// version.number. On 2.19.6 a user needs the cluster permission
+// cluster:monitor/main, which the role of the ordinary user in the entry of
+// dbrun holds. A user without it gets HTTP 403 as the error. On 3.9.0 every
+// user can read it, from the header X-OpenSearch-Version. No query here
+// depends on the release. See D181, D183, D191 and D192.
 package opensearch
 
 import (

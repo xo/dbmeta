@@ -59,10 +59,11 @@
 //
 // The version query is SELECT version(). The server has no such SQL function.
 // The driver of dbimp answers the statement from GET /, which holds
-// version.number, so it works for the administrator only. The ordinary user is
-// refused with HTTP 403, and [dbmeta.Dialect.Version] returns that error and
-// not an unknown version. No query here depends on the release. See D177, D183
-// and D191.
+// version.number. A user needs the cluster privilege cluster:monitor/main,
+// which the role of the ordinary user in the entry of dbrun holds. A user
+// without it is refused with HTTP 403, and [dbmeta.Dialect.Version] returns
+// that error and not an unknown version. No query here depends on the
+// release. See D177, D183, D191 and D192.
 package elasticsearch
 
 import (

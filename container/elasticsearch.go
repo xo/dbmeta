@@ -26,8 +26,15 @@ import "github.com/xo/dbmeta"
 // TLS is off, so a password works over plain HTTP. Init makes the role
 // dbmeta_role, which can read the indices whose names start with dbmeta,
 // [ElasticsearchUser] with that role, and the index dbmeta.
+//
+// The role also holds the cluster privilege cluster:monitor/main. It is the
+// action behind GET /, which the driver sends to read the release, so
+// without it the user is refused with HTTP 403 and Dialect.Version fails. It
+// is the smallest privilege that works. The named privilege monitor holds it
+// and a great deal more. See D192.
 
-// ElasticsearchUser can only read the indices whose names start with dbmeta.
+// ElasticsearchUser can read the indices whose names start with dbmeta, and
+// read the release of the server.
 // Its password is [Password].
 const ElasticsearchUser = "dbmeta_user"
 
@@ -51,7 +58,7 @@ var elasticsearch = product{
 	},
 	ready: []string{"sh", "-c", esCurl + `-d '{"query":"SELECT 1"}' 'http://127.0.0.1:9200/_sql?format=json'`},
 	init: []string{"sh", "-c", `set -e
-` + esCurl + `-X PUT -d '{"indices":[{"names":["dbmeta*"],"privileges":["read","view_index_metadata"]}]}' http://127.0.0.1:9200/_security/role/dbmeta_role
+` + esCurl + `-X PUT -d '{"cluster":["cluster:monitor/main"],"indices":[{"names":["dbmeta*"],"privileges":["read","view_index_metadata"]}]}' http://127.0.0.1:9200/_security/role/dbmeta_role
 ` + esCurl + `-X PUT -d '{"password":"` + Password + `","roles":["dbmeta_role"]}' http://127.0.0.1:9200/_security/user/` + ElasticsearchUser + `
 ` + esCurl + `-I http://127.0.0.1:9200/dbmeta || ` + esCurl + `-X PUT http://127.0.0.1:9200/dbmeta`},
 	dsn:   keyURL("elasticsearch", "elastic"),

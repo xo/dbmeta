@@ -141,30 +141,30 @@ func TestElasticsearchVersion(t *testing.T) {
 	t.Logf("server reports %s", versions)
 }
 
-// TestElasticsearchVersionRefusedToAnOrdinaryUser checks that the user of the
-// entry cannot read the release. SELECT version() reads GET /, which needs
-// the cluster privilege cluster:monitor/main. The role of the user does not
-// hold it, and the server answers HTTP 403 with a security_exception, which the caller
-// gets as the error and not as an unknown version. D191 records that no other way to read
-// the release is in the model.
-func TestElasticsearchVersionRefusedToAnOrdinaryUser(t *testing.T) {
+// TestElasticsearchVersionForAnOrdinaryUser checks that the user of the entry
+// reads the same release as the administrator. SELECT version() reads GET /,
+// which needs the cluster privilege cluster:monitor/main, and the role of the
+// user holds it (D192).
+func TestElasticsearchVersionForAnOrdinaryUser(t *testing.T) {
 	dsn := os.Getenv("DBMETA_ELASTICSEARCH")
 	if dsn == "" {
 		t.Skip("set DBMETA_ELASTICSEARCH to run against a real server")
+	}
+	admin, err := dbmeta.Elasticsearch.Version(t.Context(), openElasticsearch(t))
+	if err != nil {
+		t.Fatalf("reading the version as the administrator: %v", err)
 	}
 	u, err := url.Parse(dsn)
 	if err != nil {
 		t.Fatalf("parsing %s: %v", dsn, err)
 	}
 	u.User = url.UserPassword(container.ElasticsearchUser, container.Password)
-	db, err := sql.Open("elasticsearch", u.String())
+	got, err := dbmeta.Elasticsearch.Version(t.Context(), openElasticsearchAs(t, u.String()))
 	if err != nil {
-		t.Fatalf("opening: %v", err)
+		t.Fatalf("reading the version as the ordinary user on %s: %v", admin, err)
 	}
-	defer db.Close()
-	_, err = dbmeta.Elasticsearch.Version(t.Context(), db)
-	if err == nil || !strings.Contains(err.Error(), "security_exception") {
-		t.Errorf("expected the ordinary user to be refused with a security_exception, got %v", err)
+	if got.String() != admin.String() {
+		t.Errorf("expected the ordinary user to read %s, got %s", admin, got)
 	}
 }
 

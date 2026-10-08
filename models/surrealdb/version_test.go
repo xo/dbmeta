@@ -7,9 +7,8 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// TestParseVersion checks the two answers parseVersion reads: the major
-// release the probe returns, and the answer of the RPC method version, which
-// a caller reads through the driver.
+// TestParseVersion checks the answer parseVersion reads, which is the answer
+// of the RPC method version.
 func TestParseVersion(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -17,8 +16,6 @@ func TestParseVersion(t *testing.T) {
 		main    string
 		display string
 	}{
-		{"3", "3", "SurrealDB 3"},
-		{"2", "2", "SurrealDB 2"},
 		{"surrealdb-3.3.0", "3.3.0", "SurrealDB 3.3.0"},
 		{"surrealdb-2.7.0", "2.7.0", "SurrealDB 2.7.0"},
 		{"surrealdb-3.1.6+20260813.cfbaec4", "3.1.6-+20260813.cfbaec4", "SurrealDB 3.1.6+20260813.cfbaec4"},
@@ -35,7 +32,7 @@ func TestParseVersion(t *testing.T) {
 			t.Errorf("%q: the display line is %q, want %q", c.in, got, c.display)
 		}
 	}
-	for _, in := range [][]string{{""}, {"surrealdb-"}, {"unknown"}, {}, {"3", "3"}} {
+	for _, in := range [][]string{{""}, {"surrealdb-"}, {"unknown"}, {}, {"surrealdb-3.3.0", "surrealdb-3.3.0"}} {
 		if _, err := parseVersion(in); !errors.Is(err, dbmeta.ErrInvalidVersion) {
 			t.Errorf("%q: expected ErrInvalidVersion, got %v", in, err)
 		}

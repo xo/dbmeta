@@ -1,6 +1,6 @@
 # D164. SurrealDB maps a namespace to a catalog and a defined field to a column
 
-Status: Amended by D168.
+Status: Amended by D168 and D192.
 
 ## The decision
 

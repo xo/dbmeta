@@ -44,11 +44,11 @@
 //
 // # The version
 //
-// No SurrealQL statement returns the version of the server. The driver reads
-// it through the RPC method version, and usql prints it that way. The
-// version query here is a probe that tells 2.x from 3.x and nothing finer,
-// and parseVersion also reads the RPC answer, such as surrealdb-3.3.0. Ken
-// chose this on 2026-10-01. See D164.
+// The version query is SELECT version(). SurrealQL has no such function, but
+// the driver of github.com/xo/dbimp answers the statement with the RPC method
+// version, as one row with one column named version, such as surrealdb-3.3.0
+// or surrealdb-3.1.6+20260813.cfbaec4. Every user gets it. D164 chose a probe
+// of the major release before the driver answered. D192 replaced it.
 //
 // # What it answers
 //
@@ -74,23 +74,17 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// versionQuery tells a 3.x server from a 2.x server, because no statement
-// returns the release. 3.x sorts the members of a set and 2.x keeps their
-// order, which dbimp recorded on 2.7.0, 3.1.6, 3.2.4 and 3.3.0. It parses on
-// both lines, where a probe that reads INFO as a value fails to parse on 2.x.
-//
-// usql reads the release through the RPC method version, which a statement
-// cannot reach. See docs/USQL.md.
-const versionQuery = `RETURN IF (<set>[2, 1])[0] = 1 THEN '3' ELSE '2' END`
+// versionQuery is answered by the driver with the RPC method version, which
+// is the release that usql prints.
+const versionQuery = "SELECT version()"
 
 // rpcPrefix starts the answer of the RPC method version, such as
 // surrealdb-3.3.0 or surrealdb-3.1.6+20260813.cfbaec4.
 const rpcPrefix = "surrealdb-"
 
-// parseVersion reads the one column versionQuery returns, which is the major
-// release alone, or the answer of the RPC method version, which a caller
-// reads through the driver. The display line is the one usql prints, such
-// as SurrealDB 3.3.0, or SurrealDB 3 from the probe.
+// parseVersion reads the one column versionQuery returns, which is the answer
+// of the RPC method version. The display line is the one usql prints, such as
+// SurrealDB 3.3.0.
 func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 	var s dbmeta.VersionSet
 	if len(cols) != 1 {

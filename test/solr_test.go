@@ -141,14 +141,18 @@ func TestSolrVersion(t *testing.T) {
 	t.Logf("server reports %s", versions)
 }
 
-// TestSolrVersionRefusedToAnOrdinaryUser checks that a user who holds the role
-// search cannot read the release. Solr answers HTTP 403, so the caller gets an
-// error and not an unknown release. D191 records that no other way to read the
-// release is in the model.
-func TestSolrVersionRefusedToAnOrdinaryUser(t *testing.T) {
+// TestSolrVersionForAnOrdinaryUser checks that a user who holds the role
+// search reads the same release as the administrator, because security.json
+// lets that role read /admin/info/system (D192). It checks that the same user
+// is still refused the rest of the admin API, such as the list of collections.
+func TestSolrVersionForAnOrdinaryUser(t *testing.T) {
 	dsn := os.Getenv("DBMETA_SOLR")
 	if dsn == "" {
 		t.Skip("set DBMETA_SOLR to run against a real server")
+	}
+	admin, err := dbmeta.Solr.Version(t.Context(), openSolr(t))
+	if err != nil {
+		t.Fatalf("reading the version as the administrator: %v", err)
 	}
 	u, err := url.Parse(dsn)
 	if err != nil {
@@ -160,9 +164,15 @@ func TestSolrVersionRefusedToAnOrdinaryUser(t *testing.T) {
 		t.Fatalf("opening: %v", err)
 	}
 	defer db.Close()
-	_, err = dbmeta.Solr.Version(t.Context(), db)
-	if err == nil || !strings.Contains(err.Error(), "403") {
-		t.Errorf("expected the ordinary user to be refused with 403, got %v", err)
+	got, err := dbmeta.Solr.Version(t.Context(), db)
+	if err != nil {
+		t.Fatalf("reading the version as the ordinary user on %s: %v", admin, err)
+	}
+	if got.String() != admin.String() {
+		t.Errorf("expected the ordinary user to read %s, got %s", admin, got)
+	}
+	if _, err := solrCollections(t.Context(), u.String()); err == nil || !strings.Contains(err.Error(), "answered 403") {
+		t.Errorf("expected the ordinary user to be refused the collections API with 403, got %v", err)
 	}
 }
 

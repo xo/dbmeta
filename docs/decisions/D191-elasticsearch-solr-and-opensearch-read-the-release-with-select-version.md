@@ -1,6 +1,6 @@
 # D191. Elasticsearch, Solr and OpenSearch read the release with SELECT version()
 
-Status: Amends D177, D179, D181 and D183.
+Status: Amends D177, D179, D181 and D183, amended by D192.
 
 ## The decision
 
@@ -39,9 +39,8 @@ This change measured the other five releases, Elasticsearch 8.19.22 and
 refuses the administrator and none gives a different answer to the ordinary
 user.
 
-The tests assert each row. `TestElasticsearchVersionRefusedToAnOrdinaryUser`
-and `TestSolrVersionRefusedToAnOrdinaryUser` keep their names and read the
-refusal through `Dialect.Version`. The refusal test of OpenSearch is now
+The tests assert each row. The refusal tests of Elasticsearch and Solr read the refusal through
+`Dialect.Version`, and D192 renamed them. The refusal test of OpenSearch is now
 `TestOpenSearchVersionForAnOrdinaryUser`, because the answer depends on the
 release: it asserts the refusal on 2.x and the same release as the
 administrator on 3.x. Parity runs with the metadata that the administrator

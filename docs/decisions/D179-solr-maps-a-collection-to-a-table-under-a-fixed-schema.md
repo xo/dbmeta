@@ -89,8 +89,8 @@ user gets HTTP 403. So the model has no version statement and
 `Dialect.Version` reports an unknown version, as it does for InfluxQL (D165).
 A caller that reads the release over HTTP as the administrator passes it to
 `Dialect.ParseVersion`, which reads `10.0.0`. This is Ken's answer in D176. The
-ordinary user gets no release. `TestSolrVersionRefusedToAnOrdinaryUser`
-asserts the refusal.
+ordinary user gets no release. A test of the refusal,
+which D192 renamed, asserts it.
 
 usql's driver reports the word Solr for the same reason (docs/USQL.md).
 

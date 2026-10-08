@@ -13,8 +13,8 @@ import (
 
 // makeElasticsearchUser connects as the ordinary user the dbrun entry makes.
 // Its role reads and views the metadata of the indices whose names start with
-// dbmeta, and holds no cluster privilege, so GET / is refused to it. Becoming
-// it is a change to the credentials of the URL.
+// dbmeta, and holds the cluster privilege cluster:monitor/main, so it reads the
+// release (D192). Becoming it is a change to the credentials of the URL.
 func makeElasticsearchUser(t *testing.T, _ *sql.DB, dsn, _ string) string {
 	t.Helper()
 	u, err := url.Parse(dsn)

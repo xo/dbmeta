@@ -95,8 +95,8 @@ statement, so `Dialect.Version` reports an unknown version, and no query
 depends on the release. `Dialect.ParseVersion` reads the `version.number` that a
 caller got from `GET /`, and gives the display line `Elasticsearch 9.5.3`.
 `TestElasticsearchVersion` reads the release over HTTP as the administrator and
-passes it, and `TestElasticsearchVersionRefusedToAnOrdinaryUser` asserts the
-refusal. Ken can choose another rule: a function of the driver that sends the
+passes it, and a test of the refusal, which D192 renamed, asserts it. Ken
+can choose another rule: a function of the driver that sends the
 request, which is a change in dbimp.
 
 ## The kinds that are not answered

@@ -33,7 +33,12 @@ import (
 // file with admin and [SolrUser], each with [Password], and uploads it once
 // ZooKeeper answers, on every start, so it is the same after a restart. admin
 // can do anything. [SolrUser] has the role search, which can read a
-// collection and run SQL on it. Solr stores a password as the SHA-256 of the
+// collection, run SQL on it, and read /admin/info/system, which holds the
+// release (D192). That is the one path of the admin API it can reach. The rule
+// needs "collection": null, because a rule with no collection key applies to
+// requests that name a collection, and /admin/info/system names none. It must
+// come before the rule all, because Solr takes the first rule that matches.
+// Solr stores a password as the SHA-256 of the
 // SHA-256 of a salt and the password, which [solrHash] computes. Init makes
 // the collection dbmeta.
 //
@@ -45,8 +50,8 @@ import (
 // the user can read serves. The DSN of each principal ends with /dbmeta, which
 // Init makes, so that the DSN is what sql.Open takes (D167, D179).
 
-// SolrUser can read a collection and run SQL on it. Its password is
-// [Password].
+// SolrUser can read a collection, run SQL on it, and read the release of the
+// server. Its password is [Password].
 const SolrUser = "dbmeta_user"
 
 // solrSalt is the salt of every password in security.json. It is fixed, so
@@ -79,6 +84,7 @@ var solrSecurity = `{
     "permissions": [
       {"name": "read", "role": ["search", "admin"]},
       {"name": "sql", "collection": "*", "path": "/sql", "role": ["search", "admin"]},
+      {"name": "system-info", "collection": null, "path": "/admin/info/system", "role": ["search", "admin"]},
       {"name": "all", "role": "admin"}
     ]
   }

@@ -54,9 +54,11 @@
 // The version query is SELECT version(). The SQL of the server has no such
 // function. The driver of dbimp answers the statement from
 // GET /solr/admin/info/system, which holds the release as
-// lucene.solr-spec-version, and only an administrator can read it. The
-// ordinary user gets HTTP 403 as the error, and [dbmeta.Dialect.Version]
-// returns it and not an unknown version. See D179, D183 and D191.
+// lucene.solr-spec-version. Every user can read it when the security.json
+// of the server lets the role of the user read that path, as the entry of
+// dbrun does for the ordinary user. A user without that right gets HTTP 403,
+// and [dbmeta.Dialect.Version] returns the error and not an unknown version.
+// See D179, D183, D191 and D192.
 package solr
 
 import (

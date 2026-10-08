@@ -45,6 +45,11 @@ import "github.com/xo/dbmeta"
 // needs the first to list indices and to describe one, and a plain SELECT
 // needs the second to open a cursor. The cost is that the user sees the name
 // of every index. See D176.
+//
+// The cluster permission cluster:monitor/main is the action behind GET /,
+// which the driver sends on 2.x to read the release. Without it the user is
+// refused with HTTP 403. 3.x gives the release to every user in a header and
+// does not need it. See D192.
 
 // OpenSearchUser can read the indices whose names start with dbmeta, and see
 // the name of every index. Its password is [Password].
@@ -91,7 +96,7 @@ var opensearch = product{
 	args:     []string{"-c", openSearchServe},
 	init: []string{"sh", "-c", `set -e
 api=http://127.0.0.1:9200/_plugins/_security/api
-` + osCurl + `-X PUT -d '{"cluster_permissions":["cluster:monitor/health"],"index_permissions":[{"index_patterns":["dbmeta*"],"allowed_actions":["read","indices:admin/mappings/get","indices:monitor/settings/get"]},{"index_patterns":["*"],"allowed_actions":["indices:admin/get","indices:data/read/search"]}]}' $api/roles/dbmeta_role
+` + osCurl + `-X PUT -d '{"cluster_permissions":["cluster:monitor/health","cluster:monitor/main"],"index_permissions":[{"index_patterns":["dbmeta*"],"allowed_actions":["read","indices:admin/mappings/get","indices:monitor/settings/get"]},{"index_patterns":["*"],"allowed_actions":["indices:admin/get","indices:data/read/search"]}]}' $api/roles/dbmeta_role
 ` + osCurl + `-X PUT -d '{"password":"` + Password + `"}' $api/internalusers/` + OpenSearchUser + `
 ` + osCurl + `-X PUT -d '{"users":["` + OpenSearchUser + `"]}' $api/rolesmapping/dbmeta_role
 ` + osCurl + `-I http://127.0.0.1:9200/dbmeta || ` + osCurl + `-X PUT http://127.0.0.1:9200/dbmeta`},

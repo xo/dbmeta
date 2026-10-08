@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-66 of them amend or replace an earlier one, and a decision read without its
+67 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -183,7 +183,7 @@ file.
 | [D161](D161-ydb-reads-its-sys-views-and-a-directory-is-a-schema.md) | YDB reads its .sys views, and a directory is a schema | Amends D45 |
 | [D163](D163-arangodb-maps-a-collection-onto-a-table.md) | ArangoDB maps a collection onto a table | Amended by D168 |
 | [D165](D165-influxql-maps-a-database-to-a-schema-and-a.md) | InfluxQL maps a database to a schema and a measurement to a table | Decided |
-| [D164](D164-surrealdb-maps-a-namespace-to-a-catalog-and-a-field-to-a.md) | SurrealDB maps a namespace to a catalog and a defined field to a column | Amended by D168 |
+| [D164](D164-surrealdb-maps-a-namespace-to-a-catalog-and-a-field-to-a.md) | SurrealDB maps a namespace to a catalog and a defined field to a column | Amended by D168 and D192 |
 | [D166](D166-oracle-19c-pinot-and-the-influxdb-release-wait.md) | Oracle 19c, Pinot and the InfluxDB release wait | Amends D157 |
 | [D167](D167-the-dsn-is-what-sql-open-takes-and-api-is-the-http-address.md) | The DSN is what sql.Open takes, and api is the HTTP address | Amends D160 |
 | [D168](D168-ken-reviews-the-six-dialects-of-2026-10-01.md) | Ken reviews the six dialects of 2026-10-01 | Amends D163 and D164 |
@@ -194,7 +194,7 @@ file.
 | [D173](D173-the-odbc-fallback-belongs-to-the-client.md) | The ODBC fallback belongs to the client | Decided |
 | [D174](D174-the-clickhouse-tests-use-dbimps-driver.md) | The ClickHouse tests use dbimp's driver | Decided |
 | [D175](D175-elasticsearch-and-opensearch-can-walk-show-statements.md) | Elasticsearch and OpenSearch can walk SHOW statements | Amends D146 and D159 |
-| [D176](D176-the-first-search-dialects-follow-the-survey-answers.md) | The search dialects follow Ken's answers to the survey | Amended by D183 |
+| [D176](D176-the-first-search-dialects-follow-the-survey-answers.md) | The search dialects follow Ken's answers to the survey | Amended by D183 and D192 |
 | [D178](D178-drill-maps-a-workspace-to-a-schema-and-needs-the-metastore-for-file-tables.md) | Drill maps a workspace to a schema and needs the Metastore for file tables | Decided |
 | [D177](D177-elasticsearch-maps-an-index-to-a-table-and-walks-sys-and-show.md) | Elasticsearch maps an index to a table and walks SYS and SHOW | Decided, amended by D191 |
 | [D179](D179-solr-maps-a-collection-to-a-table-under-a-fixed-schema.md) | Solr maps a collection to a table under a fixed schema | Decided, amended by D191 |
@@ -209,4 +209,5 @@ file.
 | [D188](D188-no-dialect-for-h2-voltdb-chai-or-csvq.md) | No dialect for H2, VoltDB, chai or csvq | Amends D158 |
 | [D189](D189-dbimp-reads-the-opensearch-2-19-6-describe-row.md) | dbimp reads the OpenSearch 2.19.6 DESCRIBE row | Amends D181 |
 | [D190](D190-snowflake-ran-against-a-trial-account.md) | Snowflake ran against a trial account | Amends D144 |
-| [D191](D191-elasticsearch-solr-and-opensearch-read-the-release-with-select-version.md) | Elasticsearch, Solr and OpenSearch read the release with SELECT version() | Amends D177, D179, D181 and D183 |
+| [D191](D191-elasticsearch-solr-and-opensearch-read-the-release-with-select-version.md) | Elasticsearch, Solr and OpenSearch read the release with SELECT version() | Amends D177, D179, D181 and D183, amended by D192 |
+| [D192](D192-the-ordinary-user-reads-the-release-and-surrealdb-reads-it-with-select-version.md) | The ordinary user reads the release, and SurrealDB reads it with SELECT version() | Amends D191, D176 and D164 |

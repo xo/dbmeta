@@ -140,13 +140,11 @@ func TestOpenSearchVersion(t *testing.T) {
 	t.Logf("server reports %s", versions)
 }
 
-// TestOpenSearchVersionForAnOrdinaryUser checks what the user of the entry
-// gets. On 2.x, GET / needs the cluster privilege cluster:monitor/main, which
-// the role of the user does not hold. The server answers HTTP 403 with a
-// security_exception, which the caller gets as the error and not as an unknown
-// version. On 3.x the driver reads the release from the header
-// X-OpenSearch-Version, which every user gets. D191 records that no other way
-// to read the release on 2.x is in the model.
+// TestOpenSearchVersionForAnOrdinaryUser checks that the user of the entry
+// reads the same release as the administrator. On 2.x, GET / needs the
+// cluster permission cluster:monitor/main, and the role of the user holds it
+// (D192). On 3.x the driver reads the release from the header
+// X-OpenSearch-Version, which every user gets.
 func TestOpenSearchVersionForAnOrdinaryUser(t *testing.T) {
 	dsn := os.Getenv("DBMETA_OPENSEARCH")
 	if dsn == "" {
@@ -162,12 +160,6 @@ func TestOpenSearchVersionForAnOrdinaryUser(t *testing.T) {
 	}
 	u.User = url.UserPassword(container.OpenSearchUser, container.Password)
 	got, err := dbmeta.OpenSearch.Version(t.Context(), openOpenSearchAs(t, u.String()))
-	if admin.Main().Parts[0] < 3 {
-		if err == nil || !strings.Contains(err.Error(), "security_exception") {
-			t.Errorf("expected the ordinary user to be refused with a security_exception on %s, got %v", admin, err)
-		}
-		return
-	}
 	if err != nil {
 		t.Fatalf("reading the version as the ordinary user on %s: %v", admin, err)
 	}

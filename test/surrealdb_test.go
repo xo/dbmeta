@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/xo/dbimp/surrealdb"
 
 	"github.com/xo/dbmeta"
+	"github.com/xo/dbmeta/container"
 	_ "github.com/xo/dbmeta/models/surrealdb"
 	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
 )
@@ -42,7 +44,8 @@ func openSurrealDB(t *testing.T) *sql.DB {
 var srINFO = dbmeta.V(3)
 
 // srRelease reads the release through the RPC method version, the way usql
-// does, and parses it with the model.
+// does, and parses it with the model. The model reads it with SELECT
+// version(), and TestSurrealDBVersion checks that the two agree.
 func srRelease(t *testing.T, db *sql.DB) dbmeta.VersionSet {
 	t.Helper()
 	ctx := t.Context()
@@ -69,12 +72,14 @@ func srRelease(t *testing.T, db *sql.DB) dbmeta.VersionSet {
 }
 
 // setupSurrealDB builds the fixture and returns the metadata for the server.
-// The metadata takes the full release, which the RPC method reads, and the
-// test of the version checks that the probe agrees with it on the major.
+// The metadata takes the release that SELECT version() reads.
 func setupSurrealDB(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	t.Helper()
 	ctx := t.Context()
-	versions := srRelease(t, db)
+	versions, err := dbmeta.SurrealDB.Version(ctx, db)
+	if err != nil {
+		t.Fatalf("reading the version: %v", err)
+	}
 	down, err := srfixture.Everything.ResolveTeardown(versions)
 	if err != nil {
 		t.Fatalf("resolving the teardown: %v", err)
@@ -112,32 +117,51 @@ func setupSurrealDB(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	return m
 }
 
-// TestSurrealDBVersion reads the version with the probe, which tells 2.x from
-// 3.x, and through the RPC method, which usql reads, and checks that the two
-// agree on the major release.
+// TestSurrealDBVersion checks that SELECT version() gives the full release,
+// and that it is the release that the RPC method gives, which usql reads.
 func TestSurrealDBVersion(t *testing.T) {
 	db := openSurrealDB(t)
-	probe, err := dbmeta.SurrealDB.Version(t.Context(), db)
+	got, err := dbmeta.SurrealDB.Version(t.Context(), db)
 	if err != nil {
-		t.Fatalf("reading the version with the probe: %v", err)
+		t.Fatalf("reading the version: %v", err)
 	}
-	release := srRelease(t, db)
-	p, r := probe.Main(), release.Main()
-	if p.Unknown || len(p.Parts) != 1 {
-		t.Errorf("expected the probe to give the major release alone, got %s", p)
+	if main := got.Main(); main.Unknown || len(main.Parts) < 3 {
+		t.Errorf("expected the full release, got %s", main)
 	}
-	if r.Unknown || len(r.Parts) < 3 {
-		t.Errorf("expected the RPC method to give the full release, got %s", r)
+	if !strings.HasPrefix(got.String(), "SurrealDB ") {
+		t.Errorf("expected the display line to name SurrealDB, got %q", got)
 	}
-	if len(p.Parts) > 0 && len(r.Parts) > 0 && p.Parts[0] != r.Parts[0] {
-		t.Errorf("the probe says %s and the RPC method says %s", p, r)
+	if rpc := srRelease(t, db); rpc.String() != got.String() {
+		t.Errorf("SELECT version() says %s and the RPC method says %s", got, rpc)
 	}
-	for _, v := range []dbmeta.VersionSet{probe, release} {
-		if !strings.HasPrefix(v.String(), "SurrealDB ") {
-			t.Errorf("expected the display line to name SurrealDB, got %q", v)
-		}
+	t.Logf("the server reports %s", got)
+}
+
+// TestSurrealDBVersionForAnOrdinaryUser checks that the user of the entry
+// reads the same release as the administrator.
+func TestSurrealDBVersionForAnOrdinaryUser(t *testing.T) {
+	dsn := os.Getenv("DBMETA_SURREALDB")
+	if dsn == "" {
+		t.Skip("set DBMETA_SURREALDB to run against a real server")
 	}
-	t.Logf("the probe reports %s, and the RPC method %s", probe, release)
+	admin, err := dbmeta.SurrealDB.Version(t.Context(), openSurrealDB(t))
+	if err != nil {
+		t.Fatalf("reading the version as the administrator: %v", err)
+	}
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", dsn, err)
+	}
+	u.User = url.UserPassword(container.SurrealDBUser, container.Password)
+	u.RawQuery = url.Values{"auth": {"database"}}.Encode()
+	t.Setenv("DBMETA_SURREALDB", u.String())
+	got, err := dbmeta.SurrealDB.Version(t.Context(), openSurrealDB(t))
+	if err != nil {
+		t.Fatalf("reading the version as the ordinary user on %s: %v", admin, err)
+	}
+	if got.String() != admin.String() {
+		t.Errorf("expected the ordinary user to read %s, got %s", admin, got)
+	}
 }
 
 // TestSurrealDBEveryQueryRuns runs every query the model answers and checks
