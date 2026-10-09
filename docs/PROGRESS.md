@@ -100,21 +100,23 @@ test module pins dbimp v0.14.0 and dburl v0.46.0.
 
 In progress:
 
+- Ken asked on 2026-10-10 to refresh every model with the new fields (D198 to
+  D203) where the product has a source. Wave 1 is done and pushed: the MySQL
+  family (D205), SQL Server and Oracle (D206), and Snowflake, Redshift, CrateDB
+  and QuestDB (D207). Wave 2 is next: ClickHouse, DuckDB, SQLite3, libSQL,
+  rqlite, Databend and Vertica (D208), then HANA, Exasol, Firebird, Hive and
+  Impala (D209), then an audit of the products without a relational catalog
+  (D210). The brief is in the scratchpad as refresh-brief.md. These changes are
+  not tagged yet: the release after v0.10.0 holds wave 1 and wave 2.
 - The dialects are built or decided for everything that usql supports, except
   H2, VoltDB, chai, csvq, Pinot, DynamoDB, Phoenix and the hosted services
   other than Redshift and Snowflake (D184, D185, D186, D188, D194).
-- Snowflake answers 15 of the 65 kinds and Redshift 18, both measured on the
-  provisioned services. The key columns of Snowflake come from a SHOW through
-  the pipe operator, scoped with `Info.Literal` and the new `Derived` values
-  (D203). Redshift's Spectrum tables cannot be measured, because the namespace
-  has no IAM role.
-- The describe commands of usql are at the level of psql 18 for PostgreSQL.
-  PostgreSQL answers 65 kinds on 18. The next work is what usql finds against
-  v0.9.0 and later, and the other databases, one at a time, which usql said
-  will follow.
-- Known and not done is in `BACKLOG.md`: the cost of `Sequences`, the sections
-  of `\d` that D201 left out, the SQL layer for Pinot and the rest, the
-  oracle-26ai failure in CI, and the old items for Hive, Databend and Oracle 21c.
+- Redshift's Spectrum tables cannot be measured, because the namespace has no
+  IAM role.
+- The describe commands of usql are at the level of psql 18 for PostgreSQL. The
+  next work is what usql finds against the new releases, and the other
+  databases, one at a time, which usql said would follow.
+- Known and not done is in `BACKLOG.md`.
 
 ## Waiting
 
