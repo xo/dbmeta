@@ -90,6 +90,9 @@ var Everything = Fixture{
 			")"),
 		at("book index", "CREATE INDEX book_published ON book (published)"),
 		at("book descending index", "CREATE INDEX book_title_desc ON book (title DESC)"),
+		// A partial index, which the predicate of an index reads (D208).
+		at("book partial index", "CREATE INDEX book_recent ON book (published)\n"+
+			"	WHERE published IS NOT NULL"),
 
 		at("view", "CREATE VIEW recent AS\n"+
 			"	SELECT book_id, title FROM book WHERE published IS NOT NULL"),
@@ -128,8 +131,18 @@ var Everything = Fixture{
 			"	title_length INTEGER GENERATED ALWAYS AS (LENGTH(region)) STORED,\n"+
 			"	PRIMARY KEY (sold_on, region)\n"+
 			")"),
+
+		// A WITHOUT ROWID table, whose primary key index is the table and so
+		// is clustered (D208).
+		at("ledger table", "CREATE TABLE ledger (\n"+
+			"	account TEXT NOT NULL,\n"+
+			"	entry INTEGER NOT NULL,\n"+
+			"	amount INTEGER NOT NULL,\n"+
+			"	PRIMARY KEY (account, entry)\n"+
+			") WITHOUT ROWID"),
 	},
 	Teardown: []Step{
+		at("drop ledger", "DROP TABLE IF EXISTS ledger"),
 		at("drop trigger", "DROP TRIGGER IF EXISTS book_touch"),
 		at("drop shipment", "DROP TABLE IF EXISTS shipment"),
 		at("drop region", "DROP TABLE IF EXISTS region"),

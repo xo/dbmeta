@@ -153,8 +153,8 @@ func TestGizmoSQLEveryQueryRuns(t *testing.T) {
 		names = append(names, q.Name())
 	}
 	t.Logf("%d of %d queries ran: %s", ran, ran+unsupported, strings.Join(names, " "))
-	if ran != 20 {
-		t.Errorf("expected 20 queries to run, got %d", ran)
+	if ran != 21 {
+		t.Errorf("expected 21 queries to run, got %d", ran)
 	}
 }
 

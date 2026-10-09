@@ -55,13 +55,14 @@ var functionFields = []dbmeta.Field{
 	{Name: "source", Desc: "the definition Vertica records: the class and library for a function from a library, and absent for a stored procedure"},
 	{Name: "comment", Desc: "from COMMENT ON FUNCTION"},
 	{Name: "definition", Desc: "always absent: Vertica records the body, which is source, and EXPORT_OBJECTS builds the statement as a call of its own"},
+	{Name: "prosrc", Desc: "the same text as source"},
 }
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind,
 		&v.ResultType, &v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner,
-		&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
+		&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition, &v.Prosrc)
 	return v, err
 }
 
@@ -87,6 +88,7 @@ func functionStmt(where string) dbmeta.Stmt {
 		always(`, NULLIF(f.function_definition, '') AS "source"`),
 		always(`, NULLIF(f.comment, '') AS "comment"`),
 		always(`, CAST(NULL AS VARCHAR) AS "definition"`),
+		always(`, NULLIF(f.function_definition, '') AS "prosrc"`),
 		always(`FROM v_catalog.user_functions f`),
 		since(v251, `LEFT JOIN v_catalog.user_procedures p ON f.procedure_type = 'Stored Procedure'`+
 			` AND p.schema_name = f.schema_name AND p.procedure_name = f.function_name`+

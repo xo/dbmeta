@@ -379,3 +379,93 @@ func TestDuckDBVersion(t *testing.T) {
 		t.Errorf("unexpected reference %q", duckdb.Reference)
 	}
 }
+
+// TestDuckDBDescribeFields reads the fields that D198 and D199 added, for the
+// ones DuckDB has a source for (D208). DuckDB has no owner, access method,
+// options, size or compression that duckdb_tables, duckdb_indexes or
+// duckdb_columns reads, and a temporary table is read on the connection that
+// made it.
+func TestDuckDBDescribeFields(t *testing.T) {
+	db := openDuckDB(t)
+	m := setupDuckDB(t, db)
+	ctx := t.Context()
+	// A temporary table is private to its connection, so the pool keeps one.
+	db.SetMaxOpenConns(1)
+	for _, stmt := range []string{
+		`CREATE TEMP TABLE scratch (a INTEGER PRIMARY KEY, b VARCHAR)`,
+		`CREATE INDEX scratch_b ON scratch (b)`,
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+
+	tables := map[string]dbmeta.Table{}
+	for v, err := range dbmeta.Tables.All(ctx, m, db, dbmeta.Args{}.Map()) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		tables[v.Name] = v
+		if v.Owner.Valid || v.AccessMethod.Valid || v.Size.Valid || v.Options.Valid {
+			t.Errorf("%s: expected no owner, access method, size or options, got %+v", v.Name, v)
+		}
+	}
+	if got := tables["author"]; got.Persistence.V != "permanent" || !got.Rows.Valid || got.Rows.V != 2 {
+		t.Errorf("author: expected permanent and 2 rows, got %+v", got)
+	}
+	if got := tables["scratch"]; got.Persistence.V != "temporary" || got.Rows.V != 0 {
+		t.Errorf("scratch: expected temporary and 0 rows, got %+v", got)
+	}
+	if got := tables["recent"]; got.Persistence.Valid || got.Rows.Valid {
+		t.Errorf("recent: a view has no persistence and no rows, got %+v", got)
+	}
+
+	indexes := map[string]dbmeta.Index{}
+	for v, err := range dbmeta.Indexes.All(ctx, m, db, dbmeta.Args{}.Map()) {
+		if err != nil {
+			t.Fatalf("reading indexes: %v", err)
+		}
+		indexes[v.Name] = v
+		if v.Using.V != "art" || !strings.HasPrefix(v.Definition.V, "CREATE INDEX "+v.Name) {
+			t.Errorf("%s: expected art and the statement, got %+v", v.Name, v)
+		}
+	}
+	if got := indexes["book_published"]; got.Persistence.V != "permanent" {
+		t.Errorf("book_published: expected permanent, got %+v", got)
+	}
+	if got := indexes["scratch_b"]; got.Persistence.V != "temporary" {
+		t.Errorf("scratch_b: expected temporary, got %+v", got)
+	}
+
+	var notNulls int
+	for v, err := range dbmeta.NotNulls.All(ctx, m, db, dkArgs()) {
+		if err != nil {
+			t.Fatalf("reading not nulls: %v", err)
+		}
+		if v.Table == "author" && v.Column == "name" {
+			notNulls++
+			if v.Name != "author_name_not_null" || v.NoInherit || !v.Local || v.Inherited || !v.Validated {
+				t.Errorf("unexpected not null %+v", v)
+			}
+		}
+	}
+	if notNulls != 1 {
+		t.Errorf("expected one NOT NULL on author.name, got %d", notNulls)
+	}
+
+	var prosrc int
+	for v, err := range dbmeta.Functions.All(ctx, m, db, dkArgs()) {
+		if err != nil {
+			t.Fatalf("reading functions: %v", err)
+		}
+		if v.Name == "addup" {
+			prosrc++
+			if !v.Prosrc.Valid || v.Prosrc.V != v.Source.V || v.Leakproof {
+				t.Errorf("addup: expected prosrc to be the macro body, got %+v", v)
+			}
+		}
+	}
+	if prosrc == 0 {
+		t.Error("expected the macro addup")
+	}
+}

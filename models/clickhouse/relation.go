@@ -6,6 +6,16 @@ import (
 	"github.com/xo/dbmeta"
 )
 
+// tableOptions is the text of Table.Options. Each clause is written as the
+// CREATE TABLE clause names it and an empty one is left out.
+const tableOptions = `nullIf(arrayStringConcat(arrayFilter(x -> x != '', [` +
+	`if(t.partition_key != '', concat('partition_by=', t.partition_key), '')` +
+	`, if(t.sorting_key != '', concat('order_by=', t.sorting_key), '')` +
+	`, if(t.primary_key != '', concat('primary_key=', t.primary_key), '')` +
+	`, if(t.sampling_key != '', concat('sample_by=', t.sampling_key), '')` +
+	`, if(t.storage_policy != '', concat('storage_policy=', t.storage_policy), '')` +
+	`]), ', '), '')`
+
 func registerRelations() {
 	// \dn. A ClickHouse database is the only namespace there is.
 	dbmeta.Schemas.Register(dbmeta.ClickHouse, &dbmeta.Binding[dbmeta.Schema]{
@@ -102,6 +112,12 @@ func registerRelations() {
 			always(`, t.name AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
 			always(`, nullIf(t.comment, '') AS "comment"`),
+			always(`, if(t.engine IN (` + viewEngines + `), NULL,` +
+				` if(t.is_temporary, 'temporary', 'permanent')) AS "persistence"`),
+			always(`, t.engine AS "access_method"`),
+			always(`, toInt64(t.total_bytes) AS "size"`),
+			always(`, toInt64(t.total_rows) AS "rows"`),
+			always(`, ` + tableOptions + ` AS "options"`),
 			always(`FROM system.tables t`),
 			always(`WHERE ` + notSystem("t.database")),
 			always(`AND (@schema = '' OR t.database LIKE @schema)`),
@@ -119,11 +135,33 @@ func registerRelations() {
 				Desc: "read from the engine, which is what makes a ClickHouse table a view",
 			},
 			{Name: "comment"},
+			{
+				Name: "persistence",
+				Desc: "temporary for a temporary table of this session, and permanent for the rest, which" +
+					" includes a Memory table: its rows go on a restart and its definition does not. Absent for a view",
+			},
+			{Name: "access_method", Desc: "the table engine, such as MergeTree, Memory or Distributed"},
+			{
+				Name: "size",
+				Desc: "total_bytes of system.tables: the compressed bytes of the active parts of a MergeTree table, and" +
+					" the bytes in memory for a Memory table. Absent for an engine that keeps no such number, such as a view",
+			},
+			{
+				Name: "rows",
+				Desc: "total_rows of system.tables: the rows of the active parts, which is a count and not an estimate." +
+					" Absent for an engine that keeps no such number",
+			},
+			{
+				Name: "options",
+				Desc: "partition_by, order_by, primary_key, sample_by and storage_policy, as the CREATE TABLE clauses" +
+					" name them. The SETTINGS clause is not in it, because only engine_full holds that and it has no parts. Absent when none is set",
+			},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})
@@ -149,6 +187,8 @@ func registerRelations() {
 				`, c.default_kind, ''), '') AS "generated"`),
 			always(`, nullIf(c.comment, '') AS "comment"`),
 			always(`, NULL AS "collation"`),
+			always(`, NULL AS "storage"`),
+			always(`, nullIf(c.compression_codec, '') AS "compression"`),
 			always(`FROM system.columns c`),
 			always(`WHERE ` + notSystem("c.database")),
 			always(`AND (@schema = '' OR c.database LIKE @schema)`),
@@ -179,13 +219,19 @@ func registerRelations() {
 			},
 			{Name: "comment"},
 			{Name: "collation", Desc: "always absent: ClickHouse has no collation on a column"},
+			{Name: "storage", Desc: "always absent: ClickHouse has no choice of how a value is stored out of line"},
+			{
+				Name: "compression",
+				Desc: "the codec chain of the column, as the server prints it, such as CODEC(ZSTD(3)) or" +
+					" CODEC(Delta(8), LZ4HC(0)). Absent when the column uses the default codec",
+			},
 		},
 		Params: childParams("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment, &v.Collation)
+				&v.Generated, &v.Comment, &v.Collation, &v.Storage, &v.Compression)
 			return v, err
 		},
 	})

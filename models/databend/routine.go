@@ -32,20 +32,21 @@ func functionStmt(aggregate string) dbmeta.Stmt {
 		always(`, f.definition AS "source"`),
 		always(`, NULLIF(f.description, '') AS "comment"`),
 		always(`, NULL AS "definition"`),
+		always(`, f.definition AS "prosrc"`),
 		always(`FROM system.user_functions f`),
 		always(`WHERE COALESCE(f.is_aggregate, false) = ` + aggregate),
 		always(`AND ` + like("''", "@schema")),
 		always(`AND ` + like("f.name", "@name")),
 		always(`UNION ALL`),
 		always(`SELECT 'default', '', p.name, CAST(p.procedure_id AS STRING), 'proc', NULL`),
-		always(`, p.arguments, '', '', NULL, '', NULL, 'sql', NULL, NULLIF(p.comment, ''), NULL`),
+		always(`, p.arguments, '', '', NULL, '', NULL, 'sql', NULL, NULLIF(p.comment, ''), NULL, NULL`),
 		always(`FROM system.procedures p`),
 		always(`WHERE NOT ` + aggregate),
 		always(`AND ` + like("''", "@schema")),
 		always(`AND ` + like("p.name", "@name")),
 		always(`UNION ALL`),
 		always(`SELECT 'default', 'system', b.name, NULL, CASE WHEN b.is_aggregate THEN 'agg' ELSE 'func' END, NULL`),
-		always(`, b.syntax, '', '', NULL, '', NULL, 'internal', NULL, NULLIF(b.description, ''), NULL`),
+		always(`, b.syntax, '', '', NULL, '', NULL, 'internal', NULL, NULLIF(b.description, ''), NULL, NULL`),
 		always(`FROM system.functions b`),
 		always(`WHERE @with_system AND b.is_aggregate = ` + aggregate),
 		always(`AND ` + like("'system'", "@schema")),
@@ -73,6 +74,7 @@ var functionFields = []dbmeta.Field{
 	{Name: "source", Desc: "the definition of a function a user made, and absent for a procedure and a built in function"},
 	{Name: "comment"},
 	{Name: "definition", Desc: "always absent: Databend keeps the body of a function, which is source, and SHOW CREATE FUNCTION is a statement of its own"},
+	{Name: "prosrc", Desc: "the same text as source: the definition of a function a user made, and absent for a procedure and a built in function"},
 }
 
 // functionParams are the parameters of Functions and Aggregates.
@@ -83,7 +85,7 @@ func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 		&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-		&v.Language, &v.Source, &v.Comment, &v.Definition)
+		&v.Language, &v.Source, &v.Comment, &v.Definition, &v.Prosrc)
 	return v, err
 }
 

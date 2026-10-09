@@ -168,19 +168,19 @@ call and filter in the loop.
 | MariaDB    | native             | 30      | Complete    |
 | MySQL      | native             | 27      | Complete    |
 | SQLite3    | native             | 14      | Complete    |
-| DuckDB     | native             | 20      | Complete    |
+| DuckDB     | native             | 21      | Complete    |
 | SQL Server | native             | 34      | Complete    |
 | Oracle     | native             | 29      | In progress |
 | Cassandra  | native             | 17      | In progress |
 | ScyllaDB   | native             | 18      | In progress |
-| ClickHouse | native             | 23      | In progress |
+| ClickHouse | native             | 25      | In progress |
 | Trino      | native             | 13      | In progress |
 | Presto     | native             | 9       | In progress |
 | Firebird   | native             | 24      | In progress |
 | SAP HANA   | native             | 32      | In progress |
 | Apache Hive | native            | 16      | In progress |
 | Exasol     | native             | 25      | In progress |
-| Vertica    | native             | 26      | In progress |
+| Vertica    | native             | 28      | In progress |
 | Couchbase  | native             | 12      | In progress |
 | CockroachDB | native            | 54      | In progress |
 | CrateDB    | native             | 27      | In progress |
@@ -204,7 +204,7 @@ call and filter in the loop.
 | Elasticsearch | native          | 8       | In progress |
 | OpenSearch | native             | 3       | In progress |
 | Apache Solr | native            | 4       | In progress |
-| GizmoSQL   | native             | 20      | In progress |
+| GizmoSQL   | native             | 21      | In progress |
 | InfluxQL   | native             | 7       | In progress |
 | SurrealDB  | native             | 18      | In progress |
 
@@ -351,7 +351,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 207 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 75 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 208 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 75 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

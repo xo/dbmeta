@@ -68,6 +68,9 @@ func registerTables() {
 			always(`, t.table_name AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
 			always(`, ` + comment("TABLE", "t.table_schema", "t.table_name") + ` AS "comment"`),
+			always(`, t.owner_name AS "owner"`),
+			always(`, ` + text(`CASE WHEN t.is_temp_table THEN 'temporary' ELSE 'permanent' END`) + ` AS "persistence"`),
+			always(`, ` + text(`CASE WHEN t.partition_expression <> '' THEN 'partition_by=' || t.partition_expression END`) + ` AS "options"`),
 			always(`FROM v_catalog.tables t`),
 			always(`WHERE ` + notSystem(`t.table_schema`)),
 			always(`AND ` + like(`t.table_schema`, `@schema`)),
@@ -77,6 +80,7 @@ func registerTables() {
 			always(`SELECT '', v.table_schema, v.table_name`),
 			always(`, ` + viewType),
 			always(`, ` + comment("VIEW", "v.table_schema", "v.table_name")),
+			always(`, v.owner_name, CAST(NULL AS VARCHAR), CAST(NULL AS VARCHAR)`),
 			always(`FROM v_catalog.views v`),
 			always(`WHERE ` + notSystem(`v.table_schema`)),
 			always(`AND ` + like(`v.table_schema`, `@schema`)),
@@ -84,6 +88,7 @@ func registerTables() {
 			always(`AND ` + inTypes(viewType)),
 			always(`UNION ALL`),
 			always(`SELECT '', y.table_schema, y.table_name, 'system table', y.table_description`),
+			always(`, CAST(NULL AS VARCHAR), CAST(NULL AS VARCHAR), CAST(NULL AS VARCHAR)`),
 			always(`FROM v_catalog.system_tables y`),
 			always(`WHERE @with_system`),
 			always(`AND ` + like(`y.table_schema`, `@schema`)),
@@ -97,11 +102,15 @@ func registerTables() {
 			{Name: "name"},
 			{Name: "type", Desc: "table, temporary table, external table, flex table, view, system view or system table. An external table reads its rows from files at query time, and a flex table stores semi structured data in a map"},
 			{Name: "comment", Desc: "from COMMENT ON TABLE or COMMENT ON VIEW, and the engine's own description for a system table"},
+			{Name: "owner", Desc: "owner_name of the table or the view, and absent for a system table"},
+			{Name: "persistence", Desc: "permanent, or temporary for a global or local temporary table. Absent for a view and a system table"},
+			{Name: "options", Desc: "partition_by=expression for a partitioned table, and absent for the rest"},
 		},
 		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence, &v.Options)
 			return v, err
 		},
 	})
@@ -320,7 +329,111 @@ func registerColumns() {
 	})
 }
 
+// row91 is a fragment of a statement that needs 9.1, the oldest release that
+// has a row access policy.
+func row91(query string) dbmeta.Choice { return dbmeta.Choice{{Min: v91, Query: query}} }
+
 func registerProjections() {
+	// A row access policy filters the rows a user reads. The catalog has no
+	// name for one and no list of roles: the expression decides who it applies
+	// to, with a call such as ENABLED_ROLE. A column policy is not a row
+	// policy and is not listed. A disabled policy is listed, and Policy has no
+	// field to say it is disabled.
+	dbmeta.Policies.Register(dbmeta.Vertica, &dbmeta.Binding[dbmeta.Policy]{
+		Stmt: dbmeta.Stmt{
+			row91(`SELECT SPLIT_PART(a.table_name, '.', 1) AS "schema"`),
+			row91(`, SPLIT_PART(a.table_name, '.', 2) AS "table"`),
+			row91(`, ` + text(`a.access_policy_oid`) + ` AS "name"`),
+			row91(`, 'all' AS "command"`),
+			row91(`, TRUE AS "permissive"`),
+			row91(`, CAST(NULL AS VARCHAR) AS "roles"`),
+			row91(`, a.expression AS "using"`),
+			row91(`, CAST(NULL AS VARCHAR) AS "with_check"`),
+			row91(`, CAST(NULL AS VARCHAR) AS "comment"`),
+			row91(`FROM v_catalog.access_policy a`),
+			row91(`WHERE a.policy_type = 'Row policy'`),
+			row91(`AND ` + notSystem(`SPLIT_PART(a.table_name, '.', 1)`)),
+			row91(`AND ` + like(`SPLIT_PART(a.table_name, '.', 1)`, `@schema`)),
+			row91(`AND ` + like(`SPLIT_PART(a.table_name, '.', 2)`, `@parent`)),
+			row91(`AND ` + like(text(`a.access_policy_oid`), `@name`)),
+			row91(`ORDER BY 1, 2, 3`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema", Min: v91}, {Name: "table", Min: v91},
+			{Name: "name", Desc: "the object id of the policy, because Vertica gives a policy no name", Min: v91},
+			{Name: "command", Desc: "always all: a row access policy filters every read and write of the table", Min: v91},
+			{Name: "permissive", Desc: "always true: Vertica has no restrictive policy", Min: v91},
+			{Name: "roles", Desc: "always absent: the expression names the roles it applies to", Min: v91},
+			{Name: "using", Desc: "the expression, such as (a > 1)", Min: v91},
+			{Name: "with_check", Desc: "always absent: a Vertica row policy has one expression", Min: v91},
+			{Name: "comment", Desc: "always absent", Min: v91},
+		},
+		Params: parentAndName("policy"),
+		Scan: func(rows *sql.Rows) (dbmeta.Policy, error) {
+			var v dbmeta.Policy
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Command, &v.Permissive,
+				&v.Roles, &v.Using, &v.WithCheck, &v.Comment)
+			return v, err
+		},
+	})
+
+	// The partitions of a table, from the storage containers of its
+	// projections. A partition is a value of the PARTITION BY expression, and
+	// a table has one row for each value that holds data. A partition has no
+	// table, so the type is partition. The rows of a partition are in
+	// partitions.ros_row_count and the Partition kind has no field for them.
+	dbmeta.Partitions.Register(dbmeta.Vertica, &dbmeta.Binding[dbmeta.Partition]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT j.projection_schema AS "schema"`),
+			always(`, j.anchor_table_name AS "table"`),
+			always(`, j.projection_schema AS "partition_schema"`),
+			always(`, ` + text(`x.partition_key`) + ` AS "partition"`),
+			always(`, 'partition' AS "type"`),
+			always(`, ` + text(`x.partition_key`) + ` AS "bound"`),
+			always(`, CAST(NULL AS VARCHAR) AS "constraint"`),
+			always(`, FALSE AS "partitioned"`),
+			always(`, FALSE AS "detach_pending"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "table_visible"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "partition_visible"`),
+			always(`FROM v_monitor.partitions x`),
+			always(`JOIN v_catalog.projections j ON j.projection_id = x.projection_id`),
+			always(`WHERE ` + notSystem(`j.projection_schema`)),
+			always(`AND ` + like(`j.projection_schema`, `@schema`)),
+			always(`AND ` + like(`j.anchor_table_name`, `@parent`)),
+			always(`AND ` + like(`j.projection_schema`, `@partition_schema`)),
+			always(`AND ` + like(`x.partition_key`, `@name`)),
+			always(`GROUP BY j.projection_schema, j.anchor_table_name, x.partition_key`),
+			always(`ORDER BY 1, 2, 4`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema", Desc: "schema of the partitioned table"},
+			{Name: "table", Desc: "the partitioned table, which is the anchor table of the projections that hold the partition"},
+			{Name: "partition_schema", Desc: "the same schema: a partition is in no schema of its own"},
+			{Name: "partition", Desc: "the partition key, which is the value of the PARTITION BY expression, such as 2025"},
+			{Name: "type", Desc: "always partition: a Vertica partition is not a table"},
+			{Name: "bound", Desc: "the same value as the partition key"},
+			{Name: "constraint", Desc: "always absent: Vertica makes no constraint of a partition value"},
+			{Name: "partitioned", Desc: "always false: a partition has no partitions of its own"},
+			{Name: "detach_pending", Desc: "always false: Vertica has no concurrent detach"},
+			{Name: "table_visible", Desc: "always absent: Vertica reports no search path for a table"},
+			{Name: "partition_visible", Desc: "always absent, for the same reason"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "schema name pattern of the table, empty for every schema", Default: ""},
+			{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+			{Name: "partition_schema", Desc: "schema name pattern of the partition, empty for every schema", Default: ""},
+			{Name: "name", Desc: "partition key pattern, empty for every partition", Default: ""},
+			{Name: "with_system", Desc: "include the schemas Vertica keeps for itself", Default: false},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.Partition, error) {
+			var v dbmeta.Partition
+			err := rows.Scan(&v.Schema, &v.Table, &v.PartitionSchema, &v.Partition, &v.Type,
+				&v.Bound, &v.Constraint, &v.Partitioned, &v.DetachPending,
+				&v.TableVisible, &v.PartitionVisible)
+			return v, err
+		},
+	})
+
 	// \di. Vertica has no index. A projection is a stored, sorted and
 	// segmented copy of some or all of a table's columns, and it is what
 	// the optimizer chooses between the way another database chooses an
@@ -338,6 +451,11 @@ func registerProjections() {
 			always(`, FALSE AS "unique"`),
 			always(`, p.is_key_constraint_projection AS "primary"`),
 			always(`, ` + comment("PROJECTION", "p.projection_schema", "p.projection_name") + ` AS "comment"`),
+			always(`, (SELECT CAST(SUM(s.used_bytes) AS BIGINT) FROM v_monitor.projection_storage s` +
+				` WHERE s.projection_id = p.projection_id) AS "size"`),
+			always(`, p.is_up_to_date AS "valid"`),
+			always(`, ` + text(`CASE WHEN p.is_segmented THEN 'segmented_by=' || p.segment_expression`+
+				` ELSE 'unsegmented' END`) + ` AS "options"`),
 			always(`FROM v_catalog.projections p`),
 			always(`WHERE ` + notSystem(`p.projection_schema`)),
 			always(`AND ` + like(`p.projection_schema`, `@schema`)),
@@ -354,12 +472,18 @@ func registerProjections() {
 			{Name: "unique", Desc: "always false: a projection enforces nothing. A key is checked by its constraint, when it is enabled"},
 			{Name: "primary", Desc: "true for a projection Vertica made to enforce an enabled key constraint"},
 			{Name: "comment", Desc: "from COMMENT ON PROJECTION"},
+			{
+				Name: "size",
+				Desc: "the bytes of the projection on every node, from projection_storage. The rows of the projection are in the same view and Index has no field for them. Absent for a projection that holds no row yet",
+			},
+			{Name: "valid", Desc: "is_up_to_date: false for a projection that holds the data of an earlier time and that the optimizer does not use until it is refreshed"},
+			{Name: "options", Desc: "segmented_by=expression, or unsegmented for a projection that every node holds in full"},
 		},
 		Params: parentAndName("projection"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Size, &v.Valid, &v.Options)
 			return v, err
 		},
 	})
@@ -424,6 +548,7 @@ func registerConstraints() {
 			always(`, FALSE AS "deferrable"`),
 			always(`, FALSE AS "deferred"`),
 			always(`, CAST(NULL AS VARCHAR) AS "comment"`),
+			always(`, k.is_enabled AS "enforced"`),
 			always(`FROM v_catalog.table_constraints k`),
 			always(`JOIN v_catalog.tables t ON t.table_id = k.table_id`),
 			always(`WHERE ` + notSystem(`t.table_schema`)),
@@ -439,12 +564,13 @@ func registerConstraints() {
 			{Name: "deferrable", Desc: "always false: Vertica defers no constraint"},
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no constraint form"},
+			{Name: "enforced", Desc: "is_enabled: Vertica checks a key only when it is enabled, and it is disabled unless the statement said ENABLED or a setting asks for it. A check constraint is always enabled, and a foreign key has no value, so it is absent"},
 		},
 		Params: parentAndName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})

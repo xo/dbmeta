@@ -140,6 +140,15 @@ func registerRelations() {
 			always(`, t.name AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
 			always(`, NULLIF(t.comment, '') AS "comment"`),
+			always(`, t.owner AS "owner"`),
+			// A view has no persistence. TRANSIENT is the one table kind with a
+			// different life: it keeps no time travel history.
+			always(`, CASE WHEN t.engine = 'VIEW' THEN NULL WHEN t.is_transient = 'TRANSIENT' THEN 'transient'` +
+				` ELSE 'permanent' END AS "persistence"`),
+			always(`, t.engine AS "access_method"`),
+			always(`, CAST(t.data_compressed_size AS BIGINT) AS "size"`),
+			always(`, CAST(t.num_rows AS BIGINT) AS "rows"`),
+			always(`, CASE WHEN t.cluster_by = '' THEN NULL ELSE 'cluster_by=' || t.cluster_by END AS "options"`),
 			always(`FROM system.tables t`),
 			always(`WHERE ` + notSystem("t.database")),
 			always(`AND ` + like("t.database", "@schema")),
@@ -151,11 +160,18 @@ func registerRelations() {
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "table for the FUSE engine, view, materialized view, system table, and the engine's name and table for any other, such as iceberg table"},
 			{Name: "comment", Desc: "the COMMENT of the table, and absent where there is none"},
+			{Name: "owner", Desc: "the role that owns the table, and absent for a view and a system table"},
+			{Name: "persistence", Desc: "permanent or transient. Absent for a view. Databend has no temporary table in this catalog"},
+			{Name: "access_method", Desc: "the engine, such as FUSE, MEMORY or VIEW"},
+			{Name: "size", Desc: "data_compressed_size: the compressed bytes of the table data, and not of its indexes. Absent for a view"},
+			{Name: "rows", Desc: "num_rows, which Databend keeps in the table snapshot. Absent for a view"},
+			{Name: "options", Desc: "cluster_by=(expressions) for a clustered table, and absent for the rest. The other table options include the location of the snapshot, which changes with every write, so they are not read"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})

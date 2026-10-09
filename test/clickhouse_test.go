@@ -343,3 +343,128 @@ func TestClickHouseFixtureObjects(t *testing.T) {
 	}
 	t.Logf("%-18s %d, and the fixture builds none on purpose", "foreign servers", servers)
 }
+
+// TestClickHouseDescribeFields reads the fields that D198 and D199 added, for
+// the ones ClickHouse has a source for (D208). It has no owner, no storage
+// choice and no statistics target, and it keeps the row policy and the
+// partitions in tables that an ordinary user is refused.
+func TestClickHouseDescribeFields(t *testing.T) {
+	db := openClickHouse(t)
+	ctx := t.Context()
+	m := setupClickHouse(t, db)
+
+	tables := map[string]dbmeta.Table{}
+	for v, err := range dbmeta.Tables.All(ctx, m, db, chArgs()) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		tables[v.Name] = v
+		if v.Owner.Valid || v.RowSecurity.Valid {
+			t.Errorf("%s: expected no owner and no row security, got %+v", v.Name, v)
+		}
+		if !v.AccessMethod.Valid || v.AccessMethod.V == "" {
+			t.Errorf("%s: expected the engine, got %+v", v.Name, v.AccessMethod)
+		}
+	}
+	sales := tables["sales"]
+	if sales.AccessMethod.V != "MergeTree" || sales.Persistence.V != "permanent" {
+		t.Errorf("sales: expected a permanent MergeTree table, got %+v", sales)
+	}
+	if !sales.Rows.Valid || sales.Rows.V != 3 || !sales.Size.Valid || sales.Size.V <= 0 {
+		t.Errorf("sales: expected 3 rows and a size, got rows %+v and size %+v", sales.Rows, sales.Size)
+	}
+	if want := "partition_by=toYYYYMM(sold_on), order_by=sold_on, primary_key=sold_on, storage_policy=default"; sales.Options.V != want {
+		t.Errorf("sales: expected the options %q, got %q", want, sales.Options.V)
+	}
+	if recent := tables["recent"]; recent.Persistence.Valid || recent.Options.Valid {
+		t.Errorf("recent: a view has no persistence and no options, got %+v", recent)
+	}
+	if remote := tables["remote"]; remote.AccessMethod.V != "URL" || remote.Options.Valid {
+		t.Errorf("remote: expected the URL engine and no options, got %+v", remote)
+	}
+
+	codecs := map[string]string{}
+	for v, err := range dbmeta.Columns.All(ctx, m, db, dbmeta.Args{Schema: chfixture.Everything.Schema, Parent: "sales"}.Map()) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		if v.Storage.Valid || v.StatsTarget.Valid {
+			t.Errorf("%s: expected no storage and no statistics target, got %+v", v.Name, v)
+		}
+		codecs[v.Name] = v.Compression.V
+	}
+	if codecs["region"] != "CODEC(ZSTD(3))" || codecs["amount"] != "CODEC(Delta(8), LZ4)" || codecs["sold_on"] != "" {
+		t.Errorf("expected the codecs of sales, got %v", codecs)
+	}
+
+	for v, err := range dbmeta.Indexes.All(ctx, m, db, chArgs()) {
+		if err != nil {
+			t.Fatalf("reading indexes: %v", err)
+		}
+		if v.Name == "book_title_idx" {
+			if v.Options.V != "granularity=1" || v.Using.V != "set(100)" || !v.Size.Valid {
+				t.Errorf("book_title_idx: expected granularity, using and size, got %+v", v)
+			}
+		}
+	}
+
+	if dbmeta.Constraints.Support(m) == dbmeta.Supported {
+		enforced := map[string]bool{}
+		for v, err := range dbmeta.Constraints.All(ctx, m, db, chArgs()) {
+			if err != nil {
+				t.Fatalf("reading constraints: %v", err)
+			}
+			if !v.Enforced.Valid {
+				t.Errorf("%s: expected enforced to be read", v.Name)
+			}
+			enforced[v.Name] = v.Enforced.V
+		}
+		if !enforced["sales_amount_ck"] || enforced["sales_amount_hint"] {
+			t.Errorf("expected the check to be enforced and the assume not to be, got %v", enforced)
+		}
+	}
+
+	bounds := map[string]string{}
+	for v, err := range dbmeta.Partitions.All(ctx, m, db, dbmeta.Args{Schema: chfixture.Everything.Schema, Parent: "sales"}.Map()) {
+		if err != nil {
+			t.Fatalf("reading partitions: %v", err)
+		}
+		if v.Table != "sales" || v.Type != "partition" || v.Partitioned || v.DetachPending {
+			t.Errorf("unexpected partition %+v", v)
+		}
+		bounds[v.Partition] = v.Bound.V
+	}
+	if len(bounds) != 2 || bounds["202501"] != "202501" || bounds["202502"] != "202502" {
+		t.Errorf("expected the partitions 202501 and 202502, got %v", bounds)
+	}
+
+	var partitioned int
+	for v, err := range dbmeta.PartitionedTables.All(ctx, m, db, chArgs()) {
+		if err != nil {
+			t.Fatalf("reading partitioned tables: %v", err)
+		}
+		partitioned++
+		if v.Name == "sales" && (v.AccessMethod.V != "MergeTree" || v.Table.Valid ||
+			v.DirectSize.V != tables["sales"].Size.V || v.TotalSize.V != v.DirectSize.V) {
+			t.Errorf("sales: expected the engine and the size of the table, got %+v", v)
+		}
+	}
+	if partitioned < 2 {
+		t.Errorf("expected sales and book to be partitioned, got %d", partitioned)
+	}
+
+	var policies int
+	for v, err := range dbmeta.Policies.All(ctx, m, db, chArgs()) {
+		if err != nil {
+			t.Fatalf("reading policies: %v", err)
+		}
+		policies++
+		if v.Name != "book_recent" || v.Table != "book" || v.Command != "select" || !v.Permissive ||
+			v.Roles.V != "dbmeta_reader" || v.Using.V != "book_id > 0" || v.WithCheck.Valid {
+			t.Errorf("unexpected policy %+v", v)
+		}
+	}
+	if policies != 1 {
+		t.Errorf("expected the policy book_recent, got %d", policies)
+	}
+}

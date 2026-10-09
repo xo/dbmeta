@@ -283,3 +283,55 @@ func TestDatabendAnswersNoneOfThese(t *testing.T) {
 		}
 	}
 }
+
+// TestDatabendDescribeFields reads the fields that D198 and D199 added, for
+// the ones Databend has a source for (D208). It keeps no row policy in a table
+// that a statement can filter, and no storage choice for a column.
+func TestDatabendDescribeFields(t *testing.T) {
+	db := openDatabend(t)
+	ctx := t.Context()
+	m := setupDatabend(t, db)
+
+	tables := map[string]dbmeta.Table{}
+	for v, err := range dbmeta.Tables.All(ctx, m, db, dbArgs()) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		tables[v.Name] = v
+		if v.RowSecurity.Valid {
+			t.Errorf("%s: expected no row security, got %+v", v.Name, v)
+		}
+	}
+	author := tables["author"]
+	if !author.Owner.Valid || author.Owner.V == "" || author.Persistence.V != "permanent" || author.AccessMethod.V != "FUSE" {
+		t.Errorf("author: expected an owner, permanent and FUSE, got %+v", author)
+	}
+	if !author.Rows.Valid || author.Rows.V != 3 || !author.Size.Valid || author.Size.V <= 0 || author.Options.Valid {
+		t.Errorf("author: expected 3 rows, a size and no options, got %+v", author)
+	}
+	if got := tables["book"].Options.V; got != "cluster_by=(published)" {
+		t.Errorf("book: expected the cluster key, got %q", got)
+	}
+	if got := tables["ledger"].Persistence.V; got != "transient" {
+		t.Errorf("ledger: expected transient, got %q", got)
+	}
+	if recent := tables["recent"]; recent.Owner.Valid || recent.Persistence.Valid || recent.Size.Valid || recent.Rows.Valid || recent.Options.Valid {
+		t.Errorf("recent: expected a view to fill only the engine, got %+v", recent)
+	}
+
+	var shout int
+	for v, err := range dbmeta.Functions.All(ctx, m, db, dbmeta.Args{}.Map()) {
+		if err != nil {
+			t.Fatalf("reading functions: %v", err)
+		}
+		if v.Name == "dbmeta_fixture_shout" {
+			shout++
+			if !v.Prosrc.Valid || v.Prosrc.V != v.Source.V {
+				t.Errorf("shout: expected prosrc to be the definition, got %+v", v)
+			}
+		}
+	}
+	if shout != 1 {
+		t.Errorf("expected the function dbmeta_fixture_shout once, got %d", shout)
+	}
+}

@@ -20,8 +20,9 @@
 //
 // # What it answers
 //
-// 23 of the 65. Schemas and databases, tables, columns, views, indexes, index
-// columns, constraints, comments, partitioned tables, types, collations,
+// 25 of the 65. Schemas and databases, tables, columns, views, indexes, index
+// columns, constraints, comments, partitioned tables, partitions, row
+// policies, types, collations,
 // settings, roles, role grants, privileges, functions, aggregates,
 // tablespaces, foreign servers, foreign tables, the current schema and the
 // current user.

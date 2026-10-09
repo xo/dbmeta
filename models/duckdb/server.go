@@ -42,6 +42,7 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		always(`, f.macro_definition AS "source"`),
 		always(`, COALESCE(f.comment, f.description) AS "comment"`),
 		always(`, NULL AS "definition"`),
+		always(`, f.macro_definition AS "prosrc"`),
 		always(`FROM duckdb_functions() f`),
 		internalOf("WHERE", "f"),
 	}
@@ -77,6 +78,7 @@ func functionFields() []dbmeta.Field {
 		{Name: "source", Desc: "the body of a macro, and absent for a compiled function"},
 		{Name: "comment", Desc: "the comment, or the description DuckDB ships for a built in"},
 		{Name: "definition", Desc: "always absent: duckdb_functions keeps the body of a macro, which is source, and no CREATE statement"},
+		{Name: "prosrc", Desc: "the body of a macro, the same text as source, and absent for a compiled function"},
 	}
 }
 
@@ -84,7 +86,7 @@ func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 		&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-		&v.Language, &v.Source, &v.Comment, &v.Definition)
+		&v.Language, &v.Source, &v.Comment, &v.Definition, &v.Prosrc)
 	return v, err
 }
 

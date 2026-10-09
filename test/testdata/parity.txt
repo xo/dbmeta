@@ -67,6 +67,8 @@ databases fewer rows than the administrator
 foreign_servers refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.named_collections.
 index_columns refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices.
 indexes refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.data_skipping_indices.
+partitions refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.parts.
+policies refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.row_policies.
 privileges refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.grants.
 role_grants refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.role_grants.
 roles refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.users.
@@ -549,6 +551,7 @@ current_user the same rows with different values
 comments fewer rows than the administrator
 current_user the same rows with different values
 functions fewer rows than the administrator
+policies fewer rows than the administrator
 privileges the same rows with different values
 role_grants fewer rows than the administrator
 role_settings refused: ERROR 4367: [42501] Permission denied for relation user_configuration_parameters
@@ -568,6 +571,7 @@ settings the same rows with different values
 [vertica@10/same/grantee]
 comments fewer rows than the administrator
 current_user the same rows with different values
+policies refused: ERROR 4367: [42501] Permission denied for relation access_policy
 privileges refused: ERROR 4367: [42501] Permission denied for relation access_policy
 role_grants fewer rows than the administrator
 roles fewer rows than the administrator
@@ -576,6 +580,7 @@ settings the same rows with different values
 
 [vertica@10/same/owner]
 current_user the same rows with different values
+policies refused: ERROR 4367: [42501] Permission denied for relation access_policy
 privileges refused: ERROR 4367: [42501] Permission denied for relation access_policy
 role_grants fewer rows than the administrator
 roles fewer rows than the administrator
@@ -601,6 +606,7 @@ settings the same rows with different values
 [vertica@9/same/grantee]
 comments fewer rows than the administrator
 current_user the same rows with different values
+policies refused: ERROR 4367: [42501] Permission denied for relation access_policy
 privileges fewer rows than the administrator
 role_grants fewer rows than the administrator
 roles fewer rows than the administrator
@@ -610,6 +616,7 @@ settings the same rows with different values
 
 [vertica@9/same/owner]
 current_user the same rows with different values
+policies refused: ERROR 4367: [42501] Permission denied for relation access_policy
 role_grants fewer rows than the administrator
 roles fewer rows than the administrator
 schemas fewer rows than the administrator

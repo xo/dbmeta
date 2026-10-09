@@ -31,18 +31,18 @@ rather than reading one.
 | `models/postgres` | 65 | 65 | PostgreSQL 9.6 through 18 |
 | `models/mysql` | 30 on MariaDB, 27 on MySQL | 65 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
 | `models/sqlite3` | 14 | 65 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
-| `models/duckdb` | 20 | 65 | duckdb/duckdb-go, the driver usql uses |
+| `models/duckdb` | 21 | 65 | duckdb/duckdb-go, the driver usql uses |
 | `models/sqlserver` | 34 | 65 | SQL Server 2017, 2019, 2022 and 2025 |
 | `models/oracle` | 29 | 65 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 65 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
-| `models/clickhouse` | 23 | 65 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
+| `models/clickhouse` | 25 | 65 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
 | `models/trino` | 13 | 65 | Trino 476 and 483 |
 | `models/presto` | 9 | 65 | Presto 0.299 |
 | `models/firebird` | 24 | 65 | Firebird 3.0, 4.0 and 5.0 |
 | `models/hana` | 32 | 65 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
 | `models/hive` | 16 | 65 | Apache Hive 4.0 and 4.2 |
 | `models/exasol` | 25 | 65 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
-| `models/vertica` | 26 | 65 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
+| `models/vertica` | 28 | 65 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
 | `models/couchbase` | 12 | 65 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
 | `models/cockroachdb` | 54 | 65 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 47 of its statements are the postgres model's (D123) |
 | `models/cratedb` | 27 | 65 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
@@ -67,7 +67,7 @@ rather than reading one.
 | `models/elasticsearch` | 8 | 65 | Elasticsearch 8.19.22, 9.4.6 and 9.5.3, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D177, D191, D192) |
 | `models/opensearch` | 3 | 65 | OpenSearch 3.9.0 and 2.19.6, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
 | `models/solr` | 4 | 65 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
-| `models/gizmosql` | 20 | 65 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
+| `models/gizmosql` | 21 | 65 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
 | `models/avatica` | 24 | 65 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
 | `models/informationschema` | 12 | 65 | any database with a standard `information_schema` |
 
@@ -468,6 +468,29 @@ than empty. It records no comment on any object. It has no type catalog, no
 operators that can be created, no casts, no procedural languages, no
 replication, no tablespaces and no partitioning.
 
+### The describe fields (D208)
+
+D198 and D199 gave Tables, Indexes and Columns fields that only PostgreSQL
+filled. D208 measured each one on SQLite 3.53.4, on both drivers.
+
+| Field or kind | What SQLite fills |
+| --- | --- |
+| `Table.Persistence` | `permanent` for a table, because the statement reads `sqlite_schema`, which is the main database. NULL for a view. A temporary table is in `sqlite_temp_schema`, which the model does not read |
+| `Table.Options` | NULL. `pragma_table_list` has `strict` and `wr`, which is WITHOUT ROWID, and a join to it for every table costs time that grows with the square of the catalog: 0.9 ms at 300 tables, 88 ms at 3000 and 2.2 s at 9000. A read of one table also grows with the catalog |
+| `Table.Size` | NULL. `dbstat` scans the file, and the mattn driver is built without it. modernc has it |
+| `Table.Rows`, `Owner`, `AccessMethod` | NULL. SQLite keeps no row count and no owner. The module of a virtual table is only in the text of its CREATE statement |
+| `Index.Predicate` | the text after WHERE of a partial index, cut from the CREATE INDEX statement. Absent for an index that covers every row |
+| `Index.Clustered` | true for the primary key index of a WITHOUT ROWID table, and false for every other index |
+| `Index.Definition` | the CREATE INDEX statement. Absent for an index that SQLite made for a PRIMARY KEY or UNIQUE clause |
+| `Index.Using`, `Persistence`, `ConstraintType` | `btree` (`diskann` on libSQL), `permanent`, and `p` or `u` for an index that SQLite made for a constraint |
+| `Index.Size`, `Valid`, `Owner`, `Options` | NULL. There is no source |
+| `Column.Storage`, `Compression`, `StatsTarget` | NULL. SQLite has none of the three |
+| `Constraint.Enforced` | NULL. A key is checked only on a connection that turned `foreign_keys` on, so no catalog column says it |
+| `Partitions`, `Policies`, `NotNulls`, `Inherits` | SQLite has none of the four |
+
+A shadow table of an fts5 table is listed as a `table`. `pragma_table_list`
+calls it `shadow`, and relabeling it is not done.
+
 ## Cassandra
 
 Cassandra answers 17 of the 65, verified against 5.0.9 and 3.11.19.
@@ -775,7 +798,7 @@ four releases give the same answer, under `[scylla/same/grantee]` in
 
 ## ClickHouse
 
-ClickHouse answers 23 of the 65, verified against 26.9.2.8 and 25.8.33.6.
+ClickHouse answers 25 of the 65, verified against 26.9.2.8 and 25.8.33.6.
 
 ### system, not information_schema
 
@@ -853,6 +876,28 @@ overloaded across types and `system.functions` records no signature.
 `ColumnStats` is absent: `system.columns` carries compressed and uncompressed
 sizes and nothing about distribution, and what `system.parts` holds is per
 part rather than per column.
+
+### The describe fields (D208)
+
+| Field or kind | What ClickHouse fills |
+| --- | --- |
+| `Table.Persistence` | `temporary` for a temporary table, and `permanent` for the rest, which includes a Memory table. NULL for a view |
+| `Table.AccessMethod` | the engine |
+| `Table.Size`, `Table.Rows` | `total_bytes` and `total_rows` of `system.tables`: the compressed bytes and the rows of the active parts. NULL for an engine that keeps no number, such as a view |
+| `Table.Options` | `partition_by`, `order_by`, `primary_key`, `sample_by` and `storage_policy`. NULL when none is set. The SETTINGS clause is only in `engine_full`, as text |
+| `Table.Owner`, `RowSecurity` | NULL. `definer` of a view is not an owner, and `system.row_policies` is closed to a user who has no grant on it |
+| `Column.Compression` | the codec chain of `compression_codec`, such as `CODEC(ZSTD(3))`. NULL when the column uses the default |
+| `Column.Storage`, `StatsTarget` | NULL. `system.columns.statistics` names the kinds of statistics, and ClickHouse has no target |
+| `Index.Size`, `Options`, `Using` | the compressed data and the marks of the skipping index, `granularity=N`, and `type_full` |
+| `Constraint.Enforced` | true for CHECK, which the server tests on insert, and false for ASSUME, which it never tests. It needs 26.8, as the rest of `constraints` does |
+| `Function.Prosrc` | NULL. `create_query` is the whole statement |
+| `PartitionedTable.AccessMethod`, `DirectSize`, `TotalSize` | the engine, and `total_bytes` twice, because a partition is not a table |
+| `Partitions` | new. One row for each partition id of each table that has a PARTITION BY, from `system.parts`. `Bound` is the value of the partition expression. The rows of a partition have no field. An ordinary user is refused `system.parts` |
+| `Policies` | new. One row for each row policy, from `system.row_policies`. The command is always select, and `Roles` is NULL for TO ALL. An ordinary user is refused the table |
+| `NotNulls`, `Inherits` | none. Nullable is part of the type, and ClickHouse has no inheritance |
+
+Gemini agreed that ClickHouse has no owner, no statistics target and no flag for
+row security. DeepSeek ran out of tokens on every question.
 
 ## Trino
 
@@ -1851,8 +1896,9 @@ the difference is in what the machine holds and not in the query.
 
 ## Vertica
 
-`models/vertica` answers 26 of the 65 on 25.1 and 24 on the three older
-releases, which have no triggers and no per user settings to read. It was run
+`models/vertica` answers 28 of the 65 on 25.1, 26 on 9.1.0 and 10.1.1, and 25
+on 7.2.1. The older releases have no triggers and no per user settings to read,
+and 7.2.1 has no row access policy. It was run
 against 7.2.1, 9.1.0, 10.1.1 and 25.1.0, all four community images, and D88
 records why those. The images are copies in `docker.io/usql/vertica`, which
 D100 records.
@@ -2009,6 +2055,25 @@ comments, functions and sequences.
 On 10.1 `Privileges` is refused to both, because a lesser principal cannot read
 `access_policy`, which the query joins for its policies. 25.1 serves it. Before
 10.1 the query does not read that view.
+
+### The describe fields (D208)
+
+| Field or kind | What Vertica fills |
+| --- | --- |
+| `Table.Owner` | `owner_name` of a table and of a view. NULL for a system table |
+| `Table.Persistence` | `temporary` for a global or local temporary table, and `permanent`. NULL for a view and a system table |
+| `Table.Options` | `partition_by=expression` for a partitioned table |
+| `Table.Size`, `Table.Rows` | NULL. A table is stored only as its projections, and the numbers are in `v_monitor.projection_storage`. A subquery on it for every table made a read of one table 3 times slower at 300 tables and 10 times slower at 3000 tables. A projection of a replicated table is also repeated on every node, so a sum of rows is not the rows |
+| `Table.RowSecurity` | NULL. The row policies are in `v_catalog.access_policy`, which shows a user only what the user can see. The grantee read `false` where the administrator read `true`, which is a wrong answer |
+| `Column.Compression` | NULL. `projection_columns.encoding_type` is read through a subquery that made a read of one table 8 times slower at 300 tables and 22 times slower at 3000 tables |
+| `Index.Size` | the sum of `used_bytes` of the projection on every node. The rows of a projection are in the same view and `Index` has no field for them. This doubles the cost of a read that already scans `projections` |
+| `Index.Valid`, `Options` | `is_up_to_date`, and `segmented_by=expression` or `unsegmented` |
+| `Constraint.Enforced` | `is_enabled`. A key is enabled only when the statement said ENABLED. A check constraint is always enabled. A foreign key has no value, so it is NULL |
+| `Function.Prosrc` | `function_definition`, the same text as `source` |
+| `Partitions` | new. One row for each partition key of each table, from `v_monitor.partitions` joined to `projections`. The fixture inserts with a DIRECT hint, because the older releases keep a small insert in memory and list no partition until a moveout |
+| `Policies` | new, from 9.1. One row for each row access policy of `v_catalog.access_policy`. A policy has no name, so the name is its object id. A column policy is not listed. On 9.1 and 10.1 an ordinary user is refused `access_policy`, and on 25.1 the user reads only the policies it can see |
+| `Column.Storage`, `StatsTarget`, `Index.Owner`, `Predicate`, `Clustered` | NULL. There is no source |
+| `NotNulls`, `Inherits` | none. A NOT NULL has the one name C_NOTNULL for every column |
 
 ## Couchbase
 
@@ -2439,7 +2504,7 @@ caller writes one join for every database.
 
 ## DuckDB
 
-DuckDB answers 20 of the 65. Its catalog is
+DuckDB answers 21 of the 65. Its catalog is
 unusually complete for an embedded database: comments on most objects, real
 enumerated types, sequences with their bounds, and a constraint catalog that
 names both the columns of a key and the columns they reference.
@@ -2549,6 +2614,22 @@ Everything that needs more than one user or more than one process. No roles, no
 privileges, no triggers, no tablespaces. No casts, domains, operators,
 procedural languages, large objects, event triggers, text search objects or
 replication.
+
+### The describe fields (D208)
+
+| Field or kind | What DuckDB fills |
+| --- | --- |
+| `Table.Persistence` | `temporary` or `permanent`. NULL for a view |
+| `Table.Rows` | `estimated_size` of `duckdb_tables`, which is an estimate. NULL for a view |
+| `Table.Size` | NULL. The size is in `pragma_storage_info`, which takes the table as an argument and cannot be joined for every table |
+| `Table.Owner`, `AccessMethod`, `Options` | NULL. DuckDB has no users, no access method and no table options |
+| `Index.Persistence`, `Definition`, `Using` | `temporary` for an index in the temp database, the `sql` of `duckdb_indexes`, and `art` |
+| `Index.Predicate`, `ConstraintType`, `Size` | NULL. DuckDB refuses a partial index, an index of a key is not in `duckdb_indexes`, and no view gives a size |
+| `Column.Compression` | NULL. DuckDB chooses a compression for each segment, and `pragma_storage_info` has it |
+| `Constraint.Enforced` | NULL. DuckDB checks every constraint, and no catalog column says it |
+| `Function.Prosrc` | `macro_definition`, the same text as `source` |
+| `NotNulls` | new. Each NOT NULL is a row of `duckdb_constraints` with a name, such as `author_name_not_null`. The `constraints` query still leaves it out (D49) |
+| `Partitions`, `Policies`, `Inherits` | DuckDB has none of the three |
 
 ## Microsoft SQL Server
 
@@ -3575,6 +3656,19 @@ read from, not a tablespace, a catalog is a source of tables rather than a
 server with options, a task runs on a schedule and not on a change, and a
 cluster key orders the rows of a table rather than partitioning it.
 
+### The describe fields (D208)
+
+| Field or kind | What Databend fills |
+| --- | --- |
+| `Table.Owner` | `owner` of `system.tables`. NULL for a view |
+| `Table.Persistence` | `transient` or `permanent`. NULL for a view |
+| `Table.AccessMethod` | the engine, such as FUSE or VIEW |
+| `Table.Size`, `Table.Rows` | `data_compressed_size` and `num_rows`. The indexes are not in the size |
+| `Table.Options` | `cluster_by=expressions`. The rest of `table_option` holds the path of the snapshot, which changes at every write, so it is not read |
+| `Function.Prosrc` | the `definition` of a function a user made, the same text as `source` |
+| `Policies`, `Table.RowSecurity` | NULL and not answered. Databend 1.2.951 has no system table for a row access policy, `system.policy_references` is not there, and SHOW cannot be filtered |
+| `Column.Storage`, `Compression`, `StatsTarget`, the other `Index` fields, `Constraint.Enforced` | NULL. There is no source |
+
 ## SingleStore
 
 `models/singlestore` answers 23 of the 65 on 9.0 and 9.1. It was measured on
@@ -4021,6 +4115,13 @@ The entry declares `dbmeta_user`, who can query and execute and nothing else.
 rqlite has no grant on a table, so the user reads every answer the
 administrator reads, and the section in `test/testdata/parity.txt` is empty.
 
+### The describe fields (D208)
+
+Every statement is the sqlite3 model's, so rqlite fills the same fields as
+SQLite: the persistence of a table, and the predicate, the clustered flag, the
+definition, the method and the constraint type of an index. The tests run the
+same checks on it.
+
 ## libSQL
 
 `models/libsql` answers 14 of the 65 on 0.24.33, measured on 2026-10-01
@@ -4134,6 +4235,12 @@ The entry declares `dbmeta_user`, whose token has the claim `{"a":"ro"}` and
 can read and not write (D153). sqld has no grant on a table, so the user
 reads every answer the administrator reads, and the section in
 `test/testdata/parity.txt` is empty.
+
+### The describe fields (D208)
+
+Every statement is the sqlite3 model's, so libSQL fills the same fields as
+SQLite. The method of an index is `diskann` for a vector index and `btree` for
+the rest, and the tests run the same checks on it.
 
 ## InfluxDB 3
 
@@ -5569,7 +5676,7 @@ again, and the position starts at 0 on both.
 
 ## GizmoSQL
 
-`models/gizmosql` answers 20 of the 65 on GizmoSQL 1.40.0 and 1.41.0, measured
+`models/gizmosql` answers 21 of the 65 on GizmoSQL 1.40.0 and 1.41.0, measured
 on 2026-10-08 through the Arrow Flight SQL driver in `arrow-go`, which dburl
 names for the scheme gizmosql. Both releases run DuckDB 1.5.6 and are Tested.
 GizmoSQL is a server for Arrow Flight SQL, and its engine is DuckDB, or SQLite
@@ -5648,6 +5755,11 @@ engine `duckdb v1.5.6`, and does not give the GizmoSQL release.
 Not measured. The core has one user, `admin`, and the other roles need an
 identity provider or an enterprise license, so the model has no parity target
 (`parityExempt`, D187).
+
+### The describe fields (D208)
+
+Every statement is the duckdb model's, so GizmoSQL fills the same fields as
+DuckDB, and answers the NotNulls kind. The tests run the same checks on it.
 
 ## Releases that need a license file
 

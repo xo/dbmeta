@@ -163,6 +163,19 @@ var Everything = Fixture{
 	filed_year INTEGER NOT NULL
 ) PARTITION BY filed_year`),
 
+		// A table with encoded columns and a row access policy, for the
+		// describe fields (D208), and rows in it and in the partitioned
+		// table, so that the sizes and the partitions have something.
+		at("ledger", `CREATE TABLE dbmeta_fixture.ledger (
+	entry INTEGER NOT NULL ENCODING DELTAVAL,
+	note VARCHAR(32) ENCODING RLE
+)`),
+		at("ledger rows", `INSERT /*+ DIRECT */ INTO dbmeta_fixture.ledger VALUES (1, 'first')`),
+		from("ledger row policy", dbmeta.V(9, 1), `CREATE ACCESS POLICY ON dbmeta_fixture.ledger FOR ROWS WHERE entry > 0 ENABLE`),
+		at("archive rows", `INSERT /*+ DIRECT */ INTO dbmeta_fixture.archive VALUES (1, 2025)`),
+		at("archive more rows", `INSERT /*+ DIRECT */ INTO dbmeta_fixture.archive VALUES (2, 2026)`),
+		at("commit", `COMMIT`),
+
 		// An identity column and a sequence of its own.
 		at("ticket", `CREATE TABLE dbmeta_fixture.ticket (
 	ticket_id IDENTITY(1, 1),

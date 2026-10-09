@@ -20,6 +20,9 @@ func registerExtra() {
 			always(`, 0 AS "unique"`),
 			always(`, 0 AS "primary"`),
 			always(`, NULL AS "comment"`),
+			always(`, toInt64(i.data_compressed_bytes + i.marks_bytes) AS "size"`),
+			always(`, concat('granularity=', toString(i.granularity)) AS "options"`),
+			always(`, i.type_full AS "using"`),
 			always(`FROM system.data_skipping_indices i`),
 			always(`WHERE ` + notSystem("i.database")),
 			always(`AND (@schema = '' OR i.database LIKE @schema)`),
@@ -38,12 +41,21 @@ func registerExtra() {
 					" table rather than an index, and the columns query flags it",
 			},
 			{Name: "comment", Desc: "always absent: an index carries no comment"},
+			{
+				Name: "size",
+				Desc: "the compressed data and the marks of the index, in bytes. It is 0 for a table with no rows",
+			},
+			{Name: "options", Desc: "the granularity, as granularity=N"},
+			{
+				Name: "using",
+				Desc: "the index type with its arguments, such as bloom_filter(0.025), which is type_full",
+			},
 		},
 		Params: childParams("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Size, &v.Options, &v.Using)
 			return v, err
 		},
 	})
@@ -104,6 +116,9 @@ func registerExtra() {
 			{{Min: v268, Query: `, 0 AS "deferrable"`}},
 			{{Min: v268, Query: `, 0 AS "deferred"`}},
 			{{Min: v268, Query: `, NULL AS "comment"`}},
+			// An ASSUME constraint is a promise to the optimizer and the
+			// server checks nothing. A CHECK constraint is checked on insert.
+			{{Min: v268, Query: `, toString(c.type) = 'CHECK' AS "enforced"`}},
 			{{Min: v268, Query: `FROM system.constraints c`}},
 			{{Min: v268, Query: `WHERE ` + notSystem("c.database")}},
 			{{Min: v268, Query: `AND (@schema = '' OR c.database LIKE @schema)`}},
@@ -122,12 +137,13 @@ func registerExtra() {
 			{Name: "deferrable", Desc: "always false: ClickHouse has no deferrable constraint"},
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: a constraint carries no comment"},
+			{Name: "enforced", Desc: "true for a check constraint, which ClickHouse tests on insert, and false for an assume constraint, which it never tests"},
 		},
 		Params: childParams("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})
@@ -183,6 +199,12 @@ func registerExtra() {
 				always(`, 'key' AS "strategy"`),
 				always(`, t.partition_key AS "expression"`),
 				always(`, nullIf(t.comment, '') AS "comment"`),
+				always(`, NULL AS "table"`),
+				always(`, t.engine AS "access_method"`),
+				// A ClickHouse partition is not a table and has no level
+				// below it, so the two sizes are the same number.
+				always(`, toInt64(t.total_bytes) AS "direct_size"`),
+				always(`, toInt64(t.total_bytes) AS "total_size"`),
 				always(`FROM system.tables t`),
 				always(`WHERE t.partition_key != ''`),
 				always(`AND ` + notSystem("t.database")),
@@ -206,15 +228,131 @@ func registerExtra() {
 				},
 				{Name: "expression", Desc: "the PARTITION BY expression"},
 				{Name: "comment"},
+				{Name: "table", Desc: "always absent: ClickHouse has no partitioned index"},
+				{Name: "access_method", Desc: "the table engine"},
+				{
+					Name: "direct_size",
+					Desc: "total_bytes of the table, which is the compressed bytes of its active parts",
+				},
+				{Name: "total_size", Desc: "the same number: a partition is not a table, so there is no second level"},
 			},
 			Params: schemaNameSystem("table"),
 			Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 				var v dbmeta.PartitionedTable
 				err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, &v.Parent,
-					&v.Strategy, &v.Expression, &v.Comment)
+					&v.Strategy, &v.Expression, &v.Comment, &v.Table, &v.AccessMethod,
+					&v.DirectSize, &v.TotalSize)
 				return v, err
 			},
 		})
+
+	// The partitions of a table. A ClickHouse partition is not a table, so
+	// the type is partition, and the name is the partition id, which is the
+	// name of the directory prefix of its parts. The bound is the value of
+	// the partition expression, as system.parts prints it. A table with no
+	// PARTITION BY has the one partition all, and it is left out. The rows
+	// are in system.parts and the Partition kind has no field for them.
+	// system.parts is closed to a user who has no grant on it, as
+	// system.data_skipping_indices is.
+	dbmeta.Partitions.Register(dbmeta.ClickHouse, &dbmeta.Binding[dbmeta.Partition]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT p.database AS "schema"`),
+			always(`, p.table AS "table"`),
+			always(`, p.database AS "partition_schema"`),
+			always(`, p.partition_id AS "partition"`),
+			always(`, 'partition' AS "type"`),
+			always(`, any(p.partition) AS "bound"`),
+			always(`, NULL AS "constraint"`),
+			always(`, 0 AS "partitioned"`),
+			always(`, 0 AS "detach_pending"`),
+			always(`, NULL AS "table_visible"`),
+			always(`, NULL AS "partition_visible"`),
+			always(`FROM system.parts p`),
+			always(`WHERE p.active AND p.partition_id != 'all'`),
+			always(`AND ` + notSystem("p.database")),
+			always(`AND (@schema = '' OR p.database LIKE @schema)`),
+			always(`AND (@parent = '' OR p.table LIKE @parent)`),
+			always(`AND (@partition_schema = '' OR p.database LIKE @partition_schema)`),
+			always(`AND (@name = '' OR p.partition_id LIKE @name)`),
+			always(`GROUP BY p.database, p.table, p.partition_id`),
+			always(`ORDER BY p.database, p.table, p.partition_id`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema", Desc: "database of the partitioned table"},
+			{Name: "table", Desc: "the partitioned table"},
+			{Name: "partition_schema", Desc: "the same database: a partition is in no database of its own"},
+			{Name: "partition", Desc: "the partition id, such as 202501"},
+			{Name: "type", Desc: "always partition: a ClickHouse partition is not a table"},
+			{
+				Name: "bound",
+				Desc: "the value of the partition expression, as system.parts prints it, such as 202501 or ('a', 1)",
+			},
+			{Name: "constraint", Desc: "always absent: ClickHouse makes no constraint of a partition value"},
+			{Name: "partitioned", Desc: "always false: a partition has no partitions"},
+			{Name: "detach_pending", Desc: "always false: ClickHouse detaches at once, and a detached part is in system.detached_parts"},
+			{Name: "table_visible", Desc: "always absent: ClickHouse reports no search path"},
+			{Name: "partition_visible", Desc: "always absent, for the same reason"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "database name pattern of the table, empty for every database", Default: ""},
+			{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
+			{Name: "partition_schema", Desc: "database name pattern of the partition, empty for every database", Default: ""},
+			{Name: "name", Desc: "partition id pattern, empty for every partition", Default: ""},
+			{Name: "with_system", Desc: "include the databases ClickHouse keeps for itself", Default: false},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.Partition, error) {
+			var v dbmeta.Partition
+			err := rows.Scan(&v.Schema, &v.Table, &v.PartitionSchema, &v.Partition, &v.Type,
+				&v.Bound, &v.Constraint, &v.Partitioned, &v.DetachPending,
+				&v.TableVisible, &v.PartitionVisible)
+			return v, err
+		},
+	})
+
+	// \dp row policies. A ClickHouse row policy filters what a role reads
+	// from a table, and it is the analogue of a PostgreSQL policy. It has a
+	// filter for SELECT and none for a write, so the command is always
+	// select and WITH CHECK is absent. system.row_policies needs a grant.
+	dbmeta.Policies.Register(dbmeta.ClickHouse, &dbmeta.Binding[dbmeta.Policy]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT r.database AS "schema"`),
+			always(`, r.table AS "table"`),
+			always(`, r.short_name AS "name"`),
+			always(`, 'select' AS "command"`),
+			always(`, NOT r.is_restrictive AS "permissive"`),
+			always(`, multiIf(r.apply_to_all AND empty(r.apply_to_except), NULL` +
+				`, r.apply_to_all, concat('ALL EXCEPT ', arrayStringConcat(r.apply_to_except, ','))` +
+				`, arrayStringConcat(r.apply_to_list, ',')) AS "roles"`),
+			always(`, r.select_filter AS "using"`),
+			always(`, NULL AS "with_check"`),
+			always(`, NULL AS "comment"`),
+			always(`FROM system.row_policies r`),
+			always(`WHERE ` + notSystem("r.database")),
+			always(`AND (@schema = '' OR r.database LIKE @schema)`),
+			always(`AND (@parent = '' OR r.table LIKE @parent)`),
+			always(`AND (@name = '' OR r.short_name LIKE @name)`),
+			always(`ORDER BY r.database, r.table, r.short_name`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "table"}, {Name: "name", Desc: "the short name, which is the name before ON"},
+			{Name: "command", Desc: "always select: a ClickHouse row policy filters reads only"},
+			{Name: "permissive", Desc: "false for AS RESTRICTIVE"},
+			{
+				Name: "roles",
+				Desc: "the roles the policy applies to, joined by a comma, and ALL EXCEPT followed by the roles for TO ALL EXCEPT. Absent for TO ALL",
+			},
+			{Name: "using", Desc: "the filter expression, as ClickHouse prints it"},
+			{Name: "with_check", Desc: "always absent: a ClickHouse policy has no check on a write"},
+			{Name: "comment", Desc: "always absent"},
+		},
+		Params: childParams("policy"),
+		Scan: func(rows *sql.Rows) (dbmeta.Policy, error) {
+			var v dbmeta.Policy
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Command, &v.Permissive,
+				&v.Roles, &v.Using, &v.WithCheck, &v.Comment)
+			return v, err
+		},
+	})
 
 	// \dT. The data types the server knows, which are built in: ClickHouse
 	// has no CREATE TYPE.

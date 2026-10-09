@@ -128,6 +128,18 @@ var Everything = Fixture{
 	amount Decimal(12, 2)
 ) ENGINE = MergeTree ORDER BY shipment_id COMMENT 'the shipments'`),
 
+		// A table for the describe fields (D208): two partitions, a codec on
+		// two columns, and a check and an assume constraint. It is not one of
+		// the core tables, which hold the same columns everywhere.
+		at("sales", `CREATE TABLE dbmeta_fixture.sales (
+	sold_on Date,
+	region String CODEC(ZSTD(3)),
+	amount UInt64 CODEC(Delta, LZ4),
+	CONSTRAINT sales_amount_ck CHECK amount >= 0,
+	CONSTRAINT sales_amount_hint ASSUME amount < 1000000
+) ENGINE = MergeTree PARTITION BY toYYYYMM(sold_on) ORDER BY sold_on
+	COMMENT 'the sales'`),
+
 		// A plain view, which is a stored query rather than a table.
 		at("view", `CREATE VIEW dbmeta_fixture.recent AS
 	SELECT book_id, title FROM dbmeta_fixture.book`),
@@ -145,6 +157,10 @@ var Everything = Fixture{
 		at("role grant", `GRANT dbmeta_reader TO dbmeta_grantee`),
 		at("permission", `GRANT SELECT ON dbmeta_fixture.* TO dbmeta_reader`),
 
+		// A row policy, which Policies reads. It filters what the role reads.
+		at("row policy", `CREATE ROW POLICY book_recent ON dbmeta_fixture.book`+
+			` USING book_id > 0 TO dbmeta_reader`),
+
 		// Rows, so a query reading data has something.
 		at("author rows", `INSERT INTO dbmeta_fixture.author (author_id, name, rating)`+
 			` VALUES (1, 'Ursula', 5)`),
@@ -153,12 +169,15 @@ var Everything = Fixture{
 			` VALUES (1, 1, 'A Wizard of Earthsea', '1968-01-01')`),
 		at("region rows", `INSERT INTO dbmeta_fixture.region (country, area)`+
 			` VALUES ('US', 'west')`),
+		at("sales rows", `INSERT INTO dbmeta_fixture.sales (sold_on, region, amount)`+
+			` VALUES ('2025-01-10', 'west', 5), ('2025-01-20', 'east', 7), ('2025-02-03', 'west', 9)`),
 		at("shipment rows", `INSERT INTO dbmeta_fixture.shipment`+
 			` (shipment_id, country, area, amount) VALUES (1, 'US', 'west', 12.50)`),
 	},
 	Teardown: []Step{
 		// The database takes its tables, view and index with it. The user and
 		// the role are outside it.
+		at("row policy", `DROP ROW POLICY IF EXISTS book_recent ON dbmeta_fixture.book`),
 		at("database", `DROP DATABASE IF EXISTS dbmeta_fixture SYNC`),
 		at("user", `DROP USER IF EXISTS dbmeta_grantee`),
 		at("role", `DROP ROLE IF EXISTS dbmeta_reader`),

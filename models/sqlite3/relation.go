@@ -17,6 +17,15 @@ const tableType = `CASE m.type WHEN 'view' THEN 'view'` +
 	` WHEN 'table' THEN CASE WHEN m.sql LIKE 'CREATE VIRTUAL TABLE%'` +
 	` THEN 'virtual' ELSE 'table' END ELSE m.type END`
 
+// indexPredicate is the WHERE clause of a partial index, cut from the
+// statement that made it. SQLite keeps the statement as written, and it has no
+// column for the predicate. The statement is searched with its tabs and line
+// breaks turned to spaces, which keeps every offset, and the text is taken from
+// the original. The first WHERE ends the key list, because SQLite takes no
+// subquery in an index and a clause in the keys is not possible.
+const indexPredicate = `CASE WHEN i."partial" = 1 THEN TRIM(SUBSTR(s.sql, INSTR(UPPER(REPLACE(REPLACE(REPLACE(` +
+	`s.sql, CHAR(10), ' '), CHAR(13), ' '), CHAR(9), ' ')), ' WHERE ') + 7)) END`
+
 func registerRelations() {
 	// \dn and \l are the same answer here. An attached database is what
 	// SQLite calls a schema, and it is also the only thing it calls a
@@ -99,6 +108,9 @@ func registerRelations() {
 			always(`, m.name AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
 			always(`, NULL AS "comment"`),
+			// sqlite_schema is the main database, and a temporary table is
+			// in sqlite_temp_schema, which this query does not read.
+			always(`, CASE m.type WHEN 'table' THEN 'permanent' END AS "persistence"`),
 			always(`FROM sqlite_schema m`),
 			always(`WHERE m.type IN ('table', 'view')`),
 			notSystem("m.name"),
@@ -116,11 +128,15 @@ func registerRelations() {
 				Desc: "table, view, or virtual for a table backed by a module such as fts5",
 			},
 			{Name: "comment", Desc: "always absent: SQLite records no comment on anything"},
+			{
+				Name: "persistence",
+				Desc: "permanent for a table, because this query reads the main database and a temporary table is in the temp one. Absent for a view",
+			},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Persistence)
 			return v, err
 		},
 	})
@@ -211,7 +227,23 @@ func registerRelations() {
 			always(`, i."unique" = 1 AS "unique"`),
 			always(`, i.origin = 'pk' AS "primary"`),
 			always(`, NULL AS "comment"`),
+			always(`, 'permanent' AS "persistence"`),
+			always(`, ` + indexPredicate + ` AS "predicate"`),
+			// The primary key index of a WITHOUT ROWID table is the table. Its
+			// entries carry no rowid, and the entries of every other index
+			// end with one, so the pragma says which is which for one index
+			// at a cost that follows the index.
+			always(`, i.origin = 'pk' AND NOT EXISTS (SELECT 1 FROM pragma_index_xinfo(i.name) x` +
+				` WHERE x.cid = -1) AS "clustered"`),
+			always(`, s.sql AS "definition"`),
+			dbmeta.Choice{
+				{Query: `, 'btree' AS "using"`},
+				{Key: LibSQL, Query: `, CASE WHEN i.name IN (` + vectorIndexes + `)` +
+					` THEN 'diskann' ELSE 'btree' END AS "using"`},
+			},
+			always(`, CASE i.origin WHEN 'pk' THEN 'p' WHEN 'u' THEN 'u' END AS "constraint_type"`),
 			always(`FROM sqlite_schema m JOIN pragma_index_list(m.name) i`),
+			always(`LEFT JOIN sqlite_schema s ON s.type = 'index' AND s.name = i.name`),
 			always(`WHERE m.type = 'table'`),
 			notSystem("m.name"),
 			always(`AND (@schema = '' OR 'main' LIKE @schema)`),
@@ -227,12 +259,31 @@ func registerRelations() {
 			},
 			{Name: "unique"}, {Name: "primary"},
 			{Name: "comment", Desc: "always absent"},
+			{Name: "persistence", Desc: "always permanent: this query reads the main database"},
+			{
+				Name: "predicate",
+				Desc: "the text after WHERE in the CREATE INDEX statement of a partial index, as written, and absent for an index that covers every row",
+			},
+			{
+				Name: "clustered",
+				Desc: "true for the primary key index of a WITHOUT ROWID table, which holds the whole row, and false for every other index",
+			},
+			{
+				Name: "definition",
+				Desc: "the CREATE INDEX statement as written. Absent for an index SQLite made for a PRIMARY KEY or UNIQUE clause, which has no statement",
+			},
+			{Name: "using", Desc: "always btree, and on libSQL diskann for a vector index"},
+			{
+				Name: "constraint_type",
+				Desc: "p for the index of a primary key and u for the index of a UNIQUE clause, as pg_constraint spells them, and absent for an index someone created",
+			},
 		},
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Persistence, &v.Predicate,
+				&v.Clustered, &v.Definition, &v.Using, &v.ConstraintType)
 			return v, err
 		},
 	})

@@ -90,6 +90,8 @@ func registerRelations() {
 			always(`, t.table_name AS "name"`),
 			always(`, CASE WHEN t.temporary THEN 'temporary table' ELSE 'table' END AS "type"`),
 			always(`, t.comment AS "comment"`),
+			always(`, CASE WHEN t.temporary THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
+			always(`, CAST(t.estimated_size AS BIGINT) AS "rows"`),
 			always(`FROM duckdb_tables() t`),
 			internalOf("WHERE", "t"),
 			always(`AND (@schema = '' OR t.schema_name LIKE @schema)`),
@@ -103,6 +105,8 @@ func registerRelations() {
 			always(`SELECT v.database_name, v.schema_name, v.view_name`),
 			always(`, CASE WHEN v.temporary THEN 'temporary view' ELSE 'view' END`),
 			always(`, v.comment`),
+			always(`, CAST(NULL AS VARCHAR)`),
+			always(`, CAST(NULL AS BIGINT)`),
 			always(`FROM duckdb_views() v`),
 			internalOf("WHERE", "v"),
 			always(`AND (@schema = '' OR v.schema_name LIKE @schema)`),
@@ -114,11 +118,17 @@ func registerRelations() {
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "table or view, with temporary in front where it is one"},
 			{Name: "comment"},
+			{Name: "persistence", Desc: "permanent or temporary. Absent for a view"},
+			{
+				Name: "rows",
+				Desc: "estimated_size of duckdb_tables, which is DuckDB's own estimate of the rows and not a count. Absent for a view",
+			},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Persistence, &v.Rows)
 			return v, err
 		},
 	})
@@ -191,6 +201,10 @@ func registerRelations() {
 			always(`, i.is_unique AS "unique"`),
 			always(`, i.is_primary AS "primary"`),
 			always(`, i.comment AS "comment"`),
+			// An index on a temporary table is in the temp database.
+			always(`, CASE WHEN i.database_name = 'temp' THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
+			always(`, i.sql AS "definition"`),
+			always(`, 'art' AS "using"`),
 			always(`FROM duckdb_indexes() i`),
 			always(`WHERE (@schema = '' OR i.schema_name LIKE @schema)`),
 			always(`AND (@parent = '' OR i.table_name LIKE @parent)`),
@@ -206,12 +220,15 @@ func registerRelations() {
 			},
 			{Name: "unique"}, {Name: "primary"},
 			{Name: "comment"},
+			{Name: "persistence", Desc: "temporary for an index on a temporary table, which is in the temp database, and permanent otherwise"},
+			{Name: "definition", Desc: "the CREATE INDEX statement, as DuckDB renders it"},
+			{Name: "using", Desc: "always art"},
 		},
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Persistence, &v.Definition, &v.Using)
 			return v, err
 		},
 	})
@@ -231,6 +248,7 @@ func registerRelations() {
 	// readable at all.
 
 	registerConstraints()
+	registerNotNulls()
 
 	dbmeta.Sequences.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.Sequence]{
 		Stmt: dbmeta.Stmt{
@@ -453,6 +471,50 @@ func registerConstraints() {
 			var v dbmeta.ConstraintColumn
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Constraint, &v.Name,
 				&v.Ordinal, &v.ForeignCatalog, &v.ForeignSchema, &v.ForeignTable, &v.ForeignName)
+			return v, err
+		},
+	})
+}
+
+// registerNotNulls answers NotNulls. DuckDB records each NOT NULL in
+// duckdb_constraints and names it, such as tt_a_not_null. The Constraints query
+// leaves the row out on purpose, because PostgreSQL before release 18 reports
+// no constraint for it (D49), and this kind is the place for the name. A NOT
+// NULL is on one column, so the list of columns has one element. DuckDB has no
+// inheritance and no NOT VALID, so the three flags are fixed.
+func registerNotNulls() {
+	dbmeta.NotNulls.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.NotNull]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT k.schema_name AS "schema"`),
+			always(`, k.table_name AS "table"`),
+			always(`, k.constraint_name AS "name"`),
+			always(`, k.constraint_column_names[1] AS "column"`),
+			always(`, FALSE AS "no_inherit"`),
+			always(`, TRUE AS "local"`),
+			always(`, FALSE AS "inherited"`),
+			always(`, TRUE AS "validated"`),
+			always(`FROM duckdb_constraints() k`),
+			always(`WHERE k.constraint_type = 'NOT NULL'`),
+			always(`AND (@with_system OR NOT k.schema_name IN ('information_schema', 'pg_catalog'))`),
+			always(`AND (@schema = '' OR k.schema_name LIKE @schema)`),
+			always(`AND (@parent = '' OR k.table_name LIKE @parent)`),
+			always(`AND (@name = '' OR k.constraint_name LIKE @name)`),
+			always(`ORDER BY 1, 2, 3`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "table"},
+			{Name: "name", Desc: "the name DuckDB gives it, such as t_a_not_null"},
+			{Name: "column", Desc: "the column the constraint is on"},
+			{Name: "no_inherit", Desc: "always false: DuckDB has no inheritance"},
+			{Name: "local", Desc: "always true, for the same reason"},
+			{Name: "inherited", Desc: "always false, for the same reason"},
+			{Name: "validated", Desc: "always true: DuckDB has no NOT VALID"},
+		},
+		Params: schemaParentName("constraint"),
+		Scan: func(rows *sql.Rows) (dbmeta.NotNull, error) {
+			var v dbmeta.NotNull
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Column, &v.NoInherit,
+				&v.Local, &v.Inherited, &v.Validated)
 			return v, err
 		},
 	})

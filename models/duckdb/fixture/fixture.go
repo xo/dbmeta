@@ -91,6 +91,9 @@ var Everything = Fixture{
 		at("author column comment",
 			`COMMENT ON COLUMN dbmeta_fixture.author.author_id IS 'surrogate key'`),
 
+		// Two rows, so that the estimate of the rows is not zero (D208).
+		at("author rows", `INSERT INTO dbmeta_fixture.author (author_id, name) VALUES (1, 'Ann'), (2, 'Bo')`),
+
 		at("book table", `CREATE TABLE dbmeta_fixture.book (
 	book_id INTEGER PRIMARY KEY,
 	author_id INTEGER NOT NULL REFERENCES dbmeta_fixture.author(author_id),

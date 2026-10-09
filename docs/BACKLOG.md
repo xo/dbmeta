@@ -209,3 +209,43 @@ the policy is active. A field `Enabled` on `Policy` lets both models return it.
 `Partitions` has no rows for subpartitions (D206). A size needs the connected
 user and a sum over `USER_SEGMENTS`. A subpartition needs a kind that is not a
 LONG in a UNION.
+
+### Settle the size and the rows of a Vertica table and the encoding of its columns
+
+D208 measured it. The size and the rows of a table are in
+`v_monitor.projection_storage` and the encoding of a column is in
+`v_catalog.projection_columns`. A subquery on either for every table or column
+made a read of one table 3 to 22 times slower, and the cost grew with the
+catalog. `Table.Size`, `Table.Rows` and `Column.Compression` are NULL. A
+projection of a replicated table is also repeated on every node, so a sum of
+rows is not the rows. If a later release gives a view that follows the filter,
+the fields can be added.
+
+### Options and size of a SQLite table
+
+D208 leaves `Table.Options` NULL on SQLite. `pragma_table_list` has the strict
+and the WITHOUT ROWID flags, and joining it for every table grows with the
+square of the catalog. A shadow table is listed as a `table`, and
+`pragma_table_list` calls it `shadow`. Ken decides whether the type changes.
+`Table.Size` needs `dbstat`, which scans the file and is not in the mattn
+driver.
+
+### Policy has no field for a disabled Vertica policy
+
+Vertica lists a row access policy that is disabled (`is_policy_enabled`) in
+`Policies`, and `Policy` has no field to say so. It is the same gap as the
+policy that SQL Server and Oracle switch off.
+
+### Row security for Vertica, ClickHouse and Databend
+
+`Table.RowSecurity` is NULL for all three. The Vertica and ClickHouse sources
+(`access_policy` and `row_policies`) are refused to or filtered for a user who
+is not an administrator, and a flag that reads `false` for that user is a wrong
+answer. Databend 1.2.951 has no catalog for its row access policies. A later
+release can add one.
+
+### The SETTINGS clause of a ClickHouse table
+
+The settings of a MergeTree table, such as `index_granularity`, are in
+`engine_full` as text after SETTINGS. A statement cannot split them, so
+`Table.Options` has the clauses that have a column of their own.

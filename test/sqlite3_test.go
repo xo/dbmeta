@@ -689,3 +689,74 @@ func TestSQLiteCurrentSchemaAndPrimaryKey(t *testing.T) {
 		}
 	})
 }
+
+// TestSQLiteDescribeFields reads the fields that D198 and D199 added, for
+// the ones SQLite has a source for (D208). It keeps no owner, size or row
+// count that one statement can read at a cost that follows the rows returned,
+// and no options for a table: the strict and without rowid flags are in
+// pragma_table_list, and joining it costs time that grows with the square of
+// the catalog.
+func TestSQLiteDescribeFields(t *testing.T) {
+	eachSQLite(t, func(t *testing.T, db *sql.DB, m *dbmeta.Meta) {
+		ctx := t.Context()
+
+		tables := map[string]dbmeta.Table{}
+		for v, err := range dbmeta.Tables.All(ctx, m, db, sqArgs()) {
+			if err != nil {
+				t.Fatalf("reading tables: %v", err)
+			}
+			tables[v.Name] = v
+			if v.Owner.Valid || v.AccessMethod.Valid || v.Size.Valid || v.Rows.Valid || v.Options.Valid {
+				t.Errorf("%s: expected no owner, access method, size, rows or options, got %+v", v.Name, v)
+			}
+		}
+		if got := tables["book"].Persistence; !got.Valid || got.V != "permanent" {
+			t.Errorf("book: expected permanent, got %+v", got)
+		}
+		if got := tables["recent"].Persistence; got.Valid {
+			t.Errorf("recent: a view has no persistence, got %+v", got)
+		}
+
+		indexes := map[string]dbmeta.Index{}
+		for v, err := range dbmeta.Indexes.All(ctx, m, db, sqArgs()) {
+			if err != nil {
+				t.Fatalf("reading indexes: %v", err)
+			}
+			indexes[v.Table+"."+v.Name] = v
+			if v.Persistence.V != "permanent" || v.Using.V == "" || !v.Clustered.Valid {
+				t.Errorf("%s: expected persistence, using and clustered, got %+v", v.Name, v)
+			}
+			if v.Owner.Valid || v.Size.Valid || v.Valid.Valid || v.Options.Valid {
+				t.Errorf("%s: expected no owner, size, valid or options, got %+v", v.Name, v)
+			}
+		}
+		partial := indexes["book.book_recent"]
+		if partial.Predicate.V != "published IS NOT NULL" {
+			t.Errorf("book_recent: expected the predicate, got %+v", partial.Predicate)
+		}
+		if !strings.HasPrefix(partial.Definition.V, "CREATE INDEX book_recent ON book") {
+			t.Errorf("book_recent: expected the statement, got %+v", partial.Definition)
+		}
+		if plain := indexes["book.book_published"]; plain.Predicate.Valid || plain.ConstraintType.Valid {
+			t.Errorf("book_published: expected no predicate and no constraint, got %+v", plain)
+		}
+		for name, v := range indexes {
+			clustered := v.Table == "ledger" && v.Primary
+			if v.Clustered.V != clustered {
+				t.Errorf("%s: expected clustered %t, got %t", name, clustered, v.Clustered.V)
+			}
+			if strings.HasPrefix(v.Name, "sqlite_autoindex") {
+				want := "u"
+				if v.Primary {
+					want = "p"
+				}
+				if v.ConstraintType.V != want || v.Definition.Valid {
+					t.Errorf("%s: expected the constraint type %s and no statement, got %+v", name, want, v)
+				}
+			}
+		}
+		if _, ok := indexes["ledger.sqlite_autoindex_ledger_1"]; !ok {
+			t.Error("expected the primary key index of ledger")
+		}
+	})
+}

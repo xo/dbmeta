@@ -114,6 +114,11 @@ var Everything = Fixture{
 	area VARCHAR NOT NULL,
 	amount DECIMAL(12, 2) NOT NULL
 )`),
+		// A transient table, which Persistence reads (D208).
+		at("ledger", `CREATE TRANSIENT TABLE dbmeta_fixture.ledger (
+	entry INT NOT NULL,
+	amount INT NOT NULL
+)`),
 		at("view", `CREATE VIEW dbmeta_fixture.recent AS
 	SELECT book_id, title FROM dbmeta_fixture.book WHERE published IS NOT NULL`),
 

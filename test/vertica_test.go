@@ -393,3 +393,109 @@ func TestVerticaCurrentSchema(t *testing.T) {
 		t.Errorf("expected public, the first schema on the default search path, got %q", s.Name)
 	}
 }
+
+// TestVerticaDescribeFields reads the fields that D198 and D199 added, for
+// the ones Vertica has a source for (D208). A table is stored only as its
+// projections, and the size, the rows and the encoding of a column are in
+// views that a statement can read only by scanning the whole catalog, so
+// Table.Size, Table.Rows and Column.Compression stay absent.
+func TestVerticaDescribeFields(t *testing.T) {
+	db := openVertica(t)
+	ctx := t.Context()
+	m := setupVertica(t, db)
+	args := dbmeta.Args{Schema: vefixture.Everything.Schema}.Map()
+
+	tables := map[string]dbmeta.Table{}
+	for v, err := range dbmeta.Tables.All(ctx, m, db, args) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		tables[v.Name] = v
+		if v.AccessMethod.Valid || v.Rows.Valid || v.Size.Valid || v.RowSecurity.Valid || v.RowSecurityForced.Valid {
+			t.Errorf("%s: expected no access method, rows, size or forced row security, got %+v", v.Name, v)
+		}
+	}
+	ledger := tables["ledger"]
+	if ledger.Owner.V == "" || ledger.Persistence.V != "permanent" {
+		t.Errorf("ledger: expected an owner and permanent, got %+v", ledger)
+	}
+	if got := tables["archive"].Options.V; got != "partition_by=archive.filed_year" {
+		t.Errorf("archive: expected the partition option, got %q", got)
+	}
+	if recent := tables["recent"]; recent.Persistence.Valid || !recent.Owner.Valid {
+		t.Errorf("recent: expected a view to have an owner and nothing else, got %+v", recent)
+	}
+
+	var sized int
+	for v, err := range dbmeta.Columns.All(ctx, m, db, args) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		if v.Compression.Valid || v.Storage.Valid || v.StatsTarget.Valid {
+			t.Errorf("%s.%s: expected no compression, storage or statistics target, got %+v", v.Table, v.Name, v)
+		}
+	}
+	for v, err := range dbmeta.Indexes.All(ctx, m, db, args) {
+		if err != nil {
+			t.Fatalf("reading projections: %v", err)
+		}
+		if !v.Valid.Valid || !v.Valid.V || v.Options.V == "" {
+			t.Errorf("%s: expected an up to date projection with its segmentation, got %+v", v.Name, v)
+		}
+		if v.Table == "ledger" && v.Size.Valid && v.Size.V > 0 {
+			sized++
+		}
+	}
+	if sized == 0 {
+		t.Error("expected a size for the projection of ledger")
+	}
+
+	enforced := map[string]bool{}
+	for v, err := range dbmeta.Constraints.All(ctx, m, db, args) {
+		if err != nil {
+			t.Fatalf("reading constraints: %v", err)
+		}
+		// is_enabled is NULL for a foreign key.
+		if v.Enforced.Valid == (v.Type == "foreign key") {
+			t.Errorf("%s: expected enforced to be absent for a foreign key and read for the rest, got %+v", v.Name, v)
+		}
+		enforced[v.Name] = v.Enforced.V
+	}
+	if enforced["author_pk"] {
+		t.Errorf("author_pk: a key that was not made ENABLED is not enforced, got %v", enforced)
+	}
+	if m.Version().Main().AtLeast(dbmeta.V(9, 1)) && !enforced["book_title_ck"] {
+		t.Errorf("book_title_ck: a check constraint is enforced, got %v", enforced)
+	}
+
+	bounds := map[string]bool{}
+	for v, err := range dbmeta.Partitions.All(ctx, m, db, dbmeta.Args{Schema: vefixture.Everything.Schema, Parent: "archive"}.Map()) {
+		if err != nil {
+			t.Fatalf("reading partitions: %v", err)
+		}
+		if v.Table != "archive" || v.Type != "partition" || v.Partitioned || v.Bound.V != v.Partition {
+			t.Errorf("unexpected partition %+v", v)
+		}
+		bounds[v.Partition] = true
+	}
+	if len(bounds) != 2 || !bounds["2025"] || !bounds["2026"] {
+		t.Errorf("expected the partitions 2025 and 2026, got %v", bounds)
+	}
+
+	// A row access policy needs 9.1.
+	if dbmeta.Policies.Support(m) == dbmeta.Supported {
+		var policies int
+		for v, err := range dbmeta.Policies.All(ctx, m, db, args) {
+			if err != nil {
+				t.Fatalf("reading policies: %v", err)
+			}
+			policies++
+			if v.Table != "ledger" || v.Using.V != "(entry > 0)" || v.Roles.Valid || v.WithCheck.Valid {
+				t.Errorf("unexpected policy %+v", v)
+			}
+		}
+		if policies != 1 {
+			t.Errorf("expected the one row policy of ledger, got %d", policies)
+		}
+	}
+}

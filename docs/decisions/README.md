@@ -226,3 +226,4 @@ file.
 | [D205](D205-the-mysql-family-fills-the-new-fields-of-d198-to-d203.md) | The MySQL family fills the new fields of D198 to D203 | Decided |
 | [D206](D206-sql-server-and-oracle-fill-the-describe-fields.md) | SQL Server and Oracle fill the describe fields | Decided |
 | [D207](D207-snowflake-redshift-cratedb-and-questdb-fill-the-describe-fields-they-have-a-source-for.md) | Snowflake, Redshift, CrateDB and QuestDB fill the describe fields they have a source for | Decided |
+| [D208](D208-clickhouse-duckdb-sqlite3-databend-and-vertica-fill-the-describe-fields-they-have-a-source-for.md) | ClickHouse, DuckDB, SQLite3, Databend and Vertica fill the describe fields they have a source for | Decided |
