@@ -42,7 +42,14 @@ var productSpecific = map[string][]string{
 	"columns": {"data_type", "default", "collation"},
 	// MariaDB records the check clause as written. MySQL rewrites it with the
 	// character set introducer, so `title` <> '' becomes (`title` <> _utf8mb4'').
-	"constraints": {"definition"},
+	// MySQL reads ENFORCED from 8.0.16, and MariaDB has no such column, so it
+	// reads NULL (D205).
+	"constraints": {"definition", "enforced"},
+	// The row count is an estimate, and each engine makes its own: InnoDB
+	// samples pages, and a server counts differently after a restart. The
+	// create options are spelled their own way, so MariaDB reads
+	// `transactional=1` and MySQL reads nothing for the same table (D205).
+	"tables": {"rows", "options"},
 	// The same display width difference as columns, reaching a parameter
 	// through dtd_identifier.
 	"routine_parameters": {"data_type"},
@@ -55,7 +62,7 @@ var productSpecific = map[string][]string{
 // mariaOnly names the objects only MariaDB builds, by the value of the column
 // that identifies a row. They are left out rather than compared against
 // nothing.
-var mariaOnly = []string{"counter", "total"}
+var mariaOnly = []string{"counter", "total", "archive"}
 
 // TestMySQLAgainstMariaDB runs the same fixture and the same queries against
 // both products and compares the answers. Set DBMETA_MYSQL to one server and
