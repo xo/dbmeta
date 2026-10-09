@@ -31,6 +31,7 @@ var left = map[string]string{
 	"procedure with parameters": "TiDB has no stored procedure",
 	"trigger":                   "TiDB has no trigger",
 	"foreign server":            "TiDB has no CREATE SERVER",
+	"subpartitioned table":      "TiDB accepts SUBPARTITION BY and ignores it, so the table has no subpartitions",
 }
 
 func at(name, query string) myfixture.Step {

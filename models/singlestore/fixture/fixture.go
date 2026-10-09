@@ -110,6 +110,14 @@ var Everything = Fixture{
 	area VARCHAR(64) NOT NULL,
 	amount INT NOT NULL
 )`),
+		// A table with a full text index, so that an index has the type
+		// FULLTEXT.
+		at("article", `CREATE TABLE dbmeta_fixture.article (
+	id INT NOT NULL,
+	body TEXT,
+	SHARD KEY (id),
+	FULLTEXT (body)
+)`),
 		at("view", `CREATE VIEW dbmeta_fixture.recent AS
 	SELECT book_id, title FROM dbmeta_fixture.book WHERE published IS NOT NULL`),
 

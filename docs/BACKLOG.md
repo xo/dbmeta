@@ -89,9 +89,7 @@ answerable by INFORMATION_SCHEMA.INDEXES and INDEX_COLUMNS for a hybrid table,
 which a trial account refuses to make, so no row was read. The same account
 refuses masking policies, row access policies and materialized views. A run on
 an Enterprise account with a hybrid table and a row access policy finishes
-them. MySQL and MariaDB have ENFORCED in TABLE_CONSTRAINTS from 8.0.16 and
-10.2, and `Constraint.Enforced` is absent from both models. That needs a
-fragment gated on each product and a run on each.
+them.
 
 ## PostgreSQL model
 
@@ -146,3 +144,29 @@ decision beside D56 before any of it lands here.
 [`DBTPL.md`](DBTPL.md) holds which of the nine reads `dbtpl` needs each model
 answers, and whether `dbtpl` can generate from each database. `dbtpl` does
 not read `dbmeta` yet.
+
+## MySQL family
+
+### Read the size and the clustered flag of an index
+
+D205 left `Index.Size` and `Index.Clustered` NULL on MariaDB and MySQL. The
+sources are `mysql.innodb_index_stats` (the size in pages, a table of the mysql
+schema) and `INNODB_INDEXES` or `INNODB_SYS_INDEXES` (the type, where 1 is the
+clustered index). Both refuse a user without the PROCESS privilege or SELECT on
+the mysql schema, as measured on MariaDB 12.3. They can come back as a
+fragment that a parity scene marks as refused for the grantee, if Ken wants the
+fields more than the statement that answers for every principal.
+
+### MariaDB puts the compression comment in the data type
+
+`Column.DataType` is `COLUMN_TYPE`, and MariaDB writes `/*M!100301 COMPRESSED*/`
+into it for a compressed column, so the type reads `text /*M!100301 COMPRESSED*/`
+on 12.3. D205 reads `Column.Compression` from that comment and did not change
+`DataType`. A caller that compares types sees the comment.
+
+### Vitess reads the size of one tablet
+
+`Table.Size` and `Rows` on Vitess are the numbers of the tablet that vtgate
+picks, and a keyspace with several shards holds the rest elsewhere. A sum over
+the shards needs vtgate to run one statement on every shard, which it does not
+do for `information_schema`.

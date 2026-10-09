@@ -34,6 +34,9 @@ func registerRoutines() {
 			{{Query: `, r.routine_definition AS "source"`}},
 			{{Query: `, NULLIF(r.routine_comment, '') AS "comment"`}},
 			{{Query: `, NULL AS "definition"`}},
+			// The same text as source: the body, and absent for an external
+			// routine. See D205.
+			{{Query: `, r.routine_definition AS "prosrc"`}},
 			{{Query: `FROM information_schema.ROUTINES r`}},
 			notSystem("WHERE", "r.routine_schema"),
 			schemaLike("schema", "r.routine_schema"),
@@ -52,13 +55,14 @@ func registerRoutines() {
 			{Name: "security"}, {Name: "access"}, {Name: "language"},
 			{Name: "source"}, {Name: "comment"},
 			{Name: "definition", Desc: "always absent: the catalog keeps the body, which is source, and SHOW CREATE FUNCTION is a statement of its own"},
+			{Name: "prosrc", Desc: "the body, which is the same text as source"},
 		},
 		Params: schemaNameSystem("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
-				&v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
+				&v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition, &v.Prosrc)
 			return v, err
 		},
 	})

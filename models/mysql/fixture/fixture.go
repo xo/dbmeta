@@ -218,6 +218,44 @@ var Everything = Fixture{
 			"	IN a integer, IN b integer, OUT total integer\n"+
 			") BEGIN SET total = a + b; END"),
 
+		// Objects whose new fields have a source here (D205). A table with
+		// create options, a memory table with a hash index, a table with a
+		// full text index, a list partitioned table, a table that has
+		// subpartitions, and a column that MariaDB compresses.
+		at("options table", "CREATE TABLE dbmeta_fixture.packed (\n"+
+			"	id integer PRIMARY KEY,\n"+
+			"	body varchar(200)\n"+
+			") ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4"),
+		at("hash index table", "CREATE TABLE dbmeta_fixture.lookup (\n"+
+			"	id integer NOT NULL,\n"+
+			"	KEY lookup_id (id) USING HASH\n"+
+			") ENGINE=MEMORY"),
+		at("full text index table", "CREATE TABLE dbmeta_fixture.article (\n"+
+			"	id integer PRIMARY KEY,\n"+
+			"	body text,\n"+
+			"	FULLTEXT KEY article_body (body)\n"+
+			") ENGINE=InnoDB"),
+		at("list partitioned table", "CREATE TABLE dbmeta_fixture.region_sales (\n"+
+			"	region integer NOT NULL,\n"+
+			"	amount integer NOT NULL\n"+
+			") PARTITION BY LIST (region) (\n"+
+			"	PARTITION north VALUES IN (1, 2, 3),\n"+
+			"	PARTITION south VALUES IN (4)\n"+
+			")"),
+		at("subpartitioned table", "CREATE TABLE dbmeta_fixture.ledger (\n"+
+			"	posted integer NOT NULL,\n"+
+			"	account integer NOT NULL\n"+
+			") PARTITION BY RANGE (posted) SUBPARTITION BY HASH (account) SUBPARTITIONS 2 (\n"+
+			"	PARTITION early VALUES LESS THAN (100),\n"+
+			"	PARTITION late VALUES LESS THAN MAXVALUE\n"+
+			")"),
+		when("compressed column",
+			"CREATE TABLE dbmeta_fixture.archive (\n"+
+				"	id integer PRIMARY KEY,\n"+
+				"	body text COMPRESSED\n"+
+				")",
+			maria10_3),
+
 		// A server is global rather than part of a schema, so dropping the
 		// schema does not remove it and the teardown drops it by name. Nothing
 		// connects to the host named here, and nothing has to: the metadata is

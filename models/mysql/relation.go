@@ -80,6 +80,31 @@ func registerRelations() {
 			{{Query: `, t.table_name AS "name"`}},
 			{{Query: `, ` + tableType + ` AS "type"`}},
 			{{Query: `, ` + tableComment + ` AS "comment"`}},
+			// A temporary table is listed only by MariaDB and only to the
+			// session that made it, with the type TEMPORARY. Everything else
+			// that either product lists is permanent. See D205.
+			// TiDB lists a global temporary table as a base table and no
+			// local one, so it has no source and answers absent.
+			// SingleStore lists the temporary table of the session too, with
+			// the type TEMPORARY TABLE.
+			{
+				{Query: `, CASE WHEN t.table_type IN ('TEMPORARY', 'TEMPORARY TABLE') THEN 'temporary' ELSE 'permanent' END AS "persistence"`},
+				{Key: TiDB, Query: `, NULL AS "persistence"`},
+			},
+			// ENGINE, DATA_LENGTH, INDEX_LENGTH and TABLE_ROWS are NULL for a
+			// view. The size is the data and the indexes, in bytes.
+			// SingleStore has one engine, which it names MemSQL, and keeps the
+			// choice that matters in STORAGE_TYPE: COLUMNSTORE, or
+			// INMEMORY_ROWSTORE. That is the access method.
+			{
+				{Query: `, t.engine AS "access_method"`},
+				{Key: MemSQL, Query: `, CASE WHEN t.table_type = 'VIEW' THEN NULL ELSE t.storage_type END AS "access_method"`},
+			},
+			// SingleStore answers 0 for a view, where MySQL and MariaDB
+			// answer NULL, so a view is named here.
+			{{Query: `, CASE WHEN t.table_type = 'VIEW' THEN NULL ELSE CAST(t.data_length + t.index_length AS SIGNED) END AS "size"`}},
+			{{Query: `, CASE WHEN t.table_type = 'VIEW' THEN NULL ELSE CAST(t.table_rows AS SIGNED) END AS "rows"`}},
+			{{Query: `, NULLIF(t.create_options, '') AS "options"`}},
 			{{Query: `FROM information_schema.TABLES t`}},
 			notSystem("WHERE", "t.table_schema"),
 			schemaLike("schema", "t.table_schema"),
@@ -87,11 +112,19 @@ func registerRelations() {
 			{{Query: `AND (@types = '' OR CONCAT(',', @types, ',') LIKE CONCAT('%,', ` + tableType + `, ',%'))`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
-		Fields: fields("catalog", "schema", "name", "type", "comment"),
+		Fields: []dbmeta.Field{
+			{Name: "catalog"}, {Name: "schema"}, {Name: "name"}, {Name: "type"}, {Name: "comment"},
+			{Name: "persistence", Desc: "permanent, or temporary for a temporary table of this session, which only MariaDB lists. Absent on TiDB"},
+			{Name: "access_method", Desc: "the storage engine, absent for a view"},
+			{Name: "size", Desc: "DATA_LENGTH plus INDEX_LENGTH in bytes, absent for a view"},
+			{Name: "rows", Desc: "TABLE_ROWS, an estimate for InnoDB, absent for a view"},
+			{Name: "options", Desc: "CREATE_OPTIONS, such as row_format=COMPRESSED, separated by a space, absent when none is set"},
+		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})
@@ -117,6 +150,14 @@ func registerRelations() {
 			{{Query: `, CASE WHEN c.extra LIKE '%GENERATED%' THEN 's' ELSE NULL END AS "generated"`}},
 			{{Query: `, NULLIF(c.column_comment, '') AS "comment"`}},
 			{{Query: `, c.collation_name AS "collation"`}},
+			// MariaDB 10.3 can compress a column and marks it in COLUMN_TYPE
+			// with a comment that older servers read as nothing. zlib is the
+			// only method. MySQL has no column compression, and compresses a
+			// page or a table, which Tables.Options shows. See D205.
+			{
+				{Query: `, NULL AS "compression"`},
+				frag(mariaAgg, `, CASE WHEN c.column_type LIKE '%/*M!100301 COMPRESSED*/%' THEN 'zlib' END AS "compression"`),
+			},
 			{{Query: `FROM information_schema.COLUMNS c`}},
 			notSystem("WHERE", "c.table_schema"),
 			schemaLike("schema", "c.table_schema"),
@@ -124,14 +165,21 @@ func registerRelations() {
 			{{Query: `AND (@name = '' OR c.column_name LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3, 5`}},
 		},
-		Fields: fields("catalog", "schema", "table", "name", "ordinal",
-			"data_type", "nullable", "default", "primary_key", "identity", "generated", "comment", "collation"),
+		Fields: []dbmeta.Field{
+			{Name: "catalog"}, {Name: "schema"}, {Name: "table"}, {Name: "name"}, {Name: "ordinal"},
+			{Name: "data_type"}, {Name: "nullable"}, {Name: "default"}, {Name: "primary_key"},
+			{Name: "identity"}, {Name: "generated"}, {Name: "comment"}, {Name: "collation"},
+			{
+				Name: "compression", Desc: "zlib for a compressed column, which only MariaDB has",
+				Min: mariaAgg.Min, Key: mariaAgg.Key,
+			},
+		},
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated,
-				&v.Comment, &v.Collation)
+				&v.Comment, &v.Collation, &v.Compression)
 			return v, err
 		},
 	})
@@ -147,6 +195,9 @@ func registerRelations() {
 			{{Query: `, MIN(s.non_unique) = 0 AS "unique"`}},
 			{{Query: `, MIN(s.index_name) = 'PRIMARY' AS "primary"`}},
 			{{Query: `, NULLIF(MIN(s.index_comment), '') AS "comment"`}},
+			// BTREE, HASH, FULLTEXT, SPATIAL or RTREE, which is what follows
+			// USING in the statement that made the index. See D205.
+			{{Query: `, MIN(s.index_type) AS "using"`}},
 			{{Query: `FROM information_schema.STATISTICS s`}},
 			notSystem("WHERE", "s.table_schema"),
 			schemaLike("schema", "s.table_schema"),
@@ -155,12 +206,12 @@ func registerRelations() {
 			{{Query: `GROUP BY 1, 2, 3, 4`}},
 			{{Query: `ORDER BY 2, 3, 4`}},
 		},
-		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment"),
+		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment", "using"),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Using)
 			return v, err
 		},
 	})
@@ -236,6 +287,13 @@ func registerRelations() {
 			{{Query: `, FALSE AS "deferrable"`}},
 			{{Query: `, FALSE AS "deferred"`}},
 			{{Query: `, NULL AS "comment"`}},
+			// MySQL records whether it checks a constraint from 8.0.16, in
+			// TABLE_CONSTRAINTS. MariaDB has no such column, so it stays
+			// absent there. See D205.
+			{
+				{Query: `, NULL AS "enforced"`},
+				frag(mysqlCheck, `, t.enforced = 'YES' AS "enforced"`),
+			},
 			{{Query: `FROM information_schema.TABLE_CONSTRAINTS t`}},
 			{
 				{Query: ``},
@@ -259,12 +317,16 @@ func registerRelations() {
 			{Name: "deferrable", Desc: "always false: MariaDB has no deferred constraints"},
 			{Name: "deferred", Desc: "always false: MariaDB has no deferred constraints"},
 			{Name: "comment"},
+			{
+				Name: "enforced", Desc: "whether the server checks the constraint, from MySQL 8.0.16 and never on MariaDB",
+				Min: mysqlCheck.Min, Key: mysqlCheck.Key,
+			},
 		},
 		Params: schemaParentName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})
@@ -348,6 +410,12 @@ func registerRelations() {
 			{{Query: `, LOWER(MIN(p.partition_method)) AS "strategy"`}},
 			{{Query: `, MIN(p.partition_expression) AS "expression"`}},
 			{{Query: `, NULL AS "comment"`}},
+			// The size is what every partition takes. A subpartition has a
+			// row of its own in PARTITIONS and a partition is the sum of its
+			// subpartitions, so one sum is both the partitions one level
+			// below and every partition below. See D205.
+			{{Query: `, CAST(SUM(p.data_length + p.index_length) AS SIGNED) AS "direct_size"`}},
+			{{Query: `, CAST(SUM(p.data_length + p.index_length) AS SIGNED) AS "total_size"`}},
 			{{Query: `FROM information_schema.PARTITIONS p`}},
 			{{Query: `WHERE p.partition_name IS NOT NULL`}},
 			notSystem("AND", "p.table_schema"),
@@ -356,12 +424,62 @@ func registerRelations() {
 			{{Query: `GROUP BY 1, 2`}},
 			{{Query: `ORDER BY 1, 2`}},
 		},
-		Fields: fields("schema", "name", "owner", "type", "parent", "strategy", "expression", "comment"),
+		Fields: fields("schema", "name", "owner", "type", "parent", "strategy", "expression", "comment",
+			"direct_size", "total_size"),
 		Params: schemaNameSystem("partitioned table"),
 		Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 			var v dbmeta.PartitionedTable
 			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, &v.Parent,
-				&v.Strategy, &v.Expression, &v.Comment)
+				&v.Strategy, &v.Expression, &v.Comment, &v.DirectSize, &v.TotalSize)
+			return v, err
+		},
+	})
+
+	// PARTITIONS has one row for each partition, or for each subpartition of
+	// a table that has them. The partitions of a table that has subpartitions
+	// are the same rows with the subpartitions folded away, and the
+	// subpartitions are rows of their own with the type subpartition. The
+	// bound is PARTITION_DESCRIPTION: the upper limit of a range partition,
+	// the values of a list partition, and absent for a hash or key partition,
+	// which has none. See D205.
+	dbmeta.Partitions.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Partition]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT x.schema AS "schema", x.tbl AS "table", x.schema AS "partition_schema"`}},
+			{{Query: `, x.part AS "partition", x.kind AS "type", x.bound AS "bound"`}},
+			{{Query: `, x.has_subpartitions = 1 AS "partitioned"`}},
+			{{Query: `FROM (`}},
+			schemaAs(`SELECT `, "p.table_schema", "schema"),
+			{{Query: `, p.table_name AS tbl, p.partition_name AS part, 'partition' AS kind`}},
+			{{Query: `, p.partition_description AS bound`}},
+			{{Query: `, MAX(p.subpartition_name IS NOT NULL) AS has_subpartitions`}},
+			{{Query: `, MIN(p.partition_ordinal_position) AS o1, 0 AS o2`}},
+			{{Query: `FROM information_schema.PARTITIONS p`}},
+			{{Query: `WHERE p.partition_name IS NOT NULL`}},
+			notSystem("AND", "p.table_schema"),
+			schemaLike("schema", "p.table_schema"),
+			{{Query: `AND (@parent = '' OR p.table_name LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR p.partition_name LIKE @name)`}},
+			{{Query: `GROUP BY p.table_schema, p.table_name, p.partition_name, p.partition_description`}},
+			{{Query: `UNION ALL`}},
+			schemaAs(`SELECT `, "p.table_schema", "schema"),
+			{{Query: `, p.table_name, p.subpartition_name, 'subpartition'`}},
+			{{Query: `, NULL, 0`}},
+			{{Query: `, p.partition_ordinal_position, p.subpartition_ordinal_position`}},
+			{{Query: `FROM information_schema.PARTITIONS p`}},
+			{{Query: `WHERE p.subpartition_name IS NOT NULL`}},
+			notSystem("AND", "p.table_schema"),
+			schemaLike("schema", "p.table_schema"),
+			{{Query: `AND (@parent = '' OR p.table_name LIKE @parent)`}},
+			{{Query: `AND (@name = '' OR p.subpartition_name LIKE @name)`}},
+			{{Query: `) x`}},
+			{{Query: `ORDER BY x.schema, x.tbl, x.o1, x.o2`}},
+		},
+		Fields: fields("schema", "table", "partition_schema", "partition", "type", "bound", "partitioned"),
+		Params: schemaParentName("partition"),
+		Scan: func(rows *sql.Rows) (dbmeta.Partition, error) {
+			var v dbmeta.Partition
+			err := rows.Scan(&v.Schema, &v.Table, &v.PartitionSchema, &v.Partition,
+				&v.Type, &v.Bound, &v.Partitioned)
 			return v, err
 		},
 	})

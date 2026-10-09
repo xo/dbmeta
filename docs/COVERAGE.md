@@ -29,7 +29,7 @@ rather than reading one.
 | Model | Answers | Of | Tested against |
 | --- | --- | --- | --- |
 | `models/postgres` | 65 | 65 | PostgreSQL 9.6 through 18 |
-| `models/mysql` | 29 on MariaDB, 26 on MySQL | 65 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
+| `models/mysql` | 30 on MariaDB, 27 on MySQL | 65 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
 | `models/sqlite3` | 14 | 65 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
 | `models/duckdb` | 20 | 65 | duckdb/duckdb-go, the driver usql uses |
 | `models/sqlserver` | 32 | 65 | SQL Server 2017, 2019, 2022 and 2025 |
@@ -47,8 +47,8 @@ rather than reading one.
 | `models/cockroachdb` | 54 | 65 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 47 of its statements are the postgres model's (D123) |
 | `models/cratedb` | 26 | 65 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
 | `models/questdb` | 11 | 65 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
-| `models/tidb` | 19 | 65 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 16 of its statements are the mysql model's (D133) |
-| `models/vitess` | 20 | 65 | Vitess 23.0.7 and 24.0.4, on vttestserver. 19 of its statements are the mysql model's, and a schema is a keyspace (D135) |
+| `models/tidb` | 20 | 65 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 17 of its statements are the mysql model's (D133) |
+| `models/vitess` | 21 | 65 | Vitess 23.0.7 and 24.0.4, on vttestserver. 20 of its statements are the mysql model's, and a schema is a keyspace (D135) |
 | `models/databend` | 20 | 65 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 65 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
 | `models/snowflake` | 15 | 65 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08 and 2026-10-09. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193, and D203 reads the columns of a key |
@@ -154,7 +154,7 @@ is true of both. Where they differ, the model gates on the product rather than
 on the release number, because MariaDB is at 11.8 and MySQL at 9 and neither
 number says anything about the other. See D44.
 
-MariaDB answers 29 of the 65 and MySQL answers 26. The three MySQL cannot
+MariaDB answers 30 of the 65 and MySQL answers 27. The three MySQL cannot
 answer are sequences, which it has never had, aggregates, which it has no form
 of and whose catalog table it dropped in 8.0, and column statistics, below.
 
@@ -168,6 +168,45 @@ privileges, column statistics, the current schema and the current user.
 A schema and a database are the same object in MariaDB. `dbmeta.Schemas` and
 `dbmeta.Databases` both answer, and they answer with the same rows. That is the
 one place the object model does not fit, and it is not hidden.
+
+### The fields that D205 fills
+
+D198, D199 and D203 added fields and kinds that only PostgreSQL filled. D205
+reads each of them from the catalog of the MySQL family and leaves NULL where
+the catalog has no source. Every field below is a column of a row that the
+statement already reads, so the cost is the cost of the row.
+
+| Field | MariaDB | MySQL | Left NULL because |
+| --- | --- | --- | --- |
+| `Table.Persistence` | `permanent`, and `temporary` for a temporary table of the session, which `TABLE_TYPE` names TEMPORARY | `permanent`, because a temporary table is not in the catalog | TiDB lists a global temporary table as a base table, so TiDB answers NULL |
+| `Table.AccessMethod` | `TABLES.ENGINE`, NULL for a view | the same | SingleStore names its one engine MemSQL, so it reads `STORAGE_TYPE`, which is COLUMNSTORE or INMEMORY_ROWSTORE |
+| `Table.Size` | `DATA_LENGTH + INDEX_LENGTH` in bytes, NULL for a view | the same | |
+| `Table.Rows` | `TABLE_ROWS`, an estimate | the same | |
+| `Table.Options` | `CREATE_OPTIONS`, such as `row_format=COMPRESSED key_block_size=4`, or `partitioned`. The separator is a space | the same | SingleStore and TiDB keep none |
+| `Table.Owner` | | | no product of the family records an owner of a table |
+| `Index.Using` | `STATISTICS.INDEX_TYPE`: BTREE, HASH, FULLTEXT, SPATIAL | the same | |
+| `Index.Size` | | | `mysql.innodb_index_stats` is a table of the mysql schema and a lesser principal cannot read it, and the INNODB views need PROCESS |
+| `Index.Clustered` | | | `INNODB_SYS_INDEXES` and `INNODB_INDEXES` need PROCESS, which a grantee does not hold. Measured on MariaDB 12.3 |
+| `Index.Valid` | | | `IGNORED` and `IS_VISIBLE` say that the planner skips an index, which is a choice and not a fault, so they are not `Valid` |
+| `Index.Predicate`, `Owner`, `Persistence`, `Options`, `Definition` | | | none. `SHOW CREATE TABLE` is a statement of its own |
+| `Column.Compression` | `zlib` for a column made `COMPRESSED`, from 10.3, read from the comment `COLUMN_TYPE` carries | | MySQL compresses a page or a table, which `Table.Options` shows, and never a column |
+| `Column.Storage`, `StatsTarget` | | | none |
+| `Constraint.Enforced` | | `TABLE_CONSTRAINTS.ENFORCED` from 8.0.16 | MariaDB has no such column and enforces every constraint it records. NULL says the model does not read it |
+| `Function.Prosrc` | the body, which is `Source` | the same | |
+| `Partitions` | new. One row for each partition and each subpartition, from `PARTITIONS`. `Bound` is `PARTITION_DESCRIPTION`: the upper limit of a range, the values of a list, NULL for hash and key | the same | `Constraint` is NULL, because a partition has no constraint text |
+| `PartitionedTables.DirectSize`, `TotalSize` | `SUM(DATA_LENGTH + INDEX_LENGTH)` of the partitions. They are equal, because a partition holds its subpartitions | the same | |
+| `Policies`, `NotNulls`, `Inherits` | | | the family has none of them (D43) |
+
+Gemini and DeepSeek were asked on 2026-10-10, as rule 14 requires. Both named
+`mysql.innodb_index_stats` for the index size, and the `INNODB_INDEXES` view
+(`INNODB_SYS_INDEXES` on MariaDB) for the clustered flag, and said that no
+view holds a compression method of a column or an owner of a table. DeepSeek
+said that MariaDB writes the column compression into `COLUMN_TYPE`, and the
+run confirmed it. I ran both leads as a user with `SELECT` on one schema, and
+both views answered `Access denied; you need the PROCESS privilege`, so the
+two fields stay NULL. `TABLE_ROWS`, `DATA_LENGTH` and `INDEX_LENGTH` of a
+view are NULL on MariaDB and MySQL, and `Table.Size` and `Rows` keep that.
+`ENFORCED` is not a column of `TABLE_CONSTRAINTS` on MariaDB 10.6 to 12.3.
 
 ### What it answers with an analogue
 
@@ -3204,10 +3243,10 @@ cannot do. Each lead was run against 10.0.1.
 
 ## TiDB
 
-`models/tidb` answers 19 of the 65 on 8.5.8, and 18 on 7.5.8 and 8.1.2,
+`models/tidb` answers 20 of the 65 on 8.5.8, and 19 on 7.5.8 and 8.1.2,
 where privileges is too old. It was measured on 2026-09-29 with the mysql
 driver, which is what dburl opens for `tidb://` and what usql uses. TiDB
-imitates MySQL's information_schema, so 16 of its statements are the mysql
+imitates MySQL's information_schema, so 17 of its statements are the mysql
 model's, shared with `Query.Share`. The version set's main version is the
 MySQL release TiDB claims, 8.0.11 on every release, set under the `mysql`
 key too, and TiDB's own release is under the key `tidb`. See D133.
@@ -3270,9 +3309,21 @@ above. Both called enum values derivable from `COLUMN_TYPE`, which the mysql
 model does not answer on MySQL either. DeepSeek named `ENGINES` for access
 methods, which is a list kept for compatibility.
 
+### The fields that D205 fills
+
+TiDB fills `Table.AccessMethod` (InnoDB, which it writes for compatibility),
+`Size`, `Rows` and `Index.Using` from the statements it shares. Size and rows
+come from the statistics, so a table that was never analyzed reads 0, and an
+index made USING HASH reads BTREE. `Table.Persistence` is NULL, because a
+global temporary table is a base table in `TABLES` and a local one is not
+listed. `Options` is NULL, because TiDB keeps no row format. `Constraint.Enforced`
+is NULL, because TiDB claims MySQL 8.0.11 and has no `ENFORCED` column.
+It answers `Partitions` for range, list and hash partitions. It accepts
+SUBPARTITION BY and ignores it, so it has no subpartition rows.
+
 ## Vitess
 
-`models/vitess` answers 20 of the 65 on 23.0.6 and 24.0.3. It was measured on
+`models/vitess` answers 21 of the 65 on 23.0.6 and 24.0.3. It was measured on
 2026-09-30 on vttestserver, with the mysql driver, which is what dburl opens
 for `vitess://` and what usql uses. vtgate passes a query of
 information_schema to the MySQL of one tablet, so 19 of its statements are
@@ -3340,6 +3391,17 @@ because vtgate refuses to create a trigger. It named `mysql.user`,
 `mysql.role_edges` and the privilege views for roles and privileges, which
 are the tablet's accounts, above. It named `_vt.vreplication` for
 subscriptions and said that vtgate does not pass the SELECT.
+
+### The fields that D205 fills
+
+vtgate passes the statements to the MySQL of one tablet, so Vitess fills what
+MySQL fills: `Table.Persistence`, `AccessMethod`, `Size`, `Rows` and `Options`,
+`Index.Using`, `Constraint.Enforced` (the tablet claims 8.4, so it reads
+`ENFORCED`), `Function.Prosrc` is not shared because Vitess has no function,
+and `Partitions` with `PartitionedTables.DirectSize` and `TotalSize`.
+`Partitions` names the keyspace in `Schema` and `PartitionSchema`. A size and a
+row count are those of the one tablet that answers, and not the sum over the
+shards of a keyspace.
 
 ## Databend
 
@@ -3472,6 +3534,16 @@ DISTRIBUTED_PARTITIONS as partitioned tables, and an AUTO_INCREMENT column as
 a sequence. TRIGGERS and TABLESPACES are empty. Both named the histograms for
 extended statistics, and the histograms are over one column each. The view
 of correlations covers two, and D149 shipped it.
+
+### The fields that D205 fills
+
+SingleStore fills `Table.AccessMethod` from `STORAGE_TYPE` (COLUMNSTORE or
+INMEMORY_ROWSTORE), `Size`, `Rows`, `Persistence` (`temporary` for the
+TEMPORARY TABLE of the session) and `Index.Using`, which holds the type that
+`STATISTICS` records, such as BTREE, FULLTEXT, SHARD or COLUMNSTORE HASH.
+`Options` is NULL, because `CREATE_OPTIONS` is always NULL. `Constraint.Enforced`
+is NULL, because SingleStore claims MySQL 5.7. It has no `Partitions`, because
+`PARTITIONS` lists nothing and a table is not split by PARTITION BY here.
 
 ## Snowflake and Amazon Redshift
 
