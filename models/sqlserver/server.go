@@ -557,9 +557,25 @@ func registerStorage() {
 				` ELSE 'range left' END AS "strategy"`),
 			always(`, ps.name AS "expression"`),
 			always(`, ` + commentOn("t.object_id") + ` AS "comment"`),
+			always(`, USER_NAME(COALESCE(t.principal_id, s.principal_id)) AS "owner"`),
+			always(`, LOWER(i.type_desc) AS "access_method"`),
+			// A partition is not a table of its own, so the partitions one
+			// level below are every partition.
+			{
+				{Query: `, CAST(NULL AS bigint) AS "direct_size"`},
+				{Min: v11, Query: `, sz.pages * 8192 AS "direct_size"`},
+			},
+			{
+				{Query: `, CAST(NULL AS bigint) AS "total_size"`},
+				{Min: v11, Query: `, sz.pages * 8192 AS "total_size"`},
+			},
 			always(`FROM sys.tables t`),
 			always(`JOIN sys.schemas s ON s.schema_id = t.schema_id`),
 			always(`JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id IN (0, 1)`),
+			{
+				{Query: ``},
+				{Min: v11, Query: joinSpace(`sz.object_id = t.object_id AND sz.index_id = i.index_id`)},
+			},
 			always(`JOIN sys.partition_schemes ps ON ps.data_space_id = i.data_space_id`),
 			always(`JOIN sys.partition_functions pf ON pf.function_id = ps.function_id`),
 			always(`WHERE ` + notSystem),
@@ -577,12 +593,17 @@ func registerStorage() {
 			{Name: "strategy", Desc: "range left or range right, which is where a boundary value falls"},
 			{Name: "expression", Desc: "the partition scheme, which names the function and the filegroups"},
 			{Name: "comment"},
+			{Name: "owner", Desc: "the principal named by ALTER AUTHORIZATION, and the owner of the schema when none was"},
+			{Name: "access_method", Desc: "heap, clustered or clustered columnstore"},
+			{Name: "direct_size", Min: v11, Desc: "allocated bytes of every partition, as Table.Size counts them"},
+			{Name: "total_size", Min: v11, Desc: "the same: SQL Server has one level of partitions"},
 		},
 		Params: schemaNameSystem("table"),
 		Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 			var v dbmeta.PartitionedTable
 			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Parent, &v.Strategy,
-				&v.Expression, &v.Comment)
+				&v.Expression, &v.Comment, dbmeta.NullAsEmpty(&v.Owner), &v.AccessMethod,
+				&v.DirectSize, &v.TotalSize)
 			return v, err
 		},
 	})

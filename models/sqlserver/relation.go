@@ -20,6 +20,88 @@ func inTypes(item string) string {
 	return `(',' + @types + ',') LIKE ('%,' + ` + item + ` + ',%')`
 }
 
+// v12 is SQL Server 2014, which added memory optimized tables and with them
+// sys.tables.durability and is_memory_optimized.
+var v12 = dbmeta.V(12)
+
+// space is a derived table of the pages allocated to each index of each
+// object, which a statement joins on the object and the index.
+//
+// It reads sys.partitions and sys.allocation_units, and it does not read
+// sys.dm_db_partition_stats. That view needs VIEW DATABASE STATE, and a
+// statement that names it is refused for a principal without it, which refuses
+// the whole kind. The catalog views show what the caller can see and
+// refuse nothing.
+//
+// An allocation unit belongs to its partition by hobt_id for in row and
+// overflow data, and by partition_id for LOB data. The two are two joins
+// because one join on a CASE of the two is nested loops with a seek for each
+// partition, and it took 11 seconds for 4000 tables where this takes 15
+// milliseconds. A columnstore index keeps its segments in
+// sys.internal_partitions, so those are added. See D206.
+const space = `(SELECT u.object_id, u.index_id, SUM(u.pages) AS pages FROM (` +
+	`SELECT p.object_id, p.index_id, CAST(au.total_pages AS bigint) AS pages FROM sys.partitions p` +
+	` JOIN sys.allocation_units au ON au.container_id = p.hobt_id AND au.type IN (1, 3)` +
+	` UNION ALL SELECT p.object_id, p.index_id, CAST(au.total_pages AS bigint) FROM sys.partitions p` +
+	` JOIN sys.allocation_units au ON au.container_id = p.partition_id AND au.type = 2` +
+	` UNION ALL SELECT p.object_id, p.index_id, CAST(au.total_pages AS bigint) FROM sys.internal_partitions p` +
+	` JOIN sys.allocation_units au ON au.container_id = p.hobt_id AND au.type IN (1, 3)` +
+	` UNION ALL SELECT p.object_id, p.index_id, CAST(au.total_pages AS bigint) FROM sys.internal_partitions p` +
+	` JOIN sys.allocation_units au ON au.container_id = p.partition_id AND au.type = 2` +
+	`) u GROUP BY u.object_id, u.index_id)`
+
+// parts is a derived table of the rows and the compression of each index of
+// each object, summed and compared over its partitions. lo and hi are the
+// least and the greatest compression, so they are equal when every partition
+// is compressed the same way.
+const parts = `(SELECT p.object_id, p.index_id, SUM(CAST(p.rows AS bigint)) AS row_count,` +
+	` MIN(p.data_compression_desc) AS lo, MAX(p.data_compression_desc) AS hi` +
+	` FROM sys.partitions p GROUP BY p.object_id, p.index_id)`
+
+// joinSpace and joinParts join those tables to a statement on the object and
+// the index that the condition on names.
+func joinSpace(on string) string { return `LEFT JOIN ` + space + ` sz ON ` + on }
+
+func joinParts(on string) string { return `LEFT JOIN ` + parts + ` pt ON ` + on }
+
+// compression is ", data_compression=page" when the partitions of the index
+// are compressed, ", data_compression=mixed" when they differ, and an empty
+// string for none. The compression is a property of a partition and not of a
+// column, so it is an option of the table or the index and never
+// Column.Compression. A clustered columnstore index is always compressed and
+// that is not an option.
+const compression = `CASE WHEN pt.lo = pt.hi AND pt.lo IN ('NONE', 'COLUMNSTORE') THEN ''` +
+	` WHEN pt.lo IS NULL THEN '' ELSE ', data_compression=' +` +
+	` LOWER(CASE WHEN pt.lo = pt.hi THEN pt.lo ELSE 'mixed' END) END`
+
+// rowSecurity is true when an enabled security policy has a predicate on the
+// object, which is how SQL Server turns row level security on. The predicate
+// applies to every user, the owner and a sysadmin included, so the same
+// expression answers row_security_forced. A policy that is switched off
+// restricts nothing. Security policies arrived in 2016.
+func rowSecurity(object string) string {
+	return `CAST(CASE WHEN EXISTS (SELECT 1 FROM sys.security_predicates sp` +
+		` JOIN sys.security_policies pol ON pol.object_id = sp.object_id` +
+		` WHERE sp.target_object_id = ` + object + ` AND pol.is_enabled = 1)` +
+		` THEN 1 ELSE 0 END AS bit)`
+}
+
+// isTemporary is true for a table in tempdb whose name begins with a number
+// sign, which is how SQL Server names a temporary table.
+func isTemporary(name string) string {
+	return `(DB_ID() = 2 AND ` + name + ` LIKE '#%')`
+}
+
+// storageOptions are the options of a table that are set on the table row
+// and are not the default, and the compression. The lock escalation default
+// is TABLE. They are joined with a comma and a space, as PostgreSQL joins its
+// own.
+func storageOptions(alias string) string {
+	return `NULLIF(STUFF(CASE WHEN ` + alias + `.lock_escalation_desc <> 'TABLE'` +
+		` THEN ', lock_escalation=' + LOWER(` + alias + `.lock_escalation_desc) ELSE '' END` +
+		` + ` + compression + `, 1, 2, ''), '')`
+}
+
 func registerRelations() {
 	dbmeta.Schemas.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
@@ -113,8 +195,57 @@ func registerRelations() {
 				{Min: v13, Query: `, ` + tableType + ` AS "type"`},
 			},
 			always(`, ` + commentOn("t.object_id") + ` AS "comment"`),
+			// A table has an owner of its own only when ALTER AUTHORIZATION
+			// set one, and principal_id is NULL otherwise, so the owner is
+			// the owner of the schema.
+			always(`, COALESCE(USER_NAME(t.principal_id), sp.name) AS "owner"`),
+			// durability arrived in 2014. A memory optimized table that keeps
+			// only its schema loses its rows at a restart, which is what
+			// PostgreSQL calls unlogged.
+			{
+				{Query: `, CASE WHEN ` + isTemporary("t.name") + ` THEN 'temporary' ELSE 'permanent' END AS "persistence"`},
+				{Min: v12, Query: `, CASE WHEN ` + isTemporary("t.name") + ` THEN 'temporary'` +
+					` WHEN t.durability = 1 THEN 'unlogged' ELSE 'permanent' END AS "persistence"`},
+			},
+			{
+				{Query: `, LOWER(i.type_desc) AS "access_method"`},
+				{Min: v12, Query: `, CASE WHEN t.is_memory_optimized = 1 THEN 'memory optimized'` +
+					` ELSE LOWER(i.type_desc) END AS "access_method"`},
+			},
+			// A memory optimized table has allocation units and no pages, and
+			// rows that are not in sys.partitions, so both are absent and
+			// never a zero.
+			{
+				{Query: `, CAST(NULL AS bigint) AS "size"`},
+				{Min: v11, Query: `, sz.pages * 8192 AS "size"`},
+				{Min: v12, Query: `, CASE WHEN t.is_memory_optimized = 1 THEN CAST(NULL AS bigint)` +
+					` ELSE sz.pages * 8192 END AS "size"`},
+			},
+			{
+				{Query: `, pt.row_count AS "rows"`},
+				{Min: v12, Query: `, CASE WHEN t.is_memory_optimized = 1 THEN CAST(NULL AS bigint)` +
+					` ELSE pt.row_count END AS "rows"`},
+			},
+			always(`, ` + storageOptions("t") + ` AS "options"`),
+			{
+				{Query: `, CAST(NULL AS bit) AS "row_security"`},
+				{Min: v13, Query: `, ` + rowSecurity("t.object_id") + ` AS "row_security"`},
+			},
+			{
+				{Query: `, CAST(NULL AS bit) AS "row_security_forced"`},
+				{Min: v13, Query: `, ` + rowSecurity("t.object_id") + ` AS "row_security_forced"`},
+			},
 			always(`FROM sys.tables t`),
 			always(`JOIN sys.schemas s ON s.schema_id = t.schema_id`),
+			always(`LEFT JOIN sys.database_principals sp ON sp.principal_id = s.principal_id`),
+			// A table is a heap, index 0, or has a clustered index, index 1,
+			// and never both. A clustered columnstore index is index 1.
+			always(`LEFT JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id IN (0, 1)`),
+			always(joinParts(`pt.object_id = t.object_id AND pt.index_id = i.index_id`)),
+			{
+				{Query: ``},
+				{Min: v11, Query: joinSpace(`sz.object_id = t.object_id AND sz.index_id = i.index_id`)},
+			},
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
 			always(`AND (@name = '' OR t.name LIKE @name)`),
@@ -123,9 +254,16 @@ func registerRelations() {
 				{Min: v13, Query: `AND (@types = '' OR ` + inTypes(tableType) + `)`},
 			},
 			always(`UNION ALL`),
-			always(`SELECT DB_NAME(), s.name, v.name, 'view', ` + commentOn("v.object_id")),
+			always(`SELECT DB_NAME(), s.name, v.name, 'view', ` + commentOn("v.object_id") +
+				`, COALESCE(USER_NAME(v.principal_id), sp.name), 'permanent', NULL, CAST(NULL AS bigint)` +
+				`, CAST(NULL AS bigint), NULL`),
+			{
+				{Query: `, CAST(NULL AS bit), CAST(NULL AS bit)`},
+				{Min: v13, Query: `, ` + rowSecurity("v.object_id") + `, ` + rowSecurity("v.object_id")},
+			},
 			always(`FROM sys.views v`),
 			always(`JOIN sys.schemas s ON s.schema_id = v.schema_id`),
+			always(`LEFT JOIN sys.database_principals sp ON sp.principal_id = s.principal_id`),
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
 			always(`AND (@name = '' OR v.name LIKE @name)`),
@@ -139,11 +277,39 @@ func registerRelations() {
 				Desc: "table, view, external table, or system versioned table for a temporal one",
 			},
 			{Name: "comment", Desc: "the MS_Description extended property, which is what SQL Server has instead of a comment"},
+			{Name: "owner", Desc: "the principal named by ALTER AUTHORIZATION, and the owner of the schema when none was"},
+			{
+				Name: "persistence",
+				Desc: "temporary for a table in tempdb that begins with a number sign, unlogged for a memory optimized table that keeps its schema only, and permanent otherwise",
+			},
+			{
+				Name: "access_method",
+				Desc: "heap, clustered or clustered columnstore, which is how the table is stored, and memory optimized. Absent for a view and an external table",
+			},
+			{
+				Name: "size", Min: v11,
+				Desc: "allocated bytes of the heap or the clustered index with its LOB, overflow and columnstore data, and not the other indexes. Absent for a view and a memory optimized table",
+			},
+			{Name: "rows", Desc: "the row count that sys.partitions keeps, summed over the partitions. It is approximate for a heap. Absent for a view"},
+			{
+				Name: "options",
+				Desc: "lock_escalation when it is not TABLE and data_compression when a partition is compressed, absent when neither is set",
+			},
+			{
+				Name: "row_security", Min: v13,
+				Desc: "true when an enabled security policy has a predicate on the table or the view",
+			},
+			{
+				Name: "row_security_forced", Min: v13,
+				Desc: "the same value: a security predicate applies to the owner and to a sysadmin",
+			},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows,
+				&v.Options, &v.RowSecurity, &v.RowSecurityForced)
 			return v, err
 		},
 	})
@@ -231,9 +397,48 @@ func registerRelations() {
 			always(`, i.is_unique AS "unique"`),
 			always(`, i.is_primary_key AS "primary"`),
 			always(`, ` + commentOn("i.object_id") + ` AS "comment"`),
+			// The index of a temporary table is temporary, and the index of a
+			// memory optimized table that keeps its schema only is unlogged.
+			{
+				{Query: `, CASE WHEN ` + isTemporary("o.name") + ` THEN 'temporary' ELSE 'permanent' END AS "persistence"`},
+				{Min: v12, Query: `, CASE WHEN ` + isTemporary("o.name") + ` THEN 'temporary'` +
+					` WHEN t.durability = 1 THEN 'unlogged' ELSE 'permanent' END AS "persistence"`},
+			},
+			{
+				{Query: `, CAST(NULL AS bigint) AS "size"`},
+				{Min: v11, Query: `, sz.pages * 8192 AS "size"`},
+				{Min: v12, Query: `, CASE WHEN t.is_memory_optimized = 1 THEN CAST(NULL AS bigint)` +
+					` ELSE sz.pages * 8192 END AS "size"`},
+			},
+			always(`, i.filter_definition AS "predicate"`),
+			always(`, CAST(CASE WHEN i.is_disabled = 0 AND i.is_hypothetical = 0 THEN 1 ELSE 0 END AS bit) AS "valid"`),
+			always(`, CAST(CASE WHEN i.type IN (1, 5) THEN 1 ELSE 0 END AS bit) AS "clustered"`),
+			// A primary key and a unique constraint own an index, and neither
+			// can be deferred. Any other index has no constraint.
+			always(`, CASE WHEN i.is_primary_key = 1 OR i.is_unique_constraint = 1 THEN CAST(0 AS bit) END AS "deferrable"`),
+			always(`, CASE WHEN i.is_primary_key = 1 OR i.is_unique_constraint = 1 THEN CAST(0 AS bit) END AS "initially_deferred"`),
+			always(`, NULLIF(STUFF(CASE WHEN i.fill_factor NOT IN (0, 100) THEN ', fillfactor=' +` +
+				` CAST(i.fill_factor AS varchar(3)) ELSE '' END` +
+				` + CASE WHEN i.is_padded = 1 THEN ', pad_index=on' ELSE '' END` +
+				` + CASE WHEN i.ignore_dup_key = 1 THEN ', ignore_dup_key=on' ELSE '' END` +
+				` + CASE WHEN i.type IN (1, 2) AND i.data_space_id <> 0 AND i.allow_row_locks = 0` +
+				` THEN ', allow_row_locks=off' ELSE '' END` +
+				` + CASE WHEN i.type IN (1, 2) AND i.data_space_id <> 0 AND i.allow_page_locks = 0` +
+				` THEN ', allow_page_locks=off' ELSE '' END` +
+				` + ` + compression + `, 1, 2, ''), '') AS "options"`),
+			always(`, CASE WHEN i.is_primary_key = 1 THEN 'p' WHEN i.is_unique_constraint = 1 THEN 'u' END AS "constraint_type"`),
 			always(`FROM sys.indexes i`),
 			always(`JOIN sys.objects o ON o.object_id = i.object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			{
+				{Query: ``},
+				{Min: v12, Query: `LEFT JOIN sys.tables t ON t.object_id = i.object_id`},
+			},
+			always(joinParts(`pt.object_id = i.object_id AND pt.index_id = i.index_id`)),
+			{
+				{Query: ``},
+				{Min: v11, Query: joinSpace(`sz.object_id = i.object_id AND sz.index_id = i.index_id`)},
+			},
 			// index_id 0 is the heap, which is the absence of an index
 			always(`WHERE i.index_id > 0 AND i.name IS NOT NULL`),
 			always(`AND ` + notSystem),
@@ -250,12 +455,29 @@ func registerRelations() {
 			},
 			{Name: "unique"}, {Name: "primary"},
 			{Name: "comment", Desc: "the extended property on the table, because SQL Server puts none on an index"},
+			{Name: "persistence", Desc: "temporary for the index of a temporary table, unlogged for one of a table that keeps its schema only, and permanent otherwise"},
+			{
+				Name: "size", Min: v11,
+				Desc: "allocated bytes of the index with its LOB, overflow and columnstore data. Absent for a memory optimized index",
+			},
+			{Name: "predicate", Desc: "the WHERE clause of a filtered index, as SQL Server stores it, and absent for an index that covers every row"},
+			{Name: "valid", Desc: "false for a disabled index, which the optimizer does not use, and for a hypothetical one"},
+			{Name: "clustered", Desc: "true for a clustered index and a clustered columnstore index, which hold the table itself"},
+			{Name: "deferrable", Desc: "false for the index of a key constraint, because SQL Server cannot defer one, and absent for any other index"},
+			{Name: "initially_deferred", Desc: "false, for the same reason"},
+			{
+				Name: "options",
+				Desc: "fillfactor, pad_index, ignore_dup_key, allow_row_locks and allow_page_locks when they are not the default, and data_compression when a partition is compressed",
+			},
+			{Name: "constraint_type", Desc: "p for a primary key and u for a unique constraint, and absent for any other index"},
 		},
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Persistence, &v.Size,
+				&v.Predicate, &v.Valid, &v.Clustered, &v.Deferrable, &v.InitiallyDeferred,
+				&v.Options, &v.ConstraintType)
 			return v, err
 		},
 	})
@@ -271,6 +493,7 @@ func registerRelations() {
 			// it key_ordinal 0, which is reported rather than hidden.
 			always(`, CASE WHEN ic.is_included_column = 1 THEN 'included' ELSE NULL END AS "expression"`),
 			always(`, ic.is_descending_key AS "descending"`),
+			always(`, ic.is_included_column AS "include"`),
 			always(`FROM sys.index_columns ic`),
 			always(`JOIN sys.indexes i ON i.object_id = ic.object_id AND i.index_id = ic.index_id`),
 			always(`JOIN sys.objects o ON o.object_id = ic.object_id`),
@@ -291,12 +514,13 @@ func registerRelations() {
 				Desc: "the word included for a column the index carries and does not sort by. SQL Server has no expression index",
 			},
 			{Name: "descending"},
+			{Name: "include", Desc: "true for an included column, which the index carries and does not sort by"},
 		},
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
 			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &v.Name, &v.Ordinal,
-				&v.Expression, &v.Descending)
+				&v.Expression, &v.Descending, &v.Include)
 			return v, err
 		},
 	})
@@ -318,6 +542,7 @@ func registerRelations() {
 			{{Min: v11, Query: `, q.is_cycling AS "cycles"`}},
 			{{Min: v11, Query: `, '' AS "owned_by"`}},
 			{{Min: v11, Query: `, ` + commentOn("q.object_id") + ` AS "comment"`}},
+			{{Min: v11, Query: `, CAST(q.cache_size AS bigint) AS "cache_size"`}},
 			{{Min: v11, Query: `FROM sys.sequences q`}},
 			{{Min: v11, Query: `JOIN sys.schemas s ON s.schema_id = q.schema_id`}},
 			{{Min: v11, Query: `JOIN sys.types ty ON ty.user_type_id = q.user_type_id`}},
@@ -336,12 +561,13 @@ func registerRelations() {
 				Desc: "always empty: a SQL Server sequence is independent of the column that reads it",
 			},
 			{Name: "comment"},
+			{Name: "cache_size", Desc: "the values a session takes at once, and absent when the sequence was made with no cache or with the default"},
 		},
 		Params: schemaNameSystem("sequence"),
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
 			var v dbmeta.Sequence
 			err := rows.Scan(&v.Schema, &v.Name, &v.DataType, &v.Start, &v.Minimum,
-				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment)
+				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.CacheSize)
 			return v, err
 		},
 	})
@@ -445,6 +671,7 @@ func registerConstraints() {
 			always(`, CAST(0 AS bit) AS "deferrable"`),
 			always(`, CAST(0 AS bit) AS "deferred"`),
 			always(`, ` + commentOn("k.object_id") + ` AS "comment"`),
+			always(`, CAST(1 AS bit) AS "enforced"`),
 			always(`FROM sys.key_constraints k`),
 			always(`JOIN sys.objects o ON o.object_id = k.parent_object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -455,7 +682,8 @@ func registerConstraints() {
 
 			always(`UNION ALL`),
 			always(`SELECT s.name, o.name, f.name, 'foreign key', NULL,` +
-				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("f.object_id")),
+				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("f.object_id") +
+				`, CAST(CASE WHEN f.is_disabled = 1 THEN 0 ELSE 1 END AS bit)`),
 			always(`FROM sys.foreign_keys f`),
 			always(`JOIN sys.objects o ON o.object_id = f.parent_object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -466,7 +694,8 @@ func registerConstraints() {
 
 			always(`UNION ALL`),
 			always(`SELECT s.name, o.name, c.name, 'check', c.definition,` +
-				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("c.object_id")),
+				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("c.object_id") +
+				`, CAST(CASE WHEN c.is_disabled = 1 THEN 0 ELSE 1 END AS bit)`),
 			always(`FROM sys.check_constraints c`),
 			always(`JOIN sys.objects o ON o.object_id = c.parent_object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -480,7 +709,8 @@ func registerConstraints() {
 			// see it in the DDL and Column.Default holds the same expression.
 			always(`UNION ALL`),
 			always(`SELECT s.name, o.name, d.name, 'default', d.definition,` +
-				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("d.object_id")),
+				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("d.object_id") +
+				`, CAST(1 AS bit)`),
 			always(`FROM sys.default_constraints d`),
 			always(`JOIN sys.objects o ON o.object_id = d.parent_object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -507,12 +737,16 @@ func registerConstraints() {
 			{Name: "deferrable", Desc: "always false: SQL Server has no deferred constraint"},
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment"},
+			{
+				Name: "enforced",
+				Desc: "false for a foreign key or a check constraint that was disabled with NOCHECK CONSTRAINT, and true for every other. A constraint that was enabled WITH NOCHECK is enforced for new rows and its is_not_trusted flag is not returned. See D206",
+			},
 		},
 		Params: schemaParentName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})

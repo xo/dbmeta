@@ -55,6 +55,11 @@ func registerExtra() {
 			always(`, CASE c.deferrable WHEN 'DEFERRABLE' THEN 1 ELSE 0 END AS "deferrable"`),
 			always(`, CASE c.deferred WHEN 'DEFERRED' THEN 1 ELSE 0 END AS "deferred"`),
 			always(`, NULL AS "comment"`),
+			// ENABLED checks every new row. DISABLED checks none, whether or not
+			// the constraint is also marked RELY. VALIDATED says whether the
+			// rows that were there before are known to satisfy it, and Enforced
+			// does not hold that. See D206.
+			always(`, CASE c.status WHEN 'ENABLED' THEN 1 ELSE 0 END AS "enforced"`),
 			always(`FROM all_constraints c`),
 			notSystem("WHERE", "c.owner"),
 			notGeneratedNotNull,
@@ -69,12 +74,16 @@ func registerExtra() {
 			{Name: "definition", Desc: "the check condition, absent for a key"},
 			{Name: "deferrable"}, {Name: "deferred"},
 			{Name: "comment", Desc: "always absent: Oracle records no comment on a constraint"},
+			{
+				Name: "enforced",
+				Desc: "true when the status is ENABLED, which checks every new row, and false for DISABLED. VALIDATED or NOT VALIDATED is not returned. See D206",
+			},
 		},
 		Params: childParams("table", "constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})
@@ -141,12 +150,35 @@ func registerExtra() {
 			always(`, CASE i.uniqueness WHEN 'UNIQUE' THEN 1 ELSE 0 END AS "unique"`),
 			// Oracle has no flag for this. An index is the primary key's when
 			// a primary key constraint names it.
-			always(`, CASE WHEN c.constraint_name IS NULL THEN 0 ELSE 1 END AS "primary"`),
+			always(`, CASE WHEN c.constraint_type = 'P' THEN 1 ELSE 0 END AS "primary"`),
 			always(`, NULL AS "comment"`),
+			always(`, i.owner AS "owner"`),
+			always(`, CASE WHEN i.temporary = 'Y' THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
+			// See Tables for why only an index of the connected user has a size.
+			always(`, CASE WHEN i.owner = USER THEN NVL(sg.bytes, 0) END AS "size"`),
+			// A partitioned index has a status of N/A, because each partition
+			// has its own, and that is no answer.
+			always(`, CASE i.status WHEN 'VALID' THEN 1 WHEN 'UNUSABLE' THEN 0 END AS "valid"`),
+			// An index organized table is stored in its primary key index.
+			always(`, CASE WHEN i.index_type LIKE 'IOT%' THEN 1 ELSE 0 END AS "clustered"`),
+			always(`, CASE c.deferrable WHEN 'DEFERRABLE' THEN 1 WHEN 'NOT DEFERRABLE' THEN 0 END AS "deferrable"`),
+			always(`, CASE c.deferred WHEN 'DEFERRED' THEN 1 WHEN 'IMMEDIATE' THEN 0 END AS "initially_deferred"`),
+			always(`, LTRIM(CASE WHEN i.visibility = 'INVISIBLE' THEN ', invisible' END`),
+			always(`  || CASE WHEN i.compression = 'ENABLED' THEN ', compress=' || i.prefix_length END`),
+			always(`  || CASE WHEN i.temporary = 'N' AND i.logging = 'NO' THEN ', nologging' END, ', ') AS "options"`),
+			always(`, LOWER(c.constraint_type) AS "constraint_type"`),
 			always(`FROM all_indexes i`),
-			always(`LEFT JOIN all_constraints c`),
+			// The constraint that owns the index, which is one row for each
+			// index. A primary key and a unique constraint can share an index,
+			// and then the primary key wins.
+			always(`LEFT JOIN (SELECT k.owner, k.index_name, MIN(k.constraint_type) AS constraint_type,`),
+			always(`    MIN(k.deferrable) AS deferrable, MIN(k.deferred) AS deferred`),
+			always(`  FROM all_constraints k WHERE k.constraint_type IN ('P', 'U') AND k.index_name IS NOT NULL`),
+			always(`  GROUP BY k.owner, k.index_name) c`),
 			always(`  ON c.owner = i.owner AND c.index_name = i.index_name`),
-			always(`  AND c.constraint_type = 'P'`),
+			always(`LEFT JOIN (SELECT s.segment_name, SUM(s.bytes) AS bytes FROM user_segments s`),
+			always(`  WHERE s.segment_type IN ('INDEX', 'INDEX PARTITION', 'INDEX SUBPARTITION')`),
+			always(`  GROUP BY s.segment_name) sg ON sg.segment_name = i.index_name`),
 			notSystem("WHERE", "i.owner"),
 			always(`AND (@schema IS NULL OR i.owner LIKE @schema)`),
 			always(`AND (@parent IS NULL OR i.table_name LIKE @parent)`),
@@ -159,12 +191,23 @@ func registerExtra() {
 			{Name: "unique"},
 			{Name: "primary", Desc: "true when a primary key constraint uses this index"},
 			{Name: "comment", Desc: "always absent: Oracle records no comment on an index"},
+			{Name: "owner", Desc: "the schema of the index"},
+			{Name: "persistence", Desc: "temporary for the index of a global temporary table, and permanent otherwise"},
+			{Name: "size", Desc: "bytes of the index segments, partitions included. Absent for an index of another schema than the connected user, as for Tables"},
+			{Name: "valid", Desc: "false for an UNUSABLE index and absent for a partitioned index, whose status is per partition"},
+			{Name: "clustered", Desc: "true for the primary key index of an index organized table, which holds the table"},
+			{Name: "deferrable", Desc: "of the primary key or unique constraint that owns the index, and absent for any other index"},
+			{Name: "initially_deferred", Desc: "of the same constraint"},
+			{Name: "options", Desc: "invisible, compress with the prefix length, and nologging, when they are set. Absent when none is"},
+			{Name: "constraint_type", Desc: "p for a primary key and u for a unique constraint, and absent for any other index"},
 		},
 		Params: childParams("table", "index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Owner, &v.Persistence, &v.Size,
+				&v.Valid, &v.Clustered, &v.Deferrable, &v.InitiallyDeferred,
+				&v.Options, &v.ConstraintType)
 			return v, err
 		},
 	})
@@ -219,6 +262,7 @@ func registerExtra() {
 			always(`, CASE s.cycle_flag WHEN 'Y' THEN 1 ELSE 0 END AS "cycles"`),
 			always(`, '' AS "owned_by"`),
 			always(`, NULL AS "comment"`),
+			always(`, s.cache_size AS "cache_size"`),
 			always(`FROM all_sequences s`),
 			notSystem("WHERE", "s.sequence_owner"),
 			always(`AND (@schema IS NULL OR s.sequence_owner LIKE @schema)`),
@@ -235,12 +279,14 @@ func registerExtra() {
 			{Name: "minimum"}, {Name: "maximum"}, {Name: "increment"}, {Name: "cycles"},
 			{Name: "owned_by", Desc: "always empty: an Oracle sequence is independent of any column"},
 			{Name: "comment", Desc: "always absent: Oracle records no comment on a sequence"},
+			{Name: "cache_size", Desc: "the values a session takes at once, and zero for NOCACHE"},
 		},
 		Params: schemaNameSystem("sequence"),
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
 			var v dbmeta.Sequence
 			err := rows.Scan(&v.Schema, &v.Name, &v.DataType, &v.Start, &v.Minimum,
-				&v.Maximum, &v.Increment, &v.Cycles, dbmeta.NullAsEmpty(&v.OwnedBy), &v.Comment)
+				&v.Maximum, &v.Increment, &v.Cycles, dbmeta.NullAsEmpty(&v.OwnedBy), &v.Comment,
+				&v.CacheSize)
 			return v, err
 		},
 	})

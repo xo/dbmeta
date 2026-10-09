@@ -161,9 +161,46 @@ func registerRelations() {
 			always(`, o.object_name AS "name"`),
 			always(`, ` + objectType + ` AS "type"`),
 			always(`, c.comments AS "comment"`),
+			// A table belongs to the schema and the schema is the user, so the
+			// owner of the table is the owner of the schema. See D206.
+			always(`, o.owner AS "owner"`),
+			always(`, CASE WHEN t.temporary = 'Y' THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
+			// An index organized table keeps its rows in its primary key index,
+			// and a table in a cluster keeps them with the other tables of the
+			// cluster. A view has no storage.
+			always(`, CASE WHEN t.table_name IS NULL THEN NULL`),
+			always(`    WHEN t.iot_type = 'IOT' THEN 'index organized'`),
+			always(`    WHEN t.cluster_name IS NOT NULL THEN 'cluster'`),
+			always(`    ELSE 'heap' END AS "access_method"`),
+			// USER_SEGMENTS is the only view of segments that every user can
+			// read, and it holds the segments of the user. DBA_SEGMENTS needs
+			// SELECT_CATALOG_ROLE, and a statement that names it fails for
+			// every user without it. So the size is known for a table of the
+			// connected user and absent for any other. A table that has no
+			// rows has no segment yet, from 11.2, and that is a size of zero.
+			always(`, CASE WHEN o.owner = USER AND t.table_name IS NOT NULL THEN NVL(sg.bytes, 0) END AS "size"`),
+			always(`, t.num_rows AS "rows"`),
+			always(`, LTRIM(CASE WHEN t.temporary = 'Y' THEN ', on_commit=' ||`),
+			always(`    CASE t.duration WHEN 'SYS$TRANSACTION' THEN 'delete_rows' ELSE 'preserve_rows' END END`),
+			always(`  || CASE WHEN t.temporary = 'N' AND t.logging = 'NO' THEN ', nologging' END`),
+			always(`  || CASE WHEN t.iot_type IS NULL AND t.pct_free NOT IN (0, 10) THEN ', pctfree=' || t.pct_free END`),
+			always(`  || CASE WHEN t.compression = 'ENABLED' THEN ', compress=' || LOWER(NVL(t.compress_for, 'basic')) END`),
+			always(`  || CASE WHEN t.row_movement = 'ENABLED' THEN ', row_movement' END`),
+			always(`  || CASE WHEN t.read_only = 'YES' THEN ', read_only' END, ', ') AS "options"`),
+			always(`, CASE WHEN pol.object_name IS NULL THEN 0 ELSE 1 END AS "row_security"`),
+			always(`, CASE WHEN pol.object_name IS NULL THEN 0 ELSE 1 END AS "row_security_forced"`),
 			always(`FROM all_objects o`),
 			always(`LEFT JOIN all_tab_comments c`),
 			always(`  ON c.owner = o.owner AND c.table_name = o.object_name`),
+			always(`LEFT JOIN all_tables t`),
+			always(`  ON t.owner = o.owner AND t.table_name = o.object_name`),
+			always(`LEFT JOIN (SELECT s.segment_name, SUM(s.bytes) AS bytes FROM user_segments s`),
+			always(`  WHERE s.segment_type IN ('TABLE', 'TABLE PARTITION', 'TABLE SUBPARTITION')`),
+			always(`  GROUP BY s.segment_name) sg ON sg.segment_name = o.object_name`),
+			// A virtual private database policy is on the object, and a policy
+			// that is switched off restricts nothing.
+			always(`LEFT JOIN (SELECT DISTINCT p.object_owner, p.object_name FROM all_policies p`),
+			always(`  WHERE p.enable = 'YES') pol ON pol.object_owner = o.owner AND pol.object_name = o.object_name`),
 			always(`WHERE o.object_type IN ('TABLE', 'VIEW')`),
 			// A nested table or an overflow segment is a table to the
 			// dictionary and not a table to a person.
@@ -178,11 +215,27 @@ func registerRelations() {
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "table or view"},
 			{Name: "comment", Desc: "the COMMENT ON TABLE, which Oracle keeps in its own view"},
+			{Name: "owner", Desc: "the schema, because the owner of a table is the user whose schema it is in"},
+			{Name: "persistence", Desc: "temporary for a global temporary table and permanent for every other relation"},
+			{Name: "access_method", Desc: "heap, index organized or cluster, and absent for a view"},
+			{
+				Name: "size",
+				Desc: "bytes of the table segments, partitions included, and not the indexes or the LOBs. Absent for a table of another schema than the connected user, because only USER_SEGMENTS is readable by every user",
+			},
+			{Name: "rows", Desc: "NUM_ROWS of the last statistics gathering, which is absent for a table that was never analyzed"},
+			{
+				Name: "options",
+				Desc: "on_commit for a temporary table, and nologging, pctfree, compress, row_movement and read_only when they are not the default. Absent when none is set",
+			},
+			{Name: "row_security", Desc: "true when an enabled virtual private database policy is on the object"},
+			{Name: "row_security_forced", Desc: "the same value: a policy applies to the owner of the table"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows,
+				&v.Options, &v.RowSecurity, &v.RowSecurityForced)
 			return v, err
 		},
 	})

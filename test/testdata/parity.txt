@@ -327,6 +327,8 @@ columns fewer rows than the administrator
 [oracle/same/local]
 current_schema the same rows with different values
 current_user the same rows with different values
+indexes the same rows with different values
+tables the same rows with different values
 
 [postgres/same/grantee]
 current_user the same rows with different values

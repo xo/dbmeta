@@ -139,7 +139,7 @@ var Everything = Fixture{
 		at("schema", `CREATE SCHEMA dbmeta_fixture`),
 
 		from("sequence", v11, `CREATE SEQUENCE dbmeta_fixture.counter
-	AS bigint START WITH 10 INCREMENT BY 2`),
+	AS bigint START WITH 10 INCREMENT BY 2 CACHE 20`),
 
 		// An alias type, which is what SQL Server has instead of a domain.
 		at("alias type", `CREATE TYPE dbmeta_fixture.shortname FROM nvarchar(64) NOT NULL`),
@@ -160,6 +160,13 @@ var Everything = Fixture{
 	CONSTRAINT title_not_empty CHECK (title <> '')
 )`),
 		at("book index", `CREATE INDEX book_published ON dbmeta_fixture.book (published)`),
+
+		// A filtered index with an included column and a fill factor, and an
+		// index that is disabled.
+		at("author index", `CREATE INDEX author_rating ON dbmeta_fixture.author (rating)
+	INCLUDE (name) WHERE rating IS NOT NULL WITH (FILLFACTOR = 70)`),
+		at("disabled index", `CREATE INDEX author_name_off ON dbmeta_fixture.author (name)`),
+		at("disable index", `ALTER INDEX author_name_off ON dbmeta_fixture.author DISABLE`),
 
 		at("view", `CREATE VIEW dbmeta_fixture.recent AS
 	SELECT book_id, title FROM dbmeta_fixture.book WHERE published IS NOT NULL`),
@@ -186,6 +193,41 @@ var Everything = Fixture{
 	title nvarchar(255) NOT NULL,
 	slug AS LOWER(title) PERSISTED
 )`),
+
+		// A check constraint that is switched off, which SQL Server does not
+		// enforce on a new row.
+		at("extras check", `ALTER TABLE dbmeta_fixture.extras
+	ADD CONSTRAINT extras_title_check CHECK (title <> 'x')`),
+		at("disable extras check", `ALTER TABLE dbmeta_fixture.extras
+	NOCHECK CONSTRAINT extras_title_check`),
+
+		// A table in three partitions, compressed. The partition function and
+		// the scheme belong to the database and not to a schema, so they carry
+		// the name of the fixture.
+		at("partition function", `CREATE PARTITION FUNCTION dbmeta_fixture_pf (int)
+	AS RANGE RIGHT FOR VALUES (100, 200)`),
+		at("partition scheme", `CREATE PARTITION SCHEME dbmeta_fixture_ps
+	AS PARTITION dbmeta_fixture_pf ALL TO ([PRIMARY])`),
+		at("sales table", `CREATE TABLE dbmeta_fixture.sales (
+	sale_id int NOT NULL,
+	amount int NOT NULL
+) ON dbmeta_fixture_ps (sale_id) WITH (DATA_COMPRESSION = PAGE)`),
+		at("sales rows", `INSERT INTO dbmeta_fixture.sales (sale_id, amount) VALUES (1, 5), (150, 6), (151, 7), (250, 8)`),
+
+		// Row level security, from 2016: a filter and two block predicates on
+		// one table, through an inline function.
+		from("secret table", v13, `CREATE TABLE dbmeta_fixture.secret (
+	secret_id int NOT NULL,
+	owner_name sysname NOT NULL
+)`),
+		from("secret function", v13, `CREATE FUNCTION dbmeta_fixture.secret_check(@owner sysname)
+RETURNS TABLE WITH SCHEMABINDING
+AS RETURN SELECT 1 AS allowed WHERE @owner = USER_NAME()`),
+		from("secret policy", v13, `CREATE SECURITY POLICY dbmeta_fixture.secret_policy
+	ADD FILTER PREDICATE dbmeta_fixture.secret_check(owner_name) ON dbmeta_fixture.secret,
+	ADD BLOCK PREDICATE dbmeta_fixture.secret_check(owner_name) ON dbmeta_fixture.secret AFTER INSERT,
+	ADD BLOCK PREDICATE dbmeta_fixture.secret_check(owner_name) ON dbmeta_fixture.secret BEFORE DELETE
+	WITH (STATE = ON)`),
 
 		at("procedure", `CREATE PROCEDURE dbmeta_fixture.addup
 	@a int, @b int, @total int OUTPUT
@@ -239,6 +281,14 @@ END`),
 		at("analyze", `UPDATE STATISTICS dbmeta_fixture.author`),
 	},
 	Teardown: []Step{
+		from("drop secret policy", v13, `DROP SECURITY POLICY IF EXISTS dbmeta_fixture.secret_policy`),
+		from("drop secret function", v13, `DROP FUNCTION IF EXISTS dbmeta_fixture.secret_check`),
+		from("drop secret", v13, `DROP TABLE IF EXISTS dbmeta_fixture.secret`),
+		drop("drop sales", "TABLE", "dbmeta_fixture.sales"),
+		at("drop partition scheme", `IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = 'dbmeta_fixture_ps')
+	DROP PARTITION SCHEME dbmeta_fixture_ps`),
+		at("drop partition function", `IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = 'dbmeta_fixture_pf')
+	DROP PARTITION FUNCTION dbmeta_fixture_pf`),
 		drop("drop trigger", "TRIGGER", "dbmeta_fixture.book_touch"),
 		drop("drop function", "FUNCTION", "dbmeta_fixture.shout"),
 		drop("drop procedure", "PROCEDURE", "dbmeta_fixture.addup"),

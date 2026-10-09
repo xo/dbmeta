@@ -32,8 +32,8 @@ rather than reading one.
 | `models/mysql` | 30 on MariaDB, 27 on MySQL | 65 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
 | `models/sqlite3` | 14 | 65 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
 | `models/duckdb` | 20 | 65 | duckdb/duckdb-go, the driver usql uses |
-| `models/sqlserver` | 32 | 65 | SQL Server 2017, 2019, 2022 and 2025 |
-| `models/oracle` | 26 | 65 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
+| `models/sqlserver` | 34 | 65 | SQL Server 2017, 2019, 2022 and 2025 |
+| `models/oracle` | 29 | 65 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 65 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
 | `models/clickhouse` | 23 | 65 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
 | `models/trino` | 13 | 65 | Trino 476 and 483 |
@@ -2552,7 +2552,7 @@ replication.
 
 ## Microsoft SQL Server
 
-SQL Server answers 32 of the 65, as many as SAP HANA and fewer than only
+SQL Server answers 34 of the 65, more than SAP HANA and fewer than only
 PostgreSQL and CockroachDB, which shares the PostgreSQL model. It is the only
 one of its own model with roles, privileges, tablespaces and DDL triggers, and
 the only one that keeps comments in a catalog of their own rather than on the
@@ -2576,11 +2576,12 @@ against a real server rather than a version set:
 
 | Release | Answers | Refused as too old |
 | --- | --- | --- |
-| 2016 and newer | 32 | none |
-| 2014, 2012 | 31 | `ForeignTables` |
-| 2008 R2 | 29 | `ForeignTables`, `Sequences`, `ColumnStats` |
+| 2016 and newer | 34 | none |
+| 2014, 2012 | 32 | `ForeignTables`, `Policies` |
+| 2008 R2 | 30 | `ForeignTables`, `Policies`, `Sequences`, `ColumnStats` |
 
-`ForeignTables` reads `sys.external_tables`, which arrived in 2016. `Sequences`
+`ForeignTables` reads `sys.external_tables`, and `Policies` reads
+`sys.security_policies`, which both arrived in 2016. `Sequences`
 and `ColumnStats` read `sys.sequences` and `sys.dm_db_stats_properties`, which
 arrived in 2012. Each is refused with `ErrVersionTooOld` rather than returning
 nothing, which is the whole point of the gate.
@@ -2615,6 +2616,37 @@ the condition around it says.
 The count is four faults from four machines, all of them in the part of the
 model that no container can reach.
 
+### The describe fields of D206
+
+Every field below is read by one statement and was run on 2017, 2019, 2022 and
+2025. D206 holds the audit, the meaning of each field, the cost and the
+differences between releases.
+
+| Kind | Field | Filled from | NULL or false when |
+| --- | --- | --- | --- |
+| Tables | `Owner` | `sys.tables.principal_id`, or the owner of the schema | never |
+| Tables | `Persistence` | temporary in tempdb, unlogged for a schema only memory optimized table | never |
+| Tables | `AccessMethod` | `sys.indexes.type_desc`: heap, clustered, clustered columnstore | a view and an external table |
+| Tables | `Size` | `sys.allocation_units` through `sys.partitions` and `sys.internal_partitions`, in bytes | a view, a memory optimized table, and below 2012 |
+| Tables | `Rows` | `sys.partitions.rows`, summed | a view and a memory optimized table |
+| Tables | `Options` | lock escalation and data compression | none set |
+| Tables | `RowSecurity`, `RowSecurityForced` | an enabled security policy with a predicate | below 2016. A reader that cannot see the policy reads false |
+| Indexes | `Persistence`, `Size`, `Predicate`, `Valid`, `Clustered`, `Options` | `sys.indexes` and the allocation units | `Predicate` for an index that is not filtered. `Size` for a disabled index |
+| Indexes | `Deferrable`, `InitiallyDeferred`, `ConstraintType` | false, false and p or u for the index of a key constraint | any other index |
+| IndexColumns | `Include` | `is_included_column` | never |
+| Constraints | `Enforced` | `NOT is_disabled` | never |
+| Sequences | `CacheSize` | `sys.sequences.cache_size` | a sequence with no cache |
+| PartitionedTables | `Owner`, `AccessMethod`, `DirectSize`, `TotalSize` | as for Tables | as for Tables |
+| Partitions | the whole kind | `sys.partitions` and the partition function | never. A partition has a number and no name |
+| Policies | the whole kind | `sys.security_policies` and `sys.security_predicates` | below 2016. A policy that is off is not a row |
+
+No source exists for `Column.Storage`, `Compression` and `StatsTarget`,
+`Index.Owner`, `ReplicaIdentity`, `Definition` and `Using`, `Function.Prosrc`,
+`NotNulls` and `Inherits`. A column has no storage mode, and a compression is a
+property of a partition and appears in `Options`. A SQL Server index has no
+owner and no function writes its statement. A NOT NULL has no name, and tables
+do not inherit.
+
 ### The sys schema, not information_schema
 
 SQL Server ships both, and the `sys` views carry what `information_schema`
@@ -2629,7 +2661,8 @@ constraint columns, sequences, views, triggers, event triggers, comments,
 types, domains, collations, functions, aggregates, routine parameters, roles,
 role grants, privileges, tablespaces, partitioned tables, foreign servers, user
 mappings, foreign tables, column statistics, extended statistics, settings, the
-current schema and the current user.
+current schema and the current user. D206 added the partitions and the row
+level security policies.
 
 Four are worth naming. `Comments` reads `sys.extended_properties` for the
 `MS_Description` property, which is the convention every SQL Server tool uses
@@ -2726,7 +2759,8 @@ there is no object with an identity and an owner of its own to list.
 
 ## Oracle
 
-Oracle answers 26 of the 65. Every one is verified on six releases.
+Oracle answers 29 of the 65. Every one is verified on six releases, apart from
+the three that D206 added, which were run on 11g, 21c, 23ai and 26ai.
 
 It needs no Windows and no virtual machine, which is the opposite of SQL
 Server. The free Express images reach back to 11g Release 2 from 2010, so every
@@ -2745,7 +2779,37 @@ Verified on 11g, 18c, 19c, 21c, 23ai and 26ai. Every release runs 25 of them
 and each returns the number of columns it declares. `Domains` is the
 twenty-sixth and needs 23ai, where the SQL domain and `ALL_DOMAINS` arrived,
 so 23ai and 26ai run all 26 and the four older releases report that the server
-is too old.
+is too old. D206 added `Partitions`, `Policies` and `NotNulls`. `NotNulls`
+needs 12c, so 11g runs 27, 12c to 21c run 28 and 23ai and 26ai run all 29.
+Express 11g has no partitioning and no virtual private database, so `Partitions`
+and `Policies` answer no rows there.
+
+### The describe fields of D206
+
+D206 holds the audit, the meaning of each field, the cost and the differences
+between releases. 11g, 21c, 23ai and 26ai ran. 18c and 19c did not.
+
+| Kind | Field | Filled from | NULL or false when |
+| --- | --- | --- | --- |
+| Tables | `Owner` | the schema, because a table belongs to the user | never |
+| Tables | `Persistence` | `temporary` | never |
+| Tables | `AccessMethod` | `iot_type` and `cluster_name`: heap, index organized, cluster | a view |
+| Tables | `Size` | `user_segments`, summed | a table of another schema than the connected user, and a view |
+| Tables | `Rows` | `all_tables.num_rows` | a table that was never analyzed, and a view |
+| Tables | `Options` | on_commit, nologging, pctfree, compress, row_movement, read_only | none set |
+| Tables | `RowSecurity`, `RowSecurityForced` | an enabled policy in `all_policies` | a reader that cannot see the policy reads false |
+| Indexes | `Owner`, `Persistence`, `Size`, `Valid`, `Clustered`, `Options` | `all_indexes` and `user_segments` | `Size` for an index of another schema. `Valid` for a partitioned index |
+| Indexes | `Deferrable`, `InitiallyDeferred`, `ConstraintType` | the primary key or unique constraint that owns the index | any other index |
+| Constraints | `Enforced` | `status = 'ENABLED'` | never |
+| Sequences | `CacheSize` | `all_sequences.cache_size` | never |
+| Partitions | the whole kind | `all_tab_partitions` with `high_value` | a table with no partitions. Subpartitions are not rows |
+| Policies | the whole kind | `all_policies`. The function is the expression | a disabled policy is not a row |
+| NotNulls | the whole kind | `all_constraints` of type C with `"COLUMN" IS NOT NULL` | refused below 12c |
+
+No source exists for `Column.Storage`, `Compression` and `StatsTarget`,
+`Index.Predicate`, `Definition` and `Using`, `Function.Prosrc` and `Inherits`.
+`DBA_SEGMENTS` and `DBA_POLICIES` need a role and are not read, so a size is
+known for the connected user only.
 
 ### Which user the tests run as
 

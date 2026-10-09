@@ -157,8 +157,60 @@ var Everything = Fixture{
 		// with an index of its own, so a second index on title is ORA-01408,
 		// "such column list already indexed". This one has to be a column no
 		// constraint already covers to be a distinct index at all.
-		at("index", `CREATE INDEX book_published_ix ON dbmeta_fixture.book (published)`),
-		at("sequence", `CREATE SEQUENCE dbmeta_fixture.counter START WITH 10 INCREMENT BY 2`),
+		at("index", `CREATE INDEX dbmeta_fixture.book_published_ix ON dbmeta_fixture.book (published)`),
+		at("sequence", `CREATE SEQUENCE dbmeta_fixture.counter START WITH 10 INCREMENT BY 2 CACHE 20`),
+
+		// An index that the optimizer does not see, and one that cannot be
+		// used, on the extras table that the cross family test does not read.
+		at("invisible index", `CREATE INDEX dbmeta_fixture.extras_label_ix ON dbmeta_fixture.extras (label) INVISIBLE`),
+		at("unusable index", `CREATE INDEX dbmeta_fixture.extras_shouted_ix ON dbmeta_fixture.extras (shouted)`),
+		at("make unusable", `ALTER INDEX dbmeta_fixture.extras_shouted_ix UNUSABLE`),
+		// A check constraint that is switched off, which Oracle does not
+		// enforce on a new row.
+		at("disabled check", `ALTER TABLE dbmeta_fixture.extras
+	ADD CONSTRAINT extras_label_ck CHECK (label <> 'x') DISABLE`),
+
+		// A temporary table, a table kept in its primary key index, and a
+		// table with storage options.
+		at("temporary table", `CREATE GLOBAL TEMPORARY TABLE dbmeta_fixture.scratch (id NUMBER)
+	ON COMMIT DELETE ROWS`),
+		at("index organized table", `CREATE TABLE dbmeta_fixture.lookup (
+	code VARCHAR2(10) PRIMARY KEY,
+	meaning VARCHAR2(40)
+) ORGANIZATION INDEX`),
+		at("logbook table", `CREATE TABLE dbmeta_fixture.logbook (id NUMBER) PCTFREE 20 NOLOGGING`),
+		at("logbook rows", `INSERT INTO dbmeta_fixture.logbook SELECT LEVEL FROM dual CONNECT BY LEVEL <= 100`),
+
+		// Partitioning is an option that Express does not have, so the step
+		// catches its own refusal and the tests look for the table.
+		ignoring("sales table", `CREATE TABLE dbmeta_fixture.sales (
+	sale_id NUMBER(10),
+	amount NUMBER(10)
+) PARTITION BY RANGE (sale_id) (
+	PARTITION sales_p1 VALUES LESS THAN (100),
+	PARTITION sales_p2 VALUES LESS THAN (200),
+	PARTITION sales_pmax VALUES LESS THAN (MAXVALUE)
+)`),
+
+		// A virtual private database policy. DBMS_RLS needs the Enterprise
+		// option, so the steps that use it catch the refusal too.
+		at("secret table", `CREATE TABLE dbmeta_fixture.secret (
+	secret_id NUMBER(10),
+	owner_name VARCHAR2(30)
+)`),
+		at("secret function", `CREATE FUNCTION dbmeta_fixture.secret_check (schema_name IN VARCHAR2, table_name IN VARCHAR2)
+RETURN VARCHAR2 IS
+BEGIN
+	RETURN '1 = 1';
+END;`),
+		at("secret policy", `BEGIN
+	DBMS_RLS.ADD_POLICY(
+		object_schema => 'DBMETA_FIXTURE', object_name => 'SECRET',
+		policy_name => 'SECRET_POLICY', function_schema => 'DBMETA_FIXTURE',
+		policy_function => 'SECRET_CHECK', statement_types => 'SELECT,INSERT,UPDATE',
+		update_check => TRUE);
+EXCEPTION WHEN OTHERS THEN NULL;
+END;`),
 
 		at("table comment", `COMMENT ON TABLE dbmeta_fixture.author IS 'people who write'`),
 		at("column comment", `COMMENT ON COLUMN dbmeta_fixture.author.name IS 'what they are called'`),

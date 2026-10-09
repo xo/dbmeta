@@ -30,15 +30,16 @@
 //
 // # What it answers
 //
-// 26 of the 65. Schemas, tables, columns, indexes, index columns,
+// 29 of the 65. Schemas, tables, columns, indexes, index columns,
 // constraints, constraint columns, sequences, views, the current schema and
 // the current user. Then comments, triggers, event triggers, functions,
 // aggregates, routine parameters, types, domains, operators, privileges,
-// column statistics, extended statistics, partitioned tables, foreign servers
-// and foreign tables.
+// column statistics, extended statistics, partitioned tables, partitions,
+// policies, NOT NULL constraints, foreign servers and foreign tables.
 //
-// Domains needs 23ai, where the SQL domain and ALL_DOMAINS arrived. Every
-// other one answers on every release from 11g up.
+// Domains needs 23ai, where the SQL domain and ALL_DOMAINS arrived. NotNulls
+// needs 12c, where search_condition_vc arrived. Every other one answers on
+// every release from 11g up. See D206.
 //
 // See docs/COVERAGE.md for what is not written yet and why.
 //
@@ -98,6 +99,7 @@ func init() {
 	registerRoutines()
 	registerTables()
 	registerCatalog()
+	registerSections()
 }
 
 // bindValue binds a bool as 1 or 0. Oracle has no boolean before 23ai,

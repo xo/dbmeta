@@ -77,6 +77,8 @@ func TestGatedQueriesResolveBelowTheFloor(t *testing.T) {
 		{"ColumnStats", 11, "sys.dm_db_stats_properties", dbmeta.ColumnStats.Build},
 		// sys.external_tables arrived in 2016
 		{"ForeignTables", 13, "sys.external_tables", dbmeta.ForeignTables.Build},
+		// sys.security_policies arrived in 2016
+		{"Policies", 13, "sys.security_policies", dbmeta.Policies.Build},
 	} {
 		for _, r := range releases {
 			sql, _, err := c.sql(at(t, r.major), dbmeta.Args{}.Map())
@@ -94,6 +96,50 @@ func TestGatedQueriesResolveBelowTheFloor(t *testing.T) {
 			if !strings.Contains(sql, c.view) {
 				t.Errorf("%s on SQL Server %s: expected the query to read %s, got:\n%s",
 					c.name, r.name, c.view, sql)
+			}
+		}
+	}
+}
+
+// TestDescribeFieldsNameNothingTheReleaseLacks checks that the statements of
+// Tables and Indexes name no catalog column or view that an older release has
+// not got, and that they return the same columns on every release. The
+// memory optimized columns arrived in 2014, the allocation of columnstore data
+// and sys.internal_partitions in 2012, and the security predicates in 2016.
+// See D206.
+func TestDescribeFieldsNameNothingTheReleaseLacks(t *testing.T) {
+	t.Parallel()
+	for _, q := range []struct {
+		name  string
+		build func(*dbmeta.Meta, map[string]any) (string, []any, error)
+		// lacks names what each major release below the key does not have
+		lacks map[uint32][]string
+	}{
+		{"Tables", dbmeta.Tables.Build, map[uint32][]string{
+			11: {"internal_partitions", "allocation_units"},
+			12: {"is_memory_optimized", "durability"},
+			13: {"security_predicates", "security_policies"},
+		}},
+		{"Indexes", dbmeta.Indexes.Build, map[uint32][]string{
+			11: {"internal_partitions", "allocation_units"},
+			12: {"is_memory_optimized", "durability"},
+		}},
+	} {
+		for _, r := range releases {
+			sql, _, err := q.build(at(t, r.major), dbmeta.Args{}.Map())
+			if err != nil {
+				t.Fatalf("resolving %s on SQL Server %s: %v", q.name, r.name, err)
+			}
+			for first, names := range q.lacks {
+				if r.major >= first {
+					continue
+				}
+				for _, bad := range names {
+					if strings.Contains(sql, bad) {
+						t.Errorf("%s on SQL Server %s names %s, which arrived in release %d:\n%s",
+							q.name, r.name, bad, first, sql)
+					}
+				}
 			}
 		}
 	}
@@ -146,7 +192,7 @@ func TestTablesPadsBelowTheFloor(t *testing.T) {
 
 // TestOnlyTheGatedQueriesDependOnTheRelease checks that nothing else quietly
 // depends on a release. The queries that build on 2008 R2 must be the ones
-// that build on 2025, less exactly the three a gate names.
+// that build on 2025, less exactly the four a gate names.
 //
 // It compares two sets rather than counting, so a query that silently needs a
 // modern catalog view fails here and is named.
@@ -166,7 +212,7 @@ func TestOnlyTheGatedQueriesDependOnTheRelease(t *testing.T) {
 		return out
 	}
 	newest, oldest := builds(17), builds(10)
-	gated := map[string]bool{"sequences": true, "column_stats": true, "foreign_tables": true}
+	gated := map[string]bool{"sequences": true, "column_stats": true, "foreign_tables": true, "policies": true}
 
 	for name := range newest {
 		switch {
@@ -182,9 +228,9 @@ func TestOnlyTheGatedQueriesDependOnTheRelease(t *testing.T) {
 			t.Errorf("%s builds on SQL Server 2008 R2 and not on 2025", name)
 		}
 	}
-	// 32 of the 65, which is the number docs/COVERAGE.md and the package
+	// 34 of the 65, which is the number docs/COVERAGE.md and the package
 	// comment both quote. It is here so that changing it is deliberate.
-	if want := 32; len(newest) != want {
+	if want := 34; len(newest) != want {
 		t.Errorf("expected %d queries on SQL Server 2025, got %d", want, len(newest))
 	}
 }

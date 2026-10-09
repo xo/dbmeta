@@ -224,3 +224,4 @@ file.
 | [D203](D203-snowflake-reads-the-columns-of-a-key-through-the-pipe-operator.md) | Snowflake reads the columns of a key through the pipe operator | Amends D190 and D193 |
 | [D204](D204-redshift-answers-the-grants-and-the-roles-and-takes-every-password.md) | Redshift answers the grants and the roles, and takes every password | Amends D182 |
 | [D205](D205-the-mysql-family-fills-the-new-fields-of-d198-to-d203.md) | The MySQL family fills the new fields of D198 to D203 | Decided |
+| [D206](D206-sql-server-and-oracle-fill-the-describe-fields.md) | SQL Server and Oracle fill the describe fields | Decided |

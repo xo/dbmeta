@@ -170,3 +170,24 @@ on 12.3. D205 reads `Column.Compression` from that comment and did not change
 picks, and a keyspace with several shards holds the rest elsewhere. A sum over
 the shards needs vtgate to run one statement on every shard, which it does not
 do for `information_schema`.
+### A Validated field on Constraint
+
+D206 fills `Constraint.Enforced` for SQL Server and Oracle as "the server checks
+a new row". Both products also say whether the rows that were already there are
+known to satisfy the constraint: `is_not_trusted` on SQL Server and `VALIDATED`
+on Oracle. PostgreSQL has `convalidated`. No field carries it on `Constraint`.
+Add `Validated sql.Null[bool]` to the root type and fill it in the three models.
+`NotNull.Validated` already exists.
+
+### Policy has no field for a disabled policy
+
+SQL Server (`is_enabled`) and Oracle (`ENABLE`) keep a policy that is switched
+off. D206 leaves such a policy out of `Policies`, because a row says that
+the policy is active. A field `Enabled` on `Policy` lets both models return it.
+
+### Oracle sizes of partitioned tables and subpartitions
+
+`PartitionedTable.DirectSize` and `TotalSize` are NULL on Oracle, and
+`Partitions` has no rows for subpartitions (D206). A size needs the connected
+user and a sum over `USER_SEGMENTS`. A subpartition needs a kind that is not a
+LONG in a UNION.
