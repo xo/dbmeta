@@ -105,6 +105,14 @@ var Everything = Fixture{
 )`),
 		at("view", `CREATE VIEW dbmeta_fixture.recent AS
 	SELECT book_id, title FROM dbmeta_fixture.book WHERE published IS NOT NULL`),
+		// A transient table with a clustering key and no time travel, and
+		// three rows, for the fields of Table (D207).
+		at("transient table", `CREATE TRANSIENT TABLE dbmeta_fixture.events (
+	event_id INTEGER,
+	happened TIMESTAMP_NTZ
+) CLUSTER BY (event_id) DATA_RETENTION_TIME_IN_DAYS = 0`),
+		at("author rows", `INSERT INTO dbmeta_fixture.author (name, rating)`+
+			` VALUES ('Ursula', 5), ('Octavia', 4), ('Iain', 4)`),
 		at("sequence", `CREATE SEQUENCE dbmeta_fixture.counter START = 10 INCREMENT = 2`),
 		at("function", `CREATE FUNCTION dbmeta_fixture.shout(s VARCHAR) RETURNS VARCHAR`+
 			` AS 'UPPER(s)'`),

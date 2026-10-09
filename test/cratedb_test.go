@@ -342,3 +342,69 @@ func TestCrateDBFixtureObjects(t *testing.T) {
 		count(name, n, err)
 	}
 }
+
+// TestCrateDBDescribeFields reads the fields that D198 and D199 added, for
+// the kinds CrateDB has a source for (D207). It has no owner, no persistence
+// choice, no access method, and no size or row count that a statement can read
+// for every user at a cost that follows the rows returned. It has the settings
+// of a table, the partitions of a table with their values, and the flags of a
+// primary key index.
+func TestCrateDBDescribeFields(t *testing.T) {
+	db := openCrateDB(t)
+	ctx := t.Context()
+	m := setupCrateDB(t, db)
+
+	tables := map[string]dbmeta.Table{}
+	for v, err := range dbmeta.Tables.All(ctx, m, db, crArgs()) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		tables[v.Name] = v
+		if v.Owner.Valid || v.Persistence.Valid || v.AccessMethod.Valid || v.Size.Valid || v.Rows.Valid {
+			t.Errorf("%s: expected no owner, persistence, access method, size or rows, got %+v", v.Name, v)
+		}
+	}
+	author := tables["author"]
+	wantOptions := "number_of_shards=4, number_of_replicas=0-1, clustered_by=author_id, column_policy=strict"
+	if author.Options.V != wantOptions {
+		t.Errorf("author: expected the options %q, got %q", wantOptions, author.Options.V)
+	}
+	if !strings.Contains(tables["sales"].Options.V, "partitioned_by=year") {
+		t.Errorf("sales: expected partitioned_by in the options, got %q", tables["sales"].Options.V)
+	}
+	if recent := tables["recent"]; recent.Options.Valid {
+		t.Errorf("recent: a view has no options, got %+v", recent.Options)
+	}
+
+	bounds := map[string]string{}
+	args := dbmeta.Args{Schema: crfixture.Everything.Schema, Parent: "sales"}.Map()
+	for v, err := range dbmeta.Partitions.All(ctx, m, db, args) {
+		if err != nil {
+			t.Fatalf("reading partitions: %v", err)
+		}
+		if v.Table != "sales" || v.Partitioned || v.DetachPending || !strings.HasPrefix(v.Partition, ".partitioned.sales.") {
+			t.Errorf("unexpected partition %+v", v)
+		}
+		bounds[v.Bound.V] = v.Partition
+	}
+	if len(bounds) != 2 || bounds[`{"year":2024}`] == "" || bounds[`{"year":2025}`] == "" {
+		t.Errorf("expected the partitions for 2024 and 2025, got %v", bounds)
+	}
+
+	var keys int
+	for v, err := range dbmeta.Indexes.All(ctx, m, db, crArgs()) {
+		if err != nil {
+			t.Fatalf("reading indexes: %v", err)
+		}
+		if !v.Primary {
+			continue
+		}
+		keys++
+		if !v.Valid.Valid || !v.Valid.V || v.Clustered.V || v.ReplicaIdentity.V || v.ConstraintType.V != "p" {
+			t.Errorf("%s: expected a valid primary key index, got %+v", v.Name, v)
+		}
+	}
+	if keys == 0 {
+		t.Error("expected primary key indexes")
+	}
+}

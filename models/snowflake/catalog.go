@@ -52,6 +52,17 @@ const tableType = `CASE t.table_type WHEN 'BASE TABLE' THEN` +
 	` WHEN t.is_transient = 'YES' THEN 'transient table' ELSE 'table' END` +
 	` ELSE LOWER(t.table_type) END`
 
+// persistence is Table.Persistence. A view has none, and a transient table
+// has no fail safe period, which is the nearest word to PostgreSQL's unlogged.
+const persistence = `CASE WHEN t.table_type IN ('VIEW', 'MATERIALIZED VIEW') THEN NULL` +
+	` WHEN t.is_temporary = 'YES' THEN 'temporary'` +
+	` WHEN t.is_transient = 'YES' THEN 'transient' ELSE 'permanent' END`
+
+// tableOptions is Table.Options. A view has no retention time and no key.
+const tableOptions = `CASE WHEN t.retention_time IS NULL THEN NULL` +
+	` ELSE 'retention_time=' || t.retention_time::VARCHAR` +
+	` || CASE WHEN t.clustering_key IS NULL THEN '' ELSE ', cluster_by=' || t.clustering_key END END`
+
 // piped is a chain of SHOW statements and the select that reads them, as one
 // statement. SHOW is not a table, but Snowflake chains a statement onto it
 // with the pipe operator, and the select after it reads the result of the
@@ -216,6 +227,11 @@ func registerRelations() {
 			always(`, t.table_name AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
 			always(`, t.comment AS "comment"`),
+			always(`, t.table_owner AS "owner"`),
+			always(`, ` + persistence + ` AS "persistence"`),
+			always(`, t.bytes::BIGINT AS "size"`),
+			always(`, t.row_count::BIGINT AS "rows"`),
+			always(`, ` + tableOptions + ` AS "options"`),
 			always(`FROM information_schema.tables t`),
 			always(`WHERE ` + notSystem("t.table_schema")),
 			always(`AND ` + like("t.table_schema", "@schema")),
@@ -227,11 +243,17 @@ func registerRelations() {
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "table, transient table, dynamic table, iceberg table, hybrid table, view, materialized view, external table or event table, from table_type and the flags beside it"},
 			{Name: "comment"},
+			{Name: "owner", Desc: "TABLE_OWNER, the role that owns the table. Absent for a view the role does not own"},
+			{Name: "persistence", Desc: "permanent, transient or temporary. Absent for a view. Snowflake has no unlogged table"},
+			{Name: "size", Desc: "BYTES, the bytes of active data. Absent for a view, and a bound, because time travel and fail safe data are not counted"},
+			{Name: "rows", Desc: "ROW_COUNT, which Snowflake keeps and does not estimate. Absent for a view"},
+			{Name: "options", Desc: "retention_time in days and cluster_by when a clustering key is set, as the CREATE TABLE clauses name them. Absent for a view"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})
@@ -578,6 +600,7 @@ func routineStmt() dbmeta.Stmt {
 		always(`, f.function_definition AS "source"`),
 		always(`, f.comment AS "comment"`),
 		always(`, NULL AS "definition"`),
+		always(`, f.function_definition AS "prosrc"`),
 		always(`FROM information_schema.functions f`),
 		always(`WHERE ` + notSystem("f.function_schema")),
 		always(`AND ` + like("f.function_schema", "@schema")),
@@ -585,7 +608,8 @@ func routineStmt() dbmeta.Stmt {
 		always(`UNION ALL`),
 		always(`SELECT p.procedure_catalog, p.procedure_schema, p.procedure_name,`),
 		always(` p.procedure_name || p.argument_signature, 'proc', p.data_type, p.argument_signature,`),
-		always(` '', '', p.procedure_owner, '', NULL, LOWER(p.procedure_language), p.procedure_definition, p.comment, NULL`),
+		always(` '', '', p.procedure_owner, '', NULL, LOWER(p.procedure_language), p.procedure_definition, p.comment, NULL,`),
+		always(` p.procedure_definition`),
 		always(`FROM information_schema.procedures p`),
 		always(`WHERE ` + notSystem("p.procedure_schema")),
 		always(`AND ` + like("p.procedure_schema", "@schema")),
@@ -611,13 +635,14 @@ func registerRoutines() {
 			{Name: "language", Desc: "sql, javascript, python, java or scala"},
 			{Name: "source"}, {Name: "comment"},
 			{Name: "definition", Desc: "always absent: information_schema keeps the body, which is source, and GET_DDL is not measured yet"},
+			{Name: "prosrc", Desc: "the body of the function or the procedure, which is the same text as source. Snowflake has no other"},
 		},
 		Params: schemaNameSystem("function"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, dbmeta.NullAsEmpty(&v.Volatility), &v.Parallel, &v.Owner, &v.Security, &v.Access,
-				&v.Language, &v.Source, &v.Comment, &v.Definition)
+				&v.Language, &v.Source, &v.Comment, &v.Definition, &v.Prosrc)
 			return v, err
 		},
 	})

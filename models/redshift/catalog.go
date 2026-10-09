@@ -40,6 +40,17 @@ func childParams(kind string) []dbmeta.Param {
 const relationType = `CASE c.relkind WHEN 'r' THEN 'table' WHEN 'v' THEN 'view'` +
 	` ELSE CAST(c.relkind AS text) END`
 
+// compression is Column.Compression. attencodingtype numbers the encodings,
+// and pg_table_def names them, which was measured for each number below. A
+// number that was not measured is returned as it is, never guessed. A view
+// has no encoding.
+const compression = `CASE WHEN c.relkind = 'v' THEN NULL ELSE CASE a.attencodingtype` +
+	` WHEN 0 THEN 'raw' WHEN 1 THEN 'bytedict' WHEN 2 THEN 'delta' WHEN 3 THEN 'lzo'` +
+	` WHEN 4 THEN 'runlength' WHEN 5 THEN 'delta32k' WHEN 7 THEN 'text255'` +
+	` WHEN 15 THEN 'mostly8' WHEN 16 THEN 'mostly16' WHEN 17 THEN 'mostly32'` +
+	` WHEN 18 THEN 'text32k' WHEN 19 THEN 'zstd' WHEN 20 THEN 'az64'` +
+	` ELSE CAST(a.attencodingtype AS text) END END`
+
 func register() {
 	registerAccess()
 
@@ -49,19 +60,23 @@ func register() {
 			always(`, n.nspname AS "name"`),
 			always(`, pg_get_userbyid(n.nspowner) AS "owner"`),
 			always(`, obj_description(n.oid, 'pg_namespace') AS "comment"`),
+			always(`, array_to_string(n.nspacl, ` + newline + `) AS "access"`),
 			always(`FROM pg_namespace n`),
 			always(`WHERE ` + notSystem("n.nspname")),
 			always(`AND ` + like("n.nspname", "@name")),
 			always(`ORDER BY 2`),
 		},
-		Fields: dbmeta.Fields("catalog", "name", "owner", "comment"),
+		Fields: []dbmeta.Field{
+			{Name: "catalog"}, {Name: "name"}, {Name: "owner"}, {Name: "comment"},
+			{Name: "access", Desc: "nspacl, one grant on each line as grantee=privileges/grantor. Absent when the privileges are the default"},
+		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "schema name pattern, empty for every schema", Default: ""},
 			{Name: "with_system", Desc: "include the schemas Redshift keeps for itself", Default: false},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var v dbmeta.Schema
-			err := rows.Scan(&v.Catalog, &v.Name, dbmeta.NullAsEmpty(&v.Owner), &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Name, dbmeta.NullAsEmpty(&v.Owner), &v.Comment, &v.Access)
 			return v, err
 		},
 	})
@@ -108,6 +123,8 @@ func register() {
 			always(`, c.relname AS "name"`),
 			always(`, ` + relationType + ` AS "type"`),
 			always(`, obj_description(c.oid, 'pg_class') AS "comment"`),
+			always(`, pg_get_userbyid(c.relowner) AS "owner"`),
+			always(`, CASE WHEN n.nspname LIKE 'pg_temp_%' THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
 			always(`FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace`),
 			always(`WHERE c.relkind IN ('r', 'v')`),
 			always(`AND ` + notSystem("n.nspname")),
@@ -120,11 +137,14 @@ func register() {
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "table or view"},
 			{Name: "comment"},
+			{Name: "owner", Desc: "the user that owns the relation, from pg_class"},
+			{Name: "persistence", Desc: "temporary for a table in a pg_temp schema, and permanent for the rest. Redshift has no unlogged table"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence)
 			return v, err
 		},
 	})
@@ -147,6 +167,7 @@ func register() {
 			always(`, NULL AS "generated"`),
 			always(`, col_description(a.attrelid, a.attnum) AS "comment"`),
 			always(`, s.collation_name AS "collation"`),
+			always(`, ` + compression + ` AS "compression"`),
 			always(`FROM pg_attribute a`),
 			always(`JOIN pg_class c ON c.oid = a.attrelid`),
 			always(`JOIN pg_namespace n ON n.oid = c.relnamespace`),
@@ -169,13 +190,14 @@ func register() {
 			{Name: "generated", Desc: "always absent: Redshift has no generated column, and GENERATED ALWAYS AS (expression) is a syntax error"},
 			{Name: "comment"},
 			{Name: "collation", Desc: "case_sensitive or case_insensitive for a character column, from SVV_COLUMNS, and absent for any other type"},
+			{Name: "compression", Desc: "the column encoding, such as az64 or lzo, from attencodingtype. raw is no compression. A view column has none"},
 		},
 		Params: childParams("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment, &v.Collation)
+				&v.Generated, &v.Comment, &v.Collation, &v.Compression)
 			return v, err
 		},
 	})
@@ -266,6 +288,7 @@ func register() {
 			always(`, p.prosrc AS "source"`),
 			always(`, obj_description(p.oid, 'pg_proc') AS "comment"`),
 			always(`, NULL AS "definition"`),
+			always(`, p.prosrc AS "prosrc"`),
 			always(`FROM pg_proc p`),
 			always(`JOIN pg_namespace n ON n.oid = p.pronamespace`),
 			always(`LEFT JOIN pg_language l ON l.oid = p.prolang`),
@@ -287,13 +310,14 @@ func register() {
 			{Name: "access", Desc: "always absent: the grant on a function is not read"},
 			{Name: "language"}, {Name: "source"}, {Name: "comment"},
 			{Name: "definition", Desc: "always absent: Redshift has no pg_get_functiondef, and SHOW FUNCTION is a statement of its own"},
+			{Name: "prosrc", Desc: "prosrc, the body of the function, which is the same text as source"},
 		},
 		Params: schemaNameSystem("function"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access,
-				&v.Language, &v.Source, &v.Comment, &v.Definition)
+				&v.Language, &v.Source, &v.Comment, &v.Definition, &v.Prosrc)
 			return v, err
 		},
 	})

@@ -48,6 +48,15 @@ func register() {
 const tableType = `CASE t.table_type WHEN 'T' THEN 'table' WHEN 'V' THEN 'view'` +
 	` WHEN 'M' THEN 'materialized view' ELSE lower(t.table_type) END`
 
+// tableOptions is the text of Table.Options, as the WITH clause of CREATE
+// TABLE names the settings. A view has none.
+const tableOptions = `CASE WHEN t.table_type = 'V' THEN NULL` +
+	` ELSE 'wal=' || cast(t.walEnabled AS string)` +
+	` || ', dedup=' || cast(t.dedup AS string)` +
+	` || ', maxUncommittedRows=' || cast(t.maxUncommittedRows AS string)` +
+	` || ', o3MaxLag=' || cast(t.o3MaxLag AS string) || 'us'` +
+	` || CASE WHEN t.ttlValue > 0 THEN ', ttl=' || cast(t.ttlValue AS string) || ' ' || t.ttlUnit END END`
+
 func registerRelations() {
 	// pg_namespace holds public and pg_catalog, which QuestDB imitates for a
 	// PostgreSQL client. Neither has an owner QuestDB keeps.
@@ -106,6 +115,8 @@ func registerRelations() {
 			always(`, t.table_name AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
 			always(`, NULL AS "comment"`),
+			always(`, cast(t.table_row_count AS long) AS "rows"`),
+			always(`, ` + tableOptions + ` AS "options"`),
 			always(`FROM tables() t`),
 			always(`WHERE ` + inPublic),
 			always(`AND (@name = '' OR t.table_name LIKE @name)`),
@@ -119,11 +130,13 @@ func registerRelations() {
 			{Name: "schema", Desc: "always public, the one schema QuestDB reports"},
 			{Name: "name"}, {Name: "type"},
 			{Name: "comment", Desc: "always absent: QuestDB has no COMMENT statement"},
+			{Name: "rows", Desc: "table_row_count of tables(). It is absent for a view and for a table that has no row count yet"},
+			{Name: "options", Desc: "wal, dedup, maxUncommittedRows, o3MaxLag in microseconds and ttl, as the WITH clause names them. Absent for a view"},
 		},
 		Params: append(relationParams("relation"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Rows, &v.Options)
 			return v, err
 		},
 	})

@@ -45,7 +45,7 @@ rather than reading one.
 | `models/vertica` | 26 | 65 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
 | `models/couchbase` | 12 | 65 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
 | `models/cockroachdb` | 54 | 65 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 47 of its statements are the postgres model's (D123) |
-| `models/cratedb` | 26 | 65 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
+| `models/cratedb` | 27 | 65 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
 | `models/questdb` | 11 | 65 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
 | `models/tidb` | 20 | 65 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 17 of its statements are the mysql model's (D133) |
 | `models/vitess` | 21 | 65 | Vitess 23.0.7 and 24.0.4, on vttestserver. 20 of its statements are the mysql model's, and a schema is a keyspace (D135) |
@@ -3127,7 +3127,7 @@ rule 2 follows, and D128 keeps it.
 
 ## CrateDB
 
-`models/cratedb` answers 26 of the 65 on 6.4.5 and 25 on 6.3.7, which has no
+`models/cratedb` answers 27 of the 65 on 6.4.5 and 26 on 6.3.7, which has no
 `information_schema.collations`. It was measured on 2026-09-29 with pgx, on
 the PostgreSQL port, which is what dburl opens for `cratedb://`. The main
 version is the PostgreSQL release that CrateDB claims, 14.0 on both, and
@@ -3136,7 +3136,7 @@ CrateDB's own release is under the key `cratedb`. See D123.
 CrateDB speaks PostgreSQL's protocol and keeps a catalog of its own. Its
 `pg_catalog` holds part of PostgreSQL's, and many of the functions that the
 postgres model calls are absent. So only 3 statements are shared: settings,
-role grants and the current user. The other 23 read `information_schema`,
+role grants and the current user. The other 24 read `information_schema`,
 `pg_catalog` and `sys` directly.
 
 ### What each answer lacks
@@ -3206,6 +3206,30 @@ schemas the user has a privilege in. `foreign_servers`, `user_mappings`,
 `publications` and `publication_tables` list fewer rows.
 `information_schema.role_table_grants` answers for any user, and it lists only
 the grants to the user who asks, so it is not a substitute.
+
+### The describe fields (D207)
+
+D198 and D199 gave Tables, Indexes and Columns fields that only PostgreSQL
+filled, and added the kind Partitions. D207 measured each one on 6.3.7 and
+6.4.5.
+
+| Field or kind | What CrateDB fills |
+| --- | --- |
+| `Table.Owner` | NULL. `pg_class.relowner` is 0, `pg_tables.tableowner` is empty and `information_schema.views.owner` is empty, so CrateDB 6 records no owner of a relation |
+| `Table.Persistence`, `AccessMethod`, `RowSecurity` | NULL. CrateDB has no temporary table, no access method and no row security |
+| `Table.Options` | `number_of_shards`, `number_of_replicas`, `clustered_by`, `partitioned_by` and `column_policy` from `information_schema.tables`, joined by a comma and a space. NULL for a view and a foreign table |
+| `Table.Size`, `Table.Rows` | NULL. The exact numbers are in `sys.shards`, and an ordinary user is refused the schema `sys`, so a join to it makes `tables` fail for that user. The estimate is `pg_class.reltuples`, which is the count that ANALYZE stored. A join to it costs about 7 ms at 1300 relations, whatever the filter, so a read of one table is three times slower. D47 does not allow that, and the fields are not added |
+| `Index.Valid`, `Clustered`, `ReplicaIdentity`, `ConstraintType` | `indisvalid`, `indisclustered` and `indisreplident` of `pg_index`, and `p` for every row, because `pg_index` holds the primary keys only |
+| `Index.Owner`, `Size`, `Predicate`, `Definition`, `Using`, `Options` | NULL. `pg_get_indexdef` is not there, and a primary key index has no predicate and no options |
+| `Column.Storage`, `Compression`, `StatsTarget` | NULL. CrateDB has none of the three |
+| `Constraint.Enforced` | NULL. CrateDB enforces a primary key and a check, but no catalog column says so, and the field is not invented |
+| `Partitions` | new. One row for each partition from `information_schema.table_partitions`. `Partition` is the name of the index, `.partitioned.table.ident`. `Bound` is the values of the partition columns as a JSON object, such as `{"year":2025}`, because a table can have several partition columns and PostgreSQL's LIST takes one. `Constraint` is NULL |
+| `RoleSettings` | left unanswered. `sys.users.session_settings` is an object, and CrateDB has no way to read the value of a key that the statement does not name, so one statement can return the object as JSON text and nothing closer to `name=value` |
+| `NotNulls`, `Policies`, `Inherits`, `Rules` | CrateDB has none of the four |
+
+The three NULL hazards of D197 do not reach CrateDB. It has no INCLUDE column,
+and `IndexColumn.Descending` is a real false. It has no default privilege and
+no database level setting.
 
 ### What a second opinion found
 
@@ -3294,6 +3318,21 @@ only read. Every query answers the same way, except that 10.0.1 reports the
 reader's own name as the current user. 9.4.3 reports `admin` for the reader
 too, which is the one difference between the releases, and it has a parity
 section of its own.
+
+### The describe fields (D207)
+
+| Field or kind | What QuestDB fills |
+| --- | --- |
+| `Table.Rows` | `table_row_count` of `tables()`, a count. NULL for a view, and for a table that has no row count yet, such as a WAL table before it applied its first transaction |
+| `Table.Options` | `wal`, `dedup`, `maxUncommittedRows`, `o3MaxLag` in microseconds and `ttl`, as the WITH clause names them. NULL for a view. The designated timestamp and the interval are in `partitioned_tables` |
+| `Table.Size` | NULL. `table_storage()` has `diskSize`, and it reads the disk of every table whatever the filter: 45 ms at 1500 tables, and 40 ms for the one table that was asked for, against 3 ms without it. D47 does not allow that |
+| `Table.Owner`, `Persistence`, `AccessMethod` | NULL. The open source edition has no owner, and no temporary table |
+| `Partitions` | not answered. `table_partitions()` and SHOW PARTITIONS take the table name as a constant, and QuestDB refuses a bind parameter there, so one statement cannot read the partitions of the tables |
+| `Index` fields | the kind is not answered, for the reason above |
+| `Column.Storage`, `Compression`, `StatsTarget` | NULL. QuestDB has none of the three |
+
+QuestDB has no INCLUDE column, no default privilege and no role setting, so the
+three hazards of D197 do not reach it.
 
 ### What a second opinion found
 
@@ -3870,6 +3909,45 @@ and roles needed a cast. The fixture built on the first try.
 - The database list includes awsdatacatalog, padb_harvest and sys:internal,
   which Redshift keeps for itself. They are not hidden, because a database
   has no system flag.
+
+### The describe fields (D207)
+
+D198 and D199 gave Tables, Columns, Functions and Schemas fields that only
+PostgreSQL filled. D207 measured each one on Snowflake 10.36.101 and Redshift
+1.0.434008.
+
+| Field | Snowflake | Redshift |
+| --- | --- | --- |
+| `Table.Owner` | `TABLE_OWNER` | `pg_get_userbyid(relowner)` |
+| `Table.Persistence` | `temporary` from `IS_TEMPORARY`, `transient` from `IS_TRANSIENT` and `permanent`. NULL for a view | `temporary` for a table in a `pg_temp` schema, and `permanent`. Redshift has no unlogged table |
+| `Table.Size` | `BYTES`, the active data. Time travel and fail safe data are not in it, so it is a bound | NULL. SVV_TABLE_INFO has it in blocks of 1 MB, and it refuses every user who is not a superuser, so a join to it makes `tables` fail for them |
+| `Table.Rows` | `ROW_COUNT`, kept and not estimated | NULL, for the same reason. `pg_class.reltuples` holds 0.001 for a table of 3 rows |
+| `Table.Options` | `retention_time` in days, and `cluster_by` when a clustering key is set | NULL. The distribution style and the sort key are in SVV_TABLE_INFO |
+| `Column.Compression` | NULL. Snowflake compresses by itself and records no choice | the encoding from `pg_attribute.attencodingtype`, named by the numbers that `pg_table_def` shows: 0 raw, 1 bytedict, 2 delta, 3 lzo, 4 runlength, 5 delta32k, 7 text255, 15 mostly8, 16 mostly16, 17 mostly32, 18 text32k, 19 zstd and 20 az64. A number that was not measured is returned as the number |
+| `Column.Storage`, `StatsTarget` | NULL | NULL. `attstorage` is there with the value PostgreSQL 8.0 gives, and Redshift has no TOAST, so it says nothing. `attstattarget` is -1 for every column |
+| `Function.Prosrc` | `function_definition` and `procedure_definition`, the same text as `source` | `prosrc`, the same text as `source` |
+| `Schema.Access` | NULL. A grant on a schema is not in INFORMATION_SCHEMA | `nspacl`, one grant on each line |
+| `Constraint.Enforced` | `ENFORCED`, from D203 | NULL. Redshift declares a key and does not enforce it, but no catalog column says so |
+| `Column.Collation` | `COLLATION_NAME`, from D190 | `case_sensitive` or `case_insensitive`, from D182 |
+| Index fields | Snowflake has no index outside a hybrid table, and that is not read | Redshift has no index |
+| `Partitions`, `Policies`, `NotNulls`, `Inherits` | none of the four | none of the four |
+
+The first version of the Redshift statement joined SVV_TABLE_INFO, and three
+things came out of it. Redshift refused the leader node functions
+`pg_get_userbyid` and `obj_description` beside it. A `LIKE` with no wildcard on
+a `name` column matched no row beside it: `LIKE 's5'` found nothing, and `=
+'s5'` and `LIKE 's5%'` found the table. The name column also came back padded
+with spaces, which broke every lookup by name, and the conformance test said
+so. The last one decided it. The owner, the grantee and the stranger of the
+parity test were refused with "permission denied for relation
+svv_table_info", so `tables` failed for every user but the
+administrator. The join was taken out, and `Size`, `Rows` and `Options` stay
+NULL on Redshift.
+
+The NULL hazards of D197: Snowflake has no INCLUDE column, no default
+privilege and no role setting that the model reads. Redshift has default
+privileges, and `DefaultACL.Schema` is NULL for one made with no IN SCHEMA. The
+Redshift fixture builds one, and the scan reads it.
 
 ## Apache Impala
 

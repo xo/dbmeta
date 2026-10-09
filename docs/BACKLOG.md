@@ -91,6 +91,24 @@ refuses masking policies, row access policies and materialized views. A run on
 an Enterprise account with a hybrid table and a row access policy finishes
 them.
 
+### Settle the size and the rows of Redshift, CrateDB and QuestDB
+
+D207 measured it. The sources for the size and the row count of a CrateDB table
+(`sys.shards`, and `pg_class.reltuples`) and of a QuestDB table
+(`table_storage()`) cost a scan of the whole catalog for each read.
+`Table.Size` and `Table.Rows` are left NULL for CrateDB, and `Table.Size` for
+QuestDB. If either product makes the join follow the filter, the fields can be
+added. On Redshift the source is SVV_TABLE_INFO, which refuses every user who
+is not a superuser, so `Table.Size`, `Table.Rows` and `Table.Options` are NULL.
+Ken decides whether a model can read it for the administrator only.
+
+### Read the settings of a CrateDB user
+
+`sys.users.session_settings` is the analogue of `RoleSettings`. One statement
+returns the object as JSON text and not as `name=value` lines, because CrateDB
+cannot read the value of a key that the statement does not name. A later
+release can change that.
+
 ## PostgreSQL model
 
 ### Read the sections of `\d` that no kind answers

@@ -176,8 +176,11 @@ var Everything = Fixture{
 		at("region rows", `INSERT INTO dbmeta_fixture.region (country, area) VALUES ('US', 'west')`),
 		at("shipment rows", `INSERT INTO dbmeta_fixture.shipment (shipment_id, country, area, amount)`+
 			` VALUES (1, 'US', 'west', 12.50)`),
+		// Two partitions of sales, which the partitions query reads (D207).
+		at("sales rows", `INSERT INTO dbmeta_fixture.sales (sold_on, amount)`+
+			` VALUES ('2024-05-01', 1), ('2025-05-01', 2), ('2025-06-01', 3)`),
 		at("refresh", `REFRESH TABLE dbmeta_fixture.author, dbmeta_fixture.book,`+
-			` dbmeta_fixture.region, dbmeta_fixture.shipment`),
+			` dbmeta_fixture.region, dbmeta_fixture.shipment, dbmeta_fixture.sales`),
 		at("analyze", `ANALYZE`),
 	},
 	Teardown: []Step{

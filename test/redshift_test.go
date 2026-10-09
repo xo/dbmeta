@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"strings"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -112,4 +113,99 @@ func TestRedshiftSmoke(t *testing.T) {
 func TestRedshiftScansEveryQuery(t *testing.T) {
 	db := openRedshift(t)
 	scanEveryQuery(t, setupRedshift(t, db), db)
+}
+
+// TestRedshiftTableFields reads the fields that D198 and D199 added to Tables,
+// Columns, Functions and Schemas (D207), and the default privilege that has no
+// schema (D197). A temporary table lives as long as its session, so the test
+// keeps one connection.
+func TestRedshiftTableFields(t *testing.T) {
+	db := openRedshift(t)
+	db.SetMaxOpenConns(1)
+	ctx := t.Context()
+	m := setupRedshift(t, db)
+	exec(t, db, `CREATE TEMPORARY TABLE dbmeta_scratch (id INTEGER)`)
+
+	args := dbmeta.Args{Schema: rsfixture.Everything.Schema}.Map()
+	tables := map[string]dbmeta.Table{}
+	for v, err := range dbmeta.Tables.All(ctx, m, db, args) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		tables[v.Name] = v
+	}
+	author := tables["author"]
+	if !author.Owner.Valid || author.Owner.V == "" || author.Persistence.V != "permanent" {
+		t.Errorf("author: expected an owner and permanent, got %+v and %+v", author.Owner, author.Persistence)
+	}
+	if recent := tables["recent"]; !recent.Owner.Valid || recent.Size.Valid || recent.Rows.Valid || recent.Options.Valid {
+		t.Errorf("recent: expected an owner and no size, rows or options, got %+v", recent)
+	}
+
+	encodings := map[string]string{}
+	for v, err := range dbmeta.Columns.All(ctx, m, db, dbmeta.Args{Schema: rsfixture.Everything.Schema, Parent: "events"}.Map()) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		encodings[v.Name] = v.Compression.V
+		if v.Storage.Valid || v.StatsTarget.Valid {
+			t.Errorf("%s: Redshift has no storage or statistics target, got %+v", v.Name, v)
+		}
+	}
+	for name, want := range map[string]string{"event_id": "az64", "happened": "raw", "kind": "lzo"} {
+		if encodings[name] != want {
+			t.Errorf("events.%s: expected the encoding %s, got %q", name, want, encodings[name])
+		}
+	}
+	for v, err := range dbmeta.Columns.All(ctx, m, db, dbmeta.Args{Schema: rsfixture.Everything.Schema, Parent: "recent"}.Map()) {
+		if err != nil {
+			t.Fatalf("reading columns: %v", err)
+		}
+		if v.Compression.Valid {
+			t.Errorf("recent.%s: a view column has no encoding, got %+v", v.Name, v.Compression)
+		}
+	}
+
+	var temporary bool
+	for v, err := range dbmeta.Tables.All(ctx, m, db, dbmeta.Args{Name: "dbmeta_scratch", WithSystem: true}.Map()) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		temporary = v.Persistence.V == "temporary"
+	}
+	if !temporary {
+		t.Error("dbmeta_scratch: expected a temporary table")
+	}
+
+	functions := map[string]dbmeta.Function{}
+	for v, err := range dbmeta.Functions.All(ctx, m, db, dbmeta.Args{Schema: rsfixture.Everything.Schema}.Map()) {
+		if err != nil {
+			t.Fatalf("reading functions: %v", err)
+		}
+		functions[v.Name] = v
+	}
+	if shout := functions["f_shout"]; !strings.Contains(shout.Prosrc.V, "UPPER") || shout.Prosrc != shout.Source {
+		t.Errorf("f_shout: expected the body in prosrc and in source, got %+v and %+v", shout.Prosrc, shout.Source)
+	}
+	for v, err := range dbmeta.Schemas.All(ctx, m, db, dbmeta.Args{Name: rsfixture.Everything.Schema}.Map()) {
+		if err != nil {
+			t.Fatalf("reading schemas: %v", err)
+		}
+		if v.Name == rsfixture.Everything.Schema && v.Access.Valid {
+			t.Errorf("%s: expected the default privileges and no access text, got %q", v.Name, v.Access.V)
+		}
+	}
+
+	// A default privilege made with no schema has no schema, and the
+	// field says so.
+	var everywhere bool
+	for v, err := range dbmeta.DefaultACLs.All(ctx, m, db, nil) {
+		if err != nil {
+			t.Fatalf("reading default privileges: %v", err)
+		}
+		everywhere = everywhere || !v.Schema.Valid
+	}
+	if !everywhere {
+		t.Error("expected a default privilege with no schema")
+	}
 }

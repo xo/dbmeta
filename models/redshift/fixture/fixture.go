@@ -106,6 +106,13 @@ var Everything = Fixture{
 )`),
 		at("view", `CREATE VIEW dbmeta_fixture.recent AS
 	SELECT book_id, title FROM dbmeta_fixture.book WHERE published IS NOT NULL`),
+		// A table with a distribution key, a sort key and an encoding on each
+		// column, for the encodings of Column (D207).
+		at("events", `CREATE TABLE dbmeta_fixture.events (
+	event_id BIGINT ENCODE az64,
+	happened TIMESTAMP ENCODE raw,
+	kind VARCHAR(16) ENCODE lzo
+) DISTSTYLE KEY DISTKEY (event_id) SORTKEY (happened)`),
 		at("function", `CREATE FUNCTION dbmeta_fixture.f_shout(VARCHAR) RETURNS VARCHAR`+
 			` STABLE AS $$ SELECT UPPER($1) $$ LANGUAGE sql`),
 		at("role", `CREATE ROLE dbmeta_fixture_role`),
@@ -116,8 +123,14 @@ var Everything = Fixture{
 		at("column grant", `GRANT SELECT (title) ON TABLE dbmeta_fixture.book TO GROUP dbmeta_fixture_group`),
 		at("default grant", `ALTER DEFAULT PRIVILEGES IN SCHEMA dbmeta_fixture`+
 			` GRANT SELECT ON TABLES TO GROUP dbmeta_fixture_group`),
+		// A default privilege for every schema, which has no schema in
+		// pg_default_acl, so that DefaultACL.Schema is NULL (D197).
+		at("default grant everywhere", `ALTER DEFAULT PRIVILEGES`+
+			` GRANT SELECT ON TABLES TO GROUP dbmeta_fixture_group`),
 	},
 	Teardown: []Step{
+		at("default grant everywhere", `ALTER DEFAULT PRIVILEGES`+
+			` REVOKE SELECT ON TABLES FROM GROUP dbmeta_fixture_group`),
 		at("default grant", `ALTER DEFAULT PRIVILEGES IN SCHEMA dbmeta_fixture`+
 			` REVOKE SELECT ON TABLES FROM GROUP dbmeta_fixture_group`),
 		at("role grant", `REVOKE ROLE dbmeta_fixture_role FROM ROLE dbmeta_fixture_member`),

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/snowflakedb/gosnowflake/v2"
 
@@ -317,6 +318,59 @@ func TestSnowflakeDynamicTable(t *testing.T) {
 	}
 	if !tz {
 		t.Error("expected the setting TIMEZONE")
+	}
+}
+
+// TestSnowflakeTableFields reads the fields that D198 and D199 added to
+// Tables (D207): the owner, the persistence, the size, the rows and the
+// options. A temporary table lives as long as its session, so the test keeps
+// one connection.
+func TestSnowflakeTableFields(t *testing.T) {
+	db := openSnowflake(t)
+	db.SetMaxOpenConns(1)
+	ctx := t.Context()
+	m := setupSnowflake(t, db)
+	exec(t, db, `CREATE TEMPORARY TABLE `+sffixture.Everything.Schema+`.SCRATCH (id INTEGER)`)
+
+	// The row count of a table that was just written can lag, so the test
+	// waits for it.
+	var tables map[string]dbmeta.Table
+	for range 30 {
+		tables = map[string]dbmeta.Table{}
+		for v, err := range dbmeta.Tables.All(ctx, m, db, sfArgs()) {
+			if err != nil {
+				t.Fatalf("reading tables: %v", err)
+			}
+			tables[v.Name] = v
+		}
+		if tables["AUTHOR"].Rows.V == 3 {
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	author := tables["AUTHOR"]
+	if !author.Owner.Valid || author.Owner.V == "" {
+		t.Errorf("AUTHOR: expected an owner, got %+v", author.Owner)
+	}
+	if author.Rows.V != 3 || !author.Size.Valid || author.Size.V <= 0 {
+		t.Errorf("AUTHOR: expected 3 rows and a size, got %+v and %+v", author.Rows, author.Size)
+	}
+	if author.Persistence.V != "permanent" {
+		t.Errorf("AUTHOR: expected permanent, got %+v", author.Persistence)
+	}
+	if !strings.HasPrefix(author.Options.V, "retention_time=") || strings.Contains(author.Options.V, "cluster_by") {
+		t.Errorf("AUTHOR: expected a retention time and no clustering key, got %+v", author.Options)
+	}
+	events := tables["EVENTS"]
+	if events.Persistence.V != "transient" || events.Options.V != "retention_time=0, cluster_by=LINEAR(event_id)" {
+		t.Errorf("EVENTS: expected a transient table with its key, got %+v and %+v", events.Persistence, events.Options)
+	}
+	if got := tables["SCRATCH"].Persistence.V; got != "temporary" {
+		t.Errorf("SCRATCH: expected temporary, got %q", got)
+	}
+	if recent := tables["RECENT"]; recent.Persistence.Valid || recent.Options.Valid || recent.Rows.Valid || recent.Size.Valid {
+		t.Errorf("RECENT: a view has no persistence, options, rows or size, got %+v", recent)
 	}
 }
 

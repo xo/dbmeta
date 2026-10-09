@@ -25,6 +25,15 @@ func notSystem(col string) string {
 const tableType = `CASE t.table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view'` +
 	` WHEN 'FOREIGN' THEN 'foreign table' ELSE lower(t.table_type) END`
 
+// tableOptions is the text of Table.Options, as the WITH clause of CREATE
+// TABLE names the settings. A relation with no shards has none.
+const tableOptions = `CASE WHEN t.number_of_shards IS NULL THEN NULL` +
+	` ELSE 'number_of_shards=' || CAST(t.number_of_shards AS text)` +
+	` || ', number_of_replicas=' || t.number_of_replicas` +
+	` || ', clustered_by=' || t.clustered_by` +
+	` || CASE WHEN t.partitioned_by IS NULL THEN '' ELSE ', partitioned_by=' || array_to_string(t.partitioned_by, ',') END` +
+	` || ', column_policy=' || t.column_policy END`
+
 // options aggregates the options of one object from one of the option views
 // as key=value pairs, the way PostgreSQL writes an options array.
 func options(view, where string) string {
@@ -90,6 +99,7 @@ func registerRelations() {
 			always(`, ` + tableType + ` AS "type"`),
 			// CrateDB has no COMMENT statement.
 			always(`, NULL AS "comment"`),
+			always(`, ` + tableOptions + ` AS "options"`),
 			always(`FROM information_schema.tables t`),
 			always(`WHERE ` + notSystem("t.table_schema")),
 			always(`AND (@schema = '' OR t.table_schema LIKE @schema)`),
@@ -97,11 +107,14 @@ func registerRelations() {
 			always(`AND (@types = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, tableType) + `)`),
 			always(`ORDER BY 2, 3`),
 		},
-		Fields: fields("catalog", "schema", "name", "type", "comment"),
+		Fields: []dbmeta.Field{
+			{Name: "catalog"}, {Name: "schema"}, {Name: "name"}, {Name: "type"}, {Name: "comment"},
+			{Name: "options", Desc: "number_of_shards, number_of_replicas, clustered_by, partitioned_by and column_policy, as the WITH clause names them. Absent for a view and a foreign table"},
+		},
 		Params: append(schemaNameSystem("relation"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Options)
 			return v, err
 		},
 	})
@@ -208,6 +221,62 @@ func registerRelations() {
 		},
 	})
 
+	// information_schema.table_partitions has one row for each partition, and
+	// its values column holds the value of each partition column. A CrateDB
+	// partition has no table of its own in a catalog, and its name is the
+	// name of the index that holds it. The bound is the values as a JSON
+	// object, because a CrateDB table can have many partition columns and
+	// PostgreSQL's LIST takes one.
+	dbmeta.Partitions.Register(dbmeta.CrateDB, &dbmeta.Binding[dbmeta.Partition]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT p.table_schema AS "schema"`),
+			always(`, p.table_name AS "table"`),
+			always(`, p.table_schema AS "partition_schema"`),
+			always(`, '.partitioned.' || p.table_name || '.' || p.partition_ident AS "partition"`),
+			always(`, 'table' AS "type"`),
+			always(`, CAST(p."values" AS text) AS "bound"`),
+			always(`, NULL AS "constraint"`),
+			always(`, false AS "partitioned"`),
+			always(`, false AS "detach_pending"`),
+			always(`, NULL AS "table_visible"`),
+			always(`, NULL AS "partition_visible"`),
+			always(`FROM information_schema.table_partitions p`),
+			always(`WHERE ` + notSystem("p.table_schema")),
+			always(`AND (@schema = '' OR p.table_schema LIKE @schema)`),
+			always(`AND (@parent = '' OR p.table_name LIKE @parent)`),
+			always(`AND (@partition_schema = '' OR p.table_schema LIKE @partition_schema)`),
+			always(`AND (@name = '' OR '.partitioned.' || p.table_name || '.' || p.partition_ident LIKE @name)`),
+			always(`ORDER BY 1, 2, 4`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema", Desc: "schema of the partitioned table"},
+			{Name: "table", Desc: "the partitioned table"},
+			{Name: "partition_schema", Desc: "the schema of the table, because a partition has no schema of its own"},
+			{Name: "partition", Desc: "the name of the index that holds the partition, .partitioned.table.ident"},
+			{Name: "type", Desc: "always table"},
+			{Name: "bound", Desc: "the value of each partition column, as a JSON object such as {\"year\":2025}"},
+			{Name: "constraint", Desc: "always absent: CrateDB makes no constraint of a partition value"},
+			{Name: "partitioned", Desc: "always false: a CrateDB partition has no partitions"},
+			{Name: "detach_pending", Desc: "always false: CrateDB has no DETACH CONCURRENTLY"},
+			{Name: "table_visible", Desc: "always absent: CrateDB reports no search path for a table"},
+			{Name: "partition_visible", Desc: "always absent, for the same reason"},
+		},
+		Params: []dbmeta.Param{
+			{Name: "schema", Desc: "schema name pattern of the partitioned table, empty for every schema", Default: ""},
+			{Name: "parent", Desc: "partitioned table name pattern, empty for every one", Default: ""},
+			{Name: "partition_schema", Desc: "schema name pattern of the partition, empty for every schema", Default: ""},
+			{Name: "name", Desc: "partition name pattern, empty for every partition", Default: ""},
+			{Name: "with_system", Desc: "include the schemas CrateDB keeps for itself", Default: false},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.Partition, error) {
+			var v dbmeta.Partition
+			err := rows.Scan(&v.Schema, &v.Table, &v.PartitionSchema, &v.Partition, &v.Type,
+				&v.Bound, &v.Constraint, &v.Partitioned, &v.DetachPending,
+				&v.TableVisible, &v.PartitionVisible)
+			return v, err
+		},
+	})
+
 	// pg_index holds one index for each primary key and nothing else. A
 	// full text index is in no catalog, only in SHOW CREATE TABLE. pg_am is
 	// empty, so an index has no access method to name, and CrateDB reports
@@ -222,6 +291,11 @@ func registerRelations() {
 			always(`, i.indisunique AS "unique"`),
 			always(`, i.indisprimary AS "primary"`),
 			always(`, NULL AS "comment"`),
+			always(`, i.indisvalid AS "valid"`),
+			always(`, i.indisclustered AS "clustered"`),
+			always(`, i.indisreplident AS "replica_identity"`),
+			// pg_index holds the primary keys and nothing else.
+			always(`, CASE WHEN i.indisprimary THEN 'p' END AS "constraint_type"`),
 			always(`FROM pg_catalog.pg_index i`),
 			always(`JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`),
 			always(`JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`),
@@ -232,12 +306,14 @@ func registerRelations() {
 			always(`AND (@name = '' OR c.relname LIKE @name)`),
 			always(`ORDER BY 2, 3, 4`),
 		},
-		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment"),
+		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment",
+			"valid", "clustered", "replica_identity", "constraint_type"),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Valid, &v.Clustered, &v.ReplicaIdentity,
+				&v.ConstraintType)
 			return v, err
 		},
 	})

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
@@ -87,6 +88,22 @@ func setupQuestDB(t *testing.T, db *sql.DB) *dbmeta.Meta {
 			}
 		}
 	})
+
+	// A WAL table applies an insert after it returns. Wait for the row of
+	// book. Table.Rows is NULL until then, so two reads of the same table
+	// can differ (D207).
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		var rows sql.NullInt64
+		err := db.QueryRowContext(ctx, `SELECT table_row_count FROM tables() WHERE table_name = 'book'`).Scan(&rows)
+		if err == nil && rows.Valid {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("waiting for the row of book: %v", err)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 
 	m, err := dbmeta.New(dbmeta.QuestDB, versions)
 	if err != nil {
@@ -281,9 +298,45 @@ func TestQuestDBAnswersNoneOfThese(t *testing.T) {
 		dbmeta.Indexes, dbmeta.IndexColumns, dbmeta.Constraints, dbmeta.ConstraintColumns,
 		dbmeta.Roles, dbmeta.Privileges, dbmeta.Comments, dbmeta.Sequences, dbmeta.Triggers,
 		dbmeta.Types, dbmeta.Extensions,
+		// D207: table_partitions() takes a constant name, so no one
+		// statement reads the partitions of the tables.
+		dbmeta.Partitions, dbmeta.Policies, dbmeta.Inherits, dbmeta.Rules, dbmeta.NotNulls,
 	} {
 		if s := q.Support(m); s != dbmeta.NotSupported {
 			t.Errorf("%s: expected %v, got %v", q.Name(), dbmeta.NotSupported, s)
 		}
+	}
+}
+
+// TestQuestDBTableFields reads the fields that D198 and D199 added to Tables
+// (D207). QuestDB has no owner, no persistence choice and no access method.
+// It has a row count and the settings of a table. It has no size that a
+// filter can narrow.
+func TestQuestDBTableFields(t *testing.T) {
+	db := openQuestDB(t)
+	ctx := t.Context()
+	m := setupQuestDB(t, db)
+	byName := map[string]dbmeta.Table{}
+	for v, err := range dbmeta.Tables.All(ctx, m, db, qdArgs()) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		byName[v.Name] = v
+		if v.Owner.Valid || v.Persistence.Valid || v.AccessMethod.Valid || v.Size.Valid {
+			t.Errorf("%s: expected no owner, persistence, access method or size, got %+v", v.Name, v)
+		}
+	}
+	want := "wal=true, dedup=false, maxUncommittedRows=500000, o3MaxLag=600000000us"
+	if got := byName["book"].Options.V; got != want {
+		t.Errorf("book: expected the options %q, got %q", want, got)
+	}
+	if got := byName["author"].Options.V; !strings.HasPrefix(got, "wal=false") {
+		t.Errorf("author: expected the options of a table that is not a WAL table, got %q", got)
+	}
+	if byName["recent"].Options.Valid {
+		t.Errorf("recent: a view has no options, got %q", byName["recent"].Options.V)
+	}
+	if got := byName["book"].Rows; !got.Valid || got.V != 1 {
+		t.Errorf("book: expected 1 row, got %+v", got)
 	}
 }
