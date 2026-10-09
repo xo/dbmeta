@@ -988,6 +988,13 @@ func parityArgs(q dbmeta.AnyQuery, m *dbmeta.Meta, schema string) (map[string]an
 		return nil, err
 	}
 	want := dbmeta.Args{Schema: schema}.Map()
+	// Snowflake lists the schemas of one database, and other sessions keep
+	// schemas of their own in it, such as the one dbimp measures in. A role
+	// with no grant on one reads fewer rows than the administrator, which says
+	// nothing about the fixture, so the Schemas query narrows to the fixture.
+	if m.Dialect() == dbmeta.Snowflake && q.Name() == dbmeta.Schemas.Name() {
+		want["name"] = schema
+	}
 	out := map[string]any{}
 	for _, p := range params {
 		if v, ok := want[p.Name]; ok {
