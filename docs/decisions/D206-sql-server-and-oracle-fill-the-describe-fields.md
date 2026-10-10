@@ -1,6 +1,6 @@
 # D206. SQL Server and Oracle fill the describe fields
 
-Status: Decided.
+Status: Decided, amended by D211.
 
 ## The decision
 

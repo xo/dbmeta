@@ -337,8 +337,9 @@ func registerProjections() {
 	// A row access policy filters the rows a user reads. The catalog has no
 	// name for one and no list of roles: the expression decides who it applies
 	// to, with a call such as ENABLED_ROLE. A column policy is not a row
-	// policy and is not listed. A disabled policy is listed, and Policy has no
-	// field to say it is disabled.
+	// policy and is not listed. A disabled policy is listed, and Enabled says
+	// that it is disabled (D211). The column is_policy_enabled holds the words
+	// Enabled and Disabled.
 	dbmeta.Policies.Register(dbmeta.Vertica, &dbmeta.Binding[dbmeta.Policy]{
 		Stmt: dbmeta.Stmt{
 			row91(`SELECT SPLIT_PART(a.table_name, '.', 1) AS "schema"`),
@@ -350,6 +351,7 @@ func registerProjections() {
 			row91(`, a.expression AS "using"`),
 			row91(`, CAST(NULL AS VARCHAR) AS "with_check"`),
 			row91(`, CAST(NULL AS VARCHAR) AS "comment"`),
+			row91(`, CASE a.is_policy_enabled WHEN 'Enabled' THEN TRUE WHEN 'Disabled' THEN FALSE END AS "enabled"`),
 			row91(`FROM v_catalog.access_policy a`),
 			row91(`WHERE a.policy_type = 'Row policy'`),
 			row91(`AND ` + notSystem(`SPLIT_PART(a.table_name, '.', 1)`)),
@@ -367,12 +369,13 @@ func registerProjections() {
 			{Name: "using", Desc: "the expression, such as (a > 1)", Min: v91},
 			{Name: "with_check", Desc: "always absent: a Vertica row policy has one expression", Min: v91},
 			{Name: "comment", Desc: "always absent", Min: v91},
+			{Name: "enabled", Desc: "false for a policy that ALTER ACCESS POLICY ... DISABLE switched off, which restricts nothing", Min: v91},
 		},
 		Params: parentAndName("policy"),
 		Scan: func(rows *sql.Rows) (dbmeta.Policy, error) {
 			var v dbmeta.Policy
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Command, &v.Permissive,
-				&v.Roles, &v.Using, &v.WithCheck, &v.Comment)
+				&v.Roles, &v.Using, &v.WithCheck, &v.Comment, &v.Enabled)
 			return v, err
 		},
 	})

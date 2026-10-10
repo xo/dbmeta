@@ -211,6 +211,19 @@ END;`),
 		update_check => TRUE);
 EXCEPTION WHEN OTHERS THEN NULL;
 END;`),
+		// A second policy on the same table that is switched off, so that
+		// Policies has one that restricts nothing (D211). It names DELETE,
+		// which the first policy does not.
+		at("secret policy off", `BEGIN
+	DBMS_RLS.ADD_POLICY(
+		object_schema => 'DBMETA_FIXTURE', object_name => 'SECRET',
+		policy_name => 'SECRET_POLICY_OFF', function_schema => 'DBMETA_FIXTURE',
+		policy_function => 'SECRET_CHECK', statement_types => 'DELETE');
+	DBMS_RLS.ENABLE_POLICY(
+		object_schema => 'DBMETA_FIXTURE', object_name => 'SECRET',
+		policy_name => 'SECRET_POLICY_OFF', enable => FALSE);
+EXCEPTION WHEN OTHERS THEN NULL;
+END;`),
 
 		at("table comment", `COMMENT ON TABLE dbmeta_fixture.author IS 'people who write'`),
 		at("column comment", `COMMENT ON COLUMN dbmeta_fixture.author.name IS 'what they are called'`),

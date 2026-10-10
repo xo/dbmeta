@@ -1,6 +1,7 @@
 package test
 
 import (
+	"database/sql"
 	"strings"
 	"testing"
 
@@ -196,16 +197,38 @@ func TestSQLServerPolicies(t *testing.T) {
 	}
 	type row struct{ command, using, check bool }
 	got := make(map[string]row)
+	enabled := make(map[string]sql.Null[bool])
 	for v, err := range dbmeta.Policies.All(t.Context(), m, db, msArgs()) {
 		if err != nil {
 			t.Fatalf("reading policies: %v", err)
 		}
-		if v.Name != "secret_policy" || v.Table != "secret" || v.Permissive || v.Roles.Valid {
+		if v.Table != "secret" || v.Permissive || v.Roles.Valid {
 			t.Errorf("unexpected policy %+v", v)
+		}
+		// the state is the policy's, so every predicate of it agrees (D211)
+		if prev, ok := enabled[v.Name]; ok && prev != v.Enabled {
+			t.Errorf("%s: the predicates disagree about the state, %+v and %+v", v.Name, prev, v.Enabled)
+		}
+		enabled[v.Name] = v.Enabled
+		if v.Name != "secret_policy" {
+			continue
 		}
 		got[v.Command] = row{true, v.Using.Valid, v.WithCheck.Valid}
 		if !strings.Contains(v.Using.V+v.WithCheck.V, "secret_check") {
 			t.Errorf("expected the predicate to call secret_check, got %+v", v)
+		}
+	}
+	// the policy that is switched off is a row, with a real false
+	wantEnabled := map[string]sql.Null[bool]{
+		"secret_policy":     {V: true, Valid: true},
+		"secret_policy_off": {V: false, Valid: true},
+	}
+	if len(enabled) != len(wantEnabled) {
+		t.Fatalf("expected %v, got %v", wantEnabled, enabled)
+	}
+	for k, w := range wantEnabled {
+		if enabled[k] != w {
+			t.Errorf("%s: expected enabled %+v, got %+v", k, w, enabled[k])
 		}
 	}
 	want := map[string]row{

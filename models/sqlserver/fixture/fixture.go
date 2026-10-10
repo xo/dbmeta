@@ -228,6 +228,12 @@ AS RETURN SELECT 1 AS allowed WHERE @owner = USER_NAME()`),
 	ADD BLOCK PREDICATE dbmeta_fixture.secret_check(owner_name) ON dbmeta_fixture.secret AFTER INSERT,
 	ADD BLOCK PREDICATE dbmeta_fixture.secret_check(owner_name) ON dbmeta_fixture.secret BEFORE DELETE
 	WITH (STATE = ON)`),
+		// A second policy on the same table that is switched off, so that
+		// Policies has one that restricts nothing (D211). Only one policy can
+		// filter a table at a time, and a policy that is off does not count.
+		from("secret policy off", v13, `CREATE SECURITY POLICY dbmeta_fixture.secret_policy_off
+	ADD FILTER PREDICATE dbmeta_fixture.secret_check(owner_name) ON dbmeta_fixture.secret
+	WITH (STATE = OFF)`),
 
 		at("procedure", `CREATE PROCEDURE dbmeta_fixture.addup
 	@a int, @b int, @total int OUTPUT
@@ -281,6 +287,7 @@ END`),
 		at("analyze", `UPDATE STATISTICS dbmeta_fixture.author`),
 	},
 	Teardown: []Step{
+		from("drop secret policy off", v13, `DROP SECURITY POLICY IF EXISTS dbmeta_fixture.secret_policy_off`),
 		from("drop secret policy", v13, `DROP SECURITY POLICY IF EXISTS dbmeta_fixture.secret_policy`),
 		from("drop secret function", v13, `DROP FUNCTION IF EXISTS dbmeta_fixture.secret_check`),
 		from("drop secret", v13, `DROP TABLE IF EXISTS dbmeta_fixture.secret`),

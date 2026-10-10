@@ -484,18 +484,24 @@ func TestVerticaDescribeFields(t *testing.T) {
 
 	// A row access policy needs 9.1.
 	if dbmeta.Policies.Support(m) == dbmeta.Supported {
-		var policies int
+		states := make(map[string]sql.Null[bool])
 		for v, err := range dbmeta.Policies.All(ctx, m, db, args) {
 			if err != nil {
 				t.Fatalf("reading policies: %v", err)
 			}
-			policies++
-			if v.Table != "ledger" || v.Using.V != "(entry > 0)" || v.Roles.Valid || v.WithCheck.Valid {
+			states[v.Table] = v.Enabled
+			if v.Roles.Valid || v.WithCheck.Valid {
+				t.Errorf("unexpected policy %+v", v)
+			}
+			if v.Table == "ledger" && v.Using.V != "(entry > 0)" {
 				t.Errorf("unexpected policy %+v", v)
 			}
 		}
-		if policies != 1 {
-			t.Errorf("expected the one row policy of ledger, got %d", policies)
+		// ledger is switched on and vault is switched off, and both are rows
+		// (D211)
+		if len(states) != 2 || states["ledger"] != (sql.Null[bool]{V: true, Valid: true}) ||
+			states["vault"] != (sql.Null[bool]{V: false, Valid: true}) {
+			t.Errorf("expected ledger enabled and vault disabled, got %v", states)
 		}
 	}
 }

@@ -109,8 +109,10 @@ func registerSections() {
 	// Every predicate restricts, so Permissive is false. A policy has no role
 	// list, because it applies to every user and to the owner too, so Roles is
 	// absent as it is for public. A policy that is switched off with
-	// STATE = OFF restricts nothing and is not a row, because Policy has no
-	// field to say that it is off.
+	// STATE = OFF restricts nothing and is a row, and Enabled says that it is
+	// off (D211). The state belongs to the policy. A predicate has no state of
+	// its own in sys.security_predicates, so every row of one policy has the
+	// same Enabled.
 	dbmeta.Policies.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Policy]{
 		Stmt: dbmeta.Stmt{
 			{{Min: v13, Query: `SELECT s.name AS "schema"`}},
@@ -125,12 +127,12 @@ func registerSections() {
 			{{Min: v13, Query: `, CASE WHEN sp.predicate_type_desc = 'BLOCK' AND sp.operation IN (1, 2)` +
 				` THEN sp.predicate_definition END AS "with_check"`}},
 			{{Min: v13, Query: `, ` + commentOn("pol.object_id") + ` AS "comment"`}},
+			{{Min: v13, Query: `, pol.is_enabled AS "enabled"`}},
 			{{Min: v13, Query: `FROM sys.security_predicates sp`}},
 			{{Min: v13, Query: `JOIN sys.security_policies pol ON pol.object_id = sp.object_id`}},
 			{{Min: v13, Query: `JOIN sys.objects o ON o.object_id = sp.target_object_id`}},
 			{{Min: v13, Query: `JOIN sys.schemas s ON s.schema_id = o.schema_id`}},
-			{{Min: v13, Query: `WHERE pol.is_enabled = 1`}},
-			{{Min: v13, Query: `AND ` + notSystem}},
+			{{Min: v13, Query: `WHERE ` + notSystem}},
 			{{Min: v13, Query: `AND (@schema = '' OR s.name LIKE @schema)`}},
 			{{Min: v13, Query: `AND (@parent = '' OR o.name LIKE @parent)`}},
 			{{Min: v13, Query: `AND (@name = '' OR pol.name LIKE @name)`}},
@@ -143,12 +145,13 @@ func registerSections() {
 			{Name: "using", Desc: "the predicate that checks an existing row, which is a filter, BEFORE UPDATE or BEFORE DELETE", Min: v13},
 			{Name: "with_check", Desc: "the predicate that checks a new row, which is AFTER INSERT or AFTER UPDATE", Min: v13},
 			{Name: "comment", Min: v13},
+			{Name: "enabled", Desc: "false for a policy with STATE = OFF, which restricts nothing. The state is the policy's, so every predicate of it agrees", Min: v13},
 		},
 		Params: schemaParentName("policy"),
 		Scan: func(rows *sql.Rows) (dbmeta.Policy, error) {
 			var v dbmeta.Policy
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Command, &v.Permissive,
-				&v.Using, &v.WithCheck, &v.Comment)
+				&v.Using, &v.WithCheck, &v.Comment, &v.Enabled)
 			return v, err
 		},
 	})

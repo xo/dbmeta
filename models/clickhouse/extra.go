@@ -326,6 +326,7 @@ func registerExtra() {
 			always(`, r.select_filter AS "using"`),
 			always(`, NULL AS "with_check"`),
 			always(`, NULL AS "comment"`),
+			always(`, NULL AS "enabled"`),
 			always(`FROM system.row_policies r`),
 			always(`WHERE ` + notSystem("r.database")),
 			always(`AND (@schema = '' OR r.database LIKE @schema)`),
@@ -344,12 +345,13 @@ func registerExtra() {
 			{Name: "using", Desc: "the filter expression, as ClickHouse prints it"},
 			{Name: "with_check", Desc: "always absent: a ClickHouse policy has no check on a write"},
 			{Name: "comment", Desc: "always absent"},
+			{Name: "enabled", Desc: "always absent: a ClickHouse row policy has no switch"},
 		},
 		Params: childParams("policy"),
 		Scan: func(rows *sql.Rows) (dbmeta.Policy, error) {
 			var v dbmeta.Policy
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Command, &v.Permissive,
-				&v.Roles, &v.Using, &v.WithCheck, &v.Comment)
+				&v.Roles, &v.Using, &v.WithCheck, &v.Comment, &v.Enabled)
 			return v, err
 		},
 	})

@@ -88,14 +88,24 @@ func TestOracleDescribeFields(t *testing.T) {
 	}
 
 	policies := make(map[string]dbmeta.Policy)
+	var off []dbmeta.Policy
 	for v, err := range dbmeta.Policies.All(ctx, m, db, oraArgs()) {
 		if err != nil {
 			t.Fatalf("reading policies: %v", err)
+		}
+		// SECRET_POLICY_OFF is switched off with DBMS_RLS.ENABLE_POLICY, and
+		// it is a row with a real false (D211)
+		if v.Name == "SECRET_POLICY_OFF" {
+			off = append(off, v)
+			continue
 		}
 		policies[v.Command] = v
 	}
 	if len(policies) == 0 {
 		t.Logf("this release has no virtual private database, so SECRET has no policy")
+		if len(off) != 0 {
+			t.Errorf("expected no disabled policy either, got %v", off)
+		}
 	} else {
 		if len(policies) != 3 {
 			t.Errorf("expected a row for select, insert and update, got %v", policies)
@@ -107,6 +117,13 @@ func TestOracleDescribeFields(t *testing.T) {
 			if !strings.HasSuffix(p.Using.V+p.WithCheck.V, "DBMETA_FIXTURE.SECRET_CHECK") {
 				t.Errorf("%s: expected the policy function, got %+v", cmd, p)
 			}
+			if !p.Enabled.Valid || !p.Enabled.V {
+				t.Errorf("%s: expected an enabled policy, got %+v", cmd, p.Enabled)
+			}
+		}
+		if len(off) != 1 || off[0].Command != "delete" || off[0].Table != "SECRET" ||
+			!off[0].Enabled.Valid || off[0].Enabled.V {
+			t.Errorf("expected one disabled policy for delete with a real false, got %+v", off)
 		}
 		if p := policies["insert"]; p.Using.Valid || !p.WithCheck.Valid {
 			t.Errorf("expected insert to check and not to filter, got %+v", p)

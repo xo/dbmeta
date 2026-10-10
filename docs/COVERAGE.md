@@ -109,7 +109,7 @@ release below the one that has the source answers NULL for them.
 | `ExtendedStat.StatsTarget` | `stxstattarget` | 13 |
 | `Partitions` | `pg_inherits`, `pg_get_expr` and `pg_get_partition_constraintdef` | 10 |
 | `Inherits` | `pg_inherits` | every release |
-| `Policies` | `pg_policy` | 9.5. `Permissive` is true below 10 |
+| `Policies` | `pg_policy` | 9.5. `Permissive` is true below 10. `Enabled` is NULL, because PostgreSQL switches row security for a table and not for one policy (D211) |
 | `Rules` | `pg_rewrite` and `pg_get_ruledef` | every release |
 | `NotNulls` | `pg_constraint` with the type n | 18 |
 | `Schema.Access` | `nspacl` | every release. NULL for the default privileges |
@@ -901,7 +901,7 @@ part rather than per column.
 | `Function.Prosrc` | NULL. `create_query` is the whole statement |
 | `PartitionedTable.AccessMethod`, `DirectSize`, `TotalSize` | the engine, and `total_bytes` twice, because a partition is not a table |
 | `Partitions` | new. One row for each partition id of each table that has a PARTITION BY, from `system.parts`. `Bound` is the value of the partition expression. The rows of a partition have no field. An ordinary user is refused `system.parts` |
-| `Policies` | new. One row for each row policy, from `system.row_policies`. The command is always select, and `Roles` is NULL for TO ALL. An ordinary user is refused the table |
+| `Policies` | new. One row for each row policy, from `system.row_policies`. The command is always select, and `Roles` is NULL for TO ALL. `Enabled` is NULL: `system.row_policies` has no column for a switch on 25.8 or 26.9, and a row policy has no DISABLE (D211). An ordinary user is refused the table |
 | `NotNulls`, `Inherits` | none. Nullable is part of the type, and ClickHouse has no inheritance |
 
 Gemini agreed that ClickHouse has no owner, no statistics target and no flag for
@@ -2087,7 +2087,7 @@ On 10.1 `Privileges` is refused to both, because a lesser principal cannot read
 | `Constraint.Enforced` | `is_enabled`. A key is enabled only when the statement said ENABLED. A check constraint is always enabled. A foreign key has no value, so it is NULL |
 | `Function.Prosrc` | `function_definition`, the same text as `source` |
 | `Partitions` | new. One row for each partition key of each table, from `v_monitor.partitions` joined to `projections`. The fixture inserts with a DIRECT hint, because the older releases keep a small insert in memory and list no partition until a moveout |
-| `Policies` | new, from 9.1. One row for each row access policy of `v_catalog.access_policy`. A policy has no name, so the name is its object id. A column policy is not listed. On 9.1 and 10.1 an ordinary user is refused `access_policy`, and on 25.1 the user reads only the policies it can see |
+| `Policies` | new, from 9.1. One row for each row access policy of `v_catalog.access_policy`. A policy has no name, so the name is its object id. A column policy is not listed. `Enabled` is `is_policy_enabled`, which holds the words Enabled and Disabled, and a policy that is disabled is a row with `Enabled` false (D211). On 9.1 and 10.1 an ordinary user is refused `access_policy`, and on 25.1 the user reads only the policies it can see |
 | `Column.Storage`, `StatsTarget`, `Index.Owner`, `Predicate`, `Clustered` | NULL. There is no source |
 | `NotNulls`, `Inherits` | none. A NOT NULL has the one name C_NOTNULL for every column |
 
@@ -2739,7 +2739,7 @@ differences between releases.
 | Sequences | `CacheSize` | `sys.sequences.cache_size` | a sequence with no cache |
 | PartitionedTables | `Owner`, `AccessMethod`, `DirectSize`, `TotalSize` | as for Tables | as for Tables |
 | Partitions | the whole kind | `sys.partitions` and the partition function | never. A partition has a number and no name |
-| Policies | the whole kind | `sys.security_policies` and `sys.security_predicates` | below 2016. A policy that is off is not a row |
+| Policies | the whole kind, with `Enabled` | `sys.security_policies` and `sys.security_predicates`. `Enabled` is `is_enabled` of the policy, and a policy with STATE = OFF is a row with `Enabled` false (D211). A predicate has no state of its own | below 2016 |
 
 No source exists for `Column.Storage`, `Compression` and `StatsTarget`,
 `Index.Owner`, `ReplicaIdentity`, `Definition` and `Using`, `Function.Prosrc`,
@@ -2904,7 +2904,7 @@ between releases. 11g, 21c, 23ai and 26ai ran. 18c and 19c did not.
 | Constraints | `Enforced` | `status = 'ENABLED'` | never |
 | Sequences | `CacheSize` | `all_sequences.cache_size` | never |
 | Partitions | the whole kind | `all_tab_partitions` with `high_value` | a table with no partitions. Subpartitions are not rows |
-| Policies | the whole kind | `all_policies`. The function is the expression | a disabled policy is not a row |
+| Policies | the whole kind, with `Enabled` | `all_policies`. The function is the expression. `Enabled` is the column `ENABLE`, which is YES or NO, and a disabled policy is a row with `Enabled` false (D211) | never |
 | NotNulls | the whole kind | `all_constraints` of type C with `"COLUMN" IS NOT NULL` | refused below 12c |
 
 No source exists for `Column.Storage`, `Compression` and `StatsTarget`,

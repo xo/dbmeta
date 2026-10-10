@@ -128,7 +128,7 @@ reasons.
 | Part of the output | Go value | Yields |
 | --- | --- | --- |
 | Column privileges, one line for each entry | `dbmeta.ColumnPrivileges` with `Args{Schema, Parent}` | `ColumnPrivilege` |
-| Policies, with the command, the roles and the expressions | `dbmeta.Policies` with `Args{Schema, Parent}` | `Policy` |
+| Policies, with the command, the roles, the expressions and whether the policy is enabled | `dbmeta.Policies` with `Args{Schema, Parent}` | `Policy` |
 
 ## Storage and the server
 

@@ -1132,6 +1132,13 @@ type Policy struct {
 	Using     sql.Null[string]
 	WithCheck sql.Null[string]
 	Comment   sql.Null[string]
+	// Enabled reports that the policy is switched on. SQL Server, Oracle and
+	// Vertica can switch one policy off and keep it, and a policy that is off
+	// restricts nothing. Absent where the product has no switch for one
+	// policy. PostgreSQL switches row security for a whole table, which is
+	// Table.RowSecurity, so a PostgreSQL policy is always active and this is
+	// absent. See D211.
+	Enabled sql.Null[bool]
 }
 
 // Rule is a rewrite rule of a table. psql prints them in Rules of \d+ name.

@@ -183,6 +183,9 @@ func registerPolicies() {
 			{{Min: v95, Query: `, pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) AS "using"`}},
 			{{Min: v95, Query: `, pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) AS "with_check"`}},
 			{{Min: v95, Query: `, pg_catalog.obj_description(pol.oid, 'pg_policy') AS "comment"`}},
+			// PostgreSQL has no switch for one policy. Row security is on or
+			// off for the whole table, which is Table.RowSecurity.
+			{{Min: v95, Query: `, NULL::boolean AS "enabled"`}},
 			{{Min: v95, Query: `FROM pg_catalog.pg_policy pol`}},
 			{{Min: v95, Query: `JOIN pg_catalog.pg_class c ON c.oid = pol.polrelid`}},
 			{{Min: v95, Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
@@ -200,12 +203,13 @@ func registerPolicies() {
 			{Name: "using", Desc: "the USING expression, absent when there is none", Min: v95},
 			{Name: "with_check", Desc: "the WITH CHECK expression, absent when there is none", Min: v95},
 			{Name: "comment", Min: v95},
+			{Name: "enabled", Desc: "always absent: PostgreSQL switches row security for a table, never one policy. See Table.RowSecurity", Min: v95},
 		},
 		Params: schemaParentName("policy"),
 		Scan: func(rows *sql.Rows) (dbmeta.Policy, error) {
 			var v dbmeta.Policy
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Command, &v.Permissive,
-				&v.Roles, &v.Using, &v.WithCheck, &v.Comment)
+				&v.Roles, &v.Using, &v.WithCheck, &v.Comment, &v.Enabled)
 			return v, err
 		},
 	})

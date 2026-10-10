@@ -197,12 +197,6 @@ on Oracle. PostgreSQL has `convalidated`. No field carries it on `Constraint`.
 Add `Validated sql.Null[bool]` to the root type and fill it in the three models.
 `NotNull.Validated` already exists.
 
-### Policy has no field for a disabled policy
-
-SQL Server (`is_enabled`) and Oracle (`ENABLE`) keep a policy that is switched
-off. D206 leaves such a policy out of `Policies`, because a row says that
-the policy is active. A field `Enabled` on `Policy` lets both models return it.
-
 ### Oracle sizes of partitioned tables and subpartitions
 
 `PartitionedTable.DirectSize` and `TotalSize` are NULL on Oracle, and
@@ -229,12 +223,6 @@ square of the catalog. A shadow table is listed as a `table`, and
 `pragma_table_list` calls it `shadow`. Ken decides whether the type changes.
 `Table.Size` needs `dbstat`, which scans the file and is not in the mattn
 driver.
-
-### Policy has no field for a disabled Vertica policy
-
-Vertica lists a row access policy that is disabled (`is_policy_enabled`) in
-`Policies`, and `Policy` has no field to say so. It is the same gap as the
-policy that SQL Server and Oracle switch off.
 
 ### Row security for Vertica, ClickHouse and Databend
 

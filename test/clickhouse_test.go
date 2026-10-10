@@ -463,6 +463,11 @@ func TestClickHouseDescribeFields(t *testing.T) {
 			v.Roles.V != "dbmeta_reader" || v.Using.V != "book_id > 0" || v.WithCheck.Valid {
 			t.Errorf("unexpected policy %+v", v)
 		}
+		// system.row_policies has no column for a switch on any release, so
+		// the answer is unknown and not true (D211)
+		if v.Enabled.Valid {
+			t.Errorf("expected no enabled state, got %+v", v.Enabled)
+		}
 	}
 	if policies != 1 {
 		t.Errorf("expected the policy book_recent, got %d", policies)

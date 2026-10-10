@@ -81,8 +81,8 @@ func registerSections() {
 	// the predicates of several policies are joined with AND, so Permissive is
 	// false. A policy has no role list, and applies to every user except one
 	// with EXEMPT ACCESS POLICY, so Roles is absent. A policy that is disabled
-	// restricts nothing and is not a row, because Policy has no field to say
-	// that it is off.
+	// restricts nothing and is a row, and Enabled says that it is off (D211).
+	// It reads the column ENABLE of all_policies, which is YES or NO.
 	dbmeta.Policies.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Policy]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT p.object_owner AS "schema"`),
@@ -96,6 +96,7 @@ func registerSections() {
 			always(`    THEN p.pf_owner || '.' || CASE WHEN p.package IS NOT NULL THEN p.package || '.' END`),
 			always(`    || p.function END AS "with_check"`),
 			always(`, NULL AS "comment"`),
+			always(`, CASE p.enable WHEN 'YES' THEN 1 WHEN 'NO' THEN 0 END AS "enabled"`),
 			always(`FROM all_policies p`),
 			always(`JOIN (SELECT 'all' AS command FROM dual UNION ALL SELECT 'select' FROM dual`),
 			always(`  UNION ALL SELECT 'insert' FROM dual UNION ALL SELECT 'update' FROM dual`),
@@ -104,8 +105,7 @@ func registerSections() {
 			always(`  OR (NOT (p.sel = 'YES' AND p.ins = 'YES' AND p.upd = 'YES' AND p.del = 'YES')`),
 			always(`    AND ((k.command = 'select' AND p.sel = 'YES') OR (k.command = 'insert' AND p.ins = 'YES')`),
 			always(`    OR (k.command = 'update' AND p.upd = 'YES') OR (k.command = 'delete' AND p.del = 'YES')))`),
-			always(`WHERE p.enable = 'YES'`),
-			notSystem("AND", "p.object_owner"),
+			notSystem("WHERE", "p.object_owner"),
 			always(`AND (@schema IS NULL OR p.object_owner LIKE @schema)`),
 			always(`AND (@parent IS NULL OR p.object_name LIKE @parent)`),
 			always(`AND (@name IS NULL OR p.policy_name LIKE @name)`),
@@ -118,12 +118,13 @@ func registerSections() {
 			{Name: "using", Desc: "the policy function, as owner.package.function, because Oracle keeps no predicate text. Absent for insert"},
 			{Name: "with_check", Desc: "the same function for insert, and for update and all when the policy has the check option. Absent otherwise"},
 			{Name: "comment", Desc: "always absent: Oracle records no comment on a policy"},
+			{Name: "enabled", Desc: "false for a policy that DBMS_RLS.ENABLE_POLICY switched off, which restricts nothing"},
 		},
 		Params: childParams("table", "policy"),
 		Scan: func(rows *sql.Rows) (dbmeta.Policy, error) {
 			var v dbmeta.Policy
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Command, &v.Permissive,
-				&v.Using, &v.WithCheck, &v.Comment)
+				&v.Using, &v.WithCheck, &v.Comment, &v.Enabled)
 			return v, err
 		},
 	})

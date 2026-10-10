@@ -172,6 +172,13 @@ var Everything = Fixture{
 )`),
 		at("ledger rows", `INSERT /*+ DIRECT */ INTO dbmeta_fixture.ledger VALUES (1, 'first')`),
 		from("ledger row policy", dbmeta.V(9, 1), `CREATE ACCESS POLICY ON dbmeta_fixture.ledger FOR ROWS WHERE entry > 0 ENABLE`),
+		// A second table whose row access policy is switched off, so that
+		// Policies has a policy that restricts nothing (D211).
+		at("vault", `CREATE TABLE dbmeta_fixture.vault (
+	vault_id INTEGER NOT NULL
+)`),
+		from("vault row policy", dbmeta.V(9, 1), `CREATE ACCESS POLICY ON dbmeta_fixture.vault FOR ROWS WHERE vault_id > 0 ENABLE`),
+		from("vault row policy off", dbmeta.V(9, 1), `ALTER ACCESS POLICY ON dbmeta_fixture.vault FOR ROWS DISABLE`),
 		at("archive rows", `INSERT /*+ DIRECT */ INTO dbmeta_fixture.archive VALUES (1, 2025)`),
 		at("archive more rows", `INSERT /*+ DIRECT */ INTO dbmeta_fixture.archive VALUES (2, 2026)`),
 		at("commit", `COMMIT`),
