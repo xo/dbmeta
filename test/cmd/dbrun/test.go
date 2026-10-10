@@ -13,7 +13,6 @@ import (
 	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/apache/arrow-go/v18/arrow/flight/flightsql/driver"
 	_ "github.com/beltran/gohive/v2"
-	_ "github.com/databricks/databricks-sql-go"
 	_ "github.com/exasol/exasol-driver-go"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/googleapis/go-sql-spanner"
@@ -22,14 +21,17 @@ import (
 	_ "github.com/nakagami/firebirdsql"
 	_ "github.com/sclgo/impala-go"
 	_ "github.com/sijms/go-ora/v3"
-	_ "github.com/uber/athenadriver/go"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cassandra"
 	_ "github.com/xo/dbimp/arangodb"
+	_ "github.com/xo/dbimp/athena"
 	_ "github.com/xo/dbimp/avatica"
+	_ "github.com/xo/dbimp/bigquery"
 	_ "github.com/xo/dbimp/clickhouse"
+	_ "github.com/xo/dbimp/cosmos"
 	_ "github.com/xo/dbimp/couchbase"
 	_ "github.com/xo/dbimp/databend"
+	_ "github.com/xo/dbimp/databricks"
 	_ "github.com/xo/dbimp/drill"
 	_ "github.com/xo/dbimp/druid"
 	_ "github.com/xo/dbimp/elasticsearch"
@@ -43,7 +45,6 @@ import (
 	_ "github.com/xo/dbimp/surrealdb"
 	_ "github.com/xo/dbimp/trino"
 	_ "github.com/ydb-platform/ydb-go-sdk/v3"
-	_ "gorm.io/driver/bigquery/driver"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
@@ -94,18 +95,21 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.LibSQL:     "libsql",
 	dbmeta.Neo4j:      "neo4j",
 	dbmeta.YDB:        "ydb",
-	// spanner:// opens go-sql-spanner, which dburl v0.49.0 names (D154, D216).
+	// spanner:// names the driver of dbimp in dburl v0.50.0, and the tests open
+	// go-sql-spanner instead, because both register the name spanner and Spanner
+	// Omni speaks gRPC only. This is an exception to D154 (D216, D229).
 	dbmeta.Spanner: "spanner",
-	// bigquery:// opens the driver of gorm.io, which dburl v0.49.0 names. It moves
-	// to the driver of dbimp when that is tagged (D154, D220).
+	// bigquery:// opens the driver of dbimp, which dburl v0.50.0 names (D154,
+	// D229).
 	dbmeta.BigQuery: "bigquery",
-	// awsathena:// opens the driver of Uber, which dburl v0.49.0 names. It moves to
-	// the driver of dbimp when that is tagged (D154, D222).
-	dbmeta.Athena: "awsathena",
-	// databricks:// opens databricks-sql-go, which dburl v0.49.0 names. It moves to
-	// the driver of dbimp when that is tagged (D154, D224).
+	// athena:// opens the driver of dbimp, which dburl v0.50.0 names (D154, D229).
+	dbmeta.Athena: "athena",
+	// databricks:// opens the driver of dbimp, which dburl v0.50.0 names (D154,
+	// D229).
 	dbmeta.Databricks: "databricks",
-	dbmeta.ArangoDB:   "arangodb",
+	// cosmos:// opens the driver of dbimp, which dburl v0.50.0 names (D154, D228).
+	dbmeta.Cosmos:   "cosmos",
+	dbmeta.ArangoDB: "arangodb",
 
 	// elasticsearch:// opens dbimp's driver (D177).
 	dbmeta.Elasticsearch: "elasticsearch",
@@ -301,6 +305,16 @@ func goTest(ctx context.Context, env ...string) error {
 			return fmt.Errorf("reading DBMETA_TEST_BINARY %s: %w", abs, err)
 		}
 		argv = []string{abs, "-test.count=1"}
+	}
+	// DBMETA_TEST_RUN limits the tests to the ones that its pattern names, so
+	// that a person can run one test against a hosted service that bills each
+	// call.
+	if pattern := os.Getenv("DBMETA_TEST_RUN"); pattern != "" {
+		flag := "-run"
+		if os.Getenv("DBMETA_TEST_BINARY") != "" {
+			flag = "-test.run"
+		}
+		argv = append(argv, flag, pattern)
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr

@@ -17,6 +17,8 @@ tables fewer rows than the administrator
 [arangodb/same/user]
 current_user the same rows with different values
 
+[athena/same/reader]
+
 [avatica/same/grantee]
 aggregates fewer rows than the administrator
 columns fewer rows than the administrator
@@ -59,8 +61,6 @@ sequences fewer rows than the administrator
 tables fewer rows than the administrator
 triggers fewer rows than the administrator
 views fewer rows than the administrator
-
-[athena/same/reader]
 
 [bigquery/same/reader]
 current_user the same rows with different values
@@ -116,6 +116,10 @@ settings the same rows with different values
 [cockroachdb@26.2/same/owner]
 current_user the same rows with different values
 settings the same rows with different values
+
+[cosmos/same/reader]
+privileges refused: cosmos: 401 Unauthorized: The MAC signature found in the HTTP request is not the same as the computed signature. Server used following string to sign - 'get
+roles refused: cosmos: 401 Unauthorized: The MAC signature found in the HTTP request is not the same as the computed signature. Server used following string to sign - 'get
 
 [couchbase/same/user]
 current_user the same rows with different values
@@ -520,7 +524,6 @@ publications fewer rows than the administrator
 role_grants fewer rows than the administrator
 roles fewer rows than the administrator
 routine_parameters fewer rows than the administrator
-schemas fewer rows than the administrator
 sequences fewer rows than the administrator
 tables fewer rows than the administrator
 

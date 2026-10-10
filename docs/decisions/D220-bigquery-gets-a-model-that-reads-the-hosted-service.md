@@ -1,6 +1,6 @@
 # D220. BigQuery gets a model that reads the hosted service
 
-Status: Decided, amended by D226.
+Status: Decided, amended by D226 and D229.
 
 ## The decision
 

@@ -2,7 +2,6 @@ package test
 
 import (
 	"database/sql"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,14 +10,13 @@ import (
 // The principal of BigQuery that is not the administrator. dbsetup made the
 // service account that the credential file bigquery-reader names. It holds
 // dataViewer on the dataset and jobUser on the project, so it reads the
-// metadata of the dataset and cannot change anything. Its key is a file that
-// dbrun names with GOOGLE_APPLICATION_CREDENTIALS for the administrator, so the
-// reader names its own file in the DSN with the option credential_file of the
-// driver. The DSN holds a path and no secret. See D218 and D220.
+// metadata of the dataset and cannot change anything. The file holds the URL
+// of the reader in the form of dburl, with the path of its own key file in
+// credential_file. The URL holds a path and no secret. See D218, D220 and D229.
 
-// bigQueryReaderKey returns the key file of the reader, and skips when the file
-// is not there.
-func bigQueryReaderKey(t *testing.T) string {
+// bigQueryReaderDSN returns the connection string of the reader as the driver
+// reads it, and skips when the file is not there.
+func bigQueryReaderDSN(t *testing.T) string {
 	t.Helper()
 	dir := os.Getenv("XDG_CONFIG_HOME")
 	if dir == "" {
@@ -28,29 +26,16 @@ func bigQueryReaderKey(t *testing.T) string {
 		}
 		dir = filepath.Join(home, ".config")
 	}
-	file := filepath.Join(dir, "dbmeta", "gcp", "bigquery-reader.json")
-	if info, err := os.Stat(file); err != nil || !info.Mode().IsRegular() {
-		t.Skip("no key file for the principal bigquery-reader")
-	}
-	return file
-}
-
-// bigQueryReaderDSN is the DSN of the administrator with the key of the reader.
-func bigQueryReaderDSN(t *testing.T, dsn string) string {
-	t.Helper()
-	u, err := url.Parse(dsn)
+	body, err := os.ReadFile(filepath.Join(dir, "dbmeta", "credentials", "bigquery-reader"))
 	if err != nil {
-		t.Fatalf("parsing the DSN: %v", err)
+		t.Skip("no credential file for the principal bigquery-reader")
 	}
-	q := u.Query()
-	q.Set("credential_file", bigQueryReaderKey(t))
-	u.RawQuery = q.Encode()
-	return u.String()
+	return hostedDriverDSN(t, string(body))
 }
 
 // makeBigQueryReader connects as the service account that holds dataViewer on
 // the dataset.
-func makeBigQueryReader(t *testing.T, _ *sql.DB, dsn, _ string) string {
+func makeBigQueryReader(t *testing.T, _ *sql.DB, _, _ string) string {
 	t.Helper()
-	return bigQueryReaderDSN(t, dsn)
+	return bigQueryReaderDSN(t)
 }

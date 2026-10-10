@@ -12,8 +12,10 @@ import (
 // also ships Spanner Omni, the same engine as a container that runs on one
 // machine. This entry runs Omni, which is the engine and not a mock of the
 // API. The emulator of Google has its own entry below. usql reaches Spanner with
-// github.com/googleapis/go-sql-spanner, and so does the test module. The
-// Spanner model reads this release. See D117, D118, D215 and D216.
+// github.com/googleapis/go-sql-spanner, and so does the test module, because the
+// driver of dbimp that dburl v0.50.0 names speaks REST and cannot reach Omni, which
+// speaks gRPC only. The Spanner model reads this release. See D117, D118, D215,
+// D216 and D229.
 //
 // # The range
 //
@@ -46,7 +48,9 @@ var spannerOmni = product{
 	port:    15000,
 	args:    []string{"start-single-server", "--listen-addresses", "0.0.0.0"},
 	ready:   []string{"/google/spanner/bin/spanner", "databases", "list"},
-	init:    []string{"/google/spanner/bin/spanner", "databases", "create", "dbmeta"},
+	// Init runs again after a failure and on a restart that kept the volume, so it
+	// makes the database only when it is not there. See D105.
+	init: []string{"sh", "-c", "/google/spanner/bin/spanner databases describe dbmeta >/dev/null 2>&1 || /google/spanner/bin/spanner databases create dbmeta"},
 	dsn: func(port int) string {
 		return fmt.Sprintf("127.0.0.1:%d/projects/default/instances/default/databases/dbmeta;usePlainText=true", port)
 	},

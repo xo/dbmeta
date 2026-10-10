@@ -10,9 +10,9 @@ import (
 // Azure Cosmos DB is a hosted service, and the package hosted names it.
 // Microsoft publishes an emulator of it, and this entry runs the emulator, so
 // that a person and CI can test without an account. usql reaches Cosmos DB
-// with github.com/btnguyen2k/gocosmos. dbmeta has no Cosmos DB model, because
-// the driver that dburl names reads only documents. See D117, D118, D223 and
-// D225.
+// with github.com/btnguyen2k/gocosmos. dbmeta has a Cosmos DB model that reads
+// the hosted service with the driver of dbimp, and it is not written against
+// this emulator, so the entry stays Staged. See D117, D118, D223, D225 and D228.
 //
 // # The range
 //

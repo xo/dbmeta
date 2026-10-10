@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -12,8 +11,8 @@ import (
 // service principal, dbmeta-reader, that the credential file databricks-reader
 // names. It holds USE CATALOG on the catalog and USE SCHEMA and SELECT on the
 // schema dbmeta, so it reads the tables and cannot create or change anything.
-// The file holds the connection string of the reader, with a token, so the test
-// reads it and never prints it. See D224.
+// The file holds the URL of the reader in the form of dburl, with a token as
+// its password, so the test reads it and never prints it. See D224 and D229.
 
 // databricksReaderDSN returns the connection string of the reader as the driver
 // reads it, and skips when the file is not there.
@@ -31,8 +30,7 @@ func databricksReaderDSN(t *testing.T) string {
 	if err != nil {
 		t.Skip("no credential file for the principal databricks-reader")
 	}
-	// dbrun hands the tests the DSN without its scheme, and the file keeps it.
-	return strings.TrimPrefix(strings.TrimSpace(string(body)), "databricks://")
+	return hostedDriverDSN(t, string(body))
 }
 
 // makeDatabricksReader connects as the service principal that can read the

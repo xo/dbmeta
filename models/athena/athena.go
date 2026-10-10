@@ -35,20 +35,14 @@
 // A table has no comment in any relation that a SELECT reads, so Table.Comment is
 // always absent. The comment of a column is in COLUMNS.
 //
-// # The driver writes the values, and this model does not let it
+// # The driver binds
 //
-// The driver that dburl v0.49.0 names for Athena is github.com/uber/athenadriver.
-// It binds a parameter by writing the value into the text of the statement, the
-// way a MySQL driver does, with a backslash before a quote and before a backslash.
-// Athena reads a backslash as itself, so a value with a quote or a backslash
-// becomes a different value or a syntax error. So this model sets
-// [dbmeta.Info.Literal] and renders each filter as a Trino literal. A statement
-// then carries no parameter, and the driver binds nothing. See D222.
-//
-// The same driver refuses a NULL in a result unless the connection has the
-// option missingAsNil=true, and it reads a cell it cannot convert as an error.
-// A caller that opens the driver must set the option, or a column that is NULL
-// stops the query. The tests set it.
+// The driver that dburl v0.50.0 names for Athena is github.com/xo/dbimp/athena.
+// It binds a parameter with the ExecutionParameters of the service, which writes
+// each value as a literal that the service parses, so a quote or a backslash in a
+// filter stays what the caller wrote. The dialect uses the placeholder ? and
+// sets no [dbmeta.Info.Literal]. The driver returns a NULL as nil. See D222 and
+// D229.
 //
 // # The version
 //
@@ -59,10 +53,6 @@
 package athena
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
-
 	"github.com/xo/dbmeta"
 )
 
@@ -71,44 +61,12 @@ func init() {
 		Syntax: dbmeta.Syntax{BlockComments: true},
 		// usql strips the semicolon at the end of a statement for Athena, and
 		// Athena refuses it.
-		Terminator: dbmeta.TerminatorStripped,
-		Fold:       dbmeta.FoldLower,
-		// Placeholder is never called, because the dialect writes literals.
-		Placeholder: func(int) string {
-			panic("athena: Placeholder is never used, because the driver cannot bind safely. See Info.Literal")
-		},
-		Literal: literal,
+		Terminator:  dbmeta.TerminatorStripped,
+		Fold:        dbmeta.FoldLower,
+		Placeholder: func(int) string { return "?" },
 	})
 	registerRelations()
 	registerExtra()
-}
-
-// literal renders one filter value as a Trino literal.
-//
-// Trino reads a doubled quote as one quote and reads a backslash as itself, so
-// a string needs one change. The driver of Uber writes a backslash before each
-// quote, which Athena does not read as an escape, and that is why the model
-// does not let the driver bind. See the package comment.
-//
-// It refuses a type that no query declares, and a string with a NUL.
-func literal(v any) (string, error) {
-	switch t := v.(type) {
-	case string:
-		if strings.ContainsRune(t, 0) {
-			return "", fmt.Errorf("athena: %w: a filter cannot hold a NUL", dbmeta.ErrInvalidParam)
-		}
-		return "'" + strings.ReplaceAll(t, "'", "''") + "'", nil
-	case bool:
-		if t {
-			return "true", nil
-		}
-		return "false", nil
-	case int:
-		return strconv.Itoa(t), nil
-	case int64:
-		return strconv.FormatInt(t, 10), nil
-	}
-	return "", fmt.Errorf("athena: %w: cannot render %T as a literal", dbmeta.ErrInvalidParam, v)
 }
 
 // always is a fragment every release takes.

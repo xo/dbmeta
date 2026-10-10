@@ -94,6 +94,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "bigquery", dialect: dbmeta.BigQuery},
 		{name: "athena", dialect: dbmeta.Athena},
 		{name: "databricks", dialect: dbmeta.Databricks},
+		{name: "cosmos", dialect: dbmeta.Cosmos},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -138,6 +139,7 @@ var displayNames = map[string]string{
 	"Google BigQuery": "bigquery",
 	"Amazon Athena":   "athena",
 	"Databricks":      "databricks",
+	"Azure Cosmos DB": "cosmos",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -315,6 +317,7 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"bigquery":      "Google BigQuery",
 			"athena":        "Amazon Athena",
 			"databricks":    "Databricks",
+			"cosmos":        "Azure Cosmos DB",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -366,6 +369,7 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"bigquery":      "Google BigQuery",
 			"athena":        "Amazon Athena",
 			"databricks":    "Databricks",
+			"cosmos":        "Azure Cosmos DB",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+

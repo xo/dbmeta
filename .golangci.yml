@@ -185,6 +185,11 @@ linters:
       - path: fixture/
         linters:
           - unqueryvet
+      # The grammar of the catalog statements of the Cosmos DB driver takes the list
+      # * and no other, so the statement cannot name its columns.
+      - path: models/cosmos/
+        linters:
+          - unqueryvet
       # Two bindings that read different catalogs can select the same shape.
       # Merging them ties two unrelated queries together.
       - path: models/

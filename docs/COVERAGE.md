@@ -68,10 +68,11 @@ rather than reading one.
 | `models/opensearch` | 3 | 65 | OpenSearch 3.9.0 and 2.19.6, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
 | `models/solr` | 4 | 65 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
 | `models/gizmosql` | 21 | 65 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
-| `models/spanner` | 22 | 65 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect, with go-sql-spanner (D216, D219) |
-| `models/bigquery` | 18 | 65 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with gorm.io/driver/bigquery. The test driver moves to the one of dbimp when it is tagged (D220, D226) |
-| `models/athena` | 8 | 65 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of Uber. The test driver moves to the one of dbimp when it is tagged (D222) |
-| `models/databricks` | 17 | 65 | the hosted Databricks SQL service on Unity Catalog, which reports the release of its SQL channel, 2026.38, with databricks-sql-go. The test driver moves to the one of dbimp when it is tagged (D224) |
+| `models/spanner` | 22 | 65 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect, with go-sql-spanner. The driver of dbimp ran the model on Cloud Spanner and cannot reach Omni (D216, D219, D229) |
+| `models/bigquery` | 18 | 65 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with the driver of dbimp (D220, D226, D229) |
+| `models/athena` | 8 | 65 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of dbimp, which binds with ExecutionParameters (D222, D229) |
+| `models/databricks` | 17 | 65 | the hosted Databricks SQL service on Unity Catalog, which reports the release of its SQL channel, 2026.38, with the driver of dbimp (D224, D229) |
+| `models/cosmos` | 10 | 65 | the hosted Azure Cosmos DB account with the API for NoSQL, which has no release, with the driver of dbimp at v0.17.0. A statement is a SELECT against one of nine reserved names that the driver answers with a REST request (D228) |
 | `models/avatica` | 24 | 65 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
 | `models/informationschema` | 12 | 65 | any database with a standard `information_schema` |
 
@@ -6142,9 +6143,10 @@ of a stored index column and of a column grantee are counted with a join.
 `models/bigquery` answers 18 of the 65, in the GoogleSQL dialect, measured on
 2026-10-10 on the hosted service, in the location US, with gorm.io/driver/bigquery
 v1.2.1. Schemas, CurrentSchema and Privileges were measured on 2026-10-11, after
-the principals gained `roles/bigquery.metadataViewer` on the project. That is the driver that dburl v0.49.0 names for the bigquery scheme and
-that usql uses. A later dburl names `github.com/xo/dbimp/bigquery`, which is not
-tagged yet, and the test module moves to it when it is. See D220.
+the principals gained `roles/bigquery.metadataViewer` on the project. The tests
+moved on 2026-10-11 to `github.com/xo/dbimp/bigquery` v0.17.0, which dburl v0.50.0
+names. Every test passed on it, and conformance and parity did not change. See D220
+and D229.
 
 BigQuery is a hosted service and has no release, so the tier is Verified and CI
 never runs it. The local emulator that `dbrun` can start, goccy's
@@ -6390,10 +6392,9 @@ was not built, because a table is a job and takes seconds.
 
 `models/athena` answers 8 of the 65, in the Trino based dialect of Athena engine
 version 3, measured on 2026-10-10 on the hosted service in us-east-1, with
-`github.com/uber/athenadriver` v1.1.15. That is the driver that dburl v0.49.0 names
-for the awsathena scheme and that usql uses. A later dburl names
-`github.com/xo/dbimp/athena`, which is not tagged yet, and the test module moves to
-it when it is. See D222.
+`github.com/uber/athenadriver` v1.1.15. The tests moved on 2026-10-11 to
+`github.com/xo/dbimp/athena` v0.17.0, which dburl v0.50.0 names, and the model lost
+`Info.Literal`. Conformance and parity did not change. See D222 and D229.
 
 Athena is a hosted service, so the tier is Verified and CI never runs it. The tests
 need the service and skip when `DBMETA_ATHENA` is not set. Each statement is a job
@@ -6447,20 +6448,23 @@ two users of one account read the same value.
 
 ### The driver, and the literals
 
-Three faults of the driver shape the tests and the model (D222).
+Three faults of the driver of Uber shaped the first tests and the model (D222).
+The driver of dbimp has none of them (D229).
 
-- It accepts only the scheme `s3`, it names the workgroup with the key
-  `workgroupName`, and the credential files that `dbsetup` wrote use `workgroup`. The
-  tests rename the key.
-- It stops a query with "Missing data at column" on a NULL unless the connection sets
-  `missingAsNil=true`. Without it every column that can be NULL breaks the query, and
-  the default turns the NULL into an empty string, which hides it. The tests set the
-  option.
-- It binds a parameter by writing the value into the statement with a backslash before a
-  quote and before a backslash, and it writes a boolean as 1. Athena reads a backslash as
-  itself, so a value `it's` is a syntax error and a value with a backslash is a different
-  value. The model sets `Info.Literal`, as Hive does, and writes the filters as Trino
-  literals, so the driver binds nothing. `TestAthenaFilterLiterals` asserts it.
+- The driver of Uber accepted only the scheme `s3`, named the workgroup with the key
+  `workgroupName`, and stopped a query with "Missing data at column" on a NULL unless
+  the connection set `missingAsNil=true`. The driver of dbimp reads the URL of
+  dburl as it is, and returns a NULL as nil.
+- The driver of Uber bound a parameter by writing the value into the statement with a
+  backslash before a quote and before a backslash, and it wrote a boolean as 1.
+  Athena reads a backslash as itself, so the model set `Info.Literal` and wrote the
+  filters as Trino literals. The driver of dbimp binds with the ExecutionParameters
+  of the service, and writes each value as a literal that Athena parses. The
+  model now uses the placeholder `?`, and `TestAthenaFilterLiterals` asserts that a
+  quote, a backslash and an injection stay values.
+- SHOW TBLPROPERTIES answers one text for each property, with a tab between the key
+  and the value. The driver of Uber split the text, and the driver of dbimp returns it
+  as the service sent it. No model reads it.
 
 ### What a second opinion found
 
@@ -6539,11 +6543,11 @@ because a table is a job and takes seconds.
 
 `models/databricks` answers 17 of the 65, in the SQL of Databricks SQL on Unity
 Catalog, measured on 2026-10-11 on the hosted service, a serverless SQL
-warehouse of the free edition on AWS, with databricks-sql-go v1.16.0. That is the
-driver that dburl v0.49.0 names for the databricks scheme and that usql uses. A
-later dburl names `github.com/xo/dbimp/databricks`, which is in the working tree
-of dbimp and not in a tag, and the test module moves to it when it is tagged. See
-D224.
+warehouse of the free edition on AWS, with databricks-sql-go v1.16.0. The tests
+moved on 2026-10-11 to `github.com/xo/dbimp/databricks` v0.17.0, which dburl v0.50.0
+names. The driver returns an array as a slice where the earlier driver returned its
+JSON text, and that changed one test and no model. Conformance and parity did not
+change. See D224 and D229.
 
 Databricks is a hosted service and the model reads the release of its SQL channel,
 2026.38, so the tier is Verified and CI never runs it. The tests of the model need
@@ -6860,56 +6864,224 @@ Tables reads the owner from `SCHEMATA`, which is the owner of the schema and is 
 
 ## Azure Cosmos DB
 
-There is no model, and D223 says why. Cosmos DB with the API for NoSQL has no
-catalog that a SELECT reads. The SQL of the product reads the documents of one
-container. The metadata is reached through REST requests, which the driver that
-dburl v0.49.0 names, `github.com/xo/dbimp/cosmos`, does not send. That driver is
-not tagged yet.
+`models/cosmos` answers 10 of the 65, with the API for NoSQL, measured on
+2026-10-11 on the hosted account with the driver of dbimp, `github.com/xo/dbimp/cosmos`
+v0.17.0. That is the driver that dburl v0.50.0 names for the cosmos scheme, so D154
+is met. D223 left Cosmos DB without a model because the driver then read only
+documents, and D228 builds the model now that the driver reads the catalog.
 
-### What each source can read
+Cosmos DB is a hosted service with no release, so the tier is Verified and CI never
+runs it. The tests of the model need the account, and they skip when `DBMETA_COSMOS`
+is not set. The emulator entry in `container/cosmos.go` stays Staged. The model is
+written against the hosted service, and the emulator leaves out the conflict
+resolution policy, the geospatial type and the unique keys of a container in the
+list of containers.
 
-The hosted account has 400 request units a second shared by its containers. The
-source of the REST answers is the recording of dbimp on that account, in
-`docs/COSMOS.md` of dbimp. The source of the gocosmos answers is a session of
-`dbrun usql cosmos` on 2026-10-11.
+### Which catalog it reads, and why
 
-| Source | What it answers |
-| --- | --- |
-| SELECT over a container, in either driver | The documents of that container, in pages. An aggregate, TOP, ORDER BY, DISTINCT and GROUP BY across partitions are refused by the gateway |
-| gocosmos, LIST DATABASES | One row for each database, with `id`, `_rid`, `_ts`, `_self`, `_etag`, `_colls` and `_users` |
-| gocosmos, LIST COLLECTIONS | One row for each container of the database in the DSN, with `id`, the indexing policy as JSON text, the resource links and the same system columns. No partition key, unique key policy or time to live |
-| gocosmos, DESCRIBE DATABASE and DESCRIBE COLLECTION | "invalid query" |
-| REST, `GET /dbs` and `GET /dbs/{db}/colls` | The same feeds, with the whole body of each container |
-| REST, `GET .../sprocs`, `.../triggers` and `.../udfs` | Created and run on the hosted account by dbimp |
-| REST, `GET .../pkranges` and `GET /offers` | The ranges of a container and the throughput of each database |
-| REST, `GET /dbs/{db}/users` | No users on the account |
+The SQL of Cosmos DB reads the documents of one container and nothing else, so no
+SELECT reads a catalog. A database, a container, its policies, its scripts, its users
+and its throughput are resources of the REST API. The driver of dbimp answers a
+SELECT against nine reserved names with one GET request on the matching resource,
+and the model uses those nine and nothing else. A statement is
+`SELECT * FROM "$containers"`, with no list of columns and no LIKE.
 
-### The kinds
+| Reserved name | The resource it reads | Request units |
+| --- | --- | --- |
+| `$account` | the account, `GET /` | not read by a kind |
+| `$databases` | `GET /dbs` | 2 |
+| `$containers` | `GET /dbs/{db}/colls` | 2 |
+| `$stored_procedures` | `GET /dbs/{db}/colls/{c}/sprocs` | 1, not read by a kind |
+| `$triggers` | `GET /dbs/{db}/colls/{c}/triggers` | 2 |
+| `$functions` | `GET /dbs/{db}/colls/{c}/udfs` | 2 |
+| `$offers` | `GET /offers`, and the database and its containers, to name each offer | 2 for the offers |
+| `$users` | `GET /dbs/{db}/users` | 2 |
+| `$permissions` | `GET /dbs/{db}/users/{u}/permissions` for each user | 2 for each user |
 
-| Kind | Source |
-| --- | --- |
-| Databases | Present as a database. LIST DATABASES in gocosmos, `GET /dbs` in REST |
-| Tables | Present as a container. LIST COLLECTIONS or `GET /dbs/{db}/colls` |
-| Indexes | Present as the indexing policy of a container, one JSON value and not one row for each index |
-| Constraints | Present as the unique key policy of a container, in the body of `GET /dbs/{db}/colls/{c}`. gocosmos does not list it |
-| Functions, procedures, triggers | Present as user defined functions, stored procedures and triggers, under a container |
-| Roles, users, grants | A user and its permissions are REST feeds under a database. The role feed is not measured, and Gemini and DeepSeek gave two different paths for it |
-| Columns | Absent. A document has no declared attributes. A sample of the documents can infer them, and the sample is a read of the data |
-| Sequences, views, foreign keys | Absent |
-| Partition key, time to live, conflict policy, change feed policy, computed properties, vector and full-text policies, materialized views | Fields of the container body or feeds under it. They have no kind among the 65 that holds them |
+The request units are the charge that the account reported for the same GET requests,
+measured on 2026-10-11. A feed that has more than one page costs that for each page.
+
+The statement names no database and no container. The driver takes both from the path
+of the URL, `cosmos://x:key@account.documents.azure.com/database/container`, where the
+user is any word and the account key is the password. So a connection reads one
+database, and the scripts and the triggers of the one container that the URL names. A
+URL with no container makes the driver refuse the three script statements before it
+sends a request, and the tests read that refusal. The test URL names the database
+`dbmeta` and the container `book`.
+
+The grammar of the driver can name a database in the WHERE of a statement, and the
+model does not use it. A parameter of dbmeta is a pattern and the key of the driver
+takes an exact name. A statement for each database is a walk, and Ken chose on
+2026-10-11 that no walk is allowed for Cosmos DB (D223).
+
+Because a statement cannot filter, the `Keep` function of each binding narrows the rows
+in Go with `dbmeta.Like`, as the Cassandra model does (D200). The fields of a binding
+are the columns of the driver, in its order, and `Scan` reads them by name. A list
+arrives as a `[]any`, a policy as a `map[string]any` and a number as an `int64`.
+
+### What it answers
+
+Databases, schemas, tables, indexes, partitioned tables, functions, triggers, roles,
+privileges and settings. Every one is an analogue, and the next section says why.
+
+A Cosmos DB database holds containers, users and permissions, and nothing lies between
+it and the account. So it is the database of `Databases` and also the schema of
+`Schemas` and of every other kind, the way an ArangoDB database is (D168). The catalog
+of every row is empty. Both kinds list every database of the account, and `Tables`
+lists the containers of the database that the URL names. `Schema.Options` holds the
+`rid` and the `link` of the database.
+
+A container is a table of the type `container`. It has no owner, no size, no row count
+and no comment that the feed reports. `Table.Options` holds the settings that no field
+has a place for, as name=value pairs: `rid`, `link`, `partition_key` with the paths
+joined by a vertical bar, `partition_key_kind`, `default_ttl`, `geospatial_type`, the
+conflict resolution mode, path and procedure, `unique_keys` with the paths of one key
+joined by a plus sign and the keys joined by a vertical bar, `computed_properties` with
+the names, and `full_text` and `vector_embedding` when the policy is set. A setting
+that the container does not have is left out, and `default_ttl` is absent for a
+container with no time to live, which is not a time to live of zero.
+
+The indexing policy is the one index of a container, with the name `indexing_policy`.
+Its type is the indexing mode, `consistent` or `none`. Its options hold `automatic` and
+the included and the excluded paths, and its definition is the whole policy as JSON
+text, with the composite, spatial and vector indexes in it. The index is never unique
+and never primary.
+
+A container is split by the hash of its partition key, so every container is a
+partitioned table with the strategy `hash`, and the expression is the paths of the key.
+The physical partitions are `GET .../pkranges`, which the driver has no statement for.
+
+A user defined function is a function, with the language `javascript` and its body as
+the source. Its id is the link of the function, which is rid based and names the
+container. A trigger is a trigger of its container. Its definition is the resource as
+the REST API holds it, as JSON with the id, the body, the trigger type and the trigger
+operation, because a trigger has those beside its body and no field holds them. A
+trigger has no enabled state, because a request names it, so `Enabled` is always empty.
+
+A user of a database is a role. It has no password and no attribute, so every flag is
+false and the connection limit is -1. A permission is a privilege, one row for each
+permission. Its name is the resource link, which is rid based, because the feed names
+the resource by nothing else. Its type is the kind of resource that the link names,
+and its access is the user, an equals sign and the mode, such as `reader=Read`.
+
+The provisioned throughput of the database, and of each container that has its own,
+is a setting named `throughput` and the database, with a slash and the container for
+a container offer. Its value is the manual request units a second, or the largest
+request units of an autoscale offer. Its type is `manual` or `autoscale` and its
+context is the scope.
+
+### What the models call analogues
+
+Each is a choice that Ken can reverse:
+
+- A database is both a database and a schema.
+- A container is a table.
+- The indexing policy is the index of a container. A container has no index with a
+  name, and the policy holds many paths.
+- A hash partition key makes a container a partitioned table.
+- A user defined function is a function, and a trigger is a trigger.
+- A user is a role, and a permission is a privilege.
+- A throughput offer is a setting. It is the nearest thing to a configuration value
+  that the service lists. It was a choice between that and the account, and the account
+  is one row of ten columns, which no kind of one setting for each row can hold.
 
 ### What a second opinion found
 
-Gemini and DeepSeek sorted 21 kinds and agreed on all of them, except for the
-path of the role feed. Every lead is a REST path, so no lead is a SELECT. The
-leads for the feeds of databases, containers, procedures, triggers, functions,
-throughput and users have a recording on the hosted account. The leads for roles,
-materialized views, and the vector and full-text policies have none, and they stay
-unmeasured.
+Gemini and DeepSeek sorted 21 kinds before the model, and D223 records that they agreed
+on every one of them except the path of the role feed. Every lead was a REST path. The
+leads that the model reads are the feeds of databases, containers, scripts, throughput
+and users, which the hosted account answered. The leads that had no recording were run
+on 2026-10-11:
 
-### What stays out, and why
+- `GET /roledefinitions`, the role feed that DeepSeek named, is HTTP 401 "RBAC Request
+  must be signed by a system key". It is the role based access control of the account,
+  which the key of the account cannot read.
+- `GET /dbs/{db}/roledefinitions` and `GET /dbs/{db}/roles`, the paths that Gemini
+  named, are HTTP 400 "Request url is invalid". There is no role feed that a key reads,
+  so Roles reads the users.
+- `GET .../materializedviews` is HTTP 400 "Request url is invalid", and so is
+  `GET .../attachments`. A materialized view is not a resource of this API.
+- `GET .../pkranges` answers the physical partitions of a container for no request
+  units. The driver has no statement for it, so Partitions is not answered.
+- `GET /dbs/{db}/colls/{c}/conflicts` and `GET /dbs/{db}/clientencryptionkeys` answer
+  empty feeds. Neither has a kind among the 65, and the driver has no statement for them.
+- A vector embedding policy and a vector index are refused with "the capability has not
+  been enabled on your account". A change feed retention is refused unless the account
+  keeps all versions. Both columns of `$containers` read NULL on this account.
+- A full text policy, a computed property and a spatial index are accepted, and the
+  fixture builds each one. A geometry spatial index needs a bounding box.
 
-Nothing is built, so nothing is left out by a decision about the product. The
-open question is for Ken and is in `BACKLOG.md`: allow a walk through gocosmos,
-ask dbimp for statements that read the resources, or leave Cosmos DB without a
-model.
+### What it cannot answer
+
+55 kinds.
+
+- Columns, column statistics and the rest of what needs a column. A document has no
+  declared attribute. A sample of the documents can infer one, and the sample is a read
+  of the data, which D47 does not allow. A computed property is the nearest thing to
+  a generated column, and a container has many of them.
+- Index columns, constraints and constraint columns. A row of `$containers` holds many
+  index paths and many unique keys, and a binding returns one object for each row. The
+  unique key policy and the composite indexes are in the options and the definition that
+  Tables and Indexes return, as text. Ken can decide whether a binding can return several
+  objects for one row. That is not a walk, because it needs one statement only. It is in
+  `BACKLOG.md`.
+- Stored procedures. `$stored_procedures` answers six columns, and the statement of
+  Functions reads `$functions`, because one statement answers one kind. The functions
+  query has no second source.
+- Partitions. The physical partitions are `pkranges`, which no statement reads.
+- The current schema and the current user. A statement cannot read the database of the
+  URL, and no statement reads the principal.
+- Sequences, views, foreign keys, types, domains and the rest are absent from the
+  product. A view is not a Cosmos DB object, and a document has no foreign key.
+- Comments. A container has no comment.
+
+### What the fixture builds
+
+The database `dbmeta` of the account, with the 400 request units a second that its
+containers share. Four containers, which are the core tables of D53 that a document
+store can hold: `author` with a full text policy, `book` with two unique keys, an
+indexing policy that includes two paths and excludes the rest and a composite index,
+`region` with no indexing, and `shipment` with a time to live of thirty days, the
+geometry type, a spatial index and a computed property. The container `book` holds a
+function, a stored procedure and a trigger. Two users, `reader` and `auditor`, hold a
+read permission on `book` and all permissions on `author`.
+
+The fixture is a list of REST requests, and `test/cosmos_rest_test.go` signs and sends
+them with the key of the account, because the SQL of Cosmos DB writes nothing and the
+driver reads only. The tests make no database and drop every container and user
+that they made when the run ends. They never touch the other database of the account.
+
+It cannot build a vector embedding policy, a vector index or a change feed retention,
+because the account has neither capability. It builds no conflict resolution policy,
+because only an account with several write regions takes one. It builds no analytical
+store. A container with two partition key paths is refused at the version of the API that
+the driver names. A database has no permission of its own either, because the server
+refuses a resource that is a database, so a permission is on a container.
+
+### What the conformance test says
+
+The section of Cosmos DB holds the four containers as tables and nothing else. It is in
+`agreementExcluded`: a document has no column, and a container has no key, no
+constraint and no view that a statement reads (D228).
+
+### Which answers depend on who is asking
+
+Two principals, both with the key of the account: the primary key of the administrator
+and the read-only key of `cosmos-reader`. A key is account wide, so neither is limited
+to one database. `TestPrivilegeParity` records one difference. The read-only key is
+refused HTTP 401 by the feeds of users and permissions, so Roles and Privileges are
+refused to it ("The MAC signature found in the HTTP request is not the same as the
+computed signature"). It reads every other feed that the model reads, with the same rows.
+A user of a database is not a way to connect here, because it holds a resource token for
+an application and the driver takes only a key.
+
+### The cost
+
+A feed costs 2 request units for a page of the lists that the model reads, and the three
+script feeds cost 1 or 2. A statement is one request, and `$permissions` is one request
+for the users and one for each user. `$offers` reads the offers and then names each one.
+The 400 request units a second that the database shares were enough for the whole test run,
+and no request was refused for rate. No catalog with thousands of containers was built,
+because a database with shared throughput holds a few tens of containers at the
+free tier, so the plan was not checked against one. The cost grows with the number of
+containers and users and with the pages of a feed, never with the number of documents.

@@ -4,16 +4,14 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
 // The principal of Athena that is not the administrator. dbsetup made an IAM
 // user that the credential file athena-reader names. It can query the tables and
 // the views of the Glue database dbmeta and cannot create or drop a table or
-// write under tables/. The file holds the connection string of the reader in the
-// form of dburl, with a secret, so the test reads it and never prints it. See
-// D222.
+// write under tables/. The file holds the URL of the reader in the form of dburl,
+// with its key pair, so the test reads it and never prints it. See D222 and D229.
 
 // athenaReaderDSN returns the connection string of the reader as the driver
 // reads it, and skips when the file is not there.
@@ -31,7 +29,7 @@ func athenaReaderDSN(t *testing.T) string {
 	if err != nil {
 		t.Skip("no credential file for the principal athena-reader")
 	}
-	return athenaDriverDSN(t, strings.TrimSpace(string(body)))
+	return hostedDriverDSN(t, string(body))
 }
 
 // makeAthenaReader connects as the IAM user that can read the Glue database.

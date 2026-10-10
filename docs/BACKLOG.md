@@ -308,27 +308,55 @@ job of a second or more and each INFORMATION_SCHEMA read bills 10 MB (D220). Bui
 one in a loop, run a dry run of each statement, and read the time of the job, to
 check the cost test of D47.
 
-### BigQuery generated columns, row access policies and the test driver
+### BigQuery generated columns and row access policies
 
 BigQuery refused every generated column that the fixture tried, with "Unsupported
 generated column expression", so the mapping of `Column.Generated` is not
 measured. A row access policy exists, and no view lists it: the views that DeepSeek and
-Gemini named answer not found (D226). The test module uses gorm.io/driver/bigquery until dburl names
-`github.com/xo/dbimp/bigquery` and dbimp tags it, and then both `dbrun` and the
-tests change driver (D220).
+Gemini named answer not found (D226). See D220.
 
-### Build the Cosmos DB model when dbimp reads the REST resources
+### Let a binding return several objects for one row, for Cosmos DB
 
-Cosmos DB with the API for NoSQL has no catalog that a SELECT reads (D223). The driver
-that dburl v0.49.0 names, `github.com/xo/dbimp/cosmos`, is not tagged and reads only the
-documents of one container. gocosmos answers LIST DATABASES and LIST COLLECTIONS, which
-give the databases, the containers and the indexing policy as text, and no partition key,
-unique key policy, procedure, trigger or function. D146 allows a walk for four products,
-and Cosmos DB is not one. Ken decided on 2026-10-11 to ask dbimp for statements that read
-the REST resources, and the request is sent. dbimp tags the driver as v0.17.0, and dburl
-must name it (D225). When both are tagged, write the model on it, with the fixture, the parity of the read-only key and the tests, as the other hosted
-models did. The role, materialized view, vector policy and full-text policy leads are
-not measured.
+Cosmos DB answers 10 of the 65 kinds (D228). A row of `$containers` holds many index
+paths, many unique keys, many composite indexes and many computed properties, and a
+binding returns one object for each row. So index columns, constraints, constraint
+columns and the computed properties as columns are not answered, and their facts are
+text in `Table.Options` and `Index.Definition`. A hook that expands a row into several
+objects needs one statement and is not a walk, but it changes the root package, which is
+Ken's decision. The same hook can give Settings the account row of `$account`.
+
+### Give the stored procedures of Cosmos DB a kind
+
+`$stored_procedures` answers six columns on the hosted account, and no kind reads it,
+because `Functions` reads `$functions` and one statement answers one kind. A kind of its
+own for a procedure is a decision under D46 and D47, and PostgreSQL, SQL Server and
+Oracle list a procedure with the functions.
+
+### Measure what the Cosmos DB account cannot build yet
+
+The account has no vector search, no change feed of all versions, no analytical store and
+no region to write to but one, so a vector embedding policy, a vector index, a change feed
+retention, an analytical time to live and a custom conflict resolution policy were never
+measured, and the autoscale columns of `$offers` were not either. The statements read them
+by the names that Microsoft documents, and they are NULL on this account. If an account
+gets one of those capabilities, extend the fixture and the test of Tables. The physical
+partitions are `GET .../pkranges`, which costs nothing and which the driver has no
+statement for. Ask dbimp for `$partition_key_ranges` if Ken wants Partitions answered.
+
+### Move the Spanner tests to the driver of dbimp
+
+dburl v0.50.0 names `github.com/xo/dbimp/spanner`, and the Spanner tests still open
+go-sql-spanner (D229). The driver of dbimp ran every test of the model on Cloud Spanner on
+2026-10-11, and conformance did not change. Four things stop the move.
+
+- Both drivers register the name `spanner`, so one binary cannot import both, and
+  the plan was Spanner Omni on go-sql-spanner and the hosted service on dbimp. Ask dbimp for
+  another registered name, or run the Omni tests in a binary of their own.
+- The driver of dbimp is REST and cannot reach Spanner Omni, which is gRPC only.
+- It has no key for `database_role`, which D219 uses for two principals of parity and for
+  `TestSpannerEnforcesRoles`. Ask dbimp for the key.
+- It sends one DDL statement for each request, and the fixture of about 60 statements took
+  461 seconds on the hosted service. Ask dbimp for a batch of DDL.
 
 ### Databricks table size, defaults and checks have no source
 
@@ -341,17 +369,6 @@ products, and Databricks is not one. A walk costs one statement for each table, 
 warehouse is shared and has a daily quota. Ken decided on 2026-10-11 that Athena gets no
 walk, and Databricks follows the same rule. Ask Databricks and dbimp for a relation that holds them: `system.information_schema.tables`
 has no size column on the release that was measured.
-
-### Databricks follows dburl and dbimp
-
-The test module uses `github.com/databricks/databricks-sql-go` until dburl names
-`github.com/xo/dbimp/databricks` and dbimp tags it. The driver is in the working tree of
-dbimp and v0.16.1 has none. Then `dbrun` and the tests change driver, and the string
-that `dbrun` builds for the driver changes with them, because dburl v0.49.0 reads the
-scheme in an older form (D224). The form that dbsetup wrote,
-`databricks://token:<token>@<host>:443/sql/1.0/endpoints/<id>?catalog=&schema=`, is not
-the one of D193 of dbimp, which takes the warehouse id as the whole path. Ask dbimp
-which form its driver reads, or change the credential files.
 
 ### Databricks on other principals, a catalog of thousands of tables and a cluster
 
@@ -373,14 +390,6 @@ read. D146 allows a walk for four products, and Athena is not one. A walk costs
 one statement for each table, and each Athena statement is a job of one to six
 seconds. Ken decided on 2026-10-11 that Athena gets no walk. The hidden tables `"t$partitions"`,
 `"t$properties"` and `"t$files"` are per table too.
-
-### Athena follows dburl and dbimp
-
-The dialect value is `athena` since D227. The test module uses `github.com/uber/athenadriver` until
-dburl names `github.com/xo/dbimp/athena` and dbimp tags it, and then `dbrun` and
-the tests change driver. The driver of dbimp must write a string literal the way
-Trino reads it, and must return a NULL as NULL without an option, and then
-`Info.Literal` of the Athena model can go (D222).
 
 ### Athena on a large catalog and on other workgroups
 

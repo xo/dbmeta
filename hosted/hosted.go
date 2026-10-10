@@ -60,26 +60,23 @@ func All() []Service {
 	out := []Service{
 		{
 			Name: "athena", Product: "Amazon Athena", Dialect: dbmeta.Athena,
-			Form: "awsathena://<bucket>/<path>?region=<region>&db=<database>" +
-				"&workgroup=<workgroup>&accessID=<key id>&secretAccessKey=<secret>",
-			Native: "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN and AWS_REGION," +
-				" and a profile in ~/.aws when AWS_SDK_LOAD_CONFIG=1",
+			Form: "athena://<key id>:<secret>@athena.<region>.amazonaws.com/<database>" +
+				"?workgroup=<workgroup>&output=s3://<bucket>/<path>/",
 		},
 		{
 			Name: "bigquery", Product: "Google BigQuery", Dialect: dbmeta.BigQuery,
-			Form:     "bigquery://<project>/<location>/<dataset>",
-			Native:   "GOOGLE_APPLICATION_CREDENTIALS, or gcloud application default credentials",
+			Form:     "bigquery://<project>/<location>/<dataset>?credential_file=<path of the key file>",
 			Emulator: "bigquery",
 		},
 		{
 			Name: "cosmos", Product: "Azure Cosmos DB", Dialect: dbmeta.Cosmos,
-			Form:     "cosmos://<account key, percent encoded>@<account>.documents.azure.com:443/<database>",
+			Form:     "cosmos://<user>:<account key, percent encoded>@<account>.documents.azure.com/<database>",
 			Emulator: "cosmos",
 		},
 		{
 			Name: "databricks", Product: "Databricks", Dialect: dbmeta.Databricks,
-			Form: "databricks://token:<personal access token>@<workspace>.cloud.databricks.com:443" +
-				"/sql/1.0/endpoints/<warehouse id>?catalog=<catalog>&schema=<schema>",
+			Form: "databricks://token:<personal access token>@<workspace>.cloud.databricks.com" +
+				"/<warehouse id>?catalog=<catalog>&schema=<schema>",
 		},
 		{
 			Name: "dynamodb", Product: "Amazon DynamoDB", Dialect: dbmeta.DynamoDB,
@@ -111,8 +108,7 @@ func All() []Service {
 		},
 		{
 			Name: "spanner", Product: "Google Cloud Spanner", Dialect: dbmeta.Spanner,
-			Form:     "spanner:///<project>/<instance>/<database>",
-			Native:   "GOOGLE_APPLICATION_CREDENTIALS, or gcloud application default credentials",
+			Form:     "spanner:///<project>/<instance>/<database>?credential_file=<path of the key file>",
 			Emulator: "spanner",
 		},
 		{
@@ -123,7 +119,7 @@ func All() []Service {
 	for i := range out {
 		out[i].Tier = container.Staged
 		switch out[i].Dialect {
-		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift, dbmeta.Spanner, dbmeta.BigQuery, dbmeta.Athena, dbmeta.Databricks:
+		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift, dbmeta.Spanner, dbmeta.BigQuery, dbmeta.Athena, dbmeta.Databricks, dbmeta.Cosmos:
 			out[i].Tier = container.Verified
 		}
 	}

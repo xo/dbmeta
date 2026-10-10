@@ -19,9 +19,11 @@ import (
 
 // openSpanner returns a connection to the server named by DBMETA_SPANNER.
 //
-// The driver is github.com/googleapis/go-sql-spanner, which dburl v0.49.0 names
-// for the spanner scheme (D154). The value is the DSN that the driver takes, such
-// as host:port/projects/default/instances/default/databases/dbmeta, with
+// The driver is github.com/googleapis/go-sql-spanner. dburl v0.50.0 names the
+// driver of dbimp for the spanner scheme, and this is the exception to D154 that
+// D229 records, because the two drivers register one name and Spanner Omni speaks
+// gRPC only. The value is the DSN that the driver takes, such as
+// host:port/projects/default/instances/default/databases/dbmeta, with
 // usePlainText for a server that has no certificate. dbrun sets it. The test
 // reads Spanner Omni and Cloud Spanner. See D216 and D219.
 func openSpanner(t *testing.T) *sql.DB {

@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,58 +11,53 @@ import (
 	"sync"
 	"testing"
 
-	_ "github.com/uber/athenadriver/go"
+	_ "github.com/xo/dbimp/athena"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/athena"
 	athfixture "github.com/xo/dbmeta/models/athena/fixture"
 )
 
-// athenaDriverDSN turns the connection string that dbrun resolves into the one
-// the driver of Uber reads.
-//
-// The string that dbrun holds is the form of dburl, awsathena://bucket/path?
-// with the keys accessID, secretAccessKey, region, db and workgroup. The driver
-// refuses it in three ways. It accepts only the scheme s3, it names the
-// workgroup with the key workgroupName, and it fails the whole query on a NULL
-// unless the connection has missingAsNil=true. dburl turns the scheme into s3
-// and passes the rest through. The conversion is made here, and the DSN holds a
-// secret, so no test prints it. See D222.
-func athenaDriverDSN(t *testing.T, raw string) string {
-	t.Helper()
+// athenaLocationOf is the S3 prefix that the fixture puts its tables under. The
+// account allows a table only under tables/dbmeta/ of its bucket, and the bucket
+// is the one that the key output of the DSN names. The host of the DSN is the
+// endpoint of the service. The error holds no part of the DSN, which has a secret.
+func athenaLocationOf(raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
-		t.Fatal("parsing the DSN of Athena: the value is not a URL")
+		return "", errors.New("reading the bucket from the DSN of Athena: the value is not a URL")
 	}
-	return athenaDriverDSNOf(u)
+	bucket, _, _ := strings.Cut(strings.TrimPrefix(u.Query().Get("output"), "s3://"), "/")
+	if bucket == "" {
+		return "", errors.New("reading the bucket from the DSN of Athena: the value has no output")
+	}
+	return "s3://" + bucket + "/tables/dbmeta/", nil
 }
 
-// athenaLocation is the S3 prefix that the fixture puts its tables under. The
-// account allows a table only under tables/dbmeta/ of its bucket, and the bucket
-// is the host of the DSN.
+// athenaLocation is athenaLocationOf for a test, which stops on an error.
 func athenaLocation(t *testing.T, raw string) string {
 	t.Helper()
-	u, err := url.Parse(raw)
-	if err != nil || u.Host == "" {
-		t.Fatal("reading the bucket from the DSN of Athena: the value has no host")
+	loc, err := athenaLocationOf(raw)
+	if err != nil {
+		t.Fatal(err)
 	}
-	return "s3://" + u.Host + "/tables/dbmeta/"
+	return loc
 }
 
 // openAthena returns a connection to the service named by DBMETA_ATHENA, which
 // dbrun resolves from the places D117 names. The value holds a secret and no
 // test prints it.
 //
-// The driver is github.com/uber/athenadriver, which dburl v0.49.0 names for the
-// awsathena scheme (D154). It moves to dbimp's driver when that is tagged. See
-// D222.
+// The driver is github.com/xo/dbimp/athena, which dburl v0.50.0 names for the
+// athena scheme (D154, D229). It signs each request with the key pair of the DSN
+// and reads no credential from the environment. See D222.
 func openAthena(t *testing.T) *sql.DB {
 	t.Helper()
 	raw := os.Getenv("DBMETA_ATHENA")
 	if raw == "" {
 		t.Skip("set DBMETA_ATHENA to run against the service")
 	}
-	return openAt(t, "awsathena", athenaDriverDSN(t, raw))
+	return openAt(t, "athena", raw)
 }
 
 // athenaState is the one fixture that every Athena test shares.
@@ -102,38 +98,24 @@ func shutdownAthena() {
 		return
 	}
 	raw := os.Getenv("DBMETA_ATHENA")
-	u, err := url.Parse(raw)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "dropping the Athena fixture: the DSN is not a URL")
-		return
-	}
-	db, err := sql.Open("awsathena", athenaDriverDSNOf(u))
+	db, err := sql.Open("athena", raw)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "dropping the Athena fixture: opening the driver failed")
 		return
 	}
 	defer db.Close()
-	down, err := athfixture.Everything.ResolveTeardown(dbmeta.VersionSet{}, "s3://"+u.Host+"/tables/dbmeta/")
+	loc, err := athenaLocationOf(raw)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "dropping the Athena fixture: %v\n", err)
+		return
+	}
+	down, err := athfixture.Everything.ResolveTeardown(dbmeta.VersionSet{}, loc)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "dropping the Athena fixture: %v\n", err)
 		return
 	}
 	//nolint:errcheck // a teardown is best effort, and quiet says so
 	runAthenaSteps(context.Background(), db, down, true)
-}
-
-// athenaDriverDSNOf is athenaDriverDSN for a caller that has no test to stop.
-func athenaDriverDSNOf(u *url.URL) string {
-	q := u.Query()
-	if q.Get("workgroupName") == "" && q.Get("workgroup") != "" {
-		q.Set("workgroupName", q.Get("workgroup"))
-	}
-	q.Del("workgroup")
-	q.Set("missingAsNil", "true")
-	out := *u
-	out.Scheme = "s3"
-	out.RawQuery = q.Encode()
-	return out.String()
 }
 
 // setupAthena builds the fixture, once, and returns the metadata for the
@@ -230,9 +212,9 @@ func athenaDrain(ctx context.Context, db *sql.DB, stmt string) error {
 }
 
 // athenaColumns runs the statement and returns the names of its columns.
-func athenaColumns(t *testing.T, db *sql.DB, query string) ([]string, error) {
+func athenaColumns(t *testing.T, db *sql.DB, query string, vals []any) ([]string, error) {
 	t.Helper()
-	rows, err := db.QueryContext(t.Context(), query)
+	rows, err := db.QueryContext(t.Context(), query, vals...)
 	if err != nil {
 		return nil, err
 	}
@@ -287,10 +269,7 @@ func TestAthenaSmoke(t *testing.T) {
 			t.Errorf("%s: building: %v", q.Name(), err)
 			continue
 		}
-		if len(vals) != 0 {
-			t.Errorf("%s: expected no bound value, because the dialect writes literals, got %d", q.Name(), len(vals))
-		}
-		cs, err := athenaColumns(t, db, query)
+		cs, err := athenaColumns(t, db, query, vals)
 		if err != nil {
 			t.Errorf("%s: %v\n%s", q.Name(), err, query)
 			continue
@@ -493,9 +472,9 @@ func TestAthenaCurrent(t *testing.T) {
 }
 
 // TestAthenaFilterLiterals checks that a quote and a backslash in a filter reach
-// Athena as the value that the caller wrote. The driver writes a backslash
-// before each of them, which Athena reads as part of the value, so the model
-// writes the literal itself. See D222.
+// Athena as the value that the caller wrote. The driver binds with the
+// ExecutionParameters of the service, and an earlier driver wrote a backslash
+// before each of them, which Athena reads as part of the value. See D222 and D229.
 func TestAthenaFilterLiterals(t *testing.T) {
 	db := openAthena(t)
 	m := setupAthena(t, db)
@@ -505,8 +484,7 @@ func TestAthenaFilterLiterals(t *testing.T) {
 			t.Errorf("filter %q: expected no table, got %+v", name, got)
 		}
 	}
-	// The driver refuses a NULL unless the connection sets missingAsNil. A
-	// comment that was never set is a NULL, and the model must read it as one.
+	// A comment that was never set is a NULL, and the model must read it as one.
 	columns := athenaAll(t, dbmeta.Columns, m, db, dbmeta.Args{Parent: "author", Name: "rating"}.Map())
 	if len(columns) != 1 || columns[0].Comment.Valid {
 		t.Errorf("expected one column with no comment, got %+v", columns)
@@ -539,13 +517,16 @@ func TestAthenaUnanswered(t *testing.T) {
 		t.Fatalf("SHOW TBLPROPERTIES: %v", err)
 	}
 	defer rows.Close()
+	// The service answers one text for each property, with a tab between the key
+	// and the value, and the driver of Uber split the text. The driver of dbimp
+	// returns it as the service sent it. See D229.
 	var comment bool
 	for rows.Next() {
-		var k, v sql.NullString
-		if err := rows.Scan(&k, &v); err != nil {
+		var line, rest sql.NullString
+		if err := rows.Scan(&line, &rest); err != nil {
 			t.Fatalf("reading the properties: %v", err)
 		}
-		comment = comment || (k.String == "comment" && v.String == "people who write books")
+		comment = comment || line.String == "comment\tpeople who write books"
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatalf("reading the properties: %v", err)

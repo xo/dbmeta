@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-90 of them amend or replace an earlier one, and a decision read without its
+92 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -172,7 +172,7 @@ file.
 | [D151](D151-rqlite-tests-use-dbimps-driver.md) | The rqlite tests use dbimp's driver | Amends D148 |
 | [D152](D152-influxdb-3-reads-datafusions-information-schema.md) | InfluxDB 3 reads DataFusion's information_schema | Amended by D170 |
 | [D153](D153-libsql-has-an-ordinary-user-through-a-jwt.md) | libSQL has an ordinary user through a JWT | Amends D112, amended by D160 |
-| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157 |
+| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157 and D229 |
 | [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
 | [D156](D156-a-test-checks-the-simple-english-rules-a-machine-can.md) | A test checks the simple English rules that a machine can check | Decided |
 | [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154, amended by D166 |
@@ -238,11 +238,13 @@ file.
 | [D217](D217-the-cloud-spanner-emulator-returns-beside-spanner-omni.md) | The Cloud Spanner emulator returns beside Spanner Omni | Amends D215 |
 | [D218](D218-the-hosted-services-get-models-and-dbrun-names-their-key-files.md) | The hosted services get models and dbrun names their key files | Amends D194 |
 | [D219](D219-spanner-is-measured-on-cloud-spanner-and-a-database-role-is-its-principal.md) | Spanner is measured on Cloud Spanner and a database role is its principal | Amends D216 |
-| [D220](D220-bigquery-gets-a-model-that-reads-the-hosted-service.md) | BigQuery gets a model that reads the hosted service | Decided, amended by D226 |
+| [D220](D220-bigquery-gets-a-model-that-reads-the-hosted-service.md) | BigQuery gets a model that reads the hosted service | Decided, amended by D226 and D229 |
 | [D221](D221-redshift-reads-the-spectrum-external-tables.md) | Redshift reads the Spectrum external tables | Amends D212 |
-| [D222](D222-athena-gets-a-model-that-reads-the-hosted-service.md) | Athena gets a model that reads the hosted service | Amends D194, amended by D227 |
-| [D223](D223-no-cosmos-model-because-the-driver-reads-only-documents.md) | No Cosmos DB model, because the driver reads only documents | Decided |
-| [D224](D224-databricks-gets-a-model-that-reads-the-hosted-service.md) | Databricks gets a model that reads the hosted service | Amends D194 |
-| [D225](D225-the-bigquery-and-cosmos-entries-follow-the-drivers-of-dbimp.md) | The BigQuery and Cosmos DB entries follow the drivers of dbimp | Amends D118 |
+| [D222](D222-athena-gets-a-model-that-reads-the-hosted-service.md) | Athena gets a model that reads the hosted service | Amends D194, amended by D227 and D229 |
+| [D223](D223-no-cosmos-model-because-the-driver-reads-only-documents.md) | No Cosmos DB model, because the driver reads only documents | Decided, amended by D228 |
+| [D224](D224-databricks-gets-a-model-that-reads-the-hosted-service.md) | Databricks gets a model that reads the hosted service | Amends D194, amended by D229 |
+| [D225](D225-the-bigquery-and-cosmos-entries-follow-the-drivers-of-dbimp.md) | The BigQuery and Cosmos DB entries follow the drivers of dbimp | Amends D118, amended by D228 |
 | [D226](D226-bigquery-reads-the-schemas-and-the-grants-on-the-dataset.md) | BigQuery reads the schemas and the grants on the dataset | Amends D220 |
 | [D227](D227-the-athena-dialect-is-athena.md) | The Athena dialect is athena | Amends D222 |
+| [D228](D228-cosmos-gets-a-model-that-reads-the-hosted-account.md) | Cosmos DB gets a model that reads the hosted account | Amends D223 and D225, amended by D229 |
+| [D229](D229-the-hosted-tests-move-to-the-drivers-of-dbimp-and-spanner-stays-on-go-sql-spanner.md) | The hosted tests move to the drivers of dbimp and Spanner stays on go-sql-spanner | Amends D154, D220, D222, D224 and D228 |

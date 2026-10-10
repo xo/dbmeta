@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	_ "gorm.io/driver/bigquery/driver"
+	_ "github.com/xo/dbimp/bigquery"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/bigquery"
@@ -17,13 +17,12 @@ import (
 )
 
 // openBigQuery returns a connection to the service named by DBMETA_BIGQUERY,
-// which dbrun resolves from the places D117 names, and which holds no secret.
-// The service account comes from GOOGLE_APPLICATION_CREDENTIALS, which dbrun
-// sets to the key file of the service (D218).
+// which dbrun resolves from the places D117 names. The value holds the path of
+// the key file of the service account in the key credential_file, and no key.
 //
-// The driver is gorm.io/driver/bigquery, which dburl v0.49.0 names for the
-// bigquery scheme (D154). It moves to dbimp's driver when that is tagged. See
-// D220.
+// The driver is github.com/xo/dbimp/bigquery, which dburl v0.50.0 names for the
+// bigquery scheme (D154, D229). It speaks the REST API of the service and reads
+// no key from the environment. See D220.
 func openBigQuery(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_BIGQUERY")
@@ -84,7 +83,7 @@ func shutdownBigQuery() {
 	}
 	db, err := sql.Open("bigquery", os.Getenv("DBMETA_BIGQUERY"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "dropping the BigQuery fixture: %v\n", err)
+		fmt.Fprintln(os.Stderr, "dropping the BigQuery fixture: opening the driver failed")
 		return
 	}
 	defer db.Close()

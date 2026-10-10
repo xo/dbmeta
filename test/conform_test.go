@@ -18,6 +18,7 @@ import (
 	bqfixture "github.com/xo/dbmeta/models/bigquery/fixture"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
+	cmfixture "github.com/xo/dbmeta/models/cosmos/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
@@ -320,6 +321,11 @@ func conformTargets() []conformTarget {
 			name: "databricks", dialect: dbmeta.Databricks,
 			open: openDatabricks, schema: dbxfixture.Everything.Schema,
 			build: setupDatabricks,
+		},
+		{
+			name: "cosmos", dialect: dbmeta.Cosmos,
+			open: openCosmos, schema: cmfixture.Everything.Schema,
+			build: setupCosmos,
 		},
 	}
 }
@@ -731,6 +737,9 @@ func TestConformanceAgreementHolds(t *testing.T) {
 // against their own recorded sections, which is where a real regression in
 // either shows.
 var agreementExcluded = map[string]string{
+	"cosmos": "not relational: a document has no declared attribute, so there is no column" +
+		" catalog, and a container has no key, no constraint and no view that a statement" +
+		" reads, so the section holds the four containers alone (D228)",
 	"athena": "no constraint of any kind: a Glue table has no key, no unique constraint and no" +
 		" check, so the section has no constraint line. Every column is nullable and has no" +
 		" default, because a Glue column has neither, so the key columns read nullable where" +

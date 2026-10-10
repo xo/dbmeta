@@ -1,6 +1,6 @@
 # D223. No Cosmos DB model, because the driver reads only documents
 
-Status: Decided.
+Status: Decided, amended by D228.
 
 ## The decision
 

@@ -18,6 +18,7 @@ import (
 	bqfixture "github.com/xo/dbmeta/models/bigquery/fixture"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
+	cmfixture "github.com/xo/dbmeta/models/cosmos/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
@@ -677,7 +678,7 @@ func parityTargets() []parityTarget {
 			// The administrator makes the tables in Glue, and the reader is an
 			// IAM user that can query them and cannot create or drop one, so the
 			// two are the principals (D222).
-			dialect: dbmeta.Athena, driver: "awsathena", env: "DBMETA_ATHENA",
+			dialect: dbmeta.Athena, driver: "athena", env: "DBMETA_ATHENA",
 			open: openAthena, build: setupAthena, schema: athfixture.Everything.Schema,
 			scenes: []parityScene{{
 				name:       "same",
@@ -694,6 +695,19 @@ func parityTargets() []parityTarget {
 			scenes: []parityScene{{
 				name:       "same",
 				principals: []parityPrincipal{{name: "reader", make: makeDatabricksReader}},
+			}},
+		},
+		{
+			// Cosmos DB has no containment. The account has two keys, the primary key
+			// of the administrator and a read-only key, and both are account wide, so
+			// the read-only key is the lesser principal. A user of a database holds
+			// resource tokens for one app and is not a way to connect here (D228).
+			dialect: dbmeta.Cosmos, driver: "cosmos", env: "DBMETA_COSMOS",
+			open: openCosmos, build: setupCosmos, schema: cmfixture.Everything.Schema,
+			scenes: []parityScene{{
+				name:       "same",
+				prepare:    prepareCosmos,
+				principals: []parityPrincipal{{name: "reader", make: makeCosmosReader}},
 			}},
 		},
 		{

@@ -107,9 +107,6 @@ linters:
             - github.com/sclgo/impala-go
             - github.com/ydb-platform/ydb-go-sdk
             - github.com/googleapis/go-sql-spanner
-            - gorm.io/driver/bigquery
-            - github.com/uber/athenadriver
-            - github.com/databricks/databricks-sql-go
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:
@@ -152,6 +149,10 @@ linters:
       - path: elasticsearch_test.go
         linters:
           - tagliatelle
+      # The catalog statements of the Cosmos DB driver take the list * and no other.
+      - path: cosmos_test.go
+        linters:
+          - unqueryvet
       # A command prints. That is what it is for.
       - path: cmd/
         linters:

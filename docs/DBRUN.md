@@ -505,50 +505,60 @@ padding, of its PKCS8 DER bytes. The query takes only `role`, `warehouse`,
 `authenticator` or `privateKey`. A host without a suffix is not valid, so give
 the full name that ends in `.snowflakecomputing.com`. See D213.
 
-If the driver reads a secret by itself, as BigQuery and Spanner read the key
-file that `GOOGLE_APPLICATION_CREDENTIALS` names, the connection string holds
-no secret. `dbrun` sets that variable to `gcp/<name>.json` in
-`$XDG_CONFIG_HOME/dbmeta`, when the file is there and the variable is unset.
-The lesser principal of a service is the file `<name>-reader` (D218).
+If a driver reads a secret by itself, the connection string holds no secret.
+BigQuery and Spanner hold the path of a key file in the key `credential_file`
+of the URL, and the file is the secret. The lesser principal of a service is
+the file `<name>-reader`, which holds a URL of the same form with the key of
+the reader (D218, D229). `dbrun` also sets `GOOGLE_APPLICATION_CREDENTIALS` to
+`gcp/<name>.json` in `$XDG_CONFIG_HOME/dbmeta`, when the file is there and the
+variable is unset, for a driver that reads it. The drivers of dbimp do not.
 
-The URL of BigQuery is `bigquery://<project>/<location>/<dataset>`, and the model
-reads that one dataset. The driver takes a second key file in the option
-`credential_file`, which is how the parity test connects as the reader (D220).
+The URL of BigQuery is
+`bigquery://<project>/<location>/<dataset>?credential_file=<path of the key file>`,
+and the model reads that one dataset. The reader has its own key file in its own
+URL, and the parity test connects with it (D220, D229).
 
 The connection string of Athena has the form
-`awsathena://<bucket>/<path>?region=<region>&db=<database>&workgroup=<workgroup>&accessID=<id>&secretAccessKey=<secret>`.
-The bucket and the path are where the results go, and the workgroup of the test
-account forces them. The driver of Uber, which dburl v0.49.0 names, takes only the
-scheme `s3` and names the workgroup with the key `workgroupName`, and it stops a
-query on a NULL unless the connection has `missingAsNil=true`. The tests change
-the string to that form and never print it. A person who opens the driver has to
-do the same. The lesser principal of Athena is the file `athena-reader` in
-`$XDG_CONFIG_HOME/dbmeta/credentials`, which holds a connection string of its own
-(D222).
+`athena://<key id>:<secret>@athena.<region>.amazonaws.com/<database>?workgroup=<workgroup>&output=s3://<bucket>/<path>/`.
+The key `output` is where the results go, and the workgroup of the test account
+forces it. The fixture puts its tables under `tables/dbmeta/` of the bucket that
+the key names. The driver is `github.com/xo/dbimp/athena`, which dburl v0.50.0
+names. It binds with the ExecutionParameters of the service, returns a NULL as
+nil, and reads no credential from the environment. The lesser principal of
+Athena is the file `athena-reader` in `$XDG_CONFIG_HOME/dbmeta/credentials`, which
+holds a URL of its own (D222, D229). `dsn` masks the secret and prints the key
+id.
 
 The connection string of Databricks has the form
-`databricks://token:<personal access token>@<workspace>.cloud.databricks.com:443/sql/1.0/endpoints/<warehouse id>?catalog=<catalog>&schema=<schema>`.
+`databricks://token:<personal access token>@<workspace>.cloud.databricks.com/<warehouse id>?catalog=<catalog>&schema=<schema>`.
 The model reads the catalog and the schema that the string names, and the tests
-build their fixture in that schema. dburl v0.49.0 reads the databricks scheme in an
-older form, with the token as the user name and the workspace as the password, and
-it writes the token into the host of the DSN, so `dbrun` hands the driver the
-string of the file without its scheme (D224). The driver is
-`github.com/databricks/databricks-sql-go`, which dburl names. The warehouse is
-shared with dbimp and stops after ten minutes without a statement. The first
-statement after a stop waits for it to start, up to a minute, and the free
-edition has a daily quota of compute, so run the tests once and not in a loop. The
-lesser principal is the file `databricks-reader` in `$XDG_CONFIG_HOME/dbmeta/credentials`.
-The driver writes errors to its own log, and a connection error can hold the token,
-so the tests turn the log off (D224).
+build their fixture in that schema. The driver is `github.com/xo/dbimp/databricks`,
+which dburl v0.50.0 names, and it speaks the SQL Statement Execution API over
+HTTPS and writes no log. The warehouse is shared with dbimp and stops after ten
+minutes without a statement. The first statement after a stop waits for it to
+start, up to a minute, and the free edition has a daily quota of compute, so run
+the tests once and not in a loop. The lesser principal is the file
+`databricks-reader` in `$XDG_CONFIG_HOME/dbmeta/credentials` (D224, D229).
+
+The connection string of Cosmos DB has the form
+`cosmos://<user>:<account key, percent encoded>@<account>.documents.azure.com/<database>`.
+The user is any word and the account key is the password. dbsetup made two files in
+`$XDG_CONFIG_HOME/dbmeta/credentials`: `cosmos`, which holds the primary key of the
+account, and `cosmos-reader`, which holds the read-only key. Both keys are account wide, and
+they also reach the database of dbimp, so no test touches a database other than `dbmeta`.
+The driver is `github.com/xo/dbimp/cosmos`, which dburl v0.50.0 names, and usql still uses
+gocosmos. The tests add the container `book` to the path for the statements that read the
+scripts of a container, and `dsn` masks the key (D228). The database `dbmeta` has 400
+request units a second that its containers share, so run the tests once and not in a loop.
 
 `dsn` masks the secret, and `dsn --reveal` prints it. `usql` passes the
 connection string in a temporary usql configuration file rather than on the
 command line, so that no process list shows it. `test` sets `DBMETA_<NAME>`,
 named for the service rather than its dialect. A hosted service that a
 model reads is Verified, and the rest are Staged, so CI never runs one (D119).
-Neon, Redshift, Snowflake, Cloud Spanner, BigQuery, Amazon Athena and Databricks
-are Verified (D216, D220, D222, D224). Cosmos DB has no model (D223), and it
-stays Staged. Cloud Spanner, DynamoDB, BigQuery and Cosmos DB also have a
+Neon, Redshift, Snowflake, Cloud Spanner, BigQuery, Amazon Athena, Databricks and
+Cosmos DB are Verified (D216, D220, D222, D224, D228). The emulator entry of Cosmos DB
+stays Staged, because the model reads the hosted account. Cloud Spanner, DynamoDB, BigQuery and Cosmos DB also have a
 container that runs on one machine: Spanner Omni and the Cloud Spanner
 emulator, and the emulators of the other three.
 
@@ -566,6 +576,7 @@ one into a command that others can see.
 | `XDG_CONFIG_HOME` | Where `dbmeta/credentials` lives, the directory of credential files for the hosted services. It defaults to `~/.config`. |
 | `DBMETA_OWNER_NAME` | The friendly name of your session, such as `dbimp`, which `status` shows beside the owner. A coding agent sets it on every command (D115). |
 | `DBMETA_TEST_BINARY` | A test binary built with `go test -c`. `dbrun test` runs it instead of compiling the tests. CI sets it (D82). |
+| `DBMETA_TEST_RUN` | A pattern for `go test -run`. `dbrun test` runs only the tests that match, which saves a hosted service from a full run. |
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
 | `DBMETA_ORACLE_STATE` | Where the Oracle 19c checkout and installer archive live. |
 | `DBMETA_EMBEDDED_STATE` | Where the files and directories of the embedded databases live. |

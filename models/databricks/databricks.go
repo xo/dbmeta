@@ -56,10 +56,9 @@
 //
 // # The driver
 //
-// dburl v0.49.0 names github.com/databricks/databricks-sql-go, and the test
-// module uses it. A later dburl names github.com/xo/dbimp/databricks, which is
-// not tagged yet, and the tests follow dburl when a tag names it. See D224. The
-// driver binds a parameter by position with a question mark.
+// dburl v0.50.0 names github.com/xo/dbimp/databricks, and the test module uses it.
+// It speaks the SQL Statement Execution API and binds a parameter by position
+// with a question mark. It returns an array as a slice. See D224 and D229.
 package databricks
 
 import (

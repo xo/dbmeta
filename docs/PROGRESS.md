@@ -22,7 +22,7 @@ Redshift and Snowflake, six hosted services have a model, and 45 native models
 exist. It also carries the move of the Snowflake tests to the driver of dbimp
 (D213, D214), the key files that `dbrun` names for the hosted services (D218),
 the BigQuery emulator list of 0.8.1 alone and the Cosmos DB URL form (D225).
-Cosmos DB is the one hosted service of the five with no model (D223). The new
+Cosmos DB got its model after v0.13.0 (D228). The new
 hosted models are Verified, and the Spanner Omni release is Tested. Each hosted
 model was measured on its service when it was written.
 
@@ -141,13 +141,14 @@ In progress:
   string of the credential file without its scheme. What is left is in BACKLOG.md: a
   walk for the size, the defaults and the CHECK constraints, and the move to the driver
   of dbimp when it is tagged.
-- Cosmos DB has no model (D223). The session measured the hosted account with
-  `dbrun usql cosmos`: the driver that dburl names reads documents only, and
-  gocosmos answers LIST DATABASES and LIST COLLECTIONS. Ken decided on
-  2026-10-11 to ask dbimp for statements that read the REST resources, and the
-  model waits for dbimp v0.17.0 and for the dburl that names its driver (D225,
-  BACKLOG.md). The test and parity files were not written, because there are
-  no queries.
+- The Cosmos DB model is built and measured on the hosted account (D228, which amends
+  D223 and D225): 10 of the 65 kinds, from the nine reserved statements of the driver of
+  dbimp v0.17.0, which dburl v0.50.0 names. The fixture is a list of REST requests that
+  `test/cosmos_rest_test.go` signs and sends. The conformance and the parity files are
+  recorded. The read-only key is refused by the feeds of users and permissions. What is
+  left is in BACKLOG.md: a hook for several objects from one row, a kind for stored
+  procedures, the capabilities that the account lacks, and the move of the BigQuery,
+  Athena, Databricks and Spanner tests to the drivers of dbimp.
 - The hosted models move to the drivers of dbimp when dburl names them: the
   dialect is `athena` since D227, and the test driver and the string that `dbrun` builds change for BigQuery, Athena
   and Databricks (BACKLOG.md).
@@ -166,6 +167,16 @@ In progress:
   field `Schema.Options`, and Privileges lists the IAM bindings of the dataset.
   Conformance and parity did not change. The row access and data policy views do
   not exist.
+- The move of the hosted models to the drivers of dbimp that dburl v0.50.0
+  names is done (D229). Databricks is on `dbimp/databricks`. The one
+  change was the test, which reads an array as JSON text. Athena is on
+  `dbimp/athena`, which binds with ExecutionParameters, so the model lost
+  `Info.Literal` and uses `?`. BigQuery is on `dbimp/bigquery` with no change.
+  Spanner stays on go-sql-spanner, because both drivers register the name
+  `spanner`, the driver of dbimp cannot reach Omni, and it has no
+  `database_role`. A measurement of it on Cloud Spanner passed. The details and
+  what is left are in D229 and the backlog. The parity of the role on Cloud
+  Spanner lost the line `schemas` on the new database, and D229 says why.
 - The describe commands of usql are at the level of psql 18 for PostgreSQL. The
   next work is what usql finds against the new releases, and the other
   databases, one at a time, which usql said will follow.

@@ -1,6 +1,6 @@
 # D225. The BigQuery and Cosmos DB entries follow the drivers of dbimp
 
-Status: Amends D118.
+Status: Amends D118, amended by D228.
 
 ## The decision
 

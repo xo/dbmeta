@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -10,30 +11,20 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/databricks/databricks-sql-go"
-	dbsqllog "github.com/databricks/databricks-sql-go/logger"
+	_ "github.com/xo/dbimp/databricks"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/databricks"
 	dbxfixture "github.com/xo/dbmeta/models/databricks/fixture"
 )
 
-// init turns the log of the driver off. The driver writes the text of an error to
-// its log, and a connection error can hold the host and the token that the
-// driver read, so the log must never reach a test run.
-func init() {
-	if err := dbsqllog.SetLogLevel("disabled"); err != nil {
-		panic("turning the log of the Databricks driver off: " + err.Error())
-	}
-}
-
 // openDatabricks returns a connection to the workspace named by
 // DBMETA_DATABRICKS, which dbrun resolves from the places D117 names. The value
 // holds a token and no test prints it.
 //
-// The driver is github.com/databricks/databricks-sql-go, which dburl v0.49.0
-// names for the databricks scheme (D154). It moves to dbimp's driver when that
-// is tagged. See D224.
+// The driver is github.com/xo/dbimp/databricks, which dburl v0.50.0 names for the
+// databricks scheme (D154, D229). It speaks the SQL Statement Execution API over
+// HTTPS and writes no log. See D224.
 func openDatabricks(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_DATABRICKS")
@@ -866,7 +857,19 @@ func databricksDetail(t *testing.T, db *sql.DB, table string) (int, map[string]s
 			t.Fatal(err)
 		}
 		for i, c := range cols {
-			out[c] = fmt.Sprint(vals[i])
+			// The driver of dbimp answers an array as a slice, where the
+			// earlier driver answered its JSON text. JSON is what the tests
+			// compare against. See D229.
+			switch v := vals[i].(type) {
+			case []any, map[string]any:
+				b, err := json.Marshal(v)
+				if err != nil {
+					t.Fatalf("writing %s as JSON: %v", c, err)
+				}
+				out[c] = string(b)
+			default:
+				out[c] = fmt.Sprint(v)
+			}
 		}
 	}
 	if err := rows.Err(); err != nil {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/xo/dbmeta/container"
 	"github.com/xo/dbmeta/hosted"
+	"github.com/xo/dbmeta/test/internal/spannerdsn"
 )
 
 // A hosted service is reached with a connection string that holds a secret,
@@ -189,13 +190,14 @@ func resolveHosted(ctx context.Context, services []hosted.Service) ([]target, []
 // gosnowflake, or refuse it, such as pgx on redshift. If dburl cannot parse
 // the URL, the URL itself is returned and the connection reports the fault.
 func driverDSN(secret string) string {
-	// dburl v0.49.0 reads the databricks scheme in an older form, with the
-	// token as the user name and the workspace as the password, and it writes
-	// the token into the host of the DSN. The driver of Databricks reads the
-	// form of the credential file without its scheme. This moves to the driver
-	// of dbimp, and to the dburl that names it, when that is tagged. See D224.
-	if rest, ok := strings.CutPrefix(secret, "databricks://"); ok {
-		return rest
+	// The Spanner tests open go-sql-spanner, because the driver of dbimp and
+	// go-sql-spanner register one name, and Spanner Omni needs the second. The
+	// URL of the file becomes the DSN that go-sql-spanner reads. See D229.
+	if strings.HasPrefix(secret, "spanner:") {
+		if dsn, err := spannerdsn.FromURL(secret); err == nil {
+			return dsn
+		}
+		return secret
 	}
 	u, err := dburl.Parse(secret)
 	if err != nil || u.DSN == "" {
@@ -208,9 +210,16 @@ func driverDSN(secret string) string {
 // without regard to case: a key holds one of these words.
 var secretKeys = []string{"password", "secret", "token", "key", "credential"}
 
-// userIsSecret are the schemes whose user name is the secret. dburl puts the
-// account key of Cosmos DB there.
+// userIsSecret are the schemes whose user name can be the secret. The credential
+// of Cosmos DB holds the account key as the password and any word as the user
+// (D228), and maskDSN hides the password. A file in the older form, with the key
+// as the user and no password, is still hidden whole.
 var userIsSecret = map[string]bool{"cosmos": true, "cm": true, "gocosmos": true}
+
+// keyIDIsSecret are the schemes whose user name is the access key id, with the
+// secret key as the password. The id is not the secret, and dbrun hides it too,
+// because it names the account that owns the key. See D229.
+var keyIDIsSecret = map[string]bool{"athena": true}
 
 // masked replaces a secret in what dbrun prints.
 const masked = "xxxxx"
@@ -228,6 +237,8 @@ func maskDSN(dsn string) string {
 		name := u.User.Username()
 		_, hasPassword := u.User.Password()
 		switch {
+		case hasPassword && keyIDIsSecret[u.Scheme]:
+			u.User = url.UserPassword(masked, masked)
 		case hasPassword:
 			u.User = url.UserPassword(name, masked)
 		case userIsSecret[u.Scheme]:

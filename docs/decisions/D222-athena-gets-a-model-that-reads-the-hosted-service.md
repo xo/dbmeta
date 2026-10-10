@@ -1,6 +1,6 @@
 # D222. Athena gets a model that reads the hosted service
 
-Status: Amends D194, amended by D227.
+Status: Amends D194, amended by D227 and D229.
 
 ## The decision
 

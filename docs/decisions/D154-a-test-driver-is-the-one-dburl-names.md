@@ -1,6 +1,6 @@
 # D154. A test driver is the one dburl names
 
-Status: Amends D52 and D80, amended by D157.
+Status: Amends D52 and D80, amended by D157 and D229.
 
 ## The decision
 

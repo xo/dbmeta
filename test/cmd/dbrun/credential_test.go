@@ -135,10 +135,11 @@ func TestMaskDSN(t *testing.T) {
 	for _, test := range []struct{ in, want string }{
 		{"postgres://user:pw@host/db", "postgres://user:xxxxx@host/db"},
 		{"cosmos://c2VjcmV0@host:443/db", "cosmos://xxxxx@host:443/db"},
+		{"cosmos://x:c2VjcmV0@host.documents.azure.com/db/book", "cosmos://x:xxxxx@host.documents.azure.com/db/book"},
 		{"snowflake://me@acct/db?role=r&privateKey=abc", "snowflake://me@acct/db?privateKey=xxxxx&role=r"},
-		{"awsathena://bucket/p?region=r&secretAccessKey=s&accessID=a", "awsathena://bucket/p?accessID=a&region=r&secretAccessKey=xxxxx"},
+		{"athena://key:secret@athena.us-east-1.amazonaws.com/db?workgroup=w&output=s3://b/r/", "athena://xxxxx:xxxxx@athena.us-east-1.amazonaws.com/db?output=s3%3A%2F%2Fb%2Fr%2F&workgroup=w"},
 		{"bigquery://project/us/data", "bigquery://project/us/data"},
-		{"databricks://token:dapi123@dbc-1.cloud.databricks.com:443/sql/1.0/endpoints/w?catalog=c", "databricks://token:xxxxx@dbc-1.cloud.databricks.com:443/sql/1.0/endpoints/w?catalog=c"},
+		{"databricks://token:dapi123@dbc-1.cloud.databricks.com/w?catalog=c", "databricks://token:xxxxx@dbc-1.cloud.databricks.com/w?catalog=c"},
 		{"Server=host;Password=pw", "xxxxx"},
 	} {
 		if got := maskDSN(test.in); got != test.want {
@@ -147,15 +148,25 @@ func TestMaskDSN(t *testing.T) {
 	}
 }
 
-// TestDriverDSNOfDatabricks holds that the driver of Databricks gets the form of
-// the credential file without its scheme, because dburl v0.49.0 reads the scheme
-// in an older form and writes the token into the host. See D224.
+// TestDriverDSNOfDatabricks holds that the driver of Databricks gets the URL of
+// the credential file, scheme included, because dburl v0.50.0 names the driver
+// of dbimp and writes the token as the password. See D229.
 func TestDriverDSNOfDatabricks(t *testing.T) {
 	t.Parallel()
-	const in = "databricks://token:secret@dbc-1.cloud.databricks.com:443/sql/1.0/endpoints/w?catalog=c&schema=s"
-	const want = "token:secret@dbc-1.cloud.databricks.com:443/sql/1.0/endpoints/w?catalog=c&schema=s"
+	const in = "databricks://token:secret@dbc-1.cloud.databricks.com/0123456789abcdef?catalog=c&schema=s"
+	if got := driverDSN(in); got != in {
+		t.Errorf("driverDSN of a Databricks URL is %q, and the expected value is the URL", got)
+	}
+}
+
+// TestDriverDSNOfSpanner holds that go-sql-spanner gets its own form of the URL of
+// the credential file. See D229.
+func TestDriverDSNOfSpanner(t *testing.T) {
+	t.Parallel()
+	const in = "spanner:///p/i/d?credential_file=/k/key.json"
+	const want = "projects/p/instances/i/databases/d;credentials=/k/key.json"
 	if got := driverDSN(in); got != want {
-		t.Errorf("driverDSN of a Databricks URL is %q, and the expected value is the URL without its scheme", got)
+		t.Errorf("driverDSN of a Spanner URL is %q, and the expected value is %q", got, want)
 	}
 }
 

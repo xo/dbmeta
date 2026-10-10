@@ -14,5 +14,6 @@ func TestMain(m *testing.M) {
 	shutdownBigQuery()
 	shutdownAthena()
 	shutdownDatabricks()
+	shutdownCosmos()
 	os.Exit(code)
 }
