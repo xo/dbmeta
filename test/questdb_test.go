@@ -92,15 +92,21 @@ func setupQuestDB(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	// A WAL table applies an insert after it returns. Wait for the row of
 	// book. Table.Rows is NULL until then, so two reads of the same table
 	// can differ (D207).
+	// Every WAL table must have applied what was written to it, not only
+	// book, because the parity test reads the row count of each one.
 	deadline := time.Now().Add(30 * time.Second)
 	for {
 		var rows sql.NullInt64
 		err := db.QueryRowContext(ctx, `SELECT table_row_count FROM tables() WHERE table_name = 'book'`).Scan(&rows)
-		if err == nil && rows.Valid {
+		var lagging int64
+		if err == nil {
+			err = db.QueryRowContext(ctx, `SELECT count(*) FROM wal_tables() WHERE sequencerTxn > writerTxn`).Scan(&lagging)
+		}
+		if err == nil && rows.Valid && lagging == 0 {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("waiting for the row of book: %v", err)
+			t.Fatalf("waiting for the WAL tables to apply their writes: %v", err)
 		}
 		time.Sleep(200 * time.Millisecond)
 	}

@@ -41,13 +41,13 @@ missing. The cause of neither is known. For Oracle, read what the image runs
 at start and whether `dbrun` can wait for it, or start the server again when
 that statement fails.
 
-`questdb-9.4.3` failed a second time on 2026-10-10, in `TestPrivilegeParity` for
-the read-only principal: the `tables` query read "the same rows with different
-values", and it passed when rerun. The likely cause is `Table.Rows` (D207), which
-reads `table_row_count`. A WAL table applies its writes later, so the count can
-differ between two reads. If it fails again, make the parity setup wait for the
-WAL, as the QuestDB fields test does, or leave `rows` out of the comparison.
-
+`questdb-9.4.3` and `questdb-10.0.1` each failed once on 2026-10-10, in
+`TestPrivilegeParity` for the read-only principal: the `tables` query read "the
+same rows with different values". The cause was `Table.Rows` (D207), which reads
+`table_row_count`: a WAL table applies its writes later, so the count differed
+between two reads, and the setup waited only for the table `book`. The setup now
+waits until `wal_tables()` shows no table with `sequencerTxn` above `writerTxn`.
+If the failure returns, read the log first.
 
 ### Find why Databend's first start can fail
 
