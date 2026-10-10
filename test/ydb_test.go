@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/ydb-platform/ydb-go-sdk/v3"
 
@@ -291,4 +292,41 @@ func TestYDBRefusesAnOrdinaryUser(t *testing.T) {
 		return
 	}
 	t.Fatal("expected the ordinary user to be refused, and no error came")
+}
+
+// TestYDBTableStatistics reads the owner, the size and the rows of a table.
+// YDB writes the size and the rows of a partition about every half minute,
+// so the test waits for the first nonzero count, for up to two minutes. See
+// D210.
+func TestYDBTableStatistics(t *testing.T) {
+	db := openYDB(t)
+	ctx := t.Context()
+	m := setupYDB(t, db)
+	schema := ydfixture.Everything.Schema
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		var got dbmeta.Table
+		for v, err := range dbmeta.Tables.All(ctx, m, db, ydbArgs()) {
+			if err != nil {
+				t.Fatalf("reading tables: %v", err)
+			}
+			if v.Schema == schema && v.Name == "author" {
+				got = v
+			}
+		}
+		if !got.Owner.Valid || got.Owner.V == "" {
+			t.Fatalf("expected an owner for author, got %+v", got)
+		}
+		if got.Persistence.Valid || got.AccessMethod.Valid || got.Options.Valid {
+			t.Fatalf("expected no persistence, access method or options, got %+v", got)
+		}
+		if got.Rows.Valid && got.Rows.V == 1 && got.Size.Valid && got.Size.V > 0 {
+			t.Logf("author: owner %s, %d rows, %d bytes", got.Owner.V, got.Rows.V, got.Size.V)
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("expected one row and a size for author within two minutes, got %+v", got)
+		}
+		time.Sleep(10 * time.Second)
+	}
 }

@@ -63,9 +63,11 @@
 package cassandra
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -473,4 +475,64 @@ func textMap(v any) map[string]string {
 		return out
 	}
 	return map[string]string{}
+}
+
+// tableOptions joins the table properties that one row of
+// system_schema.tables holds, as key=value pairs. The compaction and the
+// compression are named by their class without the package, and a property
+// the row leaves out is left out of the text. It is absent when the row holds
+// none. See D210.
+func tableOptions(compaction, compression any, grace, ttl sql.Null[int64]) sql.Null[string] {
+	var parts []string
+	if class := shortClass(textMap(compaction), "class"); class != "" {
+		parts = append(parts, "compaction="+class)
+	}
+	if class := shortClass(textMap(compression), "class", "sstable_compression"); class != "" {
+		parts = append(parts, "compression="+class)
+	}
+	if grace.Valid {
+		parts = append(parts, "gc_grace_seconds="+strconv.FormatInt(grace.V, 10))
+	}
+	if ttl.Valid {
+		parts = append(parts, "default_time_to_live="+strconv.FormatInt(ttl.V, 10))
+	}
+	if len(parts) == 0 {
+		return sql.Null[string]{}
+	}
+	return sql.Null[string]{V: strings.Join(parts, ", "), Valid: true}
+}
+
+// shortClass returns the class named under the first of keys that is set,
+// without its package.
+func shortClass(m map[string]string, keys ...string) string {
+	for _, k := range keys {
+		if v := m[k]; v != "" {
+			return v[strings.LastIndex(v, ".")+1:]
+		}
+	}
+	return ""
+}
+
+// indexUsing reads the class of a custom index and the options set on it. The
+// target entry is the column and has its own field, so it is not an option.
+// Both are absent for an ordinary index. See D210.
+func indexUsing(options map[string]string) (using, rest sql.Null[string]) {
+	if class := options["class_name"]; class != "" {
+		using = sql.Null[string]{V: class, Valid: true}
+	}
+	keys := make([]string, 0, len(options))
+	for k := range options {
+		if k != "target" && k != "class_name" {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return using, rest
+	}
+	sort.Strings(keys)
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = k + "=" + options[k]
+	}
+	return using, sql.Null[string]{V: strings.Join(parts, ", "), Valid: true}
 }

@@ -87,6 +87,7 @@ func registerRelations() {
 			always(`, t.TABLE_NAME AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
 			always(`, NULL AS "comment"`),
+			always(`, CASE WHEN t.IS_JOINABLE IS NULL THEN NULL ELSE 'joinable=' || t.IS_JOINABLE || ', broadcast=' || t.IS_BROADCAST END AS "options"`),
 			always(`FROM INFORMATION_SCHEMA.TABLES t`),
 			always(`WHERE ` + notSystem("t.TABLE_SCHEMA")),
 			always(`AND ` + like("t.TABLE_SCHEMA", "@schema")),
@@ -100,6 +101,7 @@ func registerRelations() {
 			{Name: "name"},
 			{Name: "type", Desc: "table, system table or view"},
 			{Name: "comment", Desc: "always absent: Druid has no COMMENT statement"},
+			{Name: "options", Desc: "IS_JOINABLE and IS_BROADCAST of the row, such as joinable=NO, broadcast=NO"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -109,7 +111,7 @@ func registerRelations() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Options)
 			return v, err
 		},
 	})

@@ -49,6 +49,10 @@ func registerSchema() {
 			always(`, table_name AS "name"`),
 			fixed(", ", `(text)'table'`, "keyspace_name", "type"),
 			always(`, comment`),
+			always(`, compaction`),
+			always(`, compression`),
+			always(`, gc_grace_seconds`),
+			always(`, default_time_to_live`),
 			always(`FROM system_schema.tables`),
 		},
 		Fields: []dbmeta.Field{
@@ -60,15 +64,31 @@ func registerSchema() {
 					" and CQL has no UNION, so the views query returns those",
 			},
 			{Name: "comment"},
+			{
+				Name: "compaction",
+				Desc: "the compaction map. It feeds options and is not a field of its own",
+			},
+			{
+				Name: "compression",
+				Desc: "the compression map. It feeds options and is not a field of its own",
+			},
+			{Name: "gc_grace_seconds", Desc: "feeds options"},
+			{Name: "default_time_to_live", Desc: "feeds options"},
 		},
 		Params: tableFilters(),
 		Keep: func(v dbmeta.Table, args map[string]any) bool {
 			return keep(func(v dbmeta.Table) string { return v.Schema }, nil, func(v dbmeta.Table) string { return v.Name })(v, args) && dbmeta.ListHas(arg(args, "types"), v.Type)
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
-			var v dbmeta.Table
-			err := rows.Scan(pad{}, &v.Schema, &v.Name, pad{}, &v.Comment)
+			var (
+				v                    dbmeta.Table
+				compaction, compress any
+				grace, ttl           sql.Null[int64]
+			)
+			err := rows.Scan(pad{}, &v.Schema, &v.Name, pad{}, &v.Comment,
+				&compaction, &compress, &grace, &ttl)
 			v.Type = "table"
+			v.Options = tableOptions(compaction, compress, grace, ttl)
 			return v, err
 		},
 	})

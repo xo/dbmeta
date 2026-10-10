@@ -20,6 +20,7 @@ func registerExtra() {
 			fixed(", ", `(boolean)false`, "keyspace_name", "unique"),
 			fixed(", ", `(boolean)false`, "keyspace_name", "primary"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
+			always(`, options`),
 			always(`FROM system_schema.indexes`),
 		},
 		Fields: []dbmeta.Field{
@@ -33,13 +34,21 @@ func registerExtra() {
 					" table rather than an index, and the constraints query returns it",
 			},
 			{Name: "comment", Desc: "always absent: an index carries no comment"},
+			{
+				Name: "options",
+				Desc: "the options map. It feeds the options and the using fields and is not a field of its own",
+			},
 		},
 		Params: childFilters("index"),
 		Keep:   keep(func(v dbmeta.Index) string { return v.Schema }, func(v dbmeta.Index) string { return v.Table }, func(v dbmeta.Index) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
-			var v dbmeta.Index
+			var (
+				v       dbmeta.Index
+				options any
+			)
 			err := rows.Scan(pad{}, &v.Schema, &v.Table, &v.Name, &v.Type,
-				pad{}, pad{}, pad{})
+				pad{}, pad{}, pad{}, &options)
+			v.Using, v.Options = indexUsing(textMap(options))
 			return v, err
 		},
 	})

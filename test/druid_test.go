@@ -288,6 +288,12 @@ func TestDruidFixtureObjects(t *testing.T) {
 			t.Errorf("table %s: catalog %q and schema %q, want druid and %q", v.Name, v.Catalog, v.Schema, fx.Schema)
 		}
 		tables[v.Name] = v.Type
+		// A datasource is neither joinable nor broadcast until a rule says
+		// so, and Druid keeps no owner, size or row count in this row. See
+		// D210.
+		if v.Options.V != "joinable=NO, broadcast=NO" || v.Owner.Valid || v.Size.Valid || v.Rows.Valid {
+			t.Errorf("table %s: options %q, owner %v, size %v, rows %v", v.Name, v.Options.V, v.Owner, v.Size, v.Rows)
+		}
 	}
 	for _, name := range []string{"author", "book", "region", "shipment"} {
 		if tables[name] != "table" {

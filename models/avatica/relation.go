@@ -90,7 +90,10 @@ func registerTables() {
 			always(`, t.TABLE_NAME AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
 			always(`, t.REMARKS AS "comment"`),
+			always(`, o.SCHEMA_OWNER AS "owner"`),
+			always(`, RTRIM(CASE t.TABLE_TYPE WHEN 'TABLE' THEN 'permanent' WHEN 'GLOBAL TEMPORARY' THEN 'temporary' ELSE NULL END) AS "persistence"`),
 			always(`FROM INFORMATION_SCHEMA.SYSTEM_TABLES t`),
+			always(`LEFT JOIN INFORMATION_SCHEMA.SCHEMATA o ON o.SCHEMA_NAME = t.TABLE_SCHEM`),
 			always(`WHERE ` + notSystem("t.TABLE_SCHEM")),
 			always(`AND ` + like("t.TABLE_SCHEM", "@schema")),
 			always(`AND ` + like("t.TABLE_NAME", "@name")),
@@ -103,11 +106,13 @@ func registerTables() {
 			{Name: "name"},
 			{Name: "type", Desc: "memory table, cached table or text table, which is where HSQLDB keeps the rows, then global temporary table, view or system table"},
 			{Name: "comment", Desc: "from REMARKS, which COMMENT ON writes"},
+			{Name: "owner", Desc: "the owner of the schema, which owns every object in it. SCHEMATA lists only the schemas the user owns, so it is absent for another user's schema"},
+			{Name: "persistence", Desc: "permanent, or temporary for a global temporary table, and absent for a view"},
 		},
 		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Owner, &v.Persistence)
 			return v, err
 		},
 	})

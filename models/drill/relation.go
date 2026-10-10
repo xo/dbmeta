@@ -79,6 +79,7 @@ func registerRelations() {
 			always(", t.TABLE_NAME AS `name`"),
 			always(", LOWER(t.TABLE_TYPE) AS `type`"),
 			always(", NULL AS `comment`"),
+			always(", CAST(t.NUM_ROWS AS BIGINT) AS `rows`"),
 			always("FROM INFORMATION_SCHEMA.`TABLES` t"),
 			always("WHERE " + notSystem("t.TABLE_SCHEMA")),
 			always("AND " + like("t.TABLE_SCHEMA", "@schema")),
@@ -92,6 +93,7 @@ func registerRelations() {
 			{Name: "name"},
 			{Name: "type", Desc: "table, view or system table. A table is a file table that the Drill Metastore holds, so it is listed only when the Metastore is on and the table was analyzed"},
 			{Name: "comment", Desc: "always absent: Drill has no COMMENT statement"},
+			{Name: "rows", Desc: "NUM_ROWS, which ANALYZE TABLE stores in the Metastore. It is absent for a view and a system table"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -101,7 +103,7 @@ func registerRelations() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Rows)
 			return v, err
 		},
 	})

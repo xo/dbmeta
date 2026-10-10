@@ -128,6 +128,11 @@ func registerRelations() {
 			from76(", false AS `unique`"),
 			from76(", IFMISSING(i.is_primary, false) AS `primary`"),
 			from76(", NULL AS `comment`"),
+			from76(", IFMISSING(i.`condition`, NULL) AS `predicate`"),
+			from76(", i.state = 'online' AS `valid`"),
+			from76(", IFMISSING(i.metadata.definition, NULL) AS `definition`"),
+			from76(", CASE WHEN i.`with` IS MISSING THEN NULL ELSE CONCAT2(', ', ARRAY p.name || '=' || TOSTRING(p.val)" +
+				" FOR p IN OBJECT_PAIRS(i.`with`) END) END AS `options`"),
 			from76("FROM system:indexes i"),
 			from76("WHERE " + like(indexSchema, "@schema")),
 			from76("AND " + like(indexTable, "@parent")),
@@ -143,6 +148,10 @@ func registerRelations() {
 			{Name: "unique", Desc: "always false: a Couchbase index enforces nothing"},
 			{Name: "primary", Desc: "whether it is a primary index, which indexes every document key"},
 			{Name: "comment", Desc: "always absent: an index carries no comment"},
+			{Name: "predicate", Desc: "the condition of a partial index, as the server writes it, and absent for an index with no WHERE"},
+			{Name: "valid", Desc: "whether the state of the index is online. A deferred or a building index is not yet usable"},
+			{Name: "definition", Desc: "the CREATE INDEX statement, as the server writes it"},
+			{Name: "options", Desc: "the WITH settings of the index, such as num_partition=1, num_replica=0, joined by a comma and a space"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "parent", Desc: "collection name pattern, empty for every collection", Default: ""},
@@ -152,7 +161,7 @@ func registerRelations() {
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Predicate, &v.Valid, &v.Definition, &v.Options)
 			return v, err
 		},
 	})

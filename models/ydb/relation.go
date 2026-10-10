@@ -109,13 +109,17 @@ func registerRelations() {
 			always(", t.name AS `name`"),
 			always(", t.type AS `type`"),
 			always(", CAST(NULL AS Utf8) AS `comment`"),
+			always(", t.owner AS `owner`"),
+			always(", t.size AS `size`"),
+			always(", t.rows AS `rows`"),
 			always("FROM (SELECT d.root AS catalog"),
 			always(", " + schemaOf("p.parts") + " AS schema"),
 			always(", ListLast(p.parts) AS name"),
 			always(", " + topOf("p.parts") + " AS top"),
 			always(", 'table' AS type"),
-			always("FROM (SELECT path, String::SplitToList(path, '/') AS parts" +
-				" FROM " + tablePaths + ") AS p"),
+			always(", p.owner AS owner, p.size AS size, p.rows AS rows"),
+			always("FROM (SELECT path, owner, size, rows, String::SplitToList(path, '/') AS parts" +
+				" FROM " + tableStats + ") AS p"),
 			always("CROSS JOIN " + root + ") AS t"),
 			always("WHERE " + notSystem("t.top")),
 			always("AND (@schema = '' OR t.schema LIKE @schema)"),
@@ -139,6 +143,9 @@ func registerRelations() {
 					" is not listed, because no view names one",
 			},
 			{Name: "comment", Desc: "always absent: YDB has no comment"},
+			{Name: "owner", Desc: "Sid of auth_owners, which is the user or the group that owns the path"},
+			{Name: "size", Desc: "the sum of DataSize over the partitions of the table, in bytes. YDB updates it about every half minute, so it is 0 for a new table, and it leaves out the index tables"},
+			{Name: "rows", Desc: "the sum of RowCount over the partitions, which YDB updates with DataSize. It is an estimate"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "directory path pattern, empty for every directory", Default: ""},
@@ -148,7 +155,7 @@ func registerRelations() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Owner, &v.Size, &v.Rows)
 			return v, err
 		},
 	})

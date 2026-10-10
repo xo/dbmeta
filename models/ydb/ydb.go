@@ -143,6 +143,14 @@ func notSystem(top string) string {
 const tablePaths = "(SELECT DISTINCT s.Path AS path FROM `.sys/partition_stats` AS s" +
 	" JOIN `.sys/auth_owners` AS a ON a.Path = s.Path)"
 
+// tableStats is tablePaths with the owner, and the size and the rows that
+// the partitions add up to. It is the one read of partition_stats that Tables
+// makes, and the partitions of a table are summed in it. See D210.
+const tableStats = "(SELECT s.Path AS path, a.Sid AS owner" +
+	", CAST(SUM(s.DataSize) AS Int64) AS size, CAST(SUM(s.RowCount) AS Int64) AS rows" +
+	" FROM `.sys/partition_stats` AS s" +
+	" JOIN `.sys/auth_owners` AS a ON a.Path = s.Path GROUP BY s.Path, a.Sid)"
+
 // directories is a relation of one row per directory that holds another
 // path, which holds its path as path.
 //

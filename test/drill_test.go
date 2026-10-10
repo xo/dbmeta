@@ -185,6 +185,21 @@ func TestDrillFixtureObjects(t *testing.T) {
 			t.Errorf("table %s: catalog %q and schema %q, want DRILL and %q", v.Name, v.Catalog, v.Schema, fx.Schema)
 		}
 		tables[v.Name] = v.Type
+		// NUM_ROWS is the count ANALYZE stored, and a view has none. Drill
+		// keeps no owner, persistence, size or options. See D210.
+		switch v.Name {
+		case "author":
+			if !v.Rows.Valid || v.Rows.V != 2 {
+				t.Errorf("expected two rows for author, got %+v", v.Rows)
+			}
+		case "recent":
+			if v.Rows.Valid {
+				t.Errorf("expected no row count for a view, got %+v", v.Rows)
+			}
+		}
+		if v.Owner.Valid || v.Persistence.Valid || v.Size.Valid || v.Options.Valid {
+			t.Errorf("table %s: expected no owner, persistence, size or options, got %+v", v.Name, v)
+		}
 	}
 	for _, name := range []string{"author", "book", "region", "shipment"} {
 		if tables[name] != "table" {

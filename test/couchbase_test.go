@@ -342,3 +342,70 @@ func TestCouchbaseTooOldBelowTheFloor(t *testing.T) {
 		t.Errorf("expected ErrVersionTooOld, got %v", err)
 	}
 }
+
+// TestCouchbaseIndexFields reads the condition, the state, the statement and
+// the settings of an index. See D210.
+func TestCouchbaseIndexFields(t *testing.T) {
+	db := openCouchbase(t)
+	m := setupCouchbase(t, db)
+	skipBelowFloor(t, m)
+	fx := cbfixture.Everything
+	found := map[string]dbmeta.Index{}
+	for v, err := range dbmeta.Indexes.All(t.Context(), m, db, dbmeta.Args{Schema: fx.Schema}.Map()) {
+		if err != nil {
+			t.Fatalf("reading indexes: %v", err)
+		}
+		found[v.Name] = v
+	}
+	recent, ok := found["book_recent"]
+	if !ok {
+		t.Fatal("the fixture built no book_recent index")
+	}
+	if !strings.Contains(recent.Predicate.V, "published") || !recent.Predicate.Valid {
+		t.Errorf("expected the condition of book_recent, got %+v", recent.Predicate)
+	}
+	if !recent.Valid.Valid || !recent.Valid.V {
+		t.Errorf("expected book_recent to be online, got %+v", recent.Valid)
+	}
+	// 7.6 keeps neither the statement nor the WITH settings in system:indexes,
+	// so both are absent there. 8.0 holds both.
+	if m.Version().Get("").AtLeast(dbmeta.V(8)) {
+		if !strings.HasPrefix(recent.Definition.V, "CREATE INDEX `book_recent`") {
+			t.Errorf("expected the statement of book_recent, got %q", recent.Definition.V)
+		}
+		if !strings.Contains(recent.Options.V, "num_replica=0") {
+			t.Errorf("expected num_replica=0 in the options, got %q", recent.Options.V)
+		}
+	} else if recent.Definition.Valid || recent.Options.Valid {
+		t.Errorf("expected no statement and no options below 8.0, got %+v and %+v", recent.Definition, recent.Options)
+	}
+	// An index with no WHERE has no predicate, and the fields that
+	// Couchbase has no source for stay absent.
+	author := found["book_author"]
+	if author.Predicate.Valid || author.Owner.Valid || author.Size.Valid || author.Using.Valid {
+		t.Errorf("expected book_author to have no predicate, owner, size or using, got %+v", author)
+	}
+}
+
+// TestCouchbaseFunctionProsrc checks that the text of an inline function is in
+// Prosrc as well as in Source. See D210.
+func TestCouchbaseFunctionProsrc(t *testing.T) {
+	db := openCouchbase(t)
+	m := setupCouchbase(t, db)
+	skipBelowFloor(t, m)
+	var found bool
+	for v, err := range dbmeta.Functions.All(t.Context(), m, db, dbmeta.Args{Schema: cbfixture.Everything.Schema}.Map()) {
+		if err != nil {
+			t.Fatalf("reading functions: %v", err)
+		}
+		if v.Name == "full_title" {
+			found = true
+			if !v.Prosrc.Valid || v.Prosrc.V == "" || v.Prosrc.V != v.Source.V || v.Leakproof {
+				t.Errorf("expected the text in prosrc, got %q and source %q", v.Prosrc.V, v.Source.V)
+			}
+		}
+	}
+	if !found {
+		t.Error("the fixture built no full_title function")
+	}
+}

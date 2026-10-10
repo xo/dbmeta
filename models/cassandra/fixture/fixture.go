@@ -183,12 +183,20 @@ var Everything = Fixture{
 	country text,
 	area text,
 	amount decimal
-) WITH comment = 'the shipments'`),
+) WITH comment = 'the shipments'
+	AND compaction = {'class': 'LeveledCompactionStrategy'}
+	AND gc_grace_seconds = 864000`),
 
 		// A secondary index, so the indexes and index columns queries have a
 		// row. It is on a regular column, because a primary key column is
 		// already indexed by being the key.
 		at("index", `CREATE INDEX book_author ON dbmeta_fixture.book (author_id)`),
+
+		// A storage attached index, which is a custom index and so has a class
+		// and options of its own. Cassandra 5.0 added it. Earlier releases
+		// and ScyllaDB have none, and the step is skipped there.
+		{Name: "custom index", Stmt: dbmeta.Stmt{{{Min: dbmeta.V(5), Query: `CREATE CUSTOM INDEX author_name ON dbmeta_fixture.author (name)
+	USING 'StorageAttachedIndex' WITH OPTIONS = {'case_sensitive': 'false'}`}}}},
 
 		// A materialized view, which is what Views returns. Every column of
 		// the view's primary key has to be declared not null, and the base

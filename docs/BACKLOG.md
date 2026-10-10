@@ -249,3 +249,12 @@ release can add one.
 The settings of a MergeTree table, such as `index_granularity`, are in
 `engine_full` as text after SETTINGS. A statement cannot split them, so
 `Table.Options` has the clauses that have a column of their own.
+## Models
+
+### Decide whether ArangoDB reports a row count
+
+`COLLECTION_COUNT(name)` in AQL returns the exact documents of a collection,
+and costs 3.6 ms to 11.6 ms for 1509 collections on one server (D210). A
+cluster counts with a round trip for each shard, and no cluster was measured.
+Measure one before the field is added, or ask Ken whether a single server is
+enough.

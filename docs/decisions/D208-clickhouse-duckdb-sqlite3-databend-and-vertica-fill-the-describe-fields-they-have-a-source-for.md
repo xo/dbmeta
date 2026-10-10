@@ -159,7 +159,7 @@ one more pass over the catalog, and `sqlite_schema` has no index by name, so
 the statement already does one pass to find the table. The two passes are
 6 times the cost of one at 3000 tables, and still 1.1 ms. This is the one
 place that D47 is stretched, and it is a constant factor on a scan that
-SQLite cannot avoid.
+SQLite cannot avoid. Ken accepted it on 2026-10-10.
 
 The Vertica size of a table and the encoding of a column each read a view of
 the whole catalog for every table or column returned. A read of one table got
@@ -209,10 +209,20 @@ fixture reads it back as NULL.
 ## What was left open
 
 - A shadow table of SQLite (the tables an fts5 table keeps) has the type
-  `shadow` in `pragma_table_list` and is `table` here. Ken decides whether to
-  relabel it.
+  `shadow` in `pragma_table_list` and is `table` here. Ken decided on
+  2026-10-10 to keep `table`, because `Table.Type` is a small closed
+  vocabulary that consumers match on.
 - The SETTINGS clause of a ClickHouse table is in `engine_full` as text. A
   statement cannot split it.
 - The rows and the size of a Vertica table, and the encoding of a column, can
   be read for one table with a call of its own, which this model does not make.
 - The module of a SQLite virtual table is in the CREATE statement only.
+
+## Ken's answers of 2026-10-10
+
+- The SQLite index predicate stays, and the stretch of D47 is accepted.
+- A shadow table of SQLite keeps the type `table`.
+- The DuckDB `NotNulls` kind stays. It has a name and a column, the same shape
+  as the kind of PostgreSQL 18.
+- A `Policy` gets an `Enabled` field, so a disabled policy of SQL Server,
+  Oracle, Vertica and ClickHouse can be told from an active one.

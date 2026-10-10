@@ -183,6 +183,22 @@ func TestAvaticaFixtureObjects(t *testing.T) {
 	if c := tables["AUTHOR"].Comment; !c.Valid || c.V != "people who write" {
 		t.Errorf("expected the table comment, got %+v", c)
 	}
+	// The fields of D210. The administrator owns the schema, a view has no
+	// persistence, and the row count and the size are left out because
+	// SYSTEM_TABLESTATS cost grows with the square of the tables.
+	author := tables["AUTHOR"]
+	if author.Persistence.V != "permanent" || !author.Owner.Valid {
+		t.Errorf("expected permanent and an owner for AUTHOR, got %+v", author)
+	}
+	if v := tables["RECENT"]; v.Persistence.Valid {
+		t.Errorf("expected a view to have no persistence, got %+v", v)
+	}
+	if v := tables["SCRATCH"]; v.Persistence.V != "temporary" {
+		t.Errorf("expected SCRATCH as temporary, got %+v", v.Persistence)
+	}
+	if author.Size.Valid || author.Rows.Valid || author.Options.Valid {
+		t.Errorf("expected no size, no rows and no options, got %+v", author)
+	}
 	if n := countRows(t, dbmeta.Tables.All(ctx, m, db, dbmeta.Args{Schema: "INFORMATION_SCHEMA"}.Map())); n != 0 {
 		t.Errorf("expected no INFORMATION_SCHEMA table without with_system, got %d", n)
 	}

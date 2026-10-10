@@ -275,6 +275,7 @@ func registerRoles() {
 			always(`, body AS "source"`),
 			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "definition"),
+			always(`, body AS "prosrc"`),
 			always(`FROM system_schema.functions`),
 		},
 		Fields: routineFields("function"),
@@ -303,6 +304,7 @@ func registerRoles() {
 			always(`, final_func AS "source"`),
 			fixed(", ", `(text)NULL`, "keyspace_name", "comment"),
 			fixed(", ", `(text)NULL`, "keyspace_name", "definition"),
+			fixed(", ", `(text)NULL`, "keyspace_name", "prosrc"),
 			always(`FROM system_schema.aggregates`),
 		},
 		Fields: aggregateFields(),
@@ -355,6 +357,10 @@ func routineFields(kind string) []dbmeta.Field {
 			Desc: "always absent: the catalog keeps the parts of a " + kind +
 				" and DESCRIBE builds the statement",
 		},
+		{
+			Name: "prosrc",
+			Desc: "the body, which is the same text as source. It is absent for an aggregate, which has no body",
+		},
 	}
 }
 
@@ -383,9 +389,16 @@ func scanRoutine(kind string) func(*sql.Rows) (dbmeta.Function, error) {
 			v    dbmeta.Function
 			args any
 		)
+		// An aggregate has no body, and ScyllaDB selects a stand in column
+		// for the absent value, so the last column is read only for a
+		// function.
+		var prosrc any = pad{}
+		if kind == "function" {
+			prosrc = &v.Prosrc
+		}
 		err := rows.Scan(pad{}, &v.Schema, &v.Name, pad{}, pad{}, &v.ResultType,
 			&args, pad{}, pad{}, pad{}, pad{}, pad{},
-			&v.Language, &v.Source, pad{}, pad{})
+			&v.Language, &v.Source, pad{}, pad{}, prosrc)
 		v.Kind = kind
 		v.ArgTypes = sql.Null[string]{V: textList(args), Valid: true}
 		return v, err

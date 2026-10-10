@@ -2,6 +2,9 @@ package neo4j
 
 import (
 	"database/sql"
+	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/xo/dbmeta"
 )
@@ -146,11 +149,13 @@ func registerRelations() {
 	// \di. Every index, including the index a constraint owns and the two
 	// token lookup indexes a new database has.
 	dbmeta.Indexes.Register(dbmeta.Neo4j, &dbmeta.Binding[dbmeta.Index]{
-		Stmt: both("SHOW INDEXES YIELD name, type, labelsOrTypes, owningConstraint, createStatement" +
+		Stmt: both("SHOW INDEXES YIELD name, type, state, labelsOrTypes, owningConstraint, createStatement, indexProvider, options" +
 			" WHERE " + like(currentDB, "@schema") + " AND " + onAnyTable() + " AND " + like("name", "@name") +
 			" RETURN '' AS `catalog`, " + currentDB + " AS `schema`, " + onTable + " AS `table`" +
 			", name AS `name`, toLower(type) AS `type`, owningConstraint IS NOT NULL AS `unique`" +
 			", " + indexKey + " AS `primary`, NULL AS `comment`" +
+			", state = 'ONLINE' AS `valid`, createStatement AS `definition`, indexProvider AS `using`" +
+			", options.indexConfig AS `options`" +
 			" ORDER BY `table`, `name`"),
 		Fields: []dbmeta.Field{
 			{Name: "catalog", Desc: "always empty: a database is the top of the tree a statement reads"},
@@ -166,6 +171,10 @@ func registerRelations() {
 			{Name: "unique", Desc: "whether a key or a uniqueness constraint owns the index, which is what makes it unique"},
 			{Name: "primary", Desc: "whether a key constraint owns the index"},
 			{Name: "comment", Desc: "always absent: an index carries no comment"},
+			{Name: "valid", Desc: "whether the state of the index is ONLINE. A populating index is not yet usable"},
+			{Name: "definition", Desc: "createStatement, the CREATE INDEX statement as the server writes it"},
+			{Name: "using", Desc: "the index provider, such as range-1.0 or vector-2.0"},
+			{Name: "options", Desc: "the indexConfig of the index, such as fulltext.analyzer=english, sorted by name and joined by a comma and a space. It is absent when the index has none"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "database name pattern, empty for the database of the connection", Default: ""},
@@ -173,9 +182,13 @@ func registerRelations() {
 			{Name: "name", Desc: "index name pattern, empty for every index", Default: ""},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
-			var v dbmeta.Index
+			var (
+				v      dbmeta.Index
+				config any
+			)
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Valid, &v.Definition, &v.Using, &config)
+			v.Options = configText(config)
 			return v, err
 		},
 	})
@@ -284,4 +297,24 @@ func registerRelations() {
 			return v, err
 		},
 	})
+}
+
+// configText writes the indexConfig map of an index as key=value pairs,
+// sorted by key and joined by a comma and a space. It is absent for an index
+// with no setting. See D210.
+func configText(v any) sql.Null[string] {
+	m, ok := v.(map[string]any)
+	if !ok || len(m) == 0 {
+		return sql.Null[string]{}
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = fmt.Sprintf("%s=%v", k, m[k])
+	}
+	return sql.Null[string]{V: strings.Join(parts, ", "), Valid: true}
 }

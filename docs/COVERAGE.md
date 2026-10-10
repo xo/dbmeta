@@ -678,6 +678,10 @@ thing from the per column distribution `psql` prints.
 Every Cassandra table is partitioned, so a list of the partitioned ones is a
 list of all of them and says nothing.
 
+### The describe fields (D210)
+
+The table options, the class and the options of a custom index, and `Prosrc` of a function are filled. The ScyllaDB section below lists them.
+
 ## ScyllaDB
 
 ScyllaDB answers 18 of the 65, verified against 2025.1.15, 2026.1, 2026.2 and
@@ -795,6 +799,10 @@ four queries as on Cassandra, from the `system` tables rather than from
 `system_auth` and `system_views`, and is refused `RoleSettings` as well. All
 four releases give the same answer, under `[scylla/same/grantee]` in
 `test/testdata/parity.txt`.
+
+### The describe fields (D210)
+
+Tables reads the table options from `compaction`, `compression`, `gc_grace_seconds` and `default_time_to_live` of the same row, as `compaction=..., compression=..., gc_grace_seconds=..., default_time_to_live=...`. Indexes reads the class and the other options of a custom index, which the storage attached index of Cassandra 5.0 has. Functions reads `body` as `Prosrc`. The size and the rows are NULL, because CQL has no join to `system_views.disk_usage` or `system.size_estimates`. The owner, the persistence and the column fields have no source. ScyllaDB fills the same fields, and has no custom index.
 
 ## ClickHouse
 
@@ -1041,6 +1049,10 @@ server takes it, because the image configures no authenticator. With no access
 control plugin the server then allows that principal everything, so the only
 query that answers differently for a second principal is `current_user`, which
 is the one that is supposed to.
+
+### The describe fields (D210)
+
+None are filled. `system.metadata.tables_authorization` is empty for the memory connector, `SHOW STATS` is one statement for each table, and the memory connector has no `$partitions` table.
 
 ## Firebird
 
@@ -1715,6 +1727,10 @@ authenticator, a client states a principal on every request, and with no
 access control plugin the server allows it everything. Only `current_user`
 differs for a second principal.
 
+### The describe fields (D210)
+
+None are filled. Presto has no `tables_authorization`, and `SHOW STATS` is one statement for each table.
+
 ## Exasol
 
 `models/exasol` answers 25 of the 65. It was run against Exasol 2026.2.0 on
@@ -2219,6 +2235,10 @@ different role on each release, so 8.0 has a section of its own,
 `system:functions` shows only the functions a user can run or manage, and the
 user holds no function role. Measured with a scope function and a global one,
 both of which the administrator sees and the user does not.
+
+### The describe fields (D210)
+
+Indexes reads `condition`, `state`, `metadata.definition` and `with` as `Predicate`, `Valid`, `Definition` and `Options`. 7.6 has neither the statement nor the settings, so those two are NULL there. Functions reads `Prosrc`. The size and the rows are in `system:keyspaces_info`, which asks the data service once for each collection, so they are not read.
 
 ## Which answers depend on who is asking
 
@@ -4489,6 +4509,10 @@ where a routine of the server has no row, so the file does not show that
 difference. Both releases answer the same, and one section,
 `neo4j/same/user`, holds them.
 
+### The describe fields (D210)
+
+Indexes reads `state`, `createStatement`, `indexProvider` and the `indexConfig` of `SHOW INDEXES` as `Valid`, `Definition`, `Using` and `Options`. The row count has no one statement source, because `db.stats.retrieve` needs a `db.stats.collect` call first. There is no owner, size or predicate.
+
 ## YDB
 
 `models/ydb` answers 7 of the 65, measured on 2026-10-01 on 26.2.1.14 and
@@ -4628,6 +4652,10 @@ Every one. Every `.sys` view refuses a user that is not an administrator,
 with "Cannot find table ... because it does not exist or you do not have
 access permissions". dbmetauser can read and describe /local/dbmeta and is
 refused all seven, and the parity file records each refusal.
+
+### The describe fields (D210)
+
+Tables reads the owner from `.sys/auth_owners`, and the size and the rows from `.sys/partition_stats`, summed over the partitions of a table. YDB updates the figures about every half minute, so a new table reads 0 for a while, and the size leaves out the index tables.
 
 ## ArangoDB
 
@@ -5190,6 +5218,10 @@ and passes it. `TestDruidVersionRefusedToAnOrdinaryUser` asserts the refusal.
 
 38.0.0 answers the same as 37.0.0 for all seven kinds, and for both principals.
 
+### The describe fields (D210)
+
+Tables reads `IS_JOINABLE` and `IS_BROADCAST` as the options. The size and the rows are NULL: `sys.segments` holds them, and a read of it covers every segment of the cluster for one table, which D47 does not allow.
+
 ## Apache Drill
 
 `models/drill` answers 10 of the 65 on Apache Drill 1.21.2 and 1.22.0,
@@ -5308,6 +5340,10 @@ file records one difference, `current_user`.
 
 1.22.0 and 1.21.2 answer the same for all ten kinds. sys.functions has 31
 more rows on 1.22.0.
+### The describe fields (D210)
+
+Tables reads `NUM_ROWS` as `Rows`, which is set only for a table that `ANALYZE TABLE` stored in the Metastore. There is no owner, size or options.
+
 ## Elasticsearch
 
 `models/elasticsearch` answers 8 of the 65 on Elasticsearch 8.19.22, 9.4.6 and
@@ -5884,3 +5920,7 @@ settings.
 
 Phoenix speaks the same protocol and has no model. Its catalog, its version, its
 terminator and its users differ, and D186 says what a Phoenix dialect would need.
+### The describe fields (D210)
+
+Tables reads the owner from `SCHEMATA`, which is the owner of the schema and is NULL for another user's schema, and the persistence from `TABLE_TYPE`. The rows are NULL: `SYSTEM_TABLESTATS` holds `CARDINALITY`, and its join grows with the square of the tables. The size is NULL for a memory only database.
+

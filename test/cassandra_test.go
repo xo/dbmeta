@@ -556,3 +556,98 @@ func TestScyllaIsItsOwnProduct(t *testing.T) {
 	}
 	t.Logf("server reports %s", display)
 }
+
+// TestCassandraTableOptions reads the options of the shipment table, which
+// the fixture gives a compaction class and a grace period. See D210.
+func TestCassandraTableOptions(t *testing.T) {
+	db := openCassandra(t)
+	ctx := t.Context()
+	m := setupCassandra(t, db)
+	var found bool
+	for v, err := range dbmeta.Tables.All(ctx, m, db, caArgs()) {
+		if err != nil {
+			t.Fatalf("reading tables: %v", err)
+		}
+		if v.Schema != cafixture.Everything.Schema || v.Name != "shipment" {
+			continue
+		}
+		found = true
+		for _, want := range []string{"compaction=LeveledCompactionStrategy", "gc_grace_seconds=864000", "compression="} {
+			if !strings.Contains(v.Options.V, want) {
+				t.Errorf("expected %q in the options, got %q", want, v.Options.V)
+			}
+		}
+		// Cassandra keeps no owner, no size and no row count in a row of
+		// system_schema.tables, and no join is possible.
+		if v.Owner.Valid || v.Size.Valid || v.Rows.Valid || v.Persistence.Valid {
+			t.Errorf("expected owner, size, rows and persistence to be absent, got %+v", v)
+		}
+	}
+	if !found {
+		t.Fatal("the fixture built no shipment table")
+	}
+}
+
+// TestCassandraIndexUsing reads the class and the options of a custom index.
+// Cassandra 5.0 has the storage attached index the fixture creates, so the
+// test skips on an older release and on ScyllaDB. See D210.
+func TestCassandraIndexUsing(t *testing.T) {
+	db := openCassandra(t)
+	ctx := t.Context()
+	m := setupCassandra(t, db)
+	if !m.Version().Get("").AtLeast(dbmeta.V(5)) {
+		t.Skip("the storage attached index needs Cassandra 5.0")
+	}
+	var custom, plain bool
+	for v, err := range dbmeta.Indexes.All(ctx, m, db, caArgs()) {
+		if err != nil {
+			t.Fatalf("reading indexes: %v", err)
+		}
+		switch v.Name {
+		case "author_name":
+			custom = true
+			if v.Using.V != "StorageAttachedIndex" || v.Options.V != "case_sensitive=false" {
+				t.Errorf("expected the class and the option, got using %q and options %q", v.Using.V, v.Options.V)
+			}
+		case "book_author":
+			plain = true
+			if v.Using.Valid || v.Options.Valid {
+				t.Errorf("expected an ordinary index to have no class and no options, got %+v", v)
+			}
+		}
+	}
+	if !custom || !plain {
+		t.Errorf("expected both indexes, found custom %t and ordinary %t", custom, plain)
+	}
+}
+
+// TestCassandraFunctionProsrc checks that a function's body is also in Prosrc
+// and that an aggregate, which has no body, leaves it absent. See D210.
+func TestCassandraFunctionProsrc(t *testing.T) {
+	db := openCassandra(t)
+	ctx := t.Context()
+	m := setupCassandra(t, db)
+	var found bool
+	for v, err := range dbmeta.Functions.All(ctx, m, db, caArgs()) {
+		if err != nil {
+			t.Fatalf("reading functions: %v", err)
+		}
+		if v.Schema == cafixture.Everything.Schema && v.Name == "plus_one" {
+			found = true
+			if !v.Prosrc.Valid || v.Prosrc.V != v.Source.V || v.Prosrc.V == "" {
+				t.Errorf("expected the body in prosrc, got %q and source %q", v.Prosrc.V, v.Source.V)
+			}
+		}
+	}
+	if !found {
+		t.Error("the fixture built no plus_one function")
+	}
+	for v, err := range dbmeta.Aggregates.All(ctx, m, db, caArgs()) {
+		if err != nil {
+			t.Fatalf("reading aggregates: %v", err)
+		}
+		if v.Prosrc.Valid {
+			t.Errorf("expected an aggregate to have no prosrc, got %q", v.Prosrc.V)
+		}
+	}
+}

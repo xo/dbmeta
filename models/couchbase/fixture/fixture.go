@@ -122,6 +122,11 @@ var Everything = Fixture{
 		// one of them descending, and an expression over an array.
 		at("book_author", "CREATE INDEX `book_author` IF NOT EXISTS"+
 			" ON `dbmeta`.`dbmeta_fixture`.`book`(`author_id`, `title` DESC)"),
+		// A partial index, so that the index has a condition, and a setting
+		// in WITH, so that it has options.
+		at("book_recent", "CREATE INDEX `book_recent` IF NOT EXISTS"+
+			" ON `dbmeta`.`dbmeta_fixture`.`book`(`published`) WHERE `published` > '2000-01-01'"+
+			" WITH {\"num_replica\": 0}"),
 		at("book_tags", "CREATE INDEX `book_tags` IF NOT EXISTS"+
 			" ON `dbmeta`.`dbmeta_fixture`.`book`(DISTINCT ARRAY t FOR t IN `tags` END)"),
 

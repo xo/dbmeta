@@ -234,6 +234,16 @@ func TestNeo4jFixtureObjects(t *testing.T) {
 			t.Errorf("index %s: got %+v, want %+v", name, got, want)
 		}
 	}
+	// The fields of D210: the state, the statement, the provider and the
+	// settings. Neo4j has no owner, size or predicate to read.
+	if v := indexes["book_published"]; !v.Valid.Valid || !v.Valid.V ||
+		!strings.HasPrefix(v.Definition.V, "CREATE RANGE INDEX `book_published`") ||
+		!strings.HasPrefix(v.Using.V, "range-") || v.Options.Valid || v.Owner.Valid || v.Size.Valid || v.Predicate.Valid {
+		t.Errorf("book_published: unexpected fields %+v", v)
+	}
+	if v := indexes["book_search"]; !strings.Contains(v.Options.V, "fulltext.analyzer=") || !strings.HasPrefix(v.Using.V, "fulltext-") {
+		t.Errorf("book_search: expected the full text settings, got options %q and using %q", v.Options.V, v.Using.V)
+	}
 	// A pattern on parent matches either label of an index on two.
 	var search bool
 	for v, err := range dbmeta.Indexes.All(ctx, m, db, dbmeta.Args{Parent: "author"}.Map()) {
