@@ -7,12 +7,20 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has ten releases. v0.1.0 was tagged on
-dd70b7a on 2026-10-02, v0.2.0 on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07,
-v0.4.0 on 9388928, v0.5.0 on 8f3115b, v0.6.0 on 90d0261 and v0.7.0 on abe2ca1
-on 2026-10-08, and v0.8.0 on cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. The
-Tested tier passed in CI on each tagged commit. Ken chose that CI stands in for
-a run of every tier, and the Verified tier was not run again for any of them.
+dbmeta has eleven releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
+on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928, v0.5.0 on
+8f3115b, v0.6.0 on 90d0261 and v0.7.0 on abe2ca1 on 2026-10-08, and v0.8.0 on
+cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 is
+tagged on 2026-10-10, on the commit that the release notes name. The Tested
+tier passed in CI on each tagged commit. Ken chose that CI stands in for a run
+of every tier, and the Verified tier was not run again for any of them.
+
+v0.11.0 holds the refresh of every model with the fields of D198 to D203 where
+the product has a source: the MySQL family (D205), SQL Server and Oracle
+(D206), Snowflake, Redshift, CrateDB and QuestDB (D207), ClickHouse, DuckDB,
+SQLite, Databend and Vertica (D208), Firebird, SAP HANA, Exasol, Hive and
+Impala (D209), and the audit of the products without a relational catalog
+(D210). `Policy.Enabled` is new (D211).
 
 v0.10.0 holds the Snowflake dialect finished (D203), the Redshift dialect
 finished (D204), `ListHas` and `LikeFold` in the root package and the Cassandra
@@ -100,13 +108,6 @@ test module pins dbimp v0.14.0 and dburl v0.46.0.
 
 In progress:
 
-- Ken asked on 2026-10-10 to refresh every model with the new fields (D198 to
-  D203) where the product has a source. Wave 1 is done and pushed: the MySQL
-  family (D205), SQL Server and Oracle (D206), and Snowflake, Redshift, CrateDB
-  and QuestDB (D207). Wave 2 is next: ClickHouse, DuckDB, SQLite3, libSQL,
-  rqlite, Databend and Vertica, then HANA, Exasol, Firebird, Hive and Impala,
-  then an audit of the products without a relational catalog. The brief is in the scratchpad as refresh-brief.md. These changes are
-  not tagged yet: the release after v0.10.0 holds wave 1 and wave 2.
 - The dialects are built or decided for everything that usql supports, except
   H2, VoltDB, chai, csvq, Pinot, DynamoDB, Phoenix and the hosted services
   other than Redshift and Snowflake (D184, D185, D186, D188, D194).

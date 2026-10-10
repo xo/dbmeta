@@ -171,7 +171,7 @@ decision beside D56 before any of it lands here.
 answers, and whether `dbtpl` can generate from each database. `dbtpl` does
 not read `dbmeta` yet.
 
-## MySQL family
+## Models
 
 ### Read the size and the clustered flag of an index
 
@@ -239,7 +239,6 @@ release can add one.
 The settings of a MergeTree table, such as `index_granularity`, are in
 `engine_full` as text after SETTINGS. A statement cannot split them, so
 `Table.Options` has the clauses that have a column of their own.
-## Models
 ### Decide whether ArangoDB reports a row count
 `COLLECTION_COUNT(name)` in AQL returns the exact documents of a collection,
 and costs 3.6 ms to 11.6 ms for 1509 collections on one server (D210). A
