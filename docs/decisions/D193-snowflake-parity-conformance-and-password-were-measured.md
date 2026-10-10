@@ -1,6 +1,6 @@
 # D193. Snowflake parity, conformance and the password statement were measured
 
-Status: Amends D190, amended by D203.
+Status: Amends D190, amended by D203 and D213.
 
 ## The decision
 
@@ -18,8 +18,8 @@ both when the test ends, on failure too. A made user logs in with a key pair.
 The test generates the key in memory and sends only the public half to the
 server, so no secret is in a file, in a statement or in the golden file. The
 connection string of the principal is the administrator's string with the
-user, the role and the key replaced. gosnowflake parses and writes it, and the
-test never prints it.
+user, the role and the key replaced. Since D213 the driver is the one of dbimp,
+and the key is the password of the URL. The test never prints it.
 
 There are three principals:
 

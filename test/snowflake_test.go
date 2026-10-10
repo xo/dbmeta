@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/snowflakedb/gosnowflake/v2"
+	_ "github.com/xo/dbimp/snowflake"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/snowflake"
@@ -323,14 +323,18 @@ func TestSnowflakeDynamicTable(t *testing.T) {
 
 // TestSnowflakeTableFields reads the fields that D198 and D199 added to
 // Tables (D207): the owner, the persistence, the size, the rows and the
-// options. A temporary table lives as long as its session, so the test keeps
-// one connection.
+// options. The SQL API keeps no session between statements, so a temporary
+// table is gone when the next statement runs, and the test has none (D213).
 func TestSnowflakeTableFields(t *testing.T) {
 	db := openSnowflake(t)
-	db.SetMaxOpenConns(1)
 	ctx := t.Context()
 	m := setupSnowflake(t, db)
-	exec(t, db, `CREATE TEMPORARY TABLE `+sffixture.Everything.Schema+`.SCRATCH (id INTEGER)`)
+
+	// The SQL API keeps no session between statements, so a temporary table is
+	// gone before the next statement reads it. D213 records this.
+	t.Run("temporary table", func(t *testing.T) {
+		t.Skip("a temporary table lives as long as its session, and the SQL API has none between statements")
+	})
 
 	// The row count of a table that was just written can lag, so the test
 	// waits for it.
@@ -366,50 +370,8 @@ func TestSnowflakeTableFields(t *testing.T) {
 	if events.Persistence.V != "transient" || events.Options.V != "retention_time=0, cluster_by=LINEAR(event_id)" {
 		t.Errorf("EVENTS: expected a transient table with its key, got %+v and %+v", events.Persistence, events.Options)
 	}
-	if got := tables["SCRATCH"].Persistence.V; got != "temporary" {
-		t.Errorf("SCRATCH: expected temporary, got %q", got)
-	}
 	if recent := tables["RECENT"]; recent.Persistence.Valid || recent.Options.Valid || recent.Rows.Valid || recent.Size.Valid {
 		t.Errorf("RECENT: a view has no persistence, options, rows or size, got %+v", recent)
-	}
-}
-
-// TestSnowflakeKeysIgnoreTheCurrentSchema moves the session to another schema
-// and reads the keys again. SHOW with no scope reads the current schema, so a
-// statement with no scope finds no key here. See D203.
-func TestSnowflakeKeysIgnoreTheCurrentSchema(t *testing.T) {
-	db := openSnowflake(t)
-	// One connection, so that the USE below is the session every read has.
-	db.SetMaxOpenConns(1)
-	ctx := t.Context()
-	m := setupSnowflake(t, db)
-	var database string
-	if err := db.QueryRowContext(ctx, `SELECT CURRENT_DATABASE()`).Scan(&database); err != nil {
-		t.Fatalf("reading the database: %v", err)
-	}
-	exec(t, db, `USE SCHEMA `+database+`.INFORMATION_SCHEMA`)
-	args := dbmeta.Args{Schema: sffixture.Everything.Schema, Parent: "AUTHOR"}.Map()
-	var key bool
-	for v, err := range dbmeta.Columns.All(ctx, m, db, args) {
-		if err != nil {
-			t.Fatalf("reading columns: %v", err)
-		}
-		if v.Name == "AUTHOR_ID" {
-			key = v.PrimaryKey
-		}
-	}
-	if !key {
-		t.Error("AUTHOR_ID: expected a primary key from another current schema")
-	}
-	var n int
-	for _, err := range dbmeta.ConstraintColumns.All(ctx, m, db, args) {
-		if err != nil {
-			t.Fatalf("reading constraint columns: %v", err)
-		}
-		n++
-	}
-	if n != 1 {
-		t.Errorf("expected 1 key column of AUTHOR from another current schema, got %d", n)
 	}
 }
 

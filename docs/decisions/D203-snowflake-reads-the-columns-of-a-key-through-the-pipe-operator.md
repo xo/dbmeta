@@ -1,6 +1,6 @@
 # D203. Snowflake reads the columns of a key through the pipe operator
 
-Status: Amends D190 and D193.
+Status: Amends D190 and D193, amended by D213.
 
 ## The decision
 
@@ -57,7 +57,7 @@ Three things about the pipe came out of the measurement.
   can change that with USE SCHEMA, and the first version of the statement read
   the right rows only because the fixture had been created on that connection.
   The statements say IN DATABASE, which with no name is the current database.
-  `TestSnowflakeKeysIgnoreTheCurrentSchema` moves the session and reads again.
+  A test moved the session and read again. D213 deleted it, because the SQL API has no session between statements.
 - A bind parameter is refused after the pipe. The server answers "invalid
   identifier '1'". So the first version took no filter in SQL, and its
   bindings set `Keep` (D200) to filter in Go. That read the whole database for

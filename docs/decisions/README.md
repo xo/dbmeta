@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-77 of them amend or replace an earlier one, and a decision read without its
+78 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -208,10 +208,10 @@ file.
 | [D187](D187-gizmosql-shares-the-duckdb-model-and-the-tests-open-the-session.md) | GizmoSQL shares the DuckDB model and the tests open the session | Decided |
 | [D188](D188-no-dialect-for-h2-voltdb-chai-or-csvq.md) | No dialect for H2, VoltDB, chai or csvq | Amends D158, amended by D194 |
 | [D189](D189-dbimp-reads-the-opensearch-2-19-6-describe-row.md) | dbimp reads the OpenSearch 2.19.6 DESCRIBE row | Amends D181 |
-| [D190](D190-snowflake-ran-against-a-trial-account.md) | Snowflake ran against a trial account | Amends D144, amended by D193 and D203 |
+| [D190](D190-snowflake-ran-against-a-trial-account.md) | Snowflake ran against a trial account | Amends D144, amended by D193, D203 and D213 |
 | [D191](D191-elasticsearch-solr-and-opensearch-read-the-release-with-select-version.md) | Elasticsearch, Solr and OpenSearch read the release with SELECT version() | Amends D177, D179, D181 and D183, amended by D192 |
 | [D192](D192-the-ordinary-user-reads-the-release-and-surrealdb-reads-it-with-select-version.md) | The ordinary user reads the release, and SurrealDB reads it with SELECT version() | Amends D191, D176 and D164 |
-| [D193](D193-snowflake-parity-conformance-and-password-were-measured.md) | Snowflake parity, conformance and the password statement were measured | Amends D190, amended by D203 |
+| [D193](D193-snowflake-parity-conformance-and-password-were-measured.md) | Snowflake parity, conformance and the password statement were measured | Amends D190, amended by D203 and D213 |
 | [D194](D194-no-models-for-hosted-services-beyond-redshift-and-snowflake.md) | No models for hosted services beyond Redshift and Snowflake | Amends D188 |
 | [D195](D195-cassandra-and-scylladb-have-a-url-dsn-and-an-ordinary-user.md) | Cassandra and ScyllaDB have a URL DSN and an ordinary user | Decided, amended by D196 |
 | [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |
@@ -221,7 +221,7 @@ file.
 | [D200](D200-a-binding-can-keep-rows-for-a-product-that-cannot-filter.md) | A binding can keep rows for a product that cannot filter | Amends D62, amended by D202 |
 | [D201](D201-the-third-group-of-describe-data-for-usql.md) | The third group of describe data for usql | Amends D147 and D199 |
 | [D202](D202-cassandra-matches-names-ignoring-case-and-the-models-share-two-helpers.md) | Cassandra matches names ignoring case, and the models share two helpers | Amends D200 |
-| [D203](D203-snowflake-reads-the-columns-of-a-key-through-the-pipe-operator.md) | Snowflake reads the columns of a key through the pipe operator | Amends D190 and D193 |
+| [D203](D203-snowflake-reads-the-columns-of-a-key-through-the-pipe-operator.md) | Snowflake reads the columns of a key through the pipe operator | Amends D190 and D193, amended by D213 |
 | [D204](D204-redshift-answers-the-grants-and-the-roles-and-takes-every-password.md) | Redshift answers the grants and the roles, and takes every password | Amends D182 |
 | [D205](D205-the-mysql-family-fills-the-new-fields-of-d198-to-d203.md) | The MySQL family fills the new fields of D198 to D203 | Decided, amended by D212 |
 | [D206](D206-sql-server-and-oracle-fill-the-describe-fields.md) | SQL Server and Oracle fill the describe fields | Decided, amended by D211 |
@@ -231,3 +231,4 @@ file.
 | [D210](D210-the-products-without-a-relational-catalog-fill-the-describe-fields-they-have-a-source-for.md) | The products without a relational catalog fill the describe fields they have a source for | Decided, amended by D212 |
 | [D211](D211-policy-has-an-enabled-field-that-sql-server-oracle-and-vertica-fill.md) | Policy has an Enabled field that SQL Server, Oracle and Vertica fill | Amends D206 |
 | [D212](D212-firebird-and-mariadb-enforce-every-constraint-arangodb-counts-and-redshift-reads-svv-table-info.md) | Firebird and MariaDB enforce every constraint, ArangoDB counts, and Redshift reads SVV_TABLE_INFO | Amends D205, D207, D209 and D210 |
+| [D213](D213-snowflake-tests-and-dbrun-use-the-driver-of-dbimp.md) | Snowflake tests and dbrun use the driver of dbimp | Amends D190, D193 and D203 |

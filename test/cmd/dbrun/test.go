@@ -20,7 +20,6 @@ import (
 	_ "github.com/nakagami/firebirdsql"
 	_ "github.com/sclgo/impala-go"
 	_ "github.com/sijms/go-ora/v3"
-	_ "github.com/snowflakedb/gosnowflake/v2"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cassandra"
 	_ "github.com/xo/dbimp/arangodb"
@@ -36,6 +35,7 @@ import (
 	_ "github.com/xo/dbimp/neo4j"
 	_ "github.com/xo/dbimp/opensearch"
 	_ "github.com/xo/dbimp/rqlite"
+	_ "github.com/xo/dbimp/snowflake"
 	_ "github.com/xo/dbimp/solr"
 	_ "github.com/xo/dbimp/surrealdb"
 	_ "github.com/xo/dbimp/trino"
@@ -62,7 +62,7 @@ var drivers = map[dbmeta.Dialect]string{
 	// redshift:// opens it on a Redshift cluster.
 	dbmeta.QuestDB:  "pgx",
 	dbmeta.Redshift: "pgx",
-	// snowflake:// opens gosnowflake, which dburl names (D154).
+	// snowflake:// opens the driver of dbimp, which dburl names (D154, D213).
 	dbmeta.Snowflake: "snowflake",
 	dbmeta.MySQL:     "mysql",
 	// tidb://, vitess:// and memsql:// open the mysql driver.

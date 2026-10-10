@@ -263,6 +263,11 @@ func registerRelations() {
 	// and that select joins the columns view to the keys. The statement is
 	// scoped to the table or the schema when the patterns name one, and the
 	// filters of the other statements apply to the rows. See D203.
+	//
+	// The SQL API sends a boolean of a piped statement as the text 0 or 1, and
+	// the driver of dbimp reads only true and false. So the two booleans are
+	// numbers here, and database/sql converts them for the bool fields. The
+	// cast can go when the driver reads 0 and 1. See D213.
 	dbmeta.Columns.Register(dbmeta.Snowflake, &dbmeta.Binding[dbmeta.Column]{
 		Stmt: dbmeta.Stmt{
 			always(piped(`SHOW PRIMARY KEYS IN @scope`) + `SELECT c.table_catalog AS "catalog"`),
@@ -271,9 +276,9 @@ func registerRelations() {
 			always(`, c.column_name AS "name"`),
 			always(`, c.ordinal_position AS "ordinal"`),
 			always(`, c.data_type AS "data_type"`),
-			always(`, c.is_nullable = 'YES' AS "nullable"`),
+			always(`, IFF(c.is_nullable = 'YES', 1, 0) AS "nullable"`),
 			always(`, c.column_default AS "default"`),
-			always(`, k."key_sequence" IS NOT NULL AS "primary_key"`),
+			always(`, IFF(k."key_sequence" IS NOT NULL, 1, 0) AS "primary_key"`),
 			always(`, CASE WHEN c.is_identity = 'YES' THEN 'by default' END AS "identity"`),
 			always(`, NULL AS "generated"`),
 			always(`, c.comment AS "comment"`),

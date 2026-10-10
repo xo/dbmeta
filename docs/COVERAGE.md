@@ -51,7 +51,7 @@ rather than reading one.
 | `models/vitess` | 21 | 65 | Vitess 23.0.7 and 24.0.4, on vttestserver. 20 of its statements are the mysql model's, and a schema is a keyspace (D135) |
 | `models/databend` | 20 | 65 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 65 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
-| `models/snowflake` | 15 | 65 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08 and 2026-10-09. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193, and D203 reads the columns of a key |
+| `models/snowflake` | 15 | 65 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08 and 2026-10-09. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193, and D203 reads the columns of a key. Since D213 the tests and `dbrun` connect through the driver of dbimp, which is the one dburl v0.49.0 names |
 | `models/redshift` | 18 | 65 | measured on Redshift Serverless 1.0.434008 on 2026-10-08 and 2026-10-09. Written before a cluster existed (D144) and corrected by D182 and D204 |
 | `models/impala` | 11 | 65 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
 | `models/neo4j` | 17 | 65 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |

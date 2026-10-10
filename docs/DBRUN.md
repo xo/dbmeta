@@ -494,6 +494,14 @@ connection string resolves, and a person without an account never sees it
 3. The program `dbmeta-credential-<name>` on your path, which prints the
    connection string. Write one to read a password manager.
 
+The connection string of Snowflake has the form
+`snowflake://user:key@host/database/schema?role=r&warehouse=w`. The password
+of the URL is the private key of the user, as the base64url text, with no
+padding, of its PKCS8 DER bytes. The query takes only `role`, `warehouse`,
+`timeout` and `timezone`, and the driver of dbimp refuses any other key, such as
+`authenticator` or `privateKey`. A host without a suffix is not valid, so give
+the full name that ends in `.snowflakecomputing.com`. See D213.
+
 If the driver reads a secret by itself, as BigQuery and Spanner read the key
 file that `GOOGLE_APPLICATION_CREDENTIALS` names, the connection string holds
 no secret.
