@@ -7,13 +7,17 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has eleven releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
+dbmeta has twelve releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
 on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928, v0.5.0 on
 8f3115b, v0.6.0 on 90d0261 and v0.7.0 on abe2ca1 on 2026-10-08, and v0.8.0 on
-cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 is
-tagged on 2026-10-10, on the commit that the release notes name. The Tested
+cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 on
+3df0d73 and v0.12.0 on 029c5ef on 2026-10-10. The Tested
 tier passed in CI on each tagged commit. Ken chose that CI stands in for a run
 of every tier, and the Verified tier was not run again for any of them.
+
+v0.12.0 holds the four decisions of 2026-10-10 (D212): `Constraint.Enforced` is
+true for Firebird and MariaDB, ArangoDB counts the rows of a collection, and
+Redshift reads the size, rows and options of a table from `SVV_TABLE_INFO`.
 
 v0.11.0 holds the refresh of every model with the fields of D198 to D203 where
 the product has a source: the MySQL family (D205), SQL Server and Oracle
