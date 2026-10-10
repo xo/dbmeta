@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-89 of them amend or replace an earlier one, and a decision read without its
+90 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -240,8 +240,9 @@ file.
 | [D219](D219-spanner-is-measured-on-cloud-spanner-and-a-database-role-is-its-principal.md) | Spanner is measured on Cloud Spanner and a database role is its principal | Amends D216 |
 | [D220](D220-bigquery-gets-a-model-that-reads-the-hosted-service.md) | BigQuery gets a model that reads the hosted service | Decided, amended by D226 |
 | [D221](D221-redshift-reads-the-spectrum-external-tables.md) | Redshift reads the Spectrum external tables | Amends D212 |
-| [D222](D222-athena-gets-a-model-that-reads-the-hosted-service.md) | Athena gets a model that reads the hosted service | Amends D194 |
+| [D222](D222-athena-gets-a-model-that-reads-the-hosted-service.md) | Athena gets a model that reads the hosted service | Amends D194, amended by D227 |
 | [D223](D223-no-cosmos-model-because-the-driver-reads-only-documents.md) | No Cosmos DB model, because the driver reads only documents | Decided |
 | [D224](D224-databricks-gets-a-model-that-reads-the-hosted-service.md) | Databricks gets a model that reads the hosted service | Amends D194 |
 | [D225](D225-the-bigquery-and-cosmos-entries-follow-the-drivers-of-dbimp.md) | The BigQuery and Cosmos DB entries follow the drivers of dbimp | Amends D118 |
 | [D226](D226-bigquery-reads-the-schemas-and-the-grants-on-the-dataset.md) | BigQuery reads the schemas and the grants on the dataset | Amends D220 |
+| [D227](D227-the-athena-dialect-is-athena.md) | The Athena dialect is athena | Amends D222 |

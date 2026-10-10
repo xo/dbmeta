@@ -60,7 +60,7 @@ tables fewer rows than the administrator
 triggers fewer rows than the administrator
 views fewer rows than the administrator
 
-[awsathena/same/reader]
+[athena/same/reader]
 
 [bigquery/same/reader]
 current_user the same rows with different values

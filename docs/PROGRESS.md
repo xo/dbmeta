@@ -149,8 +149,7 @@ In progress:
   BACKLOG.md). The test and parity files were not written, because there are
   no queries.
 - The hosted models move to the drivers of dbimp when dburl names them: the
-  dialect `awsathena` becomes `athena` when dburl tags the rename, and the
-  test driver and the string that `dbrun` builds change for BigQuery, Athena
+  dialect is `athena` since D227, and the test driver and the string that `dbrun` builds change for BigQuery, Athena
   and Databricks (BACKLOG.md).
 - The dialects are built or decided for everything that usql supports, except
   H2, VoltDB, chai, csvq, Pinot, DynamoDB, Phoenix and the hosted services

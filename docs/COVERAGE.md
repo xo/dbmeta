@@ -6523,7 +6523,7 @@ The reader is an IAM user that can query the Glue database and cannot create or 
 table or write under `tables/`. It gets the administrator's answer to every query,
 `CurrentUser` included, because `current_user` is the number of the account for both.
 No query is refused and none reads fewer rows. `TestPrivilegeParity` records it, and
-the section `awsathena/same/reader` is empty. A principal that Lake Formation hides
+the section `athena/same/reader` is empty. A principal that Lake Formation hides
 tables from was not measured.
 
 ### The cost

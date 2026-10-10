@@ -41,9 +41,10 @@ type Dialect string
 const (
 	// ArangoDB is queried in AQL rather than SQL, over HTTP.
 	ArangoDB Dialect = "arangodb"
-	// Athena is Amazon Athena. dburl v0.49.0 names the scheme awsathena. A later
-	// dburl renames it athena, and this value follows when that is tagged.
-	Athena Dialect = "awsathena"
+	// Athena is Amazon Athena. The value was awsathena while dburl v0.49.0 named
+	// the scheme that way, and it is athena since dburl renamed it, as the
+	// driver of dbimp is named. See D227.
+	Athena Dialect = "athena"
 	// Avatica is the standalone Avatica server, which stands in front of
 	// HSQLDB and which dbimp's avatica driver reaches. Phoenix speaks the same
 	// protocol and has no model. See D186.

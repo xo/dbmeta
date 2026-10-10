@@ -376,10 +376,7 @@ seconds. Ken decided on 2026-10-11 that Athena gets no walk. The hidden tables `
 
 ### Athena follows dburl and dbimp
 
-The dialect value is `awsathena`, because dburl v0.49.0 names the scheme that way.
-A later dburl stages the rename to `athena`, and the constant `dbmeta.Athena`, the
-name of the conformance section and the name of the parity section follow the tag
-of dburl that holds it. The test module uses `github.com/uber/athenadriver` until
+The dialect value is `athena` since D227. The test module uses `github.com/uber/athenadriver` until
 dburl names `github.com/xo/dbimp/athena` and dbimp tags it, and then `dbrun` and
 the tests change driver. The driver of dbimp must write a string literal the way
 Trino reads it, and must return a NULL as NULL without an option, and then
