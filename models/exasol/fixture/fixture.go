@@ -179,6 +179,18 @@ var Everything = Fixture{
 	DISTRIBUTE BY archive_id
 )`),
 
+		// A foreign key that is disabled, so Constraint.Enforced has a false
+		// to read, and rows in author for the row count and the size (D209).
+		at("ledger", `CREATE TABLE dbmeta_fixture.ledger (
+	ledger_id INTEGER NOT NULL,
+	author_id INTEGER,
+	CONSTRAINT ledger_pk PRIMARY KEY (ledger_id),
+	CONSTRAINT ledger_author_fk FOREIGN KEY (author_id)
+		REFERENCES dbmeta_fixture.author (author_id) DISABLE
+)`),
+		at("author rows", `INSERT INTO dbmeta_fixture.author (author_id, name, rating) VALUES
+	(1, 'Ursula', 5), (2, 'Octavia', 4), (3, 'Iain', 4)`),
+
 		// An identity column, on a table of its own so that the core
 		// tables stay the same shape everywhere.
 		at("ticket", `CREATE TABLE dbmeta_fixture.ticket (

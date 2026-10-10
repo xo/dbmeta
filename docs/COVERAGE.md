@@ -38,10 +38,10 @@ rather than reading one.
 | `models/clickhouse` | 25 | 65 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
 | `models/trino` | 13 | 65 | Trino 476 and 483 |
 | `models/presto` | 9 | 65 | Presto 0.299 |
-| `models/firebird` | 24 | 65 | Firebird 3.0, 4.0 and 5.0 |
-| `models/hana` | 32 | 65 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
-| `models/hive` | 16 | 65 | Apache Hive 4.0 and 4.2 |
-| `models/exasol` | 25 | 65 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
+| `models/firebird` | 25 | 65 | Firebird 3.0, 4.0 and 5.0 |
+| `models/hana` | 33 | 65 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
+| `models/hive` | 18 | 65 | Apache Hive 4.0 and 4.2 |
+| `models/exasol` | 26 | 65 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
 | `models/vertica` | 28 | 65 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
 | `models/couchbase` | 12 | 65 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
 | `models/cockroachdb` | 54 | 65 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 47 of its statements are the postgres model's (D123) |
@@ -1056,7 +1056,7 @@ None are filled. `system.metadata.tables_authorization` is empty for the memory 
 
 ## Firebird
 
-`models/firebird` answers 24 of the 65, against Firebird 3.0.14, 4.0.7 and
+`models/firebird` answers 25 of the 65, against Firebird 3.0.14, 4.0.7 and
 5.0.4.
 
 ### It reads RDB$, and there is no information_schema
@@ -1272,9 +1272,32 @@ test creates a principal, so it runs every such statement on a connection of
 its own and closes it. That was measured against Firebird 5.0.4 with
 `nakagami/firebirdsql` v0.9.21.
 
+### The describe fields (D209)
+
+D198 to D203 gave the root types fields that only PostgreSQL filled. D209 filled
+what Firebird has a source for, on 3.0, 4.0 and 5.0. Every statement still
+returns the same columns on every release.
+
+| Field | Firebird |
+| --- | --- |
+| `Table.Owner` | `RDB$OWNER_NAME` |
+| `Table.Persistence` | temporary for a global temporary table, NULL for a view, permanent for the rest |
+| `Table.Options` | `on_commit` for a global temporary table, `external_file` for an external table, and `sql_security` from 4.0 |
+| `Table.AccessMethod`, `Size`, `Rows` | NULL. Firebird has one engine, keeps no size and keeps no row count. `MON$` shows the pages of the open attachments only |
+| `Index.Owner`, `Persistence`, `Size`, `Clustered`, `ReplicaIdentity`, `Options`, `Definition`, `Using` | NULL. There is no source, or the fact is the one `Type` already holds |
+| `Index.Valid` | `RDB$INDEX_INACTIVE`, so an index set INACTIVE is false |
+| `Index.Predicate` | `RDB$CONDITION_SOURCE` without the WHERE word, from 5.0. NULL below that, which has no partial index |
+| `Index.Deferrable`, `InitiallyDeferred` | from the constraint that owns the index, which is always false. NULL for an index no constraint owns |
+| `Index.ConstraintType` | p, u or f from the owning constraint. A Firebird foreign key has an index of its own, so f is an addition to PostgreSQL's p, u and x |
+| `Column.Storage`, `Compression`, `StatsTarget` | NULL. Firebird records no such choice |
+| `Constraint.Enforced` | NULL. Firebird cannot disable a constraint, so every one is enforced, but no catalog column says so. D207 left that open |
+| `Function.Prosrc` | the same text as `Source`, from `RDB$FUNCTION_SOURCE` and `RDB$PROCEDURE_SOURCE` |
+| `NotNulls` | new. `RDB$RELATION_CONSTRAINTS` of the type NOT NULL, with the column from `RDB$CHECK_CONSTRAINTS` |
+| `Partitions`, `Policies`, `Inherits` | Firebird has none of the three |
+
 ## SAP HANA
 
-`models/hana` answers 32 of the 65, against SAP HANA 2.00.088, which is
+`models/hana` answers 33 of the 65, against SAP HANA 2.00.088, which is
 Tested, and 2.00.076 and 2.00.082, which run nightly. It ties SQL Server for
 the richest answer after PostgreSQL and CockroachDB, which shares the
 PostgreSQL model.
@@ -1468,9 +1491,34 @@ over as a value that holds a pointer, so its text differed on every read.
 The query casts the numbers to BIGINT now, and both principals read the same
 rows.
 
+### The describe fields (D209)
+
+D198 to D203 gave the root types fields that only PostgreSQL filled. D209 filled
+what HANA has a source for, on 2.00.088 as the administrator, and for a user
+with one grant and a user with none.
+
+| Field | SAP HANA |
+| --- | --- |
+| `Table.Owner` | `OWNER_NAME` of `SYS.OWNERSHIP`. The schema owner is a different fact |
+| `Table.Persistence` | unlogged for `IS_LOGGED` false, which is a table created NO LOGGING and is a temporary table too. Then temporary for a global temporary table, and permanent. NULL for a view |
+| `Table.AccessMethod` | row or column, from `TABLE_TYPE` |
+| `Table.Options` | `on_commit` for a global temporary table, `insert_only`, `auto_merge=off` and a `load_unit` that is not the default |
+| `Table.Size`, `Rows` | NULL. `SYS.M_TABLES` has `TABLE_SIZE` and `RECORD_COUNT`, and any user reads it for the tables it can see, but a join to it scans every table. See D209 |
+| `Index.Owner` | `OWNER_NAME` of `SYS.OWNERSHIP` |
+| `Index.Using` | the index kind, lower cased. It is the same text as `Type` |
+| `Index.ConstraintType` | p from `CONSTRAINT`, and u for an index that `SYS.CONSTRAINTS` also names. `CONSTRAINT` says NOT NULL UNIQUE for a plain unique index as well |
+| `Index.Size` | NULL, for the same reason as the table size: `M_RS_INDEXES` and `M_CS_INDEXES` |
+| `Index.Valid`, `Clustered`, `Predicate`, `ReplicaIdentity`, `Deferrable`, `InitiallyDeferred`, `Options`, `Definition`, `Persistence` | NULL. There is no source |
+| `Column.Compression` | `COMPRESSION_TYPE`, lower cased. none is what a row table says |
+| `Column.Storage`, `StatsTarget` | NULL |
+| `Constraint.Enforced` | `IS_ENFORCED` for a foreign key. NULL for the other kinds, which have no column |
+| `Function.Prosrc` | NULL. `Definition` holds the whole statement and there is no body apart from it |
+| `Partitions` | new. `SYS.TABLE_PARTITIONS` with the kind of each level from `SYS.PARTITIONED_TABLES`. A partition has a number and no name |
+| `NotNulls`, `Policies`, `Inherits` | none. HANA records NOT NULL on the column and not as a named constraint |
+
 ## Apache Hive
 
-`models/hive` answers 16 of the 65, against Apache Hive 4.2.1, which is
+`models/hive` answers 18 of the 65, against Apache Hive 4.2.1, which is
 Tested, and 4.0.1, which runs nightly. It is the
 only model here that writes its filter values into the statement, and the
 reason is in D78 rather than here.
@@ -1622,6 +1670,25 @@ it is the same shape as Trino and Presto.
 A Hive with SQL standard authorization configured answers differently
 and nothing here measures that, because the image does not configure it.
 
+### The describe fields (D209)
+
+D198 to D203 gave the root types fields that only PostgreSQL filled. D209 filled
+what the metastore has a source for, on 4.2.1 and 4.0.1.
+
+| Field | Apache Hive |
+| --- | --- |
+| `Table.Owner` | `TBLS.OWNER` |
+| `Table.Persistence` | permanent for a table and NULL for a view. A temporary table is not in the metastore |
+| `Table.AccessMethod` | the input format class of the storage descriptor. NULL for a view |
+| `Table.Size`, `Rows` | the `totalSize` and `numRows` table parameters, which are statistics. NULL for a view, for a table with none, and where Hive writes -1 |
+| `Table.Options` | NULL. The parameters mix statistics, times and settings, and no key marks a setting |
+| `Constraint.Enforced` | the ENABLE bit of `ENABLE_VALIDATE_RELY`. A NOT NULL, DEFAULT or CHECK can be ENABLE |
+| `Partitions` | new. `PARTITIONS`, with `PART_NAME` such as `year=2026` as both the name and the bound |
+| `NotNulls` | new. `KEY_CONSTRAINTS` of the type 3, with the column from `COLUMNS_V2`. `Validated` is the VALIDATE bit |
+| `Column.Storage`, `Compression`, `StatsTarget` | NULL. The column format is the table's |
+| `Function.Prosrc` | NULL. The metastore keeps the Java class, and `Source` holds its name |
+| `Policies`, `Inherits`, the index fields | none. Hive 3 removed indexes |
+
 ## Presto
 
 Presto is Trino's older self. They forked in 2019 and `models/presto` is a
@@ -1733,7 +1800,7 @@ None are filled. Presto has no `tables_authorization`, and `SHOW STATS` is one s
 
 ## Exasol
 
-`models/exasol` answers 25 of the 65. It was run against Exasol 2026.2.0 on
+`models/exasol` answers 26 of the 65. It was run against Exasol 2026.2.0 on
 the nano image and 2025.2.1 on the Community Edition machine, and the two
 answer identically, so the model has no version fragment. D85 says why there
 are two, and D87 records what was decided here.
@@ -1909,6 +1976,29 @@ Edition ships eleven adapter scripts in `VS_ADAPTERS`, which SYS owns and a
 principal that owns another schema cannot see. The nano image ships none, so
 the difference is in what the machine holds and not in the query.
 `test/testdata/parity.txt` has an `exasol@2025` section for it.
+
+### The describe fields (D209)
+
+D198 to D203 gave the root types fields that only PostgreSQL filled. D209 filled
+what Exasol has a source for, on 2026.2.0. The 2025.2.1 Community Edition
+machine is Verified and was not run.
+
+| Field | Exasol |
+| --- | --- |
+| `Table.Owner` | `TABLE_OWNER` and `VIEW_OWNER` |
+| `Table.Persistence` | permanent for a table. NULL for a view, a virtual table and a system table |
+| `Table.Rows` | `TABLE_ROW_COUNT`, which is exact |
+| `Table.Size` | `MEM_OBJECT_SIZE` of `EXA_ALL_OBJECT_SIZES`. `RAW_OBJECT_SIZE`, the size before compression, is not returned |
+| `Table.Options` | `distribute_by` and `partition_by` with the key columns |
+| `Table.AccessMethod` | NULL. Exasol has one engine |
+| `Index.Owner`, `Size` | `INDEX_OWNER` and `MEM_OBJECT_SIZE` of `EXA_ALL_INDICES` |
+| `Index.Valid`, `Clustered`, `Predicate`, `Using`, `Options`, `Definition`, `Persistence` | NULL. There is no source |
+| `Constraint.Enforced` | `CONSTRAINT_ENABLED`, which is false for a constraint declared DISABLE |
+| `NotNulls` | new. `EXA_ALL_CONSTRAINTS` of the type NOT NULL, with the column from `EXA_ALL_CONSTRAINT_COLUMNS` |
+| `Column.Storage`, `Compression`, `StatsTarget` | NULL |
+| `Function.Prosrc` | NULL. Exasol keeps the whole statement, which is `Definition` |
+| `Partitions` | not answered. An Exasol partition is a key and not an object, and `PartitionedTables` has the key columns |
+| `Policies`, `Inherits` | none |
 
 ## Vertica
 
@@ -4095,6 +4185,21 @@ routine parameters are not answered.
 
 Nothing. The image configures no authentication, so every user is the same
 principal, and Impala is exempt from parity with that reason.
+
+### The describe fields (D209)
+
+D198 to D203 gave the root types fields that only PostgreSQL filled. The Impala
+walk already runs `DESCRIBE FORMATTED` for each table, so the fields it holds
+cost no statement. D209 fills them on 4.4.1 and 4.5.2.
+
+| Field | Apache Impala |
+| --- | --- |
+| `Table.Owner` | the Owner row of `DESCRIBE FORMATTED` |
+| `Table.Persistence` | permanent for a table and NULL for a view |
+| `Table.AccessMethod` | the InputFormat row. NULL for a view |
+| `Table.Size`, `Rows` | the `totalSize` and `numRows` table parameters, which `COMPUTE STATS` fills. NULL where Impala writes -1 |
+| `Table.Options` | NULL. The parameters mix statistics, times and settings |
+| Every other new field and kind | NULL or not answered, as in Hive. The walk reads no constraint, index or partition |
 
 ## rqlite
 

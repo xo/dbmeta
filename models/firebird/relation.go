@@ -25,6 +25,30 @@ const relationType = `CASE r.RDB$RELATION_TYPE` +
 	` WHEN 5 THEN 'global temporary table'` +
 	` ELSE 'table' END`
 
+// tablePersistence is Table.Persistence. The two global temporary types hold
+// their rows for the session or the transaction, and neither survives a
+// restart. A view has no storage.
+const tablePersistence = `CASE WHEN r.RDB$RELATION_TYPE IN (4, 5) THEN 'temporary'` +
+	` WHEN r.RDB$RELATION_TYPE = 1 THEN NULL ELSE 'permanent' END`
+
+// tableOptions is Table.Options. Each part starts with a comma and a space and
+// the first two characters are cut, so that a table with none gives NULL.
+func tableOptions() dbmeta.Choice {
+	parts := func(security string) string {
+		return `, NULLIF(SUBSTRING(` +
+			`CASE r.RDB$RELATION_TYPE WHEN 4 THEN ', on_commit=preserve rows'` +
+			` WHEN 5 THEN ', on_commit=delete rows' ELSE '' END` +
+			` || CASE WHEN r.RDB$EXTERNAL_FILE IS NULL THEN ''` +
+			` ELSE ', external_file=' || r.RDB$EXTERNAL_FILE END` +
+			security + ` FROM 3), '') AS "options"`
+	}
+	return dbmeta.Choice{
+		{Min: v4, Query: parts(` || CASE r.RDB$SQL_SECURITY WHEN TRUE THEN ', sql_security=definer'` +
+			` WHEN FALSE THEN ', sql_security=invoker' ELSE '' END`)},
+		{Query: parts(``)},
+	}
+}
+
 func registerRelations() {
 	registerTables()
 	registerColumns()
@@ -43,6 +67,12 @@ func registerTables() {
 			always(`, TRIM(TRAILING FROM r.RDB$RELATION_NAME) AS "name"`),
 			always(`, ` + relationType + ` AS "type"`),
 			always(`, r.RDB$DESCRIPTION AS "comment"`),
+			always(`, TRIM(TRAILING FROM r.RDB$OWNER_NAME) AS "owner"`),
+			always(`, ` + tablePersistence + ` AS "persistence"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "access_method"`),
+			always(`, CAST(NULL AS BIGINT) AS "size"`),
+			always(`, CAST(NULL AS BIGINT) AS "rows"`),
+			tableOptions(),
 			always(`FROM RDB$RELATIONS r`),
 			always(`WHERE ` + userObject(`r.RDB$SYSTEM_FLAG`)),
 			always(`AND ` + like(`''`, `@schema`) + ``),
@@ -57,11 +87,18 @@ func registerTables() {
 			{Name: "name"},
 			{Name: "type", Desc: "table, view, external table, virtual table or global temporary table"},
 			{Name: "comment", Desc: "from RDB$DESCRIPTION, which COMMENT ON writes"},
+			{Name: "owner", Desc: "from RDB$OWNER_NAME, the user that created the table or the view"},
+			{Name: "persistence", Desc: "temporary for a global temporary table, absent for a view, and permanent for every other table. Firebird has no unlogged table"},
+			{Name: "access_method", Desc: "always absent: Firebird has one storage engine and records no choice"},
+			{Name: "size", Desc: "always absent: Firebird keeps no size for a table, and MON$ shows only the page counts of the attachments that are open"},
+			{Name: "rows", Desc: "always absent: Firebird keeps no row count and no estimate. COUNT(*) reads every record version"},
+			{Name: "options", Desc: "on_commit for a global temporary table, external_file for an external table, and sql_security from 4.0 where the table names a clause. Absent when none is set"},
 		},
 		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})
@@ -240,6 +277,18 @@ func registerColumns() {
 	})
 }
 
+// indexPredicate reads RDB$CONDITION_SOURCE, which 5.0 added with the partial
+// index. The source starts with the word WHERE, as the person wrote it, and
+// the field holds the condition alone.
+func indexPredicate() dbmeta.Choice {
+	return dbmeta.Choice{
+		{Min: v5, Query: `, CASE WHEN UPPER(LEFT(TRIM(i.RDB$CONDITION_SOURCE), 5)) = 'WHERE'` +
+			` THEN TRIM(SUBSTRING(TRIM(i.RDB$CONDITION_SOURCE) FROM 6))` +
+			` ELSE i.RDB$CONDITION_SOURCE END AS "predicate"`},
+		{Query: `, CAST(NULL AS VARCHAR(1)) AS "predicate"`},
+	}
+}
+
 func registerIndexes() {
 	// \di. RDB$INDICES holds an index whether a constraint made it or not,
 	// and the primary flag comes from the constraint that owns it.
@@ -255,7 +304,22 @@ func registerIndexes() {
 				` WHERE rc.RDB$INDEX_NAME = i.RDB$INDEX_NAME` +
 				` AND rc.RDB$CONSTRAINT_TYPE = 'PRIMARY KEY') AS "primary"`),
 			always(`, i.RDB$DESCRIPTION AS "comment"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "owner"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "persistence"`),
+			always(`, CAST(NULL AS BIGINT) AS "size"`),
+			indexPredicate(),
+			always(`, COALESCE(i.RDB$INDEX_INACTIVE, 0) = 0 AS "valid"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "clustered"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "replica_identity"`),
+			always(`, rc.RDB$DEFERRABLE = 'YES' AS "deferrable"`),
+			always(`, rc.RDB$INITIALLY_DEFERRED = 'YES' AS "initially_deferred"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "options"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "definition"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "using"`),
+			always(`, CASE rc.RDB$CONSTRAINT_TYPE WHEN 'PRIMARY KEY' THEN 'p'` +
+				` WHEN 'UNIQUE' THEN 'u' WHEN 'FOREIGN KEY' THEN 'f' END AS "constraint_type"`),
 			always(`FROM RDB$INDICES i`),
+			always(`LEFT JOIN RDB$RELATION_CONSTRAINTS rc ON rc.RDB$INDEX_NAME = i.RDB$INDEX_NAME`),
 			always(`WHERE ` + userObject(`i.RDB$SYSTEM_FLAG`)),
 			always(`AND ` + like(`''`, `@schema`) + ``),
 			always(`AND ` + like(`i.RDB$RELATION_NAME`, `@parent`) + ``),
@@ -270,12 +334,27 @@ func registerIndexes() {
 			{Name: "unique"},
 			{Name: "primary", Desc: "true when a PRIMARY KEY constraint owns this index"},
 			{Name: "comment"},
+			{Name: "owner", Desc: "always absent: an index has no owner of its own, and the table's owner is a different fact"},
+			{Name: "persistence", Desc: "always absent: Firebird has no unlogged index"},
+			{Name: "size", Desc: "always absent: Firebird keeps no size for an index"},
+			{Name: "predicate", Desc: "the condition of a partial index without the WHERE keyword, from 5.0. Absent for a complete index and on 3.0 and 4.0, which have no partial index"},
+			{Name: "valid", Desc: "false for an index set INACTIVE, which the optimizer does not use. RDB$INDEX_INACTIVE"},
+			{Name: "clustered", Desc: "always absent: Firebird has no clustered index"},
+			{Name: "replica_identity", Desc: "always absent: Firebird replication needs a primary key and records no choice of index"},
+			{Name: "deferrable", Desc: "from the constraint that owns the index, which is always false, and absent for an index that no constraint owns"},
+			{Name: "initially_deferred", Desc: "from the same constraint, always false"},
+			{Name: "options", Desc: "always absent: Firebird has no storage parameter for an index"},
+			{Name: "definition", Desc: "always absent: Firebird keeps no CREATE INDEX text"},
+			{Name: "using", Desc: "always absent: Firebird has one index kind and no USING clause"},
+			{Name: "constraint_type", Desc: "p for a primary key, u for a unique constraint and f for a foreign key, which has an index of its own in Firebird. Absent for any other index"},
 		},
 		Params: parentAndName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Owner, &v.Persistence, &v.Size,
+				&v.Predicate, &v.Valid, &v.Clustered, &v.ReplicaIdentity, &v.Deferrable,
+				&v.InitiallyDeferred, &v.Options, &v.Definition, &v.Using, &v.ConstraintType)
 			return v, err
 		},
 	})
@@ -353,6 +432,7 @@ func registerConstraints() {
 			always(`, rc.RDB$DEFERRABLE = 'YES' AS "deferrable"`),
 			always(`, rc.RDB$INITIALLY_DEFERRED = 'YES' AS "deferred"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "comment"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "enforced"`),
 			always(`FROM RDB$RELATION_CONSTRAINTS rc`),
 			always(`JOIN RDB$RELATIONS r ON r.RDB$RELATION_NAME = rc.RDB$RELATION_NAME`),
 			always(`WHERE ` + userObject(`r.RDB$SYSTEM_FLAG`)),
@@ -369,12 +449,13 @@ func registerConstraints() {
 			{Name: "deferrable", Desc: "always false: Firebird accepts the word and defers nothing"},
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no constraint form"},
+			{Name: "enforced", Desc: "always absent: Firebird cannot disable a constraint, so every one is enforced, but no catalog column says so (D209)"},
 		},
 		Params: parentAndName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})

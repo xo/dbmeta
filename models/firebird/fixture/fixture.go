@@ -99,6 +99,11 @@ func from4(name, query string) Step {
 	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: dbmeta.V(4, 0), Query: query}}}}
 }
 
+// from5 is a step Firebird 3.0 and 4.0 cannot run.
+func from5(name, query string) Step {
+	return Step{Name: name, Stmt: dbmeta.Stmt{{{Min: dbmeta.V(5, 0), Query: query}}}}
+}
+
 // Everything holds one of every object the Firebird queries read.
 var Everything = Fixture{
 	Name: "everything",
@@ -155,6 +160,17 @@ var Everything = Fixture{
 	note VARCHAR(64),
 	CONSTRAINT ticket_pk PRIMARY KEY (ticket_id)
 )`),
+
+		// The objects the fields of D209 read: a global temporary table, an
+		// index set INACTIVE and a partial index, which 5.0 added.
+		at("scratch", `CREATE GLOBAL TEMPORARY TABLE dbmeta_scratch (
+	scratch_id INTEGER,
+	note VARCHAR(32)
+) ON COMMIT PRESERVE ROWS`),
+		at("book_inactive", `CREATE INDEX book_inactive ON book (author_id)`),
+		at("book_inactive off", `ALTER INDEX book_inactive INACTIVE`),
+		from5("book_recent", `CREATE INDEX book_recent ON book (title) WHERE published IS NOT NULL`),
+		at("author rows", `INSERT INTO author (author_id, name, rating) VALUES (1, 'Ursula', 5)`),
 
 		at("sequence", `CREATE SEQUENCE dbmeta_counter`),
 		at("exception", `CREATE EXCEPTION dbmeta_nope 'the fixture says no'`),
@@ -234,6 +250,10 @@ END`),
 		at("procedure", `DROP PROCEDURE book_count`),
 		at("function", `DROP FUNCTION doubled`),
 		at("book_published", `DROP INDEX book_published`),
+		at("book_recent", `DROP INDEX book_recent`),
+		at("book_inactive", `DROP INDEX book_inactive`),
+		at("scratch", `DROP TABLE dbmeta_scratch`),
+		at("author rows", `DELETE FROM author`),
 		at("shipment", `DROP TABLE shipment`),
 		at("region", `DROP TABLE region`),
 		at("book", `DROP TABLE book`),

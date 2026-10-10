@@ -157,6 +157,38 @@ var Everything = Fixture{
 	year INTEGER NOT NULL
 ) PARTITION BY HASH (archive_id) PARTITIONS 4`),
 
+		// The objects the fields of D209 read: a range partitioned table, a
+		// global temporary table, a table without logging, a table with
+		// automatic merge off that loads by page, a foreign key that is not
+		// enforced.
+		at("audit", `CREATE COLUMN TABLE dbmeta_fixture.audit (
+	audit_id INTEGER NOT NULL,
+	note NVARCHAR(64),
+	CONSTRAINT audit_pk PRIMARY KEY (audit_id)
+) PARTITION BY RANGE (audit_id) (
+	PARTITION 0 <= VALUES < 100,
+	PARTITION 100 <= VALUES < 200,
+	PARTITION OTHERS
+)`),
+		at("scratch", `CREATE GLOBAL TEMPORARY TABLE dbmeta_fixture.scratch (
+	scratch_id INTEGER
+) ON COMMIT DELETE ROWS`),
+		at("cache", `CREATE COLUMN TABLE dbmeta_fixture.cache (
+	cache_id INTEGER
+) NO LOGGING`),
+		at("queue", `CREATE COLUMN TABLE dbmeta_fixture.queue (
+	queue_id INTEGER
+)`),
+		at("queue merge", `ALTER TABLE dbmeta_fixture.queue DISABLE AUTOMERGE`),
+		at("queue load", `ALTER TABLE dbmeta_fixture.queue PAGE LOADABLE`),
+		at("pending", `CREATE COLUMN TABLE dbmeta_fixture.pending (
+	pending_id INTEGER NOT NULL,
+	author_id INTEGER,
+	CONSTRAINT pending_pk PRIMARY KEY (pending_id),
+	CONSTRAINT pending_author_fk FOREIGN KEY (author_id)
+		REFERENCES dbmeta_fixture.author (author_id) NOT ENFORCED
+)`),
+
 		// An identity column, on a table of its own so that the core
 		// tables stay the same shape everywhere.
 		at("ticket", `CREATE COLUMN TABLE dbmeta_fixture.ticket (

@@ -41,6 +41,14 @@ missing. The cause of neither is known. For Oracle, read what the image runs
 at start and whether `dbrun` can wait for it, or start the server again when
 that statement fails.
 
+`questdb-9.4.3` failed a second time on 2026-10-10, in `TestPrivilegeParity` for
+the read-only principal: the `tables` query read "the same rows with different
+values", and it passed when rerun. The likely cause is `Table.Rows` (D207), which
+reads `table_row_count`. A WAL table applies its writes later, so the count can
+differ between two reads. If it fails again, make the parity setup wait for the
+WAL, as the QuestDB fields test does, or leave `rows` out of the comparison.
+
+
 ### Find why Databend's first start can fail
 
 The first start of `databend-1.2.948` after the pull of the image did
@@ -214,35 +222,46 @@ catalog. `Table.Size`, `Table.Rows` and `Column.Compression` are NULL. A
 projection of a replicated table is also repeated on every node, so a sum of
 rows is not the rows. If a later release gives a view that follows the filter,
 the fields can be added.
-
 ### Options and size of a SQLite table
-
 D208 leaves `Table.Options` NULL on SQLite. `pragma_table_list` has the strict
 and the WITHOUT ROWID flags, and joining it for every table grows with the
 square of the catalog. A shadow table is listed as a `table`, and
 `pragma_table_list` calls it `shadow`. Ken decides whether the type changes.
 `Table.Size` needs `dbstat`, which scans the file and is not in the mattn
 driver.
-
 ### Row security for Vertica, ClickHouse and Databend
-
 `Table.RowSecurity` is NULL for all three. The Vertica and ClickHouse sources
 (`access_policy` and `row_policies`) are refused to or filtered for a user who
 is not an administrator, and a flag that reads `false` for that user is a wrong
 answer. Databend 1.2.951 has no catalog for its row access policies. A later
 release can add one.
-
 ### The SETTINGS clause of a ClickHouse table
-
 The settings of a MergeTree table, such as `index_granularity`, are in
 `engine_full` as text after SETTINGS. A statement cannot split them, so
 `Table.Options` has the clauses that have a column of their own.
 ## Models
-
 ### Decide whether ArangoDB reports a row count
-
 `COLLECTION_COUNT(name)` in AQL returns the exact documents of a collection,
 and costs 3.6 ms to 11.6 ms for 1509 collections on one server (D210). A
 cluster counts with a round trip for each shard, and no cluster was measured.
 Measure one before the field is added, or ask Ken whether a single server is
 enough.
+### SAP HANA size and row count
+`Table.Size`, `Table.Rows` and `Index.Size` are NULL on SAP HANA (D209). The
+sources are `SYS.M_TABLES`, `SYS.M_RS_INDEXES` and `SYS.M_CS_INDEXES`, and any
+user reads them for the objects it can see. The planner reads one row when the
+filter is a literal, a plain `= ?` or a plain `LIKE ?`, and reads every table
+when the filter is the `(? = '' OR x LIKE ?)` form that all the models use. Fill
+the three fields when one statement can pass a pattern that the planner pushes
+down, and measure with 3000 tables.
+### Exasol left join to the object sizes
+`Table.Size` on Exasol joins `EXA_ALL_OBJECT_SIZES`, which costs 85 ms at 3000
+tables for one table, and 41 ms with the fixture only (D209). An inner join
+costs 10 ms and can drop a table that a user sees in `EXA_ALL_TABLES` and not
+in `EXA_ALL_OBJECT_SIZES`. Run the parity targets with an inner join, and keep
+it if the rows do not change.
+### Firebird Constraint.Enforced
+A Firebird constraint cannot be disabled, so every one is enforced, and no
+catalog column says so. D209 leaves `Constraint.Enforced` NULL, as D207 did for
+CrateDB and Redshift. If Ken decides that a fact of the product is enough, fill
+true for every Firebird constraint, and say so in D209.

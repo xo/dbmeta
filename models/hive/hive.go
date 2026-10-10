@@ -35,8 +35,8 @@
 //
 // # What it answers
 //
-// 16 of the 65. Tables, schemas, columns, views, constraints, constraint
-// columns, partitioned tables, functions, roles, role grants, privileges,
+// 18 of the 65. Tables, schemas, columns, views, constraints, constraint
+// columns, not nulls, partitioned tables, partitions, functions, roles, role grants, privileges,
 // comments, column statistics, access methods, the current schema and the
 // current user.
 //
@@ -92,6 +92,7 @@ func init() {
 		ParseVersion:   parseVersion,
 	})
 	registerRelations()
+	registerSections()
 	registerExtra()
 }
 

@@ -14,6 +14,29 @@ func registerRelations() {
 	registerConstraints()
 }
 
+// tableOptions is Table.Options. It reads the key columns of the tables that
+// the statement returns, in one pass over EXA_ALL_COLUMNS with the same filters
+// as the tables. A correlated read of the columns for each table scans every
+// column in the database even for one table, which took 465 ms with 9000
+// columns, and this takes 5 ms (D209).
+const tableOptions = `NULLIF(SUBSTR(` +
+	`CASE WHEN k.DISTRIBUTION IS NULL THEN '' ELSE ', distribute_by=' || k.DISTRIBUTION END` +
+	` || CASE WHEN k.PARTITIONING IS NULL THEN '' ELSE ', partition_by=' || k.PARTITIONING END` +
+	`, 3), '')`
+
+// tableKeys is the derived table that tableOptions reads.
+var tableKeys = `LEFT JOIN (SELECT c.COLUMN_SCHEMA AS S, c.COLUMN_TABLE AS T` +
+	`, GROUP_CONCAT(CASE WHEN c.COLUMN_IS_DISTRIBUTION_KEY THEN c.COLUMN_NAME END` +
+	` ORDER BY c.COLUMN_ORDINAL_POSITION SEPARATOR ', ') AS DISTRIBUTION` +
+	`, GROUP_CONCAT(CASE WHEN c.COLUMN_PARTITION_KEY_ORDINAL_POSITION IS NOT NULL THEN c.COLUMN_NAME END` +
+	` ORDER BY c.COLUMN_PARTITION_KEY_ORDINAL_POSITION SEPARATOR ', ') AS PARTITIONING` +
+	` FROM EXA_ALL_COLUMNS c` +
+	` WHERE (c.COLUMN_IS_DISTRIBUTION_KEY OR c.COLUMN_PARTITION_KEY_ORDINAL_POSITION IS NOT NULL)` +
+	` AND ` + like(`c.COLUMN_SCHEMA`, `@schema`) +
+	` AND ` + like(`c.COLUMN_TABLE`, `@name`) +
+	` GROUP BY c.COLUMN_SCHEMA, c.COLUMN_TABLE) k` +
+	` ON k.S = t.TABLE_SCHEMA AND k.T = t.TABLE_NAME`
+
 func registerTables() {
 	// \dn. A virtual schema is a schema here too, and SCHEMA_IS_VIRTUAL is
 	// what tells the two apart. ForeignServers reports the virtual ones
@@ -54,6 +77,9 @@ func registerTables() {
 	// \dt and \dv. Exasol keeps tables and views in two views, and a
 	// virtual table is in the table view with a flag, so this is one
 	// statement over both and the type column separates them.
+	//
+	// The size comes from EXA_ALL_OBJECT_SIZES by object id, with a left join
+	// so that a user who cannot see a size still gets the row.
 	dbmeta.Tables.Register(dbmeta.Exasol, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT '' AS "catalog"`),
@@ -62,18 +88,32 @@ func registerTables() {
 			always(`, CASE WHEN t.TABLE_IS_VIRTUAL THEN 'virtual table'` +
 				` ELSE 'table' END AS "type"`),
 			always(`, t.TABLE_COMMENT AS "comment"`),
+			always(`, t.TABLE_OWNER AS "owner"`),
+			always(`, CASE WHEN t.TABLE_IS_VIRTUAL THEN NULL ELSE 'permanent' END AS "persistence"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "access_method"`),
+			always(`, CASE WHEN t.TABLE_IS_VIRTUAL THEN NULL` +
+				` ELSE CAST(z.MEM_OBJECT_SIZE AS INTEGER) END AS "size"`),
+			always(`, CASE WHEN t.TABLE_IS_VIRTUAL THEN NULL` +
+				` ELSE CAST(t.TABLE_ROW_COUNT AS INTEGER) END AS "rows"`),
+			always(`, ` + tableOptions + ` AS "options"`),
 			always(`FROM EXA_ALL_TABLES t`),
+			always(`LEFT JOIN EXA_ALL_OBJECT_SIZES z ON z.OBJECT_ID = t.TABLE_OBJECT_ID`),
+			always(tableKeys),
 			always(`WHERE ` + like(`t.TABLE_SCHEMA`, `@schema`)),
 			always(`AND ` + like(`t.TABLE_NAME`, `@name`)),
 			always(`AND (@types IS NULL OR ` + dbmeta.InList(`@types`, `CASE WHEN t.TABLE_IS_VIRTUAL THEN 'virtual table' ELSE 'table' END`) + `)`),
 			always(`UNION ALL`),
-			always(`SELECT '', v.VIEW_SCHEMA, v.VIEW_NAME, 'view', v.VIEW_COMMENT`),
+			always(`SELECT '', v.VIEW_SCHEMA, v.VIEW_NAME, 'view', v.VIEW_COMMENT, v.VIEW_OWNER`),
+			always(`, CAST(NULL AS VARCHAR(1)), CAST(NULL AS VARCHAR(1))`),
+			always(`, CAST(NULL AS INTEGER), CAST(NULL AS INTEGER), CAST(NULL AS VARCHAR(1))`),
 			always(`FROM EXA_ALL_VIEWS v`),
 			always(`WHERE ` + like(`v.VIEW_SCHEMA`, `@schema`)),
 			always(`AND ` + like(`v.VIEW_NAME`, `@name`)),
 			always(`AND (@types IS NULL OR ` + dbmeta.InList(`@types`, `'view'`) + `)`),
 			always(`UNION ALL`),
-			always(`SELECT '', c.SCHEMA_NAME, c.OBJECT_NAME, 'system table', c.OBJECT_COMMENT`),
+			always(`SELECT '', c.SCHEMA_NAME, c.OBJECT_NAME, 'system table', c.OBJECT_COMMENT, 'SYS'`),
+			always(`, CAST(NULL AS VARCHAR(1)), CAST(NULL AS VARCHAR(1))`),
+			always(`, CAST(NULL AS INTEGER), CAST(NULL AS INTEGER), CAST(NULL AS VARCHAR(1))`),
 			always(`FROM EXA_SYSCAT c`),
 			always(`WHERE ` + system),
 			always(`AND ` + like(`c.SCHEMA_NAME`, `@schema`)),
@@ -87,11 +127,18 @@ func registerTables() {
 			{Name: "name"},
 			{Name: "type", Desc: "table, virtual table, view or system table. A virtual table belongs to a virtual schema and its rows come from an adapter"},
 			{Name: "comment", Desc: "from COMMENT ON TABLE, or the COMMENT IS clause of CREATE VIEW, which is the only way a view takes one. A system table carries the engine's own description"},
+			{Name: "owner", Desc: "TABLE_OWNER or VIEW_OWNER. SYS for a system table"},
+			{Name: "persistence", Desc: "permanent for a table. Absent for a view, a virtual table and a system table. Exasol has no temporary or unlogged table"},
+			{Name: "access_method", Desc: "always absent: Exasol has one storage engine and records no choice"},
+			{Name: "size", Desc: "MEM_OBJECT_SIZE of EXA_ALL_OBJECT_SIZES, the bytes the table takes in the compressed store, with its overhead. RAW_OBJECT_SIZE, the bytes before compression, is not returned. Absent for a view, a virtual table and a system table, and for a user the catalog hides the size from"},
+			{Name: "rows", Desc: "TABLE_ROW_COUNT, which Exasol keeps exactly and does not estimate. Absent for a view, a virtual table and a system table"},
+			{Name: "options", Desc: "distribute_by and partition_by with the key columns, as DISTRIBUTE BY and PARTITION BY write them. Absent for a table with neither"},
 		},
 		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type), &v.Comment)
+			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type), &v.Comment,
+				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})
@@ -306,6 +353,9 @@ func registerIndexes() {
 			always(`, FALSE AS "unique"`),
 			always(`, FALSE AS "primary"`),
 			always(`, i.REMARKS AS "comment"`),
+			always(`, i.INDEX_OWNER AS "owner"`),
+			always(`, CAST(NULL AS VARCHAR(1)) AS "persistence"`),
+			always(`, CAST(i.MEM_OBJECT_SIZE AS INTEGER) AS "size"`),
 			always(`FROM EXA_ALL_INDICES i`),
 			always(`WHERE ` + like(`i.INDEX_SCHEMA`, `@schema`)),
 			always(`AND ` + like(`i.INDEX_TABLE`, `@parent`)),
@@ -320,12 +370,15 @@ func registerIndexes() {
 			{Name: "unique", Desc: "always false: an Exasol index enforces nothing. A primary key is checked by its constraint"},
 			{Name: "primary", Desc: "always false: Exasol records no link from an index to the constraint it serves"},
 			{Name: "comment", Desc: "from REMARKS, the engine's own description, such as GLOBAL INDEX (AUTHOR_ID), which names the columns"},
+			{Name: "owner", Desc: "from INDEX_OWNER, which is the owner of the table"},
+			{Name: "persistence", Desc: "always absent: Exasol has no unlogged index"},
+			{Name: "size", Desc: "MEM_OBJECT_SIZE of EXA_ALL_INDICES, the bytes the index takes in memory"},
 		},
 		Params: parentAndName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(dbmeta.NullAsEmpty(&v.Catalog), dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Table), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type),
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Owner, &v.Persistence, &v.Size)
 			return v, err
 		},
 	})
@@ -402,6 +455,7 @@ func registerConstraints() {
 			always(`, FALSE AS "deferrable"`),
 			always(`, FALSE AS "deferred"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "comment"`),
+			always(`, k.CONSTRAINT_ENABLED AS "enforced"`),
 			always(`FROM EXA_ALL_CONSTRAINTS k`),
 			always(`WHERE ` + like(`k.CONSTRAINT_SCHEMA`, `@schema`)),
 			always(`AND ` + like(`k.CONSTRAINT_TABLE`, `@parent`)),
@@ -416,12 +470,13 @@ func registerConstraints() {
 			{Name: "deferrable", Desc: "always false: Exasol defers no constraint"},
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no constraint form"},
+			{Name: "enforced", Desc: "CONSTRAINT_ENABLED. An Exasol constraint that is DISABLE checks no row, and ENABLE checks every new one"},
 		},
 		Params: parentAndName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(dbmeta.NullAsEmpty(&v.Schema), dbmeta.NullAsEmpty(&v.Table), dbmeta.NullAsEmpty(&v.Name), dbmeta.NullAsEmpty(&v.Type), &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})

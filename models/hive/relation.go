@@ -20,6 +20,23 @@ const tableColumns = `JOIN sys.SDS s ON s.SD_ID = t.SD_ID` +
 const tableComment = `(SELECT p.PARAM_VALUE FROM sys.TABLE_PARAMS p` +
 	` WHERE p.TBL_ID = t.TBL_ID AND p.PARAM_KEY = 'comment')`
 
+// tableParams pivots the three table parameters that Tables reads, comment,
+// numRows and totalSize, into one row for each table. One pass over
+// TABLE_PARAMS serves every table, where a correlated read of each parameter
+// scanned it once for each parameter and doubled the time of the statement.
+// Hive writes -1 for a statistic it does not know, and the parameter is absent
+// for a view and for a table nobody gathered statistics for. The join is an
+// outer one, so both are NULL. See D209.
+const tableParams = `LEFT JOIN (SELECT p.TBL_ID AS ID` +
+	`, MAX(CASE WHEN p.PARAM_KEY = 'comment' THEN p.PARAM_VALUE END) AS COMMENT_TEXT` +
+	`, MAX(CASE WHEN p.PARAM_KEY = 'numRows' THEN CAST(p.PARAM_VALUE AS bigint) END) AS ROW_COUNT` +
+	`, MAX(CASE WHEN p.PARAM_KEY = 'totalSize' THEN CAST(p.PARAM_VALUE AS bigint) END) AS TOTAL_SIZE` +
+	` FROM sys.TABLE_PARAMS p` +
+	` WHERE p.PARAM_KEY IN ('comment', 'numRows', 'totalSize') GROUP BY p.TBL_ID) x ON x.ID = t.TBL_ID`
+
+// isView is true for a view of either kind.
+const isView = `t.TBL_TYPE IN ('VIRTUAL_VIEW', 'MATERIALIZED_VIEW')`
+
 func registerRelations() {
 	registerTables()
 	registerColumns()
@@ -73,8 +90,16 @@ func registerTables() {
 			always(`, d.NAME AS "schema"`),
 			always(`, t.TBL_NAME AS "name"`),
 			always(`, ` + tableType + ` AS "type"`),
-			always(`, ` + tableComment + ` AS "comment"`),
+			always(`, x.COMMENT_TEXT AS "comment"`),
+			always(`, t.OWNER AS "owner"`),
+			always(`, CASE WHEN ` + isView + ` THEN CAST(NULL AS string) ELSE 'permanent' END AS "persistence"`),
+			always(`, CASE WHEN ` + isView + ` THEN CAST(NULL AS string) ELSE s.INPUT_FORMAT END AS "access_method"`),
+			always(`, CASE WHEN x.TOTAL_SIZE >= 0 THEN x.TOTAL_SIZE END AS "size"`),
+			always(`, CASE WHEN x.ROW_COUNT >= 0 THEN x.ROW_COUNT END AS "rows"`),
+			always(`, CAST(NULL AS string) AS "options"`),
 			always(`FROM sys.TBLS t JOIN sys.DBS d ON d.DB_ID = t.DB_ID`),
+			always(`LEFT JOIN sys.SDS s ON s.SD_ID = t.SD_ID`),
+			always(tableParams),
 			always(`WHERE ` + notSystem),
 			always(`AND ` + like(`d.NAME`, `@schema`)),
 			always(`AND ` + like(`t.TBL_NAME`, `@name`)),
@@ -86,11 +111,18 @@ func registerTables() {
 			{Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "table, external table, view or materialized view. Hive records which in TBL_TYPE and an external table is a first class kind here"},
 			{Name: "comment", Desc: "from the table property named comment"},
+			{Name: "owner", Desc: "from TBLS.OWNER, the user that created the table or the view"},
+			{Name: "persistence", Desc: "permanent for a table, and absent for a view. A temporary table lives in a session and is not in the metastore"},
+			{Name: "access_method", Desc: "the input format class of the storage descriptor, such as org.apache.hadoop.hive.ql.io.orc.OrcInputFormat. Absent for a view. A table kept by a storage handler shows the default input format and names the handler in its parameters, which this does not read"},
+			{Name: "size", Desc: "the totalSize table parameter, the bytes of the files. Absent for a view and for a table whose statistics were never gathered, and stale when data changed outside Hive"},
+			{Name: "rows", Desc: "the numRows table parameter. It is a statistic and an estimate, absent for a view, for a table with no statistics, and where Hive writes -1"},
+			{Name: "options", Desc: "always absent: the table parameters mix statistics, DDL times and settings in one list, and no key marks a setting"},
 		},
 		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})
@@ -332,7 +364,7 @@ const constraintKind = `CASE k.CONSTRAINT_TYPE` +
 // made here first. It leaves every primary key, unique, not null and default
 // invisible while foreign keys work, so the queries look right on a schema
 // that has foreign keys in it.
-const keyConstraints = `(SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE, POSITION, DEFAULT_VALUE` +
+const keyConstraints = `(SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE, POSITION, DEFAULT_VALUE, ENABLE_VALIDATE_RELY` +
 	`, CASE WHEN CONSTRAINT_TYPE = 1 THEN CHILD_TBL_ID ELSE PARENT_TBL_ID END AS OWNER_TBL_ID` +
 	`, CASE WHEN CONSTRAINT_TYPE = 1 THEN CHILD_CD_ID ELSE PARENT_CD_ID END AS OWNER_CD_ID` +
 	`, CASE WHEN CONSTRAINT_TYPE = 1 THEN CHILD_INTEGER_IDX ELSE PARENT_INTEGER_IDX END AS OWNER_IDX` +
@@ -355,6 +387,7 @@ func registerConstraints() {
 			always(`, FALSE AS "deferrable"`),
 			always(`, FALSE AS "deferred"`),
 			always(`, CAST(NULL AS string) AS "comment"`),
+			always(`, MAX(CASE WHEN (k.ENABLE_VALIDATE_RELY & 4) = 4 THEN 1 ELSE 0 END) = 1 AS "enforced"`),
 			always(`FROM ` + keyConstraints),
 			always(`JOIN sys.TBLS t ON t.TBL_ID = k.OWNER_TBL_ID`),
 			always(`JOIN sys.DBS d ON d.DB_ID = t.DB_ID`),
@@ -369,15 +402,16 @@ func registerConstraints() {
 			{Name: "schema"}, {Name: "table"}, {Name: "name"},
 			{Name: "type", Desc: "primary key, foreign key, unique, not null, default or check, from the numeric CONSTRAINT_TYPE. Hive records NOT NULL and DEFAULT as constraints where PostgreSQL records them on the column"},
 			{Name: "definition", Desc: "always absent: Hive stores no expression for a check constraint in the metastore"},
-			{Name: "deferrable", Desc: "always false. No Hive constraint is enforced at all, so there is nothing to defer"},
+			{Name: "deferrable", Desc: "always false: Hive defers no constraint check"},
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: Hive records no comment on a constraint"},
+			{Name: "enforced", Desc: "the ENABLE bit of ENABLE_VALIDATE_RELY. Most constraints are DISABLE and not enforced, and a NOT NULL, DEFAULT or CHECK on a table that accepts it can be ENABLE"},
 		},
 		Params: parentAndName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})

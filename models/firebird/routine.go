@@ -83,6 +83,7 @@ func registerFunctions() {
 			always(`, fn.RDB$FUNCTION_SOURCE AS "source"`),
 			always(`, fn.RDB$DESCRIPTION AS "comment"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "definition"`),
+			always(`, fn.RDB$FUNCTION_SOURCE AS "prosrc"`),
 			always(`FROM RDB$FUNCTIONS fn`),
 			always(`WHERE ` + userObject(`fn.RDB$SYSTEM_FLAG`) + ` AND fn.RDB$PACKAGE_NAME IS NULL`),
 			always(`AND ` + like(`''`, `@schema`) + ``),
@@ -113,6 +114,7 @@ func registerFunctions() {
 			always(`, pr.RDB$PROCEDURE_SOURCE`),
 			always(`, pr.RDB$DESCRIPTION`),
 			always(`, CAST(NULL AS VARCHAR(1))`),
+			always(`, pr.RDB$PROCEDURE_SOURCE`),
 			always(`FROM RDB$PROCEDURES pr`),
 			always(`WHERE ` + userObject(`pr.RDB$SYSTEM_FLAG`) + ` AND pr.RDB$PACKAGE_NAME IS NULL`),
 			always(`AND ` + like(`''`, `@schema`) + ``),
@@ -136,13 +138,15 @@ func registerFunctions() {
 			{Name: "source", Desc: "the body, absent for an external routine, which has no body in the database"},
 			{Name: "comment"},
 			{Name: "definition", Desc: "always absent: Firebird keeps the body, which is source, and no CREATE statement"},
+			{Name: "prosrc", Desc: "the same text as source. Firebird keeps one body"},
 		},
 		Params: schemaAndName("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind,
 				&v.ResultType, &v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner,
-				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition)
+				&v.Security, &v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition,
+				&v.Prosrc)
 			return v, err
 		},
 	})

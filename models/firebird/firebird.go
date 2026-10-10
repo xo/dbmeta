@@ -37,8 +37,8 @@
 //
 // # What it answers
 //
-// 24 of the 65. Tables, columns, views, indexes, index columns, constraints,
-// constraint columns, triggers, event triggers, sequences, domains,
+// 25 of the 65. Tables, columns, views, indexes, index columns, constraints,
+// constraint columns, not nulls, triggers, event triggers, sequences, domains,
 // functions, routine parameters, types, collations, roles, role grants,
 // privileges, comments, databases, settings, publications, publication
 // tables and the current user.
@@ -94,6 +94,7 @@ func init() {
 		ParseVersion:   parseVersion,
 	})
 	registerRelations()
+	registerSections()
 	registerRoutines()
 	registerRoles()
 	registerServer()
@@ -102,10 +103,13 @@ func init() {
 // always is a fragment every release takes.
 func always(query string) dbmeta.Choice { return dbmeta.Choice{{Query: query}} }
 
-// v4 is the one release that added anything this model reads. 5.0 added a
-// partial index predicate in RDB$INDICES.RDB$CONDITION_SOURCE and there is no
-// field on [dbmeta.Index] to carry it, so nothing here gates on 5.0.
-var v4 = dbmeta.V(4, 0)
+// v4 and v5 are the releases that added anything this model reads. 4.0 added
+// the SQL SECURITY clause, and 5.0 added the partial index predicate in
+// RDB$INDICES.RDB$CONDITION_SOURCE.
+var (
+	v4 = dbmeta.V(4, 0)
+	v5 = dbmeta.V(5, 0)
+)
 
 // like builds a filter that matches everything when the parameter is empty.
 //

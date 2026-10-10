@@ -102,6 +102,12 @@ func register() {
 			{Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "table, external table, view or materialized view, from the Table Type of DESCRIBE FORMATTED"},
 			{Name: "comment", Desc: "the comment table parameter of DESCRIBE FORMATTED"},
+			{Name: "owner", Desc: "the Owner row of DESCRIBE FORMATTED, which the walk already reads. Absent where the row is empty"},
+			{Name: "persistence", Desc: "permanent for a table and absent for a view. Impala has no temporary or unlogged table"},
+			{Name: "access_method", Desc: "the InputFormat row of DESCRIBE FORMATTED, such as org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat. Absent for a view and where the row is empty"},
+			{Name: "size", Desc: "the totalSize table parameter, the bytes of the files, which COMPUTE STATS and a refresh fill. Absent for a view and for a table with no value"},
+			{Name: "rows", Desc: "the numRows table parameter, which COMPUTE STATS fills. Impala writes -1 where it does not know, and that is absent here"},
+			{Name: "options", Desc: "always absent: the table parameters mix statistics, DDL times and settings in one list, and no key marks a setting"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Walk: func(ctx context.Context, db dbmeta.Queryer, args map[string]any) iter.Seq2[dbmeta.Table, error] {
@@ -419,16 +425,19 @@ var tableTypes = map[string]string{
 	"MATERIALIZED_VIEW": "materialized view",
 }
 
-// describe reads the type and the comment of one relation from DESCRIBE
-// FORMATTED, whose rows are a label and a value. The comment is a row of the
-// table parameters, which has no label, the key comment and the value, and a
-// column is never such a row, because a column's row starts with its name.
+// describe reads the type, the comment, the owner, the input format and the
+// statistics of one relation from DESCRIBE FORMATTED, whose rows are a label
+// and a value. A table parameter is a row with no label, the key and the
+// value, and a column is never such a row, because a column's row starts with
+// its name. The statistics are in the table parameters, so Rows and Size cost
+// no statement beyond the one this walk already runs for the type.
 func describe(ctx context.Context, db dbmeta.Queryer, r relation) (dbmeta.Table, error) {
 	v := dbmeta.Table{Schema: r.schema, Name: r.name, Type: r.kind()}
 	rows, err := readAll(ctx, db, `DESCRIBE FORMATTED `+quote(r.schema)+`.`+quote(r.name))
 	if err != nil {
 		return v, err
 	}
+	var format string
 	for _, row := range rows {
 		if len(row) < 3 {
 			continue
@@ -441,9 +450,33 @@ func describe(ctx context.Context, db dbmeta.Queryer, r relation) (dbmeta.Table,
 			} else {
 				v.Type = strings.ToLower(value)
 			}
+		case label == "Owner:" && value != "" && value != "null":
+			v.Owner = sql.Null[string]{V: value, Valid: true}
+		case label == "InputFormat:" && value != "" && value != "null":
+			format = value
 		case label == "" && value == "comment":
 			v.Comment = sql.Null[string]{V: strings.TrimSpace(row[2]), Valid: true}
+		case label == "" && value == "numRows":
+			v.Rows = statistic(row[2])
+		case label == "" && value == "totalSize":
+			v.Size = statistic(row[2])
+		}
+	}
+	if !strings.HasSuffix(v.Type, "view") {
+		v.Persistence = sql.Null[string]{V: "permanent", Valid: true}
+		if format != "" {
+			v.AccessMethod = sql.Null[string]{V: format, Valid: true}
 		}
 	}
 	return v, nil
+}
+
+// statistic reads a table parameter that holds a count. Impala writes -1 where
+// it does not know the value, and that is absent.
+func statistic(s string) sql.Null[int64] {
+	n, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
+	if err != nil || n < 0 {
+		return sql.Null[int64]{}
+	}
+	return sql.Null[int64]{V: n, Valid: true}
 }

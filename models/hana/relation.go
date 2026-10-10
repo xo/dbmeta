@@ -21,6 +21,24 @@ const hanaTableType = `CASE WHEN t.IS_TEMPORARY = 'TRUE' THEN 'temporary table'`
 	` WHEN t.TABLE_TYPE = 'COLUMN' THEN 'column table'` +
 	` ELSE 'row table' END`
 
+// tableOptions is Table.Options. Each part starts with a comma and a space and
+// the first two characters are cut, so that a table with none gives NULL. The
+// text holds only what is set: on_commit for a global temporary table, insert_only,
+// auto_merge=off and a load unit that is not the default. The partitioning is
+// in PartitionedTables and Partitions, and is not repeated.
+const tableOptions = `NULLIF(SUBSTRING(` +
+	`CASE WHEN t.TEMPORARY_TABLE_TYPE = 'GLOBAL' THEN ', on_commit=' || LOWER(t.COMMIT_ACTION) ELSE '' END` +
+	` || CASE WHEN t.IS_INSERT_ONLY = 'TRUE' THEN ', insert_only' ELSE '' END` +
+	` || CASE WHEN t.AUTO_MERGE_ON = 'FALSE' THEN ', auto_merge=off' ELSE '' END` +
+	` || CASE WHEN t.LOAD_UNIT NOT IN ('DEFAULT', 'TABLE') THEN ', load_unit=' || LOWER(t.LOAD_UNIT) ELSE '' END` +
+	`, 3), '')`
+
+// tablePersistence is Table.Persistence. A table created NO LOGGING is a
+// temporary table too, with the type NO LOGGING, so the test for logging comes
+// first. A global temporary table is logged and is what temporary means.
+const tablePersistence = `CASE WHEN t.IS_LOGGED = 'FALSE' THEN 'unlogged'` +
+	` WHEN t.IS_TEMPORARY = 'TRUE' THEN 'temporary' ELSE 'permanent' END`
+
 func registerTables() {
 	// \dn.
 	dbmeta.Schemas.Register(dbmeta.HANA, &dbmeta.Binding[dbmeta.Schema]{
@@ -62,14 +80,26 @@ func registerTables() {
 			// per table, so the word says which rather than saying table.
 			always(`, ` + hanaTableType + ` AS "type"`),
 			always(`, t.COMMENTS AS "comment"`),
+			always(`, o.OWNER_NAME AS "owner"`),
+			always(`, ` + tablePersistence + ` AS "persistence"`),
+			always(`, LOWER(t.TABLE_TYPE) AS "access_method"`),
+			always(`, CAST(NULL AS BIGINT) AS "size"`),
+			always(`, CAST(NULL AS BIGINT) AS "rows"`),
+			always(`, ` + tableOptions + ` AS "options"`),
 			always(`FROM SYS.TABLES t`),
+			always(`LEFT JOIN SYS.OWNERSHIP o ON o.SCHEMA_NAME = t.SCHEMA_NAME` +
+				` AND o.OBJECT_NAME = t.TABLE_NAME AND o.OBJECT_TYPE = 'TABLE'`),
 			always(`WHERE ` + notSystem(`t.SCHEMA_NAME`)),
 			always(`AND ` + like(`t.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`t.TABLE_NAME`, `@name`)),
 			always(`AND (@types = '' OR ` + dbmeta.InList(`@types`, hanaTableType) + `)`),
 			always(`UNION ALL`),
-			always(`SELECT '', v.SCHEMA_NAME, v.VIEW_NAME, 'view', v.COMMENTS`),
+			always(`SELECT '', v.SCHEMA_NAME, v.VIEW_NAME, 'view', v.COMMENTS, w.OWNER_NAME`),
+			always(`, CAST(NULL AS NVARCHAR(1)), CAST(NULL AS NVARCHAR(1))`),
+			always(`, CAST(NULL AS BIGINT), CAST(NULL AS BIGINT), CAST(NULL AS NVARCHAR(1))`),
 			always(`FROM SYS.VIEWS v`),
+			always(`LEFT JOIN SYS.OWNERSHIP w ON w.SCHEMA_NAME = v.SCHEMA_NAME` +
+				` AND w.OBJECT_NAME = v.VIEW_NAME AND w.OBJECT_TYPE = 'VIEW'`),
 			always(`WHERE ` + notSystem(`v.SCHEMA_NAME`)),
 			always(`AND ` + like(`v.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`v.VIEW_NAME`, `@name`)),
@@ -82,11 +112,18 @@ func registerTables() {
 			{Name: "name"},
 			{Name: "type", Desc: "row table, column table, temporary table or view. HANA stores a table by row or by column and records which, so the word says which rather than saying table"},
 			{Name: "comment", Desc: "from COMMENTS, which COMMENT ON writes"},
+			{Name: "owner", Desc: "OWNER_NAME of SYS.OWNERSHIP, which is the user that created the table or the view. The schema owner is a different fact and is in Schemas"},
+			{Name: "persistence", Desc: "temporary for a global temporary table, unlogged for a table created NO LOGGING, and permanent for the rest. Absent for a view"},
+			{Name: "access_method", Desc: "row or column, which is the store of the table. Absent for a view"},
+			{Name: "size", Desc: "always absent: SYS.M_TABLES has the bytes of a table, and a join to it scans every table of the database even for one, which took 65 ms among 4000 tables where the filter alone took 0.3 ms (D209)"},
+			{Name: "rows", Desc: "always absent, for the same reason as size"},
+			{Name: "options", Desc: "on_commit for a global temporary table, insert_only, auto_merge=off and a load_unit that is not the default. The partitioning is in PartitionedTables and Partitions. Absent when none is set"},
 		},
 		Params: append(schemaAndName("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
+				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})
@@ -246,6 +283,9 @@ func registerColumns() {
 				` ELSE '' END AS "generated"`),
 			always(`, c.COMMENTS AS "comment"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "collation"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "storage"`),
+			always(`, LOWER(c.COMPRESSION_TYPE) AS "compression"`),
+			always(`, CAST(NULL AS BIGINT) AS "stats_target"`),
 			always(`FROM SYS.TABLE_COLUMNS c`),
 			always(`WHERE ` + notSystem(`c.SCHEMA_NAME`)),
 			always(`AND ` + like(`c.SCHEMA_NAME`, `@schema`)),
@@ -261,6 +301,7 @@ func registerColumns() {
 			always(`, ''`),
 			always(`, w.COMMENTS`),
 			always(`, CAST(NULL AS NVARCHAR(1))`),
+			always(`, CAST(NULL AS NVARCHAR(1)), CAST(NULL AS NVARCHAR(1)), CAST(NULL AS BIGINT)`),
 			always(`FROM SYS.VIEW_COLUMNS w`),
 			always(`WHERE ` + notSystem(`w.SCHEMA_NAME`)),
 			always(`AND ` + like(`w.SCHEMA_NAME`, `@schema`)),
@@ -280,6 +321,9 @@ func registerColumns() {
 			{Name: "generated", Desc: "stored for a GENERATED ALWAYS AS column, and empty otherwise"},
 			{Name: "comment"},
 			{Name: "collation", Desc: "always absent: SAP HANA has no collation on a column"},
+			{Name: "storage", Desc: "always absent: HANA has no storage mode for a column. LOAD_UNIT is where the column is loaded from and not how it is stored"},
+			{Name: "compression", Desc: "COMPRESSION_TYPE of SYS.TABLE_COLUMNS, lower cased: default, none, sparse, prefixed, rle, cluster, indirect or optimized. none is what a row table column says. Absent for a view column"},
+			{Name: "stats_target", Desc: "always absent: HANA has no per column statistics target"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -291,7 +335,7 @@ func registerColumns() {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment, &v.Collation)
+				&v.Generated, &v.Comment, &v.Collation, &v.Storage, &v.Compression, &v.StatsTarget)
 			return v, err
 		},
 	})
@@ -310,7 +354,31 @@ func registerIndexes() {
 			always(`, CASE WHEN i.INDEX_TYPE LIKE '%UNIQUE%' THEN TRUE ELSE FALSE END AS "unique"`),
 			always(`, CASE WHEN i.CONSTRAINT = 'PRIMARY KEY' THEN TRUE ELSE FALSE END AS "primary"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "comment"`),
+			always(`, o.OWNER_NAME AS "owner"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "persistence"`),
+			always(`, CAST(NULL AS BIGINT) AS "size"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "predicate"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "valid"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "clustered"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "replica_identity"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "deferrable"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "initially_deferred"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "options"`),
+			always(`, CAST(NULL AS NVARCHAR(1)) AS "definition"`),
+			always(`, LOWER(i.INDEX_TYPE) AS "using"`),
+			always(`, CASE WHEN i.CONSTRAINT = 'PRIMARY KEY' THEN 'p'` +
+				` WHEN u.CONSTRAINT_NAME IS NOT NULL THEN 'u' END AS "constraint_type"`),
 			always(`FROM SYS.INDEXES i`),
+			always(`LEFT JOIN SYS.OWNERSHIP o ON o.SCHEMA_NAME = i.SCHEMA_NAME` +
+				` AND o.OBJECT_NAME = i.INDEX_NAME AND o.OBJECT_TYPE = 'INDEX'`),
+			// CONSTRAINT says NOT NULL UNIQUE for a plain unique index too, so a
+			// unique constraint is an index that SYS.CONSTRAINTS also names.
+			always(`LEFT JOIN (SELECT DISTINCT k.SCHEMA_NAME, k.TABLE_NAME, k.CONSTRAINT_NAME` +
+				` FROM SYS.CONSTRAINTS k WHERE k.IS_UNIQUE_KEY = 'TRUE' AND k.IS_PRIMARY_KEY = 'FALSE'` +
+				` AND ` + like(`k.SCHEMA_NAME`, `@schema`) +
+				` AND ` + like(`k.TABLE_NAME`, `@parent`) + `) u` +
+				` ON u.SCHEMA_NAME = i.SCHEMA_NAME AND u.TABLE_NAME = i.TABLE_NAME` +
+				` AND u.CONSTRAINT_NAME = i.INDEX_NAME`),
 			always(`WHERE ` + notSystem(`i.SCHEMA_NAME`)),
 			always(`AND ` + like(`i.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`i.TABLE_NAME`, `@parent`)),
@@ -324,12 +392,27 @@ func registerIndexes() {
 			{Name: "unique", Desc: "from the index kind, which spells uniqueness into the name rather than carrying a flag"},
 			{Name: "primary", Desc: "true when a PRIMARY KEY constraint owns this index"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no index form"},
+			{Name: "owner", Desc: "OWNER_NAME of SYS.OWNERSHIP for the index"},
+			{Name: "persistence", Desc: "always absent: HANA has no unlogged or temporary index of its own"},
+			{Name: "size", Desc: "always absent: SYS.M_RS_INDEXES and SYS.M_CS_INDEXES have the bytes of an index, and a join to them scans every index of the database even for one (D209)"},
+			{Name: "predicate", Desc: "always absent: HANA has no partial index"},
+			{Name: "valid", Desc: "always absent: SYS.INDEXES records no validity"},
+			{Name: "clustered", Desc: "always absent: HANA has no clustered index"},
+			{Name: "replica_identity", Desc: "always absent: HANA replication records no choice of index"},
+			{Name: "deferrable", Desc: "always absent: HANA defers no constraint"},
+			{Name: "initially_deferred", Desc: "always absent, for the same reason"},
+			{Name: "options", Desc: "always absent: SYS.INDEXES keeps BTREE_FILL_FACTOR and the split settings, which are not read"},
+			{Name: "definition", Desc: "always absent: HANA keeps no CREATE INDEX text"},
+			{Name: "using", Desc: "the index kind, lower cased, which is the same text as type"},
+			{Name: "constraint_type", Desc: "p for a primary key and u for a unique constraint, which is an index that SYS.CONSTRAINTS also names, because the CONSTRAINT column says NOT NULL UNIQUE for a plain unique index as well. Absent for any other index"},
 		},
 		Params: parentAndName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment)
+				&v.Unique, &v.Primary, &v.Comment, &v.Owner, &v.Persistence, &v.Size,
+				&v.Predicate, &v.Valid, &v.Clustered, &v.ReplicaIdentity, &v.Deferrable,
+				&v.InitiallyDeferred, &v.Options, &v.Definition, &v.Using, &v.ConstraintType)
 			return v, err
 		},
 	})
@@ -391,6 +474,7 @@ func registerConstraints() {
 			always(`, FALSE AS "deferrable"`),
 			always(`, FALSE AS "deferred"`),
 			always(`, CAST(NULL AS NVARCHAR(1)) AS "comment"`),
+			always(`, CAST(NULL AS BOOLEAN) AS "enforced"`),
 			always(`FROM SYS.CONSTRAINTS k`),
 			always(`WHERE ` + notSystem(`k.SCHEMA_NAME`)),
 			always(`AND ` + like(`k.SCHEMA_NAME`, `@schema`)),
@@ -407,12 +491,13 @@ func registerConstraints() {
 			always(`, CAST(NULL AS NVARCHAR(5000))`),
 			always(`, FALSE, FALSE`),
 			always(`, CAST(NULL AS NVARCHAR(1))`),
+			always(`, CASE WHEN r.IS_ENFORCED = 'TRUE' THEN TRUE ELSE FALSE END`),
 			always(`FROM SYS.REFERENTIAL_CONSTRAINTS r`),
 			always(`WHERE ` + notSystem(`r.SCHEMA_NAME`)),
 			always(`AND ` + like(`r.SCHEMA_NAME`, `@schema`)),
 			always(`AND ` + like(`r.TABLE_NAME`, `@parent`)),
 			always(`AND ` + like(`r.CONSTRAINT_NAME`, `@name`)),
-			always(`GROUP BY r.SCHEMA_NAME, r.TABLE_NAME, r.CONSTRAINT_NAME`),
+			always(`GROUP BY r.SCHEMA_NAME, r.TABLE_NAME, r.CONSTRAINT_NAME, r.IS_ENFORCED`),
 			always(`ORDER BY 1, 2, 3`),
 		},
 		Fields: []dbmeta.Field{
@@ -423,12 +508,13 @@ func registerConstraints() {
 			{Name: "deferrable", Desc: "always false: HANA defers no constraint"},
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no constraint form"},
+			{Name: "enforced", Desc: "IS_ENFORCED of SYS.REFERENTIAL_CONSTRAINTS for a foreign key, which ALTER TABLE can turn off. Absent for every other kind: HANA enforces them and no catalog column says so (D209)"},
 		},
 		Params: parentAndName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
 			return v, err
 		},
 	})

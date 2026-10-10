@@ -157,6 +157,23 @@ var Everything = Fixture{
 	entry_id int,
 	note string
 ) STORED AS ORC`),
+
+		// Two partitions, so Partitions has rows. The names are year=2025 and
+		// year=2026 (D209).
+		at("archive 2025", `ALTER TABLE dbmeta_fixture.archive ADD PARTITION (year=2025)`),
+		at("archive 2026", `ALTER TABLE dbmeta_fixture.archive ADD PARTITION (year=2026)`),
+
+		// Two rows in ledger, so the statistics numRows and totalSize exist.
+		at("ledger rows", `INSERT INTO dbmeta_fixture.ledger VALUES (1, 'first'), (2, 'second')`),
+
+		// A table with constraints that are ENABLE and so enforced. The other
+		// tables carry DISABLE NOVALIDATE. It is not transactional, because
+		// 4.0.1 refuses a transactional table in this image.
+		at("vault", `CREATE TABLE dbmeta_fixture.vault (
+	vault_id int NOT NULL ENABLE,
+	note string,
+	CONSTRAINT vault_ck CHECK (vault_id > 0) ENABLE
+) STORED AS ORC`),
 	},
 	Teardown: []Step{
 		at("schema", `DROP DATABASE IF EXISTS dbmeta_fixture CASCADE`),
