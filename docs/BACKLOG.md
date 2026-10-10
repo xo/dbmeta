@@ -251,3 +251,28 @@ tables for one table, and 41 ms with the fixture only (D209). An inner join
 costs 10 ms and can drop a table that a user sees in `EXA_ALL_TABLES` and not
 in `EXA_ALL_OBJECT_SIZES`. Run the parity targets with an inner join, and keep
 it if the rows do not change.
+
+### Spanner table and index size
+`Table.Size`, `Index.Size` and `Tablespace.Size` are NULL on Spanner (D216,
+D219). The source is `SPANNER_SYS.TABLE_SIZES_STATS_1HOUR`. On 2026-10-10 a
+table with 2000 rows of 500 bytes and an index, in a named schema and in the
+default schema, was in Cloud Spanner for 35 minutes and the view held only the
+row unknown_table_name with 0 bytes for the two hourly intervals after it.
+Cloud Spanner needs more time or more data, and the cause is not known. Check
+again with a table that is older than a few hours, and read how the view names a
+table in a named schema, which this measurement did not show.
+### Spanner objects that no kind holds
+Spanner has objects that the 65 kinds have no place for (D216). A property graph is
+in `INFORMATION_SCHEMA.PROPERTY_GRAPHS` as one JSON value, a model is in `MODELS`
+and refused by Spanner Omni, a placement is in `PLACEMENTS` and needs an instance
+partition, a table synonym has no kind but is a `Table` of type synonym, and a
+proto bundle is one binary descriptor in `SCHEMATA`. Ask Ken whether any of
+them is worth a kind, with the cost test of D47. The ON UPDATE expression, the
+hidden flag and the identity kind of a column, the options of a sequence, and
+the security type of a view are columns of INFORMATION_SCHEMA that no field holds
+either.
+### Spanner index definition
+`Index.Definition` and `Index.Using` are NULL on Spanner (D216). INFORMATION_SCHEMA
+keeps the parts of an index and not its statement. A statement can build
+CREATE INDEX from `INDEX_COLUMNS`, `INDEXES` and `INDEX_OPTIONS` with one
+aggregate, and the work is to write it and to measure it on a large catalog.

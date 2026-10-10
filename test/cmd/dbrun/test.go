@@ -15,6 +15,7 @@ import (
 	_ "github.com/beltran/gohive/v2"
 	_ "github.com/exasol/exasol-driver-go"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/googleapis/go-sql-spanner"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/nakagami/firebirdsql"
@@ -90,7 +91,9 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.LibSQL:     "libsql",
 	dbmeta.Neo4j:      "neo4j",
 	dbmeta.YDB:        "ydb",
-	dbmeta.ArangoDB:   "arangodb",
+	// spanner:// opens go-sql-spanner, which dburl v0.49.0 names (D154, D216).
+	dbmeta.Spanner:  "spanner",
+	dbmeta.ArangoDB: "arangodb",
 
 	// elasticsearch:// opens dbimp's driver (D177).
 	dbmeta.Elasticsearch: "elasticsearch",

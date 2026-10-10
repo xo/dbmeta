@@ -427,7 +427,7 @@ func All() []Server {
 	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j, ArangoDB, InfluxDB, CrateDB, Rqlite, LibSQL, Pinot, Databend, Avatica, Phoenix, Druid, Qdrant,
 		Chroma, Weaviate, CouchDB, QuestDB, Meilisearch, Typesense, TerminusDB,
 		CockroachDB, TiDB, MongoDB, Elasticsearch, Dgraph, YDB,
-		Spanner, BigQuery, GizmoSQL, Virtuoso, Alternator, Vitess, Milvus,
+		Spanner, SpannerEmulator, BigQuery, GizmoSQL, Virtuoso, Alternator, Vitess, Milvus,
 		OpenSearch, DynamoDB, Cosmos, Stardog, GraphDB, VoltDB,
 		Solr, Drill, H2, Fuseki, PostgREST, KsqlDB, SingleStore, Impala)
 }

@@ -90,6 +90,7 @@ func answers(t *testing.T) map[string]int {
 		{name: "opensearch", dialect: dbmeta.OpenSearch},
 		{name: "solr", dialect: dbmeta.Solr},
 		{name: "gizmosql", dialect: dbmeta.GizmoSQL, key: "gizmosql", also: "duckdb"},
+		{name: "spanner", dialect: dbmeta.Spanner},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -130,6 +131,7 @@ var displayNames = map[string]string{
 	"Elasticsearch": "elasticsearch", "OpenSearch": "opensearch",
 	"Apache Solr": "solr",
 	"GizmoSQL":    "gizmosql",
+	"Spanner":     "spanner",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -303,6 +305,7 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"opensearch":    "OpenSearch",
 			"solr":          "Apache Solr",
 			"gizmosql":      "GizmoSQL",
+			"spanner":       "Spanner",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -350,6 +353,7 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"opensearch":    "OpenSearch",
 			"solr":          "Apache Solr",
 			"gizmosql":      "GizmoSQL",
+			"spanner":       "Spanner",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+

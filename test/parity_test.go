@@ -40,6 +40,7 @@ import (
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	sffixture "github.com/xo/dbmeta/models/snowflake/fixture"
 	slfixture "github.com/xo/dbmeta/models/solr/fixture"
+	spfixture "github.com/xo/dbmeta/models/spanner/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
 	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
@@ -657,6 +658,23 @@ func parityTargets() []parityTarget {
 			}},
 		},
 		{
+			// Spanner has no containment. A database role that the administrator
+			// names filters what a session reads, on Cloud Spanner and on Spanner
+			// Omni, so a role with some grants and a role with none stand for the
+			// lesser principals. A service account with databaseReader, which
+			// reads as IAM, is a third on Cloud Spanner and skips on Omni (D219).
+			dialect: dbmeta.Spanner, driver: "spanner", env: "DBMETA_SPANNER",
+			open: openSpanner, build: setupSpanner, schema: spfixture.Everything.Schema,
+			scenes: []parityScene{{
+				name: "same",
+				principals: []parityPrincipal{
+					{name: "reader", make: makeSpannerReader},
+					{name: "role", make: makeSpannerRole},
+					{name: "stranger", make: makeSpannerStranger},
+				},
+			}},
+		},
+		{
 			dialect: dbmeta.Oracle, driver: "oracle", env: "DBMETA_ORACLE",
 			open: openOracle, build: setupOracle, schema: orfixture.Everything.Schema,
 			scenes: []parityScene{{
@@ -920,6 +938,11 @@ func releaseNames(product, rest string, parts []uint32) []string {
 // was removed in MySQL 8.0 and MariaDB still has it, so one file cannot hold
 // one answer for both.
 func parityName(dialect dbmeta.Dialect, m *dbmeta.Meta) string {
+	// Spanner Omni and Cloud Spanner report the same version and answer one
+	// query differently for a role, so each has a section of its own (D219).
+	if dialect == dbmeta.Spanner && spannerIsOmni() {
+		return "spanneromni"
+	}
 	for _, key := range parityFlavors[dialect] {
 		if m.Version().Has(key) {
 			return key

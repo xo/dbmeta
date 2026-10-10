@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-79 of them amend or replace an earlier one, and a decision read without its
+84 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -136,7 +136,7 @@ file.
 | [D115](D115-a-server-shows-its-owners-name-and-status-a-shows.md) | A server shows its owner's name, and status -a shows the stopped ones | Amends D98 |
 | [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 and D142 |
 | [D117](D117-a-hosted-service-appears-in-dbrun-when-its-credential-does.md) | A hosted service appears in dbrun when its credential does | Amended by D125 |
-| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123, D141 and D145 |
+| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123, D141, D145 and D215 |
 | [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 and D142 |
 | [D120](D120-a-staged-release-keeps-its-cadence.md) | A Staged release keeps its cadence | Amends D119 |
 | [D121](D121-the-interface-is-named-queryer.md) | The interface is named Queryer | Amends D49 |
@@ -212,7 +212,7 @@ file.
 | [D191](D191-elasticsearch-solr-and-opensearch-read-the-release-with-select-version.md) | Elasticsearch, Solr and OpenSearch read the release with SELECT version() | Amends D177, D179, D181 and D183, amended by D192 |
 | [D192](D192-the-ordinary-user-reads-the-release-and-surrealdb-reads-it-with-select-version.md) | The ordinary user reads the release, and SurrealDB reads it with SELECT version() | Amends D191, D176 and D164 |
 | [D193](D193-snowflake-parity-conformance-and-password-were-measured.md) | Snowflake parity, conformance and the password statement were measured | Amends D190, amended by D203 and D213 |
-| [D194](D194-no-models-for-hosted-services-beyond-redshift-and-snowflake.md) | No models for hosted services beyond Redshift and Snowflake | Amends D188 |
+| [D194](D194-no-models-for-hosted-services-beyond-redshift-and-snowflake.md) | No models for hosted services beyond Redshift and Snowflake | Amends D188, amended by D216 and D218 |
 | [D195](D195-cassandra-and-scylladb-have-a-url-dsn-and-an-ordinary-user.md) | Cassandra and ScyllaDB have a URL DSN and an ordinary user | Decided, amended by D196 |
 | [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |
 | [D197](D197-three-fields-can-be-null-in-the-postgresql-catalog.md) | Three fields can be NULL in the PostgreSQL catalog | Decided |
@@ -233,3 +233,8 @@ file.
 | [D212](D212-firebird-and-mariadb-enforce-every-constraint-arangodb-counts-and-redshift-reads-svv-table-info.md) | Firebird and MariaDB enforce every constraint, ArangoDB counts, and Redshift reads SVV_TABLE_INFO | Amends D205, D207, D209 and D210 |
 | [D213](D213-snowflake-tests-and-dbrun-use-the-driver-of-dbimp.md) | Snowflake tests and dbrun use the driver of dbimp | Amends D190, D193 and D203, amended by D214 |
 | [D214](D214-the-piped-snowflake-statement-reads-booleans-since-dbimp-v0-16-1.md) | The piped Snowflake statement reads booleans since dbimp v0.16.1 | Amends D213 |
+| [D215](D215-spanner-omni-replaces-the-cloud-spanner-emulator.md) | Spanner Omni replaces the Cloud Spanner emulator | Amends D118, amended by D217 |
+| [D216](D216-spanner-gets-a-model-that-reads-spanner-omni.md) | Spanner gets a model that reads Spanner Omni | Amends D194, amended by D219 |
+| [D217](D217-the-cloud-spanner-emulator-returns-beside-spanner-omni.md) | The Cloud Spanner emulator returns beside Spanner Omni | Amends D215 |
+| [D218](D218-the-hosted-services-get-models-and-dbrun-names-their-key-files.md) | The hosted services get models and dbrun names their key files | Amends D194 |
+| [D219](D219-spanner-is-measured-on-cloud-spanner-and-a-database-role-is-its-principal.md) | Spanner is measured on Cloud Spanner and a database role is its principal | Amends D216 |

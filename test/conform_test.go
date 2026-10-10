@@ -44,6 +44,7 @@ import (
 	ssfixture "github.com/xo/dbmeta/models/singlestore/fixture"
 	sffixture "github.com/xo/dbmeta/models/snowflake/fixture"
 	slfixture "github.com/xo/dbmeta/models/solr/fixture"
+	spfixture "github.com/xo/dbmeta/models/spanner/fixture"
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
@@ -296,6 +297,11 @@ func conformTargets() []conformTarget {
 			name: "ydb", dialect: dbmeta.YDB,
 			open: openYDB, schema: ydfixture.Everything.Schema,
 			build: setupYDB,
+		},
+		{
+			name: "spanner", dialect: dbmeta.Spanner,
+			open: openSpanner, schema: spfixture.Everything.Schema,
+			build: setupSpanner,
 		},
 	}
 }
@@ -707,6 +713,9 @@ func TestConformanceAgreementHolds(t *testing.T) {
 // against their own recorded sections, which is where a real regression in
 // either shows.
 var agreementExcluded = map[string]string{
+	"spanner": "no unique constraint: Spanner keeps a unique key as a unique index, so the" +
+		" unique title of book is an index and the section has no line for it. The other" +
+		" lines agree, and the check constraint has no columns to list (D216)",
 	"influxdb": "not relational: a measurement has no key, no constraint and no view, and" +
 		" every one has a time column, so the section holds the four measurements and" +
 		" their tags and fields alone",

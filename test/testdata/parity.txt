@@ -60,6 +60,18 @@ tables fewer rows than the administrator
 triggers fewer rows than the administrator
 views fewer rows than the administrator
 
+[cassandra/same/grantee]
+privileges refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
+role_grants refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
+roles refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
+settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
+
+[cassandra/same/user]
+privileges refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.role_permissions> or any of its parents
+role_grants refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.role_members> or any of its parents
+roles refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.roles> or any of its parents
+settings refused: running query: User dbmeta_user has no SELECT permission on <table system_views.settings> or any of its parents
+
 [clickhouse/same/grantee]
 constraints refused: clickhouse: ACCESS_DENIED (497): dbmeta_parity: Not enough privileges. To execute this query, it's necessary to have the grant SELECT ON system.constraints.
 current_user the same rows with different values
@@ -115,18 +127,6 @@ privileges refused: reading the result: couchbase: 13014: User does not have cre
 role_grants refused: reading the result: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
 roles refused: reading the result: couchbase: 13014: User does not have credentials to Local User Admin. Add role user_admin_local to allow the statement to run.
 routine_parameters fewer rows than the administrator
-
-[cassandra/same/grantee]
-privileges refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_permissions> or any of its parents
-role_grants refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.role_members> or any of its parents
-roles refused: running query: User dbmeta_grantee has no SELECT permission on <table system_auth.roles> or any of its parents
-settings refused: running query: User dbmeta_grantee has no SELECT permission on <table system_views.settings> or any of its parents
-
-[cassandra/same/user]
-privileges refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.role_permissions> or any of its parents
-role_grants refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.role_members> or any of its parents
-roles refused: running query: User dbmeta_user has no SELECT permission on <table system_auth.roles> or any of its parents
-settings refused: running query: User dbmeta_user has no SELECT permission on <table system_views.settings> or any of its parents
 
 [cratedb/same/all]
 current_user the same rows with different values
@@ -479,6 +479,84 @@ tables fewer rows than the administrator
 views fewer rows than the administrator
 
 [solr/same/user]
+
+[spanner/same/reader]
+current_user the same rows with different values
+
+[spanner/same/role]
+columns fewer rows than the administrator
+constraint_columns fewer rows than the administrator
+constraints fewer rows than the administrator
+functions fewer rows than the administrator
+index_columns fewer rows than the administrator
+indexes fewer rows than the administrator
+not_nulls fewer rows than the administrator
+privileges fewer rows than the administrator
+publication_tables fewer rows than the administrator
+publications fewer rows than the administrator
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+routine_parameters fewer rows than the administrator
+schemas fewer rows than the administrator
+sequences fewer rows than the administrator
+tables fewer rows than the administrator
+
+[spanner/same/stranger]
+column_privileges fewer rows than the administrator
+columns fewer rows than the administrator
+constraint_columns fewer rows than the administrator
+constraints fewer rows than the administrator
+functions fewer rows than the administrator
+index_columns fewer rows than the administrator
+indexes fewer rows than the administrator
+not_nulls fewer rows than the administrator
+privileges fewer rows than the administrator
+publication_tables fewer rows than the administrator
+publications fewer rows than the administrator
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+routine_parameters fewer rows than the administrator
+schemas fewer rows than the administrator
+sequences fewer rows than the administrator
+tables fewer rows than the administrator
+views fewer rows than the administrator
+
+[spanneromni/same/role]
+columns fewer rows than the administrator
+constraint_columns fewer rows than the administrator
+constraints fewer rows than the administrator
+functions fewer rows than the administrator
+index_columns fewer rows than the administrator
+indexes fewer rows than the administrator
+not_nulls fewer rows than the administrator
+privileges fewer rows than the administrator
+publication_tables fewer rows than the administrator
+publications fewer rows than the administrator
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+routine_parameters fewer rows than the administrator
+sequences fewer rows than the administrator
+tables fewer rows than the administrator
+
+[spanneromni/same/stranger]
+column_privileges fewer rows than the administrator
+columns fewer rows than the administrator
+constraint_columns fewer rows than the administrator
+constraints fewer rows than the administrator
+functions fewer rows than the administrator
+index_columns fewer rows than the administrator
+indexes fewer rows than the administrator
+not_nulls fewer rows than the administrator
+privileges fewer rows than the administrator
+publication_tables fewer rows than the administrator
+publications fewer rows than the administrator
+role_grants fewer rows than the administrator
+roles fewer rows than the administrator
+routine_parameters fewer rows than the administrator
+schemas fewer rows than the administrator
+sequences fewer rows than the administrator
+tables fewer rows than the administrator
+views fewer rows than the administrator
 
 [sqlserver/contained/contained]
 current_user the same rows with different values

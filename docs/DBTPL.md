@@ -102,6 +102,7 @@ than from memory.
 | Snowflake | 6 | measured on 2026-10-08 and 2026-10-09 (D190, D203). `TableIndexes` and `IndexColumns`: Snowflake has no index outside a hybrid table, which a trial account refuses. `ProcParams`: information_schema has no parameters view, and the argument signature is one text. `TableForeignKeys` is answered by SHOW IMPORTED KEYS, read through the pipe operator |
 | Amazon Redshift | 6 | `TableIndexes` and `IndexColumns`: Redshift has no index. `ProcParams` is not read (D204) |
 | Apache Impala | 5 | `TableIndexes`, `IndexColumns`, `ProcParams` and `TableForeignKeys`: Impala has no index, and SHOW lists no key and no parameter names |
+| Spanner | 9 | nothing. A foreign key points at a primary key or at a unique index, and both are read. Measured on Spanner Omni 2026.r4-lts (D216) |
 | SurrealDB | 9 | nothing on 3.x, although no foreign key is ever listed, because SurrealDB has none. 2.7 answers `Schema` alone, because a 2.x statement cannot read INFO as a value (D164) |
 | any `information_schema` | 7 | `Indexes` and `IndexColumns`: the standard has no index at all |
 
@@ -166,6 +167,7 @@ dialect is added.
 | Snowflake | no | partly (D203): every table, column, primary key and foreign key is there, and the key columns are filtered in Go, because the statement takes no filter. A key is declared and not checked, so `Constraint.Enforced` reads false |
 | Amazon Redshift | no | partly: no parameter names. Every table, column, primary key and foreign key is there. Redshift declares a key and does not enforce it |
 | SurrealDB | no | partly, on 3.x: no foreign key to follow, because a link is a field of the type `record<t>` that the server does not check, and a schemaless table has no columns, because only a DEFINE FIELD is one. Every SCHEMAFULL table, field, index and function is there, and the record id is the key of every table. 2.7 has nothing to generate from (D164) |
+| Spanner | no | yes, all nine. A column type is a Spanner type such as `STRING(100)`, which a generator has to map to a type of its own. A table interleaved in a parent has the key of the parent as the start of its own, and no foreign key says so, so a generator reads the parent from `Table.Options` (D216) |
 | Apache Impala | no | no. No key and no foreign key is listed, so there is nothing to relate one table to another, and every column is nullable |
 
 Trino is the first that is a clear no, and it is not the same as answering few

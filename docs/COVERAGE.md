@@ -68,6 +68,7 @@ rather than reading one.
 | `models/opensearch` | 3 | 65 | OpenSearch 3.9.0 and 2.19.6, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
 | `models/solr` | 4 | 65 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
 | `models/gizmosql` | 21 | 65 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
+| `models/spanner` | 22 | 65 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect, with go-sql-spanner (D216, D219) |
 | `models/avatica` | 24 | 65 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
 | `models/informationschema` | 12 | 65 | any database with a standard `information_schema` |
 
@@ -5913,6 +5914,215 @@ identity provider or an enterprise license, so the model has no parity target
 
 Every statement is the duckdb model's, so GizmoSQL fills the same fields as
 DuckDB, and answers the NotNulls kind. The tests run the same checks on it.
+
+## Spanner
+
+`models/spanner` answers 22 of the 65, in the GoogleSQL dialect, measured on
+2026-10-10 on Spanner Omni 2026.r4-lts and on Cloud Spanner, with go-sql-spanner,
+which is the driver dburl v0.49.0 names and usql uses. Spanner Omni is the engine
+of Cloud Spanner as a container. The two answer the same 47 views of
+INFORMATION_SCHEMA. See D216 and D219.
+
+A database in the PostgreSQL dialect has the catalog of PostgreSQL. The model
+does not read it, and `models/postgres` does.
+
+### Which catalog it reads, and why
+
+INFORMATION_SCHEMA, and nothing else. Spanner Omni lists 47 views in it, and the
+model reads 30. The statistics in SPANNER_SYS are measurements of load and not
+a catalog, so no kind reads them, except the one number that the version uses.
+
+The default schema is named by the empty string. A schema made with CREATE
+SCHEMA has a name, and INFORMATION_SCHEMA and SPANNER_SYS are the two Spanner
+keeps for itself. A query hides those two unless the caller sets `with_system`.
+An empty schema pattern means every schema, so no pattern selects the default
+schema alone. The fixture builds its objects in the schema dbmeta_fixture and
+one table in the default schema, so that a test reads both.
+
+### What it answers
+
+Schemas, tables, columns, indexes, index columns, constraints, constraint
+columns, not null constraints, views, sequences, functions, routine parameters,
+roles, role grants, privileges, column privileges, settings, the current schema,
+the current user, publications, publication tables and tablespaces.
+
+A table is a base table, a view or a synonym. A synonym has rows of its own
+in the views, so old_ledger lists a primary key and its NOT NULL constraints as
+the table it stands for does. Its options say what Spanner
+records about it beyond the columns: the parent table, how it is interleaved and
+what happens to a child when its parent row goes, the row deletion policy, the
+locality group, and the table a synonym stands for. An interleaved table is not
+inheritance, because the child has no column of its parent, so `Inherits` is
+not answered. A row deletion policy deletes old rows and restricts no access, so
+`Policies` is not answered.
+
+An index is a row of INDEXES. The primary key is an index named PRIMARY_KEY. A
+foreign key makes an index that Spanner names IDX_ and marks managed, and the
+model says so in the options. A null filtered index and a vector index keep a
+FILTER, which is the predicate. A search index reports unique, which is what
+Spanner says. A key column has an ordinal and a column the index STORES has none,
+so the model numbers the stored ones after the keys in the order of their names.
+
+Constraints are the primary key, the foreign key and the check constraint.
+Spanner has no unique constraint and a unique index stands in for it. Spanner
+keeps each NOT NULL column as a check constraint named CK_IS_NOT_NULL_, and
+Spanner refuses that prefix in a name that a person writes. `Constraints` leaves
+those out, as psql 18 does, and `NotNulls` reads them. A foreign key points at the
+primary key of a table or at a unique index, and the model reads the column it
+points at from the key columns in the first case and from the index columns in
+the second.
+
+A database role is a name that grants attach to. It cannot log in, has no flag
+and has no password, so every field of `Role` but its name and its membership is
+a fixed answer, and each is described as one. A role grant is a row of
+ROLE_GRANTEES. Privileges are the grants on a table, a view, a change stream and
+a function, folded into one text for each object, and the grants that name a
+column are in `ColumnPrivilege` and in the column access of the object. COLUMN_PRIVILEGES
+also holds every column of a table that was granted as a whole, and the model
+leaves those rows out, because the grant is not on the column.
+
+### What a second opinion found
+
+Gemini and DeepSeek sorted the unanswered kinds. Every lead was run on the server.
+
+- Gemini named the change streams as publications, and that is right. The view
+  CHANGE_STREAMS, with its tables, columns and options, answers `Publications`
+  and `PublicationTables`.
+- Gemini named table interleaving as inheritance. It is not one, as above.
+- Gemini named ROW_DELETION_POLICIES as policies. It is not one, as above.
+- Gemini named SESSION_USER() for the current user. Cloud Spanner answers it with
+  the IAM principal, so `CurrentUser` reads it. Spanner Omni with no authentication
+  refuses it with "Cannot compute SESSION_USER, because the user name is unknown",
+  so on Omni the query is an error and not an answer.
+- DeepSeek named INFORMATION_SCHEMA.COLLATIONS and SPANNER_SYS.COLUMN_STATS. Neither
+  exists. SPANNER_SYS.COLUMN_OPERATIONS_STATS counts operations and holds no value
+  statistics, and SPANNER_STATISTICS lists the names of the packages of optimizer
+  statistics and nothing about a column.
+- DeepSeek named TABLE_OPTIONS and COLUMN_OPTIONS as comments. They hold
+  locality_group and allow_commit_timestamp, and no comment, because Spanner has
+  none.
+- DeepSeek named CURRENT_USER(). It does not exist.
+- The locality groups as tablespaces came from reading the views and not from a
+  model. A locality group names where data is stored, solid state or disk, and that is
+  what a tablespace is for. It is an analogue and not an identity.
+
+### What it cannot answer
+
+Absent from Spanner: access methods, languages, conversions, casts, collations,
+large objects, event triggers, aggregates, types, domains, operators, role
+settings, default privileges, foreign data wrappers, foreign servers, user
+mappings, foreign tables, foreign options, subscriptions and the connection of a
+subscription, the text search kinds, the operator class kinds, extensions,
+extended statistics, comments, triggers, partitioned tables, partitions, rules
+and enumerated types. Spanner has a text search index and a vector index, and
+neither has a configuration or a dictionary to list. A proto bundle holds the
+protocol buffer types of the database, and SCHEMATA keeps it as one binary
+descriptor that SQL cannot read.
+
+Present and not answered: `Databases`, because no function returns the name of
+the database and DATABASE_OPTIONS holds no name, on Cloud Spanner too. `Inherits`
+and `Policies`, as above. `ColumnStats`, as above.
+
+Spanner has objects that no kind names. A model and a property graph have their
+own views, MODELS and PROPERTY_GRAPHS. Spanner Omni refuses CREATE MODEL, and the
+JSON of a property graph is not a kind. A placement is where a table is
+replicated, and it needs an instance partition that a single server does not
+have. The backlog holds them.
+
+### The describe fields (D198 to D203)
+
+Fields with no source are absent and say so in their description. Table size is
+the one that has a source and is not read: SPANNER_SYS.TABLE_SIZES_STATS_1HOUR
+holds a row each hour, and it was empty on a server that was up for minutes. A
+sequence has a kind, a skip range and a start, and `Sequence` has one field for
+them, the start.
+
+### What the fixture builds
+
+`models/spanner/fixture` builds the schema dbmeta_fixture. It holds author, book,
+region and shipment, with a composite key and a composite foreign key, a unique
+index, a descending index and a null filtered index with a stored column, the
+view recent, a table interleaved in book with an index interleaved in it, a
+sequence, a table with a stored generated column, an identity column, a default
+that reads a sequence and a hidden TOKENLIST column with a search index, a table
+with a row deletion policy and a commit timestamp column, a table in a locality
+group with a synonym, a function, and three roles: one with a grant of each
+kind, one that belongs to it, and one with none. Three change streams and one
+table with a vector index are in the default schema, because Spanner refuses
+a vector index or a change stream in a named schema. Cloud Spanner does too.
+
+It builds no placement, no model, no trigger, no rule, no policy and no type,
+because Spanner has none of them or Spanner Omni refuses it.
+
+Every step is DDL and takes seconds on Spanner, so the tests run the
+steps as one batch and share one fixture.
+
+### What the conformance test says
+
+The section holds author, book, region, shipment and the view recent, with every
+column, key and foreign key, and it agrees with the others on every line but one.
+Spanner has no unique constraint, so the unique title of book is a unique index
+and the line `constraint book unique (title)` is missing, which takes the
+relational agreement from 23 lines to 22. That is a fact, so Spanner is in
+`agreementExcluded` with the reason. A check constraint has no columns in
+KEY_COLUMN_USAGE, so it has no line either, as on SAP HANA.
+
+### Which answers depend on who is asking
+
+A database role changes 16 queries and no query is refused. A session names a role
+with the property `database_role`, and Cloud Spanner and Spanner Omni both enforce
+it: a role that does not exist is refused, a table that the role holds no grant on
+is refused, and INFORMATION_SCHEMA shows the role only what it holds a privilege
+on. The role dbmeta_reader, which holds SELECT on a table, a column, a view, a
+change stream and a function, reads fewer rows for columns, constraint columns,
+constraints, functions, index columns, indexes, not nulls, privileges,
+publication tables, publications, role grants, roles, routine parameters,
+schemas, sequences and tables. The role dbmeta_stranger holds nothing and reads
+fewer rows for those and for column privileges and views. The two servers give the
+same answers with one exception: Cloud Spanner leaves the default schema out of
+Schemas for the role dbmeta_reader, which holds USAGE on dbmeta_fixture only, and
+Spanner Omni lists it. The parity file keeps a section for each, `spanner` and
+`spanneromni`.
+
+The service account with databaseReader reads as an IAM principal, gets the
+administrator's answer to every query but `CurrentUser`, which reads its own
+name, and cannot name a role, because it lacks spanner.databases.useRoleBasedAccess.
+It is a principal on Cloud Spanner only.
+
+The first measurement on Spanner Omni said that it enforces no role. It was wrong.
+The name of the property is `database_role`, and the test wrote `role`, which
+go-sql-spanner ignores without a word (D219).
+
+### Cloud Spanner and Spanner Omni
+
+Measured on 2026-10-10 with the fixture on both. The views, the optimizer
+versions, the schema rules, the hash join hint and the answers of every query agree,
+and conformance records one section for both. Parity differs for one query, which
+the section above names. Three things differ in the data:
+
+- SESSION_USER answers on Cloud Spanner and fails on Spanner Omni with no
+  authentication. `CurrentUser` is an error on Omni.
+- The default locality group reports the option storage=ssd on Cloud Spanner and
+  no option on Omni, so the tablespace default has options on one and none on the
+  other.
+- SPANNER_SYS.TABLE_SIZES_STATS_1HOUR holds the sizes that Cloud Spanner measures
+  each hour. See the backlog for the size fields.
+
+Both refuse a vector index and a change stream in a named schema, both name the
+default schema with the empty string, and both keep the 47 views. Cloud Spanner
+logs a warning that the client cannot write its own metrics, because the account
+holds no monitoring permission. It changes no answer.
+
+### The cost
+
+Measured on 1600 tables and 3200 indexes in one schema. A subquery that names the
+row of the outer statement is run for each row, and Spanner plans a join of two
+INFORMATION_SCHEMA views as a nested loop, so the first version of the tables,
+the indexes and the NOT NULL constraints took 4.6, 5.7 and 8.4 seconds, which is
+twelve times as long for four times the tables. Tables and indexes now read the
+options once and join them, and NotNulls hints a hash join. Every statement runs in
+under 0.1 seconds on that catalog. Spanner has no window function, so the numbers
+of a stored index column and of a column grantee are counted with a join.
 
 ## Releases that need a license file
 

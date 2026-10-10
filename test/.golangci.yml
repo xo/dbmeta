@@ -106,12 +106,15 @@ linters:
             - github.com/vertica/vertica-sql-go
             - github.com/sclgo/impala-go
             - github.com/ydb-platform/ydb-go-sdk
+            - github.com/googleapis/go-sql-spanner
     # A deferred Close returns an error nothing can act on.
     errcheck:
       exclude-functions:
         - (*database/sql.Rows).Close
         - (*database/sql.DB).Close
         - (*database/sql.Stmt).Close
+        # The same, for the connection that runs a batch of DDL on Spanner.
+        - (*database/sql.Conn).Close
         # The same, for the Flight SQL client that opens a GizmoSQL session.
         - (*github.com/apache/arrow-go/v18/arrow/flight/flightsql.Client).Close
         # A deferred Close on a file being read returns an error nothing can

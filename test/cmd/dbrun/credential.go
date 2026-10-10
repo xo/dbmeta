@@ -116,6 +116,22 @@ func resolveCredential(ctx context.Context, name string) (credential, bool, erro
 	return credential{dsn: s, source: "helper " + helper}, true, nil
 }
 
+// keyFileEnv names the key file of a service for the driver that reads one by
+// itself. Each service and each principal has its own file, named for its
+// credential file, in $XDG_CONFIG_HOME/dbmeta/gcp. If
+// GOOGLE_APPLICATION_CREDENTIALS is set already, or the file is not there,
+// the answer is empty, so a person's own setting wins. See D218.
+func keyFileEnv(name string) []string {
+	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
+		return nil
+	}
+	file := filepath.Join(configDir(), "dbmeta", "gcp", name+".json")
+	if info, err := os.Stat(file); err != nil || !info.Mode().IsRegular() {
+		return nil
+	}
+	return []string{"GOOGLE_APPLICATION_CREDENTIALS=" + file}
+}
+
 // hostedOnce resolves every service once for the life of the command, so
 // that a helper runs once however often the list of targets is read.
 var hostedOnce = sync.OnceValue(func() []target {
@@ -250,5 +266,6 @@ func usqlHosted(ctx context.Context, t target) error {
 	}
 	cmd := exec.CommandContext(ctx, "usql", "--config", file, t.Name)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	cmd.Env = append(os.Environ(), keyFileEnv(t.Name)...)
 	return cmd.Run()
 }

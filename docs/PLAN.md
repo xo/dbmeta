@@ -57,11 +57,11 @@ of this file.
 
 ## What exists today
 
-`models/` holds 41 native models: arangodb, avatica, cassandra, clickhouse,
+`models/` holds 42 native models: arangodb, avatica, cassandra, clickhouse,
 cockroachdb, couchbase, cratedb, databend, drill, druid, duckdb,
 elasticsearch, exasol, firebird, gizmosql, hana, hive, impala, influxdb,
 influxql, libsql, mysql, neo4j, opensearch, oracle, postgres, presto, questdb,
-redshift, rqlite, singlestore, snowflake, solr, sqlite3, sqlserver, surrealdb,
+redshift, rqlite, singlestore, snowflake, solr, spanner, sqlite3, sqlserver, surrealdb,
 tidb, trino, vertica, vitess and ydb. ScyllaDB is a flavor of the Cassandra
 model and MySQL a flavor of the MariaDB one. `models/informationschema` is the
 shared model for any database with a standard `information_schema`, and no

@@ -422,6 +422,9 @@ func alsoEnv(ds []dbmeta.Dialect) []string {
 // env is every variable the tests read for this target, each set to its DSN.
 func (t target) env() []string {
 	out := []string{t.Env + "=" + t.connectDSN()}
+	if t.Kind == kindHosted {
+		out = append(out, keyFileEnv(t.Name)...)
+	}
 	for _, e := range t.AlsoEnv {
 		out = append(out, e+"="+t.connectDSN())
 	}

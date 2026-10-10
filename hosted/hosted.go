@@ -123,7 +123,7 @@ func All() []Service {
 	for i := range out {
 		out[i].Tier = container.Staged
 		switch out[i].Dialect {
-		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift:
+		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift, dbmeta.Spanner:
 			out[i].Tier = container.Verified
 		}
 	}

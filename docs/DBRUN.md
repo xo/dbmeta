@@ -274,7 +274,7 @@ The administrator of each product:
 | Virtuoso | `dba` | `container.Password` |
 | Milvus | `root` | `container.Password` |
 | Alternator | `cassandra`, the access key | the salted hash of `cassandra`, which is the secret key |
-| Spanner, BigQuery, Vitess | `admin`, `admin`, `root` | none. The two emulators and vttestserver check nothing, and the name is checked by nothing. `dbrun usql spanner` needs `SPANNER_EMULATOR_HOST` set to the published address, because dburl drops the host |
+| Spanner, BigQuery, Vitess | `admin`, `admin`, `root` | none. Spanner Omni, the BigQuery emulator and vttestserver check nothing, and the name is checked by nothing. The Spanner URL and DSN carry `usePlainText=true`, because Omni has no certificate (D215) |
 | OpenSearch | `admin` | `container.Password`. The first start uses a stronger one that the installer accepts, and replaces it before the server starts (D118) |
 | DynamoDB | `dbmeta`, the access key | none. DynamoDB Local checks no key |
 | Cosmos | `container.CosmosKey`, the key of the emulator's one account, which Microsoft publishes. dburl takes the key as the user name of the URL | none |
@@ -504,7 +504,9 @@ the full name that ends in `.snowflakecomputing.com`. See D213.
 
 If the driver reads a secret by itself, as BigQuery and Spanner read the key
 file that `GOOGLE_APPLICATION_CREDENTIALS` names, the connection string holds
-no secret.
+no secret. `dbrun` sets that variable to `gcp/<name>.json` in
+`$XDG_CONFIG_HOME/dbmeta`, when the file is there and the variable is unset.
+The lesser principal of a service is the file `<name>-reader` (D218).
 
 `dsn` masks the secret, and `dsn --reveal` prints it. `usql` passes the
 connection string in a temporary usql configuration file rather than on the
@@ -512,7 +514,7 @@ command line, so that no process list shows it. `test` sets `DBMETA_<NAME>`,
 named for the service rather than its dialect. A hosted service that a
 model reads, such as Neon, is Verified, and the rest are Staged, so CI never
 runs one (D119). Cloud Spanner, DynamoDB, BigQuery and Cosmos
-DB also have an emulator that runs as a container.
+DB also have a container that runs on one machine: Spanner Omni, the Cloud Spanner emulator, and the emulators of the other two.
 
 Do not put a connection string in a file in this repository, and do not paste
 one into a command that others can see.
@@ -586,8 +588,9 @@ outside its limit of eight.
 
 - Products that are only a cloud service, such as Snowflake, Databricks and
   Athena. There is no server to run. BigQuery and Cloud Spanner are cloud
-  services too, and `dbrun` starts their emulators, as `bigquery-<release>`
-  and `spanner-<release>`.
+  services too, and `dbrun` starts the BigQuery emulator, Spanner Omni and the Cloud Spanner
+  emulator, as `bigquery-<release>`, `spanner-<release>` and
+  `spanneremulator-<release>`.
 - Products that are out of scope, which are Db2 and Netezza (D130, D132).
   Neither can be tested here.
 

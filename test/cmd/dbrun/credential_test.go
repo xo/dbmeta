@@ -162,3 +162,28 @@ func TestNoServiceRunsInCI(t *testing.T) {
 		seen[s.Name] = true
 	}
 }
+
+func TestKeyFileEnvNamesTheFileOfTheService(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+	dir := filepath.Join(cfg, "dbmeta", "gcp")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := keyFileEnv("spanner"); len(got) != 0 {
+		t.Errorf("a service with no key file: got %v, expected nothing", got)
+	}
+	file := filepath.Join(dir, "spanner.json")
+	if err := os.WriteFile(file, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := keyFileEnv("spanner")
+	if len(got) != 1 || got[0] != "GOOGLE_APPLICATION_CREDENTIALS="+file {
+		t.Errorf("got %v, expected the key file %s", got, file)
+	}
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/elsewhere.json")
+	if got := keyFileEnv("spanner"); len(got) != 0 {
+		t.Errorf("a variable that is set already: got %v, expected nothing", got)
+	}
+}

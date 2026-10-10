@@ -403,7 +403,8 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Elasticsearch | 8.19.22 | 9.5.3 | Each tag is built once, and 8.19 is still patched, so it is the floor. 9.4.6 is between them. The entry is for dbimp's driver (D118) |
 | Dgraph | 25.3.8 | 25.4.1 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | YDB | 26.2.1.14 | 26.3.1.19 | The rule for an image that is never rebuilt (D112). usql reaches it with ydb-go-sdk, and models/ydb reads both (D118, D161) |
-| Spanner | 1.5.58 | 1.5.58 | The rule for an image that is never rebuilt (D112). The emulator has one line. The image is built here, because Google's has no shell (D118) |
+| Spanner | 2026.r4-lts | 2026.r4-lts | Spanner Omni, the engine of the service, which the model reads (D215, D216). It has one long term support line at a time, and the image has a shell. `models/spanner` reads it (D216) |
+| Spanner emulator | 1.5.58 | 1.5.58 | The rule for an image that is never rebuilt (D112). The emulator has one line. The image is built here, because Google's has no shell (D118, D217) |
 | BigQuery | 0.7.2 | 0.8.1 | The rule for an image that is never rebuilt (D112). A community emulator, with a smaller INFORMATION_SCHEMA than the service (D118) |
 | GizmoSQL | 1.40.0 | 1.41.0 | The rule for an image that is never rebuilt (D112). 1.40.0 and 1.41.0 are the two newest lines on 2026-10-07. The maintained Arrow Flight SQL server, for usql's flightsql driver (D118) |
 | Virtuoso | 7.2.17 | 7.2.17 | Criterion 2. 7.2.17 was rebuilt on 2026-08-05 and 7.2.16 last on 2025-10-15. The entry is for dbimp's SPARQL driver (D118) |

@@ -112,6 +112,12 @@ test module pins dbimp v0.14.0 and dburl v0.46.0.
 
 In progress:
 
+- The Spanner dialect is built and measured on Spanner Omni 2026.r4-lts and on
+  Cloud Spanner (D216, D219): 22 of the 65 kinds, with the conformance and the
+  parity files recorded on both. A database role is the principal on both, and
+  the service account with databaseReader is a third on Cloud Spanner. What is
+  left is the table size, which waits for the hourly statistics of Cloud Spanner
+  (BACKLOG.md).
 - The dialects are built or decided for everything that usql supports, except
   H2, VoltDB, chai, csvq, Pinot, DynamoDB, Phoenix and the hosted services
   other than Redshift and Snowflake (D184, D185, D186, D188, D194).
