@@ -79,13 +79,10 @@ func init() {
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Fold: dbmeta.FoldLower,
-		// Hive has no placeholder, because it has no parameter. Literal
-		// is what this dialect uses and Placeholder is never called,
-		// but a nil one is a trap for anything that reads Info
-		// without checking Literal first, so it says what it means.
-		Placeholder: func(int) string {
-			panic("hive: Placeholder is never used, because Hive cannot bind. See Info.Literal")
-		},
+		// Hive has no parameter, so Literal is what a query here uses and
+		// a query never calls Placeholder. A client that writes its own
+		// statement can ask for one, and the JDBC form is a question mark.
+		Placeholder:    func(int) string { return "?" },
 		Literal:        literal,
 		VersionQuery:   versionQuery,
 		VersionColumns: 1,

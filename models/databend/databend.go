@@ -48,6 +48,7 @@ func init() {
 		// dbimp's driver sends a positional argument for each question mark,
 		// and the server binds it (dbimp D120).
 		Placeholder:    func(int) string { return "?" },
+		ScanTypes:      true,
 		VersionQuery:   versionQuery,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,

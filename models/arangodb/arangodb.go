@@ -83,10 +83,11 @@ func init() {
 		// scanEveryQuery: AQL keeps the case of a name (D143).
 		Syntax: dbmeta.Syntax{BlockComments: true, SlashComments: true, Backticks: true},
 		// The driver binds a positional value at @1, @2 and so on.
-		Placeholder:    func(n int) string { return "@" + strconv.Itoa(n) },
-		VersionQuery:   versionQuery,
-		VersionColumns: 1,
-		ParseVersion:   parseVersion,
+		Placeholder:            func(n int) string { return "@" + strconv.Itoa(n) },
+		EveryStatementIsAQuery: true,
+		VersionQuery:           versionQuery,
+		VersionColumns:         1,
+		ParseVersion:           parseVersion,
 	})
 	registerRelations()
 	registerRoutines()

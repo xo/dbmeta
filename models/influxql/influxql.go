@@ -51,7 +51,8 @@ func init() {
 		Fold:   dbmeta.FoldNone,
 		// The server binds $name and $1, and the driver sends a positional
 		// argument as $1 (dbimp D111).
-		Placeholder: func(n int) string { return "$" + strconv.Itoa(n) },
+		Placeholder:            func(n int) string { return "$" + strconv.Itoa(n) },
+		EveryStatementIsAQuery: true,
 		// No InfluxQL statement names the release. SHOW DIAGNOSTICS does on
 		// InfluxDB 1, and only for an administrator, and InfluxDB 2 and 3
 		// do not have it. Only GET /ping names it, which no statement

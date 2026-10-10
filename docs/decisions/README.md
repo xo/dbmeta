@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-92 of them amend or replace an earlier one, and a decision read without its
+93 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -161,7 +161,7 @@ file.
 | [D140](D140-databend-reads-its-system-database.md) | Databend reads its system database | Decided |
 | [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no license | Amends D118 |
 | [D142](D142-ql-is-removed.md) | ql is removed | Amends D116, D119 and D129 |
-| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided |
+| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230 |
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided, amended by D182 and D190 |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
 | [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159 and D175 |
@@ -248,3 +248,4 @@ file.
 | [D227](D227-the-athena-dialect-is-athena.md) | The Athena dialect is athena | Amends D222 |
 | [D228](D228-cosmos-gets-a-model-that-reads-the-hosted-account.md) | Cosmos DB gets a model that reads the hosted account | Amends D223 and D225, amended by D229 |
 | [D229](D229-the-hosted-tests-move-to-the-drivers-of-dbimp-and-spanner-stays-on-go-sql-spanner.md) | The hosted tests move to the drivers of dbimp and Spanner stays on go-sql-spanner | Amends D154, D220, D222, D224 and D228 |
+| [D230](D230-the-common-facts-of-the-usql-drivers-move-here.md) | The common facts of the usql drivers move here | Amends D143 |

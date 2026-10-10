@@ -77,10 +77,13 @@ func init() {
 		// writes each value into the statement as the product writes a
 		// literal, and a parameter repeated in the text is repeated in the
 		// values, which is what every filter here does.
-		Placeholder:    func(int) string { return "?" },
-		VersionQuery:   versionQuery,
-		VersionColumns: 1,
-		ParseVersion:   parseVersion,
+		Placeholder: func(int) string { return "?" },
+		// BEGIN starts a transaction and the write is then refused with
+		// AUTOCOMMIT_WRITE_CONFLICT (D230).
+		WritesNeedAutocommit: true,
+		VersionQuery:         versionQuery,
+		VersionColumns:       1,
+		ParseVersion:         parseVersion,
 	})
 	registerRelations()
 	registerExtra()

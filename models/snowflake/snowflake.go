@@ -47,11 +47,10 @@ func init() {
 		Syntax: dbmeta.Syntax{DollarQuotes: true, BlockComments: true},
 		Fold:   dbmeta.FoldUpper,
 		// A bind parameter is refused after the pipe operator, so the
-		// dialect writes every value into the statement and Placeholder is
-		// never called. See literal and D203.
-		Placeholder: func(int) string {
-			panic("snowflake: Placeholder is never used. See Info.Literal")
-		},
+		// dialect writes every value into the statement and a query never
+		// calls Placeholder. A client writing its own INSERT does, and
+		// Snowflake takes a question mark there. See literal, D203 and D230.
+		Placeholder:    func(int) string { return "?" },
 		Literal:        literal,
 		VersionQuery:   versionQuery,
 		VersionColumns: 1,

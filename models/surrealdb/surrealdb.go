@@ -108,11 +108,12 @@ func init() {
 		Syntax: dbmeta.Syntax{BlockComments: true, SlashComments: true, HashComments: true, Backticks: true},
 		// A parameter is bound by its name, because SurrealQL has no
 		// positional parameter. Placeholder writes what bind writes.
-		Named:          true,
-		Placeholder:    func(n int) string { return "$p" + strconv.Itoa(n) },
-		VersionQuery:   versionQuery,
-		VersionColumns: 1,
-		ParseVersion:   parseVersion,
+		Named:                  true,
+		Placeholder:            func(n int) string { return "$p" + strconv.Itoa(n) },
+		EveryStatementIsAQuery: true,
+		VersionQuery:           versionQuery,
+		VersionColumns:         1,
+		ParseVersion:           parseVersion,
 	})
 	registerRelations()
 	registerRoutines()

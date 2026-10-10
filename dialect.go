@@ -102,6 +102,7 @@ const (
 	OpenSearch Dialect = "opensearch"
 
 	Oracle     Dialect = "oracle"
+	Pinot      Dialect = "pinot"
 	Presto     Dialect = "presto"
 	PostgreSQL Dialect = "postgres"
 	// QuestDB speaks PostgreSQL's protocol on its port 8812, and pgx
@@ -158,7 +159,11 @@ type Info struct {
 	Embedded bool
 
 	// Placeholder writes the bind parameter for position n, counting from 1.
-	// PostgreSQL writes $1, MySQL writes ?, Oracle writes :1.
+	// PostgreSQL writes $1, MySQL writes ?, Oracle writes :1 and SQL Server
+	// writes @p1. A product that numbers none ignores n. Every model sets it,
+	// including one that binds with [Info.Literal], because a client writes
+	// its own INSERT with it. [Dialect.Placeholder] is the accessor, and it
+	// also answers for a dialect with no model. See D230.
 	Placeholder func(n int) string
 	// Named says that the drivers take a named argument only, so that a
 	// value is bound by its name and never by its position. Under it, the
@@ -268,6 +273,29 @@ type Info struct {
 	// Fold is what the product does to the case of a name that is not
 	// quoted. See [Dialect.FoldIdentifier] and D143.
 	Fold Fold
+
+	// Product is the text a client prints for the version of a product that
+	// has no statement that reads its version, such as "Amazon DynamoDB". Empty
+	// when the model has a VersionQuery. A dialect with no model has its
+	// text in a table in the root package, and [Dialect.Product] reads both.
+	// See D230.
+	Product string
+	// EveryStatementIsAQuery says that every statement of the language
+	// returns a result and the server sends no count, so a client runs each
+	// statement as a query and never as an exec. True for ArangoDB, Neo4j,
+	// SurrealDB, InfluxDB and InfluxQL. See D230.
+	EveryStatementIsAQuery bool
+	// WritesNeedAutocommit says that a write must not run inside a
+	// transaction. Trino and Presto start one on BEGIN and then refuse the
+	// write with AUTOCOMMIT_WRITE_CONFLICT, so a client writes each row on its
+	// own. Every other product is found by a BeginTx that fails with
+	// ErrNotSupported in the driver, and is not flagged. See D230.
+	WritesNeedAutocommit bool
+	// ScanTypes says that a client must scan each column into the Go type
+	// that the driver reports, where it otherwise scans into any, so that
+	// numbers align and times format. True for the MySQL family and for
+	// Databend. See D230.
+	ScanTypes bool
 }
 
 var (

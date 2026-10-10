@@ -572,3 +572,22 @@ password, and the server accepts all of them. Every hostile password sets and lo
 | Amazon Redshift | `ALTER USER "<user>" PASSWORD '<password>'` | a string literal, with a backslash always doubled. The server wants 8 characters with an upper case letter, a lower case letter and a digit |
 | Snowflake | `ALTER USER "<user>" SET PASSWORD = '<password>'` | a string literal, with a backslash always doubled |
 | Databend | `ALTER USER '<user>' IDENTIFIED BY '<password>'` | a string literal for the user and the password, with a backslash always doubled |
+
+## Facts that usql applies from dbmeta
+
+usql kept a few facts in drivers that name a database. D230 moves them here, so
+that usql applies them for every driver with no code of its own. Each one is a
+field of `Info` with a method of `Dialect`.
+
+| What usql applies | Where it is read |
+| --- | --- |
+| The placeholder that \copy writes in its INSERT | `Dialect.Placeholder(n)`, which gives `?`, `$1`, `:1` or `@p1` |
+| Run every statement as a query, because the server sends no count | `Dialect.EveryStatementIsAQuery`, true for ArangoDB, Neo4j, SurrealDB, InfluxDB and InfluxQL |
+| Write each row on its own, because the transaction refuses the write | `Dialect.WritesNeedAutocommit`, true for Trino and Presto |
+| Scan each column into the type that the driver reports | `Dialect.ScanTypes`, true for MySQL, TiDB, Vitess, SingleStore and Databend |
+| The version text of a product with no version statement | `Dialect.Product`, which is "Amazon DynamoDB" and "Apache Pinot" |
+
+DynamoDB, Pinot and csvq have no model, so a small table in the root package
+holds their rows. The DSN query keys that usql sets for a driver are not here.
+They go to dburl. The InfluxDB version, the csvq version and the Athena and
+Cosmos DB semicolon stay in usql until those have models.

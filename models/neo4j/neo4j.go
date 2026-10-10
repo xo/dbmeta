@@ -106,10 +106,11 @@ func init() {
 		Syntax: dbmeta.Syntax{BlockComments: true, SlashComments: true, Backticks: true},
 		// The driver fills $1 with the first positional argument, $2 with the
 		// second, and so on (dbimp D64).
-		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
-		VersionQuery:   versionQuery,
-		VersionColumns: 2,
-		ParseVersion:   parseVersion,
+		Placeholder:            func(n int) string { return "$" + strconv.Itoa(n) },
+		EveryStatementIsAQuery: true,
+		VersionQuery:           versionQuery,
+		VersionColumns:         2,
+		ParseVersion:           parseVersion,
 	})
 	registerRelations()
 	registerRoutines()

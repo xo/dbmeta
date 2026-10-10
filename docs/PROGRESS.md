@@ -26,6 +26,11 @@ Cosmos DB got its model after v0.13.0 (D228). The new
 hosted models are Verified, and the Spanner Omni release is Tested. Each hosted
 model was measured on its service when it was written.
 
+D230 moved the common facts of the usql drivers here: `Dialect.Placeholder`,
+`Product`, `EveryStatementIsAQuery`, `WritesNeedAutocommit` and `ScanTypes`, with
+a table for DynamoDB, Pinot and csvq, which have no model. The Pinot dialect is
+new. The DSN keys went to dburl. It is staged and not committed.
+
 v0.12.0 holds the four decisions of 2026-10-10 (D212): `Constraint.Enforced` is
 true for Firebird and MariaDB, ArangoDB counts the rows of a collection, and
 Redshift reads the size, rows and options of a table from `SVV_TABLE_INFO`.

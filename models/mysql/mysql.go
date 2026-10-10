@@ -101,8 +101,11 @@ func init() {
 	dbmeta.RegisterDialect(dbmeta.MySQL, &dbmeta.Info{
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax:         dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true},
-		Placeholder:    func(int) string { return "?" },
+		Syntax:      dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true},
+		Placeholder: func(int) string { return "?" },
+		// usql scans each column into the type the driver reports, and tidb,
+		// vitess and singlestore copy this Info (D230).
+		ScanTypes:      true,
 		VersionQuery:   `SELECT VERSION()`,
 		VersionColumns: 1,
 		ParseVersion:   parseVersion,

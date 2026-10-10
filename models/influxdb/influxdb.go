@@ -34,11 +34,12 @@ func init() {
 		// usql's influxdb driver sets no lexer flags, and the fold is
 		// measured by scanEveryQuery (D143). DataFusion folds a name that is
 		// not quoted to lower case, as PostgreSQL does.
-		Fold:           dbmeta.FoldLower,
-		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
-		VersionQuery:   `SELECT version()`,
-		VersionColumns: 1,
-		ParseVersion:   parseVersion,
+		Fold:                   dbmeta.FoldLower,
+		Placeholder:            func(n int) string { return "$" + strconv.Itoa(n) },
+		EveryStatementIsAQuery: true,
+		VersionQuery:           `SELECT version()`,
+		VersionColumns:         1,
+		ParseVersion:           parseVersion,
 	})
 	register()
 }

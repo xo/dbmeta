@@ -142,9 +142,8 @@ ODBC, csvq and Cosmos keep rules of their own in usql's drivers, such as
 ODBC's usql_trim, csvq's SHOW routing and the trailing semicolon Cosmos strips,
 and have no model here, so D143's Info fields do not reach them. Athena has a
 model now (D222), and its usql driver keeps the same rule for the semicolon.
-Ken decided on 2026-09-30 that this waits for a larger restructuring of usql, whose aim is to strip every database specific helper
-out of usql/drivers. dbmeta then needs a form for a dialect with rules and
-no queries.
+D230 moved the placeholder, the version text and the query and scan flags.
+What is left is these rules, the InfluxDB and csvq versions, and the semicolon.
 
 ### usql reads metadata through dbmeta
 
@@ -156,11 +155,10 @@ When W31 lands, update the column "usql today" in COMMANDS.md, and what
 
 ### Move usql's \copy statements here
 
-usql's \copy builds an INSERT with the dialect's placeholder, and probes the
-columns of a table with SELECT * FROM t WHERE 1=0. They are the last SQL in
-usql's drivers. usql's W29 records moving them to dbmeta, and Ken asked on
-2026-09-30 for it to wait for a design. It is not a read, so it needs a
-decision beside D56 before any of it lands here.
+D230 moved the placeholder of \copy here, as `Dialect.Placeholder`. The probe of
+the columns of a table, `SELECT * FROM t WHERE 1=0`, is still in usql's drivers.
+It is not a read of the catalog, so it needs a decision beside D56 before any
+of it lands here.
 
 ### dbtpl reads metadata through dbmeta
 
