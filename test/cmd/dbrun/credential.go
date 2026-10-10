@@ -189,6 +189,14 @@ func resolveHosted(ctx context.Context, services []hosted.Service) ([]target, []
 // gosnowflake, or refuse it, such as pgx on redshift. If dburl cannot parse
 // the URL, the URL itself is returned and the connection reports the fault.
 func driverDSN(secret string) string {
+	// dburl v0.49.0 reads the databricks scheme in an older form, with the
+	// token as the user name and the workspace as the password, and it writes
+	// the token into the host of the DSN. The driver of Databricks reads the
+	// form of the credential file without its scheme. This moves to the driver
+	// of dbimp, and to the dburl that names it, when that is tagged. See D224.
+	if rest, ok := strings.CutPrefix(secret, "databricks://"); ok {
+		return rest
+	}
 	u, err := dburl.Parse(secret)
 	if err != nil || u.DSN == "" {
 		return secret

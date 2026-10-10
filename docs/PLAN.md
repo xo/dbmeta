@@ -57,8 +57,8 @@ of this file.
 
 ## What exists today
 
-`models/` holds 42 native models: arangodb, avatica, cassandra, clickhouse,
-cockroachdb, couchbase, cratedb, databend, drill, druid, duckdb,
+`models/` holds 45 native models: arangodb, athena, avatica, bigquery, cassandra, clickhouse,
+cockroachdb, couchbase, cratedb, databend, databricks, drill, druid, duckdb,
 elasticsearch, exasol, firebird, gizmosql, hana, hive, impala, influxdb,
 influxql, libsql, mysql, neo4j, opensearch, oracle, postgres, presto, questdb,
 redshift, rqlite, singlestore, snowflake, solr, spanner, sqlite3, sqlserver, surrealdb,
@@ -566,9 +566,10 @@ embedded databases run in the same matrix and start nothing. A separate job
 compares MariaDB with MySQL (D44). CockroachDB, CrateDB, SingleStore, TiDB
 and Vitess have models of their own. CockroachDB's and CrateDB's share
 statements of the postgres model, and the models of SingleStore, TiDB and
-Vitess share statements of the mysql model. Redshift is a
-hosted service with a dialect of its own (D117, D118, D123, D125, D133,
-D135).
+Vitess share statements of the mysql model. Redshift,
+Spanner, BigQuery, Athena and Databricks are hosted services with a dialect of
+their own, and a model reads each one (D117, D118, D123, D125, D133, D135,
+D216, D220, D222, D224).
 
 The Verified tier must run before a release (D40). D64 checks that each
 Verified release is documented.

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+
+	rsfixture "github.com/xo/dbmeta/models/redshift/fixture"
 )
 
 // redshiftFixtureTables is every relation the fixture builds, which ALTER TABLE
@@ -42,7 +44,23 @@ func dropRedshiftUser(t *testing.T, db *sql.DB, user, schema string) {
 	cleanup(t, db, `REVOKE SELECT ON svv_table_info FROM `+user)
 	cleanup(t, db, `REVOKE ALL ON ALL TABLES IN SCHEMA `+schema+` FROM `+user)
 	cleanup(t, db, `REVOKE ALL ON SCHEMA `+schema+` FROM `+user)
+	if hasRedshiftSpectrum(t, db) {
+		cleanup(t, db, `REVOKE ALL ON SCHEMA `+rsfixture.Everything.External+` FROM `+user)
+	}
 	cleanup(t, db, `DROP USER IF EXISTS `+user)
+}
+
+// hasRedshiftSpectrum reports whether the fixture made its external schema.
+func hasRedshiftSpectrum(t *testing.T, db *sql.DB) bool {
+	t.Helper()
+	var found bool
+	err := db.QueryRowContext(context.WithoutCancel(t.Context()),
+		`SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $1)`,
+		rsfixture.Everything.External).Scan(&found)
+	if err != nil {
+		t.Fatalf("looking for the external schema: %v", err)
+	}
+	return found
 }
 
 // makeRedshiftOwner gives the fixture schema and its tables to a new user.
@@ -68,6 +86,11 @@ func makeRedshiftGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	grantTableInfo(t, db, "dbmeta_grantee")
 	exec(t, db, `GRANT USAGE ON SCHEMA `+schema+` TO dbmeta_grantee`)
 	exec(t, db, `GRANT SELECT ON ALL TABLES IN SCHEMA `+schema+` TO dbmeta_grantee`)
+	// The external schema exists only when the namespace has a default IAM
+	// role (D221). A user reads its tables once it has USAGE on the schema.
+	if hasRedshiftSpectrum(t, db) {
+		exec(t, db, `GRANT USAGE ON SCHEMA `+rsfixture.Everything.External+` TO dbmeta_grantee`)
+	}
 	return replaceUser(t, dsn, "dbmeta_grantee", parityPassword)
 }
 

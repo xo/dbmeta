@@ -23,7 +23,7 @@ import (
 // for the spanner scheme (D154). The value is the DSN that the driver takes, such
 // as host:port/projects/default/instances/default/databases/dbmeta, with
 // usePlainText for a server that has no certificate. dbrun sets it. The test
-// reads Spanner Omni and not Cloud Spanner, which is not measured yet. See D216.
+// reads Spanner Omni and Cloud Spanner. See D216 and D219.
 func openSpanner(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_SPANNER")

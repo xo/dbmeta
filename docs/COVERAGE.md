@@ -52,7 +52,7 @@ rather than reading one.
 | `models/databend` | 20 | 65 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 65 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
 | `models/snowflake` | 15 | 65 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08 and 2026-10-09. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193, and D203 reads the columns of a key. Since D213 the tests and `dbrun` connect through the driver of dbimp, which is the one dburl v0.49.0 names |
-| `models/redshift` | 18 | 65 | measured on Redshift Serverless 1.0.434008 on 2026-10-08 and 2026-10-09. Written before a cluster existed (D144) and corrected by D182 and D204 |
+| `models/redshift` | 18 | 65 | measured on Redshift Serverless 1.0.434008 on 2026-10-08 and 2026-10-09. Written before a cluster existed (D144) and corrected by D182 and D204, and it reads the Spectrum external tables (D221) |
 | `models/impala` | 11 | 65 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
 | `models/neo4j` | 17 | 65 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
 | `models/influxdb` | 9 | 65 | InfluxDB 3 Core 3.10.6, 3.11.6 and 3.12.0, from DataFusion's information_schema, with dbimp's driver (D152) |
@@ -69,6 +69,9 @@ rather than reading one.
 | `models/solr` | 4 | 65 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
 | `models/gizmosql` | 21 | 65 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
 | `models/spanner` | 22 | 65 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect, with go-sql-spanner (D216, D219) |
+| `models/bigquery` | 18 | 65 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with gorm.io/driver/bigquery. The test driver moves to the one of dbimp when it is tagged (D220, D226) |
+| `models/athena` | 8 | 65 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of Uber. The test driver moves to the one of dbimp when it is tagged (D222) |
+| `models/databricks` | 17 | 65 | the hosted Databricks SQL service on Unity Catalog, which reports the release of its SQL channel, 2026.38, with databricks-sql-go. The test driver moves to the one of dbimp when it is tagged (D224) |
 | `models/avatica` | 24 | 65 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
 | `models/informationschema` | 12 | 65 | any database with a standard `information_schema` |
 
@@ -4092,11 +4095,21 @@ and roles needed a cast. The fixture built on the first try.
 - A view definition ends with a semicolon.
 - A function has no pg_get_functiondef, so its definition is absent and the
   source is the body between the dollar quotes.
-- Spectrum is not measurable here. CREATE EXTERNAL SCHEMA is refused with
-  "Cannot find default IAM role on this cluster", because the namespace has no
-  IAM role. On the empty catalog SVV_EXTERNAL_SCHEMAS, SVV_EXTERNAL_TABLES,
-  SVV_EXTERNAL_COLUMNS, SVV_EXTERNAL_DATABASES and SVV_DATASHARES return no row.
-  No fixture step makes an external table.
+- Spectrum is measured (D221). The default IAM role of the namespace reads the
+  Glue database `dbmeta_spectrum` and cannot write to Glue, so the fixture makes only
+  the external schema `dbmeta_spectrum` over the Glue table `spectrum_t` that
+  dbsetup made, and it skips the step when the namespace has no default role. The
+  external schema is a row of pg_namespace, so Schemas and Privileges list it.
+  The table is not in pg_class or pg_table_def, and Tables and Columns read it
+  from SVV_EXTERNAL_TABLES and SVV_EXTERNAL_COLUMNS as an `external table`. Its
+  size and rows are absent, its options are the location and the serde library,
+  and its columns carry the Glue type and are nullable. SVV_EXTERNAL_PARTITIONS
+  has no row for a table with no partition, and no partition is read. A user
+  needs USAGE on the external schema to see the table, and the grantee has it.
+- A UNION in Tables or Columns is refused when it reads pg_user itself, so a
+  derived table names the two columns that are read. The CASE of the identity
+  column is cast to varchar(1) and the primary key is a join, because a UNION
+  gives a CASE the width of its ELSE and does not take a correlated subquery.
 - Rule 14 of AGENTS.md. Gemini and DeepSeek sorted the unanswered kinds. Both
   named SVV_ROLE_GRANTS, SVV_RELATION_PRIVILEGES, SVV_COLUMN_PRIVILEGES,
   SVV_EXTERNAL_TABLES and SVV_DATASHARES. DeepSeek also named SVV_COLLATIONS,
@@ -6124,6 +6137,599 @@ options once and join them, and NotNulls hints a hash join. Every statement runs
 under 0.1 seconds on that catalog. Spanner has no window function, so the numbers
 of a stored index column and of a column grantee are counted with a join.
 
+## BigQuery
+
+`models/bigquery` answers 18 of the 65, in the GoogleSQL dialect, measured on
+2026-10-10 on the hosted service, in the location US, with gorm.io/driver/bigquery
+v1.2.1. Schemas, CurrentSchema and Privileges were measured on 2026-10-11, after
+the principals gained `roles/bigquery.metadataViewer` on the project. That is the driver that dburl v0.49.0 names for the bigquery scheme and
+that usql uses. A later dburl names `github.com/xo/dbimp/bigquery`, which is not
+tagged yet, and the test module moves to it when it is. See D220.
+
+BigQuery is a hosted service and has no release, so the tier is Verified and CI
+never runs it. The local emulator that `dbrun` can start, goccy's
+bigquery-emulator, answers SCHEMATA, TABLES, TABLE_OPTIONS and COLUMNS and no
+more, so no model reads it and its entry stays Staged. The tests of the model
+need the service, and they skip when `DBMETA_BIGQUERY` is not set.
+
+### Which catalog it reads, and why
+
+The views of INFORMATION_SCHEMA that belong to one dataset, and the legacy
+metatable `__TABLES__` of the same dataset. BigQuery has a project, which holds
+datasets, which hold tables. The model calls the project the catalog and a
+dataset a schema. A view of a dataset is named as `dataset.INFORMATION_SCHEMA.TABLES`,
+and a query job can carry a default dataset, which the driver sets from the last
+part of the URL, `bigquery://project/location/dataset`. The statements name
+`INFORMATION_SCHEMA.TABLES` with no dataset, so they read the dataset of the
+connection. A statement cannot bind the name of a view, so a model cannot read a
+second dataset, and the `schema` pattern can only narrow the one it reads. A
+caller that wants another dataset opens another connection.
+
+The model reads 21 views: SCHEMATA, SCHEMATA_OPTIONS, OBJECT_PRIVILEGES, TABLES, COLUMNS, COLUMN_FIELD_PATHS, TABLE_OPTIONS,
+TABLE_CONSTRAINTS, KEY_COLUMN_USAGE, CONSTRAINT_COLUMN_USAGE, VIEWS, ROUTINES,
+PARAMETERS, ROUTINE_OPTIONS, PARTITIONS, SEARCH_INDEXES, SEARCH_INDEX_COLUMNS,
+SEARCH_INDEX_OPTIONS, VECTOR_INDEXES, VECTOR_INDEX_COLUMNS and
+VECTOR_INDEX_OPTIONS. The descriptions of tables, columns and routines are in
+TABLE_OPTIONS, COLUMN_FIELD_PATHS and ROUTINE_OPTIONS, and no view holds a
+comment otherwise. The size and the row count of a table are in `__TABLES__`.
+TABLE_STORAGE has them too, but it is a view of the region and needs a
+permission on the project.
+
+### What it answers
+
+Tables, columns, indexes, index columns, constraints, constraint columns, views,
+functions, aggregates, routine parameters, comments, partitioned tables,
+partitions, the current user, databases, schemas, the current schema and
+privileges. The last three need `roles/bigquery.metadataViewer` on the project
+(D226).
+
+A table is a base table, a view, a materialized view, an external table, a clone
+or a snapshot, and `Table.Type` spells them table, view, materialized view,
+external table, clone and snapshot. The comment of a table is its description
+option. BigQuery holds an option as the text of a GoogleSQL literal, such as
+`"people who write books"` with the quotes and the escapes, and the model reads
+the literal back to the text it stands for. The other options are in
+`Table.Options` with their literals as BigQuery writes them, and so is the
+clustering of the table, as `cluster_by`, and the base table of a clone or a
+snapshot, as `base_table`. The size and the rows are exact and come from
+`__TABLES__`, and a view and an external table have none.
+
+COLUMNS reports the text NULL for a column with no default and for a column with
+no collation. A column can have a default, and a default can be the expression
+NULL, which means the same as none, so the model turns the text into an absent
+value. The other columns of the view are NULL where they mean it. An identity
+column is `always` or `by default`. BigQuery refused every generated column that
+was tried, with "Unsupported generated column expression", so `generated` is
+mapped from IS_GENERATED and is not measured.
+
+BigQuery has two kinds of index, a search index and a vector index, and no other.
+The primary key is a constraint and no index backs it. An index has a status,
+and an index on a table that is below the size threshold is TEMPORARILY
+DISABLED, so `Index.Valid` is false for both indexes of the fixture. The model
+reads the DDL of the index as the definition.
+
+BigQuery has a primary key and a foreign key, and it never enforces either, so
+`Constraint.Enforced` is false for each. It has no unique constraint and no check
+constraint. A constraint name begins with the table and a dot, as
+`book.book_author_fk`, and a primary key is named `table.pk$`. The model reports
+the name as BigQuery gives it. A foreign key points at the primary key of a table,
+CONSTRAINT_COLUMN_USAGE names the table on the rows of the key, and
+KEY_COLUMN_USAGE gives the position of each column in the primary key of that
+table, so the model reads the column from the key columns of that table. A key
+that points at a table in another dataset has no readable primary key, so its
+column is absent and its table is not.
+
+A routine is a function, a table function, a procedure or an aggregate function.
+`Functions` answers the first three and `Aggregates` the last, because
+CREATE AGGREGATE FUNCTION makes a user defined aggregate. The definition is the
+DDL of the routine and the source is its body. A function in JavaScript has a
+language of javascript, and one declared DETERMINISTIC is immutable. A procedure
+has IN, OUT and INOUT parameters. A function has no mode, so its parameters are
+in and its returned value is a row of ordinal zero with the mode return.
+
+### What the models call analogues
+
+- A search index and a vector index are indexes, because psql lists an index of
+  any method with \di.
+- A user defined aggregate function is an aggregate.
+- A partitioned table is a table that has PARTITION BY in its DDL. INFORMATION_SCHEMA
+  has no column for the clause, so the expression is the text after the words.
+  Every BigQuery partition covers a range of dates, of times or of an integer, so
+  the strategy is range. A partition has an id, such as 20260101, and a table
+  decorator names it, as `sales$20260101`, so a partition is its table, a dollar
+  sign and its id. A table that is not partitioned has one row in PARTITIONS with
+  no id, and the model leaves it out.
+- A dataset is a schema, and the connection reads one of them. SCHEMATA lists
+  every dataset of the project and `@@dataset_id` is NULL, so the statement keeps
+  the dataset that the tables of the connection name. A dataset with no table or
+  view has no row. The description is the comment, and the other options are in
+  `Schema.Options`, such as `location="us"` and `default_table_expiration_days=7.0`.
+  The owner is empty, because access is by IAM (D226).
+- The IAM bindings of the dataset are its privileges. OBJECT_PRIVILEGES answers one
+  object, and a table has no binding of its own unless somebody sets one, so a
+  table has no row. One row is one binding, as `serviceAccount:name@project.iam.gserviceaccount.com=roles/bigquery.dataOwner`,
+  with no grantor. The statement builds the name of the regional view as text,
+  from the location in SCHEMATA, and runs it with EXECUTE IMMEDIATE (D226).
+- A project is a database. BigQuery lists no other project than the one a session
+  runs in, so `Databases` reports that one, which is what `@@project_id` holds.
+  The statement reads a system variable, and the root package now leaves
+  `@@name` in a statement as it is (D220).
+
+An external table is not a foreign table. It has no server, and a person names the
+files it reads in `uris` and the format in `format`, which are options of the
+table, so `Table.Options` holds them and `ForeignTables` is not answered. Ken can
+reverse that.
+
+### What a second opinion found
+
+Gemini and DeepSeek sorted the unanswered kinds. Both failed on the long question.
+Gemini timed out twice and, on a short question, answered four of seven items before
+its answer stopped. DeepSeek returned nothing on four requests, because its reasoning
+used every token, and answered a short question with a large token limit on the
+fifth. Every lead was run on the service.
+
+- Gemini and DeepSeek named INFORMATION_SCHEMA.OBJECT_PRIVILEGES for the grants on a
+  table or a dataset, and Gemini said a dataset principal can read it with a dataset
+  prefix. The dataset form answers 403, which is what the service says for a view that
+  does not exist. The region form answers a query that has one `object_name =` term at
+  the root, and the name is a dataset unless an `object_schema` term names one. A
+  query with IN or with OR is refused. So one statement cannot list the grants of every
+  table. It does answer for the dataset, with the IAM roles and their grantees, and
+  `Privileges` reads that (D226). A table of the fixture has no row of its own.
+- Gemini named ROW_ACCESS_POLICIES with a dataset prefix, and DeepSeek named it in the
+  region. DeepSeek also named DATA_POLICIES, CONNECTIONS and LINKED_DATASETS. With the
+  project role, each answers not found in the region and in the dataset, as a made up
+  name does. They answered 403 before the role, so that refusal did not prove an
+  absence, and this answer does (D226).
+- Gemini named the policy tags of a column in COLUMNS and COLUMN_FIELD_PATHS as
+  data masking. The columns hold a structure that the driver returns as a Go value
+  and not as text. The fixture has no taxonomy of Data Catalog to attach a tag
+  from, so nothing was measured, and `Policies` is not answered.
+- DeepSeek named SCHEMATA for the datasets. It exists, and `Schemas` reads it with
+  SCHEMATA_OPTIONS now that the principals hold the project role (D226).
+
+### What it cannot answer
+
+Absent from BigQuery: sequences, triggers, user defined types, enumerated types,
+domains, extensions, rules, inheritance, access methods, tablespaces, conversions,
+casts, languages, large objects, event triggers, operators, operator classes, the
+text search kinds, foreign data wrappers, foreign servers, user mappings,
+publications, subscriptions, extended statistics and not null constraints. A NOT
+NULL is the mode REQUIRED of a column and has no name, so it is in `Column.Nullable`.
+BigQuery has no role and no user in SQL, because access is by IAM.
+
+Present and not answered:
+
+- `ColumnPrivileges`, `Roles` and `RoleGrants`. The grants of BigQuery are IAM
+  bindings, and the one view that shows them takes one object at a time.
+- `Policies`. The views ROW_ACCESS_POLICIES, DATA_POLICIES, CONNECTIONS and
+  LINKED_DATASETS answer not found in the region and in the dataset, since the
+  principals hold the project role, so they are not views of this service.
+
+- `Settings`. The options of a dataset are in SCHEMATA_OPTIONS, and no view
+  holds the settings of the service.
+- `ColumnStats`, `Collations` and `Types`. BigQuery keeps no statistics of a
+  column that a view reads, a column has a collation name and no list of collations
+  exists, and a type is a built in name.
+
+`Index.Using` is the index_type of a vector index, and it is absent for a search
+index, which has an analyzer in its options and no method.
+
+### The describe fields (D198 to D203)
+
+Fields with no source are absent and say so in their description. Table size and
+rows have one, `__TABLES__`. The comments of tables, columns and routines have
+one. Owner, access method, persistence of a view, row security, storage,
+compression, statistics target and the rest of the PostgreSQL fields have none.
+
+### What the fixture builds
+
+`models/bigquery/fixture` builds its objects in the dataset dbmeta, because the
+test account cannot create a dataset. It holds author, book, region and shipment,
+with a composite key and a composite foreign key that BigQuery does not enforce,
+the view recent, a table partitioned by a date and clustered by a column with
+a search index and two rows, a materialized view over it, a table with an identity
+column, a table with an array of numbers and a vector index, a snapshot and a
+clone of author, an external table over a public file, a row access policy, a
+function with a description, a function in JavaScript, a table function, an
+aggregate function and a procedure. It drops everything it made, and each table it
+makes expires in seven days anyway.
+
+It builds no sequence, trigger, type or role, because BigQuery has none. It builds
+no generated column, because BigQuery refused every one. The row access policy is
+there so that a test can show that `Table.RowSecurity` stays absent, because no view
+lists the policy.
+
+BigQuery refuses a vector index on a table whose vectors are all NULL, so the table
+has 6000 rows. The index is TEMPORARILY DISABLED until the table is larger than
+10 MB, as the search index is until its table is larger than 10 GB. Both exist and
+are listed.
+
+BigQuery limits the DDL statements that make or drop a search index or a vector
+index on one table in a day, and it counts by the name of the table. After many
+runs in one day, CREATE SEARCH INDEX or CREATE VECTOR INDEX fails with
+quotaExceeded. The teardown does not drop the two indexes, because dropping the
+table drops them, and a test that meets the limit skips that index and says so.
+
+### What the conformance test says
+
+The section holds author, book, region, shipment and the view recent. BigQuery has
+no unique constraint and no check constraint, so the lines for the unique title and
+the check of book are missing. The key columns of the core tables have no default,
+because they are plain columns, and the columns of a view are nullable, where
+MySQL says they are not. So BigQuery is in `agreementExcluded` with that reason.
+Every other line agrees.
+
+### Which answers depend on who is asking
+
+The reader, which holds dataViewer on the dataset and jobUser on the project, gets
+the administrator's answer to every query but `CurrentUser`, which reads its own
+name. No query is refused and none reads fewer rows, because dataViewer lists the
+metadata of every table in the dataset and `__TABLES__` as well. Schemas,
+CurrentSchema and Privileges give the reader the same rows too, because dbsetup
+gave both principals `roles/bigquery.metadataViewer` on the project (D226). The
+rows of Privileges name the IAM principals of the dataset, and the parity file
+records no row.
+
+### The cost
+
+BigQuery bills the bytes a query reads, and a query of INFORMATION_SCHEMA is billed
+at least 10 MB for each view it reads. A dry run of the fifteen statements on the
+fixture reports 10 MB for constraints and partitions, 20 MB for index columns,
+partitioned tables and routine parameters, 30 MB for tables, views, functions,
+aggregates and constraint columns, 40 MB for columns, indexes and comments, and
+nothing for databases and the current user. A whole pass is about 370 MB. A run
+of the tests costs several passes, and the free tier is 1 TB of queries a
+month. The three kinds of D226 add TABLES, SCHEMATA, SCHEMATA_OPTIONS and
+OBJECT_PRIVILEGES, at 10 MB or more each, and a pass is then about 450 MB. The statements read each view once and join the aggregate of it, so the
+cost grows with the number of views and not with the number of tables, and no
+statement names an outer row in a subquery. A catalog with thousands of tables
+was not built, because a table is a job and takes seconds.
+
+## Amazon Athena
+
+`models/athena` answers 8 of the 65, in the Trino based dialect of Athena engine
+version 3, measured on 2026-10-10 on the hosted service in us-east-1, with
+`github.com/uber/athenadriver` v1.1.15. That is the driver that dburl v0.49.0 names
+for the awsathena scheme and that usql uses. A later dburl names
+`github.com/xo/dbimp/athena`, which is not tagged yet, and the test module moves to
+it when it is. See D222.
+
+Athena is a hosted service, so the tier is Verified and CI never runs it. The tests
+need the service and skip when `DBMETA_ATHENA` is not set. Each statement is a job
+that takes one to six seconds, and a run of the tests takes about five minutes.
+
+### Which catalog it reads, and why
+
+The AWS Glue Data Catalog holds the databases, tables and columns, and Athena shows
+them through the INFORMATION_SCHEMA of the catalog `awsdatacatalog`: schemata,
+tables, columns and views. The model calls the catalog the database, a Glue database a
+schema, and a Glue table a table. The session reads one catalog, and Athena offers no
+way to list another, because `SHOW CATALOGS` is a syntax error.
+
+Every other source was measured and refused:
+
+- `system.metadata`, `system.jdbc` and `system.runtime` answer "Queries of this type
+  are not supported". The Trino model reads them, so it cannot be copied here.
+- `information_schema.roles`, `enabled_roles`, `applicable_roles` and
+  `table_privileges` answer NOT_SUPPORTED.
+- `SHOW SESSION` and `SHOW STATS` are syntax errors, and `SELECT version()` is
+  FUNCTION_NOT_FOUND.
+- `SHOW FUNCTIONS`, `SHOW CREATE TABLE`, `SHOW TBLPROPERTIES`, `SHOW PARTITIONS`,
+  `SHOW COLUMNS` and `DESCRIBE` answer, and they are statements that a SELECT cannot
+  filter, join or alias. They are what holds the comment of a table, the location, the
+  serde, the table properties and the function list.
+- The hidden tables `"t$partitions"`, `"t$properties"`, `"t$files"` and `"t$history"` are
+  per table. `$properties` of a Hive table answers "Relation contains no accessible
+  columns", and it is for Iceberg.
+
+### What it answers
+
+Databases, schemas, tables, columns, views, partitioned tables, the current schema and
+the current user.
+
+A Hive table, an external table, a table that CTAS makes and an Iceberg table are all
+`BASE TABLE`, so `Table.Type` is table for each and view for a view. TABLES has four
+columns and none is a comment, an owner, a size or a row count, so those fields are
+absent. IS_NULLABLE is YES for every column, because a Glue column has no NOT NULL.
+
+The comment of a column is in COLUMNS. A column that Athena made without a comment has
+a NULL, and a column that Redshift Spectrum made has the empty text, which Glue holds.
+The model reports both as they are.
+
+A partitioned table is a Hive table with a partition column, and COLUMNS marks the
+column with the extra_info `partition key`. The partition columns come after the others,
+and a table with two has two rows, as the Hive model gives it. An Iceberg table
+partitioned by a transform, such as `day(created)`, has no mark, so it is not listed.
+
+`current_user` is the number of the AWS account and not the name of the IAM user, so
+two users of one account read the same value.
+
+### The driver, and the literals
+
+Three faults of the driver shape the tests and the model (D222).
+
+- It accepts only the scheme `s3`, it names the workgroup with the key
+  `workgroupName`, and the credential files that `dbsetup` wrote use `workgroup`. The
+  tests rename the key.
+- It stops a query with "Missing data at column" on a NULL unless the connection sets
+  `missingAsNil=true`. Without it every column that can be NULL breaks the query, and
+  the default turns the NULL into an empty string, which hides it. The tests set the
+  option.
+- It binds a parameter by writing the value into the statement with a backslash before a
+  quote and before a backslash, and it writes a boolean as 1. Athena reads a backslash as
+  itself, so a value `it's` is a syntax error and a value with a backslash is a different
+  value. The model sets `Info.Literal`, as Hive does, and writes the filters as Trino
+  literals, so the driver binds nothing. `TestAthenaFilterLiterals` asserts it.
+
+### What a second opinion found
+
+Gemini and DeepSeek sorted the kinds that are not answered. Both put almost every kind
+absent, which the survey confirmed. Their leads, each run on the service:
+
+- Gemini named `information_schema.__internal_partitions__` as a catalog wide source
+  of partitions that Athena engine version 1 had, and said it was removed in version 3.
+  It answers TABLE_NOT_FOUND.
+- DeepSeek named a `comment` column in `information_schema.tables`. It answers
+  COLUMN_NOT_FOUND, and a table comment is only in SHOW TBLPROPERTIES.
+- DeepSeek named `SELECT DISTINCT data_type FROM information_schema.columns` as a type
+  list. It lists the types that columns use and no type catalog, and it is a stretch, so
+  `Types` is not answered.
+- Both named `"t$partitions"` and `"t$properties"` as the source of the partitions and
+  the properties. Both are per table, so no statement reads them for the catalog. The
+  walk of D146 is not allowed for Athena.
+- `information_schema.routines` and `table_constraints` do not exist.
+
+### What it cannot answer
+
+Absent from Athena: indexes, constraints, sequences, triggers, user defined types,
+domains, rules, inheritance, policies, access methods, tablespaces, languages, casts,
+conversions, collations, operators, large objects, extensions, publications,
+subscriptions and the text search kinds. An external table is not a foreign table,
+because it has no server. Access is by IAM and Lake Formation, so there is no role.
+
+Present and not answered, because only a statement that a SELECT cannot read holds
+them: the comment of a table (`Comments`), the functions and aggregates of the engine,
+the partitions of a table, the settings of the session, and the privileges, which
+Athena refuses. This is in the backlog.
+
+### What the fixture builds
+
+`models/athena/fixture` builds its tables in the Glue database dbmeta, because the test
+account cannot create one. It holds author with a table comment and two column
+comments, book, region and shipment, the view recent, a Hive table partitioned by two
+columns with one partition added, a table that CTAS makes and an Iceberg table
+partitioned by `day(created)`. The tables are external and hold no data, so the setup
+writes no file, except the one row that CTAS writes under `results/dbmeta/tables/`,
+because the workgroup forces the output location and refuses `external_location`. The
+location of each table is under `tables/dbmeta/` of the bucket, which the account
+allows. The teardown drops only what the setup made, because the Redshift Spectrum test
+needs `spectrum_t` in the same database.
+
+It builds no constraint, index, sequence, trigger, type or role, because Athena has
+none. Every column is nullable and has no default, because a Glue column has neither.
+
+### What the conformance test says
+
+The section holds author, book, region, shipment and the view recent. Athena has no
+key, no unique constraint and no check constraint, so every constraint line is missing,
+the key columns have no `not null` and no primary key, and so athena is in
+`agreementExcluded` with that reason. The view recent reads nullable columns, as MySQL
+does not.
+
+### Which answers depend on who is asking
+
+The reader is an IAM user that can query the Glue database and cannot create or drop a
+table or write under `tables/`. It gets the administrator's answer to every query,
+`CurrentUser` included, because `current_user` is the number of the account for both.
+No query is refused and none reads fewer rows. `TestPrivilegeParity` records it, and
+the section `awsathena/same/reader` is empty. A principal that Lake Formation hides
+tables from was not measured.
+
+### The cost
+
+Athena bills the bytes that a query scans, with a minimum of 10 MB, and the workgroup
+caps a query at 100 MB. A query of INFORMATION_SCHEMA scans no data, so the cost of
+a pass of the eight statements is time. The fixture writes one row. The statements read
+each view once and name no outer row in a subquery, so the cost grows with the number
+of tables and not with their square. A catalog with thousands of tables was not built,
+because a table is a job and takes seconds.
+
+## Databricks
+
+`models/databricks` answers 17 of the 65, in the SQL of Databricks SQL on Unity
+Catalog, measured on 2026-10-11 on the hosted service, a serverless SQL
+warehouse of the free edition on AWS, with databricks-sql-go v1.16.0. That is the
+driver that dburl v0.49.0 names for the databricks scheme and that usql uses. A
+later dburl names `github.com/xo/dbimp/databricks`, which is in the working tree
+of dbimp and not in a tag, and the test module moves to it when it is tagged. See
+D224.
+
+Databricks is a hosted service and the model reads the release of its SQL channel,
+2026.38, so the tier is Verified and CI never runs it. The tests of the model need
+the workspace, and they skip when `DBMETA_DATABRICKS` is not set.
+
+### Which catalog it reads, and why
+
+The INFORMATION_SCHEMA of the catalog that the connection is in. Unity Catalog has
+a catalog, which holds schemas, which hold tables, views, volumes and functions.
+The model calls the catalog a database, as BigQuery does, and the statements write
+`information_schema.tables` with no catalog in front. Databricks resolves that name
+to the current catalog, so a connection reads one catalog, and a statement cannot
+name another one, because a statement cannot bind a name. The catalog and the schema
+of the connection come from the URL, `?catalog=workspace&schema=dbmeta`.
+`system.information_schema` spans every catalog, and the model reads it for one thing
+only: `Databases` lists `system.information_schema.catalogs`, because the view of the
+session lists only its own catalog.
+
+INFORMATION_SCHEMA shows a principal only the objects that it can use. The model
+reads 19 views of it: CATALOGS and CONNECTIONS of the system catalog, and SCHEMATA,
+SCHEMA_PRIVILEGES, TABLES, TABLE_PRIVILEGES, TABLE_TAGS, COLUMNS, VIEWS,
+TABLE_CONSTRAINTS, KEY_COLUMN_USAGE, REFERENTIAL_CONSTRAINTS, ROUTINES, PARAMETERS,
+ROUTINE_COLUMNS, ROUTINE_PRIVILEGES, VOLUMES, ROW_FILTERS and COLUMN_MASKS of the
+catalog, and the table function `collations()`.
+
+### What it answers
+
+Databases, schemas, tables, columns, views, constraints, constraint columns,
+functions, routine parameters, comments, partitioned tables, privileges, policies,
+collations, foreign servers, the current schema and the current user.
+
+A table is a managed table, an external table, a clone, a view, a materialized view,
+a streaming table or a foreign table. `Table.Type` spells them table, external table,
+foreign table, view, materialized view and streaming table, and a clone is the type
+of the table it copies. `Table.Owner` is TABLE_OWNER, which is a group, a user or the
+application id of a service principal. `Table.AccessMethod` is the data source format,
+such as delta. `Table.Options` holds the storage path of a table that has one, and a
+`tag.name=value` for each tag. `Table.RowSecurity` is true for a table with a row
+filter. The size and the rows are absent, because only DESCRIBE DETAIL has them. A
+materialized view makes a hidden table and an event log table in its schema, and both
+are listed as tables.
+
+COLUMNS counts the ordinal from zero, and the model adds one. `Column.DataType` is
+FULL_DATA_TYPE, such as `bigint` or `array<string>`, and not DATA_TYPE, which is the
+short name LONG. The partition columns are in the order that the table was made with.
+COLUMNS reports no default, no identity and no generated column for the columns that
+have them, and no collation, so those fields are absent. The tests assert that.
+
+Databricks has a primary key and a foreign key, and it never enforces either, so
+`Constraint.Enforced` is false for each. IS_DEFERRABLE and INITIALLY_DEFERRED say YES
+for every constraint, which the model passes on. It has no unique constraint. A CHECK
+constraint of Delta is a table property, `delta.constraints.<name>`, and neither
+TABLE_CONSTRAINTS nor CHECK_CONSTRAINTS lists it, so `Constraints` does not return it.
+The statement of a constraint is not kept anywhere, so the model builds `Definition`
+from its columns, as `FOREIGN KEY (country, area) REFERENCES dbmeta.region (country, area)`.
+A clone copies the keys of its source under names of its own, such as `author_clone_pk`.
+
+A routine is a function or a procedure. A table function is a function whose result
+type is a list of columns, and ROUTINE_COLUMNS holds them, so `RoutineParameters`
+reports each as a parameter with the mode `table`, after the real parameters. A
+procedure has IN and OUT parameters. A function in Python has the language python and
+a body, and one declared DETERMINISTIC is immutable. A function is not overloaded.
+
+`Privileges` has a row for each relation, with one line for each grant as
+`grantee=PRIVILEGE/grantor`, and the line says when the relation inherits the grant from
+its schema or its catalog. A relation with no grant has an absent value, which means
+the owner alone holds it. `Schemas` does the same for a schema and `Functions` for a
+routine. A grantee is a name, a group or an application id, and a privilege spells a
+space as an underscore, such as USE_SCHEMA.
+
+### What the models call analogues
+
+- A connection of Lakehouse Federation is a foreign server. CREATE SERVER is a synonym
+  of CREATE CONNECTION. The account cannot create one, so the query was shown to run
+  and to return no row, and its columns were read from the header.
+- A row filter and a column mask are policies. A row filter has the command all and a
+  column mask has the command select. Neither has a name of its own, so the name is the
+  function, and the table lists the function and the columns it takes.
+- A partition column of a Delta table is a partition by the value of the column, so
+  the strategy is list, and a table partitioned by two columns has a row for each.
+- A catalog is a database.
+
+### What a second opinion found
+
+Gemini and DeepSeek sorted the unanswered kinds. Both failed on the long question.
+Gemini timed out, and DeepSeek returned nothing because its reasoning used every token,
+and each answered a short question. Every lead was run on the workspace.
+
+- Gemini said that the default, the identity and the CHECK constraint are in COLUMNS and
+  CHECK_CONSTRAINTS and that the service reserves them. That is right: the views have the
+  columns, and they report NULL, NO and no row for objects that have them.
+- DeepSeek named five relations that do not exist:
+  `system.information_schema.table_sizes`, `roles`, `applicable_roles` and `sequences`,
+  and a column `clustering_columns` of TABLES. Each answers TABLE_OR_VIEW_NOT_FOUND or
+  UNRESOLVED_COLUMN. DeepSeek and Gemini both put the table size in DESCRIBE DETAIL,
+  which is right and is a statement.
+- DeepSeek named external_locations as a tablespace and shares as publications. Both
+  relations exist and hold no row on this account, which cannot create an external
+  location or a share, so no answer could be checked and the model leaves both out.
+  They are leads for an account that holds some.
+- The privileges of the system catalog, `system.access` and `system.storage` refuse
+  the principals with INSUFFICIENT_PERMISSIONS, so the history of queries and the
+  storage statistics are out of reach.
+
+### What it cannot answer
+
+Absent from Databricks: indexes, index columns, sequences, triggers, user defined
+types, enumerated types, domains, extensions, rules, inheritance, partitions,
+access methods, tablespaces, conversions, casts, languages, large objects, event
+triggers, operators, operator classes, the text search kinds, foreign data wrappers,
+foreign tables, user mappings, publications, subscriptions, extended statistics,
+column privileges, default privileges, aggregates and not null constraints. A NOT NULL
+is a property of a column and has no name, so it is in `Column.Nullable`. Delta has no
+index, and liquid clustering and Z ordering are not indexes. A Delta partition is a
+directory of files and not a table, and SHOW PARTITIONS lists it as a statement.
+
+Roles, role grants and role settings are absent from SQL. A user and a group belong to
+the account, and only the SCIM API lists them. A grantee appears in `Privileges` as a
+name, and that is all that SQL shows.
+
+Present and not answered, because only a statement that a SELECT cannot read holds them:
+the size, the row count, the location and the clustering columns of a table
+(DESCRIBE DETAIL), the CHECK constraints (SHOW TBLPROPERTIES), and the default, the
+identity and the generated columns (SHOW CREATE TABLE). The settings of the session
+are SET. This is in the backlog.
+
+Present and not read, because they need something that the account lacks: the
+volumes and the routines of a principal that holds no READ VOLUME and no EXECUTE are
+hidden by INFORMATION_SCHEMA, the external locations and the shares are empty here, and
+CATALOG_PROPERTIES answers that it is not supported.
+
+### What the fixture builds
+
+`models/databricks/fixture` builds its objects in the schema `workspace.dbmeta`, which
+the administrator owns and cannot recreate. It holds author with a table comment, a
+column comment, a key, a default and a tag, book with a primary key, a foreign key and a
+CHECK constraint, region and shipment with a composite key, the view recent, sales
+partitioned by two columns, clicks with liquid clustering, ticket with an identity
+column and a generated column, a shallow clone of author, a volume, a grant to
+`account users`, six functions, a procedure, a row filter and a column mask. It builds
+no materialized view, because DROP MATERIALIZED VIEW leaves two tables behind and the
+pipeline spends the daily quota. The teardown drops what the setup made and never the
+schema.
+
+### What the conformance test says
+
+The section holds author, book, region, shipment and the view recent. Databricks
+has no unique constraint, and its CHECK constraint is a table property that no relation
+lists, so the lines for the unique title and the check of book are missing. The key
+columns agree with PostgreSQL: not null, with the primary key, and the foreign keys
+point at the same columns. `author.shade` reads no default, because COLUMNS reports
+none, and the columns of the view recent read not nullable, where PostgreSQL and MySQL
+read nullable. So databricks is in `agreementExcluded` with that reason.
+
+### Which answers depend on who is asking
+
+The reader is a service principal that holds USE CATALOG on the catalog and USE SCHEMA
+and SELECT on the schema, and cannot create or change anything. Four answers differ in
+`databricks/same/reader` of `TestPrivilegeParity`, and none is refused.
+
+- `Functions` and `RoutineParameters` return no row to the reader. INFORMATION_SCHEMA hides
+  a routine from a principal that holds no EXECUTE on it, so a query that asks as the
+  reader and finds no function has found no function that the reader can run, and not
+  no function. The administrator reads all seven.
+- `Comments` returns fewer rows, because the comment of a function and the comment of the
+  volume go with them. The volume is hidden from a principal that holds no READ VOLUME.
+- `CurrentUser` has the same row with a different value, the application id of each
+  service principal.
+
+Every other query, `Tables`, `Columns`, `Constraints`, `Privileges`, `Policies` and
+`Databases` among them, answers the same to both. `Privileges` shows the grants of the
+whole schema to the reader, because it is the grantee, and the same rows to the
+administrator. A principal that holds EXECUTE and READ VOLUME, and one that holds no
+SELECT on a table, were not measured.
+
+### The cost
+
+The warehouse is a 2X-Small serverless warehouse, shared with dbimp, that stops after
+ten minutes. The first statement after a stop waits for it to start, up to a minute,
+and the tests wait for it. The free edition has a daily quota of compute, and a run of
+the tests takes about ten minutes. Each statement reads a view of INFORMATION_SCHEMA once
+and names no outer row in a subquery, so the cost grows with the number of objects and
+not with their square. A catalog of thousands of tables was not built, because the
+quota allows no such run, so the plan of each statement against a large catalog was
+not checked.
+
 ## Releases that need a license file
 
 Stardog, GraphDB and Volt Active Data do not start without a license file
@@ -6251,3 +6857,59 @@ terminator and its users differ, and D186 says what a Phoenix dialect would need
 
 Tables reads the owner from `SCHEMATA`, which is the owner of the schema and is NULL for another user's schema, and the persistence from `TABLE_TYPE`. The rows are NULL: `SYSTEM_TABLESTATS` holds `CARDINALITY`, and its join grows with the square of the tables. The size is NULL for a memory only database.
 
+
+## Azure Cosmos DB
+
+There is no model, and D223 says why. Cosmos DB with the API for NoSQL has no
+catalog that a SELECT reads. The SQL of the product reads the documents of one
+container. The metadata is reached through REST requests, which the driver that
+dburl v0.49.0 names, `github.com/xo/dbimp/cosmos`, does not send. That driver is
+not tagged yet.
+
+### What each source can read
+
+The hosted account has 400 request units a second shared by its containers. The
+source of the REST answers is the recording of dbimp on that account, in
+`docs/COSMOS.md` of dbimp. The source of the gocosmos answers is a session of
+`dbrun usql cosmos` on 2026-10-11.
+
+| Source | What it answers |
+| --- | --- |
+| SELECT over a container, in either driver | The documents of that container, in pages. An aggregate, TOP, ORDER BY, DISTINCT and GROUP BY across partitions are refused by the gateway |
+| gocosmos, LIST DATABASES | One row for each database, with `id`, `_rid`, `_ts`, `_self`, `_etag`, `_colls` and `_users` |
+| gocosmos, LIST COLLECTIONS | One row for each container of the database in the DSN, with `id`, the indexing policy as JSON text, the resource links and the same system columns. No partition key, unique key policy or time to live |
+| gocosmos, DESCRIBE DATABASE and DESCRIBE COLLECTION | "invalid query" |
+| REST, `GET /dbs` and `GET /dbs/{db}/colls` | The same feeds, with the whole body of each container |
+| REST, `GET .../sprocs`, `.../triggers` and `.../udfs` | Created and run on the hosted account by dbimp |
+| REST, `GET .../pkranges` and `GET /offers` | The ranges of a container and the throughput of each database |
+| REST, `GET /dbs/{db}/users` | No users on the account |
+
+### The kinds
+
+| Kind | Source |
+| --- | --- |
+| Databases | Present as a database. LIST DATABASES in gocosmos, `GET /dbs` in REST |
+| Tables | Present as a container. LIST COLLECTIONS or `GET /dbs/{db}/colls` |
+| Indexes | Present as the indexing policy of a container, one JSON value and not one row for each index |
+| Constraints | Present as the unique key policy of a container, in the body of `GET /dbs/{db}/colls/{c}`. gocosmos does not list it |
+| Functions, procedures, triggers | Present as user defined functions, stored procedures and triggers, under a container |
+| Roles, users, grants | A user and its permissions are REST feeds under a database. The role feed is not measured, and Gemini and DeepSeek gave two different paths for it |
+| Columns | Absent. A document has no declared attributes. A sample of the documents can infer them, and the sample is a read of the data |
+| Sequences, views, foreign keys | Absent |
+| Partition key, time to live, conflict policy, change feed policy, computed properties, vector and full-text policies, materialized views | Fields of the container body or feeds under it. They have no kind among the 65 that holds them |
+
+### What a second opinion found
+
+Gemini and DeepSeek sorted 21 kinds and agreed on all of them, except for the
+path of the role feed. Every lead is a REST path, so no lead is a SELECT. The
+leads for the feeds of databases, containers, procedures, triggers, functions,
+throughput and users have a recording on the hosted account. The leads for roles,
+materialized views, and the vector and full-text policies have none, and they stay
+unmeasured.
+
+### What stays out, and why
+
+Nothing is built, so nothing is left out by a decision about the product. The
+open question is for Ken and is in `BACKLOG.md`: allow a walk through gocosmos,
+ask dbimp for statements that read the resources, or leave Cosmos DB without a
+model.

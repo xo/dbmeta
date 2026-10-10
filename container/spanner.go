@@ -73,7 +73,9 @@ var Spanner = list{}.add(spannerOmni, Tested, "2026.r4-lts")
 //
 // The emulator checks nothing and makes no instance and no database. Init
 // makes the instance dbmeta in the project dbmeta, and the database dbmeta in
-// it, through the REST interface on 9020.
+// it, through the REST interface on 9020. The URL names the REST port, which
+// is the address that the driver of dbimp reads, and the DSN names the gRPC
+// port for go-sql-spanner. See D225.
 
 // spannerREST posts to the REST interface of the emulator. Making a thing
 // that is there answers 409, and busybox wget has no way to accept one status
@@ -100,7 +102,7 @@ var spannerEmulator = product{
 		return fmt.Sprintf("127.0.0.1:%d/projects/dbmeta/instances/dbmeta/databases/dbmeta;usePlainText=true", port)
 	},
 	url: func(port int) string {
-		return fmt.Sprintf("spanner://admin@127.0.0.1:%d/dbmeta/dbmeta/dbmeta?usePlainText=true", port)
+		return fmt.Sprintf("spanner://admin@127.0.0.1:%d/dbmeta/dbmeta/dbmeta", SecondHostPort(port))
 	},
 	api: func(port int) string {
 		return fmt.Sprintf("http://127.0.0.1:%d", SecondHostPort(port))

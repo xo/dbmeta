@@ -114,6 +114,9 @@ on those sent agents to an older release. So a start of a stopped container
 that another owner created removes it and creates it again, with you as its
 owner. It loses what was in it, and the setup and the tests build that again.
 A stopped machine keeps its owner, because it takes an hour to create (D108).
+Ken confirmed on 2026-10-10 that `test` and `remove` do not refuse a stopped
+container of another owner. A session that wants to keep one reads
+`dbrun status -a` first.
 
 Two sessions that test one release share one server. The first session's
 `start` creates it, and the second session's `start` finds it running and
@@ -274,10 +277,10 @@ The administrator of each product:
 | Virtuoso | `dba` | `container.Password` |
 | Milvus | `root` | `container.Password` |
 | Alternator | `cassandra`, the access key | the salted hash of `cassandra`, which is the secret key |
-| Spanner, BigQuery, Vitess | `admin`, `admin`, `root` | none. Spanner Omni, the BigQuery emulator and vttestserver check nothing, and the name is checked by nothing. The Spanner URL and DSN carry `usePlainText=true`, because Omni has no certificate (D215) |
+| Spanner, BigQuery, Vitess | `admin`, `admin`, `root` | none. Spanner Omni, the Cloud Spanner emulator, the BigQuery emulator and vttestserver check nothing, and the name is checked by nothing. The Spanner URL and DSN carry `usePlainText=true`, because Omni has no certificate (D215) |
 | OpenSearch | `admin` | `container.Password`. The first start uses a stronger one that the installer accepts, and replaces it before the server starts (D118) |
 | DynamoDB | `dbmeta`, the access key | none. DynamoDB Local checks no key |
-| Cosmos | `container.CosmosKey`, the key of the emulator's one account, which Microsoft publishes. dburl takes the key as the user name of the URL | none |
+| Cosmos | `container.CosmosKey`, the key of the emulator's one account, which Microsoft publishes. The URL has the key as the password and any word as the user, and the DSN of gocosmos has it in `AccountKey` (D225) | none |
 | Solr, Drill, Fuseki, ksqlDB, H2 | `admin`, and `sa` on H2 | `container.Password` |
 | PostgREST | `dbmeta_admin`, a role a token names | a signed token, which the DSN carries as the password. There is no anonymous role |
 | Stardog, GraphDB, VoltDB | `admin` | `container.Password`. Each appears only with its license file |
@@ -508,13 +511,46 @@ no secret. `dbrun` sets that variable to `gcp/<name>.json` in
 `$XDG_CONFIG_HOME/dbmeta`, when the file is there and the variable is unset.
 The lesser principal of a service is the file `<name>-reader` (D218).
 
+The URL of BigQuery is `bigquery://<project>/<location>/<dataset>`, and the model
+reads that one dataset. The driver takes a second key file in the option
+`credential_file`, which is how the parity test connects as the reader (D220).
+
+The connection string of Athena has the form
+`awsathena://<bucket>/<path>?region=<region>&db=<database>&workgroup=<workgroup>&accessID=<id>&secretAccessKey=<secret>`.
+The bucket and the path are where the results go, and the workgroup of the test
+account forces them. The driver of Uber, which dburl v0.49.0 names, takes only the
+scheme `s3` and names the workgroup with the key `workgroupName`, and it stops a
+query on a NULL unless the connection has `missingAsNil=true`. The tests change
+the string to that form and never print it. A person who opens the driver has to
+do the same. The lesser principal of Athena is the file `athena-reader` in
+`$XDG_CONFIG_HOME/dbmeta/credentials`, which holds a connection string of its own
+(D222).
+
+The connection string of Databricks has the form
+`databricks://token:<personal access token>@<workspace>.cloud.databricks.com:443/sql/1.0/endpoints/<warehouse id>?catalog=<catalog>&schema=<schema>`.
+The model reads the catalog and the schema that the string names, and the tests
+build their fixture in that schema. dburl v0.49.0 reads the databricks scheme in an
+older form, with the token as the user name and the workspace as the password, and
+it writes the token into the host of the DSN, so `dbrun` hands the driver the
+string of the file without its scheme (D224). The driver is
+`github.com/databricks/databricks-sql-go`, which dburl names. The warehouse is
+shared with dbimp and stops after ten minutes without a statement. The first
+statement after a stop waits for it to start, up to a minute, and the free
+edition has a daily quota of compute, so run the tests once and not in a loop. The
+lesser principal is the file `databricks-reader` in `$XDG_CONFIG_HOME/dbmeta/credentials`.
+The driver writes errors to its own log, and a connection error can hold the token,
+so the tests turn the log off (D224).
+
 `dsn` masks the secret, and `dsn --reveal` prints it. `usql` passes the
 connection string in a temporary usql configuration file rather than on the
 command line, so that no process list shows it. `test` sets `DBMETA_<NAME>`,
 named for the service rather than its dialect. A hosted service that a
-model reads, such as Neon, is Verified, and the rest are Staged, so CI never
-runs one (D119). Cloud Spanner, DynamoDB, BigQuery and Cosmos
-DB also have a container that runs on one machine: Spanner Omni, the Cloud Spanner emulator, and the emulators of the other two.
+model reads is Verified, and the rest are Staged, so CI never runs one (D119).
+Neon, Redshift, Snowflake, Cloud Spanner, BigQuery, Amazon Athena and Databricks
+are Verified (D216, D220, D222, D224). Cosmos DB has no model (D223), and it
+stays Staged. Cloud Spanner, DynamoDB, BigQuery and Cosmos DB also have a
+container that runs on one machine: Spanner Omni and the Cloud Spanner
+emulator, and the emulators of the other three.
 
 Do not put a connection string in a file in this repository, and do not paste
 one into a command that others can see.

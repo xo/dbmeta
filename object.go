@@ -77,6 +77,11 @@ type Schema struct {
 	// \dn+ prints them. It is absent when the privileges are the default.
 	// See D201.
 	Access sql.Null[string]
+	// Options are the options set on the schema, as name=value pairs that a
+	// comma and a space separate, such as the default expiration of a table
+	// in a BigQuery dataset. The description is the comment and is not here.
+	// It is absent where the product has none.
+	Options sql.Null[string]
 }
 
 // Column is one column of a table.

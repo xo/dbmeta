@@ -61,6 +61,10 @@ func setupRedshift(t *testing.T, db *sql.DB) *dbmeta.Meta {
 			continue
 		}
 		if _, err := db.ExecContext(ctx, step.Query); err != nil {
+			if step.SkipWhen != "" && strings.Contains(err.Error(), step.SkipWhen) {
+				t.Logf("skipping setup %s: %v", step.Name, err)
+				continue
+			}
 			t.Fatalf("setup %s: %v\n%s", step.Name, err, step.Query)
 		}
 	}

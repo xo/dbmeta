@@ -14,6 +14,13 @@ func like(col, param string) string {
 	return `(CAST(` + param + ` AS text) = '' OR ` + col + ` LIKE CAST(` + param + ` AS text))`
 }
 
+// userNames is the users with the two columns the statements read. Redshift
+// refuses pg_user itself beside a UNION of Tables or Columns, with the error
+// "Specified types or functions are not supported on Redshift tables", and
+// reports pg_shadow.valuntil of type abstime as the cause. A derived table
+// that names its columns does not read the two it cannot handle (D221).
+const userNames = `(SELECT usesysid, usename FROM pg_user)`
+
 // notSystem hides the schemas Redshift keeps for itself.
 func notSystem(col string) string {
 	return systemFilter(`@with_system`, col)
@@ -177,7 +184,7 @@ func register() {
 			always(`, CASE WHEN i."diststyle" IS NULL THEN NULL ELSE 'diststyle=' || TRIM(i."diststyle")` +
 				` || CASE WHEN i."sortkey1" IS NULL THEN '' ELSE ', sortkey=' || TRIM(i."sortkey1") END END AS "options"`),
 			always(`FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace`),
-			always(`LEFT JOIN pg_user u ON u.usesysid = c.relowner`),
+			always(`LEFT JOIN ` + userNames + ` u ON u.usesysid = c.relowner`),
 			always(`LEFT JOIN pg_description d ON d.objoid = c.oid AND d.classoid = 1259 AND d.objsubid = 0`),
 			always(`LEFT JOIN (SELECT "table_id", "size", "tbl_rows", "diststyle", "sortkey1"` +
 				` FROM svv_table_info) i ON i."table_id" = c.oid`),
@@ -186,17 +193,29 @@ func register() {
 			always(`AND ` + like(nspname, "@schema")),
 			always(`AND ` + like(relname, "@name")),
 			always(`AND (CAST(@types AS text) = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, tableType) + `)`),
+			always(`UNION ALL`),
+			always(`SELECT current_database(), TRIM(TRAILING FROM x.schemaname), TRIM(TRAILING FROM x.tablename)`),
+			always(`, 'external table', CAST(NULL AS varchar(256)), TRIM(TRAILING FROM xu.usename)`),
+			always(`, 'permanent', CAST(NULL AS BIGINT), CAST(NULL AS BIGINT)`),
+			always(`, 'location=' || x.location || ', serde=' || x.serialization_lib`),
+			always(`FROM svv_external_tables x`),
+			always(`LEFT JOIN svv_external_schemas xs ON TRIM(TRAILING FROM xs.schemaname) = TRIM(TRAILING FROM x.schemaname)`),
+			always(`LEFT JOIN ` + userNames + ` xu ON xu.usesysid = xs.esowner`),
+			always(`WHERE x.redshift_database_name = CAST(current_database() AS text)`),
+			always(`AND ` + like("TRIM(TRAILING FROM x.schemaname)", "@schema")),
+			always(`AND ` + like("TRIM(TRAILING FROM x.tablename)", "@name")),
+			always(`AND (CAST(@types AS text) = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, `'external table'`) + `)`),
 			always(`ORDER BY 2, 3`),
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
-			{Name: "type", Desc: "table or view"},
+			{Name: "type", Desc: "table, view or external table. An external table is a Redshift Spectrum table, whose rows are files in S3 that a Glue data catalog describes"},
 			{Name: "comment"},
-			{Name: "owner", Desc: "the user that owns the relation, from pg_class"},
+			{Name: "owner", Desc: "the user that owns the relation, from pg_class. For an external table, the owner of its external schema"},
 			{Name: "persistence", Desc: "temporary for a table in a pg_temp schema, and permanent for the rest. Redshift has no unlogged table"},
-			{Name: "size", Desc: "a bound in bytes: SVV_TABLE_INFO counts blocks of 1 MB, so this is the blocks times 1048576. Absent for a view and for an empty table, which the view does not list. The user must have SELECT on SVV_TABLE_INFO, or the whole kind fails (D212)"},
-			{Name: "rows", Desc: "tbl_rows of SVV_TABLE_INFO, the rows including those marked for deletion and not yet vacuumed. Absent for a view and for an empty table"},
-			{Name: "options", Desc: "the distribution style and the first sort key, as diststyle=KEY(event_id), sortkey=happened. The sort key part is absent when the table has none. Absent for a view and for an empty table"},
+			{Name: "size", Desc: "a bound in bytes: SVV_TABLE_INFO counts blocks of 1 MB, so this is the blocks times 1048576. Absent for a view, an external table and an empty table, which the view does not list. The user must have SELECT on SVV_TABLE_INFO, or the whole kind fails (D212)"},
+			{Name: "rows", Desc: "tbl_rows of SVV_TABLE_INFO, the rows including those marked for deletion and not yet vacuumed. Absent for a view, an external table and an empty table"},
+			{Name: "options", Desc: "the distribution style and the first sort key, as diststyle=KEY(event_id), sortkey=happened. The sort key part is absent when the table has none. Absent for a view and for an empty table. For an external table, the location and the serde library, as location=s3://bucket/path/, serde=org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
@@ -217,12 +236,14 @@ func register() {
 			always(`, format_type(a.atttypid, a.atttypmod) AS "data_type"`),
 			always(`, NOT a.attnotnull AS "nullable"`),
 			always(`, pg_get_expr(d.adbin, d.adrelid) AS "default"`),
-			always(`, EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conrelid = a.attrelid` +
-				` AND k.contype = 'p' AND a.attnum = ANY (k.conkey)) AS "primary_key"`),
-			always(`, CASE WHEN pg_get_expr(d.adbin, d.adrelid) LIKE '"identity"(%' THEN 'a'` +
+			always(`, (pk.conrelid IS NOT NULL AND a.attnum = ANY (pk.conkey)) AS "primary_key"`),
+			// The CAST gives the column a width. Beside a UNION the type of the
+			// CASE is the width of its ELSE, which is 0, and the server then
+			// refuses the a and the d as too long (D221).
+			always(`, CAST(CASE WHEN pg_get_expr(d.adbin, d.adrelid) LIKE '"identity"(%' THEN 'a'` +
 				` WHEN pg_get_expr(d.adbin, d.adrelid) LIKE 'default_identity(%' THEN 'd'` +
-				` ELSE '' END AS "identity"`),
-			always(`, NULL AS "generated"`),
+				` ELSE '' END AS varchar(1)) AS "identity"`),
+			always(`, CAST(NULL AS varchar(1)) AS "generated"`),
 			always(`, col_description(a.attrelid, a.attnum) AS "comment"`),
 			always(`, s.collation_name AS "collation"`),
 			always(`, ` + compression + ` AS "compression"`),
@@ -230,6 +251,8 @@ func register() {
 			always(`JOIN pg_class c ON c.oid = a.attrelid`),
 			always(`JOIN pg_namespace n ON n.oid = c.relnamespace`),
 			always(`LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum`),
+			always(`LEFT JOIN (SELECT conrelid, conkey FROM pg_constraint WHERE contype = 'p') pk` +
+				` ON pk.conrelid = a.attrelid`),
 			always(`LEFT JOIN svv_columns s ON s.table_schema = n.nspname` +
 				` AND s.table_name = c.relname AND s.column_name = a.attname`),
 			always(`WHERE a.attnum > 0 AND NOT a.attisdropped AND c.relkind IN ('r', 'v')`),
@@ -237,11 +260,22 @@ func register() {
 			always(`AND ` + like("n.nspname", "@schema")),
 			always(`AND ` + like("c.relname", "@parent")),
 			always(`AND ` + like("a.attname", "@name")),
+			always(`UNION ALL`),
+			always(`SELECT current_database(), x.schemaname, x.tablename, x.columnname, x.columnnum`),
+			always(`, x.external_type, TRUE, CAST(NULL AS varchar(256)), FALSE, CAST('' AS varchar(1))`),
+			always(`, CAST(NULL AS varchar(256)), CAST(NULL AS varchar(256)), CAST(NULL AS varchar(256)), CAST(NULL AS varchar(256))`),
+			always(`FROM svv_external_columns x`),
+			always(`WHERE x.redshift_database_name = CAST(current_database() AS text)`),
+			always(`AND ` + like("x.schemaname", "@schema")),
+			always(`AND ` + like("x.tablename", "@parent")),
+			always(`AND ` + like("x.columnname", "@name")),
 			always(`ORDER BY 2, 3, 5`),
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "table"}, {Name: "name"},
-			{Name: "ordinal"}, {Name: "data_type"}, {Name: "nullable"},
+			{Name: "ordinal"},
+			{Name: "data_type", Desc: "format_type for a table or a view. For a column of an external table, the type that the Glue data catalog holds, such as int or string, which is not always a Redshift type name"},
+			{Name: "nullable", Desc: "always true for a column of an external table, because SVV_EXTERNAL_COLUMNS leaves is_nullable empty and a Glue column has no NOT NULL"},
 			{Name: "default", Desc: "the default expression, which for an IDENTITY column is Redshift's identity() or default_identity() call"},
 			{Name: "primary_key", Desc: "whether a declared primary key holds the column. Redshift does not enforce it"},
 			{Name: "identity", Desc: "a, which is always, for an identity() default, because an INSERT cannot give it a value, and d, which is by default, for a default_identity() default. Empty otherwise"},

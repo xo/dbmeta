@@ -13,6 +13,7 @@ import (
 	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/apache/arrow-go/v18/arrow/flight/flightsql/driver"
 	_ "github.com/beltran/gohive/v2"
+	_ "github.com/databricks/databricks-sql-go"
 	_ "github.com/exasol/exasol-driver-go"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/googleapis/go-sql-spanner"
@@ -21,6 +22,7 @@ import (
 	_ "github.com/nakagami/firebirdsql"
 	_ "github.com/sclgo/impala-go"
 	_ "github.com/sijms/go-ora/v3"
+	_ "github.com/uber/athenadriver/go"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cassandra"
 	_ "github.com/xo/dbimp/arangodb"
@@ -41,6 +43,7 @@ import (
 	_ "github.com/xo/dbimp/surrealdb"
 	_ "github.com/xo/dbimp/trino"
 	_ "github.com/ydb-platform/ydb-go-sdk/v3"
+	_ "gorm.io/driver/bigquery/driver"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
@@ -92,8 +95,17 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Neo4j:      "neo4j",
 	dbmeta.YDB:        "ydb",
 	// spanner:// opens go-sql-spanner, which dburl v0.49.0 names (D154, D216).
-	dbmeta.Spanner:  "spanner",
-	dbmeta.ArangoDB: "arangodb",
+	dbmeta.Spanner: "spanner",
+	// bigquery:// opens the driver of gorm.io, which dburl v0.49.0 names. It moves
+	// to the driver of dbimp when that is tagged (D154, D220).
+	dbmeta.BigQuery: "bigquery",
+	// awsathena:// opens the driver of Uber, which dburl v0.49.0 names. It moves to
+	// the driver of dbimp when that is tagged (D154, D222).
+	dbmeta.Athena: "awsathena",
+	// databricks:// opens databricks-sql-go, which dburl v0.49.0 names. It moves to
+	// the driver of dbimp when that is tagged (D154, D224).
+	dbmeta.Databricks: "databricks",
+	dbmeta.ArangoDB:   "arangodb",
 
 	// elasticsearch:// opens dbimp's driver (D177).
 	dbmeta.Elasticsearch: "elasticsearch",

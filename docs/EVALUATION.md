@@ -405,7 +405,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | YDB | 26.2.1.14 | 26.3.1.19 | The rule for an image that is never rebuilt (D112). usql reaches it with ydb-go-sdk, and models/ydb reads both (D118, D161) |
 | Spanner | 2026.r4-lts | 2026.r4-lts | Spanner Omni, the engine of the service, which the model reads (D215, D216). It has one long term support line at a time, and the image has a shell. `models/spanner` reads it (D216) |
 | Spanner emulator | 1.5.58 | 1.5.58 | The rule for an image that is never rebuilt (D112). The emulator has one line. The image is built here, because Google's has no shell (D118, D217) |
-| BigQuery | 0.7.2 | 0.8.1 | The rule for an image that is never rebuilt (D112). A community emulator, with a smaller INFORMATION_SCHEMA than the service (D118) |
+| BigQuery | 0.8.1 | 0.8.1 | The rule for an image that is never rebuilt (D112). A community emulator, with a smaller INFORMATION_SCHEMA than the service (D118). The model reads the hosted service, which has no release, and no model reads this entry (D220) |
 | GizmoSQL | 1.40.0 | 1.41.0 | The rule for an image that is never rebuilt (D112). 1.40.0 and 1.41.0 are the two newest lines on 2026-10-07. The maintained Arrow Flight SQL server, for usql's flightsql driver (D118) |
 | Virtuoso | 7.2.17 | 7.2.17 | Criterion 2. 7.2.17 was rebuilt on 2026-08-05 and 7.2.16 last on 2025-10-15. The entry is for dbimp's SPARQL driver (D118) |
 | Alternator | 2025.1 | 2026.3 | The scylla entry's range, which D90 chose. The DynamoDB interface of ScyllaDB (D118) |

@@ -623,8 +623,20 @@ func bind(s string, info *Info, params []Param, derived []Derived, args map[stri
 		out.WriteString(s[:i])
 		s = s[i+1:]
 		j := 0
+		// Two at signs start a system variable, such as @@project_id in
+		// GoogleSQL or @@sql_mode in MySQL. It is part of the statement and no
+		// parameter, so it is written as it is. See D220.
+		if strings.HasPrefix(s, "@") {
+			j = 1
+		}
+		system := j == 1
 		for j < len(s) && (s[j] == '_' || s[j] >= 'a' && s[j] <= 'z' || s[j] >= 'A' && s[j] <= 'Z' || s[j] >= '0' && s[j] <= '9') {
 			j++
+		}
+		if system {
+			out.WriteString("@" + s[:j])
+			s = s[j:]
+			continue
 		}
 		name := s[:j]
 		s = s[j:]

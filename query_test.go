@@ -17,6 +17,11 @@ func init() {
 		Stmt:   Always(`SELECT 1 WHERE (@name = '' OR a LIKE @name)`),
 		Params: []Param{{Name: "name", Default: ""}},
 	})
+	RegisterDialect(sysvarDialect, &Info{Placeholder: func(int) string { return "?" }})
+	repeatedQuery.Register(sysvarDialect, &Binding[Table]{
+		Stmt:   Always(`SELECT @@project_id, @name, @@sql_mode`),
+		Params: []Param{{Name: "name", Default: ""}},
+	})
 	RegisterDialect(namedDialect, &Info{Named: true})
 	repeatedQuery.Register(namedDialect, &Binding[Table]{
 		Stmt:   Always(`SELECT 1 WHERE (@name = '' OR a LIKE @name) AND @system`),
@@ -316,6 +321,27 @@ func TestRepeatedParamBindsTwice(t *testing.T) {
 	}
 	if len(args) != 2 || args[0] != "x" || args[1] != "x" {
 		t.Errorf("expected the value twice, got %v", args)
+	}
+}
+
+// sysvarDialect has statements that read a system variable, which two at signs
+// start. See D220.
+const sysvarDialect Dialect = "sysvardb"
+
+// TestSystemVariableIsNotAParameter checks that @@name stays in the statement
+// and @name is still a parameter beside it.
+func TestSystemVariableIsNotAParameter(t *testing.T) {
+	t.Parallel()
+	m := &Meta{dialect: sysvarDialect}
+	s, args, err := repeatedQuery.Build(m, map[string]any{"name": "x"})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if want := `SELECT @@project_id, ?, @@sql_mode`; s != want {
+		t.Errorf("expected\n%s\ngot\n%s", want, s)
+	}
+	if len(args) != 1 || args[0] != "x" {
+		t.Errorf("expected the one value x, got %v", args)
 	}
 }
 

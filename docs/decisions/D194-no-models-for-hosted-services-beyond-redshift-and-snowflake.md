@@ -1,6 +1,6 @@
 # D194. No models for hosted services beyond Redshift and Snowflake
 
-Status: Amends D188, amended by D216 and D218.
+Status: Amends D188, amended by D216, D218, D222 and D224.
 
 ## The decision
 

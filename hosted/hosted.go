@@ -61,7 +61,7 @@ func All() []Service {
 		{
 			Name: "athena", Product: "Amazon Athena", Dialect: dbmeta.Athena,
 			Form: "awsathena://<bucket>/<path>?region=<region>&db=<database>" +
-				"&accessID=<key id>&secretAccessKey=<secret>",
+				"&workgroup=<workgroup>&accessID=<key id>&secretAccessKey=<secret>",
 			Native: "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN and AWS_REGION," +
 				" and a profile in ~/.aws when AWS_SDK_LOAD_CONFIG=1",
 		},
@@ -78,8 +78,8 @@ func All() []Service {
 		},
 		{
 			Name: "databricks", Product: "Databricks", Dialect: dbmeta.Databricks,
-			Form: "databricks://token:<personal access token>@<workspace>.databricks.com:443" +
-				"/sql/1.0/endpoints/<warehouse id>",
+			Form: "databricks://token:<personal access token>@<workspace>.cloud.databricks.com:443" +
+				"/sql/1.0/endpoints/<warehouse id>?catalog=<catalog>&schema=<schema>",
 		},
 		{
 			Name: "dynamodb", Product: "Amazon DynamoDB", Dialect: dbmeta.DynamoDB,
@@ -123,7 +123,7 @@ func All() []Service {
 	for i := range out {
 		out[i].Tier = container.Staged
 		switch out[i].Dialect {
-		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift, dbmeta.Spanner:
+		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift, dbmeta.Spanner, dbmeta.BigQuery, dbmeta.Athena, dbmeta.Databricks:
 			out[i].Tier = container.Verified
 		}
 	}

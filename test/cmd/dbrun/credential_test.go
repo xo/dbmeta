@@ -138,11 +138,24 @@ func TestMaskDSN(t *testing.T) {
 		{"snowflake://me@acct/db?role=r&privateKey=abc", "snowflake://me@acct/db?privateKey=xxxxx&role=r"},
 		{"awsathena://bucket/p?region=r&secretAccessKey=s&accessID=a", "awsathena://bucket/p?accessID=a&region=r&secretAccessKey=xxxxx"},
 		{"bigquery://project/us/data", "bigquery://project/us/data"},
+		{"databricks://token:dapi123@dbc-1.cloud.databricks.com:443/sql/1.0/endpoints/w?catalog=c", "databricks://token:xxxxx@dbc-1.cloud.databricks.com:443/sql/1.0/endpoints/w?catalog=c"},
 		{"Server=host;Password=pw", "xxxxx"},
 	} {
 		if got := maskDSN(test.in); got != test.want {
 			t.Errorf("maskDSN(%q) = %q, want %q", test.in, got, test.want)
 		}
+	}
+}
+
+// TestDriverDSNOfDatabricks holds that the driver of Databricks gets the form of
+// the credential file without its scheme, because dburl v0.49.0 reads the scheme
+// in an older form and writes the token into the host. See D224.
+func TestDriverDSNOfDatabricks(t *testing.T) {
+	t.Parallel()
+	const in = "databricks://token:secret@dbc-1.cloud.databricks.com:443/sql/1.0/endpoints/w?catalog=c&schema=s"
+	const want = "token:secret@dbc-1.cloud.databricks.com:443/sql/1.0/endpoints/w?catalog=c&schema=s"
+	if got := driverDSN(in); got != want {
+		t.Errorf("driverDSN of a Databricks URL is %q, and the expected value is the URL without its scheme", got)
 	}
 }
 

@@ -13,12 +13,15 @@ import (
 
 	"github.com/xo/dbmeta"
 	arfixture "github.com/xo/dbmeta/models/arangodb/fixture"
+	athfixture "github.com/xo/dbmeta/models/athena/fixture"
 	avfixture "github.com/xo/dbmeta/models/avatica/fixture"
+	bqfixture "github.com/xo/dbmeta/models/bigquery/fixture"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
+	dbxfixture "github.com/xo/dbmeta/models/databricks/fixture"
 	dlfixture "github.com/xo/dbmeta/models/drill/fixture"
 	drfixture "github.com/xo/dbmeta/models/druid/fixture"
 	dkfixture "github.com/xo/dbmeta/models/duckdb/fixture"
@@ -86,7 +89,7 @@ import (
 // cannot weaken. See canonical.go.
 
 // update rewrites the expectation instead of comparing against it.
-var update = flag.Bool("update", false, "rewrite testdata/conformance.txt")
+var update = flag.Bool("update", os.Getenv("DBMETA_UPDATE") != "", "rewrite testdata/conformance.txt and testdata/parity.txt. DBMETA_UPDATE sets it, for a run that dbrun starts")
 
 // conformGolden is the checked in expectation.
 const conformGolden = "testdata/conformance.txt"
@@ -299,9 +302,24 @@ func conformTargets() []conformTarget {
 			build: setupYDB,
 		},
 		{
+			name: "bigquery", dialect: dbmeta.BigQuery,
+			open: openBigQuery, schema: bqfixture.Everything.Schema,
+			build: setupBigQuery,
+		},
+		{
+			name: "athena", dialect: dbmeta.Athena,
+			open: openAthena, schema: athfixture.Everything.Schema,
+			build: setupAthena,
+		},
+		{
 			name: "spanner", dialect: dbmeta.Spanner,
 			open: openSpanner, schema: spfixture.Everything.Schema,
 			build: setupSpanner,
+		},
+		{
+			name: "databricks", dialect: dbmeta.Databricks,
+			open: openDatabricks, schema: dbxfixture.Everything.Schema,
+			build: setupDatabricks,
 		},
 	}
 }
@@ -713,6 +731,21 @@ func TestConformanceAgreementHolds(t *testing.T) {
 // against their own recorded sections, which is where a real regression in
 // either shows.
 var agreementExcluded = map[string]string{
+	"athena": "no constraint of any kind: a Glue table has no key, no unique constraint and no" +
+		" check, so the section has no constraint line. Every column is nullable and has no" +
+		" default, because a Glue column has neither, so the key columns read nullable where" +
+		" PostgreSQL reads not null (D222)",
+	"bigquery": "no unique constraint and no check constraint: BigQuery has a primary key and a" +
+		" foreign key only, so the lines for the unique title and the check of book are missing." +
+		" The key columns of the core tables have no default, because a BigQuery key is a plain" +
+		" column and an identity column reports no default. The columns of a view are nullable," +
+		" where MySQL says they are not (D220)",
+	"databricks": "no unique constraint and no check constraint in the catalog: Databricks has a" +
+		" primary key and a foreign key only, and a CHECK constraint of Delta is a table property" +
+		" that no relation lists, so the lines for the unique title and the check of book are" +
+		" missing. INFORMATION_SCHEMA reports no default, so author.shade reads none. The columns" +
+		" of a view read not nullable where they come from a NOT NULL column, as Snowflake's do" +
+		" (D224)",
 	"spanner": "no unique constraint: Spanner keeps a unique key as a unique index, so the" +
 		" unique title of book is an index and the section has no line for it. The other" +
 		" lines agree, and the check constraint has no columns to list (D216)",

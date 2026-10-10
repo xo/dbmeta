@@ -10,8 +10,9 @@ import (
 // Azure Cosmos DB is a hosted service, and the package hosted names it.
 // Microsoft publishes an emulator of it, and this entry runs the emulator, so
 // that a person and CI can test without an account. usql reaches Cosmos DB
-// with github.com/btnguyen2k/gocosmos. dbmeta has no Cosmos DB model. See D117
-// and D118.
+// with github.com/btnguyen2k/gocosmos. dbmeta has no Cosmos DB model, because
+// the driver that dburl names reads only documents. See D117, D118, D223 and
+// D225.
 //
 // # The range
 //
@@ -35,9 +36,11 @@ import (
 // # The key
 //
 // The emulator has one account with a well known key, [CosmosKey], and no
-// other principal. dburl takes the key as the user name of the URL, and always
-// uses https, so the emulator serves https with a certificate it makes, and
-// InsecureSkipVerify trusts it. The key is percent encoded in the URL.
+// other principal. The driver of dbimp takes the key as the password of the
+// URL and the user name is any word, and it always uses https, so the emulator
+// serves https with a certificate it makes, and the query key insecure trusts
+// it. The key is percent encoded in the URL. The DSN of gocosmos, which usql
+// uses, has the same key in AccountKey. See D225.
 
 // CosmosKey is the key of the emulator's one account. Microsoft publishes it,
 // and every copy of the emulator has it.
@@ -60,7 +63,7 @@ var cosmos = product{
 		return fmt.Sprintf("AccountEndpoint=https://127.0.0.1:%d/;AccountKey=%s;InsecureSkipVerify=true", port, CosmosKey)
 	},
 	url: func(port int) string {
-		return fmt.Sprintf("cosmos://%s@127.0.0.1:%d/?InsecureSkipVerify=true", url.QueryEscape(CosmosKey), port)
+		return fmt.Sprintf("cosmos://x:%s@127.0.0.1:%d/?insecure=true", url.QueryEscape(CosmosKey), port)
 	},
 }
 

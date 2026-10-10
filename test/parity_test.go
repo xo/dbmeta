@@ -13,12 +13,15 @@ import (
 
 	"github.com/xo/dbmeta"
 	arfixture "github.com/xo/dbmeta/models/arangodb/fixture"
+	athfixture "github.com/xo/dbmeta/models/athena/fixture"
 	avfixture "github.com/xo/dbmeta/models/avatica/fixture"
+	bqfixture "github.com/xo/dbmeta/models/bigquery/fixture"
 	cafixture "github.com/xo/dbmeta/models/cassandra/fixture"
 	chfixture "github.com/xo/dbmeta/models/clickhouse/fixture"
 	cbfixture "github.com/xo/dbmeta/models/couchbase/fixture"
 	crfixture "github.com/xo/dbmeta/models/cratedb/fixture"
 	dbfixture "github.com/xo/dbmeta/models/databend/fixture"
+	dbxfixture "github.com/xo/dbmeta/models/databricks/fixture"
 	dlfixture "github.com/xo/dbmeta/models/drill/fixture"
 	drfixture "github.com/xo/dbmeta/models/druid/fixture"
 	esfixture "github.com/xo/dbmeta/models/elasticsearch/fixture"
@@ -655,6 +658,42 @@ func parityTargets() []parityTarget {
 					{name: "visitor", make: makeSnowflakeVisitor},
 					{name: "stranger", make: makeSnowflakeStranger},
 				},
+			}},
+		},
+		{
+			// BigQuery has no containment, and no user in SQL: access is by IAM.
+			// The administrator owns the dataset, and the reader is a service
+			// account that holds dataViewer on it and jobUser on the project, so
+			// the two are the principals (D218, D220).
+			dialect: dbmeta.BigQuery, driver: "bigquery", env: "DBMETA_BIGQUERY",
+			open: openBigQuery, build: setupBigQuery, schema: bqfixture.Everything.Schema,
+			scenes: []parityScene{{
+				name:       "same",
+				principals: []parityPrincipal{{name: "reader", make: makeBigQueryReader}},
+			}},
+		},
+		{
+			// Athena has no containment, and no user in SQL: access is by IAM.
+			// The administrator makes the tables in Glue, and the reader is an
+			// IAM user that can query them and cannot create or drop one, so the
+			// two are the principals (D222).
+			dialect: dbmeta.Athena, driver: "awsathena", env: "DBMETA_ATHENA",
+			open: openAthena, build: setupAthena, schema: athfixture.Everything.Schema,
+			scenes: []parityScene{{
+				name:       "same",
+				principals: []parityPrincipal{{name: "reader", make: makeAthenaReader}},
+			}},
+		},
+		{
+			// Databricks has no containment inside the workspace. A service
+			// principal owns the schema and is the administrator, and another holds
+			// USE CATALOG, USE SCHEMA and SELECT on it, so the two are the
+			// principals (D224).
+			dialect: dbmeta.Databricks, driver: "databricks", env: "DBMETA_DATABRICKS",
+			open: openDatabricks, build: setupDatabricks, schema: dbxfixture.Everything.Schema,
+			scenes: []parityScene{{
+				name:       "same",
+				principals: []parityPrincipal{{name: "reader", make: makeDatabricksReader}},
 			}},
 		},
 		{

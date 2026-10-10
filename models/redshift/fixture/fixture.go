@@ -6,7 +6,9 @@
 //
 // It was written from Redshift's documentation and first ran on 2026-10-08,
 // where every step was accepted as written. See D144 and D182. D204 added the
-// roles, the group and the grants that the privilege kinds read.
+// roles, the group and the grants that the privilege kinds read. The external
+// schema reads a Glue table that dbsetup makes, because the role of the
+// namespace has no right to write to Glue.
 package fixture
 
 import (
@@ -19,6 +21,10 @@ import (
 type Step struct {
 	Name string
 	Stmt dbmeta.Stmt
+
+	// SkipWhen is text in the error of the step. If the server refuses the
+	// step with an error that holds it, the step is skipped and not failed.
+	SkipWhen string
 }
 
 // Result is what a step resolved to for one server.
@@ -27,12 +33,20 @@ type Result struct {
 	Query   string
 	Skipped bool
 	Reason  string
+
+	// SkipWhen is the text of Step.SkipWhen.
+	SkipWhen string
 }
 
 // Fixture is a database and the statements that build and remove it.
 type Fixture struct {
-	Name     string
-	Schema   string
+	Name   string
+	Schema string
+
+	// External is an external schema over a table that exists in the Glue
+	// data catalog. It is empty for a fixture with none. The setup makes it
+	// only when the namespace has a default IAM role.
+	External string
 	Setup    []Step
 	Teardown []Step
 }
@@ -61,7 +75,7 @@ func resolve(steps []Step, versions dbmeta.VersionSet) ([]Result, error) {
 		case err != nil:
 			return nil, err
 		default:
-			out = append(out, Result{Name: step.Name, Query: query})
+			out = append(out, Result{Name: step.Name, Query: query, SkipWhen: step.SkipWhen})
 		}
 	}
 	return out, nil
@@ -71,11 +85,17 @@ func at(name, query string) Step {
 	return Step{Name: name, Stmt: dbmeta.Always(query)}
 }
 
+// noDefaultRole is the text of the error that a namespace with no default IAM
+// role gives to CREATE EXTERNAL SCHEMA, measured on 2026-10-09.
+const noDefaultRole = "Cannot find default IAM role"
+
 // Everything is a schema holding one of every object the Redshift queries
 // read.
 var Everything = Fixture{
 	Name:   "everything",
 	Schema: "dbmeta_fixture",
+
+	External: "dbmeta_spectrum",
 	Setup: []Step{
 		at("schema", `CREATE SCHEMA dbmeta_fixture`),
 		at("author", `CREATE TABLE dbmeta_fixture.author (
@@ -134,6 +154,12 @@ var Everything = Fixture{
 		// pg_default_acl, so that DefaultACL.Schema is NULL (D197).
 		at("default grant everywhere", `ALTER DEFAULT PRIVILEGES`+
 			` GRANT SELECT ON TABLES TO GROUP dbmeta_fixture_group`),
+		// A Spectrum schema over the Glue table spectrum_t of the Glue
+		// database dbmeta_spectrum, which holds the columns id and v. The fixture
+		// cannot make that table, so dbsetup does.
+		{Name: "external schema", SkipWhen: noDefaultRole, Stmt: dbmeta.Always(
+			`CREATE EXTERNAL SCHEMA dbmeta_spectrum FROM DATA CATALOG` +
+				` DATABASE 'dbmeta_spectrum' IAM_ROLE default REGION 'us-east-1'`)},
 	},
 	Teardown: []Step{
 		at("default grant everywhere", `ALTER DEFAULT PRIVILEGES`+
@@ -141,6 +167,7 @@ var Everything = Fixture{
 		at("default grant", `ALTER DEFAULT PRIVILEGES IN SCHEMA dbmeta_fixture`+
 			` REVOKE SELECT ON TABLES FROM GROUP dbmeta_fixture_group`),
 		at("role grant", `REVOKE ROLE dbmeta_fixture_role FROM ROLE dbmeta_fixture_member`),
+		at("external schema", `DROP SCHEMA IF EXISTS dbmeta_spectrum`),
 		at("schema", `DROP SCHEMA IF EXISTS dbmeta_fixture CASCADE`),
 		at("group", `DROP GROUP dbmeta_fixture_group`),
 		at("member role", `DROP ROLE dbmeta_fixture_member`),

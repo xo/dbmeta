@@ -7,13 +7,24 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has twelve releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
+dbmeta has twelve tagged releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
 on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928, v0.5.0 on
 8f3115b, v0.6.0 on 90d0261 and v0.7.0 on abe2ca1 on 2026-10-08, and v0.8.0 on
 cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 on
 3df0d73 and v0.12.0 on 029c5ef on 2026-10-10. The Tested
 tier passed in CI on each tagged commit. Ken chose that CI stands in for a run
 of every tier, and the Verified tier was not run again for any of them.
+
+v0.13.0 is the release that carries the hosted services with models: Spanner
+(D216, D217, D219), BigQuery (D220, D226), Athena (D222) and Databricks
+(D224), and the Spectrum external tables of Redshift (D221). Together with
+Redshift and Snowflake, six hosted services have a model, and 45 native models
+exist. It also carries the move of the Snowflake tests to the driver of dbimp
+(D213, D214), the key files that `dbrun` names for the hosted services (D218),
+the BigQuery emulator list of 0.8.1 alone and the Cosmos DB URL form (D225).
+Cosmos DB is the one hosted service of the five with no model (D223). The new
+hosted models are Verified, and the Spanner Omni release is Tested. Each hosted
+model was measured on its service when it was written.
 
 v0.12.0 holds the four decisions of 2026-10-10 (D212): `Constraint.Enforced` is
 true for Firebird and MariaDB, ArangoDB counts the rows of a collection, and
@@ -71,14 +82,7 @@ The commits of v0.1.0:
   2026-10-01, and DuckDB's DollarQuotes. dbimp has the hash.
 - 724e64e holds D166: Oracle 19c, Pinot and the InfluxDB release wait.
 
-Staged and not committed:
-
-- `api` for the products whose DSN is already the driver URL and that publish
-  an HTTP port: rqlite, Couchbase, Databend, the BigQuery emulator and
-  InfluxDB 3 (D167). A test checks it.
-
-The druid dialect (D171) is built and merged, and it is staged and not
-committed. It answers 7 of the 56 kinds on 37.0.0 and 38.0.0, on dbimp
+The druid dialect (D171) is built. It answers 7 of the 56 kinds on 37.0.0 and 38.0.0, on dbimp
 v0.11.0 and dburl v0.42.0. The ordinary user cannot read the version, so only
 the administrator has one. 38.0.0 was measured for the first time, and it
 answers as 37.0.0 does.
@@ -118,11 +122,51 @@ In progress:
   the service account with databaseReader is a third on Cloud Spanner. What is
   left is the table size, which waits for the hourly statistics of Cloud Spanner
   (BACKLOG.md).
+- The BigQuery model is built and measured on the hosted service (D220): 15 of
+  the 65 kinds, with the conformance and the parity files recorded. The
+  principals are the administrator of the dataset and the reader. What is left is
+  in BACKLOG.md: the kinds that need a permission on the project.
+- The Athena model is built and measured on the hosted service (D222): 8 of the
+  65 kinds, with the conformance and the parity files recorded. The principals
+  are the administrator and the IAM reader, and the reader gets every answer of
+  the administrator. The test driver is the one of Uber, which dburl v0.49.0
+  names, and the model writes its own literals because that driver does not.
+  What is left is in BACKLOG.md: a walk for the table comment, the dialect name
+  `athena` that follows dburl, and the move to the driver of dbimp.
+- The Databricks model is built and measured on the hosted workspace (D224): 17 of
+  the 65 kinds, with the conformance and the parity files recorded. The principals
+  are the service principal that owns the schema and the reader, and the reader reads
+  no routine and no volume, because INFORMATION_SCHEMA hides what it cannot use. The
+  test driver is databricks-sql-go, which dburl v0.49.0 names, and `dbrun` hands it the
+  string of the credential file without its scheme. What is left is in BACKLOG.md: a
+  walk for the size, the defaults and the CHECK constraints, and the move to the driver
+  of dbimp when it is tagged.
+- Cosmos DB has no model (D223). The session measured the hosted account with
+  `dbrun usql cosmos`: the driver that dburl names reads documents only, and
+  gocosmos answers LIST DATABASES and LIST COLLECTIONS. Ken decided on
+  2026-10-11 to ask dbimp for statements that read the REST resources, and the
+  model waits for dbimp v0.17.0 and for the dburl that names its driver (D225,
+  BACKLOG.md). The test and parity files were not written, because there are
+  no queries.
+- The hosted models move to the drivers of dbimp when dburl names them: the
+  dialect `awsathena` becomes `athena` when dburl tags the rename, and the
+  test driver and the string that `dbrun` builds change for BigQuery, Athena
+  and Databricks (BACKLOG.md).
 - The dialects are built or decided for everything that usql supports, except
   H2, VoltDB, chai, csvq, Pinot, DynamoDB, Phoenix and the hosted services
-  other than Redshift and Snowflake (D184, D185, D186, D188, D194).
-- Redshift's Spectrum tables cannot be measured, because the namespace has no
-  IAM role.
+  other than Redshift, Snowflake, Spanner, BigQuery, Athena and Databricks (D184,
+  D185, D186, D188, D194, D218, D222, D224).
+- Redshift reads the Spectrum external tables (D221), measured on 1.0.477953
+  with the default IAM role that dbsetup made. Tables and Columns have the new
+  branch, the fixture makes the external schema, and conformance and parity
+  did not change. The Glue table now lives in the Glue database
+  `dbmeta_spectrum`, apart from the Athena fixture, and the fixture reads it.
+- BigQuery reads Schemas, CurrentSchema and Privileges (D226), 18 of the 65, after
+  dbsetup gave both principals the metadata viewer role on the project. The
+  dataset is the one the tables of the connection name, the options are the new
+  field `Schema.Options`, and Privileges lists the IAM bindings of the dataset.
+  Conformance and parity did not change. The row access and data policy views do
+  not exist.
 - The describe commands of usql are at the level of psql 18 for PostgreSQL. The
   next work is what usql finds against the new releases, and the other
   databases, one at a time, which usql said will follow.
@@ -130,7 +174,6 @@ In progress:
 
 ## Waiting
 
-- Redshift Spectrum waits for an IAM role on the namespace, which Ken owns.
 - usql sends what it finds against the new fields, and the next database to
   bring to psql's level.
 - The arrow-go handshake that GizmoSQL needs is fixed upstream, and until then

@@ -1,6 +1,6 @@
 # D212. Firebird and MariaDB enforce every constraint, ArangoDB counts, and Redshift reads SVV_TABLE_INFO
 
-Status: Amends D205, D207, D209 and D210.
+Status: Amends D205, D207, D209 and D210, amended by D221.
 
 ## The decision
 
