@@ -213,6 +213,7 @@ func TestArangoDBFixtureObjects(t *testing.T) {
 	// Every collection is a table of the type collection, the edge
 	// collection wrote too, and the view recent is not a table.
 	tables := map[string]string{}
+	rowCounts := map[string]sql.Null[int64]{}
 	for v, err := range dbmeta.Tables.All(ctx, m, db, nil) {
 		if err != nil {
 			t.Fatalf("reading tables: %v", err)
@@ -221,6 +222,14 @@ func TestArangoDBFixtureObjects(t *testing.T) {
 			t.Errorf("table %s: catalog %q and schema %q, want none and %q", v.Name, v.Catalog, v.Schema, fx.Schema)
 		}
 		tables[v.Name] = v.Type
+		rowCounts[v.Name] = v.Rows
+	}
+	// Rows is the exact count of documents, as a typed value (D212). The
+	// fixture holds one author and one book and nothing else.
+	for name, want := range map[string]int64{"author": 1, "book": 1, "region": 0, "note": 0, "loose": 0, "wrote": 0} {
+		if got := rowCounts[name]; !got.Valid || got.V != want {
+			t.Errorf("%s: rows is %+v, want %d", name, got, want)
+		}
 	}
 	for _, name := range []string{"author", "book", "region", "shipment", "note", "loose", "wrote"} {
 		if tables[name] != "collection" {

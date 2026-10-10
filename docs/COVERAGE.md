@@ -191,7 +191,7 @@ statement already reads, so the cost is the cost of the row.
 | `Index.Predicate`, `Owner`, `Persistence`, `Options`, `Definition` | | | none. `SHOW CREATE TABLE` is a statement of its own |
 | `Column.Compression` | `zlib` for a column made `COMPRESSED`, from 10.3, read from the comment `COLUMN_TYPE` carries | | MySQL compresses a page or a table, which `Table.Options` shows, and never a column |
 | `Column.Storage`, `StatsTarget` | | | none |
-| `Constraint.Enforced` | | `TABLE_CONSTRAINTS.ENFORCED` from 8.0.16 | MariaDB has no such column and enforces every constraint it records. NULL says the model does not read it |
+| `Constraint.Enforced` | true. There is no `ENFORCED` column, and MariaDB checks every constraint it records, so the value is a fact of the product (D212) | `TABLE_CONSTRAINTS.ENFORCED` from 8.0.16, NULL below | TiDB, SingleStore and Vitess are as before |
 | `Function.Prosrc` | the body, which is `Source` | the same | |
 | `Partitions` | new. One row for each partition and each subpartition, from `PARTITIONS`. `Bound` is `PARTITION_DESCRIPTION`: the upper limit of a range, the values of a list, NULL for hash and key | the same | `Constraint` is NULL, because a partition has no constraint text |
 | `PartitionedTables.DirectSize`, `TotalSize` | `SUM(DATA_LENGTH + INDEX_LENGTH)` of the partitions. They are equal, because a partition holds its subpartitions | the same | |
@@ -206,7 +206,7 @@ run confirmed it. I ran both leads as a user with `SELECT` on one schema, and
 both views answered `Access denied; you need the PROCESS privilege`, so the
 two fields stay NULL. `TABLE_ROWS`, `DATA_LENGTH` and `INDEX_LENGTH` of a
 view are NULL on MariaDB and MySQL, and `Table.Size` and `Rows` keep that.
-`ENFORCED` is not a column of `TABLE_CONSTRAINTS` on MariaDB 10.6 to 12.3.
+`ENFORCED` is not a column of `TABLE_CONSTRAINTS` on MariaDB 10.6 to 13.0, and D212 fills it with true.
 
 ### What it answers with an analogue
 
@@ -280,6 +280,9 @@ a user. It has caught three faults so far, the most recent in CI: the
 comparison keyed a row by its name and ordinal without the routine it belongs
 to, so two routines' return values, both reported with no name at ordinal zero,
 looked like one row whose name kept changing.
+
+`COLLECTION_COUNT` on 1500 collections took 10.6 to 12.0 ms against 1.9 to
+2.1 ms for the list alone, and 0.85 ms for one collection by name (D212).
 
 ### What it cannot answer, and why
 
@@ -1290,7 +1293,7 @@ returns the same columns on every release.
 | `Index.Deferrable`, `InitiallyDeferred` | from the constraint that owns the index, which is always false. NULL for an index no constraint owns |
 | `Index.ConstraintType` | p, u or f from the owning constraint. A Firebird foreign key has an index of its own, so f is an addition to PostgreSQL's p, u and x |
 | `Column.Storage`, `Compression`, `StatsTarget` | NULL. Firebird records no such choice |
-| `Constraint.Enforced` | NULL. Firebird cannot disable a constraint, so every one is enforced, but no catalog column says so. D207 left that open |
+| `Constraint.Enforced` | true. Firebird cannot disable a constraint, so every one is enforced, though no catalog column says so (D212) |
 | `Function.Prosrc` | the same text as `Source`, from `RDB$FUNCTION_SOURCE` and `RDB$PROCEDURE_SOURCE` |
 | `NotNulls` | new. `RDB$RELATION_CONSTRAINTS` of the type NOT NULL, with the column from `RDB$CHECK_CONSTRAINTS` |
 | `Partitions`, `Policies`, `Inherits` | Firebird has none of the three |
@@ -4122,11 +4125,11 @@ PostgreSQL filled. D207 measured each one on Snowflake 10.36.101 and Redshift
 
 | Field | Snowflake | Redshift |
 | --- | --- | --- |
-| `Table.Owner` | `TABLE_OWNER` | `pg_get_userbyid(relowner)` |
+| `Table.Owner` | `TABLE_OWNER` | `usename` of a join to `pg_user`, because `pg_get_userbyid` is refused beside SVV_TABLE_INFO (D212) |
 | `Table.Persistence` | `temporary` from `IS_TEMPORARY`, `transient` from `IS_TRANSIENT` and `permanent`. NULL for a view | `temporary` for a table in a `pg_temp` schema, and `permanent`. Redshift has no unlogged table |
-| `Table.Size` | `BYTES`, the active data. Time travel and fail safe data are not in it, so it is a bound | NULL. SVV_TABLE_INFO has it in blocks of 1 MB, and it refuses every user who is not a superuser, so a join to it makes `tables` fail for them |
-| `Table.Rows` | `ROW_COUNT`, kept and not estimated | NULL, for the same reason. `pg_class.reltuples` holds 0.001 for a table of 3 rows |
-| `Table.Options` | `retention_time` in days, and `cluster_by` when a clustering key is set | NULL. The distribution style and the sort key are in SVV_TABLE_INFO |
+| `Table.Size` | `BYTES`, the active data. Time travel and fail safe data are not in it, so it is a bound | `size` of SVV_TABLE_INFO times 1048576, a bound because the view counts blocks of 1 MB. NULL for a view and for an empty table (D212) |
+| `Table.Rows` | `ROW_COUNT`, kept and not estimated | `tbl_rows` of SVV_TABLE_INFO, which counts rows marked for deletion until a vacuum. NULL for a view and for an empty table (D212) |
+| `Table.Options` | `retention_time` in days, and `cluster_by` when a clustering key is set | `diststyle` and `sortkey1` of SVV_TABLE_INFO, as `diststyle=KEY(event_id), sortkey=happened`. NULL for a view and for an empty table (D212) |
 | `Column.Compression` | NULL. Snowflake compresses by itself and records no choice | the encoding from `pg_attribute.attencodingtype`, named by the numbers that `pg_table_def` shows: 0 raw, 1 bytedict, 2 delta, 3 lzo, 4 runlength, 5 delta32k, 7 text255, 15 mostly8, 16 mostly16, 17 mostly32, 18 text32k, 19 zstd and 20 az64. A number that was not measured is returned as the number |
 | `Column.Storage`, `StatsTarget` | NULL | NULL. `attstorage` is there with the value PostgreSQL 8.0 gives, and Redshift has no TOAST, so it says nothing. `attstattarget` is -1 for every column |
 | `Function.Prosrc` | `function_definition` and `procedure_definition`, the same text as `source` | `prosrc`, the same text as `source` |
@@ -4136,17 +4139,23 @@ PostgreSQL filled. D207 measured each one on Snowflake 10.36.101 and Redshift
 | Index fields | Snowflake has no index outside a hybrid table, and that is not read | Redshift has no index |
 | `Partitions`, `Policies`, `NotNulls`, `Inherits` | none of the four | none of the four |
 
-The first version of the Redshift statement joined SVV_TABLE_INFO, and three
-things came out of it. Redshift refused the leader node functions
-`pg_get_userbyid` and `obj_description` beside it. A `LIKE` with no wildcard on
-a `name` column matched no row beside it: `LIKE 's5'` found nothing, and `=
-'s5'` and `LIKE 's5%'` found the table. The name column also came back padded
-with spaces, which broke every lookup by name, and the conformance test said
-so. The last one decided it. The owner, the grantee and the stranger of the
-parity test were refused with "permission denied for relation
-svv_table_info", so `tables` failed for every user but the
-administrator. The join was taken out, and `Size`, `Rows` and `Options` stay
-NULL on Redshift.
+D207 first left SVV_TABLE_INFO out, for three defects and one refusal. D212
+reads it, after Ken decided that the administrator grants SELECT on it. The
+grant works on Redshift Serverless 1.0.477953. The statement reads the view as
+a derived table joined by table id. It replaces `pg_get_userbyid` and
+`obj_description` with joins, because Redshift refuses the two beside the view.
+It trims the padded names, so that `LIKE 's5'` with no wildcard matches. It
+compares the boolean parameter as `@with_system = TRUE`, and it has no cast of
+`relkind`, because Redshift refuses each of those beside the view too. The view
+lists a table only when it holds a row, so an empty table has NULL for the
+three fields.
+
+The cost of that decision is a whole kind. A user without SELECT on
+SVV_TABLE_INFO gets the error "permission denied for relation svv_table_info"
+from `tables`, and not NULL fields. A consumer must grant `SELECT ON
+svv_table_info` to every user, group or role that reads tables. The read also
+costs about 0.5 s more than before, whatever the number of rows returned: 0.27
+s without the view and 0.77 s with it, for six tables and for one.
 
 The NULL hazards of D197: Snowflake has no INCLUDE column, no default
 privilege and no role setting that the model reads. Redshift has default
@@ -4793,6 +4802,9 @@ current user.
 A collection is a table, of the type `collection`. `COLLECTIONS()` has no
 type, so it does not say whether a collection holds documents or edges.
 `with_system` adds the collections whose names start with `_`.
+`Table.Rows` is the exact count of documents, from `COLLECTION_COUNT(name)` in
+the same statement that lists the collections (D212). A cluster counts with a
+round trip for each shard, and no cluster was measured.
 
 A document has no fixed shape, and ArangoDB keeps no catalog of the
 attributes of a collection's documents. Ken chose on 2026-10-01 that D47's

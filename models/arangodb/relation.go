@@ -54,7 +54,9 @@ func registerRelations() {
 
 	// \dt. COLLECTIONS() names every collection of the database, the
 	// system ones among them, and nothing else: it has no type, and no
-	// view, because an ArangoSearch view is not a collection.
+	// view, because an ArangoSearch view is not a collection. COLLECTION_COUNT
+	// adds the exact count of documents in the same statement. It cost 4 ms
+	// more than the list for 1509 collections on one server (D210, D212).
 	dbmeta.Tables.Register(dbmeta.ArangoDB, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
 			always(`FOR c IN COLLECTIONS()`),
@@ -63,7 +65,7 @@ func registerRelations() {
 			always(`FILTER ` + like(`c.name`, `@name`)),
 			always(`FILTER (@types == '' OR 'collection' IN SPLIT(@types, ','))`),
 			always(`SORT c.name`),
-			always(`RETURN {catalog: '', schema: CURRENT_DATABASE(), name: c.name, type: 'collection', comment: null}`),
+			always(`RETURN {catalog: '', schema: CURRENT_DATABASE(), name: c.name, type: 'collection', comment: null, rows: COLLECTION_COUNT(c.name)}`),
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog", Desc: catalogDesc},
@@ -75,6 +77,7 @@ func registerRelations() {
 					" collection holds documents or edges, and AQL has no view",
 			},
 			{Name: "comment", Desc: "always absent: a collection carries no comment"},
+			{Name: "rows", Desc: "the exact number of documents, from COLLECTION_COUNT. A cluster counts with a round trip for each shard, which was not measured (D212)"},
 		},
 		Params: []dbmeta.Param{
 			schemaParam,
@@ -84,7 +87,7 @@ func registerRelations() {
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Rows)
 			return v, err
 		},
 	})

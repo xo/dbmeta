@@ -42,9 +42,7 @@ var productSpecific = map[string][]string{
 	"columns": {"data_type", "default", "collation"},
 	// MariaDB records the check clause as written. MySQL rewrites it with the
 	// character set introducer, so `title` <> '' becomes (`title` <> _utf8mb4'').
-	// MySQL reads ENFORCED from 8.0.16, and MariaDB has no such column, so it
-	// reads NULL (D205).
-	"constraints": {"definition", "enforced"},
+	"constraints": {"definition"},
 	// The row count is an estimate, and each engine makes its own: InnoDB
 	// samples pages, and a server counts differently after a restart. The
 	// create options are spelled their own way, so MariaDB reads

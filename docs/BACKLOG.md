@@ -99,16 +99,14 @@ refuses masking policies, row access policies and materialized views. A run on
 an Enterprise account with a hybrid table and a row access policy finishes
 them.
 
-### Settle the size and the rows of Redshift, CrateDB and QuestDB
+### Settle the size and the rows of CrateDB and QuestDB
 
 D207 measured it. The sources for the size and the row count of a CrateDB table
 (`sys.shards`, and `pg_class.reltuples`) and of a QuestDB table
 (`table_storage()`) cost a scan of the whole catalog for each read.
 `Table.Size` and `Table.Rows` are left NULL for CrateDB, and `Table.Size` for
 QuestDB. If either product makes the join follow the filter, the fields can be
-added. On Redshift the source is SVV_TABLE_INFO, which refuses every user who
-is not a superuser, so `Table.Size`, `Table.Rows` and `Table.Options` are NULL.
-Ken decides whether a model can read it for the administrator only.
+added. Redshift is done (D212).
 
 ### Read the settings of a CrateDB user
 
@@ -239,12 +237,6 @@ release can add one.
 The settings of a MergeTree table, such as `index_granularity`, are in
 `engine_full` as text after SETTINGS. A statement cannot split them, so
 `Table.Options` has the clauses that have a column of their own.
-### Decide whether ArangoDB reports a row count
-`COLLECTION_COUNT(name)` in AQL returns the exact documents of a collection,
-and costs 3.6 ms to 11.6 ms for 1509 collections on one server (D210). A
-cluster counts with a round trip for each shard, and no cluster was measured.
-Measure one before the field is added, or ask Ken whether a single server is
-enough.
 ### SAP HANA size and row count
 `Table.Size`, `Table.Rows` and `Index.Size` are NULL on SAP HANA (D209). The
 sources are `SYS.M_TABLES`, `SYS.M_RS_INDEXES` and `SYS.M_CS_INDEXES`, and any
@@ -259,8 +251,3 @@ tables for one table, and 41 ms with the fixture only (D209). An inner join
 costs 10 ms and can drop a table that a user sees in `EXA_ALL_TABLES` and not
 in `EXA_ALL_OBJECT_SIZES`. Run the parity targets with an inner join, and keep
 it if the rows do not change.
-### Firebird Constraint.Enforced
-A Firebird constraint cannot be disabled, so every one is enforced, and no
-catalog column says so. D209 leaves `Constraint.Enforced` NULL, as D207 did for
-CrateDB and Redshift. If Ken decides that a fact of the product is enough, fill
-true for every Firebird constraint, and say so in D209.

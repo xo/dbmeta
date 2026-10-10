@@ -1,6 +1,6 @@
 # D205. The MySQL family fills the new fields of D198 to D203
 
-Status: Decided.
+Status: Decided, amended by D212.
 
 ## The decision
 

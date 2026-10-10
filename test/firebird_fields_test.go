@@ -75,8 +75,8 @@ func TestFirebirdDescribeFields(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reading constraints: %v", err)
 		}
-		if v.Enforced.Valid {
-			t.Errorf("%s: expected enforced to be absent, got %+v", v.Name, v.Enforced)
+		if !v.Enforced.Valid || !v.Enforced.V {
+			t.Errorf("%s: expected enforced to be true, got %+v", v.Name, v.Enforced)
 		}
 		constraints++
 	}

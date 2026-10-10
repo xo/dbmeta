@@ -1,6 +1,6 @@
 # D207. Snowflake, Redshift, CrateDB and QuestDB fill the describe fields they have a source for
 
-Status: Decided.
+Status: Decided, amended by D212.
 
 ## The decision
 

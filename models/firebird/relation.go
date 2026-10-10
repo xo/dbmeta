@@ -432,7 +432,10 @@ func registerConstraints() {
 			always(`, rc.RDB$DEFERRABLE = 'YES' AS "deferrable"`),
 			always(`, rc.RDB$INITIALLY_DEFERRED = 'YES' AS "deferred"`),
 			always(`, CAST(NULL AS VARCHAR(1)) AS "comment"`),
-			always(`, CAST(NULL AS BOOLEAN) AS "enforced"`),
+			// Firebird cannot disable a constraint it records, so every one
+			// is enforced. No catalog column says so, and the value is a
+			// genuine true of the product, not an unknown one. See D212.
+			always(`, TRUE AS "enforced"`),
 			always(`FROM RDB$RELATION_CONSTRAINTS rc`),
 			always(`JOIN RDB$RELATIONS r ON r.RDB$RELATION_NAME = rc.RDB$RELATION_NAME`),
 			always(`WHERE ` + userObject(`r.RDB$SYSTEM_FLAG`)),
@@ -449,7 +452,7 @@ func registerConstraints() {
 			{Name: "deferrable", Desc: "always false: Firebird accepts the word and defers nothing"},
 			{Name: "deferred", Desc: "always false, for the same reason"},
 			{Name: "comment", Desc: "always absent: COMMENT ON has no constraint form"},
-			{Name: "enforced", Desc: "always absent: Firebird cannot disable a constraint, so every one is enforced, but no catalog column says so (D209)"},
+			{Name: "enforced", Desc: "always true: Firebird cannot disable a constraint, so every one is enforced, though no catalog column says so (D212)"},
 		},
 		Params: parentAndName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {

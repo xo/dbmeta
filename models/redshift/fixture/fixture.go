@@ -113,6 +113,13 @@ var Everything = Fixture{
 	happened TIMESTAMP ENCODE raw,
 	kind VARCHAR(16) ENCODE lzo
 ) DISTSTYLE KEY DISTKEY (event_id) SORTKEY (happened)`),
+		// SVV_TABLE_INFO lists a table only when it holds a row, so two tables
+		// get one. The size, the rows and the options of the rest are NULL
+		// (D212). SELECT on the view is not granted here, because a fixture
+		// does not change who can read a system view. The test principals
+		// are granted it where they are made.
+		at("author row", `INSERT INTO dbmeta_fixture.author (name) VALUES ('Ursula')`),
+		at("events row", `INSERT INTO dbmeta_fixture.events VALUES (1, '2026-01-01 00:00:00', 'created')`),
 		at("function", `CREATE FUNCTION dbmeta_fixture.f_shout(VARCHAR) RETURNS VARCHAR`+
 			` STABLE AS $$ SELECT UPPER($1) $$ LANGUAGE sql`),
 		at("role", `CREATE ROLE dbmeta_fixture_role`),

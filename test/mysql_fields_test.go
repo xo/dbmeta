@@ -106,6 +106,8 @@ func checkIndexUsing(t *testing.T, db *sql.DB, m *dbmeta.Meta, schema string, wa
 	}
 }
 
+// checkEnforced reads every constraint of the schema. MariaDB and MySQL from
+// 8.0.16 answer true, and MySQL below that answers NULL (D205, D212).
 func checkEnforced(t *testing.T, db *sql.DB, m *dbmeta.Meta, schema string, absent bool) {
 	t.Helper()
 	var n int
@@ -223,7 +225,7 @@ func TestMySQLIndexUsing(t *testing.T) {
 func TestMySQLConstraintEnforced(t *testing.T) {
 	db := openMySQL(t)
 	m := setupMySQL(t, db)
-	checkEnforced(t, db, m, myfixture.Everything.Schema, mysql.IsMariaDB(m.Version()))
+	checkEnforced(t, db, m, myfixture.Everything.Schema, !mysql.IsMariaDB(m.Version()) && m.Version().Get(mysql.MySQL).Compare(dbmeta.V(8, 0, 16)) < 0)
 }
 
 // TestMySQLCompressedColumn reads the compression of a column.

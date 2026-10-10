@@ -16,7 +16,19 @@ func like(col, param string) string {
 
 // notSystem hides the schemas Redshift keeps for itself.
 func notSystem(col string) string {
-	return `(@with_system OR (` + col + ` NOT IN ('pg_catalog', 'information_schema',` +
+	return systemFilter(`@with_system`, col)
+}
+
+// notSystemBeside is notSystem for a statement that reads SVV_TABLE_INFO.
+// Redshift refuses a bare boolean parameter beside it, which is the error
+// "Specified types or functions are not supported on Redshift tables", and
+// accepts the same parameter in a comparison (D212).
+func notSystemBeside(col string) string {
+	return systemFilter(`@with_system = TRUE`, col)
+}
+
+func systemFilter(with, col string) string {
+	return `(` + with + ` OR (` + col + ` NOT IN ('pg_catalog', 'information_schema',` +
 		` 'pg_internal', 'catalog_history', 'pg_automv', 'pg_toast',` +
 		` 'pg_auto_copy', 'pg_mv', 'pg_s3')` +
 		` AND ` + col + ` NOT LIKE 'pg_temp_%'))`
@@ -35,6 +47,19 @@ func childParams(kind string) []dbmeta.Param {
 		{Name: "parent", Desc: "table name pattern, empty for every table", Default: ""},
 	}, schemaNameSystem(kind)...)
 }
+
+// nspname and relname are the names of a schema and a relation as text, with
+// the padding removed that Redshift adds when SVV_TABLE_INFO is in the statement.
+const (
+	nspname = `TRIM(TRAILING FROM n.nspname)`
+	relname = `TRIM(TRAILING FROM c.relname)`
+)
+
+// tableType is relationType for the Tables statement, which keeps only tables
+// and views. A cast of relkind to text is refused beside SVV_TABLE_INFO, which
+// reads the compute nodes, so there is no ELSE branch. The WHERE clause leaves
+// no other kind to reach it.
+const tableType = `CASE c.relkind WHEN 'r' THEN 'table' WHEN 'v' THEN 'view' END`
 
 // relationType is the word for a relation's kind, from pg_class.relkind.
 const relationType = `CASE c.relkind WHEN 'r' THEN 'table' WHEN 'v' THEN 'view'` +
@@ -116,21 +141,51 @@ func register() {
 		},
 	})
 
+	// Tables reads SVV_TABLE_INFO for the size, the rows and the options, and
+	// the view is the cost of that (D212). Redshift refuses it to every user
+	// who is not a superuser until the administrator grants SELECT on it, and a
+	// user without the grant gets an error from this whole kind and not a NULL.
+	// SVV_TABLE_INFO runs on the compute nodes, which changes four things in
+	// the statement, each measured on Redshift Serverless 1.0.477953:
+	//
+	//   - The leader node functions pg_get_userbyid and obj_description are
+	//     refused beside it, so the owner is a join to pg_user and the comment
+	//     is a join to pg_description. 1259 is the oid of pg_class.
+	//   - A name read beside it comes back padded to its type, char(128), and a
+	//     LIKE with no wildcard then matches nothing. TRIM removes the padding
+	//     before the filter reads it and before the row is returned.
+	//   - CAST(c.relkind AS text) is refused beside it, so the type has no ELSE
+	//     branch. See tableType. A boolean parameter on its own is refused too,
+	//     so the system filter compares it. See notSystemBeside.
+	//   - The view lists a table only when it holds a row. An empty table has
+	//     no row in it, so its size, rows and options are NULL: they are
+	//     unknown and not zero.
+	//
+	// The join is by table id, on a derived table, so the filter on the name
+	// still narrows the read of pg_class.
 	dbmeta.Tables.Register(dbmeta.Redshift, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT current_database() AS "catalog"`),
-			always(`, n.nspname AS "schema"`),
-			always(`, c.relname AS "name"`),
-			always(`, ` + relationType + ` AS "type"`),
-			always(`, obj_description(c.oid, 'pg_class') AS "comment"`),
-			always(`, pg_get_userbyid(c.relowner) AS "owner"`),
+			always(`, ` + nspname + ` AS "schema"`),
+			always(`, ` + relname + ` AS "name"`),
+			always(`, ` + tableType + ` AS "type"`),
+			always(`, d.description AS "comment"`),
+			always(`, TRIM(TRAILING FROM u.usename) AS "owner"`),
 			always(`, CASE WHEN n.nspname LIKE 'pg_temp_%' THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
+			always(`, CAST(i."size" AS BIGINT) * 1048576 AS "size"`),
+			always(`, CAST(i."tbl_rows" AS BIGINT) AS "rows"`),
+			always(`, CASE WHEN i."diststyle" IS NULL THEN NULL ELSE 'diststyle=' || TRIM(i."diststyle")` +
+				` || CASE WHEN i."sortkey1" IS NULL THEN '' ELSE ', sortkey=' || TRIM(i."sortkey1") END END AS "options"`),
 			always(`FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace`),
+			always(`LEFT JOIN pg_user u ON u.usesysid = c.relowner`),
+			always(`LEFT JOIN pg_description d ON d.objoid = c.oid AND d.classoid = 1259 AND d.objsubid = 0`),
+			always(`LEFT JOIN (SELECT "table_id", "size", "tbl_rows", "diststyle", "sortkey1"` +
+				` FROM svv_table_info) i ON i."table_id" = c.oid`),
 			always(`WHERE c.relkind IN ('r', 'v')`),
-			always(`AND ` + notSystem("n.nspname")),
-			always(`AND ` + like("n.nspname", "@schema")),
-			always(`AND ` + like("c.relname", "@name")),
-			always(`AND (CAST(@types AS text) = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, relationType) + `)`),
+			always(`AND ` + notSystemBeside("n.nspname")),
+			always(`AND ` + like(nspname, "@schema")),
+			always(`AND ` + like(relname, "@name")),
+			always(`AND (CAST(@types AS text) = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, tableType) + `)`),
 			always(`ORDER BY 2, 3`),
 		},
 		Fields: []dbmeta.Field{
@@ -139,12 +194,15 @@ func register() {
 			{Name: "comment"},
 			{Name: "owner", Desc: "the user that owns the relation, from pg_class"},
 			{Name: "persistence", Desc: "temporary for a table in a pg_temp schema, and permanent for the rest. Redshift has no unlogged table"},
+			{Name: "size", Desc: "a bound in bytes: SVV_TABLE_INFO counts blocks of 1 MB, so this is the blocks times 1048576. Absent for a view and for an empty table, which the view does not list. The user must have SELECT on SVV_TABLE_INFO, or the whole kind fails (D212)"},
+			{Name: "rows", Desc: "tbl_rows of SVV_TABLE_INFO, the rows including those marked for deletion and not yet vacuumed. Absent for a view and for an empty table"},
+			{Name: "options", Desc: "the distribution style and the first sort key, as diststyle=KEY(event_id), sortkey=happened. The sort key part is absent when the table has none. Absent for a view and for an empty table"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
-				&v.Owner, &v.Persistence)
+				&v.Owner, &v.Persistence, &v.Size, &v.Rows, &v.Options)
 			return v, err
 		},
 	})

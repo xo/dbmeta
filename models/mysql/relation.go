@@ -288,10 +288,13 @@ func registerRelations() {
 			{{Query: `, FALSE AS "deferred"`}},
 			{{Query: `, NULL AS "comment"`}},
 			// MySQL records whether it checks a constraint from 8.0.16, in
-			// TABLE_CONSTRAINTS. MariaDB has no such column, so it stays
-			// absent there. See D205.
+			// TABLE_CONSTRAINTS. Below that it stays absent. MariaDB has no
+			// such column and cannot disable a constraint it records, so
+			// every one is enforced and the value is a genuine true, not an
+			// unknown one. See D205 and D212.
 			{
 				{Query: `, NULL AS "enforced"`},
+				frag(onMaria, `, TRUE AS "enforced"`),
 				frag(mysqlCheck, `, t.enforced = 'YES' AS "enforced"`),
 			},
 			{{Query: `FROM information_schema.TABLE_CONSTRAINTS t`}},
@@ -318,8 +321,9 @@ func registerRelations() {
 			{Name: "deferred", Desc: "always false: MariaDB has no deferred constraints"},
 			{Name: "comment"},
 			{
-				Name: "enforced", Desc: "whether the server checks the constraint, from MySQL 8.0.16 and never on MariaDB",
-				Min: mysqlCheck.Min, Key: mysqlCheck.Key,
+				Name: "enforced", Desc: "whether the server checks the constraint. MySQL reads it from 8.0.16. MariaDB has no column and enforces every constraint it records, so it is always true there (D212)",
+				Key:  onMaria.Key,
+				Also: []dbmeta.Gate{mysqlCheck},
 			},
 		},
 		Params: schemaParentName("constraint"),

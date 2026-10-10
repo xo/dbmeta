@@ -142,6 +142,22 @@ func TestRedshiftTableFields(t *testing.T) {
 		t.Errorf("recent: expected an owner and no size, rows or options, got %+v", recent)
 	}
 
+	// SVV_TABLE_INFO lists a table only when it holds a row, and the fixture
+	// gives two of them one (D212). The size is the blocks of 1 MB, so it is a
+	// multiple of 1048576.
+	events := tables["events"]
+	if !events.Size.Valid || events.Size.V <= 0 || events.Size.V%1048576 != 0 ||
+		!events.Rows.Valid || events.Rows.V != 1 ||
+		events.Options.V != "diststyle=KEY(event_id), sortkey=happened" {
+		t.Errorf("events: expected a size in blocks, one row and the options, got %+v", events)
+	}
+	if author.Size.V <= 0 || author.Rows.V != 1 || !strings.HasPrefix(author.Options.V, "diststyle=") {
+		t.Errorf("author: expected a size, one row and the options, got %+v", author)
+	}
+	if book := tables["book"]; book.Size.Valid || book.Rows.Valid || book.Options.Valid {
+		t.Errorf("book: an empty table is not in SVV_TABLE_INFO, so expected no size, rows or options, got %+v", book)
+	}
+
 	encodings := map[string]string{}
 	for v, err := range dbmeta.Columns.All(ctx, m, db, dbmeta.Args{Schema: rsfixture.Everything.Schema, Parent: "events"}.Map()) {
 		if err != nil {
