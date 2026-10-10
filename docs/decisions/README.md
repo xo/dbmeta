@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-78 of them amend or replace an earlier one, and a decision read without its
+79 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -231,4 +231,5 @@ file.
 | [D210](D210-the-products-without-a-relational-catalog-fill-the-describe-fields-they-have-a-source-for.md) | The products without a relational catalog fill the describe fields they have a source for | Decided, amended by D212 |
 | [D211](D211-policy-has-an-enabled-field-that-sql-server-oracle-and-vertica-fill.md) | Policy has an Enabled field that SQL Server, Oracle and Vertica fill | Amends D206 |
 | [D212](D212-firebird-and-mariadb-enforce-every-constraint-arangodb-counts-and-redshift-reads-svv-table-info.md) | Firebird and MariaDB enforce every constraint, ArangoDB counts, and Redshift reads SVV_TABLE_INFO | Amends D205, D207, D209 and D210 |
-| [D213](D213-snowflake-tests-and-dbrun-use-the-driver-of-dbimp.md) | Snowflake tests and dbrun use the driver of dbimp | Amends D190, D193 and D203 |
+| [D213](D213-snowflake-tests-and-dbrun-use-the-driver-of-dbimp.md) | Snowflake tests and dbrun use the driver of dbimp | Amends D190, D193 and D203, amended by D214 |
+| [D214](D214-the-piped-snowflake-statement-reads-booleans-since-dbimp-v0-16-1.md) | The piped Snowflake statement reads booleans since dbimp v0.16.1 | Amends D213 |

@@ -1,6 +1,6 @@
 # D213. Snowflake tests and dbrun use the driver of dbimp
 
-Status: Amends D190, D193 and D203.
+Status: Amends D190, D193 and D203, amended by D214.
 
 ## The decision
 

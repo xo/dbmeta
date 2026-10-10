@@ -18,7 +18,7 @@ require (
 	github.com/sijms/go-ora/v3 v3.0.2-0.20260914154503-360b4b7ac9e9
 	github.com/vertica/vertica-sql-go v1.3.8
 	github.com/xo/cassandra v0.1.0
-	github.com/xo/dbimp v0.16.0
+	github.com/xo/dbimp v0.16.1
 	github.com/xo/dbmeta v0.0.0
 	github.com/xo/dburl v0.49.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.152.0
