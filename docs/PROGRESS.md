@@ -7,29 +7,32 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has twelve tagged releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
+dbmeta has fourteen tagged releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
 on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928, v0.5.0 on
 8f3115b, v0.6.0 on 90d0261 and v0.7.0 on abe2ca1 on 2026-10-08, and v0.8.0 on
 cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 on
-3df0d73 and v0.12.0 on 029c5ef on 2026-10-10. The Tested
+3df0d73, v0.12.0 on 029c5ef and v0.13.0 on 54f7dec on 2026-10-10, and v0.14.0 on
+31b24d1 on 2026-10-11. The Tested
 tier passed in CI on each tagged commit. Ken chose that CI stands in for a run
 of every tier, and the Verified tier was not run again for any of them.
 
 v0.13.0 is the release that carries the hosted services with models: Spanner
 (D216, D217, D219), BigQuery (D220, D226), Athena (D222) and Databricks
 (D224), and the Spectrum external tables of Redshift (D221). Together with
-Redshift and Snowflake, six hosted services have a model, and 45 native models
+Redshift and Snowflake, seven hosted services have a model, and 46 native models
 exist. It also carries the move of the Snowflake tests to the driver of dbimp
 (D213, D214), the key files that `dbrun` names for the hosted services (D218),
 the BigQuery emulator list of 0.8.1 alone and the Cosmos DB URL form (D225).
-Cosmos DB got its model after v0.13.0 (D228). The new
+Cosmos DB got its model in v0.14.0 (D228). The new
 hosted models are Verified, and the Spanner Omni release is Tested. Each hosted
 model was measured on its service when it was written.
 
 D230 moved the common facts of the usql drivers here: `Dialect.Placeholder`,
 `Product`, `EveryStatementIsAQuery`, `WritesNeedAutocommit` and `ScanTypes`, with
 a table for DynamoDB, Pinot and csvq, which have no model. The Pinot dialect is
-new. The DSN keys went to dburl. It is staged and not committed.
+new. The DSN keys went to dburl. They are in v0.14.0, with the model of Cosmos DB, the
+move of the hosted tests to the drivers of dbimp (D229) and the Spanner tests on the
+driver of dbimp, with a binary of its own for Spanner Omni (D231).
 
 v0.12.0 holds the four decisions of 2026-10-10 (D212): `Constraint.Enforced` is
 true for Firebird and MariaDB, ArangoDB counts the rows of a collection, and
