@@ -7,14 +7,19 @@ in [`decisions/`](decisions/README.md).
 
 ## Where the work stands
 
-dbmeta has fourteen tagged releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
+dbmeta has fifteen tagged releases. v0.1.0 was tagged on dd70b7a on 2026-10-02, v0.2.0
 on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928, v0.5.0 on
 8f3115b, v0.6.0 on 90d0261 and v0.7.0 on abe2ca1 on 2026-10-08, and v0.8.0 on
 cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 on
 3df0d73, v0.12.0 on 029c5ef and v0.13.0 on 54f7dec on 2026-10-10, and v0.14.0 on
-31b24d1 on 2026-10-11. The Tested
+31b24d1 and v0.15.0 on a58e5c0 on 2026-10-11. The Tested
 tier passed in CI on each tagged commit. Ken chose that CI stands in for a run
 of every tier, and the Verified tier was not run again for any of them.
+
+v0.15.0 is the release that carries the opt in for the table size and rows of Redshift
+(D232, `Args.WithTableInfo`), the completion of the Cosmos DB model to 15 kinds (D233) and
+the Exasol tests on the driver of dbimp (D234). The Tested tier passed in CI on a58e5c0.
+The dependencies of the test module were bumped after the tag, in a6300d0.
 
 v0.13.0 is the release that carries the hosted services with models: Spanner
 (D216, D217, D219), BigQuery (D220, D226), Athena (D222) and Databricks
