@@ -628,7 +628,7 @@ func makeExasolOwner(t *testing.T, db *sql.DB, dsn, schema string) string {
 	})
 	exec(t, db, `GRANT CREATE SESSION TO dbmeta_owner`)
 	exec(t, db, `ALTER SCHEMA `+schema+` CHANGE OWNER dbmeta_owner`)
-	return exasolUser(t, dsn, "dbmeta_owner", parityPassword)
+	return replaceUser(t, dsn, "dbmeta_owner", parityPassword)
 }
 
 // makeExasolGrantee makes a user that can read the schema and owns nothing.
@@ -639,37 +639,7 @@ func makeExasolGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	t.Cleanup(func() { cleanup(t, db, `DROP USER IF EXISTS dbmeta_grantee CASCADE`) })
 	exec(t, db, `GRANT CREATE SESSION TO dbmeta_grantee`)
 	exec(t, db, `GRANT SELECT ON SCHEMA `+schema+` TO dbmeta_grantee`)
-	return exasolUser(t, dsn, "dbmeta_grantee", parityPassword)
-}
-
-// exasolUser rewrites the user and password of an Exasol DSN, which is not a
-// URL but exa:host:port followed by key=value pairs separated by semicolons.
-//
-// The password goes last. The driver reads a backslash before a semicolon as
-// an escaped separator, so a password ending in a backslash swallows the
-// semicolon after it. At the end there is none. A password containing a
-// semicolon is not written here at all: that is the driver's escaping, and
-// test/password_test.go leaves that case out.
-func exasolUser(t *testing.T, dsn, user, password string) string {
-	t.Helper()
-	var kept []string
-	var found int
-	for p := range strings.SplitSeq(dsn, ";") {
-		key, _, ok := strings.Cut(p, "=")
-		switch {
-		case ok && strings.EqualFold(key, "user"):
-			kept = append(kept, "user="+user)
-			found++
-		case ok && strings.EqualFold(key, "password"):
-			found++
-		default:
-			kept = append(kept, p)
-		}
-	}
-	if found != 2 {
-		t.Fatalf("expected a user and a password in %s", dsn)
-	}
-	return strings.Join(append(kept, "password="+password), ";")
+	return replaceUser(t, dsn, "dbmeta_grantee", parityPassword)
 }
 
 // makeVerticaOwner makes a user that owns every object in the fixture

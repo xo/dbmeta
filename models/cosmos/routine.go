@@ -22,22 +22,37 @@ func scriptFields(kind string) []dbmeta.Field {
 }
 
 func registerRoutines() {
-	// \df. A user defined function is a JavaScript function that a query calls
-	// as udf.name. A stored procedure is a script that a request runs, and no
-	// statement here reads it, because the one statement of a kind reads one
-	// reserved name.
+	// \df. One statement reads the stored procedures and the user defined
+	// functions of a container. A user defined function is a JavaScript function
+	// that a query calls as udf.name. A stored procedure is a script that a
+	// request runs, so its kind is procedure, and its source is its body. The
+	// resource id names a routine, because a stored procedure and a function of
+	// one container can have the same id. The etag and the timestamp have no field.
 	dbmeta.Functions.Register(dbmeta.Cosmos, &dbmeta.Binding[dbmeta.Function]{
-		Stmt:   catalog("$functions"),
-		Fields: scriptFields("function"),
+		Stmt: catalog("$routines"),
+		Fields: []dbmeta.Field{
+			field("database", "the database that the URL names. It is the schema"),
+			field("container", "the container that the URL names"),
+			field("kind", "stored_procedure or function"),
+			field("id", "the name of the routine"),
+			field("body", "the JavaScript of the routine"),
+			field("rid", "the resource id of the routine"),
+			field("etag", "the etag of the routine"),
+			field("timestamp", "the time of the last change, in UTC"),
+		},
 		Params: databaseFilters("function"),
 		Keep:   keep(func(v dbmeta.Function) string { return v.Schema }, nil, func(v dbmeta.Function) string { return v.Name }),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			r, err := scanRow(rows)
+			kind := "function"
+			if r.text("kind") == "stored_procedure" {
+				kind = "procedure"
+			}
 			return dbmeta.Function{
 				Schema:   r.text("database"),
 				Name:     r.text("id"),
-				ID:       r.nullText("link"),
-				Kind:     "function",
+				ID:       r.nullText("rid"),
+				Kind:     kind,
 				Language: "javascript",
 				Source:   r.nullText("body"),
 			}, err

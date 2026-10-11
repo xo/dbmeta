@@ -295,8 +295,8 @@ func TestCosmosSmoke(t *testing.T) {
 		}
 		ran++
 	}
-	if ran != 10 {
-		t.Errorf("expected the 10 queries the package comment names to run, %d ran", ran)
+	if ran != 15 {
+		t.Errorf("expected the 15 queries the package comment names to run, %d ran", ran)
 	}
 	t.Logf("%d queries ran, %d not supported", ran, unsupported)
 }
@@ -455,15 +455,28 @@ func TestCosmosRoutines(t *testing.T) {
 	db := openCosmos(t)
 	m := setupCosmos(t, db)
 
-	funcs := cosmosAll(t, dbmeta.Functions, m, db, nil)
-	if len(funcs) != 1 {
-		t.Fatalf("expected 1 function, got %+v", funcs)
+	// One statement reads the user defined functions and the stored procedures,
+	// and the kind says which is which. The stored procedure is a procedure.
+	funcs := map[string]dbmeta.Function{}
+	for _, v := range cosmosAll(t, dbmeta.Functions, m, db, nil) {
+		funcs[v.Name] = v
 	}
-	f := funcs[0]
-	if f.Name != "full_title" || f.Kind != "function" || f.Language != "javascript" || f.Schema != cmfixture.Database ||
-		!strings.Contains(f.Source.V, "return title") || !strings.HasPrefix(f.ID.V, "dbs/") ||
-		f.Definition.Valid || f.Owner.Valid || f.ResultType.Valid {
-		t.Errorf("expected the function full_title, got %+v", f)
+	if len(funcs) != 2 {
+		t.Fatalf("expected 2 routines, got %+v", funcs)
+	}
+	for name, want := range map[string]struct{ kind, source string }{
+		"full_title": {"function", "return title"},
+		"book_count": {"procedure", "setBody(1)"},
+	} {
+		f := funcs[name]
+		if f.Kind != want.kind || f.Language != "javascript" || f.Schema != cmfixture.Database ||
+			!strings.Contains(f.Source.V, want.source) || !f.ID.Valid || f.ID.V == "" ||
+			f.Definition.Valid || f.Owner.Valid || f.ResultType.Valid {
+			t.Errorf("expected the routine %s of the kind %s, got %+v", name, want.kind, f)
+		}
+	}
+	if got := cosmosAll(t, dbmeta.Functions, m, db, dbmeta.Args{Name: "book\\_count"}.Map()); len(got) != 1 || got[0].Kind != "procedure" {
+		t.Errorf("expected the procedure book_count for its name, got %+v", got)
 	}
 	trigs := cosmosAll(t, dbmeta.Triggers, m, db, dbmeta.Args{Parent: "book"}.Map())
 	if len(trigs) != 1 {
@@ -490,7 +503,7 @@ func TestCosmosRoutines(t *testing.T) {
 	// A connection with no container in its path has nothing to read the scripts
 	// of, and the driver refuses the statement before it sends a request.
 	bare := openAt(t, "cosmos", withCosmosContainer(t, os.Getenv("DBMETA_COSMOS"), ""))
-	for _, q := range []dbmeta.AnyQuery{dbmeta.Functions, dbmeta.Triggers} {
+	for _, q := range []dbmeta.AnyQuery{dbmeta.Functions, dbmeta.Triggers, dbmeta.IndexColumns, dbmeta.Constraints, dbmeta.ConstraintColumns, dbmeta.Partitions} {
 		stmt, _, err := q.Build(m, nil)
 		if err != nil {
 			t.Fatalf("%s: building: %v", q.Name(), err)
@@ -575,6 +588,8 @@ func TestCosmosUnanswered(t *testing.T) {
 		"databases": true, "schemas": true, "tables": true, "indexes": true,
 		"partitioned_tables": true, "functions": true, "triggers": true,
 		"roles": true, "privileges": true, "settings": true,
+		"index_columns": true, "constraints": true, "constraint_columns": true,
+		"partitions": true, "current_schema": true,
 	}
 	var unanswered int
 	for _, q := range dbmeta.Queries() {
@@ -589,8 +604,8 @@ func TestCosmosUnanswered(t *testing.T) {
 			t.Errorf("%s: expected it to be unsupported on Cosmos DB", q.Name())
 		}
 	}
-	if unanswered != 55 {
-		t.Errorf("expected 55 kinds that are not answered, got %d", unanswered)
+	if unanswered != 50 {
+		t.Errorf("expected 50 kinds that are not answered, got %d", unanswered)
 	}
 
 	// $account answers one row of ten columns, and no kind has a field for a row
@@ -599,9 +614,162 @@ func TestCosmosUnanswered(t *testing.T) {
 	if err != nil || len(cols) != 10 {
 		t.Errorf("expected $account to answer 10 columns, got %v, %v", cols, err)
 	}
-	// The stored procedures are a statement of their own, which no kind reads.
+	// The statements for the stored procedures and the functions are still there,
+	// and no kind reads them, because $routines holds both.
 	cols, err = cosmosColumns(t, db, `SELECT * FROM "$stored_procedures"`)
 	if err != nil || len(cols) != 6 {
 		t.Errorf("expected $stored_procedures to answer 6 columns, got %v, %v", cols, err)
+	}
+	// The current user has no source. The session says where the connection goes and
+	// holds no user, and the account has two keys and no kind of key to read. So the
+	// columns of $session name no user, and neither does $account.
+	cols, err = cosmosColumns(t, db, `SELECT * FROM "$session"`)
+	if err != nil || len(cols) != 7 {
+		t.Fatalf("expected $session to answer 7 columns, got %v, %v", cols, err)
+	}
+	for _, name := range cols {
+		if strings.Contains(name, "user") || strings.Contains(name, "key_kind") {
+			t.Errorf("expected $session to hold no user, got the column %s", name)
+		}
+	}
+	if dbmeta.CurrentUser.Support(m) != dbmeta.NotSupported {
+		t.Error("expected the current user to be unsupported on Cosmos DB")
+	}
+}
+
+// cosmosAt returns a connection whose URL names container.
+func cosmosAt(t *testing.T, container string) *sql.DB {
+	t.Helper()
+	dsn := os.Getenv("DBMETA_COSMOS")
+	if dsn == "" {
+		t.Skip("set DBMETA_COSMOS to run against the account")
+	}
+	return openAt(t, "cosmos", withCosmosContainer(t, dsn, container))
+}
+
+// TestCosmosIndexColumns reads the paths of the indexing policy of three containers.
+// Each row names the one index of the container, and the expression says which entry
+// of the policy the path is in.
+func TestCosmosIndexColumns(t *testing.T) {
+	m := setupCosmos(t, openCosmos(t))
+
+	paths := func(container string) map[string]dbmeta.IndexColumn {
+		out := map[string]dbmeta.IndexColumn{}
+		for _, v := range cosmosAll(t, dbmeta.IndexColumns, m, cosmosAt(t, container), nil) {
+			if v.Index != "indexing_policy" || v.Schema != cmfixture.Database || v.Table != container || v.Include {
+				t.Errorf("index column %+v: expected the indexing policy of %s", v, container)
+			}
+			out[v.Expression.V+" "+v.Name.V] = v
+		}
+		return out
+	}
+
+	book := paths(cmfixture.Book)
+	for _, key := range []string{"included /title/?", "included /published/?", "excluded /*", "composite 0 /title", "composite 0 /published"} {
+		if _, ok := book[key]; !ok {
+			t.Errorf("book: expected the index column %q, got %v", key, book)
+		}
+	}
+	title, published := book["composite 0 /title"], book["composite 0 /published"]
+	if title.Ordinal != 1 || published.Ordinal != 2 || !title.Descending.Valid || title.Descending.V ||
+		!published.Descending.Valid || !published.Descending.V {
+		t.Errorf("book: expected the composite paths in order, ascending then descending, got %+v %+v", title, published)
+	}
+	if v := book["included /title/?"]; v.Ordinal != 1 || v.Descending.Valid {
+		t.Errorf("book: expected a plain path to have the ordinal 1 and no order, got %+v", v)
+	}
+
+	shipment := paths(cmfixture.Shipment)
+	var spatial int
+	for key, v := range shipment {
+		if strings.HasPrefix(key, "spatial ") && v.Name.V == "/location/*" && strings.Contains(v.Expression.V, "Point") {
+			spatial++
+		}
+	}
+	if spatial != 1 {
+		t.Errorf("shipment: expected one spatial path /location/*, got %v", shipment)
+	}
+
+	if author := paths(cmfixture.Author); len(author) == 0 {
+		t.Error("author: expected the paths of the policy")
+	} else if _, ok := author["full_text /bio"]; !ok {
+		t.Errorf("author: expected the full text index of /bio, got %v", author)
+	}
+
+	// The container with no indexing has no path.
+	if region := paths(cmfixture.Region); len(region) != 0 {
+		t.Errorf("region: expected no index column with indexing off, got %v", region)
+	}
+}
+
+// TestCosmosUniqueKeys reads the unique keys of book as constraints, and their paths
+// as the columns of the constraints.
+func TestCosmosUniqueKeys(t *testing.T) {
+	m := setupCosmos(t, openCosmos(t))
+	db := cosmosAt(t, cmfixture.Book)
+
+	keys := cosmosAll(t, dbmeta.Constraints, m, db, nil)
+	if len(keys) != 2 {
+		t.Fatalf("expected 2 constraints, got %+v", keys)
+	}
+	for i, v := range keys {
+		name := fmt.Sprintf("unique_key_%d", i)
+		if v.Name != name || v.Type != "unique" || v.Schema != cmfixture.Database || v.Table != cmfixture.Book ||
+			v.Definition.Valid || v.Deferrable || v.Deferred || v.Comment.Valid || v.Enforced.Valid {
+			t.Errorf("expected the unique constraint %s, got %+v", name, v)
+		}
+	}
+	got := map[string][]string{}
+	for _, v := range cosmosAll(t, dbmeta.ConstraintColumns, m, db, nil) {
+		if v.Ordinal != int64(len(got[v.Constraint])+1) || v.ForeignName.Valid || v.Table != cmfixture.Book {
+			t.Errorf("expected the paths of %s in order from 1, got %+v", v.Constraint, v)
+		}
+		got[v.Constraint] = append(got[v.Constraint], v.Name)
+	}
+	if strings.Join(got["unique_key_0"], "+") != "/isbn" || strings.Join(got["unique_key_1"], "+") != "/title+/edition" {
+		t.Errorf("expected the keys /isbn and /title+/edition, got %v", got)
+	}
+	if got := cosmosAll(t, dbmeta.Constraints, m, db, dbmeta.Args{Name: "unique\\_key\\_1"}.Map()); len(got) != 1 {
+		t.Errorf("expected one constraint for its name, got %+v", got)
+	}
+	// A container with no unique key has no constraint, and that is no error.
+	if got := cosmosAll(t, dbmeta.Constraints, m, cosmosAt(t, cmfixture.Region), nil); len(got) != 0 {
+		t.Errorf("expected no constraint on region, got %+v", got)
+	}
+}
+
+// TestCosmosPartitions reads the ranges of the partition key of book. The service
+// gives the ranges, and a container of this size has one.
+func TestCosmosPartitions(t *testing.T) {
+	m := setupCosmos(t, openCosmos(t))
+
+	parts := cosmosAll(t, dbmeta.Partitions, m, cosmosAt(t, cmfixture.Book), nil)
+	if len(parts) == 0 {
+		t.Fatal("expected at least one range of the partition key")
+	}
+	for _, v := range parts {
+		if v.Schema != cmfixture.Database || v.Table != cmfixture.Book || v.PartitionSchema != cmfixture.Database ||
+			v.Partition == "" || v.Type != "partition" || !strings.HasPrefix(v.Bound.V, "FROM ('") ||
+			!strings.Contains(v.Bound.V, "') TO ('") || v.Constraint.Valid || v.Partitioned || v.DetachPending {
+			t.Errorf("expected a range of the partition key of book, got %+v", v)
+		}
+	}
+	if parts[0].Bound.V != "FROM ('') TO ('FF')" && len(parts) == 1 {
+		t.Errorf("expected the whole range for one partition, got %s", parts[0].Bound.V)
+	}
+	if got := cosmosAll(t, dbmeta.Partitions, m, cosmosAt(t, cmfixture.Book), dbmeta.Args{Parent: "nothing%"}.Map()); len(got) != 0 {
+		t.Errorf("expected no range for another container, got %+v", got)
+	}
+}
+
+// TestCosmosCurrentSchema reads the database of the URL from the session. The
+// statement sends no request.
+func TestCosmosCurrentSchema(t *testing.T) {
+	db := openCosmos(t)
+	m := setupCosmos(t, db)
+
+	got := cosmosAll(t, dbmeta.CurrentSchema, m, db, nil)
+	if len(got) != 1 || got[0].Name != cmfixture.Database || got[0].Catalog != "" || got[0].Owner != "" {
+		t.Errorf("expected the database %s as the current schema, got %+v", cmfixture.Database, got)
 	}
 }

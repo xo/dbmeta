@@ -7,7 +7,6 @@ require (
 	github.com/apache/arrow-go/v18 v18.5.1
 	github.com/beltran/gohive/v2 v2.1.0
 	github.com/duckdb/duckdb-go/v2 v2.10505.0
-	github.com/exasol/exasol-driver-go v1.1.1
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/googleapis/go-sql-spanner v1.26.0
 	github.com/jackc/pgx/v5 v5.7.2
@@ -19,9 +18,9 @@ require (
 	github.com/sijms/go-ora/v3 v3.0.2-0.20260914154503-360b4b7ac9e9
 	github.com/vertica/vertica-sql-go v1.3.8
 	github.com/xo/cassandra v0.1.0
-	github.com/xo/dbimp v0.19.0
+	github.com/xo/dbimp v0.20.0
 	github.com/xo/dbmeta v0.0.0
-	github.com/xo/dburl v0.51.0
+	github.com/xo/dburl v0.52.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.152.0
 	google.golang.org/grpc v1.81.1
 	modernc.org/sqlite v1.59.0
@@ -58,7 +57,6 @@ require (
 	github.com/elastic/go-windows v1.0.0 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.37.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
-	github.com/exasol/error-reporting-go v0.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -73,7 +71,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.16 // indirect
 	github.com/googleapis/gax-go/v2 v2.22.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -98,7 +95,6 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
-	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260810122915-65bfd5c4b705 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b // indirect
@@ -114,7 +110,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/mod v0.41.0 // indirect

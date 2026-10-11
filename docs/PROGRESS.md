@@ -154,6 +154,15 @@ In progress:
   string of the credential file without its scheme. What is left is in BACKLOG.md: a
   walk for the size, the defaults and the CHECK constraints, and the move to the driver
   of dbimp when it is tagged.
+- The Exasol tests move to the driver of dbimp (D234, which amends D154 and D87). The change
+  is on dbimp v0.20.0 and dburl v0.52.0. It passed on `exasol-2026.2.0`. Only the text of
+  two errors changed in `parity.txt`. The Community Edition machine was not run
+  (BACKLOG.md).
+- The Cosmos DB completion (D233, which amends D228) is on dbimp v0.20.0, which holds the five
+  statements. The model answers 15 of the 65 kinds from the five
+  new statements `$index_paths`, `$unique_keys`, `$unique_key_paths`, `$routines`,
+  `$partition_key_ranges` and `$session`, It passed on the hosted account with the
+  released driver.
 - The Cosmos DB model is built and measured on the hosted account (D228, which amends
   D223 and D225): 10 of the 65 kinds, from the nine reserved statements of the driver of
   dbimp v0.17.0, which dburl v0.50.0 names. The fixture is a list of REST requests that

@@ -1,6 +1,6 @@
 # D228. Cosmos DB gets a model that reads the hosted account
 
-Status: Amends D223 and D225, amended by D229.
+Status: Amends D223 and D225, amended by D229 and D233.
 
 ## The decision
 

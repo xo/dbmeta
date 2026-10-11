@@ -211,7 +211,7 @@ func registerRelations() {
 
 	// \dP. Every container is split by the hash of its partition key, so every
 	// container is a partitioned table, and the expression is the paths of the key.
-	// The physical partitions are not in the feed.
+	// The physical partitions are the Partitions kind.
 	dbmeta.PartitionedTables.Register(dbmeta.Cosmos, &dbmeta.Binding[dbmeta.PartitionedTable]{
 		Stmt:   catalog("$containers"),
 		Fields: containerFields(),

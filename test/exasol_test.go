@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/exasol/exasol-driver-go"
+	_ "github.com/xo/dbimp/exasol"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/exasol"

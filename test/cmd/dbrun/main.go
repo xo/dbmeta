@@ -19,24 +19,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-
-	exalogger "github.com/exasol/exasol-driver-go/pkg/logger"
 )
 
 func main() {
-	// The Exasol driver logs every failed connection to standard error as
-	// well as returning it. dbrun connects in a loop while a server starts,
-	// so every attempt printed a line of its own. The error still arrives
-	// through the return value, which is the copy dbrun reads. SetLogger
-	// refuses only a nil logger, and this one is not.
-	_ = exalogger.SetLogger(log.New(io.Discard, "", 0))
 	if err := run(os.Args[1:]); err != nil {
 		if !errors.Is(err, errSilent) {
 			fmt.Fprintln(os.Stderr, "dbrun:", err)

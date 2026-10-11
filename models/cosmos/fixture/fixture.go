@@ -94,10 +94,18 @@ var Everything = Fixture{
 		// The core tables of D53, as containers. A container has no columns,
 		// so what makes each one what it is lives in its policies.
 
-		// A full text policy, and the default indexing policy.
+		// A full text policy with a full text index, and the default paths of the
+		// indexing policy.
 		post(Author, "/colls", `{
 			"id": "author",
 			"partitionKey": {"paths": ["/id"], "kind": "Hash"},
+			"indexingPolicy": {
+				"indexingMode": "consistent",
+				"automatic": true,
+				"includedPaths": [{"path": "/*"}],
+				"excludedPaths": [{"path": "/\"_etag\"/?"}],
+				"fullTextIndexes": [{"path": "/bio"}]
+			},
 			"fullTextPolicy": {"defaultLanguage": "en-US", "fullTextPaths": [{"path": "/bio", "language": "en-US"}]}
 		}`),
 

@@ -89,6 +89,10 @@ var ExasolMachines = []Machine{
 
 // exasolDSN is the connection string the Exasol driver takes.
 //
+// The driver is exasol in github.com/xo/dbimp, and it reads the URL that
+// dburl writes for the scheme exasol (D234). The same string is the URL a
+// person types into usql, so [exasolURL] writes the same form.
+//
 // The password is the vendor's default rather than [Password], on both. The
 // appliance is frozen and cannot be handed one at start. The nano image reads
 // its first password from a file mounted into it, and a [Server] carries
@@ -99,15 +103,14 @@ var ExasolMachines = []Machine{
 // anything a host trusts, so validation fails whatever the host name.
 func exasolDSN(password string) func(port int) string {
 	return func(port int) string {
-		return fmt.Sprintf("exa:127.0.0.1:%d;user=sys;password=%s;validateservercertificate=0",
-			port, password)
+		return fmt.Sprintf("exasol://sys:%s@127.0.0.1:%d?validateservercertificate=false",
+			password, port)
 	}
 }
 
-// exasolURL is the dburl style URL a person types into usql.
+// exasolURL is the dburl style URL a person types into usql. It is the string
+// [exasolDSN] writes, because dburl passes an exasol URL to the driver as it
+// was written.
 func exasolURL(password string) func(port int) string {
-	return func(port int) string {
-		return fmt.Sprintf("exasol://sys:%s@127.0.0.1:%d?validateservercertificate=0",
-			password, port)
-	}
+	return exasolDSN(password)
 }

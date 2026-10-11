@@ -72,7 +72,7 @@ rather than reading one.
 | `models/bigquery` | 18 | 65 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with the driver of dbimp (D220, D226, D229) |
 | `models/athena` | 8 | 65 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of dbimp, which binds with ExecutionParameters (D222, D229) |
 | `models/databricks` | 17 | 65 | the hosted Databricks SQL service on Unity Catalog, which reports the release of its SQL channel, 2026.38, with the driver of dbimp (D224, D229) |
-| `models/cosmos` | 10 | 65 | the hosted Azure Cosmos DB account with the API for NoSQL, which has no release, with the driver of dbimp at v0.17.0. A statement is a SELECT against one of nine reserved names that the driver answers with a REST request (D228) |
+| `models/cosmos` | 15 | 65 | the hosted Azure Cosmos DB account with the API for NoSQL, which has no release, with the driver of dbimp. A statement is a SELECT against one of twelve reserved names that the driver answers with REST requests. The five newest need the dbimp tag after v0.19.0 (D228, D233) |
 | `models/avatica` | 24 | 65 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
 | `models/informationschema` | 12 | 65 | any database with a standard `information_schema` |
 
@@ -1811,7 +1811,9 @@ None are filled. Presto has no `tables_authorization`, and `SHOW STATS` is one s
 `models/exasol` answers 26 of the 65. It was run against Exasol 2026.2.0 on
 the nano image and 2025.2.1 on the Community Edition machine, and the two
 answer identically, so the model has no version fragment. D85 says why there
-are two, and D87 records what was decided here.
+are two, and D87 records what was decided here. The tests use the driver of dbimp,
+`github.com/xo/dbimp/exasol`, and not `exasol-driver-go` (D234). It reads a URL, binds `?` and
+returns the types that the model scans, so the answers did not change.
 
 ### It reads the EXA_ALL views
 
@@ -6880,10 +6882,11 @@ Tables reads the owner from `SCHEMATA`, which is the owner of the schema and is 
 
 ## Azure Cosmos DB
 
-`models/cosmos` answers 10 of the 65, with the API for NoSQL, measured on
-2026-10-11 on the hosted account with the driver of dbimp, `github.com/xo/dbimp/cosmos`
-v0.17.0. That is the driver that dburl v0.50.0 names for the cosmos scheme, so D154
-is met. D223 left Cosmos DB without a model because the driver then read only
+`models/cosmos` answers 15 of the 65, with the API for NoSQL, measured on
+2026-10-11 on the hosted account with the driver of dbimp, `github.com/xo/dbimp/cosmos`.
+That is the driver that dburl v0.50.0 names for the cosmos scheme, so D154 is met. D228
+built the model on v0.17.0 with 10 kinds. D233 adds five kinds from the five statements that
+dbimp wrote for this model. They are in dbimp v0.20.0. D223 left Cosmos DB without a model because the driver then read only
 documents, and D228 builds the model now that the driver reads the catalog.
 
 Cosmos DB is a hosted service with no release, so the tier is Verified and CI never
@@ -6898,8 +6901,8 @@ list of containers.
 The SQL of Cosmos DB reads the documents of one container and nothing else, so no
 SELECT reads a catalog. A database, a container, its policies, its scripts, its users
 and its throughput are resources of the REST API. The driver of dbimp answers a
-SELECT against nine reserved names with one GET request on the matching resource,
-and the model uses those nine and nothing else. A statement is
+SELECT against a reserved name with GET requests on the matching resource, and the model
+reads twelve of the names and no other. A statement is
 `SELECT * FROM "$containers"`, with no list of columns and no LIKE.
 
 | Reserved name | The resource it reads | Request units |
@@ -6913,6 +6916,11 @@ and the model uses those nine and nothing else. A statement is
 | `$offers` | `GET /offers`, and the database and its containers, to name each offer | 2 for the offers |
 | `$users` | `GET /dbs/{db}/users` | 2 |
 | `$permissions` | `GET /dbs/{db}/users/{u}/permissions` for each user | 2 for each user |
+| `$index_paths` | `GET /dbs/{db}/colls/{c}` | not measured |
+| `$unique_keys` and `$unique_key_paths` | `GET /dbs/{db}/colls/{c}`, one request for each statement | not measured |
+| `$routines` | `GET .../sprocs` and `GET .../udfs` | not measured |
+| `$partition_key_ranges` | `GET .../pkranges` | 0 |
+| `$session` | no request | 0 |
 
 The request units are the charge that the account reported for the same GET requests,
 measured on 2026-10-11. A feed that has more than one page costs that for each page.
@@ -6920,9 +6928,10 @@ measured on 2026-10-11. A feed that has more than one page costs that for each p
 The statement names no database and no container. The driver takes both from the path
 of the URL, `cosmos://x:key@account.documents.azure.com/database/container`, where the
 user is any word and the account key is the password. So a connection reads one
-database, and the scripts and the triggers of the one container that the URL names. A
-URL with no container makes the driver refuse the three script statements before it
-sends a request, and the tests read that refusal. The test URL names the database
+database, and the routines, the triggers, the index paths, the unique keys and the
+partition key ranges of the one container that the URL names. A URL with no container
+makes the driver refuse those statements before it sends a request, and the tests read that
+refusal. `$session` needs neither. The test URL names the database
 `dbmeta` and the container `book`.
 
 The grammar of the driver can name a database in the WHERE of a statement, and the
@@ -6937,8 +6946,9 @@ arrives as a `[]any`, a policy as a `map[string]any` and a number as an `int64`.
 
 ### What it answers
 
-Databases, schemas, tables, indexes, partitioned tables, functions, triggers, roles,
-privileges and settings. Every one is an analogue, and the next section says why.
+Databases, schemas, tables, indexes, index columns, constraints, constraint columns,
+partitioned tables, partitions, functions, triggers, roles, privileges, settings and the
+current schema. Every one is an analogue, and the next section says why.
 
 A Cosmos DB database holds containers, users and permissions, and nothing lies between
 it and the account. So it is the database of `Databases` and also the schema of
@@ -6965,11 +6975,28 @@ and never primary.
 
 A container is split by the hash of its partition key, so every container is a
 partitioned table with the strategy `hash`, and the expression is the paths of the key.
-The physical partitions are `GET .../pkranges`, which the driver has no statement for.
+A range of the partition key, which is a physical partition, is a partition. Its name is
+the id of the range, its type is `partition`, and its bound is `FROM ('min') TO ('max')`
+with the two ends as hexadecimal text. The status and the parents of a range have no
+field and are not returned.
+
+The paths of the indexing policy are the index columns. Every row names the one index
+`indexing_policy`. `IndexColumn` has no field for the kind of the entry, so `Expression`
+says it: `included`, `excluded`, `composite 0`, `spatial Point,Polygon`, `vector flat 128`
+or `full_text`. A path of a composite index has its position from 1 as the ordinal and its
+order in `Descending`. Every other path has the ordinal 1 and no order. The statement reads
+the one container of the URL. The hosted service lists all four geometry types for a spatial
+path that names Point.
+
+A unique key is a constraint of the type `unique`. A key has no name, so the name is
+`unique_key_` and its position from 0. The paths of the key are the constraint columns, in
+order, with the ordinal counted from 1. The statements read the one container of the URL.
 
 A user defined function is a function, with the language `javascript` and its body as
-the source. Its id is the link of the function, which is rid based and names the
-container. A trigger is a trigger of its container. Its definition is the resource as
+the source. A stored procedure is a function of the kind `procedure`, so `Functions` reads
+the two in one statement, `$routines`. The id of a routine is its resource id, because a
+procedure and a function of one container can share a name. The etag and the time of the
+last change have no field. A trigger is a trigger of its container. Its definition is the resource as
 the REST API holds it, as JSON with the id, the body, the trigger type and the trigger
 operation, because a trigger has those beside its body and no field holds them. A
 trigger has no enabled state, because a request names it, so `Enabled` is always empty.
@@ -6993,7 +7020,13 @@ Each is a choice that Ken can reverse:
 - A database is both a database and a schema.
 - A container is a table.
 - The indexing policy is the index of a container. A container has no index with a
-  name, and the policy holds many paths.
+  name, and the policy holds many paths. Its paths are the index columns, with the kind of
+  the entry in `Expression`. An index for each entry was not chosen, because a binding
+  returns one object for each row and a composite index has several rows (D233).
+- A unique key is a unique constraint with a name made of its position.
+- A range of the partition key is a partition.
+- A stored procedure is a function of the kind procedure.
+- The database of the URL is the current schema.
 - A hash partition key makes a container a partitioned table.
 - A user defined function is a function, and a trigger is a trigger.
 - A user is a role, and a permission is a privilege.
@@ -7029,24 +7062,16 @@ on 2026-10-11:
 
 ### What it cannot answer
 
-55 kinds.
+50 kinds.
 
 - Columns, column statistics and the rest of what needs a column. A document has no
   declared attribute. A sample of the documents can infer one, and the sample is a read
   of the data, which D47 does not allow. A computed property is the nearest thing to
   a generated column, and a container has many of them.
-- Index columns, constraints and constraint columns. A row of `$containers` holds many
-  index paths and many unique keys, and a binding returns one object for each row. The
-  unique key policy and the composite indexes are in the options and the definition that
-  Tables and Indexes return, as text. Ken can decide whether a binding can return several
-  objects for one row. That is not a walk, because it needs one statement only. It is in
-  `BACKLOG.md`.
-- Stored procedures. `$stored_procedures` answers six columns, and the statement of
-  Functions reads `$functions`, because one statement answers one kind. The functions
-  query has no second source.
-- Partitions. The physical partitions are `pkranges`, which no statement reads.
-- The current schema and the current user. A statement cannot read the database of the
-  URL, and no statement reads the principal.
+- The current user. The session names the host, the database and the container, and no
+  user. The account has two keys, and no statement says which one a connection holds, so
+  the current user has no source. A test asserts that no column of `$session` names a
+  user (D233).
 - Sequences, views, foreign keys, types, domains and the rest are absent from the
   product. A view is not a Cosmos DB object, and a document has no foreign key.
 - Comments. A container has no comment.
@@ -7055,7 +7080,7 @@ on 2026-10-11:
 
 The database `dbmeta` of the account, with the 400 request units a second that its
 containers share. Four containers, which are the core tables of D53 that a document
-store can hold: `author` with a full text policy, `book` with two unique keys, an
+store can hold: `author` with a full text policy and a full text index, `book` with two unique keys, an
 indexing policy that includes two paths and excludes the rest and a composite index,
 `region` with no indexing, and `shipment` with a time to live of thirty days, the
 geometry type, a spatial index and a computed property. The container `book` holds a
@@ -7077,8 +7102,10 @@ refuses a resource that is a database, so a permission is on a container.
 ### What the conformance test says
 
 The section of Cosmos DB holds the four containers as tables and nothing else. It is in
-`agreementExcluded`: a document has no column, and a container has no key, no
-constraint and no view that a statement reads (D228).
+`agreementExcluded`: a document has no column, so there is no column catalog (D228). The
+unique keys, the index paths, the partitions and the routines are read by tests of their
+own, because each statement reads the one container that the URL names (D233). The section
+did not change when the five kinds arrived.
 
 ### Which answers depend on who is asking
 

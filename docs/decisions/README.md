@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-95 of them amend or replace an earlier one, and a decision read without its
+97 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -105,7 +105,7 @@ file.
 | [D84](D084-exasol-runs-after-all-on-the-nano-image.md) | Exasol runs after all, on the nano image | Amends D77 |
 | [D85](D085-exasol-is-the-nano-containers-and-one-frozen.md) | Exasol is the nano containers and one frozen virtual machine | Decided |
 | [D86](D086-a-machine-is-one-list-with-a-spec-for-how-it-is.md) | A machine is one list, with a spec for how it is built | Decided |
-| [D87](D087-exasol-is-a-model-read-from-the-exa-all-views.md) | Exasol is a model, read from the EXA_ALL views | Decided |
+| [D87](D087-exasol-is-a-model-read-from-the-exa-all-views.md) | Exasol is a model, read from the EXA_ALL views | Decided, amended by D234 |
 | [D88](D088-vertica-is-a-model-on-four-community-images.md) | Vertica is a model, on four community images | Amends D66, amended by D100 |
 | [D89](D089-agent-skills-are-committed-as-copies-and-one.md) | Agent skills are committed as copies, and one command installs them | Amended by D110 |
 | [D90](D090-a-database-qualifies-when-it-is-free-to-run-for.md) | A database qualifies when it is free to run for development and testing | Decided |
@@ -172,7 +172,7 @@ file.
 | [D151](D151-rqlite-tests-use-dbimps-driver.md) | The rqlite tests use dbimp's driver | Amends D148 |
 | [D152](D152-influxdb-3-reads-datafusions-information-schema.md) | InfluxDB 3 reads DataFusion's information_schema | Amended by D170 |
 | [D153](D153-libsql-has-an-ordinary-user-through-a-jwt.md) | libSQL has an ordinary user through a JWT | Amends D112, amended by D160 |
-| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157, D229 and D231 |
+| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157, D229, D231 and D234 |
 | [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
 | [D156](D156-a-test-checks-the-simple-english-rules-a-machine-can.md) | A test checks the simple English rules that a machine can check | Decided |
 | [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154, amended by D166 |
@@ -246,8 +246,10 @@ file.
 | [D225](D225-the-bigquery-and-cosmos-entries-follow-the-drivers-of-dbimp.md) | The BigQuery and Cosmos DB entries follow the drivers of dbimp | Amends D118, amended by D228 |
 | [D226](D226-bigquery-reads-the-schemas-and-the-grants-on-the-dataset.md) | BigQuery reads the schemas and the grants on the dataset | Amends D220 |
 | [D227](D227-the-athena-dialect-is-athena.md) | The Athena dialect is athena | Amends D222 |
-| [D228](D228-cosmos-gets-a-model-that-reads-the-hosted-account.md) | Cosmos DB gets a model that reads the hosted account | Amends D223 and D225, amended by D229 |
+| [D228](D228-cosmos-gets-a-model-that-reads-the-hosted-account.md) | Cosmos DB gets a model that reads the hosted account | Amends D223 and D225, amended by D229 and D233 |
 | [D229](D229-the-hosted-tests-move-to-the-drivers-of-dbimp-and-spanner-stays-on-go-sql-spanner.md) | The hosted tests move to the drivers of dbimp and Spanner stays on go-sql-spanner | Amends D154, D220, D222, D224 and D228, amended by D231 |
 | [D230](D230-the-common-facts-of-the-usql-drivers-move-here.md) | The common facts of the usql drivers move here | Amends D143 |
 | [D231](D231-hosted-spanner-tests-use-the-driver-of-dbimp-and-omni-has-its-own-binary.md) | Hosted Spanner tests use the driver of dbimp and Omni has its own binary | Amends D229 and D154 |
 | [D232](D232-redshift-reads-table-size-and-rows-only-on-request.md) | Redshift reads table size and rows only on request | Amends D207 and D212 |
+| [D233](D233-cosmos-answers-five-more-kinds-from-the-new-dbimp-statements.md) | Cosmos DB answers five more kinds from the new dbimp statements | Amends D228 |
+| [D234](D234-the-exasol-tests-use-the-driver-of-dbimp.md) | The Exasol tests use the driver of dbimp | Amends D154 and D87 |

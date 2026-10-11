@@ -227,10 +227,7 @@ func dsnOf(t *testing.T, name string) string {
 // has the user change its own password, which needs the current one.
 //
 // Exasol takes a password as a quoted identifier, so the escaping is a
-// doubled double quote and nothing else. The password that contains a
-// semicolon is left out. The statement handles it, and the Exasol DSN is
-// key=value pairs separated by semicolons with an escaping of its own, which
-// is the driver's business rather than this model's.
+// doubled double quote and nothing else.
 func TestChangePasswordExasol(t *testing.T) {
 	db := openExasol(t)
 	// Exasol needs no session state to escape a password.
@@ -252,16 +249,13 @@ func TestChangePasswordExasol(t *testing.T) {
 	current := "Start-P4ss!x"
 	for _, c := range hostilePasswords {
 		t.Run(c.name, func(t *testing.T) {
-			if strings.Contains(c.password, ";") {
-				t.Skip("an Exasol DSN separates its pairs with a semicolon")
-			}
 			stmt, err := dbmeta.Exasol.ChangePassword(
 				dbmeta.PasswordChange{User: user, Password: c.password}, q)
 			if err != nil {
 				t.Fatalf("building the statement: %v", err)
 			}
 			exec(t, db, stmt)
-			login(t, "exasol", exasolUser(t, base, user, c.password), `SELECT CURRENT_USER`, user)
+			login(t, "exasol", replaceUser(t, base, user, c.password), `SELECT CURRENT_USER`, user)
 			current = c.password
 		})
 	}
@@ -269,7 +263,7 @@ func TestChangePasswordExasol(t *testing.T) {
 	// The user changing its own password. Without ALTER USER it has to name
 	// the current password, and a statement without it is refused, which is
 	// what makes REPLACE worth writing.
-	self := openAt(t, "exasol", exasolUser(t, base, user, current))
+	self := openAt(t, "exasol", replaceUser(t, base, user, current))
 	const next = `Next-P4ss!x"'`
 	bare, err := dbmeta.Exasol.ChangePassword(dbmeta.PasswordChange{User: user, Password: next}, q)
 	if err != nil {
@@ -286,7 +280,7 @@ func TestChangePasswordExasol(t *testing.T) {
 	if _, err := self.ExecContext(t.Context(), stmt); err != nil {
 		t.Fatalf("changing its own password: %v", err)
 	}
-	login(t, "exasol", exasolUser(t, base, user, next), `SELECT CURRENT_USER`, user)
+	login(t, "exasol", replaceUser(t, base, user, next), `SELECT CURRENT_USER`, user)
 }
 
 // TestChangePasswordVertica sets each password and logs in with it, under

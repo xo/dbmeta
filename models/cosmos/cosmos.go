@@ -11,20 +11,22 @@
 // container and nothing else, so the catalog is not in it. A database, a
 // container, its policies, its scripts, its users and its throughput are
 // resources of the REST API. The driver of dbimp, which is the one dburl names
-// for the cosmos scheme, answers a SELECT against nine reserved names with a
-// GET request on the matching resource, and every statement here is one of
-// them. D223 first left Cosmos DB without a model because the driver sent no
-// such request, and D228 builds the model now that it does.
+// for the cosmos scheme, answers a SELECT against a reserved name with GET
+// requests on the matching resource, and every statement here is one of them.
+// D223 first left Cosmos DB without a model because the driver sent no such
+// request, D228 built the model when it did, and D233 completes it with the
+// five statements that dbimp added for this purpose.
 //
 // A statement names no database and no container. The driver takes both from
 // the path of the URL, as cosmos://x:key@account.documents.azure.com/database
 // or .../database/container. So a connection reads one database, and the
-// stored procedures, the triggers and the functions of the one container that
-// the URL names. A URL with no container makes the driver refuse those
-// statements before it sends a request. Nothing in the statement can name
-// another database. The grammar of the driver can name one in a WHERE, but a
-// parameter of dbmeta is a pattern and the key takes an exact name, and reading
-// every database is a walk, which D223 does not allow for Cosmos DB.
+// routines, the triggers, the index paths, the unique keys and the partition key
+// ranges of the one container that the URL names. A URL with no container makes
+// the driver refuse those statements before it sends a request. Nothing in the
+// statement can name another database. The grammar of the driver can name one in
+// a WHERE, but a parameter of dbmeta is a pattern and the key takes an exact
+// name, and reading every database is a walk, which D223 does not allow for
+// Cosmos DB.
 //
 // # A statement cannot filter
 //
@@ -36,23 +38,24 @@
 //
 // # What it answers
 //
-// 10 of the 65. Databases, schemas, tables, indexes, partitioned tables,
-// functions, triggers, roles, privileges and settings. Every one is an
+// 15 of the 65. Databases, schemas, tables, indexes, index columns,
+// constraints, constraint columns, partitioned tables, partitions, functions,
+// triggers, roles, privileges, settings and the current schema. Every one is an
 // analogue, and docs/COVERAGE.md says why. A database is a database and also a
 // schema, because it holds containers the way a schema holds tables and
 // nothing lies between it and the account. A container is a table. Its
-// indexing policy is its one index, its partition key makes it a table
-// partitioned by hash, and its user defined functions and triggers are
-// functions and triggers. A user is a role, a permission is a privilege, and a
-// throughput offer is a setting.
+// indexing policy is its one index, and the paths of the policy are the
+// columns of that index. A unique key is a unique constraint, and its paths
+// are the constraint columns. The partition key makes a container a table
+// partitioned by hash, and a range of the key is a partition. A stored
+// procedure is a function of the kind procedure, beside the user defined
+// functions. A user is a role, a permission is a privilege, and a throughput
+// offer is a setting. The database that the URL names is the current schema.
 //
-// The rest is absent or out of reach of one statement. A document has no
-// declared attribute, so there is no column, and sampling documents is a read
-// of the data, which D47 does not allow. A container row holds many index
-// paths, many unique keys and many computed properties, and a statement can
-// return one object for a row only, so index columns, constraints and
-// constraint columns are not answered. Stored procedures have no kind of their
-// own, and the one statement of Functions reads user defined functions.
+// The rest is absent. A document has no declared attribute, so there is no
+// column, and sampling documents is a read of the data, which D47 does not
+// allow. The service has no current user, because a key is not a user. See
+// D233.
 //
 // # The version
 //
@@ -91,6 +94,7 @@ func init() {
 	})
 	registerRelations()
 	registerRoutines()
+	registerDetails()
 	registerRoles()
 }
 

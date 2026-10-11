@@ -322,22 +322,21 @@ generated column expression", so the mapping of `Column.Generated` is not
 measured. A row access policy exists, and no view lists it: the views that DeepSeek and
 Gemini named answer not found (D226). See D220.
 
-### Let a binding return several objects for one row, for Cosmos DB
+### Run the Exasol Community Edition machine on the driver of dbimp
 
-Cosmos DB answers 10 of the 65 kinds (D228). A row of `$containers` holds many index
-paths, many unique keys, many composite indexes and many computed properties, and a
-binding returns one object for each row. So index columns, constraints, constraint
-columns and the computed properties as columns are not answered, and their facts are
-text in `Table.Options` and `Index.Definition`. A hook that expands a row into several
-objects needs one statement and is not a walk, but it changes the root package, which is
-Ken's decision. The same hook can give Settings the account row of `$account`.
+D234 moved the Exasol tests to the driver of dbimp, which dbimp tagged in v0.20.0. The
+Verified Community Edition machine `exasol-2025.2.1` was not run on it, and the two
+`exasol@2025` sections of `parity.txt` were edited by hand. Run `dbrun test exasol-2025.2.1` on a
+development machine and read the diff of the goldens.
 
-### Give the stored procedures of Cosmos DB a kind
+### Cosmos DB, one index for each entry of the policy
 
-`$stored_procedures` answers six columns on the hosted account, and no kind reads it,
-because `Functions` reads `$functions` and one statement answers one kind. A kind of its
-own for a procedure is a decision under D46 and D47, and PostgreSQL, SQL Server and
-Oracle list a procedure with the functions.
+`Indexes` for Cosmos DB is one row for each container, the policy (D233). One row for each
+entry, with a composite index as one row, needs a hook that expands a row into several
+objects, or a way to drop the rows of a composite index after the first. Both change the
+root package, which is Ken's decision. `IndexColumn` has no field for the kind of an entry,
+so `Expression` carries it. A `Kind` field on the index column is cleaner. The status
+and the parents of a partition key range have no field on `Partition` either.
 
 ### Measure what the Cosmos DB account cannot build yet
 
@@ -346,9 +345,8 @@ no region to write to but one, so a vector embedding policy, a vector index, a c
 retention, an analytical time to live and a custom conflict resolution policy were never
 measured, and the autoscale columns of `$offers` were not either. The statements read them
 by the names that Microsoft documents, and they are NULL on this account. If an account
-gets one of those capabilities, extend the fixture and the test of Tables. The physical
-partitions are `GET .../pkranges`, which costs nothing and which the driver has no
-statement for. Ask dbimp for `$partition_key_ranges` if Ken wants Partitions answered.
+gets one of those capabilities, extend the fixture and the tests of Tables and of the index
+columns. The vector rows of `$index_paths` were not read, for the same reason.
 
 ### Databricks table size, defaults and checks have no source
 
