@@ -20,7 +20,7 @@ require (
 	github.com/xo/cassandra v0.1.1
 	github.com/xo/dbimp v0.20.0
 	github.com/xo/dbmeta v0.14.0
-	github.com/xo/dburl v0.52.0
+	github.com/xo/dburl v0.53.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.155.1
 	google.golang.org/grpc v1.84.0
 	modernc.org/sqlite v1.60.1
