@@ -78,6 +78,14 @@ jobs:
           version: v2.13.1
           working-directory: test
 
+      - name: Lint the Omni files of the test module
+        # The tag omni builds the files that read Spanner Omni (D231).
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.1
+          working-directory: test
+          args: --build-tags omni
+
       - name: Check formatting
         run: |
           out=$(gofmt -l .)
@@ -132,6 +140,11 @@ jobs:
 
       # Compiled once here and run by every job in the matrices below.
       #
+      # Two test binaries, because Spanner Omni needs go-sql-spanner and the
+      # hosted Cloud Spanner needs the driver of dbimp, and both register the
+      # name spanner, so no one binary holds both. The tag omni builds the
+      # second. See D231.
+      #
       # The test module links every driver and two of them are cgo, so
       # compiling it costs about ninety seconds and a matrix job spends one or
       # two actually testing. Doing it per job cost more than everything else
@@ -142,6 +155,7 @@ jobs:
           mkdir -p "${{ runner.temp }}/bin"
           go build -o "${{ runner.temp }}/bin/dbrun" ./cmd/dbrun
           go test -c -o "${{ runner.temp }}/bin/dbmeta.test" .
+          go test -tags omni -c -o "${{ runner.temp }}/bin/dbmeta.omni.test" .
 
       - name: Upload them
         uses: actions/upload-artifact@v4
@@ -150,6 +164,7 @@ jobs:
           path: |
             ${{ runner.temp }}/bin/dbrun
             ${{ runner.temp }}/bin/dbmeta.test
+            ${{ runner.temp }}/bin/dbmeta.omni.test
           retention-days: 1
           if-no-files-found: error
 
@@ -190,7 +205,7 @@ jobs:
 
       - name: Make them executable
         # The artifact does not carry the mode bit.
-        run: chmod +x "${{ runner.temp }}/bin/dbrun" "${{ runner.temp }}/bin/dbmeta.test"
+        run: chmod +x "${{ runner.temp }}/bin/dbrun" "${{ runner.temp }}/bin/dbmeta.test" "${{ runner.temp }}/bin/dbmeta.omni.test"
 
       # SQLite and DuckDB are in this matrix too. They are a library rather
       # than a server, so dbrun starts nothing for them and runs the tests,
@@ -206,6 +221,7 @@ jobs:
         env:
           DBMETA_RUNNER: docker
           DBMETA_TEST_BINARY: ${{ runner.temp }}/bin/dbmeta.test
+          DBMETA_TEST_BINARY_OMNI: ${{ runner.temp }}/bin/dbmeta.omni.test
         run: |
           "${{ runner.temp }}/bin/dbrun" test "${{ matrix.server }}"
 
@@ -230,13 +246,14 @@ jobs:
           path: ${{ runner.temp }}/bin
 
       - name: Make them executable
-        run: chmod +x "${{ runner.temp }}/bin/dbrun" "${{ runner.temp }}/bin/dbmeta.test"
+        run: chmod +x "${{ runner.temp }}/bin/dbrun" "${{ runner.temp }}/bin/dbmeta.test" "${{ runner.temp }}/bin/dbmeta.omni.test"
 
       - name: Test against ${{ matrix.server }}
         working-directory: test
         env:
           DBMETA_RUNNER: docker
           DBMETA_TEST_BINARY: ${{ runner.temp }}/bin/dbmeta.test
+          DBMETA_TEST_BINARY_OMNI: ${{ runner.temp }}/bin/dbmeta.omni.test
         run: |
           "${{ runner.temp }}/bin/dbrun" test "${{ matrix.server }}"
 

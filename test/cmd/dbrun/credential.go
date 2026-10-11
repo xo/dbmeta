@@ -17,7 +17,6 @@ import (
 
 	"github.com/xo/dbmeta/container"
 	"github.com/xo/dbmeta/hosted"
-	"github.com/xo/dbmeta/test/internal/spannerdsn"
 )
 
 // A hosted service is reached with a connection string that holds a secret,
@@ -190,15 +189,6 @@ func resolveHosted(ctx context.Context, services []hosted.Service) ([]target, []
 // gosnowflake, or refuse it, such as pgx on redshift. If dburl cannot parse
 // the URL, the URL itself is returned and the connection reports the fault.
 func driverDSN(secret string) string {
-	// The Spanner tests open go-sql-spanner, because the driver of dbimp and
-	// go-sql-spanner register one name, and Spanner Omni needs the second. The
-	// URL of the file becomes the DSN that go-sql-spanner reads. See D229.
-	if strings.HasPrefix(secret, "spanner:") {
-		if dsn, err := spannerdsn.FromURL(secret); err == nil {
-			return dsn
-		}
-		return secret
-	}
 	u, err := dburl.Parse(secret)
 	if err != nil || u.DSN == "" {
 		return secret

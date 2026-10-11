@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/SAP/go-hdb/driver"
@@ -15,7 +16,6 @@ import (
 	_ "github.com/beltran/gohive/v2"
 	_ "github.com/exasol/exasol-driver-go"
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/googleapis/go-sql-spanner"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/nakagami/firebirdsql"
@@ -95,9 +95,9 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.LibSQL:     "libsql",
 	dbmeta.Neo4j:      "neo4j",
 	dbmeta.YDB:        "ydb",
-	// spanner:// names the driver of dbimp in dburl v0.50.0, and the tests open
-	// go-sql-spanner instead, because both register the name spanner and Spanner
-	// Omni speaks gRPC only. This is an exception to D154 (D216, D229).
+	// spanner:// names the driver of dbimp, which a default dbrun links. A dbrun
+	// built with -tags omni links go-sql-spanner instead, because Spanner Omni
+	// speaks gRPC only and both drivers register the name spanner (D154, D231).
 	dbmeta.Spanner: "spanner",
 	// bigquery:// opens the driver of dbimp, which dburl v0.50.0 names (D154,
 	// D229).
@@ -159,6 +159,9 @@ func readVersion(ctx context.Context, t target) (dbmeta.VersionSet, error) {
 	if !ok {
 		return dbmeta.VersionSet{}, fmt.Errorf("no driver for %s", t.Dialect)
 	}
+	if t.Dialect == dbmeta.Spanner && (t.testTag() == omniTag) != spannerOmniBuild() {
+		return dbmeta.VersionSet{}, fmt.Errorf("%s needs the other dbrun: build it with -tags %s, or without it", t.Name, omniTag)
+	}
 	dsn := t.connectDSN()
 	if t.Dialect == dbmeta.GizmoSQL {
 		// The driver never makes the handshake that GizmoSQL needs, so the
@@ -198,7 +201,7 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 		// Nothing to start or remove. The tests read the connection string
 		// from their environment, where no process list shows it.
 		fmt.Printf("=== %s ===\n", t.Name)
-		return goTest(ctx, t.env()...)
+		return goTest(ctx, t.testTag(), t.env()...)
 	}
 	if t.Kind == kindEmbedded {
 		fmt.Printf("=== %s ===\n", t.Name)
@@ -218,7 +221,7 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 		if err := extractSamples(t); err != nil {
 			return err
 		}
-		if err := goTest(ctx, t.Env+"="+t.DSN); err != nil {
+		if err := goTest(ctx, "", t.Env+"="+t.DSN); err != nil {
 			return err
 		}
 		if o.remove {
@@ -275,7 +278,24 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 		fmt.Printf("  removed %s\n", t.Name)
 	}()
 
-	return goTest(ctx, t.env()...)
+	return goTest(ctx, t.testTag(), t.env()...)
+}
+
+// omniTag is the build tag of the test binary and of the dbrun that read Spanner
+// Omni, which speaks gRPC only. The binary of every other target has no tag. See
+// D231.
+const omniTag = "omni"
+
+// testTag returns the build tag of the test binary that the target needs, or
+// empty for the default one. A container that answers Spanner is Spanner Omni,
+// and the driver of go-sql-spanner reads it. The hosted Cloud Spanner uses the
+// driver of dbimp, which the default binary holds. Both drivers register the
+// name spanner, so no one binary holds both. See D231.
+func (t target) testTag() string {
+	if t.Dialect == dbmeta.Spanner && t.Kind != kindHosted {
+		return omniTag
+	}
+	return ""
 }
 
 // goTest runs the integration tests, with the environment variables of the
@@ -290,19 +310,29 @@ func doTest(ctx context.Context, r runner, t target, o options) error {
 // the step, 95 of them compiling and 1.4 running. The workflow builds the
 // binary once and every job runs it. See D82.
 //
+// A target that needs a tag has a binary of its own, named by
+// DBMETA_TEST_BINARY_OMNI for the tag omni (D231). The workflow builds both.
+// If that variable is not set, dbrun runs `go test -tags omni`, and it never
+// runs the default binary for such a target, because that binary cannot reach
+// the server.
+//
 // A person runs `go test`, which is what they want: it recompiles what they
 // just changed. Nothing is set for them and nothing changes.
-func goTest(ctx context.Context, env ...string) error {
+func goTest(ctx context.Context, tag string, env ...string) error {
 	argv := []string{"go", "test", "-count=1", "./..."}
-	if bin := os.Getenv("DBMETA_TEST_BINARY"); bin != "" {
+	if tag != "" {
+		argv = []string{"go", "test", "-tags", tag, "-count=1", "./..."}
+	}
+	binEnv := testBinaryEnv(tag)
+	if bin := os.Getenv(binEnv); bin != "" {
 		// An absolute path, because the tests run with the test module as the
 		// working directory and a relative one is read against it.
 		abs, err := filepath.Abs(bin)
 		if err != nil {
-			return fmt.Errorf("resolving DBMETA_TEST_BINARY %s: %w", bin, err)
+			return fmt.Errorf("resolving %s %s: %w", binEnv, bin, err)
 		}
 		if _, err := os.Stat(abs); err != nil {
-			return fmt.Errorf("reading DBMETA_TEST_BINARY %s: %w", abs, err)
+			return fmt.Errorf("reading %s %s: %w", binEnv, abs, err)
 		}
 		argv = []string{abs, "-test.count=1"}
 	}
@@ -311,7 +341,7 @@ func goTest(ctx context.Context, env ...string) error {
 	// call.
 	if pattern := os.Getenv("DBMETA_TEST_RUN"); pattern != "" {
 		flag := "-run"
-		if os.Getenv("DBMETA_TEST_BINARY") != "" {
+		if os.Getenv(binEnv) != "" {
 			flag = "-test.run"
 		}
 		argv = append(argv, flag, pattern)
@@ -324,4 +354,14 @@ func goTest(ctx context.Context, env ...string) error {
 	}
 	fmt.Println("  passed")
 	return nil
+}
+
+// testBinaryEnv is the variable that names the prebuilt test binary for a build
+// tag. The default binary has DBMETA_TEST_BINARY and a tag adds its name in
+// capitals, such as DBMETA_TEST_BINARY_OMNI.
+func testBinaryEnv(tag string) string {
+	if tag == "" {
+		return "DBMETA_TEST_BINARY"
+	}
+	return "DBMETA_TEST_BINARY_" + strings.ToUpper(tag)
 }

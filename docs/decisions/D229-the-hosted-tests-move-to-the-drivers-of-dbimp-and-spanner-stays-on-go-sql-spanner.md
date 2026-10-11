@@ -1,6 +1,6 @@
 # D229. The hosted tests move to the drivers of dbimp and Spanner stays on go-sql-spanner
 
-Status: Amends D154, D220, D222, D224 and D228.
+Status: Amends D154, D220, D222, D224 and D228, amended by D231.
 
 ## The decision
 

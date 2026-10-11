@@ -9,8 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
-
-	_ "github.com/googleapis/go-sql-spanner"
+	"time"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/spanner"
@@ -19,13 +18,16 @@ import (
 
 // openSpanner returns a connection to the server named by DBMETA_SPANNER.
 //
-// The driver is github.com/googleapis/go-sql-spanner. dburl v0.50.0 names the
-// driver of dbimp for the spanner scheme, and this is the exception to D154 that
-// D229 records, because the two drivers register one name and Spanner Omni speaks
-// gRPC only. The value is the DSN that the driver takes, such as
-// host:port/projects/default/instances/default/databases/dbmeta, with
-// usePlainText for a server that has no certificate. dbrun sets it. The test
-// reads Spanner Omni and Cloud Spanner. See D216 and D219.
+// Two test binaries run these tests, and the build tag omni chooses between
+// them (D231). The default binary opens the driver of dbimp, which dburl names
+// for the spanner scheme, and it reads Cloud Spanner: the value is the URL that
+// dburl reads, spanner:///project/instance/database?credential_file=/path. The
+// binary built with -tags omni opens go-sql-spanner and reads Spanner Omni: the
+// value is the DSN of that driver, such as
+// host:port/projects/default/instances/default/databases/dbmeta with
+// usePlainText for a server that has no certificate. dbrun sets it for either.
+// Both drivers register the name spanner, so one binary cannot hold both. See
+// D216, D219 and D231.
 func openSpanner(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_SPANNER")
@@ -33,34 +35,6 @@ func openSpanner(t *testing.T) *sql.DB {
 		t.Skip("set DBMETA_SPANNER to run against a real server")
 	}
 	return openAt(t, "spanner", dsn)
-}
-
-// runSpannerDDL runs the statements as one batch on one connection, and returns
-// the error of the batch. Spanner takes a schema change as a long running
-// operation that lasts seconds, so a batch is one operation where separate
-// statements are one each. A statement that Spanner refuses fails the whole
-// batch and the error does not say which, so a caller that needs to know runs
-// the statements one at a time, which is spannerDDLEach.
-func runSpannerDDL(ctx context.Context, db *sql.DB, queries []string) error {
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		return fmt.Errorf("taking a connection: %w", err)
-	}
-	defer conn.Close()
-	if _, err := conn.ExecContext(ctx, "START BATCH DDL"); err != nil {
-		return fmt.Errorf("starting the batch: %w", err)
-	}
-	for _, q := range queries {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
-			//nolint:errcheck // the batch is abandoned and the first error is the one that matters
-			conn.ExecContext(context.WithoutCancel(ctx), "ABORT BATCH")
-			return fmt.Errorf("adding to the batch: %w", err)
-		}
-	}
-	if _, err := conn.ExecContext(ctx, "RUN BATCH"); err != nil {
-		return fmt.Errorf("running the batch: %w", err)
-	}
-	return nil
 }
 
 // spannerDDLEach runs each statement alone, and reports the one that failed. A
@@ -202,6 +176,7 @@ func setupSpanner(t *testing.T, db *sql.DB) *dbmeta.Meta {
 		fail("resolving the setup: %v", err)
 	}
 	spannerState.built = true
+	start := time.Now()
 	if err := runSpannerDDL(ctx, db, spannerQueries(up)); err != nil {
 		t.Logf("the batch failed, running each step to find the one: %v", err)
 		dropSpannerFixture(ctx, db, down)
@@ -214,7 +189,7 @@ func setupSpanner(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	if err != nil {
 		fail("building the metadata: %v", err)
 	}
-	t.Logf("server reports %s, fixture ran %d steps", versions, len(up))
+	t.Logf("server reports %s, fixture ran %d steps in %s", versions, len(up), time.Since(start).Round(time.Millisecond))
 	spannerState.meta = m
 	return m
 }
@@ -271,12 +246,6 @@ func spannerColumns(t *testing.T, db *sql.DB, query string, vals []any) ([]strin
 		return nil, err
 	}
 	return cols, rows.Close()
-}
-
-// spannerIsOmni reports whether DBMETA_SPANNER names a Spanner Omni server and
-// not Cloud Spanner. Omni has no certificate, so its DSN says usePlainText.
-func spannerIsOmni() bool {
-	return strings.Contains(os.Getenv("DBMETA_SPANNER"), "usePlainText=true")
 }
 
 // spannerDrain runs a statement and reads every row, and returns the error that
@@ -959,17 +928,17 @@ func TestSpannerSystemSchemas(t *testing.T) {
 // TestSpannerEnforcesRoles checks that a role is enforced, because the parity
 // test depends on it. A session that names a role that does not exist is
 // refused, on Cloud Spanner and on Spanner Omni, and a session that names one
-// that exists sees what the role was granted. The property is database_role. The
-// name role is not a property of go-sql-spanner, and the driver ignores it, so
-// the first version of this test read everything and said that Omni enforced no
-// role. See D219.
+// that exists sees what the role was granted. The property is database_role in
+// both drivers. The name role is not a property of go-sql-spanner, and that
+// driver ignores it, so the first version of this test read everything and said
+// that Omni enforced no role. See D219.
 func TestSpannerEnforcesRoles(t *testing.T) {
 	admin := openSpanner(t)
 	m := setupSpanner(t, admin)
 	dsn := os.Getenv("DBMETA_SPANNER")
 
 	// openAt pings and fails the test on a refusal, so this opens the pool itself.
-	db, err := sql.Open("spanner", dsn+";database_role=dbmeta_no_such_role")
+	db, err := sql.Open("spanner", spannerWithRole(dsn, "dbmeta_no_such_role"))
 	if err != nil {
 		t.Fatalf("opening: %v", err)
 	}
@@ -978,11 +947,11 @@ func TestSpannerEnforcesRoles(t *testing.T) {
 		t.Errorf("expected a role that does not exist to be refused, got %v", err)
 	}
 
-	stranger := openAt(t, "spanner", dsn+";database_role="+spfixture.Stranger)
+	stranger := openAt(t, "spanner", spannerWithRole(dsn, spfixture.Stranger))
 	if err := spannerDrain(t.Context(), stranger, "SELECT COUNT(*) FROM dbmeta_fixture.region"); err == nil {
 		t.Error("expected a role with no grant to be refused a table")
 	}
-	reader := openAt(t, "spanner", dsn+";database_role="+spfixture.Reader)
+	reader := openAt(t, "spanner", spannerWithRole(dsn, spfixture.Reader))
 	if err := spannerDrain(t.Context(), reader, "SELECT COUNT(*) FROM dbmeta_fixture.author"); err != nil {
 		t.Errorf("expected the reader to read the table it holds SELECT on, got %v", err)
 	}

@@ -68,7 +68,7 @@ rather than reading one.
 | `models/opensearch` | 3 | 65 | OpenSearch 3.9.0 and 2.19.6, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
 | `models/solr` | 4 | 65 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
 | `models/gizmosql` | 21 | 65 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
-| `models/spanner` | 22 | 65 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect, with go-sql-spanner. The driver of dbimp ran the model on Cloud Spanner and cannot reach Omni (D216, D219, D229) |
+| `models/spanner` | 22 | 65 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect. Cloud Spanner is tested with the driver of dbimp, and Omni with go-sql-spanner in a binary of its own (D216, D219, D231) |
 | `models/bigquery` | 18 | 65 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with the driver of dbimp (D220, D226, D229) |
 | `models/athena` | 8 | 65 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of dbimp, which binds with ExecutionParameters (D222, D229) |
 | `models/databricks` | 17 | 65 | the hosted Databricks SQL service on Unity Catalog, which reports the release of its SQL channel, 2026.38, with the driver of dbimp (D224, D229) |
@@ -5932,8 +5932,10 @@ DuckDB, and answers the NotNulls kind. The tests run the same checks on it.
 ## Spanner
 
 `models/spanner` answers 22 of the 65, in the GoogleSQL dialect, measured on
-2026-10-10 on Spanner Omni 2026.r4-lts and on Cloud Spanner, with go-sql-spanner,
-which is the driver dburl v0.49.0 names and usql uses. Spanner Omni is the engine
+2026-10-10 on Spanner Omni 2026.r4-lts and on Cloud Spanner. Omni runs with
+go-sql-spanner, which usql uses and which reaches gRPC. Cloud Spanner runs with
+`github.com/xo/dbimp/spanner`, which dburl v0.51.0 names, since D231. The two
+drivers register one name, so each has its own test binary. Spanner Omni is the engine
 of Cloud Spanner as a container. The two answer the same 47 views of
 INFORMATION_SCHEMA. See D216 and D219.
 
@@ -6105,7 +6107,7 @@ It is a principal on Cloud Spanner only.
 
 The first measurement on Spanner Omni said that it enforces no role. It was wrong.
 The name of the property is `database_role`, and the test wrote `role`, which
-go-sql-spanner ignores without a word (D219).
+go-sql-spanner ignores without a word (D219). Both drivers name it `database_role`.
 
 ### Cloud Spanner and Spanner Omni
 

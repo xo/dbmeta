@@ -159,14 +159,13 @@ func TestDriverDSNOfDatabricks(t *testing.T) {
 	}
 }
 
-// TestDriverDSNOfSpanner holds that go-sql-spanner gets its own form of the URL of
-// the credential file. See D229.
+// TestDriverDSNOfSpanner holds that the driver of dbimp gets the URL of the
+// credential file as it is. See D231.
 func TestDriverDSNOfSpanner(t *testing.T) {
 	t.Parallel()
 	const in = "spanner:///p/i/d?credential_file=/k/key.json"
-	const want = "projects/p/instances/i/databases/d;credentials=/k/key.json"
-	if got := driverDSN(in); got != want {
-		t.Errorf("driverDSN of a Spanner URL is %q, and the expected value is %q", got, want)
+	if got := driverDSN(in); got != in {
+		t.Errorf("driverDSN of a Spanner URL is %q, and the expected value is %q", got, in)
 	}
 }
 

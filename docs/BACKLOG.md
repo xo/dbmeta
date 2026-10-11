@@ -341,21 +341,6 @@ gets one of those capabilities, extend the fixture and the test of Tables. The p
 partitions are `GET .../pkranges`, which costs nothing and which the driver has no
 statement for. Ask dbimp for `$partition_key_ranges` if Ken wants Partitions answered.
 
-### Move the Spanner tests to the driver of dbimp
-
-dburl v0.50.0 names `github.com/xo/dbimp/spanner`, and the Spanner tests still open
-go-sql-spanner (D229). The driver of dbimp ran every test of the model on Cloud Spanner on
-2026-10-11, and conformance did not change. Four things stop the move.
-
-- Both drivers register the name `spanner`, so one binary cannot import both, and
-  the plan was Spanner Omni on go-sql-spanner and the hosted service on dbimp. Ask dbimp for
-  another registered name, or run the Omni tests in a binary of their own.
-- The driver of dbimp is REST and cannot reach Spanner Omni, which is gRPC only.
-- It has no key for `database_role`, which D219 uses for two principals of parity and for
-  `TestSpannerEnforcesRoles`. Ask dbimp for the key.
-- It sends one DDL statement for each request, and the fixture of about 60 statements took
-  461 seconds on the hosted service. Ask dbimp for a batch of DDL.
-
 ### Databricks table size, defaults and checks have no source
 
 Databricks answers 17 of the 65 kinds (D224). The size, the row count, the location and

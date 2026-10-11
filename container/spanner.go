@@ -12,10 +12,12 @@ import (
 // also ships Spanner Omni, the same engine as a container that runs on one
 // machine. This entry runs Omni, which is the engine and not a mock of the
 // API. The emulator of Google has its own entry below. usql reaches Spanner with
-// github.com/googleapis/go-sql-spanner, and so does the test module, because the
-// driver of dbimp that dburl v0.50.0 names speaks REST and cannot reach Omni, which
-// speaks gRPC only. The Spanner model reads this release. See D117, D118, D215,
-// D216 and D229.
+// github.com/googleapis/go-sql-spanner, and so do the tests of Omni, in a test
+// binary built with the tag omni. The driver of dbimp that dburl v0.51.0 names
+// speaks REST and cannot reach Omni, which speaks gRPC only, and the tests of
+// the hosted Cloud Spanner use it. Both drivers register the name spanner, so no
+// one binary holds both. The Spanner model reads this release. See D117, D118,
+// D215, D216 and D231.
 //
 // # The range
 //

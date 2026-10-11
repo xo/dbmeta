@@ -107,6 +107,8 @@ func All() []Service {
 				"&authenticator=SNOWFLAKE_JWT&privateKey=<key>",
 		},
 		{
+			// The driver of dbimp reads this form as it is, and the key database_role
+			// names a database role (D231).
 			Name: "spanner", Product: "Google Cloud Spanner", Dialect: dbmeta.Spanner,
 			Form:     "spanner:///<project>/<instance>/<database>?credential_file=<path of the key file>",
 			Emulator: "spanner",

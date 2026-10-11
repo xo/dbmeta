@@ -513,6 +513,15 @@ the reader (D218, D229). `dbrun` also sets `GOOGLE_APPLICATION_CREDENTIALS` to
 `gcp/<name>.json` in `$XDG_CONFIG_HOME/dbmeta`, when the file is there and the
 variable is unset, for a driver that reads it. The drivers of dbimp do not.
 
+Spanner has two test binaries (D231). The hosted Cloud Spanner uses the driver of
+dbimp, which reads the URL of the credential file as it is, and the key
+`database_role` names a role. Spanner Omni speaks gRPC only, so its tests use
+go-sql-spanner, in a binary that the build tag `omni` makes. Both drivers register
+the name `spanner`, so no one binary holds both. `dbrun test spanner` runs the
+default binary and `dbrun test spanner-2026.r4-lts` runs the Omni one. A default
+`dbrun` cannot read the version of Omni, and `dbrun version` says so. Build
+`dbrun` with `-tags omni` for that.
+
 The URL of BigQuery is
 `bigquery://<project>/<location>/<dataset>?credential_file=<path of the key file>`,
 and the model reads that one dataset. The reader has its own key file in its own
@@ -576,6 +585,7 @@ one into a command that others can see.
 | `XDG_CONFIG_HOME` | Where `dbmeta/credentials` lives, the directory of credential files for the hosted services. It defaults to `~/.config`. |
 | `DBMETA_OWNER_NAME` | The friendly name of your session, such as `dbimp`, which `status` shows beside the owner. A coding agent sets it on every command (D115). |
 | `DBMETA_TEST_BINARY` | A test binary built with `go test -c`. `dbrun test` runs it instead of compiling the tests. CI sets it (D82). |
+| `DBMETA_TEST_BINARY_OMNI` | The same for Spanner Omni, built with `go test -tags omni -c`. `dbrun test spanner-<release>` runs it. Without it, `dbrun` runs `go test -tags omni`. It never runs the default binary for Omni (D231). |
 | `DBMETA_TEST_RUN` | A pattern for `go test -run`. `dbrun test` runs only the tests that match, which saves a hosted service from a full run. |
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
 | `DBMETA_ORACLE_STATE` | Where the Oracle 19c checkout and installer archive live. |

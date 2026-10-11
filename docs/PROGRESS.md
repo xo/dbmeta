@@ -177,11 +177,12 @@ In progress:
   change was the test, which reads an array as JSON text. Athena is on
   `dbimp/athena`, which binds with ExecutionParameters, so the model lost
   `Info.Literal` and uses `?`. BigQuery is on `dbimp/bigquery` with no change.
-  Spanner stays on go-sql-spanner, because both drivers register the name
-  `spanner`, the driver of dbimp cannot reach Omni, and it has no
-  `database_role`. A measurement of it on Cloud Spanner passed. The details and
-  what is left are in D229 and the backlog. The parity of the role on Cloud
+  Spanner stayed on go-sql-spanner until D231. The parity of the role on Cloud
   Spanner lost the line `schemas` on the new database, and D229 says why.
+- The hosted Cloud Spanner tests now use `dbimp/spanner` v0.19.0, and the Omni tests
+  run in a binary of their own, built with the tag `omni`, on go-sql-spanner (D231).
+  The fixture of Cloud Spanner runs as one DDL batch and takes about 91 seconds where it
+  took 461. CI builds and uploads both binaries.
 - The describe commands of usql are at the level of psql 18 for PostgreSQL. The
   next work is what usql finds against the new releases, and the other
   databases, one at a time, which usql said will follow.
