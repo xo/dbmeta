@@ -40,6 +40,14 @@ type Args struct {
 	// every table offers without naming them, which PublicationTables reads.
 	// See D199 and D201.
 	WithImplicit bool
+	// WithTableInfo asks for the size, the row count and the options of a
+	// table from SVV_TABLE_INFO, which the Tables of Redshift reads only on
+	// request. Only a superuser or a user with SELECT on that view can read
+	// it, and a user without the right gets the error 42501 for the whole
+	// kind. Without it Size, Rows and Options are NULL. No other model takes
+	// it, so Query.All refuses it there and Query.Each leaves it out. See
+	// D232.
+	WithTableInfo bool
 }
 
 // Map returns the arguments as a map, leaving out every field that is unset.
@@ -68,6 +76,9 @@ func (a Args) Map() map[string]any {
 	}
 	if a.WithImplicit {
 		m["with_implicit"] = true
+	}
+	if a.WithTableInfo {
+		m["with_table_info"] = true
 	}
 	return m
 }

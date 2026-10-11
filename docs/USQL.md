@@ -169,7 +169,7 @@ reading code.
 | Databend | 10/11 | 4/5 | `\dp`, because a grant is listed only by show_grants for one role or user at a time, and the trigger section: Databend has no trigger |
 | SingleStore | 11/11 | 3/5 | the sequence and trigger sections: SingleStore has no sequence and refuses CREATE TRIGGER |
 | Snowflake | 10/11 | 3/5 | measured on 2026-10-08 (D190) and again on 2026-10-09 (D203). `\di`: Snowflake has no index outside a hybrid table, which a trial account refuses. The index column and trigger sections: Snowflake has no trigger. The constraint column section is answered, by SHOW read through the pipe operator |
-| Amazon Redshift | 10/11 | 2/5 | `\di`: Redshift has no index. Every section but constraints and constraint columns. A privilege to a role is not in `\dp`, because only an SVV view shows it. Measured on 2026-10-09 (D182, D204) |
+| Amazon Redshift | 10/11 | 2/5 | `\di`: Redshift has no index. Every section but constraints and constraint columns. A privilege to a role is not in `\dp`, because only an SVV view shows it. Measured on 2026-10-09 (D182, D204). `\dt`, `\dt+`, `\d t` and `\dv` failed for an ordinary user until D232, because the tables kind read SVV_TABLE_INFO, which only a superuser can read. Now they work for every user. The size of `\dt+` is NULL unless the reader sets `WithTableInfo`, and then it needs SELECT on that view |
 | Apache Impala | 9/11 | 0/5 | `\di`: Impala has no index, and `\dp`: authorization is off in the image. Every section: SHOW lists no key, constraint, trigger or sequence |
 | MySQL | 11/11 | 4/5 | the sequence section: MySQL has no sequence |
 | ClickHouse | 11/11 | 2/5 | the sequence, trigger and constraint column sections |
@@ -319,7 +319,9 @@ func (r *reader) Tables(f metadata.Filter) (*metadata.TableSet, error) {
 
 `dbmeta.Args` holds six filters: `Catalog`, `Schema`, `Parent`, `Name`,
 `Types` and `WithSystem`. The example copies three of them from
-`metadata.Filter`. `dbmeta.Queryer` is one method, so whatever `usql` already
+`metadata.Filter`. A reader that wants the size and the rows of a Redshift
+table also sets `WithTableInfo`, and the user then needs SELECT on
+SVV_TABLE_INFO (D232). `dbmeta.Queryer` is one method, so whatever `usql` already
 holds satisfies it.
 
 Two things the writer gets for free. `Query.Support(m)` says whether a database

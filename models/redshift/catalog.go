@@ -83,6 +83,75 @@ const compression = `CASE WHEN c.relkind = 'v' THEN NULL ELSE CASE a.attencoding
 	` WHEN 18 THEN 'text32k' WHEN 19 THEN 'zstd' WHEN 20 THEN 'az64'` +
 	` ELSE CAST(a.attencodingtype AS text) END END`
 
+// tablesStmt is the Tables statement, with SVV_TABLE_INFO when withInfo is
+// true. SVV_TABLE_INFO runs on the compute nodes, which changes four things in
+// the statement, each measured on Redshift Serverless 1.0.477953. The
+// statement keeps all four in both forms, so that the two differ only in the
+// view:
+//
+//   - The leader node functions pg_get_userbyid and obj_description are
+//     refused beside it, so the owner is a join to pg_user and the comment
+//     is a join to pg_description. 1259 is the oid of pg_class.
+//   - A name read beside it comes back padded to its type, char(128), and a
+//     LIKE with no wildcard then matches nothing. TRIM removes the padding
+//     before the filter reads it and before the row is returned.
+//   - CAST(c.relkind AS text) is refused beside it, so the type has no ELSE
+//     branch. See tableType. A boolean parameter on its own is refused too,
+//     so the system filter compares it. See notSystemBeside.
+//   - The view lists a table only when it holds a row. An empty table has
+//     no row in it, so its size, rows and options are NULL: they are
+//     unknown and not zero.
+//
+// The join is by table id, on a derived table, so the filter on the name
+// still narrows the read of pg_class.
+func tablesStmt(withInfo bool) dbmeta.Stmt {
+	size := `, CAST(NULL AS BIGINT) AS "size"`
+	rows := `, CAST(NULL AS BIGINT) AS "rows"`
+	options := `, CAST(NULL AS varchar(256)) AS "options"`
+	join := `LEFT JOIN pg_description d ON d.objoid = c.oid AND d.classoid = 1259 AND d.objsubid = 0`
+	if withInfo {
+		size = `, CAST(i."size" AS BIGINT) * 1048576 AS "size"`
+		rows = `, CAST(i."tbl_rows" AS BIGINT) AS "rows"`
+		options = `, CASE WHEN i."diststyle" IS NULL THEN NULL ELSE 'diststyle=' || TRIM(i."diststyle")` +
+			` || CASE WHEN i."sortkey1" IS NULL THEN '' ELSE ', sortkey=' || TRIM(i."sortkey1") END END AS "options"`
+		join += "\n" + `LEFT JOIN (SELECT "table_id", "size", "tbl_rows", "diststyle", "sortkey1"` +
+			` FROM svv_table_info) i ON i."table_id" = c.oid`
+	}
+	return dbmeta.Stmt{
+		always(`SELECT current_database() AS "catalog"`),
+		always(`, ` + nspname + ` AS "schema"`),
+		always(`, ` + relname + ` AS "name"`),
+		always(`, ` + tableType + ` AS "type"`),
+		always(`, d.description AS "comment"`),
+		always(`, TRIM(TRAILING FROM u.usename) AS "owner"`),
+		always(`, CASE WHEN n.nspname LIKE 'pg_temp_%' THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
+		always(size),
+		always(rows),
+		always(options),
+		always(`FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace`),
+		always(`LEFT JOIN ` + userNames + ` u ON u.usesysid = c.relowner`),
+		always(join),
+		always(`WHERE c.relkind IN ('r', 'v')`),
+		always(`AND ` + notSystemBeside("n.nspname")),
+		always(`AND ` + like(nspname, "@schema")),
+		always(`AND ` + like(relname, "@name")),
+		always(`AND (CAST(@types AS text) = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, tableType) + `)`),
+		always(`UNION ALL`),
+		always(`SELECT current_database(), TRIM(TRAILING FROM x.schemaname), TRIM(TRAILING FROM x.tablename)`),
+		always(`, 'external table', CAST(NULL AS varchar(256)), TRIM(TRAILING FROM xu.usename)`),
+		always(`, 'permanent', CAST(NULL AS BIGINT), CAST(NULL AS BIGINT)`),
+		always(`, 'location=' || x.location || ', serde=' || x.serialization_lib`),
+		always(`FROM svv_external_tables x`),
+		always(`LEFT JOIN svv_external_schemas xs ON TRIM(TRAILING FROM xs.schemaname) = TRIM(TRAILING FROM x.schemaname)`),
+		always(`LEFT JOIN ` + userNames + ` xu ON xu.usesysid = xs.esowner`),
+		always(`WHERE x.redshift_database_name = CAST(current_database() AS text)`),
+		always(`AND ` + like("TRIM(TRAILING FROM x.schemaname)", "@schema")),
+		always(`AND ` + like("TRIM(TRAILING FROM x.tablename)", "@name")),
+		always(`AND (CAST(@types AS text) = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, `'external table'`) + `)`),
+		always(`ORDER BY 2, 3`),
+	}
+}
+
 func register() {
 	registerAccess()
 
@@ -148,76 +217,31 @@ func register() {
 		},
 	})
 
-	// Tables reads SVV_TABLE_INFO for the size, the rows and the options, and
-	// the view is the cost of that (D212). Redshift refuses it to every user
-	// who is not a superuser until the administrator grants SELECT on it, and a
-	// user without the grant gets an error from this whole kind and not a NULL.
-	// SVV_TABLE_INFO runs on the compute nodes, which changes four things in
-	// the statement, each measured on Redshift Serverless 1.0.477953:
-	//
-	//   - The leader node functions pg_get_userbyid and obj_description are
-	//     refused beside it, so the owner is a join to pg_user and the comment
-	//     is a join to pg_description. 1259 is the oid of pg_class.
-	//   - A name read beside it comes back padded to its type, char(128), and a
-	//     LIKE with no wildcard then matches nothing. TRIM removes the padding
-	//     before the filter reads it and before the row is returned.
-	//   - CAST(c.relkind AS text) is refused beside it, so the type has no ELSE
-	//     branch. See tableType. A boolean parameter on its own is refused too,
-	//     so the system filter compares it. See notSystemBeside.
-	//   - The view lists a table only when it holds a row. An empty table has
-	//     no row in it, so its size, rows and options are NULL: they are
-	//     unknown and not zero.
-	//
-	// The join is by table id, on a derived table, so the filter on the name
-	// still narrows the read of pg_class.
+	// Tables reads SVV_TABLE_INFO for the size, the rows and the options only
+	// when the caller sets with_table_info (D232). Redshift refuses the view to
+	// every user who is not a superuser until the administrator grants SELECT
+	// on it, and a user without the grant gets the error 42501 for the whole
+	// kind and not a NULL. So the plain statement never names the view and
+	// leaves the three NULL, and the variant adds the view (D212). The two
+	// differ in four lines and share the rest, so tablesStmt builds both.
 	dbmeta.Tables.Register(dbmeta.Redshift, &dbmeta.Binding[dbmeta.Table]{
-		Stmt: dbmeta.Stmt{
-			always(`SELECT current_database() AS "catalog"`),
-			always(`, ` + nspname + ` AS "schema"`),
-			always(`, ` + relname + ` AS "name"`),
-			always(`, ` + tableType + ` AS "type"`),
-			always(`, d.description AS "comment"`),
-			always(`, TRIM(TRAILING FROM u.usename) AS "owner"`),
-			always(`, CASE WHEN n.nspname LIKE 'pg_temp_%' THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
-			always(`, CAST(i."size" AS BIGINT) * 1048576 AS "size"`),
-			always(`, CAST(i."tbl_rows" AS BIGINT) AS "rows"`),
-			always(`, CASE WHEN i."diststyle" IS NULL THEN NULL ELSE 'diststyle=' || TRIM(i."diststyle")` +
-				` || CASE WHEN i."sortkey1" IS NULL THEN '' ELSE ', sortkey=' || TRIM(i."sortkey1") END END AS "options"`),
-			always(`FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace`),
-			always(`LEFT JOIN ` + userNames + ` u ON u.usesysid = c.relowner`),
-			always(`LEFT JOIN pg_description d ON d.objoid = c.oid AND d.classoid = 1259 AND d.objsubid = 0`),
-			always(`LEFT JOIN (SELECT "table_id", "size", "tbl_rows", "diststyle", "sortkey1"` +
-				` FROM svv_table_info) i ON i."table_id" = c.oid`),
-			always(`WHERE c.relkind IN ('r', 'v')`),
-			always(`AND ` + notSystemBeside("n.nspname")),
-			always(`AND ` + like(nspname, "@schema")),
-			always(`AND ` + like(relname, "@name")),
-			always(`AND (CAST(@types AS text) = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, tableType) + `)`),
-			always(`UNION ALL`),
-			always(`SELECT current_database(), TRIM(TRAILING FROM x.schemaname), TRIM(TRAILING FROM x.tablename)`),
-			always(`, 'external table', CAST(NULL AS varchar(256)), TRIM(TRAILING FROM xu.usename)`),
-			always(`, 'permanent', CAST(NULL AS BIGINT), CAST(NULL AS BIGINT)`),
-			always(`, 'location=' || x.location || ', serde=' || x.serialization_lib`),
-			always(`FROM svv_external_tables x`),
-			always(`LEFT JOIN svv_external_schemas xs ON TRIM(TRAILING FROM xs.schemaname) = TRIM(TRAILING FROM x.schemaname)`),
-			always(`LEFT JOIN ` + userNames + ` xu ON xu.usesysid = xs.esowner`),
-			always(`WHERE x.redshift_database_name = CAST(current_database() AS text)`),
-			always(`AND ` + like("TRIM(TRAILING FROM x.schemaname)", "@schema")),
-			always(`AND ` + like("TRIM(TRAILING FROM x.tablename)", "@name")),
-			always(`AND (CAST(@types AS text) = '' OR ` + dbmeta.InList(`CAST(@types AS text)`, `'external table'`) + `)`),
-			always(`ORDER BY 2, 3`),
-		},
+		Stmt:     tablesStmt(false),
+		Variants: []dbmeta.Variant{{Param: "with_table_info", Stmt: tablesStmt(true)}},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
 			{Name: "type", Desc: "table, view or external table. An external table is a Redshift Spectrum table, whose rows are files in S3 that a Glue data catalog describes"},
 			{Name: "comment"},
 			{Name: "owner", Desc: "the user that owns the relation, from pg_class. For an external table, the owner of its external schema"},
 			{Name: "persistence", Desc: "temporary for a table in a pg_temp schema, and permanent for the rest. Redshift has no unlogged table"},
-			{Name: "size", Desc: "a bound in bytes: SVV_TABLE_INFO counts blocks of 1 MB, so this is the blocks times 1048576. Absent for a view, an external table and an empty table, which the view does not list. The user must have SELECT on SVV_TABLE_INFO, or the whole kind fails (D212)"},
-			{Name: "rows", Desc: "tbl_rows of SVV_TABLE_INFO, the rows including those marked for deletion and not yet vacuumed. Absent for a view, an external table and an empty table"},
-			{Name: "options", Desc: "the distribution style and the first sort key, as diststyle=KEY(event_id), sortkey=happened. The sort key part is absent when the table has none. Absent for a view and for an empty table. For an external table, the location and the serde library, as location=s3://bucket/path/, serde=org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
+			{Name: "size", Desc: "absent unless with_table_info is set. Then a bound in bytes: SVV_TABLE_INFO counts blocks of 1 MB, so this is the blocks times 1048576. Absent for a view, an external table and an empty table, which the view does not list. The user must have SELECT on SVV_TABLE_INFO, or the whole kind fails with 42501 (D232)"},
+			{Name: "rows", Desc: "absent unless with_table_info is set. Then tbl_rows of SVV_TABLE_INFO, the rows including those marked for deletion and not yet vacuumed. Absent for a view, an external table and an empty table"},
+			{Name: "options", Desc: "absent for a table and a view unless with_table_info is set. Then the distribution style and the first sort key, as diststyle=KEY(event_id), sortkey=happened. The sort key part is absent when the table has none. Absent for a view and for an empty table. For an external table, always the location and the serde library, as location=s3://bucket/path/, serde=org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
 		},
-		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
+		Params: append(schemaNameSystem("table"), dbmeta.TypesParam(), dbmeta.Param{
+			Name:    "with_table_info",
+			Desc:    "read the size, the rows and the options from SVV_TABLE_INFO, which only a superuser or a user with SELECT on it can read",
+			Default: false,
+		}),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,

@@ -1,6 +1,6 @@
 # D212. Firebird and MariaDB enforce every constraint, ArangoDB counts, and Redshift reads SVV_TABLE_INFO
 
-Status: Amends D205, D207, D209 and D210, amended by D221.
+Status: Amends D205, D207, D209 and D210, amended by D221 and D232.
 
 ## The decision
 
@@ -83,7 +83,7 @@ A user without SELECT on SVV_TABLE_INFO gets an error from the whole `tables`
 kind: "permission denied for relation svv_table_info". It does not get NULL
 fields. A consumer must grant `SELECT ON svv_table_info` to every user that
 reads tables, and a superuser needs nothing. A role or a group can hold the
-grant. The test `TestRedshiftTablesNeedSelectOnTableInfo` shows the error and
+grant. The test `TestRedshiftTableInfoIsReadOnRequest` shows the error and
 then the same user reading rows after the grant.
 
 The read costs a fixed amount, which does not follow the rows returned.

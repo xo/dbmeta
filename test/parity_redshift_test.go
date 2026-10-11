@@ -69,7 +69,6 @@ func makeRedshiftOwner(t *testing.T, db *sql.DB, dsn, schema string) string {
 	dropRedshiftUser(t, db, "dbmeta_owner", schema)
 	exec(t, db, `CREATE USER dbmeta_owner PASSWORD '`+parityPassword+`'`)
 	t.Cleanup(func() { dropRedshiftUser(t, db, "dbmeta_owner", schema) })
-	grantTableInfo(t, db, "dbmeta_owner")
 	exec(t, db, `ALTER SCHEMA `+schema+` OWNER TO dbmeta_owner`)
 	for _, table := range redshiftFixtureTables {
 		exec(t, db, `ALTER TABLE `+schema+`.`+table+` OWNER TO dbmeta_owner`)
@@ -83,7 +82,6 @@ func makeRedshiftGrantee(t *testing.T, db *sql.DB, dsn, schema string) string {
 	dropRedshiftUser(t, db, "dbmeta_grantee", schema)
 	exec(t, db, `CREATE USER dbmeta_grantee PASSWORD '`+parityPassword+`'`)
 	t.Cleanup(func() { dropRedshiftUser(t, db, "dbmeta_grantee", schema) })
-	grantTableInfo(t, db, "dbmeta_grantee")
 	exec(t, db, `GRANT USAGE ON SCHEMA `+schema+` TO dbmeta_grantee`)
 	exec(t, db, `GRANT SELECT ON ALL TABLES IN SCHEMA `+schema+` TO dbmeta_grantee`)
 	// The external schema exists only when the namespace has a default IAM
@@ -102,14 +100,13 @@ func makeRedshiftStranger(t *testing.T, db *sql.DB, dsn, schema string) string {
 	dropRedshiftUser(t, db, "dbmeta_stranger", schema)
 	exec(t, db, `CREATE USER dbmeta_stranger PASSWORD '`+parityPassword+`'`)
 	t.Cleanup(func() { dropRedshiftUser(t, db, "dbmeta_stranger", schema) })
-	grantTableInfo(t, db, "dbmeta_stranger")
 	return replaceUser(t, dsn, "dbmeta_stranger", parityPassword)
 }
 
 // grantTableInfo lets a user read SVV_TABLE_INFO, which Redshift refuses to
-// every user who is not a superuser. The Tables kind reads it for the size, the
-// rows and the options, so a user without the grant gets an error from the
-// whole kind (D212).
+// every user who is not a superuser. The Tables kind reads it only when it is
+// asked for the size, the rows and the options, so the parity principals hold
+// no grant and read the default statement (D232).
 func grantTableInfo(t *testing.T, db *sql.DB, user string) {
 	t.Helper()
 	exec(t, db, `GRANT SELECT ON svv_table_info TO `+user)

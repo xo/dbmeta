@@ -105,7 +105,16 @@ D207 measured it. The sources for the size and the row count of a CrateDB table
 (`table_storage()`) cost a scan of the whole catalog for each read.
 `Table.Size` and `Table.Rows` are left NULL for CrateDB, and `Table.Size` for
 QuestDB. If either product makes the join follow the filter, the fields can be
-added. Redshift is done (D212).
+added. Redshift reads them only on request (D212, D232).
+
+### Read the options of a Redshift table without SVV_TABLE_INFO
+
+D232 left `Table.Options` NULL for a Redshift table and a view by default,
+because the distribution style and the sort key came from SVV_TABLE_INFO. The
+columns `reldiststyle` of `pg_class` and `attisdistkey` and `attsortkeyord` of
+`pg_attribute` hold the same facts, and every user can read them. They were not
+measured. If they answer in one statement with a bounded plan, the options can
+be read with no grant, and only the size and the rows need `WithTableInfo`.
 
 ### Read the settings of a CrateDB user
 

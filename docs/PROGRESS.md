@@ -34,6 +34,11 @@ new. The DSN keys went to dburl. They are in v0.14.0, with the model of Cosmos D
 move of the hosted tests to the drivers of dbimp (D229) and the Spanner tests on the
 driver of dbimp, with a binary of its own for Spanner Omni (D231).
 
+Redshift reads the size, rows and options of a table only on request (D232).
+The default Tables statement no longer names `SVV_TABLE_INFO`, which a user who
+is not a superuser cannot read, and `Args.WithTableInfo` asks for the three
+fields. This is unreleased.
+
 v0.12.0 holds the four decisions of 2026-10-10 (D212): `Constraint.Enforced` is
 true for Firebird and MariaDB, ArangoDB counts the rows of a collection, and
 Redshift reads the size, rows and options of a table from `SVV_TABLE_INFO`.

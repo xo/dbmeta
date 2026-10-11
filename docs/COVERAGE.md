@@ -4142,9 +4142,9 @@ PostgreSQL filled. D207 measured each one on Snowflake 10.36.101 and Redshift
 | --- | --- | --- |
 | `Table.Owner` | `TABLE_OWNER` | `usename` of a join to `pg_user`, because `pg_get_userbyid` is refused beside SVV_TABLE_INFO (D212) |
 | `Table.Persistence` | `temporary` from `IS_TEMPORARY`, `transient` from `IS_TRANSIENT` and `permanent`. NULL for a view | `temporary` for a table in a `pg_temp` schema, and `permanent`. Redshift has no unlogged table |
-| `Table.Size` | `BYTES`, the active data. Time travel and fail safe data are not in it, so it is a bound | `size` of SVV_TABLE_INFO times 1048576, a bound because the view counts blocks of 1 MB. NULL for a view and for an empty table (D212) |
-| `Table.Rows` | `ROW_COUNT`, kept and not estimated | `tbl_rows` of SVV_TABLE_INFO, which counts rows marked for deletion until a vacuum. NULL for a view and for an empty table (D212) |
-| `Table.Options` | `retention_time` in days, and `cluster_by` when a clustering key is set | `diststyle` and `sortkey1` of SVV_TABLE_INFO, as `diststyle=KEY(event_id), sortkey=happened`. NULL for a view and for an empty table (D212) |
+| `Table.Size` | `BYTES`, the active data. Time travel and fail safe data are not in it, so it is a bound | `size` of SVV_TABLE_INFO times 1048576, a bound because the view counts blocks of 1 MB. NULL unless `WithTableInfo` is set, and NULL for a view and for an empty table (D212, D232) |
+| `Table.Rows` | `ROW_COUNT`, kept and not estimated | `tbl_rows` of SVV_TABLE_INFO, which counts rows marked for deletion until a vacuum. NULL unless `WithTableInfo` is set, and NULL for a view and for an empty table (D212, D232) |
+| `Table.Options` | `retention_time` in days, and `cluster_by` when a clustering key is set | `diststyle` and `sortkey1` of SVV_TABLE_INFO, as `diststyle=KEY(event_id), sortkey=happened`. NULL unless `WithTableInfo` is set, and NULL for a view and for an empty table. An external table always has its location and serde (D212, D232) |
 | `Column.Compression` | NULL. Snowflake compresses by itself and records no choice | the encoding from `pg_attribute.attencodingtype`, named by the numbers that `pg_table_def` shows: 0 raw, 1 bytedict, 2 delta, 3 lzo, 4 runlength, 5 delta32k, 7 text255, 15 mostly8, 16 mostly16, 17 mostly32, 18 text32k, 19 zstd and 20 az64. A number that was not measured is returned as the number |
 | `Column.Storage`, `StatsTarget` | NULL | NULL. `attstorage` is there with the value PostgreSQL 8.0 gives, and Redshift has no TOAST, so it says nothing. `attstattarget` is -1 for every column |
 | `Function.Prosrc` | `function_definition` and `procedure_definition`, the same text as `source` | `prosrc`, the same text as `source` |
@@ -4165,12 +4165,26 @@ compares the boolean parameter as `@with_system = TRUE`, and it has no cast of
 lists a table only when it holds a row, so an empty table has NULL for the
 three fields.
 
-The cost of that decision is a whole kind. A user without SELECT on
-SVV_TABLE_INFO gets the error "permission denied for relation svv_table_info"
-from `tables`, and not NULL fields. A consumer must grant `SELECT ON
-svv_table_info` to every user, group or role that reads tables. The read also
+D232 changed the cost of that decision. A user without SELECT on
+SVV_TABLE_INFO got the error "permission denied for relation svv_table_info"
+(SQLSTATE 42501) from the whole `tables` kind, and so `\dt`, `\dt+`, `\d t` and
+`\dv` of usql failed for every user who is not a superuser. Ken chose that the
+size and the rows are opt in. The default statement never names the view, so
+`Size`, `Rows` and `Options` are NULL for a table and a view, and every user
+reads the kind. A caller that wants them sets `Args.WithTableInfo`, the
+parameter `with_table_info`, and the statement then joins the view as D212
+describes. The error stays 42501 for a user with no grant, and
+`GRANT SELECT ON svv_table_info` to a user, group or role lifts it. The read
 costs about 0.5 s more than before, whatever the number of rows returned: 0.27
 s without the view and 0.77 s with it, for six tables and for one.
+
+An ordinary user reads every other Redshift query with no grant. The parity
+test makes an owner, a grantee and a stranger, none of them a superuser and
+none holding a grant on the view, and no query is refused for any of them. The
+three differ from the administrator only where an SVV view shows a user its own
+rows, which D204 recorded. The external tables of a Spectrum schema, which
+read SVV_EXTERNAL_TABLES and SVV_EXTERNAL_SCHEMAS, need only USAGE on the
+schema, when the namespace has a default IAM role to make the schema (D221).
 
 The NULL hazards of D197: Snowflake has no INCLUDE column, no default
 privilege and no role setting that the model reads. Redshift has default

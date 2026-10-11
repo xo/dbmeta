@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-94 of them amend or replace an earlier one, and a decision read without its
+95 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -225,12 +225,12 @@ file.
 | [D204](D204-redshift-answers-the-grants-and-the-roles-and-takes-every-password.md) | Redshift answers the grants and the roles, and takes every password | Amends D182 |
 | [D205](D205-the-mysql-family-fills-the-new-fields-of-d198-to-d203.md) | The MySQL family fills the new fields of D198 to D203 | Decided, amended by D212 |
 | [D206](D206-sql-server-and-oracle-fill-the-describe-fields.md) | SQL Server and Oracle fill the describe fields | Decided, amended by D211 |
-| [D207](D207-snowflake-redshift-cratedb-and-questdb-fill-the-describe-fields-they-have-a-source-for.md) | Snowflake, Redshift, CrateDB and QuestDB fill the describe fields they have a source for | Decided, amended by D212 |
+| [D207](D207-snowflake-redshift-cratedb-and-questdb-fill-the-describe-fields-they-have-a-source-for.md) | Snowflake, Redshift, CrateDB and QuestDB fill the describe fields they have a source for | Decided, amended by D212 and D232 |
 | [D208](D208-clickhouse-duckdb-sqlite3-databend-and-vertica-fill-the-describe-fields-they-have-a-source-for.md) | ClickHouse, DuckDB, SQLite3, Databend and Vertica fill the describe fields they have a source for | Decided |
 | [D209](D209-firebird-sap-hana-exasol-hive-and-impala-fill-the-describe-fields-they-have-a-source-for.md) | Firebird, SAP HANA, Exasol, Hive and Impala fill the describe fields they have a source for | Decided, amended by D212 |
 | [D210](D210-the-products-without-a-relational-catalog-fill-the-describe-fields-they-have-a-source-for.md) | The products without a relational catalog fill the describe fields they have a source for | Decided, amended by D212 |
 | [D211](D211-policy-has-an-enabled-field-that-sql-server-oracle-and-vertica-fill.md) | Policy has an Enabled field that SQL Server, Oracle and Vertica fill | Amends D206 |
-| [D212](D212-firebird-and-mariadb-enforce-every-constraint-arangodb-counts-and-redshift-reads-svv-table-info.md) | Firebird and MariaDB enforce every constraint, ArangoDB counts, and Redshift reads SVV_TABLE_INFO | Amends D205, D207, D209 and D210, amended by D221 |
+| [D212](D212-firebird-and-mariadb-enforce-every-constraint-arangodb-counts-and-redshift-reads-svv-table-info.md) | Firebird and MariaDB enforce every constraint, ArangoDB counts, and Redshift reads SVV_TABLE_INFO | Amends D205, D207, D209 and D210, amended by D221 and D232 |
 | [D213](D213-snowflake-tests-and-dbrun-use-the-driver-of-dbimp.md) | Snowflake tests and dbrun use the driver of dbimp | Amends D190, D193 and D203, amended by D214 |
 | [D214](D214-the-piped-snowflake-statement-reads-booleans-since-dbimp-v0-16-1.md) | The piped Snowflake statement reads booleans since dbimp v0.16.1 | Amends D213 |
 | [D215](D215-spanner-omni-replaces-the-cloud-spanner-emulator.md) | Spanner Omni replaces the Cloud Spanner emulator | Amends D118, amended by D217 |
@@ -250,3 +250,4 @@ file.
 | [D229](D229-the-hosted-tests-move-to-the-drivers-of-dbimp-and-spanner-stays-on-go-sql-spanner.md) | The hosted tests move to the drivers of dbimp and Spanner stays on go-sql-spanner | Amends D154, D220, D222, D224 and D228, amended by D231 |
 | [D230](D230-the-common-facts-of-the-usql-drivers-move-here.md) | The common facts of the usql drivers move here | Amends D143 |
 | [D231](D231-hosted-spanner-tests-use-the-driver-of-dbimp-and-omni-has-its-own-binary.md) | Hosted Spanner tests use the driver of dbimp and Omni has its own binary | Amends D229 and D154 |
+| [D232](D232-redshift-reads-table-size-and-rows-only-on-request.md) | Redshift reads table size and rows only on request | Amends D207 and D212 |

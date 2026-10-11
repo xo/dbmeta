@@ -219,10 +219,27 @@ type Derived struct {
 	From func(args map[string]any) any
 }
 
+// Variant is a statement that replaces the statement of a binding when a
+// boolean parameter is true. It is for a read that needs a right that a caller
+// does not always hold, so the plain statement never names the source and the
+// caller opts in. The text of a statement cannot depend on an argument in any
+// other way. See D232.
+type Variant struct {
+	// Param is the name of a boolean parameter that the binding declares.
+	Param string
+	// Stmt replaces Binding.Stmt when the parameter is true. It returns the
+	// same columns as Binding.Stmt, in the same order.
+	Stmt Stmt
+}
+
 // Binding is everything one dialect provides for one query.
 type Binding[T any] struct {
 	// Stmt is the versioned statement.
 	Stmt Stmt
+	// Variants are the statements that replace Stmt when their parameter is
+	// true. The first one that applies wins. Nil for every model but
+	// Redshift's Tables. See D232.
+	Variants []Variant
 	// Fields are the result columns, in the order the statement returns them.
 	Fields []Field
 	// Params are the parameters the statement takes.
@@ -472,7 +489,14 @@ func (q *Query[T]) Build(m *Meta, args map[string]any) (string, []any, error) {
 		return "", nil, ErrSeveralStatements
 	}
 	info, _ := m.dialect.Info()
-	s, err := b.Stmt.Build(m.versions)
+	stmt := b.Stmt
+	for _, v := range b.Variants {
+		if on, _ := args[v.Param].(bool); on {
+			stmt = v.Stmt
+			break
+		}
+	}
+	s, err := stmt.Build(m.versions)
 	if err != nil {
 		return "", nil, err
 	}

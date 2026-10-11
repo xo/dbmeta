@@ -19,6 +19,10 @@
 // the role grants and the constraint columns. Its tests run when dbrun
 // resolves a connection string for Redshift (D117).
 //
+// Tables reads the size, the rows and the options from SVV_TABLE_INFO only when
+// the caller sets with_table_info, because Redshift refuses that view to every
+// user who is not a superuser (D232). Otherwise the three are NULL.
+//
 // It answers 18 of the 65 questions.
 package redshift
 
