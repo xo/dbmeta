@@ -613,8 +613,9 @@ func TestPass3Visible(t *testing.T) {
 				check(t, "Partition.PartitionVisible", parts[0].PartitionVisible, c.want)
 				pt := byName(readVia(t, dbmeta.PartitionedTables, m, c.db, dbmeta.Args{Schema: schema}.Map()),
 					func(v dbmeta.PartitionedTable) string { return v.Name })
-				check(t, "PartitionedTable.ParentVisible", pt["region_sales_east"].ParentVisible, c.want)
 				if release >= 11 {
+					// A partition that is a partitioned table has no row before release 11.
+					check(t, "PartitionedTable.ParentVisible", pt["region_sales_east"].ParentVisible, c.want)
 					check(t, "PartitionedTable.TableVisible", pt["sales_amount"].TableVisible, c.want)
 				}
 			})
