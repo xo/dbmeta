@@ -14,11 +14,11 @@ import (
 //
 // # The range, by the docs/EVALUATION.md procedure
 //
-// Step 2 decides it. On docker.io/surrealdb/surrealdb, checked on 2026-09-27,
-// 2.7.0 was rebuilt on 2026-09-23 and 3.3.0 on 2026-09-24, and between them
-// 3.1.6 on 2026-09-01 and 3.2.4 on 2026-08-03. 1.5.6 was last rebuilt in
+// Step 2 decides it. On docker.io/surrealdb/surrealdb, checked on 2026-10-22,
+// 2.7.0 was rebuilt on 2026-09-23 and 3.3.4 on 2026-10-13, and between them
+// 3.1.6 on 2026-09-01 and 3.2.6 on 2026-10-19. 1.5.6 was last rebuilt in
 // November 2024, and 2.6.5 and 3.0.5 in March 2026. Every one has a
-// linux/amd64 build, and each tag is the release with a v, such as v3.3.0.
+// linux/amd64 build, and each tag is the release with a v, such as v3.3.4.
 //
 // # Storage
 //
@@ -123,8 +123,8 @@ func surrealDBURL(user, auth string) func(port int) string {
 // SurrealDB is every SurrealDB release dbmeta is tested against.
 //
 // models/surrealdb reads all four, so each takes the cadence it recorded
-// while it was Staged: 2.7.0 and 3.3.0 on every push, and 3.1.6 and 3.2.4 at
+// while it was Staged: 2.7.0 and 3.3.4 on every push, and 3.1.6 and 3.2.6 at
 // night (D120, D164). 2.7.0 answers one kind, because a 2.x statement
 // cannot read INFO as a value.
-var SurrealDB = list{}.add(surrealdb, Tested, "2.7.0", "3.3.0").
-	add(surrealdb, Nightly, "3.1.6", "3.2.4")
+var SurrealDB = list{}.add(surrealdb, Tested, "2.7.0", "3.3.4").
+	add(surrealdb, Nightly, "3.1.6", "3.2.6")

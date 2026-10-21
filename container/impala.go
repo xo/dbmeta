@@ -17,8 +17,9 @@ import (
 //
 // docker.io/apache/impala builds each release tag once, so the rule in D112
 // applies: the newest release of each of the last two lines. Checked on
-// 2026-09-30, that is 4.5.2 and 4.4.1. Impala is under the Apache 2.0
-// license.
+// 2026-10-22, that is 4.5.3, of 2026-10-06, and 4.4.1. Impala is under the
+// Apache 2.0 license. The pin moved from 4.5.2 to 4.5.3 on that day under the
+// same rule, and 4.5.3 was not run before CI.
 //
 // # The image is built here
 //
@@ -57,4 +58,4 @@ var impala = product{
 
 // Impala is every Apache Impala release dbmeta is tested against. Both are
 // Tested, which is the cadence they kept while they were Staged (D120).
-var Impala = list{}.add(impala, Tested, "4.4.1", "4.5.2")
+var Impala = list{}.add(impala, Tested, "4.4.1", "4.5.3")

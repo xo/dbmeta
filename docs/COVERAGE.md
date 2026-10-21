@@ -36,7 +36,7 @@ rather than reading one.
 | `models/oracle` | 29 | 65 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 65 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
 | `models/clickhouse` | 25 | 65 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
-| `models/trino` | 13 | 65 | Trino 476 and 483 |
+| `models/trino` | 13 | 65 | Trino 476 and 484 |
 | `models/presto` | 9 | 65 | Presto 0.299 |
 | `models/firebird` | 25 | 65 | Firebird 3.0, 4.0 and 5.0 |
 | `models/hana` | 33 | 65 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
@@ -44,30 +44,30 @@ rather than reading one.
 | `models/exasol` | 26 | 65 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
 | `models/vertica` | 28 | 65 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
 | `models/couchbase` | 12 | 65 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
-| `models/cockroachdb` | 54 | 65 | CockroachDB 24.3.36, 26.2.7 and 26.3.2. 47 of its statements are the postgres model's (D123) |
-| `models/cratedb` | 27 | 65 | CrateDB 6.3.7 and 6.4.5, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
+| `models/cockroachdb` | 54 | 65 | CockroachDB 24.3.36, 26.2.8 and 26.3.2. 47 of its statements are the postgres model's (D123) |
+| `models/cratedb` | 27 | 65 | CrateDB 6.3.7 and 6.4.6, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
 | `models/questdb` | 11 | 65 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
 | `models/tidb` | 20 | 65 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 17 of its statements are the mysql model's (D133) |
-| `models/vitess` | 21 | 65 | Vitess 23.0.7 and 24.0.4, on vttestserver. 20 of its statements are the mysql model's, and a schema is a keyspace (D135) |
-| `models/databend` | 20 | 65 | Databend 1.2.881 and 1.2.951, from the system database, with dbimp's driver (D140) |
+| `models/vitess` | 21 | 65 | Vitess 23.0.8 and 24.0.5, on vttestserver. 20 of its statements are the mysql model's, and a schema is a keyspace (D135) |
+| `models/databend` | 20 | 65 | Databend 1.2.881 and 1.2.954, from the system database, with dbimp's driver (D140) |
 | `models/singlestore` | 23 | 65 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
 | `models/snowflake` | 15 | 65 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08 and 2026-10-09. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193, and D203 reads the columns of a key. Since D213 the tests and `dbrun` connect through the driver of dbimp, which is the one dburl v0.49.0 names |
 | `models/redshift` | 18 | 65 | measured on Redshift Serverless 1.0.434008 on 2026-10-08 and 2026-10-09. Written before a cluster existed (D144) and corrected by D182 and D204, and it reads the Spectrum external tables (D221) |
-| `models/impala` | 11 | 65 | Apache Impala 4.4.1 and 4.5.2, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
-| `models/neo4j` | 17 | 65 | Neo4j 2026.09.0, and 5.26.31, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
-| `models/influxdb` | 9 | 65 | InfluxDB 3 Core 3.10.6, 3.11.6 and 3.12.0, from DataFusion's information_schema, with dbimp's driver (D152) |
+| `models/impala` | 11 | 65 | Apache Impala 4.4.1 and 4.5.3, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
+| `models/neo4j` | 17 | 65 | Neo4j 2026.10.0, and 5.26.32, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
+| `models/influxdb` | 9 | 65 | InfluxDB 3 Core 3.10.6, 3.11.7 and 3.12.1, from DataFusion's information_schema, with dbimp's driver (D152) |
 | `models/ydb` | 7 | 65 | YDB 26.2.1.14 and 26.3.1.19, from the .sys views, with ydb-go-sdk (D161) |
 | `models/influxql` | 7 | 65 | InfluxDB 1.11.8 and 1.13.1, and 2.8.0 and 2.9.1, which answer 4 of the 7. Most kinds are a walk of SHOW statements, with dbimp's driver (D159, D165) |
-| `models/surrealdb` | 18 | 65 | SurrealDB 3.1.6, 3.2.4 and 3.3.0, and 2.7.0, which answers the current schema alone, because a 2.x statement cannot read INFO as a value. With dbimp's driver (D164) |
-| `models/rqlite` | 14 | 65 | rqlite 9.4.5 and 10.5.2, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
+| `models/surrealdb` | 18 | 65 | SurrealDB 3.1.6, 3.2.6 and 3.3.4, and 2.7.0, which answers the current schema alone, because a 2.x statement cannot read INFO as a value. With dbimp's driver (D164) |
+| `models/rqlite` | 14 | 65 | rqlite 9.4.5 and 10.6.3, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
 | `models/libsql` | 14 | 65 | libSQL 0.24.33, the sqld server, with dbimp's driver. Every statement is the sqlite3 model's, with a fragment for the vector index (D160) |
 | `models/arangodb` | 7 | 65 | ArangoDB 3.12.12, in AQL through dbimp's driver. A database is the schema, a collection is a table, and its JSON schema rule gives its columns (D163, D168) |
 | `models/druid` | 7 | 65 | Apache Druid 37.0.0 and 38.0.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. The version and the settings need an administrator (D171) |
 | `models/drill` | 10 | 65 | Apache Drill 1.21.2 and 1.22.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. A file table is listed only when the Metastore is on (D178) |
-| `models/elasticsearch` | 8 | 65 | Elasticsearch 8.19.22, 9.4.6 and 9.5.3, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D177, D191, D192) |
-| `models/opensearch` | 3 | 65 | OpenSearch 3.9.0 and 2.19.6, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
+| `models/elasticsearch` | 8 | 65 | Elasticsearch 8.19.23, 9.4.8 and 9.5.5, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D177, D191, D192) |
+| `models/opensearch` | 3 | 65 | OpenSearch 3.9.0 and 2.19.7, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
 | `models/solr` | 4 | 65 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
-| `models/gizmosql` | 21 | 65 | GizmoSQL 1.40.0 and 1.41.0, which run DuckDB 1.5.6, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
+| `models/gizmosql` | 21 | 65 | GizmoSQL 1.41.0 and 1.42.0, where DuckDB 1.5.6 was measured on 1.40.0 and 1.41.0, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
 | `models/spanner` | 22 | 65 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect. Cloud Spanner is tested with the driver of dbimp, and Omni with go-sql-spanner in a binary of its own (D216, D219, D231) |
 | `models/bigquery` | 18 | 65 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with the driver of dbimp (D220, D226, D229) |
 | `models/athena` | 8 | 65 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of dbimp, which binds with ExecutionParameters (D222, D229) |
@@ -6761,8 +6761,8 @@ and CI never runs one. See D118 and D119.
 
 | Product | Releases | Measured |
 | --- | --- | --- |
-| Stardog | 12.0.4, 12.1.4 | Not yet. No license file is provisioned |
-| GraphDB | 11.4.3, 11.5.1 | Not yet. No license file is provisioned |
+| Stardog | 12.1.5, 12.2.0 | Not yet. No license file is provisioned |
+| GraphDB | 11.4.3, 11.5.2 | Not yet. No license file is provisioned |
 | Volt Active Data | 14.1.0, 15.2.0 | Not yet. No license file is provisioned |
 
 Put each file at `$XDG_CONFIG_HOME/dbmeta/licenses/<product>`, where the

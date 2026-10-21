@@ -11,7 +11,7 @@ package container
 //
 // docker.io/terminusdb/terminusdb-server builds each release tag once, so the
 // rule in D112 applies: the newest release of each of the last two lines.
-// Checked on 2026-09-28, that is v12.0.7, of 2026-08-10, and v11.1.17, of
+// Checked on 2026-10-22, that is v12.0.8, of 2026-10-12, and v11.1.17, of
 // 2025-11-07. 12.1-rc is a release candidate. TerminusDB is under the Apache
 // 2.0 license.
 //
@@ -61,4 +61,4 @@ var terminusdb = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var TerminusDB = list{}.staged(terminusdb, Tested, "11.1.17", "12.0.7")
+var TerminusDB = list{}.staged(terminusdb, Tested, "11.1.17", "12.0.8")

@@ -21,10 +21,10 @@
 #
 # The memory is set for dbmeta's limit of 4 GB. Each JVM is held to 512 MB,
 # and the daemon's query memory to 1 GB.
-ARG RELEASE=4.5.2
+ARG RELEASE=4.5.3
 FROM docker.io/apache/impala:${RELEASE}-impala_quickstart_hms AS hms
 
-ARG RELEASE=4.5.2
+ARG RELEASE=4.5.3
 FROM docker.io/apache/impala:${RELEASE}-impalad_coord_exec
 
 USER root

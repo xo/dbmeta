@@ -253,3 +253,4 @@ file.
 | [D232](D232-redshift-reads-table-size-and-rows-only-on-request.md) | Redshift reads table size and rows only on request | Amends D207 and D212 |
 | [D233](D233-cosmos-answers-five-more-kinds-from-the-new-dbimp-statements.md) | Cosmos DB answers five more kinds from the new dbimp statements | Amends D228 |
 | [D234](D234-the-exasol-tests-use-the-driver-of-dbimp.md) | The Exasol tests use the driver of dbimp | Amends D154 and D87 |
+| [D235](D235-the-image-pins-moved-on-2026-10-22.md) | The image pins moved on 2026-10-22 | Decided |

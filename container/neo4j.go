@@ -15,10 +15,10 @@ import (
 //
 // # The range, by the docs/EVALUATION.md procedure
 //
-// Step 2 decides it. On docker.io/library/neo4j, checked on 2026-09-27, 4.4.48,
-// 5.26.31 and 2026.09.0 were rebuilt on 2026-09-26. A monthly release stops
-// being rebuilt when the next one arrives: 2026.08 was last rebuilt on
-// 2026-09-19. Each tag has a linux/amd64 build.
+// Step 2 decides it. On docker.io/library/neo4j, checked on 2026-10-22, 5.26.32
+// and 2026.10.0 were rebuilt on 2026-10-21. A monthly release stops being
+// rebuilt when the next one arrives: 2026.09.0 was last rebuilt on
+// 2026-10-17. Each tag has a linux/amd64 build.
 //
 // 4.4 is not in the range. Its Enterprise image starts only with the
 // commercial license, and a person cannot run that without paying. So the
@@ -132,6 +132,6 @@ func neo4jURL(user string) func(port int) string {
 // Neo4j is every Neo4j release dbmeta is tested against.
 //
 // models/neo4j reads both, so each takes the cadence it recorded while it was
-// Staged, and both run on every push (D120, D162). 5.26.31 is the floor of the
-// model and 2026.09.0 the newest monthly release.
-var Neo4j = list{}.add(neo4j, Tested, "5.26.31", "2026.09.0")
+// Staged, and both run on every push (D120, D162). 5.26.32 is the floor of the
+// model and 2026.10.0 the newest monthly release.
+var Neo4j = list{}.add(neo4j, Tested, "5.26.32", "2026.10.0")

@@ -16,7 +16,7 @@ import (
 //
 // docker.io/qdrant/qdrant builds each release tag once, so the rule in D112
 // applies: the newest release of each of the last two lines. Checked on
-// 2026-10-07, that is v1.19.2 and v1.18.3, of 2026-07-17.
+// 2026-10-22, that is v1.20.0, of 2026-10-21, and v1.19.2, of 2026-10-05.
 // Qdrant is under the Apache 2.0 license.
 //
 // # Keys, not users
@@ -96,4 +96,4 @@ func keyURL(scheme, user string) func(port int) string {
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Qdrant = list{}.staged(qdrant, Tested, "1.18.3", "1.19.2")
+var Qdrant = list{}.staged(qdrant, Tested, "1.19.2", "1.20.0")

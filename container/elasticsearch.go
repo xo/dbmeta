@@ -12,11 +12,11 @@ import "github.com/xo/dbmeta"
 // # The range
 //
 // docker.io/library/elasticsearch builds each release tag once, and three
-// lines still get releases. Checked on 2026-09-28, 9.5.3 and 9.4.6 were built
-// on 2026-09-22 and 8.19.22 on 2026-09-23, and 9.3.8, of 2026-08-11, looks
-// finished. The rule in D112 gives 9.4.6 and 9.5.3. 8.19 is still
-// patched and is what many servers run, so it is the floor, 9.5.3 is the
-// ceiling, and 9.4.6 is kept between them. The image is under the Elastic License 2.0,
+// lines still get releases. Checked on 2026-10-22, 9.5.5 and 9.4.8 were built
+// on 2026-10-13 and 8.19.23 on 2026-10-17, and 9.3.8, of 2026-08-11, looks
+// finished. The rule in D112 gives 9.4.8 and 9.5.5. 8.19 is still
+// patched and is what many servers run, so it is the floor, 9.5.5 is the
+// ceiling, and 9.4.8 is kept between them. The image is under the Elastic License 2.0,
 // the SSPL or the AGPL, and the basic license it makes for itself includes
 // security and SQL.
 //
@@ -70,5 +70,5 @@ var elasticsearch = product{
 //
 // models/elasticsearch reads them, so each keeps the cadence it recorded while
 // it was Staged (D120, D177).
-var Elasticsearch = list{}.add(elasticsearch, Tested, "8.19.22", "9.5.3").
-	add(elasticsearch, Nightly, "9.4.6")
+var Elasticsearch = list{}.add(elasticsearch, Tested, "8.19.23", "9.5.5").
+	add(elasticsearch, Nightly, "9.4.8")

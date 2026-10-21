@@ -10,6 +10,21 @@ anything that was decided on the way (D110).
 
 ## Servers
 
+### Decide the pins that need Ken
+
+D235 moved most pins and left four for Ken. The first is Solr 9.11.0, a new line
+that was rebuilt on 2026-10-17, and the rule in `container/solr.go` does not say
+whether it replaces 9.10.1 or sits beside it. The second is SingleStore image
+0.2.86, which needs `dbrun` to measure its engine before the pin moves. The third
+is the MariaDB 10.6 floor, because the vendor ended it in 2026-07 and the image
+is still patched. The fourth is the Cassandra 3.11 floor, which was not rebuilt
+since 2025-11-14.
+
+ClickHouse 25.3 is the next pin to look at, because it was not rebuilt for eight
+and a half months. The comment on SQL Server 2017 in `container/sqlserver.go` is
+also stale. It says the image is built on Ubuntu 16.04, and the image now reports
+Ubuntu 18.04.
+
 ### Find why the Hive setup fails on a slow machine
 
 The Hive setup fails on a GitHub runner, soon after HiveServer2 first answers,

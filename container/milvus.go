@@ -13,7 +13,7 @@ import "time"
 //
 // docker.io/milvusdb/milvus builds each release tag once, so the rule in D112
 // applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is v3.0.2, of 2026-09-18, and v2.6.24, of 2026-09-16. The
+// 2026-10-22, that is v3.0.3, of 2026-10-13, and v2.6.25, of 2026-09-28. The
 // dated tags and the -gpu and -debug tags are other builds. Milvus is under
 // the Apache 2.0 license.
 //
@@ -86,4 +86,4 @@ var milvus = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Milvus = list{}.staged(milvus, Tested, "2.6.24", "3.0.2")
+var Milvus = list{}.staged(milvus, Tested, "2.6.25", "3.0.3")

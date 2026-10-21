@@ -12,8 +12,9 @@ package container
 //
 // docker.io/dgraph/standalone builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is v25.4.1, of 2026-08-24, and v25.3.8, of 2026-07-09.
-// Dgraph is under the Apache 2.0 license.
+// 2026-10-22, that is v25.5.0, of 2026-10-13, and v25.4.1, of 2026-08-24.
+// Dgraph is under the Apache 2.0 license. The setup below was measured on 25.3
+// and 25.4. It was not run on 25.5 before the pin moved.
 //
 // # The users
 //
@@ -89,4 +90,4 @@ var dgraph = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Dgraph = list{}.staged(dgraph, Tested, "25.3.8", "25.4.1")
+var Dgraph = list{}.staged(dgraph, Tested, "25.4.1", "25.5.0")

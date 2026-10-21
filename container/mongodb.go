@@ -16,12 +16,11 @@ import (
 // # The range
 //
 // docker.io/library/mongo is an official image and a point release is
-// rebuilt until the next one replaces it. Checked on 2026-09-28, 8.3.11 and
-// 8.0.32 were rebuilt on 2026-09-16 and 7.0.43 on 2026-09-14. 8.2.12 was last
-// rebuilt on 2026-07-23, and 6.0 and 5.0 on 2026-05-15. On 2026-10-07 9.0.2
-// is the newest, so the window moved up: the floor is 8.0.32, the line with
-// long term support, the ceiling is 9.0.2, and 8.3.11 between them is kept too.
-// 7.0.43 is out. The community server is under the SSPL.
+// rebuilt until the next one replaces it. Checked on 2026-10-22, 9.0.4,
+// 8.3.13, 8.0.34 and 7.0.45 were rebuilt on 2026-10-17. 8.2.12 was last
+// rebuilt on 2026-07-23, and 6.0 and 5.0 on 2026-05-15. 9.0.4 is the newest,
+// so the floor is 8.0.34, the line with long term support, the ceiling is
+// 9.0.4, and 8.3.13 between them is kept too. 7.0.45 is out. The community server is under the SSPL.
 //
 // # The users
 //
@@ -82,5 +81,5 @@ func mongoURL(user, source string) func(port int) string {
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var MongoDB = list{}.staged(mongodb, Tested, "8.0.32", "9.0.2").
-	staged(mongodb, Nightly, "8.3.11")
+var MongoDB = list{}.staged(mongodb, Tested, "8.0.34", "9.0.4").
+	staged(mongodb, Nightly, "8.3.13")

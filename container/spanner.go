@@ -72,7 +72,7 @@ var Spanner = list{}.add(spannerOmni, Tested, "2026.r4-lts")
 //
 // gcr.io/cloud-spanner-emulator/emulator builds each release tag once. It has
 // one line, 1.5, so the rule in D112 gives one release. Checked on
-// 2026-10-10, that is 1.5.58, of 2026-09-15. The emulator is under the Apache
+// 2026-10-22, that is 1.5.59, of 2026-10-14. The emulator is under the Apache
 // 2.0 license. It runs two programs, emulator_main for gRPC on 9010 and
 // gateway_main for REST on 9020. Google's image has no shell, so the
 // Containerfile in test/cmd/dbrun/image adds a static busybox to it.
@@ -121,4 +121,4 @@ var spannerEmulator = product{
 // Omni, which answers the real catalog, and the emulator is here for a driver
 // that speaks REST, which Omni does not serve. Each release keeps the cadence
 // it will have if a model reads it. See D119, D120 and D217.
-var SpannerEmulator = list{}.staged(spannerEmulator, Tested, "1.5.58")
+var SpannerEmulator = list{}.staged(spannerEmulator, Tested, "1.5.59")

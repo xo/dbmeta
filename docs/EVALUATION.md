@@ -367,7 +367,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Oracle | 11g | 26ai | Criterion 2, from the free images. The container facts are in D54 |
 | Cassandra | 3.11 | 5.0 | Criterion 2, then held one release up because 3.0 adds no answer |
 | ClickHouse | 25.3 | 26.9 | Criterion 2. It goes stale faster than any other, because ClickHouse releases monthly |
-| Trino | 476 | 483 | Criterion 5. Criterion 2 cannot decide it and criterion 3 gives a floor of one |
+| Trino | 476 | 484 | Criterion 5. Criterion 2 cannot decide it and criterion 3 gives a floor of one |
 | Presto | 0.299 | 0.299 | Criterion 3, which gives a floor of one, and there is no second release to compare |
 | Firebird | 3.0 | 5.0 | Criteria 2 and 3 agree, which is rare enough to record |
 | SAP HANA | 2.00.076 | 2.00.088 | Criterion 3. SAP publishes an express edition of 2.0 only |
@@ -376,54 +376,54 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
 | Couchbase | 7.2.9 | 8.0.3 | Criterion 2. 7.2 is the oldest line the image still rebuilds, and 7.0 and 7.1 stopped in November 2024. The model's floor is 7.6, because 7.2 sends its columns in name order. 7.2.9 stays for the dbimp driver, and the model reports it too old (D104) |
-| Neo4j | 5.26.31 | 2026.09.0 | Criterion 2. 4.4.48, 5.26.31 and 2026.09.0 were rebuilt on 2026-09-26, and a monthly release stops being rebuilt when the next one arrives. 4.4 is out, because its Enterprise image starts only with the commercial license. The ceiling moves each month. There is no dbmeta model, and the entry is for dbimp's driver (D106) |
-| SurrealDB | 2.7.0 | 3.3.0 | Criterion 2. 2.7.0 was rebuilt on 2026-09-23 and 3.3.0 on 2026-09-24, and between them 3.1.6 on 2026-09-01 and 3.2.4 on 2026-08-03. 1.5.6 was last rebuilt in November 2024, and 2.6.5 and 3.0.5 in March 2026. `models/surrealdb` reads all four, and dbimp's driver tests against them (D164) |
+| Neo4j | 5.26.32 | 2026.10.0 | Criterion 2. 5.26.32 and 2026.10.0 were rebuilt on 2026-10-21, and a monthly release stops being rebuilt when the next one arrives. 4.4 is out, because its Enterprise image starts only with the commercial license. The ceiling moves each month. There is no dbmeta model, and the entry is for dbimp's driver (D106) |
+| SurrealDB | 2.7.0 | 3.3.4 | Criterion 2. 2.7.0 was rebuilt on 2026-09-23 and 3.3.4 on 2026-10-13, and between them 3.1.6 on 2026-09-01 and 3.2.6 on 2026-10-19. 1.5.6 was last rebuilt in November 2024, and 2.6.5 and 3.0.5 in March 2026. `models/surrealdb` reads all four, and dbimp's driver tests against them (D164) |
 | ArangoDB | 3.12.12 | 3.12.12 | Criterion 2. Only the 3.12 line is still built: 3.12.12 was rebuilt on 2026-09-24, and 3.11.14 was last built on 2025-05-24. The release moves with each patch. The entry was for dbimp's driver (D112), and `models/arangodb` reads it, so it is Tested (D163) |
-| InfluxDB | 1.11.8 | 3.12.0 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. 3.12.0 arrived by 2026-10-07, so the InfluxDB 3 window moved up one line: 3.10.6, 3.11.6 and 3.12.0, and 3.9.13 is out. Ken chose the releases in dbimp's D79. The entries were for dbimp's driver. `models/influxdb` reads InfluxDB 3, whose releases are Tested and Nightly (D152), and InfluxDB 1 and 2 stay Staged (D112, D114, D119) |
-| CrateDB | 6.3.7 | 6.4.5 | Criterion 2. 6.4.5 and 6.3.7 were rebuilt in September 2026, and 6.2 last on 2026-07-09. Reached on the PostgreSQL port, with a dialect and a model of its own, cratedb (D112, D123) |
+| InfluxDB | 1.11.8 | 3.12.1 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. 3.12.0 arrived by 2026-10-07, so the InfluxDB 3 window moved up one line: 3.10.6, 3.11.6 and 3.12.0, and 3.9.13 is out. On 2026-10-22 3.11.7 and 3.12.1 replaced 3.11.6 and 3.12.0. Ken chose the releases in dbimp's D79. The entries were for dbimp's driver. `models/influxdb` reads InfluxDB 3, whose releases are Tested and Nightly (D152), and InfluxDB 1 and 2 stay Staged (D112, D114, D119) |
+| CrateDB | 6.3.7 | 6.4.6 | Criterion 2. 6.4.6 and 6.3.7 were rebuilt in October 2026, and 6.2 last on 2026-07-09. Reached on the PostgreSQL port, with a dialect and a model of its own, cratedb (D112, D123) |
 | Apache Pinot | 1.4.0 | 1.5.1 | The rule for an image that is never rebuilt (D112). Apache supports only the newest release. The entry is for dbimp's driver |
-| Databend | 1.2.881 | 1.2.951 | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. `models/databend` reads it, and dbimp's driver tests against it (D140) |
-| rqlite | 9.4.5 | 10.5.2 | The rule for an image that is never rebuilt (D112). The 10 line moved from 10.3.6 to 10.5.2 by 2026-10-07. The entry was for dbimp's driver, and `models/rqlite` reads it (D148) |
+| Databend | 1.2.881 | 1.2.954 | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. `models/databend` reads it, and dbimp's driver tests against it (D140) |
+| rqlite | 9.4.5 | 10.6.3 | The rule for an image that is never rebuilt (D112). The 10 line moved from 10.3.6 to 10.6.3 by 2026-10-22. The entry was for dbimp's driver, and `models/rqlite` reads it (D148) |
 | libSQL | 0.24.33 | 0.24.33 | The rule for an image that is never rebuilt (D112). libSQL has one line, and its newest release was built on 2025-12-19. The entry was for dbimp's driver, and `models/libsql` reads it (D160) |
 | chai, csvq, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
 | Avatica | 1.28.0 | 1.29.0 | The rule for an image that is never rebuilt (D112). The standalone server over HSQLDB, which the Calcite project builds. The entry is for dbimp's Avatica driver (D113) |
 | Apache Phoenix | 2.0-5.0 | 2.0-5.0 | An exception to step 2, which Ken made (D113). The Phoenix project publishes no image, and the only one that runs in one container, boostport/hbase-phoenix-all-in-one, was last pushed on 2023-03-14. The entry is for dbimp's Avatica driver |
 | Apache Druid | 37.0.0 | 38.0.0 | The rule for an image that is never rebuilt (D112). 38.0.0 was published by 2026-10-07, and 36.0.0 is out. `models/druid` reads both (D171) |
-| Qdrant | 1.18.3 | 1.19.2 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| Qdrant | 1.19.2 | 1.20.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | Chroma | 1.4.1 | 1.5.9 | The rule for an image that is never rebuilt (D112). The 1.5.10.dev tags are development builds. The entry is for dbimp's driver (D118) |
-| Weaviate | 1.39.10 | 1.40.0 | The rule for an image that is never rebuilt (D112). 1.40.0 is a new line, so 1.38.17 is out. An older line still gets releases. The entry is for dbimp's driver (D118) |
-| CouchDB | 3.4.3 | 3.5.2 | Criterion 2. 3.5.2 and 3.4.3 were rebuilt on 2026-09-19, and 3.3.3 last on 2025-04-29. The entry is for dbimp's driver (D118) |
+| Weaviate | 1.39.13 | 1.40.2 | The rule for an image that is never rebuilt (D112). 1.40 is a new line, so 1.38 is out. An older line still gets releases. The entry is for dbimp's driver (D118) |
+| CouchDB | 3.4.3 | 3.5.3 | Criterion 2. 3.5.3 was rebuilt on 2026-10-21, 3.4.3 on 2026-10-06, and 3.3.3 last on 2025-04-29. The entry is for dbimp's driver (D118) |
 | QuestDB | 9.4.3 | 10.0.1 | The rule for an image that is never rebuilt (D112). `models/questdb` reads it on the PostgreSQL interface, and dbimp plans a driver for the HTTP one (D118, D124) |
-| Meilisearch | 1.53.3 | 1.54.3 | The rule for an image that is never rebuilt (D112). A minor release arrives about every two weeks, so the ceiling moves fast. The entry is for dbimp's driver (D118) |
+| Meilisearch | 1.54.3 | 1.55.0 | The rule for an image that is never rebuilt (D112). A minor release arrives about every two weeks, so the ceiling moves fast. The entry is for dbimp's driver (D118) |
 | Typesense | 29.1 | 30.2 | The rule for an image that is never rebuilt (D112). 31.0 is a release candidate. The entry is for dbimp's driver (D118) |
-| TerminusDB | 11.1.17 | 12.0.7 | The rule for an image that is never rebuilt (D112). 12.1-rc is a release candidate. The entry is for dbimp's driver (D118) |
-| CockroachDB | 24.3.36 | 26.3.2 | The rule for an image that is never rebuilt (D112) gives 26.2.7 and 26.3.2. 24.3.36 is kept too, because 24.3 is the oldest line with long term support still patched. Read by models/cockroachdb (D123) |
+| TerminusDB | 11.1.17 | 12.0.8 | The rule for an image that is never rebuilt (D112). 12.1-rc is a release candidate. The entry is for dbimp's driver (D118) |
+| CockroachDB | 24.3.36 | 26.3.2 | The rule for an image that is never rebuilt (D112) gives 26.2.8 and 26.3.2. 24.3.36 is kept too, because 24.3 is the oldest line with long term support still patched. Read by models/cockroachdb (D123) |
 | TiDB | 7.5.8 | 8.5.8 | Criterion 2. A tag is rebuilt while its line is maintained, and 7.5 is the oldest line with long term support still maintained. 8.1.2 is between them. `models/tidb` reads it, and shares the mysql model (D133) |
-| MongoDB | 8.0.32 | 9.0.2 | Criterion 2. 8.3.11, 8.0.32 and 7.0.43 were rebuilt in September 2026, and 6.0 last in May. 9.0.2 is a new major, published by 2026-10-07. The window moved up: 8.0.32, the line with long term support, is the floor, 8.3.11 is between, and 7.0.43 is out. The entry is for dbimp's driver (D118) |
-| Elasticsearch | 8.19.22 | 9.5.3 | Each tag is built once, and 8.19 is still patched, so it is the floor. 9.4.6 is between them. The entry is for dbimp's driver (D118) |
-| Dgraph | 25.3.8 | 25.4.1 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| MongoDB | 8.0.34 | 9.0.4 | Criterion 2. 9.0.4, 8.3.13, 8.0.34 and 7.0.45 were rebuilt on 2026-10-17, and 6.0 last in May. 9.0 is a new major, published by 2026-10-07. The window moved up: 8.0.34, the line with long term support, is the floor, 8.3.13 is between, and 7.0.45 is out. The entry is for dbimp's driver (D118) |
+| Elasticsearch | 8.19.23 | 9.5.5 | Each tag is built once, and 8.19 is still patched, so it is the floor. 9.4.8 is between them. The entry is for dbimp's driver (D118) |
+| Dgraph | 25.4.1 | 25.5.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | YDB | 26.2.1.14 | 26.3.1.19 | The rule for an image that is never rebuilt (D112). usql reaches it with ydb-go-sdk, and models/ydb reads both (D118, D161) |
 | Spanner | 2026.r4-lts | 2026.r4-lts | Spanner Omni, the engine of the service, which the model reads (D215, D216). It has one long term support line at a time, and the image has a shell. `models/spanner` reads it (D216) |
-| Spanner emulator | 1.5.58 | 1.5.58 | The rule for an image that is never rebuilt (D112). The emulator has one line. The image is built here, because Google's has no shell (D118, D217) |
+| Spanner emulator | 1.5.59 | 1.5.59 | The rule for an image that is never rebuilt (D112). The emulator has one line. The image is built here, because Google's has no shell (D118, D217) |
 | BigQuery | 0.8.1 | 0.8.1 | The rule for an image that is never rebuilt (D112). A community emulator, with a smaller INFORMATION_SCHEMA than the service (D118). The model reads the hosted service, which has no release, and no model reads this entry (D220) |
-| GizmoSQL | 1.40.0 | 1.41.0 | The rule for an image that is never rebuilt (D112). 1.40.0 and 1.41.0 are the two newest lines on 2026-10-07. The maintained Arrow Flight SQL server, for usql's flightsql driver (D118) |
+| GizmoSQL | 1.41.0 | 1.42.0 | The rule for an image that is never rebuilt (D112). 1.41.0 and 1.42.0 are the two newest lines on 2026-10-22. The maintained Arrow Flight SQL server, for usql's flightsql driver (D118) |
 | Virtuoso | 7.2.17 | 7.2.17 | Criterion 2. 7.2.17 was rebuilt on 2026-08-05 and 7.2.16 last on 2025-10-15. The entry is for dbimp's SPARQL driver (D118) |
 | Alternator | 2025.1 | 2026.3 | The scylla entry's range, which D90 chose. The DynamoDB interface of ScyllaDB (D118) |
-| Vitess | 23.0.7 | 24.0.4 | The rule for an image that is never rebuilt (D112). `models/vitess` reads it, and shares the mysql model (D135) |
+| Vitess | 23.0.8 | 24.0.5 | The rule for an image that is never rebuilt (D112). `models/vitess` reads it, and shares the mysql model (D135) |
 | SingleStore | 9.0 | 9.1 | The newest two lines the development image serves, on image 0.2.85, which ships 9.1.1 and downloads 9.0 when it starts. It runs with no license on a machine with at most 8 cores and 64 GB. Ken asked for it on 2026-09-30, which amends D118 |
-| Apache Impala | 4.4.1 | 4.5.2 | The rule for an image that is never rebuilt (D112). Apache publishes each daemon as an image of its own, and dbrun builds them into one (D145). Ken asked for it on 2026-09-30, which amends D118 |
-| Milvus | 2.6.24 | 3.0.2 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
-| OpenSearch | 2.19.6 | 3.9.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
-| DynamoDB | 3.2.0 | 3.3.1 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary license Ken accepted (D118) |
-| Cosmos | EN20260907 | EN20260907 | The vNext emulator is a dated build each month, built once, so the rule in D112 gives the newest. A Microsoft license Ken accepted (D118) |
-| Stardog | 12.0.4 | 12.1.4 | The rule for an image that is never rebuilt (D112). Needs a license file, and not yet measured (D118) |
-| GraphDB | 11.4.3 | 11.5.1 | The rule for an image that is never rebuilt (D112). GraphDB 11 needs a license file, and not yet measured (D118) |
+| Apache Impala | 4.4.1 | 4.5.3 | The rule for an image that is never rebuilt (D112). Apache publishes each daemon as an image of its own, and dbrun builds them into one (D145). Ken asked for it on 2026-09-30, which amends D118 |
+| Milvus | 2.6.25 | 3.0.3 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| OpenSearch | 2.19.7 | 3.9.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
+| DynamoDB | 3.2.0 | 3.3.2 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary license Ken accepted (D118) |
+| Cosmos | EN20261019 | EN20261019 | The vNext emulator is a dated build each month, built once, so the rule in D112 gives the newest. A Microsoft license Ken accepted (D118) |
+| Stardog | 12.1.5 | 12.2.0 | The rule for an image that is never rebuilt (D112). Needs a license file, and not yet measured (D118) |
+| GraphDB | 11.4.3 | 11.5.2 | The rule for an image that is never rebuilt (D112). GraphDB 11 needs a license file, and not yet measured (D118) |
 | VoltDB | 14.1.0 | 15.2.0 | The rule for an image that is never rebuilt (D112). The developer edition needs a license file, and not yet measured (D118) |
 | Solr | 9.9.0 | 10.0.0 | Criterion 2. 10.0.0, 9.10.1 and 9.9.0 were rebuilt on 2026-09-26. 9.10.1 is between them. The entry is for dbimp's driver (D118) |
 | Drill | 1.21.2 | 1.22.0 | The rule for an image that is never rebuilt (D112). The Java of 1.22.0 fails on a current host unless its container support is off (D118) |
 | H2 | 2.4.240 | 2.5.252 | The rule for an image that is never rebuilt (D112), applied to the jars on Maven Central. The image is built here (D118) |
 | Fuseki | 6.1.0 | 6.2.0 | The rule for an image that is never rebuilt (D112), applied to the jars on Maven Central. The image is built here (D118) |
-| PostgREST | 14.18 | 16.4 | The rule for an image that is never rebuilt (D112). There is no 15. The image is built here, on PostgreSQL 18 (D118) |
+| PostgREST | 14.18 | 16.5 | The rule for an image that is never rebuilt (D112). There is no 15. The image is built here, on PostgreSQL 18 (D118) |
 | ksqlDB | 8.2.4 | 8.3.2 | The rule for an image that is never rebuilt (D112), from Confluent Platform's image, because confluentinc/ksqldb-server stopped in 2023. The image is built here, with the Kafka broker (D118) |
 | SQLite3 | none | none | No server. The release is whichever the driver embeds |
 | DuckDB | none | none | No server. The release is whichever the driver embeds |

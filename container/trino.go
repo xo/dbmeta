@@ -48,6 +48,10 @@ import (
 // 400 and 351 were not measured. Neither can beat 451, so neither can change
 // the floor.
 //
+// On 2026-10-22 the ceiling moved from 483 to 484, of 2026-10-16, because the
+// ceiling is the newest release. 484 was not run before the pin moved, and CI
+// is the first run.
+//
 // The range carries no version fragment. Every query is the same statement on
 // both releases, which is what a two release span from one connector change
 // looks like.
@@ -91,4 +95,4 @@ var trino = product{
 }
 
 // Trino is every Trino release dbmeta is tested against.
-var Trino = list{}.add(trino, Tested, "476", "483")
+var Trino = list{}.add(trino, Tested, "476", "484")

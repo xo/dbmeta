@@ -13,7 +13,8 @@ import "github.com/xo/dbmeta"
 //
 // docker.io/opensearchproject/opensearch builds each release tag once, so the
 // rule in D112 applies: the newest release of each of the last two lines.
-// Checked on 2026-10-07, that is 3.9.0 and 2.19.6.
+// Checked on 2026-10-22, that is 3.9.0, of 2026-09-29, and 2.19.7, of
+// 2026-10-20.
 // OpenSearch is under the Apache 2.0 license.
 //
 // # The password
@@ -109,4 +110,4 @@ api=http://127.0.0.1:9200/_plugins/_security/api
 //
 // models/opensearch reads them, so each keeps the cadence it recorded while it
 // was Staged (D120, D181).
-var OpenSearch = list{}.add(opensearch, Tested, "2.19.6", "3.9.0")
+var OpenSearch = list{}.add(opensearch, Tested, "2.19.7", "3.9.0")

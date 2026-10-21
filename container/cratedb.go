@@ -22,8 +22,8 @@ import (
 //
 // # The range, by the docs/EVALUATION.md procedure
 //
-// Step 2 decides it. On docker.io/library/crate, checked on 2026-09-27, 6.4.5
-// was rebuilt on 2026-09-21 and 6.3.7 on 2026-09-03. 6.2, 6.1 and 6.0 were
+// Step 2 decides it. On docker.io/library/crate, checked on 2026-10-22, 6.4.6
+// was rebuilt on 2026-10-12 and 6.3.7 on 2026-10-02. 6.2, 6.1 and 6.0 were
 // last rebuilt on 2026-07-09, and 5.10 on 2026-01-29. So the floor is 6.3 and
 // the ceiling is 6.4. CrateDB is under the Apache 2.0 license.
 //
@@ -114,4 +114,4 @@ func cratePG(user string, password bool) func(port int) string {
 
 // CrateDB is every CrateDB release dbrun starts. Both are Tested, which is
 // the cadence they kept while they were Staged (D120).
-var CrateDB = list{}.add(cratedb, Tested, "6.3.7", "6.4.5")
+var CrateDB = list{}.add(cratedb, Tested, "6.3.7", "6.4.6")

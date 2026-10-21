@@ -19,7 +19,7 @@ import (
 //
 // docker.io/postgrest/postgrest builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is v16.4, of 2026-09-24, and v14.18, of 2026-09-12. There
+// 2026-10-22, that is v16.5, of 2026-10-20, and v14.18, of 2026-09-12. There
 // is no 15. PostgREST is under the MIT license.
 //
 // # The image is built here
@@ -107,4 +107,4 @@ var postgrest = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var PostgREST = list{}.staged(postgrest, Tested, "14.18", "16.4")
+var PostgREST = list{}.staged(postgrest, Tested, "14.18", "16.5")

@@ -19,8 +19,8 @@ import (
 //
 // docker.io/cockroachdb/cockroach builds each point release tag once, so the
 // rule in D112 applies: the newest release of each of the last two lines.
-// Checked on 2026-09-28, that is v26.3.2, of 2026-09-23, and v26.2.7, of
-// 2026-09-24. v24.3.36 is kept too, because 24.3 is the oldest line with
+// Checked on 2026-10-22, that is v26.3.2, of 2026-09-23, and v26.2.8, of
+// 2026-10-15. v24.3.36 is kept too, because 24.3 is the oldest line with
 // long term support that is still patched, to 2027-05-05. CockroachDB is under
 // the CockroachDB Software License, which is source available and needs no
 // license key for a single node.
@@ -92,5 +92,5 @@ func cockroachURL(scheme, user string) func(port int) string {
 // The newest of the last two lines on every push, and the oldest line with
 // long term support at night. They were the cadence each had while it was
 // Staged (D120).
-var CockroachDB = list{}.add(cockroachdb, Tested, "26.2.7", "26.3.2").
+var CockroachDB = list{}.add(cockroachdb, Tested, "26.2.8", "26.3.2").
 	add(cockroachdb, Nightly, "24.3.36")

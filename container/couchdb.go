@@ -10,9 +10,9 @@ package container
 // # The range
 //
 // docker.io/library/couchdb is an official image and is rebuilt, so the
-// floor is the oldest release still rebuilt. Checked on 2026-09-28, 3.5.2 and
-// 3.4.3 were rebuilt on 2026-09-19, and 3.3.3 was last rebuilt on 2025-04-29.
-// The tag 3.5.2 holds 3.5.2.1. A tag that ends in -nouveau adds a search
+// floor is the oldest release still rebuilt. Checked on 2026-10-22, 3.5.3 was
+// rebuilt on 2026-10-21, 3.4.3 on 2026-10-06, and 3.3.3 was last rebuilt on
+// 2025-04-29. The tag 3.5.3 is the newest. A tag that ends in -nouveau adds a search
 // service and is left out. CouchDB is under the Apache 2.0 license.
 //
 // # The users
@@ -68,4 +68,4 @@ var couchdb = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var CouchDB = list{}.staged(couchdb, Tested, "3.4.3", "3.5.2")
+var CouchDB = list{}.staged(couchdb, Tested, "3.4.3", "3.5.3")

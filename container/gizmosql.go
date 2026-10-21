@@ -22,7 +22,7 @@ import (
 //
 // docker.io/gizmodata/gizmosql builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
-// 2026-10-07, that is v1.41.0 and v1.40.0. It
+// 2026-10-22, that is v1.42.0, of 2026-10-15, and v1.41.0, of 2026-10-06. It
 // releases several times a month, so the ceiling moves often. The tag that
 // ends in -slim does not turn TLS on, and the other tags make a certificate
 // of their own. The core is under the Apache 2.0 license, and the enterprise
@@ -70,4 +70,4 @@ var gizmosql = product{
 
 // GizmoSQL is every GizmoSQL release dbrun starts. They are Tested, the
 // cadence they recorded while they were Staged (D120).
-var GizmoSQL = list{}.add(gizmosql, Tested, "1.40.0", "1.41.0")
+var GizmoSQL = list{}.add(gizmosql, Tested, "1.41.0", "1.42.0")

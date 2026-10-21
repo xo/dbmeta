@@ -11,7 +11,8 @@ package container
 //
 // docker.io/stardog/stardog builds each release tag once, so the rule in D112
 // applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is 12.1.4, of 2026-09-03, and 12.0.4, of 2026-06-15.
+// 2026-10-22, that is 12.2.0 and 12.1.5, both of 2026-10-14. 12.2.0 is a new
+// minor line, and the commands below were not measured on any release.
 //
 // # The license
 //
@@ -70,4 +71,4 @@ var stardog = product{
 // Staged, because dbmeta has no model that reads Stardog, so CI runs none
 // of them. Each also needs a license file that CI does not have,
 // so its cadence is Verified. See D119 and D120.
-var Stardog = list{}.staged(stardog, Verified, "12.0.4", "12.1.4")
+var Stardog = list{}.staged(stardog, Verified, "12.1.5", "12.2.0")

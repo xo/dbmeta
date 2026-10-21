@@ -18,8 +18,10 @@ import (
 //
 // mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator publishes the vNext
 // emulator as a dated build each month, and builds each tag once, so the rule
-// in D112 gives the newest. Checked on 2026-09-28, that is vnext-EN20260907.
-// The older emulator, which needs a Windows host or much more memory, is left
+// in D112 gives the newest. Checked on 2026-10-22, that is vnext-EN20261019.
+// The registry gives no date, so the date is the one in the tag name. The
+// notes below on what the emulator answers were measured on EN20260907, and
+// the pin moved to EN20261019 without a run. The older emulator, which needs a Windows host or much more memory, is left
 // out.
 //
 // # The license
@@ -72,4 +74,4 @@ var cosmos = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Cosmos = list{}.staged(cosmos, Tested, "EN20260907")
+var Cosmos = list{}.staged(cosmos, Tested, "EN20261019")

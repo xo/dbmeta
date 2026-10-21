@@ -11,7 +11,7 @@ package container
 //
 // docker.io/ontotext/graphdb builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is 11.5.1, of 2026-09-23, and 11.4.3, of 2026-08-06.
+// 2026-10-22, that is 11.5.2, of 2026-10-16, and 11.4.3, of 2026-08-06.
 // 12.0.0-TR5 is a pre-release.
 //
 // # The license
@@ -70,4 +70,4 @@ var graphdb = product{
 // Staged, because dbmeta has no model that reads GraphDB, so CI runs none
 // of them. Each also needs a license file that CI does not have,
 // so its cadence is Verified. See D119 and D120.
-var GraphDB = list{}.staged(graphdb, Verified, "11.4.3", "11.5.1")
+var GraphDB = list{}.staged(graphdb, Verified, "11.4.3", "11.5.2")

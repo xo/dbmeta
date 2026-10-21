@@ -23,9 +23,11 @@ import (
 // 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.11.5,
 // 3.10.6 and 3.9.13 between 2026-09-16 and 2026-09-18. Ken chose the releases
 // in dbimp's D79. On 2026-10-07 3.12.0 had arrived, so the InfluxDB 3 window
-// moved up one line to 3.10.6, 3.11.6 and 3.12.0.
+// moved up one line to 3.10.6, 3.11.6 and 3.12.0. On 2026-10-22 the releases
+// of 3.11 and 3.12 were 3.11.7 and 3.12.1, both of 2026-10-17, and the window
+// moved to 3.10.6, 3.11.7 and 3.12.1 without a run before CI.
 //
-// The InfluxDB 3 tag is the release with -core, such as 3.12.0-core. InfluxDB 3
+// The InfluxDB 3 tag is the release with -core, such as 3.12.1-core. InfluxDB 3
 // Enterprise is not here: its free license and its trial both need a person to
 // follow a link in an email before the server starts.
 //
@@ -256,5 +258,5 @@ var InfluxDB = list{}.add(influxdb1, Tested, "1.13.1").
 	add(influxdb1, Nightly, "1.11.8").
 	add(influxdb2, Tested, "2.9.1").
 	add(influxdb2, Nightly, "2.8.0").
-	add(influxdb, Tested, "3.10.6", "3.12.0").
-	add(influxdb, Nightly, "3.11.6")
+	add(influxdb, Tested, "3.10.6", "3.12.1").
+	add(influxdb, Nightly, "3.11.7")

@@ -12,13 +12,14 @@ package container
 //
 // docker.io/amazon/dynamodb-local builds each release tag once, so the rule in
 // D112 applies: the newest release of each of the last two lines. Checked on
-// 2026-09-28, that is 3.3.1, of 2026-07-31, and 3.2.0, of 2026-01-12.
+// 2026-10-22, that is 3.3.2, of 2026-10-15, and 3.2.0, of 2026-01-12.
 //
 // # The license
 //
 // DynamoDB Local is under the Amazon DynamoDB Local License Agreement, which
 // is proprietary and binds whoever uses it. It needs no account. Ken accepted
-// it for this project on 2026-09-28.
+// it for this project on 2026-09-28. Nobody checked whether 3.3.2 changed the
+// terms.
 //
 // # No users
 //
@@ -44,4 +45,4 @@ var dynamodb = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var DynamoDB = list{}.staged(dynamodb, Tested, "3.2.0", "3.3.1")
+var DynamoDB = list{}.staged(dynamodb, Tested, "3.2.0", "3.3.2")
