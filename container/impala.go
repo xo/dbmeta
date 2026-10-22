@@ -38,6 +38,7 @@ import (
 var impala = product{
 	dialect: dbmeta.Impala,
 	name:    "impala",
+	client:  impalaClient(),
 	image:   "localhost/dbmeta/impala",
 	port:    21050,
 	ready: []string{"bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/25000 &&" +

@@ -30,11 +30,12 @@ import "fmt"
 
 // bigquery is the BigQuery emulator image.
 var bigquery = product{
-	name:  "bigquery",
-	image: "ghcr.io/goccy/bigquery-emulator",
-	port:  9050,
-	args:  []string{"--project=dbmeta", "--dataset=dbmeta", "--port=9050"},
-	ready: bashRequest(9050, "GET", "/bigquery/v2/projects/dbmeta/datasets/dbmeta", "", nil, 200),
+	name:   "bigquery",
+	client: NoClient("the emulator of a hosted service, which answers over HTTP and gRPC, with no shell"),
+	image:  "ghcr.io/goccy/bigquery-emulator",
+	port:   9050,
+	args:   []string{"--project=dbmeta", "--dataset=dbmeta", "--port=9050"},
+	ready:  bashRequest(9050, "GET", "/bigquery/v2/projects/dbmeta/datasets/dbmeta", "", nil, 200),
 	dsn: func(port int) string {
 		return fmt.Sprintf("bigquery://admin@dbmeta/dbmeta?endpoint=http%%3A%%2F%%2F127.0.0.1%%3A%d&disable_auth=true", port)
 	},

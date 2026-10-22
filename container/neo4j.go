@@ -60,6 +60,7 @@ func neo4jShell(user, database string) string {
 var neo4j = product{
 	dialect:   dbmeta.Neo4j,
 	name:      "neo4j",
+	client:    NoClient("cypher-shell speaks Bolt, and the image publishes only the HTTP port"),
 	image:     "docker.io/library/neo4j",
 	tagSuffix: "-enterprise",
 	port:      7474,

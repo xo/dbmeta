@@ -55,6 +55,7 @@ exec /tidb-server --store=unistore --path=/var/lib/tidb --initialize-sql-file=/t
 var tidb = product{
 	dialect:   dbmeta.TiDB,
 	name:      "tidb",
+	client:    MysqlClient("mysql"),
 	image:     "docker.io/pingcap/tidb",
 	tagPrefix: "v",
 	port:      4000,

@@ -14,6 +14,7 @@ import (
 var sqlserver = product{
 	dialect: dbmeta.SQLServer,
 	name:    "sqlserver",
+	client:  sqlcmdClient(),
 	// Microsoft's own registry rather than Docker Hub, and the image is
 	// the only one there is: there is no community SQL Server.
 	image: "mcr.microsoft.com/mssql/server",

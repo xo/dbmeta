@@ -72,6 +72,7 @@ import (
 var cassandra = product{
 	dialect: dbmeta.Cassandra,
 	name:    "cassandra",
+	client:  cqlshClient(),
 	image:   "localhost/dbmeta/cassandra",
 	port:    9042,
 	env: map[string]string{

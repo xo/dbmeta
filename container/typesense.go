@@ -42,6 +42,7 @@ var typesenseKey = map[string]string{"X-TYPESENSE-API-KEY": Password}
 // typesense is the Typesense image.
 var typesense = product{
 	name:     "typesense",
+	client:   NoClient("a search engine that answers over HTTP, with no shell"),
 	image:    "docker.io/typesense/typesense",
 	port:     8108,
 	env:      map[string]string{"TYPESENSE_API_KEY": Password},

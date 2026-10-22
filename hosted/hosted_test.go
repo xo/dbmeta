@@ -40,3 +40,19 @@ func TestAServiceIsStagedExactlyWhenNoModelReadsIt(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryServiceNamesAClientOrSaysWhy holds D236 for a hosted service: it
+// names the native client that dbrun cli runs, or says why it has none, and
+// never both.
+func TestEveryServiceNamesAClientOrSaysWhy(t *testing.T) {
+	t.Parallel()
+	for _, s := range hosted.All() {
+		c := s.Client
+		switch {
+		case c.Command == "" && c.Why == "":
+			t.Errorf("%s names no native client and gives no reason", s.Name)
+		case c.Command != "" && c.Why != "":
+			t.Errorf("%s names the client %s and also gives the reason %q", s.Name, c.Command, c.Why)
+		}
+	}
+}

@@ -196,6 +196,8 @@ func one(ctx context.Context, r runner, command string, t target, o options) err
 		return doVersion(ctx, r, t)
 	case "usql":
 		return doUsql(ctx, r, t, o)
+	case "cli":
+		return doCLI(ctx, r, t, o)
 	case "test":
 		return doTest(ctx, r, t, o)
 	}

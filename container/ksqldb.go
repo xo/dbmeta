@@ -66,9 +66,10 @@ exec /etc/confluent/docker/entrypoint.sh ksqldb-server`
 
 // ksqldb is ksqlDB with its Kafka broker, built here.
 var ksqldb = product{
-	name:  "ksqldb",
-	image: "localhost/dbmeta/ksqldb",
-	port:  8088,
+	name:   "ksqldb",
+	client: ksqlClient(),
+	image:  "localhost/dbmeta/ksqldb",
+	port:   8088,
 	env: map[string]string{
 		"KSQL_BOOTSTRAP_SERVERS":     "127.0.0.1:9092",
 		"KSQL_LISTENERS":             "http://0.0.0.0:8088",

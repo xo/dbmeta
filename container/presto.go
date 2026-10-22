@@ -40,6 +40,7 @@ import (
 var presto = product{
 	dialect: dbmeta.Presto,
 	name:    "presto",
+	client:  trinoClient("presto-cli"),
 	image:   "docker.io/prestodb/presto",
 	port:    8080,
 	// presto-cli is on the path and defaults to localhost:8080.

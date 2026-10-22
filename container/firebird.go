@@ -43,6 +43,7 @@ import (
 var firebird = product{
 	dialect: dbmeta.Firebird,
 	name:    "firebird",
+	client:  firebirdClient(),
 	image:   "docker.io/firebirdsql/firebird",
 	major:   seriesOf,
 	port:    3050,

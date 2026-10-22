@@ -39,6 +39,7 @@ import (
 var vitess = product{
 	dialect:   dbmeta.Vitess,
 	name:      "vitess",
+	client:    MysqlClient("mysql"),
 	image:     "docker.io/vitess/vttestserver",
 	tagPrefix: "v",
 	tagSuffix: "-mysql84",

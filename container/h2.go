@@ -45,9 +45,10 @@ func h2SQL(stmt string) string {
 
 // h2 is the H2 image, built here.
 var h2 = product{
-	name:  "h2",
-	image: "localhost/dbmeta/h2",
-	port:  9092,
+	name:   "h2",
+	client: NoClient("the shell is a Java class in the H2 jar and not a command on the path"),
+	image:  "localhost/dbmeta/h2",
+	port:   9092,
 	args: []string{"java", "-Xmx512m", "-cp", "/opt/h2.jar", "org.h2.tools.Server",
 		"-tcp", "-tcpAllowOthers", "-tcpPort", "9092", "-ifNotExists"},
 	ready: []string{"sh", "-c", h2SQL("SELECT 1")},

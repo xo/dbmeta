@@ -60,6 +60,7 @@ func arangoShell(script string) []string {
 var arangodb = product{
 	dialect: dbmeta.ArangoDB,
 	name:    "arangodb",
+	client:  arangoshClient(),
 	image:   "docker.io/library/arangodb",
 	port:    8529,
 	env: map[string]string{

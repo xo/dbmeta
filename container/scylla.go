@@ -67,6 +67,7 @@ const cassandraHash = `\$6\$dbmetadbmeta\$U6VbAa9ibQS2pWMc0OTLfatYXOeWP5wG0SVGQt
 var scylla = product{
 	dialect: dbmeta.Cassandra,
 	name:    "scylla",
+	client:  cqlshClient(),
 	image:   "docker.io/scylladb/scylla",
 	port:    9042,
 	args: []string{

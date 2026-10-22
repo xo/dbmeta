@@ -83,6 +83,7 @@ const osCurl = "curl -sf -o /dev/null -u 'admin:" + Password + "' -H 'Content-Ty
 var opensearch = product{
 	dialect: dbmeta.OpenSearch,
 	name:    "opensearch",
+	client:  NoClient("a search engine that answers over HTTP, with no shell"),
 	image:   "docker.io/opensearchproject/opensearch",
 	port:    9200,
 	env: map[string]string{

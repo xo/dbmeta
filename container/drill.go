@@ -61,6 +61,7 @@ exec $DRILL_HOME/bin/drill-embedded -n admin -p '` + Password + `'`
 var drill = product{
 	dialect: dbmeta.Drill,
 	name:    "drill",
+	client:  NoClient("the shell ships inside the server image and the host has none"),
 	image:   "docker.io/apache/drill",
 	port:    8047,
 	env: map[string]string{

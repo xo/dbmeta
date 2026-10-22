@@ -30,10 +30,11 @@ package container
 
 // dynamodb is the DynamoDB Local image.
 var dynamodb = product{
-	name:  "dynamodb",
-	image: "docker.io/amazon/dynamodb-local",
-	port:  8000,
-	args:  []string{"-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb", "-disableTelemetry"},
+	name:   "dynamodb",
+	client: NoClient("the emulator of a hosted service, which answers over HTTP, with no shell"),
+	image:  "docker.io/amazon/dynamodb-local",
+	port:   8000,
+	args:   []string{"-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb", "-disableTelemetry"},
 	ready: []string{"sh", "-c", `curl -sf -o /dev/null --aws-sigv4 'aws:amz:us-east-1:dynamodb' -u 'dbmeta:` + Password +
 		`' -H 'Content-Type: application/x-amz-json-1.0' -H 'X-Amz-Target: DynamoDB_20120810.ListTables' -d '{}' http://127.0.0.1:8000/`},
 	dsn: dynamoURL("dbmeta", Password),

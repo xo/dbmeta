@@ -15,6 +15,7 @@ import (
 var mysql = product{
 	dialect: dbmeta.MySQL,
 	name:    "mysql",
+	client:  MysqlClient("mysql"),
 	image:   "docker.io/library/mysql",
 	port:    3306,
 	env:     map[string]string{"MYSQL_ROOT_PASSWORD": Password},

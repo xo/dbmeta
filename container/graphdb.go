@@ -55,6 +55,7 @@ fi`
 // graphdb is the GraphDB image.
 var graphdb = product{
 	name:    "graphdb",
+	client:  NoClient("the server answers SPARQL over HTTP, with no shell"),
 	image:   "docker.io/ontotext/graphdb",
 	port:    7200,
 	license: "/opt/graphdb/home/conf/graphdb.license",

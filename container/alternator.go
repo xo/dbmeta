@@ -50,9 +50,10 @@ var alternatorAdminHash = strings.ReplaceAll(cassandraHash, `\$`, `$`)
 
 // alternator is the ScyllaDB image with Alternator on.
 var alternator = product{
-	name:  "alternator",
-	image: scylla.image,
-	port:  8000,
+	name:   "alternator",
+	client: NoClient("a DynamoDB API over HTTP, with no shell"),
+	image:  scylla.image,
+	port:   8000,
 	args: append(append([]string{}, scylla.args...),
 		"--alternator-port", "8000",
 		// The entrypoint otherwise sets the address to the one the node

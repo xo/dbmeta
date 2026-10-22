@@ -65,6 +65,7 @@ const (
 var libsql = product{
 	dialect:   dbmeta.LibSQL,
 	name:      "libsql",
+	client:    NoClient("the server has no shell, and the turso command talks to the hosted service"),
 	image:     "ghcr.io/tursodatabase/libsql-server",
 	tagPrefix: "v",
 	port:      8080,

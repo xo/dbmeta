@@ -136,6 +136,15 @@ dbrun start postgres-18
 dbrun usql postgres-18
 ```
 
+Connect with the client the vendor ships, if it is installed. The arguments
+after `--` go to the client, and `--as` picks a user that `dsn --json` lists:
+
+```bash
+dbrun cli postgres-18 -- -c 'select 1'
+dbrun cli couchbase --as user
+dbrun cli mariadb --print
+```
+
 Get the connection string for a program or a test. `dsn --json` prints one
 object for each server, and the `dsn` field is the form the Go driver takes:
 
@@ -187,6 +196,7 @@ dbrun logs postgres-18
 | `version` | Connects and prints the version that dbmeta reads. It needs a dbmeta model for the product. | no |
 | `dsn` | Prints the URL of the server, running or not. | no |
 | `usql` | Runs the `usql` on your `PATH` with the URL of the server, and nothing else. | no |
+| `cli` | Runs the native command line client of the product, such as `psql`, with the connection of the server. It starts nothing, and the client must be on your `PATH`. `--as` picks the user, and `--print` prints the command line with the password masked and runs nothing. Arguments after `--` go to the client. See Native clients. | no |
 | `test` | Runs dbmeta's integration tests against the server, starting and removing it around them. | yes |
 | `logs` | Prints what the server wrote. `-f` follows it. | no |
 | `list` | Prints what a selector names, and touches nothing. The embedded libraries come first, then the servers, containers and machines together, then the hosted services, each by product and then by release, oldest first. | no |
@@ -327,6 +337,122 @@ DynamoDB, Cosmos and ksqlDB have none, and D118 says why. `dsn --json`
 prints each in the `principals` field, after the administrator, with its own
 connection string (D102). Every other ordinary user is created by the test
 that needs it and dropped when that test ends.
+
+## Native clients
+
+`dbrun cli <name>` runs the command line client that the vendor ships for the
+product, connected to the server that `dbrun` started. It is the same idea as
+`dbrun usql <name>`, with the client of the product in place of `usql`. It
+starts nothing and it needs the server to be running. It runs the client that
+is on your `PATH`, attached to your terminal, with the arguments that follow
+`--`. D236 has the design.
+
+If the client is not on the `PATH`, `cli` says which command is missing and
+which product it belongs to, and it offers `dbrun usql <name>`, which needs
+only `usql`. `cli` names one server. It refuses a selector that expands to
+more than one, so `dbrun cli postgres` is the newest PostgreSQL, and the
+command says which release that is first.
+
+`--as` picks the principal, by role or by name, as `dsn --json` prints them.
+Without it the client connects as the administrator. `--print` prints the
+command line and the names of the environment variables, and runs nothing. It
+masks the password as `xxxxx` and never prints the value of a variable.
+
+A hosted service works when its client reads the password from the
+environment. Redshift, Neon and PlanetScale do. `dbrun cli redshift` reads the
+connection string that `dbrun` resolves (D117) in memory and builds the call
+from its host, port, user and database. The password goes only in `PGPASSWORD`
+or `MYSQL_PWD`, and the connection string never reaches an argument, an error
+or a log. `--as` is not supported for a hosted service, because `dbrun`
+resolves one credential for each service. Put the user in that credential.
+
+The product data in `container/` and `hosted/` holds each client: the command, and a
+function from the host, the port, the user, the password and the database to
+the arguments and the environment variables. `container` still starts and
+runs nothing.
+
+### The password
+
+The password goes in an environment variable of the client where the client
+reads one, such as `PGPASSWORD`, `MYSQL_PWD` and `SQLCMDPASSWORD`. It is not
+an argument, because a process list shows every argument to every user of the
+machine. For `cockroach` and `bendsql` the variable holds the whole
+connection string.
+
+These clients take the password only as an argument, or read it from a file
+that `dbrun` does not write. `cli` prints a note to standard error before
+it runs one of them. The password is the fixed one of every container here, and
+the container is a throwaway on a development machine, so the cost is small.
+
+| Client | Why the password is an argument |
+| --- | --- |
+| `sqlplus` | it reads the password only in the connect string |
+| `cqlsh` | it reads the password from a credentials file, or from a prompt |
+| `mongosh` | it has no environment variable for the password |
+| `hdbsql` | its password store needs a step that `dbrun` does not take |
+| `arangosh` | it has no environment variable for the password |
+| `rqlite` | it reads the password only as `user:password` |
+| `cbq` | it has no environment variable for the password |
+| `ksql` | it has no environment variable for the password |
+| `exaplus` | it has no environment variable for the password |
+
+### Which client each product has
+
+| Command | Products |
+| --- | --- |
+| `psql` | PostgreSQL, CrateDB, QuestDB |
+| `cockroach sql` | CockroachDB |
+| `mysql` | MySQL, TiDB, Vitess, SingleStore |
+| `mariadb` | MariaDB |
+| `sqlcmd` | SQL Server, on a container and on a machine |
+| `sqlplus` | Oracle |
+| `clickhouse-client` | ClickHouse, on the native port |
+| `cqlsh` | Cassandra, ScyllaDB |
+| `mongosh` | MongoDB |
+| `trino`, `presto-cli` | Trino, Presto |
+| `isql-fb` | Firebird. Upstream names it `isql`, which is also the unixODBC tool. |
+| `hdbsql` | SAP HANA |
+| `beeline` | Apache Hive |
+| `impala-shell` | Apache Impala |
+| `exaplus` | Exasol |
+| `vsql` | Vertica |
+| `surreal sql` | SurrealDB |
+| `arangosh` | ArangoDB |
+| `influx` | InfluxDB 1 |
+| `rqlite` | rqlite |
+| `cbq` | Couchbase |
+| `ksql` | ksqlDB |
+| `bendsql` | Databend |
+| `sqlline`, `sqlline-thin.py` | Avatica, Phoenix |
+| `spanner-cli` | the Spanner emulator |
+| `psql` | the hosted services Redshift and Neon, with TLS required |
+| `mysql` | the hosted service PlanetScale, with TLS required |
+| `sqlite3`, `duckdb` | the embedded SQLite3 and moderncsqlite, and DuckDB. They open the file. |
+
+Only `psql`, `mysql` and `mariadb` were run against a server when this was
+written. The other forms come from the options each client documents, and
+`TestTheNativeCallHidesThePassword` checks their shape and not their effect.
+
+A product that has none says why in its `client` field, and
+`TestEveryServerNamesAClientOrSaysWhy` fails until it does. Today these have
+none:
+
+| Products | Why |
+| --- | --- |
+| Qdrant, Chroma, Weaviate, Milvus | a vector database that answers over HTTP or gRPC, with no shell |
+| Meilisearch, Typesense, Solr, Elasticsearch, OpenSearch | a search engine that answers over HTTP, with no shell |
+| CouchDB, Dgraph, Druid, Pinot, GraphDB, Fuseki, PostgREST | the server answers over HTTP, with no shell |
+| DynamoDB, Alternator, Cosmos, BigQuery | an emulator of a hosted service that answers over HTTP |
+| Neo4j | `cypher-shell` speaks Bolt, and the image publishes only the HTTP port |
+| libSQL, H2, Drill, Spanner Omni | the shell is inside the image or the jar, and the host has none |
+| TerminusDB, Stardog | the command runs one request for each call, and opens no shell |
+| VoltDB | its shell is called `sqlcmd`, as the SQL Server one is |
+| Virtuoso | the entry publishes the HTTP port, and its `isql` shell is on another port |
+| GizmoSQL | it speaks Arrow Flight SQL, and its client is not a common command |
+| YDB | the `ydb` command runs one statement for each call, and its login options were not measured |
+| InfluxDB 2 and 3 | the command runs one request for each call and opens no shell |
+| chai, csvq | a Go library with no shell |
+| Athena, BigQuery, Cosmos, Databricks, DynamoDB, MaxCompute, Snowflake, Spanner, Tablestore | a hosted service whose client takes a key file, a configuration file or an argument for its secret, or opens no shell. The `client` field of the service in `hosted/hosted.go` says which. Use `dbrun usql`. |
 
 ## License files
 

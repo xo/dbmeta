@@ -103,6 +103,7 @@ var (
 	oraclexe = product{
 		dialect: dbmeta.Oracle,
 		name:    "oracle",
+		client:  sqlplusClient(),
 		image:   "docker.io/gvenzl/oracle-xe",
 		major:   oracleMajor,
 		// slim leaves out the sample schemas, which nothing here reads and
@@ -118,6 +119,7 @@ var (
 	oraclefree = product{
 		dialect:   dbmeta.Oracle,
 		name:      "oracle",
+		client:    sqlplusClient(),
 		image:     "docker.io/gvenzl/oracle-free",
 		major:     oracleMajor,
 		tagSuffix: "-slim",
@@ -133,6 +135,7 @@ var (
 	oracle19 = product{
 		dialect: dbmeta.Oracle,
 		name:    "oracle",
+		client:  sqlplusClient(),
 		image:   "localhost/oracle/database",
 		major:   oracleMajor,
 		// buildContainerImage.sh tags an enterprise build this way.

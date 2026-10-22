@@ -244,6 +244,9 @@ type Server struct {
 	// value containing a space is one argument here and stays one, because
 	// nothing joins them.
 	Args []string
+	// Client is the native command line client of the product, which
+	// dbrun cli runs on the host. See [Client] and D236.
+	Client Client
 	// users are the ordinary users the setup creates, which
 	// [Server.Principals] lists after the administrator.
 	users []Principal
@@ -492,9 +495,12 @@ type product struct {
 	args      []string
 	memory    string
 	license   string
-	startup   time.Duration
-	settle    time.Duration
-	dsn       func(port int) string
+	// client is the native command line client. Every product sets it, and a
+	// product with none says why. See [Client].
+	client  Client
+	startup time.Duration
+	settle  time.Duration
+	dsn     func(port int) string
 	// api is the address of the HTTP API. See [Server.API].
 	api func(port int) string
 	// url is the dburl style URL, where it differs from the DSN. See
@@ -545,6 +551,7 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			InitInput:  p.initInput,
 			RunFlags:   p.runFlags,
 			Args:       p.args,
+			Client:     p.client,
 			Memory:     p.memory,
 			License:    p.license,
 			Startup:    p.startup,

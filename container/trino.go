@@ -60,6 +60,7 @@ import (
 var trino = product{
 	dialect: dbmeta.Trino,
 	name:    "trino",
+	client:  trinoClient("trino"),
 	image:   "docker.io/trinodb/trino",
 	port:    8080,
 	// Trino ships no password by default and the HTTP protocol takes the user

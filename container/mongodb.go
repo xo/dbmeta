@@ -44,9 +44,10 @@ const mongoshAdmin = "mongosh --quiet -u admin -p '" + Password + "' --authentic
 
 // mongodb is the MongoDB image.
 var mongodb = product{
-	name:  "mongodb",
-	image: "docker.io/library/mongo",
-	port:  27017,
+	name:   "mongodb",
+	client: mongoshClient(),
+	image:  "docker.io/library/mongo",
+	port:   27017,
 	env: map[string]string{
 		"MONGO_INITDB_ROOT_USERNAME": "admin",
 		"MONGO_INITDB_ROOT_PASSWORD": Password,

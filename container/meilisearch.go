@@ -61,6 +61,7 @@ post /keys '{"uid":"` + meilisearchKeyUID + `","name":"` + MeilisearchUser + `",
 // meilisearch is the Meilisearch image.
 var meilisearch = product{
 	name:      "meilisearch",
+	client:    NoClient("a search engine that answers over HTTP, with no shell"),
 	image:     "docker.io/getmeili/meilisearch",
 	tagPrefix: "v",
 	port:      7700,

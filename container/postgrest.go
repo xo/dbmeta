@@ -82,9 +82,10 @@ exec postgrest`
 
 // postgrest is PostgREST with PostgreSQL, built here.
 var postgrest = product{
-	name:  "postgrest",
-	image: "localhost/dbmeta/postgrest",
-	port:  3000,
+	name:   "postgrest",
+	client: NoClient("a web server over PostgreSQL that answers over HTTP, with no shell. Use psql on the PostgreSQL behind it"),
+	image:  "localhost/dbmeta/postgrest",
+	port:   3000,
 	env: map[string]string{
 		"POSTGRES_PASSWORD": Password,
 		"PGRST_DB_URI":      "postgres://authenticator:" + url.QueryEscape(Password) + "@127.0.0.1:5432/postgres",

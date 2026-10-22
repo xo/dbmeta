@@ -67,6 +67,7 @@ has '{ getUser(name: "` + DgraphUser + `") { name } }' ||
 // dgraph is the Dgraph image.
 var dgraph = product{
 	name:      "dgraph",
+	client:    NoClient("GraphQL and DQL over HTTP, and the dgraph command has no shell"),
 	image:     "docker.io/dgraph/standalone",
 	tagPrefix: "v",
 	port:      8080,

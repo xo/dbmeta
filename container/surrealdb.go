@@ -54,6 +54,7 @@ const surrealDBName = "dbmeta"
 var surrealdb = product{
 	dialect:   dbmeta.SurrealDB,
 	name:      "surrealdb",
+	client:    surrealClient(),
 	image:     "docker.io/surrealdb/surrealdb",
 	tagPrefix: "v",
 	port:      8000,

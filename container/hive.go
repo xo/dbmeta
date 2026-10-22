@@ -27,6 +27,7 @@ import (
 var hive = product{
 	dialect: dbmeta.Hive,
 	name:    "hive",
+	client:  beelineClient(),
 	image:   "docker.io/apache/hive",
 	// 10000 is HiveServer2's Thrift port. 9083 is the metastore and 10002
 	// is the web interface, and nothing here uses either.

@@ -54,6 +54,7 @@ const QuestDBUser = "dbmeta_user"
 var questdb = product{
 	dialect: dbmeta.QuestDB,
 	name:    "questdb",
+	client:  PsqlClient(),
 	image:   "docker.io/questdb/questdb",
 	port:    9000,
 	second:  8812,

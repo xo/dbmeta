@@ -51,6 +51,7 @@ const cockroachSQL = "cockroach sql --certs-dir=/cockroach/certs --host=127.0.0.
 var cockroachdb = product{
 	dialect:   dbmeta.CockroachDB,
 	name:      "cockroachdb",
+	client:    cockroachClient(),
 	image:     "docker.io/cockroachdb/cockroach",
 	tagPrefix: "v",
 	port:      26257,

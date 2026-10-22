@@ -45,6 +45,7 @@ exec /start-hbase-phoenix.sh`
 // phoenix is the all in one image of HBase, Phoenix and the Query Server.
 var phoenix = product{
 	name:    "phoenix",
+	client:  sqllineClient("sqlline-thin.py", false),
 	image:   "docker.io/boostport/hbase-phoenix-all-in-one",
 	port:    8765,
 	args:    []string{"bash", "-c", phoenixServe},

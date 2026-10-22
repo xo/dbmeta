@@ -120,8 +120,14 @@ that the ports moved.
    setup, the start command or the image creates an ordinary user, declare it
    in `users`, so that `dsn --json` prints it. `container/couchbase.go` does
    this.
-9. Run the checks under Check it.
-10. Write a decision in `decisions/` for anything you chose rather than found,
+9. Set `client` to the native command line client of the product, or to
+   `none` with the reason. `TestEveryServerNamesAClientOrSaysWhy` fails until
+   it is set. Put the password in an environment variable of the client where
+   the client has one, and add the product to `argvPassword` in
+   `container/client_test.go` and in `test/cmd/dbrun/cli_test.go` only when it
+   has none (D236).
+10. Run the checks under Check it.
+11. Write a decision in `decisions/` for anything you chose rather than found,
     such as a setting you turned on or a user you created.
 
 ## An image this repository builds
@@ -205,6 +211,7 @@ into each release:
 | `license` | the path inside the container where the product reads its license file, for a product that does not start without one. dbrun mounts the file from the host and lists the product only while it finds the file. Stardog, GraphDB and VoltDB set it (D118) |
 | `startup` | a wait longer than 90 seconds, with its measurement |
 | `settle` | how long `ready` has to keep passing. Presto and Trino need it (D83). |
+| `client` | the native command line client, which `dbrun cli` runs: `psqlClient()` and its relatives for a client, or `none("reason")` for a product that has no shell. Every product sets it (D236) |
 | `dsn` | builds the connection string the Go driver takes, for a host port |
 | `url` | builds the dburl URL, where it differs from the DSN |
 | `users` | the ordinary users that the setup, the start command or the image creates, as `Principal` values with their own DSN, which `dsn --json` prints after the administrator (D102) |

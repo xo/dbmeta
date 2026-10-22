@@ -43,9 +43,10 @@ func weaviateGet(path string) string {
 
 // weaviate is the Weaviate image.
 var weaviate = product{
-	name:  "weaviate",
-	image: "docker.io/semitechnologies/weaviate",
-	port:  8080,
+	name:   "weaviate",
+	client: NoClient("a vector database that answers over HTTP and GraphQL, with no shell"),
+	image:  "docker.io/semitechnologies/weaviate",
+	port:   8080,
 	env: map[string]string{
 		"AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED": "false",
 		"AUTHENTICATION_APIKEY_ENABLED":           "true",

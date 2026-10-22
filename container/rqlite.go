@@ -47,6 +47,7 @@ exec docker-entrypoint.sh -auth /rqlite/file/auth.json`
 // rqlite is the rqlite image.
 var rqlite = product{
 	name:    "rqlite",
+	client:  rqliteClient(),
 	dialect: dbmeta.Rqlite,
 	image:   "docker.io/rqlite/rqlite",
 	port:    4001,

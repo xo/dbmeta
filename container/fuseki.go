@@ -59,10 +59,11 @@ exec java -Xmx1g -jar /opt/fuseki/fuseki-server.jar --conf /tmp/config.ttl --por
 
 // fuseki is the Apache Jena Fuseki image, built here.
 var fuseki = product{
-	name:  "fuseki",
-	image: "localhost/dbmeta/fuseki",
-	port:  3030,
-	args:  []string{"bash", "-c", fusekiServe},
+	name:   "fuseki",
+	client: NoClient("the server answers SPARQL over HTTP, with no shell"),
+	image:  "localhost/dbmeta/fuseki",
+	port:   3030,
+	args:   []string{"bash", "-c", fusekiServe},
 	ready: bashRequest(3030, "GET", "/dbmeta/query?query=ASK%7B%7D", "",
 		map[string]string{"Authorization": adminBasic}, 200),
 	dsn:   keyHTTP("admin", Password),

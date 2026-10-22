@@ -59,6 +59,7 @@ import (
 var vertica = product{
 	dialect: dbmeta.Vertica,
 	name:    "vertica",
+	client:  vsqlClient(),
 	image:   "docker.io/usql/vertica",
 	port:    5433,
 	env: map[string]string{
@@ -98,6 +99,7 @@ var vertica = product{
 var verticaLegacy = product{
 	dialect: dbmeta.Vertica,
 	name:    "vertica",
+	client:  vsqlClient(),
 	image:   "docker.io/usql/vertica",
 	port:    5433,
 	// dbadmin over the local socket, which needs no password on these

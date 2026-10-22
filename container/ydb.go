@@ -56,6 +56,7 @@ const ydbCLI = "/ydb -e grpc://localhost:2136 -d /local --user root --password-f
 var ydb = product{
 	dialect: dbmeta.YDB,
 	name:    "ydb",
+	client:  NoClient("the ydb command runs one statement for each call, and its login options were not measured"),
 	image:   "docker.io/ydbplatform/local-ydb",
 	port:    2136,
 	env:     map[string]string{"GRPC_PORT": "2136"},

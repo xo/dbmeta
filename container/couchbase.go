@@ -67,6 +67,7 @@ const couchbaseCLI = `/opt/couchbase/bin/couchbase-cli`
 var couchbase = product{
 	dialect: dbmeta.Couchbase,
 	name:    "couchbase",
+	client:  cbqClient(),
 	image:   "docker.io/library/couchbase",
 	port:    8093,
 	// Ready means the cluster manager answers, which is all Init needs. It

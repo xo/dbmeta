@@ -13,6 +13,7 @@ import (
 var mariadb = product{
 	dialect: dbmeta.MySQL,
 	name:    "mariadb",
+	client:  MysqlClient("mariadb"),
 	image:   "docker.io/library/mariadb",
 	port:    3306,
 	env:     map[string]string{"MARIADB_ROOT_PASSWORD": Password},

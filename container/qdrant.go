@@ -46,6 +46,7 @@ const qdrantAdmin = "admin"
 // qdrant is the Qdrant image.
 var qdrant = product{
 	name:      "qdrant",
+	client:    NoClient("a vector database that answers over HTTP and gRPC, with no shell"),
 	image:     "docker.io/qdrant/qdrant",
 	tagPrefix: "v",
 	port:      6333,

@@ -46,6 +46,7 @@ import (
 var spannerOmni = product{
 	dialect: dbmeta.Spanner,
 	name:    "spanner",
+	client:  NoClient("its shell is the spanner command inside the image, and the host has none"),
 	image:   "us-docker.pkg.dev/spanner-omni/images/spanner-omni",
 	port:    15000,
 	args:    []string{"start-single-server", "--listen-addresses", "0.0.0.0"},
@@ -96,6 +97,7 @@ func spannerREST(path, name, body string) string {
 // 9010 and REST on 9020, and the REST address is what the api field gives.
 var spannerEmulator = product{
 	name:   "spanneremulator",
+	client: spannerCLIClient(),
 	image:  "localhost/dbmeta/spanneremulator",
 	port:   9010,
 	second: 9020,

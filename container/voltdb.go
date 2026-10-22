@@ -82,6 +82,7 @@ exec voltdb start --dir=$d --ignore=thp --count=1 --host=localhost`
 // voltdb is the Volt Active Data developer image.
 var voltdb = product{
 	name:      "voltdb",
+	client:    NoClient("its shell is called sqlcmd, the same as the SQL Server one, so the name cannot pick a product"),
 	image:     "docker.io/voltactivedata/volt-developer-edition",
 	tagSuffix: "_voltdb",
 	port:      21212,

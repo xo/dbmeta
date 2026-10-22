@@ -76,6 +76,7 @@ func databendSQL(stmt string) string {
 var databend = product{
 	dialect:   dbmeta.Databend,
 	name:      "databend",
+	client:    bendsqlClient(),
 	image:     "docker.io/datafuselabs/databend",
 	tagPrefix: "v",
 	port:      8000,

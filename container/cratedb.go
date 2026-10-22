@@ -60,6 +60,7 @@ func crateShell(stmt string) string {
 // cratedb is the CrateDB image.
 var cratedb = product{
 	name:    "cratedb",
+	client:  PsqlClient(),
 	dialect: dbmeta.CrateDB,
 	image:   "docker.io/library/crate",
 	port:    5432,

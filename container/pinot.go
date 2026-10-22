@@ -77,6 +77,7 @@ exec bin/pinot-admin.sh QuickStart -type BATCH -configFile /tmp/dbmeta.conf \
 // pinot is the Apache Pinot image.
 var pinot = product{
 	name:   "pinot",
+	client: NoClient("the server answers SQL over HTTP, with no shell"),
 	image:  "docker.io/apachepinot/pinot",
 	port:   8000,
 	second: 9000,

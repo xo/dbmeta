@@ -33,6 +33,7 @@ import (
 var exasol = product{
 	dialect: dbmeta.Exasol,
 	name:    "exasol",
+	client:  exaplusClient(),
 	image:   "docker.io/exasol/nano",
 	// The release is the line and the suffix is the build. There is no
 	// bare 2026.2.0 tag.

@@ -43,6 +43,7 @@ import (
 var gizmosql = product{
 	dialect:   dbmeta.GizmoSQL,
 	name:      "gizmosql",
+	client:    NoClient("the server speaks Arrow Flight SQL, and its client is not a common command"),
 	image:     "docker.io/gizmodata/gizmosql",
 	tagPrefix: "v",
 	tagSuffix: "-slim",

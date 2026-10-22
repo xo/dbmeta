@@ -51,6 +51,7 @@ const CosmosKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGG
 // cosmos is the Cosmos DB emulator image.
 var cosmos = product{
 	name:      "cosmos",
+	client:    NoClient("the emulator of a hosted service, which answers over HTTP, with no shell"),
 	image:     "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator",
 	tagPrefix: "vnext-",
 	port:      8081,

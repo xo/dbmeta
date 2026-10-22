@@ -48,6 +48,11 @@ type Service struct {
 	// Emulator is the product name of the container entry that emulates
 	// the service, and empty when there is none.
 	Emulator string
+	// Client is the native command line client, which dbrun cli runs. It
+	// reads the password from its environment and never from an argument,
+	// so a hosted service has one only when its client does. Every service
+	// sets it, and one with none says why. See D236.
+	Client container.Client
 }
 
 // All is every hosted service dbrun knows, in the order dbrun lists them.
@@ -59,62 +64,74 @@ type Service struct {
 func All() []Service {
 	out := []Service{
 		{
-			Name: "athena", Product: "Amazon Athena", Dialect: dbmeta.Athena,
+			Name: "athena", Client: container.NoClient("its user is an access key, and no client opens a shell on Athena with one"),
+			Product: "Amazon Athena", Dialect: dbmeta.Athena,
 			Form: "athena://<key id>:<secret>@athena.<region>.amazonaws.com/<database>" +
 				"?workgroup=<workgroup>&output=s3://<bucket>/<path>/",
 		},
 		{
-			Name: "bigquery", Product: "Google BigQuery", Dialect: dbmeta.BigQuery,
+			Name: "bigquery", Client: container.NoClient("the bq command runs one request for each call and opens no shell"),
+			Product: "Google BigQuery", Dialect: dbmeta.BigQuery,
 			Form:     "bigquery://<project>/<location>/<dataset>?credential_file=<path of the key file>",
 			Emulator: "bigquery",
 		},
 		{
-			Name: "cosmos", Product: "Azure Cosmos DB", Dialect: dbmeta.Cosmos,
+			Name: "cosmos", Client: container.NoClient("no common command line shell exists for it, and its key is the secret"),
+			Product: "Azure Cosmos DB", Dialect: dbmeta.Cosmos,
 			Form:     "cosmos://<user>:<account key, percent encoded>@<account>.documents.azure.com/<database>",
 			Emulator: "cosmos",
 		},
 		{
-			Name: "databricks", Product: "Databricks", Dialect: dbmeta.Databricks,
+			Name: "databricks", Client: container.NoClient("its client dbsqlcli takes the token from a file or an argument, and was not measured"),
+			Product: "Databricks", Dialect: dbmeta.Databricks,
 			Form: "databricks://token:<personal access token>@<workspace>.cloud.databricks.com" +
 				"/<warehouse id>?catalog=<catalog>&schema=<schema>",
 		},
 		{
-			Name: "dynamodb", Product: "Amazon DynamoDB", Dialect: dbmeta.DynamoDB,
+			Name: "dynamodb", Client: container.NoClient("the aws command runs one request for each call and opens no shell"),
+			Product: "Amazon DynamoDB", Dialect: dbmeta.DynamoDB,
 			Form:     "dynamodb://<key id>:<secret>@<region>",
 			Native:   "AWS_REGION, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY",
 			Emulator: "dynamodb",
 		},
 		{
-			Name: "maxcompute", Product: "Alibaba Cloud MaxCompute", Dialect: dbmeta.MaxCompute,
+			Name: "maxcompute", Client: container.NoClient("odpscmd reads a configuration file with the keys, and dbrun writes none"),
+			Product: "Alibaba Cloud MaxCompute", Dialect: dbmeta.MaxCompute,
 			Form:   "maxcompute://<key id>:<secret>@service.<region>.maxcompute.aliyun.com/api?project=<project>",
 			Native: "ALIBABA_CLOUD_ACCESS_KEY_ID, ALIBABA_CLOUD_ACCESS_KEY_SECRET and ALIBABA_CLOUD_SECURITY_TOKEN",
 		},
 		{
-			Name: "neon", Product: "Neon", Dialect: dbmeta.PostgreSQL,
+			Name: "neon", Client: container.PsqlTLSClient(),
+			Product: "Neon", Dialect: dbmeta.PostgreSQL,
 			Form: "postgres://<user>:<password>@<endpoint>.neon.tech/<database>?sslmode=require",
 		},
 		{
-			Name: "planetscale", Product: "PlanetScale", Dialect: dbmeta.MySQL,
+			Name: "planetscale", Client: container.MysqlTLSClient(),
+			Product: "PlanetScale", Dialect: dbmeta.MySQL,
 			Form: "mysql://<user>:<password>@aws.connect.psdb.cloud/<database>?tls=true",
 		},
 		{
-			Name: "redshift", Product: "Amazon Redshift", Dialect: dbmeta.Redshift,
+			Name: "redshift", Client: container.PsqlTLSClient(),
+			Product: "Amazon Redshift", Dialect: dbmeta.Redshift,
 			Form: "redshift://<user>:<password>@<cluster>.<region>.redshift.amazonaws.com:5439/<database>",
 		},
 		{
-			Name: "snowflake", Product: "Snowflake", Dialect: dbmeta.Snowflake,
+			Name: "snowflake", Client: container.NoClient("snowsql needs a private key file, and dbrun writes none"),
+			Product: "Snowflake", Dialect: dbmeta.Snowflake,
 			Form: "snowflake://<user>@<account>/<database>?warehouse=<warehouse>&role=<role>" +
 				"&authenticator=SNOWFLAKE_JWT&privateKey=<key>",
 		},
 		{
 			// The driver of dbimp reads this form as it is, and the key database_role
 			// names a database role (D231).
-			Name: "spanner", Product: "Google Cloud Spanner", Dialect: dbmeta.Spanner,
+			Name: "spanner", Client: container.NoClient("its client needs a key file, and dbrun writes none"),
+			Product: "Google Cloud Spanner", Dialect: dbmeta.Spanner,
 			Form:     "spanner:///<project>/<instance>/<database>?credential_file=<path of the key file>",
 			Emulator: "spanner",
 		},
 		{
-			Name: "tablestore", Product: "Alibaba Cloud Tablestore", Dialect: dbmeta.Tablestore,
+			Name: "tablestore", Client: container.NoClient("its client reads a configuration file with the keys, and dbrun writes none"),
+			Product: "Alibaba Cloud Tablestore", Dialect: dbmeta.Tablestore,
 			Form: "ots://<key id>:<secret>@<instance>.<region>.ots.aliyuncs.com/<instance>",
 		},
 	}

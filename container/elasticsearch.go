@@ -45,6 +45,7 @@ const esCurl = "curl -sf -o /dev/null -u 'elastic:" + Password + "' -H 'Content-
 var elasticsearch = product{
 	dialect: dbmeta.Elasticsearch,
 	name:    "elasticsearch",
+	client:  NoClient("a search engine that answers over HTTP, with no shell"),
 	image:   "docker.io/library/elasticsearch",
 	port:    9200,
 	env: map[string]string{

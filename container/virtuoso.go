@@ -39,9 +39,10 @@ func virtuosoSQL(stmt string) string {
 
 // virtuoso is the Virtuoso image.
 var virtuoso = product{
-	name:  "virtuoso",
-	image: "docker.io/openlink/virtuoso-opensource-7",
-	port:  8890,
+	name:   "virtuoso",
+	client: NoClient("the dbmeta entry publishes the HTTP port, and its isql shell speaks another port and shares its name with unixODBC"),
+	image:  "docker.io/openlink/virtuoso-opensource-7",
+	port:   8890,
 	env: map[string]string{
 		"DBA_PASSWORD":                         Password,
 		"VIRT_Parameters_NumberOfBuffers":      "170000",

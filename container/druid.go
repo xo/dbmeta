@@ -95,6 +95,7 @@ func druidPost(path, body string) string {
 var druid = product{
 	dialect:  dbmeta.Druid,
 	name:     "druid",
+	client:   NoClient("the server answers SQL over HTTP, and its old shell is gone"),
 	image:    "docker.io/apache/druid",
 	port:     8888,
 	runFlags: []string{"--entrypoint", "/bin/bash"},

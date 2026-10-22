@@ -49,9 +49,10 @@ put /dbmeta/_security '{"admins":{"names":["admin"],"roles":[]},"members":{"name
 
 // couchdb is the Apache CouchDB image.
 var couchdb = product{
-	name:  "couchdb",
-	image: "docker.io/library/couchdb",
-	port:  5984,
+	name:   "couchdb",
+	client: NoClient("a document database that answers over HTTP, with no shell"),
+	image:  "docker.io/library/couchdb",
+	port:   5984,
 	env: map[string]string{
 		"COUCHDB_USER":     "admin",
 		"COUCHDB_PASSWORD": Password,

@@ -48,6 +48,7 @@ import (
 var hana = product{
 	dialect: dbmeta.HANA,
 	name:    "hana",
+	client:  hdbsqlClient(),
 	image:   "docker.io/saplabs/hanaexpress",
 	major:   hanaMajor,
 	// The tenant database HXE, on instance 90. The system database is on

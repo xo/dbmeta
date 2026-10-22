@@ -32,9 +32,10 @@ import "fmt"
 
 // chroma is the Chroma image.
 var chroma = product{
-	name:  "chroma",
-	image: "docker.io/chromadb/chroma",
-	port:  8000,
+	name:   "chroma",
+	client: NoClient("a vector database that answers over HTTP, with no shell"),
+	image:  "docker.io/chromadb/chroma",
+	port:   8000,
 	env: map[string]string{
 		// The usage report that goes to the vendor.
 		"ANONYMIZED_TELEMETRY": "False",

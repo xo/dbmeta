@@ -14,6 +14,7 @@ import (
 var postgres = product{
 	dialect: dbmeta.PostgreSQL,
 	name:    "postgres",
+	client:  PsqlClient(),
 	image:   "docker.io/library/postgres",
 	port:    5432,
 	env:     map[string]string{"POSTGRES_PASSWORD": Password},

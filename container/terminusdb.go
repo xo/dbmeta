@@ -45,6 +45,7 @@ $T capability grant ` + TerminusDBUser + ` admin/dbmeta dbmeta_reader`
 // terminusdb is the TerminusDB image.
 var terminusdb = product{
 	name:      "terminusdb",
+	client:    NoClient("its command runs against local files and not against the server, and the server answers over HTTP"),
 	image:     "docker.io/terminusdb/terminusdb-server",
 	tagPrefix: "v",
 	port:      6363,

@@ -51,6 +51,7 @@ stardog-admin user grant $a -a read -o db:dbmeta ` + StardogUser
 // stardog is the Stardog image.
 var stardog = product{
 	name:    "stardog",
+	client:  NoClient("its commands run one request for each call and open no shell"),
 	image:   "docker.io/stardog/stardog",
 	port:    5820,
 	license: "/var/opt/stardog/stardog-license-key.bin",

@@ -55,6 +55,7 @@ func milvusCall(path, body string) string {
 // milvus is the Milvus image.
 var milvus = product{
 	name:      "milvus",
+	client:    NoClient("a vector database that answers over gRPC and HTTP, with no shell"),
 	image:     "docker.io/milvusdb/milvus",
 	tagPrefix: "v",
 	port:      19530,

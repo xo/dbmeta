@@ -86,6 +86,7 @@ const influxDatabase = "dbmeta"
 var influxdb1 = product{
 	dialect: dbmeta.InfluxQL,
 	name:    "influxdb",
+	client:  influxClient(),
 	image:   "docker.io/library/influxdb",
 	port:    8086,
 	env: map[string]string{
@@ -139,6 +140,7 @@ fi`
 var influxdb2 = product{
 	dialect: dbmeta.InfluxQL,
 	name:    "influxdb",
+	client:  NoClient("the influx command runs one request for each call and opens no shell on InfluxDB 2"),
 	image:   "docker.io/library/influxdb",
 	port:    8086,
 	env: map[string]string{
@@ -197,6 +199,7 @@ var influxdb = product{
 	dialect:   dbmeta.InfluxDB,
 	also:      []dbmeta.Dialect{dbmeta.InfluxQL},
 	name:      "influxdb",
+	client:    NoClient("influxdb3 runs one request for each call and opens no shell on InfluxDB 3"),
 	image:     "docker.io/library/influxdb",
 	tagSuffix: "-core",
 	port:      8181,

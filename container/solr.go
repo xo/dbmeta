@@ -109,6 +109,7 @@ const solrCurl = "curl -sf -u 'admin:" + Password + "' "
 // solr is the Solr image.
 var solr = product{
 	name:    "solr",
+	client:  NoClient("a search engine that answers over HTTP, with no shell"),
 	dialect: dbmeta.Solr,
 	image:   "docker.io/library/solr",
 	port:    8983,

@@ -10,6 +10,22 @@ anything that was decided on the way (D110).
 
 ## Servers
 
+### Finish the native clients of dbrun cli
+
+D236 added `dbrun cli`. Three things are left:
+
+1. Ken chose on 2026-10-22 that `cqlsh` and `sqlplus` keep the password as an
+   argument, with a note, and that `dbrun` writes no temporary file for them.
+   Nine clients take it that way: `sqlplus`, `cqlsh`, `mongosh`, `hdbsql`,
+   `arangosh`, `rqlite`, `cbq`, `ksql` and `exaplus`. The last seven need a
+   measurement of what each client offers.
+2. Only `psql`, `mysql` and `mariadb` were run, and `psql` on Redshift. Run the
+   other clients against a server and correct the forms that are wrong.
+3. Redshift, Neon and PlanetScale have a client. The other hosted services have
+   none, and each one says why in `hosted/hosted.go`. A hosted service has one
+   credential, so `--as` is not supported. Running a client inside the
+   container when the host has none is open. Ken chose host only for now.
+
 ### Decide the pins that need Ken
 
 D235 moved most pins and left four for Ken. The first is Solr 9.11.0, a new line

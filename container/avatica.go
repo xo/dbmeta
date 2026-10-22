@@ -84,6 +84,7 @@ case "$out" in *'"response":"executeResults"'*) ;; *) echo "reading DBMETA.READA
 var avatica = product{
 	dialect: dbmeta.Avatica,
 	name:    "avatica",
+	client:  sqllineClient("sqlline", true),
 	image:   "docker.io/apache/calcite-avatica-hypersql",
 	port:    8765,
 	// The entry names Java and the whole command. The entrypoint of 1.28.0

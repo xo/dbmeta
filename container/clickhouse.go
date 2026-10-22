@@ -30,6 +30,7 @@ import (
 var clickhouse = product{
 	dialect: dbmeta.ClickHouse,
 	name:    "clickhouse",
+	client:  clickhouseClient(),
 	image:   "docker.io/clickhouse/clickhouse-server",
 	// The native protocol, which nothing here uses since the tests moved to
 	// dbimp's driver (D174). The HTTP interface, 8123, is published on the

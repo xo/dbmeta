@@ -37,6 +37,7 @@ const singlestoreImage = "0.2.85"
 var singlestore = product{
 	dialect: dbmeta.MemSQL,
 	name:    "singlestore",
+	client:  MysqlClient("mysql"),
 	image:   "ghcr.io/singlestore-labs/singlestoredb-dev",
 	port:    3306,
 	env:     map[string]string{"ROOT_PASSWORD": Password},

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -52,8 +53,12 @@ type options struct {
 	reveal      bool
 	render      bool
 	watch       bool
+	printOnly   bool
 	timeout     time.Duration
 	from        string
+	as          string
+	// extra is what follows `--` after cli, which goes to the client.
+	extra []string
 }
 
 func run(args []string) error {
@@ -66,6 +71,14 @@ func run(args []string) error {
 		return nil
 	}
 	command, rest := args[0], args[1:]
+	var extra []string
+	if command == "cli" {
+		// Everything after `--` belongs to the client, and flag parsing never
+		// sees it, so a client flag such as -c is not read as a dbrun flag.
+		if i := slices.Index(rest, "--"); i >= 0 {
+			rest, extra = rest[:i], rest[i+1:]
+		}
+	}
 
 	var o options
 	fs := flag.NewFlagSet("dbrun "+command, flag.ContinueOnError)
@@ -87,6 +100,10 @@ func run(args []string) error {
 		"with provision, write the OEM folder and stop, without downloading or starting anything")
 	fs.BoolVar(&o.watch, "watch", false,
 		"with provision, leave the machine running rather than waiting for it")
+	fs.BoolVar(&o.printOnly, "print", false,
+		"with cli, print the command line with the password masked, and run nothing")
+	fs.StringVar(&o.as, "as", "",
+		"with cli, the user to connect as: its role or its name, as dsn --json shows them")
 	fs.StringVar(&o.from, "from", "",
 		"with provision, the machine image a person downloaded, for an appliance")
 	fs.DurationVar(&o.timeout, "timeout", 0,
@@ -106,6 +123,7 @@ func run(args []string) error {
 	if err := fs.Parse(flags); err != nil {
 		return errSilent
 	}
+	o.extra = extra
 	if o.keep && o.remove {
 		return errors.New("--keep and --remove ask for opposite things")
 	}
@@ -140,13 +158,17 @@ func run(args []string) error {
 	for _, n := range notes {
 		fmt.Println(n)
 	}
+	if command == "cli" && len(picked) != 1 {
+		return fmt.Errorf("cli runs one client, and %d servers were named. Name one, such as: dbrun cli %s",
+			len(picked), picked[0].Name)
+	}
 
 	switch command {
 	case "list":
 		return cmdList(picked, o)
 	case "dsn":
 		return cmdDSN(picked, o)
-	case "start", "stop", "remove", "status", "version", "usql", "test", "logs":
+	case "start", "stop", "remove", "status", "version", "usql", "cli", "test", "logs":
 		return withRunner(ctx, command, picked, o)
 	case "build":
 		return cmdBuild(ctx, picked)
@@ -168,7 +190,8 @@ func splitArgs(args []string) ([]string, []string) {
 		switch {
 		case arg == "--":
 			return flags, append(selectors, args[i+1:]...)
-		case arg == "-timeout" || arg == "--timeout" || arg == "-from" || arg == "--from":
+		case arg == "-timeout" || arg == "--timeout" || arg == "-from" || arg == "--from" ||
+			arg == "-as" || arg == "--as":
 			flags = append(flags, arg)
 			if i+1 < len(args) {
 				i++
@@ -203,6 +226,8 @@ Commands:
   version     connect and print the version dbmeta parses
   dsn         print the dburl style URL, running or not
   usql        connect to it with usql, which must be on the path
+  cli         connect to it with its own client, such as psql, which must be
+              on the path. Arguments after -- go to the client
   test        run the integration tests against it
   logs        show what the server said
   list        show what a selector expands to, without touching anything
@@ -235,6 +260,8 @@ Flags:
   --render        with provision, write the OEM folder and stop
   --watch         with provision, leave the machine running rather than waiting
   --from          with provision, the appliance image you downloaded
+  --as            with cli, the user to connect as, by role or by name
+  --print         with cli, print the command line with the password masked
   -f              follow the log
   -a, --all       with status, also show the stopped servers and who made them
   --reveal        with dsn, print a hosted service's secret rather than masking it
@@ -268,6 +295,9 @@ Examples:
   dbrun usql sqlite3              open the file the last test left
   dbrun status                    what is up
   dbrun usql oracle               a shell on the newest Oracle
+  dbrun cli postgres-18           psql on that release
+  dbrun cli mysql -- -e 'select 1'
+                                  mysql with arguments of its own
   dbrun test all                  everything, which is what a release needs
 `)
 }
