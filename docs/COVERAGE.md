@@ -73,6 +73,8 @@ rather than reading one.
 | `models/athena` | 8 | 65 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of dbimp, which binds with ExecutionParameters (D222, D229) |
 | `models/databricks` | 17 | 65 | the hosted Databricks SQL service on Unity Catalog, which reports the release of its SQL channel, 2026.38, with the driver of dbimp (D224, D229) |
 | `models/cosmos` | 15 | 65 | the hosted Azure Cosmos DB account with the API for NoSQL, which has no release, with the driver of dbimp. A statement is a SELECT against one of twelve reserved names that the driver answers with REST requests. The five newest need the dbimp tag after v0.19.0 (D228, D233) |
+| `models/maxcompute` | 15 | 65 | the hosted Alibaba Cloud MaxCompute service, which reports the build V59.group_cn.SQL_RC60_hf9, from the project level INFORMATION_SCHEMA, with the driver of Alibaba. The views show a new object after about an hour (D237, D238, D239, D240) |
+| `models/tablestore` | 4 | 65 | the hosted Alibaba Cloud Tablestore service through its SQL feature, which reports the text of `SELECT @@version` and has no catalog a SELECT reads. Tables come from SHOW FULL TABLES (D241). Columns, Indexes and IndexColumns are a walk of DESCRIBE and SHOW INDEX (D242) |
 | `models/avatica` | 24 | 65 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
 | `models/informationschema` | 12 | 65 | any database with a standard `information_schema` |
 
@@ -6752,6 +6754,146 @@ not with their square. A catalog of thousands of tables was not built, because t
 quota allows no such run, so the plan of each statement against a large catalog was
 not checked.
 
+## Alibaba Cloud Tablestore
+
+`models/tablestore` answers 4 of the 65, through the SQL feature of Tablestore,
+measured on 2026-10-29 on the hosted service, an instance of type HYBRID in the region
+ap-southeast-5, with github.com/aliyun/aliyun-tablestore-go-sql-driver at
+v0.0.0-20220418015234-4d337cb3eed9, which dburl v0.53.0 names. See D241 and D242.
+
+Tablestore is a hosted service and the version is the text of `SELECT @@version`, so the
+tier is Verified and CI never runs it. The tests of the model need the instance, and they
+skip when `DBMETA_TABLESTORE` is not set.
+
+### Which catalog it reads, and why
+
+None that a SELECT reads. The SQL feature of Tablestore is a front end that speaks the MySQL 5.7 dialect over
+tables that a person maps with CREATE TABLE. It has no INFORMATION_SCHEMA, no `mysql` schema
+and no system table, and `SELECT * FROM information_schema.tables` answers "Instance
+mismatch". The model reads the one statement that lists tables without naming one, which
+is SHOW FULL TABLES. It answers the column `Tables_in_<instance>` and the column
+`Table_type`, which is BASE TABLE for every mapped table. The statement takes a LIKE
+pattern and nothing that a parameter binds, so the `Keep` function of the binding matches
+the rows in Go, as the Cassandra model does (D200).
+
+Every other kind reads one table at a time. D242, which Ken decided on 2026-10-29, allows a
+walk for Tablestore because of that, and for no other reason (D146).
+
+### What it answers
+
+`Tables`, one statement. The instance is the only namespace, so the catalog and the schema of a table are
+empty, and the table has no comment, owner, size or row count in this statement. A secondary
+index and a search index are not tables and are not listed. A table of Tablestore that no
+CREATE TABLE mapped is not visible to SQL, and it is not listed.
+
+`Columns` walks SHOW FULL TABLES and then DESCRIBE for each table. DESCRIBE returns Field, Type,
+Null, Key, Default and Extra, and SHOW COLUMNS FROM returns the same rows, so the model reads one.
+A key column is `NO` and `PRI` and every other column is `YES`. The types are `bigint(20)`,
+`mediumtext` and `varchar(1024)`. The model returns the name, the position in DESCRIBE, the type as
+written, the null flag and whether the column is in the key. Default is absent, because DESCRIBE
+writes an empty text and SHOW CREATE TABLE writes DEFAULT NULL. Identity is absent, because Extra was
+empty in every row, and no table with an automatic key was made to see what it says then. Generated
+and Comment are absent, because Tablestore SQL has neither. Collation is absent, because only SHOW
+CREATE TABLE names one, for the whole table, and that is a third statement for each table.
+
+`Indexes` and `IndexColumns` walk SHOW FULL TABLES and then SHOW INDEX FROM for each table. The
+statement lists the key as PRIMARY, each secondary index as `GlobalIndex` and each search index as
+`SearchIndex`, one row for each column. `Indexes` returns one row for each name, with Type as
+written, which is empty for the key, Unique when Non_unique is 0 and Primary for PRIMARY.
+`IndexColumns` returns Column_name and Seq_in_index. A secondary index lists the columns that
+it was made with and then the key of the table, which Tablestore adds, so the index on name of the
+table author lists name at 1 and author_id at 2. The table region has a key of two columns, and
+PRIMARY lists country at 1 and area at 2. Descending is false because Collation says A in every row.
+Expression is absent, because the service writes the text `NULL` in every row. The Search_type of a
+search index, KEYWORD, has no field, so it is not returned.
+
+The service returns no NULL in any of these statements and writes an empty text where MySQL writes
+a NULL, so the model treats an empty text as a value that is not there and returns it absent. The
+statements take no filter, so schema, parent and name are matched in Go with `dbmeta.Like`. Schema
+selects nothing unless the pattern matches the empty text, because a table has no schema, and a
+parent pattern that drops a table costs no statement for it. The quoting of the table name is
+`dbmeta.QuoteIdentifier` with backticks, and no name is quoted by hand (D127).
+
+A table that is dropped between the list and its statement answers `OTSParameterInvalid Table
+'dbmeta.<name>' doesn't exist`. The walk lists the tables again and skips the table if it is gone.
+If the table is still listed, or the list fails, the walk returns the first error. See D242.
+
+The version is `SELECT @@version`, which answers a text such as
+`5.7.25-SQLFrontend-b30fece-dirty`. The number is the level of MySQL that the front end
+claims and the rest is its build. Tablestore has no release number, so the model keeps the
+text whole and gates nothing on it.
+
+### What it cannot answer, and why
+
+Every other kind. SHOW CREATE TABLE gives the definition of a table, and it holds nothing that
+DESCRIBE and SHOW INDEX lack except the collation of the table, which is `utf8mb4_bin`, so the
+model does not read it.
+
+These answer an error on the instance: SHOW DATABASES, SHOW VARIABLES, SHOW STATUS, SHOW
+GRANTS, SHOW TABLE STATUS, SHOW FUNCTIONS, SHOW TRIGGERS, SHOW COLLATION, SHOW PRIVILEGES,
+SHOW CREATE VIEW, CREATE VIEW, `mysql.user`, `select version()`, `user()` and `database()`.
+So `Databases`, `Schemas`, `Views`, `Roles`, `Privileges`, `Functions`, `Triggers`,
+`Settings`, `CurrentSchema` and `CurrentUser` are absent, and no statement that the service
+answers reads any of the rest. The primary key is in `Columns` and in `IndexColumns` for PRIMARY, and
+the service has no foreign key, so `Constraints` and `ConstraintColumns` are absent. The users and the policies of the instance belong to RAM, which only the Alibaba
+Cloud API reads. SELECT @@version, @@sql_mode and a few other variables answer one at a time,
+and no statement lists them, so `Settings` is not answered.
+
+### What the second opinions found
+
+Gemini and DeepSeek sorted the unanswered kinds, as D43 requires. Both said that no
+statement lists every column or every index, that no hidden table exists and that no
+function list exists. Gemini put roles and privileges under RAM, databases and schemas
+under the instance, and columns and indexes under a client side loop over SHOW TABLES, which
+is the walk. It named no relation that does not exist. Each lead was run against the
+instance, and each of the refusals above is asserted by `TestTablestoreUnanswered`.
+
+### What the fixture builds
+
+`models/tablestore/fixture` holds four tables as data, and the test makes them with
+`github.com/aliyun/aliyun-tablestore-go-sdk`, because SQL cannot create a table. CREATE
+TABLE in the SQL feature maps a table that exists already, and a non key string column maps
+to MEDIUMTEXT, because VARCHAR is for a key only. The tables are dbmeta_fx_author with a
+secondary index on name, dbmeta_fx_book with a search index on title, dbmeta_fx_region with
+a key of two columns and dbmeta_fx_shipment. Each is pay as you go with no reserved
+throughput and holds no row. The teardown drops the mappings with DROP MAPPING TABLE and
+deletes the tables, the indexes and the search indexes, and it touches only a table with the
+prefix dbmeta_fx_. Tablestore SQL has no view, so the fixture has none. The key, the secondary
+index and the search index are what the model reads besides the tables and the columns, and the
+fixture builds all three.
+
+### What the conformance test says
+
+The section holds the tables author, book, region and shipment and their 14 columns, and no
+constraint or view line. The fixture has no default and no `author.shade` column, because a
+mapped column has no default. Every column that is not in the key is nullable, where the
+relational databases read the columns of the core tables not null. So tablestore stays in
+`agreementExcluded`, with that reason (D242).
+
+### Which answers depend on who is asking
+
+The reader is a RAM user that reads the tables of the instance and is refused when it
+creates one, which the SDK measured. `TestPrivilegeParity` records no difference for
+`tablestore/same/reader`: `Tables`, `Columns`, `Indexes` and `IndexColumns` answer the same to
+both, so the reader sees DESCRIBE and SHOW INDEX as the administrator does. The two principals cannot be
+told apart by `CurrentUser`, which is not answered.
+
+### The cost
+
+`Tables` is one call to the service, SHOW FULL TABLES, and it returns one row for each mapped
+table, so the cost grows with the number of tables and the filter runs in Go. Each walk is that
+call and then one more for each table that the parent pattern keeps: one DESCRIBE for `Columns`,
+one SHOW INDEX for `Indexes` and one for `IndexColumns`. From the development machine, a
+statement took 17 to 30 ms on the instance, and the first one on a connection took about 400 ms
+because it opens the connection. Four tables cost five statements, which is about 0.15 s, and
+the time grows by about 25 ms for each table. A pay as you go table with no reserved throughput
+and no row costs nothing, and a run of the tests takes about six seconds.
+
+The check that D47 asks for, a catalog with thousands of tables, was not run. The instance
+has none, and one cannot be built without making thousands of tables with the API. Nothing was
+measured above four tables, and the statement count grows with the number of tables. A caller that
+wants one table passes it as the parent, and the walk then runs two statements.
+
 ## Releases that need a license file
 
 Stardog, GraphDB and Volt Active Data do not start without a license file
@@ -7128,3 +7270,179 @@ and no request was refused for rate. No catalog with thousands of containers was
 because a database with shared throughput holds a few tens of containers at the
 free tier, so the plan was not checked against one. The cost grows with the number of
 containers and users and with the pages of a feed, never with the number of documents.
+
+## Alibaba Cloud MaxCompute
+
+`models/maxcompute` answers 15 of the 65, in the SQL of MaxCompute, measured on
+2026-10-29 on the hosted service, the project `dbmeta` in the region
+ap-southeast-5, with `github.com/aliyun/aliyun-odps-go-sdk/sqldriver` v0.4.26, which
+dburl v0.53.0 names for the maxcompute scheme and usql uses. The version of the SQL
+engine is the build V59.group_cn.SQL_RC60_hf9. See D237 to D240.
+
+MaxCompute is a hosted service, so the tier is Verified and CI never runs it. The
+tests of the model need the project, and they skip when `DBMETA_MAXCOMPUTE` is not
+set. They need more than ten minutes, so run them with `GOFLAGS=-timeout=60m`.
+
+### Which catalog it reads, and why
+
+The project level INFORMATION_SCHEMA, because it is the one relation that a SELECT
+reads. The driver runs every statement as an SQL task and reads the result through
+the instance tunnel, so only a SELECT returns rows. SHOW, DESC and LIST FUNCTIONS fail
+with "it is not select statement", and ExecContext runs them and returns nothing. The
+function `get_user_id()`, `current_project()` and `version()` are SELECT statements
+too, and the model reads them.
+
+A person must run `install package Information_Schema.systables;` once, as the
+project owner or as a RAM user with the role super_administrator. The model reads ten
+views of the package: TABLES, COLUMNS, PARTITIONS, UDFS, USERS, ROLES, USER_ROLES,
+TABLE_PRIVILEGES, UDF_PRIVILEGES and COLUMN_PRIVILEGES. The package has 23 views in
+all, and the other thirteen are RESOURCES, UDF_RESOURCES, PACKAGE_OBJECTS,
+INSTALLED_PACKAGES, SCHEMA_PRIVILEGES, RESOURCE_PRIVILEGES, TABLE_LABELS,
+COLUMN_LABELS, TABLE_LABEL_GRANTS, COLUMN_LABEL_GRANTS, TASKS, TASKS_HISTORY and
+TUNNELS_HISTORY. The model leaves them out because no kind of dbmeta is a resource,
+a package, a label, a task or a tunnel.
+
+The views are not real time. On 2026-10-29 every view was empty 52 minutes after the
+fixture was made, and had every object at the next check, 73 minutes after the first
+object. The documentation says that the metadata views lag by about three hours. A
+statement that reads a view right after a DDL statement sees the project as it was.
+D240 says what that means for the tests. A schema enabled project is not measured.
+
+The tenant level views, `SYSTEM_CATALOG.INFORMATION_SCHEMA`, answer the administrator
+with "You have NO privilege 'odps:Select'", and the model does not read them.
+
+### What it answers
+
+Databases, schemas, tables, columns, views, partitioned tables, partitions, comments,
+roles, role grants, privileges, column privileges, functions, the current schema and
+the current user.
+
+A project that is not schema enabled has two levels. `show schemas` says "Invalid
+database operations on two-tier model". TABLES reports the catalog `odps` and puts the
+project in the column for the schema, so `Databases` answers odps, `Schemas` and
+`CurrentSchema` answer the project from `current_project()`, and a table has the
+catalog odps and the project as its schema. The text odps is a constant of the model,
+because no relation lists it and an empty project has no row to read it from.
+
+A table is a managed table, a view or a materialized view, and TABLE_TYPE says
+MANAGED_TABLE, VIRTUAL_VIEW or MATERIALIZED_VIEW. `Table.Type` spells them table, view
+and materialized view, and an external table is spelled external table, which the
+fixture cannot build. `Table.Owner` is OWNER_NAME, such as RAM$ and the account and the
+user, which is the name that USERS reports and not the id that `get_user_id()` returns.
+`Table.Size` is DATA_LENGTH, and it is absent for a view and for a partitioned table,
+where DATA_LENGTH is NULL. `Table.Options` holds the life cycle, the clustering and the
+number of buckets, and a transactional table is clustered by hash into 16 buckets.
+The rows are absent, because no view reports them.
+
+`Column.Ordinal` is not ORDINAL_POSITION. COLUMNS counts the partition columns from one
+again, after the other columns, so the model numbers the columns by a window with the
+partition columns last, as DESC shows them. `Column.Comment` is the empty text for a
+column with no comment, because COLUMNS holds the empty text, and `Table.Comment` is
+absent for a table with none, because TABLES holds NULL. The default is the text
+without its quotes. NOT NULL is in IS_NULLABLE.
+
+`Views` reads VIEW_ORIGINAL_TEXT of a view and of a materialized view. A partitioned
+table has a row in `PartitionedTables` for each partition column, with the strategy
+list, and a partition is named as its columns are, joined by a slash, such as
+`sold_on=2026-01-01/region=north`.
+
+A user and a role are both rows of `Roles`, as they are in psql. A user can sign in and
+a role cannot. A user that holds the role super_administrator is a superuser, and every
+other attribute is false, because MaxCompute records none. `RoleGrants` is USER_ROLES.
+`Privileges` has a row for each relation, with a line for each privilege of each user as
+`user=privilege`. TABLE_PRIVILEGES names users and no role, so a grant to a role shows
+nothing until a user holds the role. GRANTOR is empty in every row that was seen.
+
+`CurrentUser` is `get_user_id()`, such as p4_ and a number. `select current_user();`,
+`select user();` and `select current_user_id();` do not resolve.
+
+### What the models call analogues
+
+- A project is the schema, and odps is the database. That is how the views say it.
+- A materialized view is a view, as it is for Databricks.
+- A user defined function in UDFS is a function. UDFS holds the name, the owner and the
+  time, and no type, no body and no language, so most of `Function` is absent.
+- A partition column of a table is a partition by the value of the column.
+
+### What a second opinion found
+
+Both models timed out on the first, long question. Each answered a shorter one. Every
+lead was run on the project.
+
+- Gemini said that `SELECT USER();` is the current user. It is not: the function does
+  not resolve. It said that `MAX(table_catalog)` is the current project, and it is not:
+  the catalog is `odps` for every table, and `current_project()` is the function. It
+  said that the server version is absent, and `SELECT version();` answers it. It named
+  the views TABLES, COLUMNS, PARTITIONS, UDFS, ROLES, USERS and USER_ROLES, and they
+  exist. It said that a materialized view is TABLE_TYPE MATERIALIZED_VIEW, and that
+  is right. It said that primary keys are absent from the views, and that is right.
+- Gemini and DeepSeek both said an external table has the TABLE_TYPE EXTERNAL_TABLE and
+  a column that marks it. The documentation lists the type. The account cannot make an
+  external table, which needs the RAM role aliyunodpsdefaultrole and an OSS bucket, so
+  the answer could not be checked and the model leaves `ForeignTables` out.
+- Gemini named `installed_packages` and `package_objects` as extensions. A package is a
+  way to share objects between projects, and it is not an extension, so both are left
+  out. The first holds one row, the package of INFORMATION_SCHEMA.
+- DeepSeek named TABLE_LABELS and COLUMN_LABELS as policies. A label is a level of
+  access to a table or a column. It is not a policy with a name and an expression, so
+  `Policies` is left out.
+- Gemini put the row count in DESC EXTENDED, which is not a SELECT, and DeepSeek put it
+  in `SELECT COUNT(*)`. That reads every row and is not a catalog fact, so `Table.Rows` is
+  absent.
+
+### What it cannot answer
+
+Absent from MaxCompute: indexes, index columns, sequences, triggers, user defined types,
+enumerated types, domains, extensions, rules, inheritance, access methods, tablespaces,
+conversions, casts, languages, large objects, event triggers, operators, operator classes,
+the text search kinds, foreign data wrappers, foreign servers, user mappings, publications,
+subscriptions, extended statistics, default privileges, aggregates, policies, role settings
+and not null constraints. A NOT NULL has no name here, and it is in `Column.Nullable`.
+MaxCompute has no foreign key.
+
+Present and not answered:
+
+- The primary key of a transactional table is in DESC and in no view. COLUMNS has no key
+  column, and the primary key columns read NOT NULL. `Constraints`, `ConstraintColumns`
+  and `Column.PrimaryKey` are empty, and the test asserts it. A transactional table is
+  the only table that has one.
+- The parameters, the result type and the body of a function. UDFS has none of them, and
+  LIST FUNCTIONS is not a SELECT, so the service refuses it. `RoutineParameters` is not
+  answered.
+- The settings of the project. SET is not a SELECT.
+- External tables, which the fixture cannot build.
+- The row count of a table.
+
+### What the fixture builds
+
+`models/maxcompute/fixture` builds its objects in the project `dbmeta`, which the
+administrator owns. It holds author with a table comment, column comments, NOT NULL and a
+default, book, region and shipment, the view recent, sales partitioned by two columns
+with one partition, ticket as a transactional table with a primary key, the materialized
+view book_titles, the SQL function double_it, the role report_reader, and a grant to it
+on a table and on a column. It builds no foreign key, index, sequence, trigger, type or
+external table, and no user, because a user is a RAM identity. The grant to the role
+shows in neither TABLE_PRIVILEGES nor COLUMN_PRIVILEGES, so `ColumnPrivileges` is
+shown to run and to return no row.
+
+The fixture stays up between runs, because a new object shows in the views after about
+an hour. The teardown runs only when `DBMETA_MAXCOMPUTE_DROP` is set. See D240.
+
+### What the conformance test says
+
+The section holds author, book, region, shipment and the view recent. MaxCompute has
+no foreign key and no unique constraint, and the primary key of a transactional table is
+in no view, so the section has no constraint line and no column reads a primary key. The
+columns that the fixture makes NOT NULL read not nullable without a key, where PostgreSQL
+reads them with one. So maxcompute is in `agreementExcluded` with that reason.
+
+### Which answers depend on who is asking
+
+The reader is a RAM user with the role reader, which holds List, Describe and Select. The
+service refuses it every statement, also `SELECT 1;`, with ODPS-0420095 "You have NO
+privilege 'odps:CreateInstance'" on the project. So `TestPrivilegeParity` has no section
+for MaxCompute: the scene skips with that reason, and the test grants nothing, because a
+grant to a role changes the account. Two grants make the reader work, and D240 holds
+them. When Ken has made them, run the test with `DBMETA_UPDATE=1` and read the diff.
+The administrator reads every query. Nothing is measured for the reader, so this
+section does not say which answers differ.

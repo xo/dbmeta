@@ -21,6 +21,12 @@ v0.15.0 is the release that carries the opt in for the table size and rows of Re
 the Exasol tests on the driver of dbimp (D234). The Tested tier passed in CI on a58e5c0.
 The dependencies of the test module were bumped after the tag, in a6300d0.
 
+MaxCompute got a model after v0.15.0, which answers 15 of the 65 kinds (D237 to D240).
+It reads the project level INFORMATION_SCHEMA with the driver of Alibaba. The views show a
+new object after about an hour, so the fixture stays up, and the reader of the test account
+needs two grants before the parity test can record it. The Verified tier ran on the hosted
+project on 2026-10-29, and `docs/COVERAGE.md` holds what it found.
+
 v0.13.0 is the release that carries the hosted services with models: Spanner
 (D216, D217, D219), BigQuery (D220, D226), Athena (D222) and Databricks
 (D224), and the Spectrum external tables of Redshift (D221). Together with
@@ -151,6 +157,12 @@ In progress:
   names, and the model writes its own literals because that driver does not.
   What is left is in BACKLOG.md: a walk for the table comment, the dialect name
   `athena` that follows dburl, and the move to the driver of dbimp.
+- The Tablestore model is built and measured on the hosted instance (D241, D242): 4 of the 65
+  kinds. Tables comes from SHOW FULL TABLES, and Columns, Indexes and IndexColumns are a walk of
+  DESCRIBE and SHOW INDEX, which Ken allowed on 2026-10-29. The version is `SELECT @@version`.
+  The cost of a walk is one statement for each table, and it was measured on four tables only.
+  The fixture makes its four tables with the Tablestore SDK, because SQL cannot, and the
+  conformance and the parity files are recorded.
 - The Databricks model is built and measured on the hosted workspace (D224): 17 of
   the 65 kinds, with the conformance and the parity files recorded. The principals
   are the service principal that owns the schema and the reader, and the reader reads

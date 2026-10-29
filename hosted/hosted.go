@@ -138,7 +138,7 @@ func All() []Service {
 	for i := range out {
 		out[i].Tier = container.Staged
 		switch out[i].Dialect {
-		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift, dbmeta.Spanner, dbmeta.BigQuery, dbmeta.Athena, dbmeta.Databricks, dbmeta.Cosmos:
+		case dbmeta.PostgreSQL, dbmeta.MySQL, dbmeta.Snowflake, dbmeta.Redshift, dbmeta.Spanner, dbmeta.BigQuery, dbmeta.Athena, dbmeta.Databricks, dbmeta.Cosmos, dbmeta.MaxCompute, dbmeta.Tablestore:
 			out[i].Tier = container.Verified
 		}
 	}

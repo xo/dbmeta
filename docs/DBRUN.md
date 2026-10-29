@@ -686,13 +686,27 @@ gocosmos. The tests add the container `book` to the path for the statements that
 scripts of a container, and `dsn` masks the key (D228). The database `dbmeta` has 400
 request units a second that its containers share, so run the tests once and not in a loop.
 
+The connection string of MaxCompute has the form
+`maxcompute://<key id>:<secret>@service.<region>.maxcompute.aliyun.com/api?project=<project>`.
+The key id and the secret are the access key of a RAM user of Alibaba Cloud. The
+files are `maxcompute` for the administrator and `maxcompute-reader` for the reader.
+The driver is `github.com/aliyun/aliyun-odps-go-sdk/sqldriver`, which dburl v0.53.0
+names, and dburl turns the scheme into https. The project must hold the views of
+INFORMATION_SCHEMA, which the administrator makes once with
+`install package Information_Schema.systables;`, and the views show a new object
+after about an hour, so the fixture stays up between runs (D237, D240). The reader
+needs CreateInstance on the project, or the service refuses every statement. The
+endpoint resets some connections, and the tests retry them (D239). The tests need
+more than ten minutes, so run them with `GOFLAGS=-timeout=60m`. `dsn` masks the key
+id and the secret.
+
 `dsn` masks the secret, and `dsn --reveal` prints it. `usql` passes the
 connection string in a temporary usql configuration file rather than on the
 command line, so that no process list shows it. `test` sets `DBMETA_<NAME>`,
 named for the service rather than its dialect. A hosted service that a
 model reads is Verified, and the rest are Staged, so CI never runs one (D119).
-Neon, Redshift, Snowflake, Cloud Spanner, BigQuery, Amazon Athena, Databricks and
-Cosmos DB are Verified (D216, D220, D222, D224, D228). The emulator entry of Cosmos DB
+Neon, Redshift, Snowflake, Cloud Spanner, BigQuery, Amazon Athena, Databricks,
+Cosmos DB and MaxCompute are Verified (D216, D220, D222, D224, D228, D237). The emulator entry of Cosmos DB
 stays Staged, because the model reads the hosted account. Cloud Spanner, DynamoDB, BigQuery and Cosmos DB also have a
 container that runs on one machine: Spanner Omni and the Cloud Spanner
 emulator, and the emulators of the other three.

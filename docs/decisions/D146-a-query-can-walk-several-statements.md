@@ -1,6 +1,6 @@
 # D146. A query can walk several statements
 
-Status: Amends D47 and D67, amended by D159 and D175.
+Status: Amends D47 and D67, amended by D159, D175 and D242.
 
 ## The decision
 
@@ -28,3 +28,8 @@ written beside it: one statement for each database, and one for each table
 where the walk goes deeper. Ken chose that Tables reads DESCRIBE FORMATTED
 for each table, for its type and its comment, which is one more statement
 for each table.
+
+## Later
+
+D159 added InfluxQL, D175 added Elasticsearch and OpenSearch, and Ken added
+Tablestore on 2026-10-29 in D242. Each one has a catalog that no SELECT reads.

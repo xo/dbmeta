@@ -554,8 +554,9 @@ else. If one statement answers a kind, write the statement. Write the cost of
 a walk beside it: one statement for each database, and one for each table
 where the walk goes deeper. Trino shows the limit. Its function list exists
 only behind `SHOW FUNCTIONS`, and a walk is allowed for Impala (D146), InfluxQL
-(D159), Elasticsearch and OpenSearch (D175) alone, so Functions is unanswered on Trino while everything
-with a table behind it is answered. A walk for any other product is a
+(D159), Elasticsearch and OpenSearch (D175) and Tablestore (D242) alone, so Functions is
+unanswered on Trino while everything with a table behind it is answered. Tablestore is
+allowed because its SQL has no catalog that a SELECT reads. A walk for any other product is a
 decision for Ken.
 
 If a product still cannot be a model, that is a result rather than a failure.

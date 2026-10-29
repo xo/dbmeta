@@ -1,6 +1,6 @@
 # D218. The hosted services get models and dbrun names their key files
 
-Status: Amends D194.
+Status: Amends D194, amended by D237.
 
 ## The decision
 

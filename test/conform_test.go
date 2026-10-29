@@ -36,6 +36,7 @@ import (
 	ixfixture "github.com/xo/dbmeta/models/influxdb/fixture"
 	iqfixture "github.com/xo/dbmeta/models/influxql/fixture"
 	lsfixture "github.com/xo/dbmeta/models/libsql/fixture"
+	mcfixture "github.com/xo/dbmeta/models/maxcompute/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	njfixture "github.com/xo/dbmeta/models/neo4j/fixture"
 	osfixture "github.com/xo/dbmeta/models/opensearch/fixture"
@@ -52,6 +53,7 @@ import (
 	sqfixture "github.com/xo/dbmeta/models/sqlite3/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
+	tsfixture "github.com/xo/dbmeta/models/tablestore/fixture"
 	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
@@ -318,6 +320,11 @@ func conformTargets() []conformTarget {
 			build: setupSpanner,
 		},
 		{
+			name: "tablestore", dialect: dbmeta.Tablestore,
+			open: openTablestore, schema: tsfixture.Everything.Schema,
+			build: setupTablestore,
+		},
+		{
 			name: "databricks", dialect: dbmeta.Databricks,
 			open: openDatabricks, schema: dbxfixture.Everything.Schema,
 			build: setupDatabricks,
@@ -326,6 +333,11 @@ func conformTargets() []conformTarget {
 			name: "cosmos", dialect: dbmeta.Cosmos,
 			open: openCosmos, schema: cmfixture.Everything.Schema,
 			build: setupCosmos,
+		},
+		{
+			name: "maxcompute", dialect: dbmeta.MaxCompute,
+			open: openMaxCompute, schema: mcfixture.Everything.Schema,
+			build: setupMaxCompute,
 		},
 	}
 }
@@ -389,7 +401,12 @@ func conformSection(name string, m *dbmeta.Meta, want map[string][]string) strin
 // ordinary user of Elasticsearch reads the indices that start with dbmeta, so
 // the fixture calls the core index author dbmeta_author, and the report reads
 // it as author.
-var conformPrefix = map[dbmeta.Dialect]string{dbmeta.Elasticsearch: "dbmeta_", dbmeta.OpenSearch: "dbmeta_"}
+var conformPrefix = map[dbmeta.Dialect]string{
+	dbmeta.Elasticsearch: "dbmeta_", dbmeta.OpenSearch: "dbmeta_",
+	// The tables of the Tablestore fixture start with dbmeta_fx_, so that no other
+	// table of the instance collides with one (D241).
+	dbmeta.Tablestore: tsfixture.Prefix,
+}
 
 // conformReport reads the core schema and returns the canonical answer, as
 // lines, sorted so that two databases can be compared line by line.
@@ -740,6 +757,17 @@ var agreementExcluded = map[string]string{
 	"cosmos": "not relational: a document has no declared attribute, so there is no column" +
 		" catalog, and a container has no key, no constraint and no view that a statement" +
 		" reads, so the section holds the four containers alone (D228)",
+	"maxcompute": "no constraint of any kind in a view of INFORMATION_SCHEMA: MaxCompute has no" +
+		" foreign key and no unique constraint, and the primary key of a transactional table is" +
+		" in DESC and in no view, so the section has no constraint line and no column reads a" +
+		" primary key. A column of a table that has none is nullable, and the key columns read" +
+		" not null without a key (D237)",
+	"tablestore": "not relational: its SQL has no catalog that a SELECT reads, so Columns walks" +
+		" DESCRIBE for each table, and the section holds the tables author, book, region and" +
+		" shipment with their columns and no constraint or view line. The fixture has no default" +
+		" and no author.shade column, because a mapped column has no default. Every column that is" +
+		" not in the key is nullable, where the relational databases read the columns of the core" +
+		" tables not null, and a key column has no default (D242)",
 	"athena": "no constraint of any kind: a Glue table has no key, no unique constraint and no" +
 		" check, so the section has no constraint line. Every column is nullable and has no" +
 		" default, because a Glue column has neither, so the key columns read nullable where" +

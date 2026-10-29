@@ -407,7 +407,7 @@ out (D224).
 Athena answers 8 of the 65 kinds (D222). The comment and the location of a table,
 the values of a partition and the function list are behind SHOW CREATE TABLE, SHOW
 TBLPROPERTIES, SHOW PARTITIONS, DESCRIBE and SHOW FUNCTIONS, which a SELECT cannot
-read. D146 allows a walk for four products, and Athena is not one. A walk costs
+read. D146 allows a walk for five products, and Athena is not one. A walk costs
 one statement for each table, and each Athena statement is a job of one to six
 seconds. Ken decided on 2026-10-11 that Athena gets no walk. The hidden tables `"t$partitions"`,
 `"t$properties"` and `"t$files"` are per table too.
@@ -419,3 +419,33 @@ several seconds. INFORMATION_SCHEMA scans no data, so the cost of a read is time
 and not money. The engine version of the workgroup is not read. A test of the other
 principals that an account can hold, such as a role with Lake Formation grants that
 hide a table, was not made (D222).
+
+### MaxCompute reader, primary keys, external tables and schemas
+
+MaxCompute answers 15 of the 65 kinds (D237). Four pieces of work are known and not done.
+
+- The role reader needs `grant createinstance on project dbmeta to role reader;` and
+  `grant read on package Information_Schema.systables to role reader;`, and then
+  `DBMETA_UPDATE=1` records the reader in `parity.txt`. The service refuses the reader
+  every statement until then (D240).
+- The primary key of a transactional table is in DESC and in no view. Ask Alibaba for a
+  key column in COLUMNS or a view of constraints. D146 allows a walk for five products,
+  and MaxCompute is not one, and the driver cannot read a statement that is not a SELECT
+  in any case.
+- External tables need the RAM role aliyunodpsdefaultrole and an OSS bucket, so the
+  fixture builds none and no query reads them. A project that is schema enabled was not
+  measured either, and its INFORMATION_SCHEMA reports a schema in the column that holds
+  the project here.
+- The tenant level views of `SYSTEM_CATALOG.INFORMATION_SCHEMA` need a tenant role that the
+  administrator does not have. The documentation says that they lag by about three hours
+  as well, so they are not a way around the delay.
+
+### Tablestore on a large instance, on other instance types and on other principals
+
+No instance with thousands of tables was built, so the cost of SHOW FULL TABLES on one was
+not measured. The instance of the tests is of type HYBRID, and an instance that holds only
+time series tables was not tried, so SHOW FULL TABLES was not read there. The reader is the
+one principal besides the administrator, and a RAM user with rights on some tables of the
+instance and not on others was not made (D241). The walks of Columns, Indexes and
+IndexColumns run one statement for each table, and the cost was measured on four tables only
+(D242). A column of an automatic key, whose Extra the model does not read, was not measured either.

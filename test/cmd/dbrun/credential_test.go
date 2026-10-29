@@ -138,6 +138,8 @@ func TestMaskDSN(t *testing.T) {
 		{"cosmos://x:c2VjcmV0@host.documents.azure.com/db/book", "cosmos://x:xxxxx@host.documents.azure.com/db/book"},
 		{"snowflake://me@acct/db?role=r&privateKey=abc", "snowflake://me@acct/db?privateKey=xxxxx&role=r"},
 		{"athena://key:secret@athena.us-east-1.amazonaws.com/db?workgroup=w&output=s3://b/r/", "athena://xxxxx:xxxxx@athena.us-east-1.amazonaws.com/db?output=s3%3A%2F%2Fb%2Fr%2F&workgroup=w"},
+		{"maxcompute://id:secret@service.ap-southeast-5.maxcompute.aliyun.com/api?project=p", "maxcompute://xxxxx:xxxxx@service.ap-southeast-5.maxcompute.aliyun.com/api?project=p"},
+		{"ots://id:secret@i.ap-southeast-5.ots.aliyuncs.com/i", "ots://xxxxx:xxxxx@i.ap-southeast-5.ots.aliyuncs.com/i"},
 		{"bigquery://project/us/data", "bigquery://project/us/data"},
 		{"databricks://token:dapi123@dbc-1.cloud.databricks.com/w?catalog=c", "databricks://token:xxxxx@dbc-1.cloud.databricks.com/w?catalog=c"},
 		{"Server=host;Password=pw", "xxxxx"},

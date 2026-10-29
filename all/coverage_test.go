@@ -95,6 +95,8 @@ func answers(t *testing.T) map[string]int {
 		{name: "athena", dialect: dbmeta.Athena},
 		{name: "databricks", dialect: dbmeta.Databricks},
 		{name: "cosmos", dialect: dbmeta.Cosmos},
+		{name: "maxcompute", dialect: dbmeta.MaxCompute},
+		{name: "tablestore", dialect: dbmeta.Tablestore},
 	} {
 		// The newest release of each, because a count is what the model can
 		// do and not what an old server allows.
@@ -133,13 +135,15 @@ var displayNames = map[string]string{
 	"YDB": "ydb", "ArangoDB": "arangodb", "InfluxQL": "influxql",
 	"SurrealDB": "surrealdb", "Apache Avatica": "avatica", "Apache Druid": "druid", "Apache Drill": "drill",
 	"Elasticsearch": "elasticsearch", "OpenSearch": "opensearch",
-	"Apache Solr":     "solr",
-	"GizmoSQL":        "gizmosql",
-	"Spanner":         "spanner",
-	"Google BigQuery": "bigquery",
-	"Amazon Athena":   "athena",
-	"Databricks":      "databricks",
-	"Azure Cosmos DB": "cosmos",
+	"Apache Solr":        "solr",
+	"GizmoSQL":           "gizmosql",
+	"Spanner":            "spanner",
+	"Google BigQuery":    "bigquery",
+	"Amazon Athena":      "athena",
+	"Databricks":         "databricks",
+	"Azure Cosmos DB":    "cosmos",
+	"Alibaba MaxCompute": "maxcompute",
+	"Tablestore":         "tablestore",
 }
 
 // proseCount matches a count written in running text rather than in a table,
@@ -318,6 +322,8 @@ func TestEveryModelIsInTheVersionTable(t *testing.T) {
 			"athena":        "Amazon Athena",
 			"databricks":    "Databricks",
 			"cosmos":        "Azure Cosmos DB",
+			"maxcompute":    "Alibaba MaxCompute",
+			"tablestore":    "Tablestore",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its version query cannot be"+
@@ -370,6 +376,8 @@ func TestEveryModelSaysWhetherDbtplCanUseIt(t *testing.T) {
 			"athena":        "Amazon Athena",
 			"databricks":    "Databricks",
 			"cosmos":        "Azure Cosmos DB",
+			"maxcompute":    "Alibaba MaxCompute",
+			"tablestore":    "Tablestore",
 		}[name]
 		if product == "" {
 			t.Errorf("%s has no product name here, so its dbtpl verdict cannot be"+

@@ -1,6 +1,6 @@
 # D143. A dialect says how its SQL is written
 
-Status: Decided, amended by D230.
+Status: Decided, amended by D230 and D238.
 
 ## What Ken decided
 

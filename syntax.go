@@ -34,6 +34,10 @@ const (
 	// the end of a statement and needs it at the end of a PL/SQL block, so a
 	// client removes it unless the statement ends with `END;`.
 	TerminatorStrippedUnlessEnd
+	// TerminatorRequired is a product that refuses a statement that does not
+	// end with a semicolon, such as MaxCompute, so a client adds one when the
+	// statement has none. A statement of dbmeta already ends with one. See D237.
+	TerminatorRequired
 )
 
 // Batch is a statement that opens a batch and the one that closes it, such

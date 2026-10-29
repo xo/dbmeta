@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-97 of them amend or replace an earlier one, and a decision read without its
+102 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -161,10 +161,10 @@ file.
 | [D140](D140-databend-reads-its-system-database.md) | Databend reads its system database | Decided |
 | [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no license | Amends D118 |
 | [D142](D142-ql-is-removed.md) | ql is removed | Amends D116, D119 and D129 |
-| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230 |
+| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230 and D238 |
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided, amended by D182 and D190 |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
-| [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159 and D175 |
+| [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159, D175 and D242 |
 | [D147](D147-the-fields-psql-prints-that-usql-needed.md) | The fields psql prints that usql needed | Decided, amended by D201 |
 | [D148](D148-rqlite-shares-the-sqlite3-model.md) | rqlite shares the sqlite3 model | Amended by D151 |
 | [D149](D149-oracle-and-singlestore-answer-extended-statistics.md) | Oracle and SingleStore answer extended statistics | Decided |
@@ -212,7 +212,7 @@ file.
 | [D191](D191-elasticsearch-solr-and-opensearch-read-the-release-with-select-version.md) | Elasticsearch, Solr and OpenSearch read the release with SELECT version() | Amends D177, D179, D181 and D183, amended by D192 |
 | [D192](D192-the-ordinary-user-reads-the-release-and-surrealdb-reads-it-with-select-version.md) | The ordinary user reads the release, and SurrealDB reads it with SELECT version() | Amends D191, D176 and D164 |
 | [D193](D193-snowflake-parity-conformance-and-password-were-measured.md) | Snowflake parity, conformance and the password statement were measured | Amends D190, amended by D203 and D213 |
-| [D194](D194-no-models-for-hosted-services-beyond-redshift-and-snowflake.md) | No models for hosted services beyond Redshift and Snowflake | Amends D188, amended by D216, D218, D222 and D224 |
+| [D194](D194-no-models-for-hosted-services-beyond-redshift-and-snowflake.md) | No models for hosted services beyond Redshift and Snowflake | Amends D188, amended by D216, D218, D222, D224, D237 and D241 |
 | [D195](D195-cassandra-and-scylladb-have-a-url-dsn-and-an-ordinary-user.md) | Cassandra and ScyllaDB have a URL DSN and an ordinary user | Decided, amended by D196 |
 | [D196](D196-the-cassandra-dialect-is-cassandra.md) | The Cassandra dialect is cassandra | Amends D81, D93 and D195 |
 | [D197](D197-three-fields-can-be-null-in-the-postgresql-catalog.md) | Three fields can be NULL in the PostgreSQL catalog | Decided |
@@ -236,7 +236,7 @@ file.
 | [D215](D215-spanner-omni-replaces-the-cloud-spanner-emulator.md) | Spanner Omni replaces the Cloud Spanner emulator | Amends D118, amended by D217 |
 | [D216](D216-spanner-gets-a-model-that-reads-spanner-omni.md) | Spanner gets a model that reads Spanner Omni | Amends D194, amended by D219 |
 | [D217](D217-the-cloud-spanner-emulator-returns-beside-spanner-omni.md) | The Cloud Spanner emulator returns beside Spanner Omni | Amends D215 |
-| [D218](D218-the-hosted-services-get-models-and-dbrun-names-their-key-files.md) | The hosted services get models and dbrun names their key files | Amends D194 |
+| [D218](D218-the-hosted-services-get-models-and-dbrun-names-their-key-files.md) | The hosted services get models and dbrun names their key files | Amends D194, amended by D237 |
 | [D219](D219-spanner-is-measured-on-cloud-spanner-and-a-database-role-is-its-principal.md) | Spanner is measured on Cloud Spanner and a database role is its principal | Amends D216 |
 | [D220](D220-bigquery-gets-a-model-that-reads-the-hosted-service.md) | BigQuery gets a model that reads the hosted service | Decided, amended by D226 and D229 |
 | [D221](D221-redshift-reads-the-spectrum-external-tables.md) | Redshift reads the Spectrum external tables | Amends D212 |
@@ -255,3 +255,9 @@ file.
 | [D234](D234-the-exasol-tests-use-the-driver-of-dbimp.md) | The Exasol tests use the driver of dbimp | Amends D154 and D87 |
 | [D235](D235-the-image-pins-moved-on-2026-10-22.md) | The image pins moved on 2026-10-22 | Decided |
 | [D236](D236-dbrun-cli-launches-the-native-client.md) | dbrun cli launches the native client | Decided |
+| [D237](D237-maxcompute-gets-a-model-that-reads-the-project-level-information-schema.md) | MaxCompute gets a model that reads the project level INFORMATION_SCHEMA | Amends D194 and D218, amended by D238 and D240 |
+| [D238](D238-a-statement-of-maxcompute-needs-its-semicolon-and-the-driver-writes-values-as-they-are.md) | A statement of MaxCompute needs its semicolon, and the driver writes values as they are | Amends D143 and D237 |
+| [D239](D239-the-maxcompute-tests-retry-a-reset-connection.md) | The MaxCompute tests retry a reset connection | Decided |
+| [D240](D240-the-maxcompute-fixture-stays-up-because-the-views-lag.md) | The MaxCompute fixture stays up because the views lag | Amends D237 |
+| [D241](D241-tablestore-gets-a-model-that-answers-one-kind.md) | Tablestore gets a model that answers one kind | Amends D194, amended by D242 |
+| [D242](D242-tablestore-can-walk-describe-and-show-index.md) | Tablestore can walk DESCRIBE and SHOW INDEX | Amends D146 and D241 |

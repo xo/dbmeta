@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestMain drops the Spanner, BigQuery, Athena and Databricks fixtures after the last test. Each
+// TestMain drops the Spanner, BigQuery, Athena, Databricks, Cosmos DB and MaxCompute fixtures after the last test. Each
 // takes minutes to build, so the tests share one, and nothing else in this
 // package needs a main of its own.
 func TestMain(m *testing.M) {
@@ -15,5 +15,7 @@ func TestMain(m *testing.M) {
 	shutdownAthena()
 	shutdownDatabricks()
 	shutdownCosmos()
+	shutdownMaxCompute()
+	shutdownTablestore()
 	os.Exit(code)
 }

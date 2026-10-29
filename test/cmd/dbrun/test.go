@@ -12,6 +12,8 @@ import (
 	"time"
 
 	_ "github.com/SAP/go-hdb/driver"
+	_ "github.com/aliyun/aliyun-odps-go-sdk/sqldriver"
+	_ "github.com/aliyun/aliyun-tablestore-go-sql-driver"
 	_ "github.com/apache/arrow-go/v18/arrow/flight/flightsql/driver"
 	_ "github.com/beltran/gohive/v2"
 	_ "github.com/go-sql-driver/mysql"
@@ -107,9 +109,17 @@ var drivers = map[dbmeta.Dialect]string{
 	// databricks:// opens the driver of dbimp, which dburl v0.50.0 names (D154,
 	// D229).
 	dbmeta.Databricks: "databricks",
+	// maxcompute:// opens the driver of Alibaba, which dburl v0.53.0 names and
+	// which registers itself as odps. dburl turns the scheme into https, and the
+	// driver reads that (D154, D237).
+	dbmeta.MaxCompute: "odps",
 	// cosmos:// opens the driver of dbimp, which dburl v0.50.0 names (D154, D228).
 	dbmeta.Cosmos:   "cosmos",
 	dbmeta.ArangoDB: "arangodb",
+
+	// ots:// opens the driver that dburl v0.53.0 names, which registers ots. The
+	// DSN dburl writes starts with https, as the driver reads it (D154, D241).
+	dbmeta.Tablestore: "ots",
 
 	// elasticsearch:// opens dbimp's driver (D177).
 	dbmeta.Elasticsearch: "elasticsearch",

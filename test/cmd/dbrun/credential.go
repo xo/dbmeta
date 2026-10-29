@@ -208,8 +208,10 @@ var userIsSecret = map[string]bool{"cosmos": true, "cm": true, "gocosmos": true}
 
 // keyIDIsSecret are the schemes whose user name is the access key id, with the
 // secret key as the password. The id is not the secret, and dbrun hides it too,
-// because it names the account that owns the key. See D229.
-var keyIDIsSecret = map[string]bool{"athena": true}
+// because it names the account that owns the key. See D229. MaxCompute and
+// Tablestore take the access key id of Alibaba Cloud in the same place, so
+// they are here too, with the alias that dburl gives each of them (D237).
+var keyIDIsSecret = map[string]bool{"athena": true, "maxcompute": true, "mc": true, "ots": true, "tablestore": true}
 
 // masked replaces a secret in what dbrun prints.
 const masked = "xxxxx"

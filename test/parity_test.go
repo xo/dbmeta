@@ -32,6 +32,7 @@ import (
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
 	iqfixture "github.com/xo/dbmeta/models/influxql/fixture"
 	lsfixture "github.com/xo/dbmeta/models/libsql/fixture"
+	mcfixture "github.com/xo/dbmeta/models/maxcompute/fixture"
 	myfixture "github.com/xo/dbmeta/models/mysql/fixture"
 	njfixture "github.com/xo/dbmeta/models/neo4j/fixture"
 	osfixture "github.com/xo/dbmeta/models/opensearch/fixture"
@@ -47,6 +48,7 @@ import (
 	spfixture "github.com/xo/dbmeta/models/spanner/fixture"
 	msfixture "github.com/xo/dbmeta/models/sqlserver/fixture"
 	srfixture "github.com/xo/dbmeta/models/surrealdb/fixture"
+	tsfixture "github.com/xo/dbmeta/models/tablestore/fixture"
 	tdfixture "github.com/xo/dbmeta/models/tidb/fixture"
 	trfixture "github.com/xo/dbmeta/models/trino/fixture"
 	vefixture "github.com/xo/dbmeta/models/vertica/fixture"
@@ -683,6 +685,30 @@ func parityTargets() []parityTarget {
 			scenes: []parityScene{{
 				name:       "same",
 				principals: []parityPrincipal{{name: "reader", make: makeAthenaReader}},
+			}},
+		},
+		{
+			// MaxCompute has no containment, and no user in SQL that a test can make:
+			// a user is a RAM identity. The administrator makes the project objects,
+			// and the reader is a RAM user with the role reader, so the two are the
+			// principals (D237).
+			dialect: dbmeta.MaxCompute, driver: retryDriverName, env: "DBMETA_MAXCOMPUTE",
+			open: openMaxCompute, build: setupMaxCompute, schema: mcfixture.Everything.Schema,
+			scenes: []parityScene{{
+				name:       "same",
+				principals: []parityPrincipal{{name: "reader", make: makeMaxComputeReader}},
+			}},
+		},
+		{
+			// Tablestore has no containment, and no user in SQL: access is by RAM.
+			// The administrator makes the tables and maps them, and the reader is a
+			// RAM user that holds read rights on the instance and cannot create or
+			// drop a table, so the two are the principals (D241).
+			dialect: dbmeta.Tablestore, driver: tablestoreRetryDriver, env: "DBMETA_TABLESTORE",
+			open: openTablestore, build: setupTablestore, schema: tsfixture.Everything.Schema,
+			scenes: []parityScene{{
+				name:       "same",
+				principals: []parityPrincipal{{name: "reader", make: makeTablestoreReader}},
 			}},
 		},
 		{
