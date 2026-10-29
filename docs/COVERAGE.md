@@ -7438,11 +7438,10 @@ reads them with one. So maxcompute is in `agreementExcluded` with that reason.
 
 ### Which answers depend on who is asking
 
-The reader is a RAM user with the role reader, which holds List, Describe and Select. The
-service refuses it every statement, also `SELECT 1;`, with ODPS-0420095 "You have NO
-privilege 'odps:CreateInstance'" on the project. So `TestPrivilegeParity` has no section
-for MaxCompute: the scene skips with that reason, and the test grants nothing, because a
-grant to a role changes the account. Two grants make the reader work, and D240 holds
-them. When Ken has made them, run the test with `DBMETA_UPDATE=1` and read the diff.
-The administrator reads every query. Nothing is measured for the reader, so this
-section does not say which answers differ.
+The reader is a RAM user with the role reader, which holds List, Describe and Select, and
+since 2026-10-29 CreateInstance on the project and Read on the package of INFORMATION_SCHEMA
+as well. Before those two grants the service refused it every statement, also `SELECT 1;`,
+with ODPS-0420095 "You have NO privilege 'odps:CreateInstance'". The grants are in D240.
+`TestPrivilegeParity` records the section `[maxcompute/same/reader]`. The only kind that
+differs is CurrentUser, which answers with the reader instead of the administrator. Every
+other kind returns the same rows to the reader as to the administrator.

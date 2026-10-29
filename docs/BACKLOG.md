@@ -422,12 +422,8 @@ hide a table, was not made (D222).
 
 ### MaxCompute reader, primary keys, external tables and schemas
 
-MaxCompute answers 15 of the 65 kinds (D237). Four pieces of work are known and not done.
+MaxCompute answers 15 of the 65 kinds (D237). Three pieces of work are known and not done.
 
-- The role reader needs `grant createinstance on project dbmeta to role reader;` and
-  `grant read on package Information_Schema.systables to role reader;`, and then
-  `DBMETA_UPDATE=1` records the reader in `parity.txt`. The service refuses the reader
-  every statement until then (D240).
 - The primary key of a transactional table is in DESC and in no view. Ask Alibaba for a
   key column in COLUMNS or a view of constraints. D146 allows a walk for five products,
   and MaxCompute is not one, and the driver cannot read a statement that is not a SELECT

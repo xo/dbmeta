@@ -286,6 +286,9 @@ role_grants refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_g
 roles refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`user`
 user_mappings refused: Error 1142 (42000): SELECT command denied to user 'dbmeta_grantee'@'client' for table `mysql`.`servers`
 
+[maxcompute/same/reader]
+current_user the same rows with different values
+
 [memsql/same/grantee]
 current_schema more rows than the administrator
 current_user the same rows with different values
