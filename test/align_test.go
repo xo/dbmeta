@@ -516,19 +516,22 @@ var alignTargets = []alignTarget{
 	{
 		dialect: dbmeta.Cassandra, env: "DBMETA_CASSANDRA", drivers: []string{"cassandra"}, from: " FROM system.local",
 		cols: []alignColumn{
-			{ddl: "(tinyint) 1", right: true},
-			{ddl: "(smallint) 1", right: true},
-			{ddl: "(int) 1", right: true},
-			{ddl: "(bigint) 1", right: true},
-			{ddl: "(varint) 1", right: true},
-			{ddl: "(float) 1", right: true},
-			{ddl: "(double) 1", right: true},
-			{ddl: "(decimal) 1", right: true},
-			{ddl: "(text) 'a'"},
-			{ddl: "(boolean) true"},
-			{ddl: "(date) '2020-01-01'"},
-			{ddl: "(timestamp) '2020-01-01'"},
-			{ddl: "(time) '01:00:00'"},
+			// A CAST of a column, because ScyllaDB 2025.1 takes no literal in a
+			// selection, ScyllaDB 2026.3 refuses a type hint, and Apache
+			// Cassandra 3.11 refuses a CAST of a literal.
+			{ddl: "CAST(gossip_generation AS tinyint)", right: true},
+			{ddl: "CAST(gossip_generation AS smallint)", right: true},
+			{ddl: "gossip_generation", right: true},
+			{ddl: "CAST(gossip_generation AS bigint)", right: true},
+			{ddl: "CAST(gossip_generation AS varint)", right: true},
+			{ddl: "CAST(gossip_generation AS float)", right: true},
+			{ddl: "CAST(gossip_generation AS double)", right: true},
+			{ddl: "CAST(gossip_generation AS decimal)", right: true},
+			{ddl: "CAST(key AS text)"},
+			{ddl: "toDate(now())"},
+			{ddl: "toTimestamp(now())"},
+			{ddl: "(boolean) true", optional: true},
+			{ddl: "CAST(toTimestamp(now()) AS time)", optional: true},
 		},
 	},
 	{

@@ -2970,6 +2970,15 @@ Server. The free Express images reach back to 11g Release 2 from 2010, so every
 release runs in an ordinary container. See D57 for the SQL Server contrast and
 `container/oracle.go` for the list.
 
+### Autonomous Database Free
+
+`oracle-adb-19c` and `oracle-adb-26ai` are Oracle Autonomous Database Free,
+which Oracle publishes as a container. Both are Verified and CI never runs
+them. The queries have not run against either one yet. The containers exist
+so that a driver can test the TLS path and the flags that Autonomous Database
+sets, such as the one on XMLType. D246 has the facts. A bare `oracle` never
+names one of them.
+
 ### What it answers
 
 Schemas, tables, columns, indexes, index columns, constraints, constraint

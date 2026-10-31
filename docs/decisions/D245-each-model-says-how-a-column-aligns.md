@@ -109,7 +109,7 @@ These dialects have no function, so `Dialect.ColumnAlign` returns false for them
   Databricks, MaxCompute, Redshift, Snowflake, Spanner and Tablestore.
 - Spanner has an emulator, but it speaks the protocol of Spanner Omni, and go-sql-spanner
   reports no type names. The driver of dbimp that dburl names was not reachable.
-- Apache Impala, because the build of its image failed on this machine.
+- Apache Impala was measured in CI on 4.4.1 and 4.5.3, because the build of its image failed on this machine. It reports TINYINT, SMALLINT, INT, BIGINT, FLOAT, DOUBLE and DECIMAL.
 - InfluxQL, because it reads a measurement and no probe wrote one.
 
 Each one needs its names measured on a server, which D43 and rule 14 of AGENTS.md ask for

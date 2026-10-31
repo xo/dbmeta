@@ -264,3 +264,4 @@ file.
 | [D243](D243-maxcompute-and-tablestore-use-the-drivers-of-dbimp.md) | MaxCompute and Tablestore use the drivers of dbimp | Amends D154, D237, D238, D239 and D241 |
 | [D244](D244-dbrun-fixture-examples-makes-two-plain-tables.md) | dbrun fixture examples makes two plain tables | Decided |
 | [D245](D245-each-model-says-how-a-column-aligns.md) | Each model says how a column aligns | Decided |
+| [D246](D246-oracle-autonomous-database-free-is-a-verified-release.md) | Oracle Autonomous Database Free is a Verified release | Decided |

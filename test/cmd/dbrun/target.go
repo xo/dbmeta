@@ -520,8 +520,17 @@ func resolve(all []target, args []string, allReleases bool) ([]target, []string,
 // one is the newest. Sorting again here rather than relying on that keeps
 // this correct if the order in that package ever changes, and it has to
 // handle the machines, which are a separate list.
+//
+// An Autonomous Database image is never the newest. Its release is the number
+// of the image and not of the database, so 26.9.4.2 sorts above 26ai and
+// makes a bare oracle mean a cloud service stack that nobody asked for.
 func newestOf(product []target) target {
-	sorted := append([]target(nil), product...)
+	sorted := slices.DeleteFunc(slices.Clone(product), func(t target) bool {
+		return strings.Contains(t.Name, "-adb-")
+	})
+	if len(sorted) == 0 {
+		sorted = slices.Clone(product)
+	}
 	sort.SliceStable(sorted, func(i, j int) bool {
 		return dbmeta.ParseVersion(sorted[i].Release).
 			Compare(dbmeta.ParseVersion(sorted[j].Release)) < 0

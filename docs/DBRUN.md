@@ -261,6 +261,7 @@ The administrator of each product:
 | MariaDB, MySQL | `root` | `container.Password` |
 | SQL Server | `sa` | `container.Password` |
 | Oracle | `system` | `container.Password` |
+| Oracle Autonomous Database Free | `admin` | `container.Password` followed by `Adb1`, because the image wants 12 characters or more |
 | ClickHouse | `default` | `container.Password` |
 | Firebird | `SYSDBA` | `container.Password` |
 | SAP HANA | `SYSTEM` | `container.Password` |

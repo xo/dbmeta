@@ -34,6 +34,9 @@ const versionQuery = `SELECT version()`
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Impala, &dbmeta.Info{
+		// The names are what impala-go reports. Measured on Apache Impala 4.4.1
+		// and 4.5.3 in CI (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INT", "BIGINT", "FLOAT", "DOUBLE", "DECIMAL"),
 		// Impala folds a name to lower case, and takes block comments and
 		// names between backticks. usql had no lexer flags for Impala, and
 		// these are Impala's documented syntax (D143).

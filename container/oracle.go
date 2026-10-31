@@ -148,6 +148,74 @@ var (
 	}
 )
 
+// adbPassword is the password of ADMIN on Autonomous Database Free.
+//
+// The image refuses [Password] and does not start. It wants 12 to 30
+// characters with an uppercase letter, a lowercase letter and a digit, and
+// [Password] has 10.
+const adbPassword = Password + "Adb1"
+
+// adbService is the service of the low consumer group on the port. The image
+// names the database MYATP, so the service is myatp_low.
+//
+// Port 1522 of the image is TLS, with the server certificate in the wallet
+// that the image writes to /u01/app/oracle/wallets/tls_wallet. Port 1521 is
+// plain TCP, although the tnsnames.ora of the image names it as TLS in the
+// aliases that end in _tls.
+//
+// The options are the ones of the go-ora that the test module pins, which are
+// ssl and ssl verify. A driver with its own names, such as sslmode=require,
+// changes the query of this URL and nothing else.
+func adbService(port int) string {
+	return fmt.Sprintf("oracle://admin:%s@127.0.0.1:%d/myatp_low.adb.oraclecloud.com?ssl=true&ssl+verify=false",
+		url.QueryEscape(adbPassword), port)
+}
+
+// adbReady connects to the database as ADMIN over the TLS port, using the
+// alias that the image writes to its own tnsnames.ora. The aliases that end
+// in _tls name port 1521, which is not TLS, so the check uses the plain one.
+var adbReady = []string{"bash", "-c",
+	"echo exit | TNS_ADMIN=/u01/app/oracle/wallets/tls_wallet sqlplus -s -L admin/" + adbPassword + "@myatp_low"}
+
+// oracleadb is Oracle Autonomous Database Free, which Oracle publishes as a
+// container. It is a real Autonomous Database stack: the same listener
+// setup, TLS wallets and service names as the cloud service. XMLType values,
+// for one, come back with a flag word that a plain Oracle server never sets.
+// A pluggable database called MYATP holds the user ADMIN.
+var oracleadb = product{
+	dialect: dbmeta.Oracle,
+	name:    "oracle",
+	client:  sqlplusClient(),
+	image:   "container-registry.oracle.com/database/adb-free",
+	major:   oracleADBMajor,
+	port:    1522,
+	second:  1521,
+	env: map[string]string{
+		"WORKLOAD_TYPE":   "ATP",
+		"ADMIN_PASSWORD":  adbPassword,
+		"WALLET_PASSWORD": adbPassword,
+		"START_ORDS":      "false",
+	},
+	startup: oracleStartup,
+	ready:   adbReady,
+	dsn:     adbService,
+}
+
+// oracleADBNames maps an Autonomous Database image release to the database
+// it holds. The release 26.9.4.2 is the 19c image, and the 26ai image has the
+// tag suffix -26ai.
+var oracleADBNames = map[string]string{
+	"26.9.4.2": "adb-19c",
+	"26.9.4.1": "adb-26ai",
+}
+
+func oracleADBMajor(release string) string {
+	if name, ok := oracleADBNames[release]; ok {
+		return name
+	}
+	return release
+}
+
 // oracleNames maps a release to the name Oracle sells it under.
 //
 // It is a table rather than a rule, because there is no rule. The suffix moved
@@ -200,6 +268,8 @@ var Oracle = list{}.add(oraclexe, Tested, "21.3.0").
 	add(oraclefree, Nightly, "23.9").
 	add(oraclexe, Verified, "18.4.0").
 	add(oracle19, Verified, "19.3.0").
+	add(oracleadb, Verified, "26.9.4.2").
+	add(withTagSuffix(oracleadb, "-26ai"), Verified, "26.9.4.1").
 	on("11.2.0.2", func(s *Server) {
 		// 11g predates multitenant. There is no pluggable database to name,
 		// and XE is the instance itself.
@@ -218,3 +288,9 @@ var Oracle = list{}.add(oraclexe, Tested, "21.3.0").
 		s.dsn = oracleService("ORCLPDB1")
 		s.Ready = oracleReady("ORCLPDB1")
 	})
+
+// withTagSuffix returns p with the tag suffix set.
+func withTagSuffix(p product, suffix string) product {
+	p.tagSuffix = suffix
+	return p
+}
