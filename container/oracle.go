@@ -201,6 +201,34 @@ var oracleadb = product{
 	dsn:     adbService,
 }
 
+// nneSetup makes the server require native network encryption and
+// checksumming, which is how a site hardens a listener that has no TLS.
+//
+// The lines go in the sqlnet.ora of the server, and the server reads that file
+// when a session connects, so no restart is needed. A client that offers only
+// a weak algorithm is refused with ORA-12269. The setup runs on every start,
+// so it adds the lines only once.
+const nneSetup = `set -e
+f="$ORACLE_HOME/network/admin/sqlnet.ora"
+if ! grep -q SQLNET.ENCRYPTION_SERVER "$f" 2>/dev/null; then
+cat >> "$f" <<'EOF'
+SQLNET.ENCRYPTION_SERVER = REQUIRED
+SQLNET.ENCRYPTION_TYPES_SERVER = (AES256)
+SQLNET.CRYPTO_CHECKSUM_SERVER = REQUIRED
+SQLNET.CRYPTO_CHECKSUM_TYPES_SERVER = (SHA256)
+EOF
+fi
+`
+
+// oraclenne is Oracle Free with native network encryption required. It is
+// the same image as 26ai with one more setup step.
+var oraclenne = func() product {
+	p := oraclefree
+	p.major = func(string) string { return "nne-26ai" }
+	p.init = []string{"bash", "-c", nneSetup}
+	return p
+}()
+
 // oracleADBNames maps an Autonomous Database image release to the database
 // it holds. The release 26.9.4.2 is the 19c image, and the 26ai image has the
 // tag suffix -26ai.
@@ -268,6 +296,7 @@ var Oracle = list{}.add(oraclexe, Tested, "21.3.0").
 	add(oraclefree, Nightly, "23.9").
 	add(oraclexe, Verified, "18.4.0").
 	add(oracle19, Verified, "19.3.0").
+	add(oraclenne, Verified, "23.26.3").
 	add(oracleadb, Verified, "26.9.4.2").
 	add(withTagSuffix(oracleadb, "-26ai"), Verified, "26.9.4.1").
 	on("11.2.0.2", func(s *Server) {

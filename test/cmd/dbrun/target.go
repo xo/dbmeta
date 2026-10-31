@@ -521,12 +521,13 @@ func resolve(all []target, args []string, allReleases bool) ([]target, []string,
 // this correct if the order in that package ever changes, and it has to
 // handle the machines, which are a separate list.
 //
-// An Autonomous Database image is never the newest. Its release is the number
-// of the image and not of the database, so 26.9.4.2 sorts above 26ai and
-// makes a bare oracle mean a cloud service stack that nobody asked for.
+// A variant of a product is never the newest. An Autonomous Database image
+// has the number of the image and not of the database, so 26.9.4.2 sorts above
+// 26ai. A server that requires network encryption has the release of 26ai. A
+// bare oracle means the ordinary server in both cases.
 func newestOf(product []target) target {
 	sorted := slices.DeleteFunc(slices.Clone(product), func(t target) bool {
-		return strings.Contains(t.Name, "-adb-")
+		return strings.Contains(t.Name, "-adb-") || strings.Contains(t.Name, "-nne-")
 	})
 	if len(sorted) == 0 {
 		sorted = slices.Clone(product)

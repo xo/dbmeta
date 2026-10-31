@@ -2979,6 +2979,13 @@ so that a driver can test the TLS path and the flags that Autonomous Database
 sets, such as the one on XMLType. D246 has the facts. A bare `oracle` never
 names one of them.
 
+### Native network encryption
+
+`oracle-nne-26ai` is Oracle Free 23.26.3 with native network encryption and
+checksumming required, so that a driver can test a server that refuses a weak
+client. It is Verified and no query has run on it for parity. D247 has the
+setup. A bare `oracle` never names it.
+
 ### What it answers
 
 Schemas, tables, columns, indexes, index columns, constraints, constraint
