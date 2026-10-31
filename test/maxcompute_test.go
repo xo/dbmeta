@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/xo/dbimp/maxcompute"
+
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/maxcompute"
 	mcfixture "github.com/xo/dbmeta/models/maxcompute/fixture"
@@ -19,16 +21,15 @@ import (
 // which dbrun resolves from the places D117 names. The value holds a secret and
 // no test prints it.
 //
-// The driver is github.com/aliyun/aliyun-odps-go-sdk/sqldriver, which dburl
-// names for the maxcompute scheme (D154). The tests open it through
-// retryDriverName, which retries a reset connection. See D237 and D239.
+// The driver is github.com/xo/dbimp/maxcompute, which dburl v0.54.0 names for
+// the maxcompute scheme (D154, D243).
 func openMaxCompute(t *testing.T) *sql.DB {
 	t.Helper()
 	raw := os.Getenv("DBMETA_MAXCOMPUTE")
 	if raw == "" {
 		t.Skip("set DBMETA_MAXCOMPUTE to run against the service")
 	}
-	return openAt(t, retryDriverName, raw)
+	return openAt(t, "maxcompute", raw)
 }
 
 // maxComputeState is the one fixture that every MaxCompute test shares.
@@ -71,7 +72,7 @@ func shutdownMaxCompute() {
 	if os.Getenv("DBMETA_MAXCOMPUTE_DROP") == "" {
 		return
 	}
-	db, err := sql.Open(retryDriverName, os.Getenv("DBMETA_MAXCOMPUTE"))
+	db, err := sql.Open("maxcompute", os.Getenv("DBMETA_MAXCOMPUTE"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "dropping the MaxCompute fixture: opening the driver failed")
 		return
@@ -239,9 +240,10 @@ func TestMaxComputeVersion(t *testing.T) {
 	if versions.Main().IsZero() || versions.Main().Unknown {
 		t.Errorf("expected the sprint as the main version, got %s", versions)
 	}
-	// The service needs the semicolon, and the statement of the model has it.
-	if err := maxComputeDrain(t.Context(), db, "SELECT version()"); err == nil {
-		t.Error("SELECT version() without a semicolon: expected the service to refuse it")
+	// The service needs the semicolon. The driver of dbimp adds it, so a
+	// statement without one runs (D243).
+	if err := maxComputeDrain(t.Context(), db, "SELECT version()"); err != nil {
+		t.Errorf("SELECT version() without a semicolon: expected the driver to add it, got %v", err)
 	}
 	t.Logf("server reports %s", versions)
 }
@@ -654,14 +656,13 @@ func TestMaxComputeUnanswered(t *testing.T) {
 	m := setupMaxCompute(t, db)
 
 	ctx := t.Context()
-	// A statement that is not a SELECT returns no row through the driver.
+	// A statement that is not a SELECT returns no row through the driver. SHOW
+	// TABLES and DESC are not here, because the driver of dbimp answers them
+	// with rows (D243).
 	for name, stmt := range map[string]string{
-		"show tables":         "SHOW TABLES;",
-		"desc":                "DESC author;",
-		"list functions":      "LIST FUNCTIONS;",
-		"current_user":        "SELECT current_user();",
-		"user":                "SELECT user();",
-		"without a semicolon": "SELECT 1",
+		"list functions": "LIST FUNCTIONS;",
+		"current_user":   "SELECT current_user();",
+		"user":           "SELECT user();",
 	} {
 		if err := maxComputeDrain(ctx, db, stmt); err == nil {
 			t.Errorf("%s: expected the service or the driver to refuse it", name)

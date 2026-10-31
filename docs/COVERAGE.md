@@ -6759,7 +6759,8 @@ not checked.
 `models/tablestore` answers 4 of the 65, through the SQL feature of Tablestore,
 measured on 2026-10-29 on the hosted service, an instance of type HYBRID in the region
 ap-southeast-5, with github.com/aliyun/aliyun-tablestore-go-sql-driver at
-v0.0.0-20220418015234-4d337cb3eed9, which dburl v0.53.0 names. See D241 and D242.
+v0.0.0-20220418015234-4d337cb3eed9, which dburl v0.53.0 named. The tests now use github.com/xo/dbimp/tablestore, which
+dburl v0.54.0 names, and the answers did not change. See D241, D242 and D243.
 
 Tablestore is a hosted service and the version is the text of `SELECT @@version`, so the
 tier is Verified and CI never runs it. The tests of the model need the instance, and they
@@ -6851,7 +6852,7 @@ instance, and each of the refusals above is asserted by `TestTablestoreUnanswere
 ### What the fixture builds
 
 `models/tablestore/fixture` holds four tables as data, and the test makes them with
-`github.com/aliyun/aliyun-tablestore-go-sdk`, because SQL cannot create a table. CREATE
+the connector of `github.com/xo/dbimp/tablestore`, because SQL cannot create a table. CREATE
 TABLE in the SQL feature maps a table that exists already, and a non key string column maps
 to MEDIUMTEXT, because VARCHAR is for a key only. The tables are dbmeta_fx_author with a
 secondary index on name, dbmeta_fx_book with a search index on title, dbmeta_fx_region with
@@ -7277,7 +7278,9 @@ containers and users and with the pages of a feed, never with the number of docu
 2026-10-29 on the hosted service, the project `dbmeta` in the region
 ap-southeast-5, with `github.com/aliyun/aliyun-odps-go-sdk/sqldriver` v0.4.26, which
 dburl v0.53.0 names for the maxcompute scheme and usql uses. The version of the SQL
-engine is the build V59.group_cn.SQL_RC60_hf9. See D237 to D240.
+engine is the build V59.group_cn.SQL_RC60_hf9. The tests now use
+`github.com/xo/dbimp/maxcompute`, which dburl v0.54.0 names, and the answers did not
+change. See D237 to D240 and D243.
 
 MaxCompute is a hosted service, so the tier is Verified and CI never runs it. The
 tests of the model need the project, and they skip when `DBMETA_MAXCOMPUTE` is not

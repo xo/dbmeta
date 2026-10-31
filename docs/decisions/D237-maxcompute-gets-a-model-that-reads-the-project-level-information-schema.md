@@ -1,6 +1,6 @@
 # D237. MaxCompute gets a model that reads the project level INFORMATION_SCHEMA
 
-Status: Amends D194 and D218, amended by D238 and D240.
+Status: Amends D194 and D218, amended by D238, D240 and D243.
 
 ## The decision
 

@@ -350,7 +350,7 @@ current_user the same rows with different values
 indexes the same rows with different values
 tables the same rows with different values
 
-[ots/same/reader]
+[tablestore/same/reader]
 
 [postgres/same/grantee]
 current_user the same rows with different values

@@ -687,16 +687,15 @@ scripts of a container, and `dsn` masks the key (D228). The database `dbmeta` ha
 request units a second that its containers share, so run the tests once and not in a loop.
 
 The connection string of MaxCompute has the form
-`maxcompute://<key id>:<secret>@service.<region>.maxcompute.aliyun.com/api?project=<project>`.
+`maxcompute://<key id>:<secret>@service.<region>.maxcompute.aliyun.com/<project>`.
 The key id and the secret are the access key of a RAM user of Alibaba Cloud. The
 files are `maxcompute` for the administrator and `maxcompute-reader` for the reader.
-The driver is `github.com/aliyun/aliyun-odps-go-sdk/sqldriver`, which dburl v0.53.0
-names, and dburl turns the scheme into https. The project must hold the views of
+The driver is `github.com/xo/dbimp/maxcompute`, which dburl v0.54.0 names (D243). The project must hold the views of
 INFORMATION_SCHEMA, which the administrator makes once with
 `install package Information_Schema.systables;`, and the views show a new object
 after about an hour, so the fixture stays up between runs (D237, D240). The reader
 needs CreateInstance on the project, or the service refuses every statement. The
-endpoint resets some connections, and the tests retry them (D239). The tests need
+driver retries a connection that the endpoint resets (D243). The tests need
 more than ten minutes, so run them with `GOFLAGS=-timeout=60m`. `dsn` masks the key
 id and the secret.
 

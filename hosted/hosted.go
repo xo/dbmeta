@@ -97,7 +97,7 @@ func All() []Service {
 		{
 			Name: "maxcompute", Client: container.NoClient("odpscmd reads a configuration file with the keys, and dbrun writes none"),
 			Product: "Alibaba Cloud MaxCompute", Dialect: dbmeta.MaxCompute,
-			Form:   "maxcompute://<key id>:<secret>@service.<region>.maxcompute.aliyun.com/api?project=<project>",
+			Form:   "maxcompute://<key id>:<secret>@service.<region>.maxcompute.aliyun.com/<project>",
 			Native: "ALIBABA_CLOUD_ACCESS_KEY_ID, ALIBABA_CLOUD_ACCESS_KEY_SECRET and ALIBABA_CLOUD_SECURITY_TOKEN",
 		},
 		{
@@ -132,7 +132,7 @@ func All() []Service {
 		{
 			Name: "tablestore", Client: container.NoClient("its client reads a configuration file with the keys, and dbrun writes none"),
 			Product: "Alibaba Cloud Tablestore", Dialect: dbmeta.Tablestore,
-			Form: "ots://<key id>:<secret>@<instance>.<region>.ots.aliyuncs.com/<instance>",
+			Form: "tablestore://<key id>:<secret>@<instance>.<region>.ots.aliyuncs.com/<instance>",
 		},
 	}
 	for i := range out {

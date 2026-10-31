@@ -1,6 +1,6 @@
 # D241. Tablestore gets a model that answers one kind
 
-Status: Amends D194, amended by D242.
+Status: Amends D194, amended by D242 and D243.
 
 ## The decision
 
@@ -95,7 +95,7 @@ SQL cannot create a Tablestore table. CREATE TABLE makes a mapping over a table 
 exists already, and a mapping needs the table to be there. A non key string column maps
 to MEDIUMTEXT, and VARCHAR is for a key only. So the fixture is two layers. The package
 holds the four tables as data, and the test module makes them with
-`github.com/aliyun/aliyun-tablestore-go-sdk`, with a secondary index on author and a
+the connector of `github.com/xo/dbimp/tablestore` (D243), with a secondary index on author and a
 search index on book. Each table is pay as you go with no reserved throughput. Then
 SQL maps each table, and the teardown drops the mappings and deletes the tables. Each
 name starts with `dbmeta_fx_`, and the teardown deletes only a table with that prefix.

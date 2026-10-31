@@ -42,7 +42,7 @@ func maxComputeReaderDSN(t *testing.T) string {
 func makeMaxComputeReader(t *testing.T, _ *sql.DB, _, _ string) string {
 	t.Helper()
 	dsn := maxComputeReaderDSN(t)
-	db, err := sql.Open(retryDriverName, dsn)
+	db, err := sql.Open("maxcompute", dsn)
 	if err != nil {
 		t.Fatalf("opening the reader: %v", err)
 	}

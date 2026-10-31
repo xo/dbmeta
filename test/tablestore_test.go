@@ -3,37 +3,28 @@ package test
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/aliyun/aliyun-tablestore-go-sdk/tablestore"
-	_ "github.com/aliyun/aliyun-tablestore-go-sql-driver"
+	dbimpts "github.com/xo/dbimp/tablestore"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/tablestore"
 	tsfixture "github.com/xo/dbmeta/models/tablestore/fixture"
 )
 
-// The driver is github.com/aliyun/aliyun-tablestore-go-sql-driver, which dburl
-// v0.53.0 names for the ots scheme (D154, D241). It registers ots. It ignores a
-// context and it binds on the client. The service resets a connection now and
+// The driver is github.com/xo/dbimp/tablestore, which dburl v0.54.0 names for
+// the tablestore scheme (D154, D243). The service resets a connection now and
 // then and answers "user is disabled" for about a minute after the account is
 // made, so the tests open the driver through a wrapper that retries a statement
-// that fails that way. The retry is in the tests alone, and the model has none.
-
-// tablestoreRetryDriver is the name of the wrapper.
-const tablestoreRetryDriver = "ots-retry"
-
-func init() {
-	sql.Register(tablestoreRetryDriver, tsRetryDriver{})
-}
+// that fails that way, and each call of the connector of dbimp that makes the
+// tables, because SQL cannot, goes through retry. The retry is in the tests alone,
+// and the model has none.
 
 // transient reports whether the error is one that a second try can clear.
 func transient(err error) bool {
@@ -66,64 +57,9 @@ func retry(ctx context.Context, f func() error) error {
 	return err
 }
 
-type tsRetryDriver struct{}
-
-func (tsRetryDriver) Open(name string) (driver.Conn, error) {
-	// database/sql holds the driver that registers ots, and Driver returns it, so
-	// the wrapper holds no copy of its type.
-	db, err := sql.Open("ots", name)
-	if err != nil {
-		return nil, fmt.Errorf("opening the driver ots: %w", err)
-	}
-	conn, err := db.Driver().Open(name)
-	if err != nil {
-		return nil, fmt.Errorf("connecting with the driver ots: %w", err)
-	}
-	return &tsRetryConn{Conn: conn}, nil
-}
-
-// tsRetryConn is a connection of the driver, whose queries and execs retry.
-type tsRetryConn struct{ driver.Conn }
-
-func values(args []driver.NamedValue) []driver.Value {
-	out := make([]driver.Value, len(args))
-	for i, a := range args {
-		out[i] = a.Value
-	}
-	return out
-}
-
-func (c *tsRetryConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	q, ok := c.Conn.(driver.Queryer) //nolint:staticcheck // the driver has no context method
-	if !ok {
-		return nil, errors.New("the driver ots has no Query method")
-	}
-	var rows driver.Rows
-	err := retry(ctx, func() error {
-		var err error
-		rows, err = q.Query(query, values(args))
-		return err
-	})
-	return rows, err
-}
-
-func (c *tsRetryConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	e, ok := c.Conn.(driver.Execer) //nolint:staticcheck // the driver has no context method
-	if !ok {
-		return nil, errors.New("the driver ots has no Exec method")
-	}
-	var res driver.Result
-	err := retry(ctx, func() error {
-		var err error
-		res, err = e.Exec(query, values(args))
-		return err
-	})
-	return res, err
-}
-
 // openTablestore returns a connection to the service named by DBMETA_TABLESTORE,
 // which dbrun resolves from the places D117 names. The value is the DSN that the
-// driver reads, which dburl writes with the scheme https, and it holds a secret
+// driver reads, which dburl writes with the scheme tablestore, and it holds a secret
 // that no test prints.
 func openTablestore(t *testing.T) *sql.DB {
 	t.Helper()
@@ -134,98 +70,59 @@ func openTablestore(t *testing.T) *sql.DB {
 	return openAt(t, tablestoreRetryDriver, raw)
 }
 
-// tablestoreClient returns the client of the Tablestore API for the DSN. The
-// fixture needs it, because SQL maps a table and cannot make one. A fault names
-// no part of the DSN, which has a secret.
-func tablestoreClient(raw string) (*tablestore.TableStoreClient, error) {
-	u, err := url.Parse(raw)
-	if err != nil || u.User == nil || u.Host == "" {
-		return nil, errors.New("reading the DSN of Tablestore: the value is not a URL with a key pair and a host")
+// tablestoreClient returns the connector of dbimp for the DSN. The fixture needs
+// it, because SQL maps a table and cannot make one. A fault names no part of the
+// DSN, which has a secret. The caller closes the connector.
+func tablestoreClient(raw string) (*dbimpts.Connector, error) {
+	cfg, err := dbimpts.ParseDSN(raw)
+	if err != nil {
+		return nil, errors.New("reading the DSN of Tablestore: the value is not a DSN that the driver reads")
 	}
-	secret, _ := u.User.Password()
-	instance := strings.TrimPrefix(u.Path, "/")
-	if instance == "" {
-		return nil, errors.New("reading the DSN of Tablestore: the value names no instance")
-	}
-	return tablestore.NewClient(u.Scheme+"://"+u.Host, instance, u.User.Username(), secret), nil
+	return dbimpts.NewConnector(*cfg), nil
 }
 
-// otsCode returns the code of an error of the service, and the empty string for
-// any other error.
-func otsCode(err error) string {
-	if oe, ok := errors.AsType[*tablestore.OtsError](err); ok {
-		return oe.Code
-	}
-	return ""
-}
-
-func definedType(t tsfixture.Type) tablestore.DefinedColumnType {
+func columnType(t tsfixture.Type) dbimpts.ColumnType {
 	if t == tsfixture.Integer {
-		return tablestore.DefinedColumn_INTEGER
+		return dbimpts.Integer
 	}
-	return tablestore.DefinedColumn_STRING
-}
-
-func keyType(t tsfixture.Type) tablestore.PrimaryKeyType {
-	if t == tsfixture.Integer {
-		return tablestore.PrimaryKeyType_INTEGER
-	}
-	return tablestore.PrimaryKeyType_STRING
+	return dbimpts.String
 }
 
 // makeTablestoreBase makes the tables, the secondary indexes and the search
-// indexes of the fixture with the API. A table that exists is left as it is, so
-// that a second run reuses it. Each table is pay as you go, with no reserved
+// indexes of the fixture with the connector. A table that exists is left as it is,
+// so that a second run reuses it. Each table is pay as you go, with no reserved
 // throughput.
-func makeTablestoreBase(ctx context.Context, c *tablestore.TableStoreClient, f tsfixture.Fixture) error {
+func makeTablestoreBase(ctx context.Context, c *dbimpts.Connector, f tsfixture.Fixture) error {
+	// A retry of a request that reached the server finds the object made.
+	made := func(err error) error {
+		if errors.Is(err, dbimpts.ErrExists) {
+			return nil
+		}
+		return err
+	}
 	for _, bt := range f.Base {
-		meta := new(tablestore.TableMeta)
-		meta.TableName = bt.Name
+		t := dbimpts.Table{Name: bt.Name}
 		for _, k := range bt.Keys {
-			meta.AddPrimaryKeyColumn(k.Name, keyType(k.Type))
+			t.Keys = append(t.Keys, dbimpts.Column{Name: k.Name, Type: columnType(k.Type)})
 		}
 		for _, col := range bt.Columns {
-			meta.AddDefinedColumn(col.Name, definedType(col.Type))
+			t.Columns = append(t.Columns, dbimpts.Column{Name: col.Name, Type: columnType(col.Type)})
 		}
-		opt := &tablestore.TableOption{TimeToAlive: -1, MaxVersion: 1}
-		err := retry(ctx, func() error {
-			_, err := c.CreateTable(&tablestore.CreateTableRequest{TableMeta: meta, TableOption: opt, ReservedThroughput: new(tablestore.ReservedThroughput)})
-			if otsCode(err) == "OTSObjectAlreadyExist" {
-				return nil
-			}
-			return err
-		})
-		if err != nil {
+		if err := retry(ctx, func() error { return made(c.CreateTable(ctx, t)) }); err != nil {
 			return fmt.Errorf("creating the table %s: %w", bt.Name, err)
 		}
 		for _, ix := range bt.Indexes {
-			im := &tablestore.IndexMeta{IndexName: ix.Name, Primarykey: ix.Columns, IndexType: tablestore.IT_GLOBAL_INDEX}
-			err := retry(ctx, func() error {
-				_, err := c.CreateIndex(&tablestore.CreateIndexRequest{MainTableName: bt.Name, IndexMeta: im})
-				if otsCode(err) == "OTSObjectAlreadyExist" {
-					return nil
-				}
-				return err
-			})
-			if err != nil {
+			im := dbimpts.Index{Name: ix.Name, Keys: ix.Columns}
+			if err := retry(ctx, func() error { return made(c.CreateIndex(ctx, bt.Name, im)) }); err != nil {
 				return fmt.Errorf("creating the index %s: %w", ix.Name, err)
 			}
 		}
 		for _, si := range bt.Searches {
-			schema := new(tablestore.IndexSchema)
+			s := dbimpts.SearchIndex{Name: si.Name}
 			for _, fld := range si.Fields {
-				schema.FieldSchemas = append(schema.FieldSchemas, &tablestore.FieldSchema{
-					FieldName: new(fld.Name), FieldType: tablestore.FieldType_KEYWORD, Index: new(true),
-				})
+				s.Fields = append(s.Fields, dbimpts.SearchField{Name: fld.Name, Type: dbimpts.SearchKeyword})
 			}
-			err := retry(ctx, func() error {
-				_, err := c.CreateSearchIndex(&tablestore.CreateSearchIndexRequest{TableName: bt.Name, IndexName: si.Name, IndexSchema: schema})
-				if otsCode(err) == "OTSObjectAlreadyExist" {
-					return nil
-				}
-				return err
-			})
-			if err != nil {
+			if err := retry(ctx, func() error { return made(c.CreateSearchIndex(ctx, bt.Name, s)) }); err != nil {
 				return fmt.Errorf("creating the search index %s: %w", si.Name, err)
 			}
 		}
@@ -235,56 +132,36 @@ func makeTablestoreBase(ctx context.Context, c *tablestore.TableStoreClient, f t
 
 // dropTablestoreBase deletes every table of the instance whose name starts with
 // the prefix of the fixture, with its search indexes and its secondary indexes.
-// It touches no other table.
-func dropTablestoreBase(ctx context.Context, c *tablestore.TableStoreClient) error {
-	var list *tablestore.ListTableResponse
+// The service refuses a table that has a search index, so each search index goes
+// first, and the table takes its secondary indexes with it. It touches no other
+// table.
+func dropTablestoreBase(ctx context.Context, c *dbimpts.Connector) error {
+	var names []string
 	if err := retry(ctx, func() error {
 		var err error
-		list, err = c.ListTable()
+		names, err = c.ListTables(ctx)
 		return err
 	}); err != nil {
 		return fmt.Errorf("listing the tables: %w", err)
 	}
-	for _, name := range list.TableNames {
+	for _, name := range names {
 		if !tsfixture.Is(name) {
 			continue
 		}
-		var si *tablestore.ListSearchIndexResponse
+		var indexes []string
 		if err := retry(ctx, func() error {
 			var err error
-			si, err = c.ListSearchIndex(&tablestore.ListSearchIndexRequest{TableName: name})
+			indexes, err = c.ListSearchIndexes(ctx, name)
 			return err
 		}); err != nil {
 			return fmt.Errorf("listing the search indexes of %s: %w", name, err)
 		}
-		for _, ix := range si.IndexInfo {
-			if err := retry(ctx, func() error {
-				_, err := c.DeleteSearchIndex(&tablestore.DeleteSearchIndexRequest{TableName: name, IndexName: ix.IndexName})
-				return err
-			}); err != nil {
-				return fmt.Errorf("deleting the search index %s: %w", ix.IndexName, err)
+		for _, ix := range indexes {
+			if err := retry(ctx, func() error { return c.DeleteSearchIndex(ctx, name, ix, dbimpts.WithIfExists()) }); err != nil {
+				return fmt.Errorf("deleting the search index %s: %w", ix, err)
 			}
 		}
-		var d *tablestore.DescribeTableResponse
-		if err := retry(ctx, func() error {
-			var err error
-			d, err = c.DescribeTable(&tablestore.DescribeTableRequest{TableName: name})
-			return err
-		}); err != nil {
-			return fmt.Errorf("describing %s: %w", name, err)
-		}
-		for _, im := range d.IndexMetas {
-			if err := retry(ctx, func() error {
-				_, err := c.DeleteIndex(&tablestore.DeleteIndexRequest{MainTableName: name, IndexName: im.IndexName})
-				return err
-			}); err != nil {
-				return fmt.Errorf("deleting the index %s: %w", im.IndexName, err)
-			}
-		}
-		if err := retry(ctx, func() error {
-			_, err := c.DeleteTable(&tablestore.DeleteTableRequest{TableName: name})
-			return err
-		}); err != nil {
+		if err := retry(ctx, func() error { return c.DeleteTable(ctx, name, dbimpts.WithIfExists()) }); err != nil {
 			return fmt.Errorf("deleting the table %s: %w", name, err)
 		}
 	}
@@ -332,6 +209,7 @@ func shutdownTablestore() {
 		fmt.Fprintf(os.Stderr, "dropping the Tablestore fixture: %v\n", err)
 		return
 	}
+	defer c.Close()
 	ctx := context.Background()
 	down, err := tsfixture.Everything.ResolveTeardown(dbmeta.VersionSet{})
 	if err != nil {
@@ -367,6 +245,7 @@ func setupTablestore(t *testing.T, db *sql.DB) *dbmeta.Meta {
 	if err != nil {
 		fail("%v", err)
 	}
+	defer c.Close()
 	versions, err := dbmeta.Tablestore.Version(ctx, db)
 	if err != nil {
 		fail("reading the version: %v", err)
@@ -767,6 +646,7 @@ func TestTablestoreWalkErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { c.Close() })
 	gone := tsfixture.Fixture{Base: []tsfixture.BaseTable{{
 		Name: tsfixture.Prefix + "gone",
 		Keys: []tsfixture.Column{{Name: "id", Type: tsfixture.Integer}},
@@ -778,11 +658,7 @@ func TestTablestoreWalkErrors(t *testing.T) {
 		//nolint:errcheck // a drop of a mapping that is gone already is not a fault
 		db.ExecContext(ctx, "DROP MAPPING TABLE IF EXISTS dbmeta_fx_gone")
 		if err := retry(ctx, func() error {
-			_, err := c.DeleteTable(&tablestore.DeleteTableRequest{TableName: tsfixture.Prefix + "gone"})
-			if otsCode(err) == "OTSObjectNotExist" {
-				return nil
-			}
-			return err
+			return c.DeleteTable(ctx, tsfixture.Prefix+"gone", dbimpts.WithIfExists())
 		}); err != nil {
 			t.Errorf("deleting the table: %v", err)
 		}

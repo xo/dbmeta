@@ -12,8 +12,6 @@ import (
 	"time"
 
 	_ "github.com/SAP/go-hdb/driver"
-	_ "github.com/aliyun/aliyun-odps-go-sdk/sqldriver"
-	_ "github.com/aliyun/aliyun-tablestore-go-sql-driver"
 	_ "github.com/apache/arrow-go/v18/arrow/flight/flightsql/driver"
 	_ "github.com/beltran/gohive/v2"
 	_ "github.com/go-sql-driver/mysql"
@@ -39,12 +37,14 @@ import (
 	_ "github.com/xo/dbimp/exasol"
 	_ "github.com/xo/dbimp/influxdb"
 	_ "github.com/xo/dbimp/libsql"
+	_ "github.com/xo/dbimp/maxcompute"
 	_ "github.com/xo/dbimp/neo4j"
 	_ "github.com/xo/dbimp/opensearch"
 	_ "github.com/xo/dbimp/rqlite"
 	_ "github.com/xo/dbimp/snowflake"
 	_ "github.com/xo/dbimp/solr"
 	_ "github.com/xo/dbimp/surrealdb"
+	_ "github.com/xo/dbimp/tablestore"
 	_ "github.com/xo/dbimp/trino"
 	_ "github.com/ydb-platform/ydb-go-sdk/v3"
 
@@ -109,17 +109,16 @@ var drivers = map[dbmeta.Dialect]string{
 	// databricks:// opens the driver of dbimp, which dburl v0.50.0 names (D154,
 	// D229).
 	dbmeta.Databricks: "databricks",
-	// maxcompute:// opens the driver of Alibaba, which dburl v0.53.0 names and
-	// which registers itself as odps. dburl turns the scheme into https, and the
-	// driver reads that (D154, D237).
-	dbmeta.MaxCompute: "odps",
+	// maxcompute:// opens the driver of dbimp, which dburl v0.54.0 names (D154,
+	// D243).
+	dbmeta.MaxCompute: "maxcompute",
 	// cosmos:// opens the driver of dbimp, which dburl v0.50.0 names (D154, D228).
 	dbmeta.Cosmos:   "cosmos",
 	dbmeta.ArangoDB: "arangodb",
 
-	// ots:// opens the driver that dburl v0.53.0 names, which registers ots. The
-	// DSN dburl writes starts with https, as the driver reads it (D154, D241).
-	dbmeta.Tablestore: "ots",
+	// tablestore:// opens the driver of dbimp, which dburl v0.54.0 names (D154,
+	// D243).
+	dbmeta.Tablestore: "tablestore",
 
 	// elasticsearch:// opens dbimp's driver (D177).
 	dbmeta.Elasticsearch: "elasticsearch",

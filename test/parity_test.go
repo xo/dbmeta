@@ -692,7 +692,7 @@ func parityTargets() []parityTarget {
 			// a user is a RAM identity. The administrator makes the project objects,
 			// and the reader is a RAM user with the role reader, so the two are the
 			// principals (D237).
-			dialect: dbmeta.MaxCompute, driver: retryDriverName, env: "DBMETA_MAXCOMPUTE",
+			dialect: dbmeta.MaxCompute, driver: "maxcompute", env: "DBMETA_MAXCOMPUTE",
 			open: openMaxCompute, build: setupMaxCompute, schema: mcfixture.Everything.Schema,
 			scenes: []parityScene{{
 				name:       "same",

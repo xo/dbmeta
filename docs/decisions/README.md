@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-102 of them amend or replace an earlier one, and a decision read without its
+103 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -172,7 +172,7 @@ file.
 | [D151](D151-rqlite-tests-use-dbimps-driver.md) | The rqlite tests use dbimp's driver | Amends D148 |
 | [D152](D152-influxdb-3-reads-datafusions-information-schema.md) | InfluxDB 3 reads DataFusion's information_schema | Amended by D170 |
 | [D153](D153-libsql-has-an-ordinary-user-through-a-jwt.md) | libSQL has an ordinary user through a JWT | Amends D112, amended by D160 |
-| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157, D229, D231 and D234 |
+| [D154](D154-a-test-driver-is-the-one-dburl-names.md) | A test driver is the one dburl names | Amends D52 and D80, amended by D157, D229, D231, D234 and D243 |
 | [D155](D155-the-avatica-servers-speak-json.md) | The Avatica servers speak JSON | Amends D113 |
 | [D156](D156-a-test-checks-the-simple-english-rules-a-machine-can.md) | A test checks the simple English rules that a machine can check | Decided |
 | [D157](D157-oracle-is-tested-on-go-ora-v3-at-the-fixing-commit.md) | Oracle is tested on go-ora v3 at the commit that fixes it | Amends D59, D136 and D154, amended by D166 |
@@ -255,9 +255,10 @@ file.
 | [D234](D234-the-exasol-tests-use-the-driver-of-dbimp.md) | The Exasol tests use the driver of dbimp | Amends D154 and D87 |
 | [D235](D235-the-image-pins-moved-on-2026-10-22.md) | The image pins moved on 2026-10-22 | Decided |
 | [D236](D236-dbrun-cli-launches-the-native-client.md) | dbrun cli launches the native client | Decided |
-| [D237](D237-maxcompute-gets-a-model-that-reads-the-project-level-information-schema.md) | MaxCompute gets a model that reads the project level INFORMATION_SCHEMA | Amends D194 and D218, amended by D238 and D240 |
-| [D238](D238-a-statement-of-maxcompute-needs-its-semicolon-and-the-driver-writes-values-as-they-are.md) | A statement of MaxCompute needs its semicolon, and the driver writes values as they are | Amends D143 and D237 |
-| [D239](D239-the-maxcompute-tests-retry-a-reset-connection.md) | The MaxCompute tests retry a reset connection | Decided |
+| [D237](D237-maxcompute-gets-a-model-that-reads-the-project-level-information-schema.md) | MaxCompute gets a model that reads the project level INFORMATION_SCHEMA | Amends D194 and D218, amended by D238, D240 and D243 |
+| [D238](D238-a-statement-of-maxcompute-needs-its-semicolon-and-the-driver-writes-values-as-they-are.md) | A statement of MaxCompute needs its semicolon, and the driver writes values as they are | Amends D143 and D237, amended by D243 |
+| [D239](D239-the-maxcompute-tests-retry-a-reset-connection.md) | The MaxCompute tests retry a reset connection | Decided, amended by D243 |
 | [D240](D240-the-maxcompute-fixture-stays-up-because-the-views-lag.md) | The MaxCompute fixture stays up because the views lag | Amends D237 |
-| [D241](D241-tablestore-gets-a-model-that-answers-one-kind.md) | Tablestore gets a model that answers one kind | Amends D194, amended by D242 |
+| [D241](D241-tablestore-gets-a-model-that-answers-one-kind.md) | Tablestore gets a model that answers one kind | Amends D194, amended by D242 and D243 |
 | [D242](D242-tablestore-can-walk-describe-and-show-index.md) | Tablestore can walk DESCRIBE and SHOW INDEX | Amends D146 and D241 |
+| [D243](D243-maxcompute-and-tablestore-use-the-drivers-of-dbimp.md) | MaxCompute and Tablestore use the drivers of dbimp | Amends D154, D237, D238, D239 and D241 |

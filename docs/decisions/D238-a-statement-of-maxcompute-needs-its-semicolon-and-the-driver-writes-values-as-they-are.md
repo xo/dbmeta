@@ -1,6 +1,6 @@
 # D238. A statement of MaxCompute needs its semicolon, and the driver writes values as they are
 
-Status: Amends D143 and D237.
+Status: Amends D143 and D237, amended by D243.
 
 ## The decision
 

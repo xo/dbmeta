@@ -120,7 +120,7 @@ const (
 	SQLite3    Dialect = "sqlite3"
 	SQLServer  Dialect = "sqlserver"
 	SurrealDB  Dialect = "surrealdb"
-	Tablestore Dialect = "ots"
+	Tablestore Dialect = "tablestore"
 	// TiDB speaks MySQL's protocol, and the mysql driver reaches it.
 	TiDB    Dialect = "tidb"
 	Trino   Dialect = "trino"

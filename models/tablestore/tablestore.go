@@ -63,11 +63,9 @@
 //
 // # The driver
 //
-// The driver that dburl v0.53.0 names is
-// github.com/aliyun/aliyun-tablestore-go-sql-driver, and it registers ots. It
-// signs each request with the key pair in the DSN, which dburl writes with the
-// scheme https. It binds a parameter on the client, writing a backslash before a
-// quote, and it ignores a context. See D241.
+// The driver that dburl v0.54.0 names is github.com/xo/dbimp/tablestore, and it
+// registers tablestore. It signs each request with the key pair in the DSN. See
+// D241 and D243.
 package tablestore
 
 import (

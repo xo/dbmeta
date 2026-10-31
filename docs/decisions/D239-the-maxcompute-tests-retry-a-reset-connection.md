@@ -1,6 +1,6 @@
 # D239. The MaxCompute tests retry a reset connection
 
-Status: Decided.
+Status: Decided, amended by D243.
 
 ## The decision
 

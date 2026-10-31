@@ -96,10 +96,6 @@ linters:
             - github.com/sijms/go-ora
             - github.com/xo/cassandra
             - github.com/xo/dbimp
-            # The driver that dburl names for ots, and the SDK that makes the tables
-            # of its fixture, because SQL cannot (D241).
-            - github.com/aliyun/aliyun-tablestore-go-sql-driver
-            - github.com/aliyun/aliyun-tablestore-go-sdk
             - github.com/xo/dburl
             - github.com/nakagami/firebirdsql
             - github.com/SAP/go-hdb
@@ -109,7 +105,6 @@ linters:
             - github.com/vertica/vertica-sql-go
             - github.com/sclgo/impala-go
             - github.com/ydb-platform/ydb-go-sdk
-            - github.com/aliyun/aliyun-odps-go-sdk
             # Only the files built with -tags omni import this one (D231).
             - github.com/googleapis/go-sql-spanner
     # A deferred Close returns an error nothing can act on.
@@ -122,6 +117,8 @@ linters:
         - (*database/sql.Conn).Close
         # The same, for the Flight SQL client that opens a GizmoSQL session.
         - (*github.com/apache/arrow-go/v18/arrow/flight/flightsql.Client).Close
+        # The same, for the connector of the Tablestore driver of dbimp.
+        - (*github.com/xo/dbimp/tablestore.Connector).Close
         # A deferred Close on a file being read returns an error nothing can
         # act on, and the read already reported what mattered.
         - (*os.File).Close
