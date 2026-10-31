@@ -96,6 +96,9 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Exasol, &dbmeta.Info{
+		// The names are what the driver of dbimp reports, which says DECIMAL for
+		// every integer width. Measured on Exasol 2026.2.0 (D245).
+		ColumnAlign: dbmeta.RightAligned("DECIMAL", "DOUBLE"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax: dbmeta.Syntax{BlockComments: true},

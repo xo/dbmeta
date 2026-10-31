@@ -84,6 +84,10 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Couchbase, &dbmeta.Info{
+		// The names are what the driver of dbimp reports, which are the types of
+		// JSON. A value is a NUMBER whether it holds an integer or a fraction.
+		// Measured on Couchbase 8.0.3 (D245).
+		ColumnAlign: dbmeta.RightAligned("NUMBER"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax: dbmeta.Syntax{BlockComments: true},

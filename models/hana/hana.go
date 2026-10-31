@@ -67,6 +67,11 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.HANA, &dbmeta.Info{
+		// The names are what go-hdb reports. It names a DECIMAL with a size after
+		// the bytes that store it: FIXED8, FIXED12 or FIXED16. Measured on SAP HANA
+		// 2.00.088 (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INTEGER", "BIGINT", "REAL", "DOUBLE",
+			"DECIMAL", "FIXED8", "FIXED12", "FIXED16"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax: dbmeta.Syntax{BlockComments: true},

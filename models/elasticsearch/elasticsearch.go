@@ -74,6 +74,12 @@ import (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Elasticsearch, &dbmeta.Info{
+		// The names are what the driver of dbimp reports for a mapped field.
+		// Measured on Elasticsearch 9.5.5 with one field of each numeric type. A
+		// CAST to FLOAT reports DOUBLE, so only a mapped field has the other names
+		// (D245).
+		ColumnAlign: dbmeta.RightAligned("BYTE", "SHORT", "INTEGER", "LONG", "DOUBLE",
+			"FLOAT", "HALF_FLOAT", "SCALED_FLOAT", "UNSIGNED_LONG"),
 		// Its SQL takes `--` and `/* */` comments and double quoted names,
 		// and refuses a backtick, a `//` and a `#`. It compares a name with
 		// its case, measured on 9.5.3. It refuses a semicolon at the end of

@@ -81,6 +81,7 @@ const Reference = "23.26.3.0.0"
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Oracle, &dbmeta.Info{
+		ColumnAlign: columnAlign,
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:         dbmeta.Syntax{BlockComments: true},

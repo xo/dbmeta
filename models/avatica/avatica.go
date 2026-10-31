@@ -87,6 +87,9 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Avatica, &dbmeta.Info{
+		// The names are what the driver of dbimp reports for HSQLDB behind Avatica,
+		// which says DOUBLE for a REAL. Measured on Avatica 1.29.0 (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INTEGER", "BIGINT", "DOUBLE", "DECIMAL", "NUMERIC"),
 		// HSQLDB has line comments and block comments, and a name between
 		// double quotes. It folds a name that is not quoted to upper case.
 		// It takes a trailing semicolon, so the terminator stays as it is.

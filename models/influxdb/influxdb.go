@@ -31,6 +31,11 @@ import (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.InfluxDB, &dbmeta.Info{
+		// The names are the Arrow types that InfluxDB 3 reports through the driver
+		// of dbimp, with the size of a decimal left out. Measured on InfluxDB 3.12.1
+		// (D245).
+		ColumnAlign: dbmeta.RightAligned("INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "UINT32", "UINT64",
+			"FLOAT32", "FLOAT64", "DECIMAL128", "DECIMAL256"),
 		// usql's influxdb driver sets no lexer flags, and the fold is
 		// measured by scanEveryQuery (D143). DataFusion folds a name that is
 		// not quoted to lower case, as PostgreSQL does.

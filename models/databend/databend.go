@@ -42,6 +42,10 @@ const versionQuery = `SELECT version()`
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Databend, &dbmeta.Info{
+		// The names are what the driver of dbimp reports, with the size of a
+		// DECIMAL in the name. Measured on Databend 1.2.954 (D245).
+		ColumnAlign: dbmeta.RightAligned("INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "UINT32", "UINT64",
+			"FLOAT32", "FLOAT64", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Fold: dbmeta.FoldLower,

@@ -88,6 +88,9 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Presto, &dbmeta.Info{
+		// The names are what the driver of dbimp reports, which Trino and Presto
+		// share. Measured on Presto 0.299 (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INTEGER", "BIGINT", "REAL", "DOUBLE", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:     dbmeta.Syntax{BlockComments: true},

@@ -107,6 +107,11 @@ linters:
     # body, which says less than the code already does.
     - exhaustive
   settings:
+    # DOUB is the prefix that the affinity rules of SQLite name for a real column,
+    # and it is not a misspelling of doubt.
+    misspell:
+      ignore-rules:
+        - doub
     # Hard rule 1. The root module imports the standard library and nothing
     # else, and never a database driver. A consumer picks its own driver and
     # its own version of it. go.mod has no require block, and this is what

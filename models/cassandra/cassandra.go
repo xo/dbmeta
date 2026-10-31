@@ -197,6 +197,10 @@ func changePassword(c dbmeta.PasswordChange, _ dbmeta.Quoting) (string, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Cassandra, &dbmeta.Info{
+		// The names are what xo/cassandra reports. Measured on Apache Cassandra 5.0.
+		// The type COUNTER is a number too, and no probe reached it, because a
+		// counter lives only in a table (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INT", "BIGINT", "VARINT", "FLOAT", "DOUBLE", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:  dbmeta.Syntax{DollarQuotes: true, BlockComments: true, SlashComments: true},

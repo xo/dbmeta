@@ -35,6 +35,10 @@ const versionQuery = `SELECT build()`
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.QuestDB, &dbmeta.Info{
+		// QuestDB speaks the protocol of PostgreSQL, and pgx reports its BYTE and
+		// SHORT as INT2, INT as INT4, LONG as INT8, FLOAT as FLOAT4, DOUBLE as
+		// FLOAT8 and DECIMAL as NUMERIC. Measured on QuestDB 10.0.1 (D245).
+		ColumnAlign: dbmeta.RightAligned("INT2", "INT4", "INT8", "FLOAT4", "FLOAT8", "NUMERIC"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:         dbmeta.Syntax{DollarQuotes: true, BlockComments: true},

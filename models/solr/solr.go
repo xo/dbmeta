@@ -91,6 +91,11 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Solr, &dbmeta.Info{
+		// The names are what the driver of dbimp reports for a field of the SQL
+		// handler, which says BIGINT for int and long fields and DOUBLE for float
+		// and double fields. A boolean field reports VARCHAR. Measured on Solr
+		// 10.0.0 (D245).
+		ColumnAlign: dbmeta.RightAligned("BIGINT", "DOUBLE"),
 		// The handler sets the lexical rules of MySQL, so a name can be in
 		// backticks and a comment can be a block. It refuses a semicolon at
 		// the end of a statement. It keeps the case of a name that is not

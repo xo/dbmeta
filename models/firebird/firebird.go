@@ -78,6 +78,10 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Firebird, &dbmeta.Info{
+		// The names are what nakagami/firebirdsql reports. It names a NUMERIC or
+		// DECIMAL column after the integer that stores it: SHORT, LONG, INT64 or
+		// INT128. Measured on Firebird 5.0 (D245).
+		ColumnAlign: dbmeta.RightAligned("SHORT", "LONG", "INT64", "INT128", "FLOAT", "DOUBLE", "DECFLOAT"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax: dbmeta.Syntax{BlockComments: true},

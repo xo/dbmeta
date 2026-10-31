@@ -76,6 +76,8 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Hive, &dbmeta.Info{
+		// The names are what gohive reports. Measured on Apache Hive 4.2.1 (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INT", "BIGINT", "FLOAT", "DOUBLE", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Fold: dbmeta.FoldLower,

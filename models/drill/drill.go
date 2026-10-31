@@ -83,6 +83,10 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Drill, &dbmeta.Info{
+		// The names are what the driver of dbimp reports. Drill names a DECIMAL
+		// VARDECIMAL and a FLOAT or a DOUBLE after its storage, FLOAT4 or FLOAT8.
+		// Measured on Apache Drill 1.22.0 (D245).
+		ColumnAlign: dbmeta.RightAligned("INT", "BIGINT", "FLOAT4", "FLOAT8", "VARDECIMAL"),
 		// Drill has block comments and names in backticks. It refuses a
 		// semicolon at the end of a statement, so a client removes it.
 		Syntax:     dbmeta.Syntax{BlockComments: true, Backticks: true},

@@ -296,6 +296,11 @@ type Info struct {
 	// numbers align and times format. True for the MySQL family and for
 	// Databend. See D230.
 	ScanTypes bool
+	// ColumnAlign says on which side a client prints a column, from the type
+	// that a driver reports for it. Nil when the model records no alignment.
+	// Each model measured the type names of its drivers against a live server,
+	// and [RightAligned] builds the function. See D245.
+	ColumnAlign func(*sql.ColumnType) (Align, bool)
 }
 
 var (

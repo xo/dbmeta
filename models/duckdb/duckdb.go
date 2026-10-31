@@ -51,6 +51,10 @@ const Reference = "1.5.5"
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.DuckDB, &dbmeta.Info{
+		// The names are what duckdb-go reports, with the size of a DECIMAL in the
+		// name. Measured on DuckDB (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INTEGER", "BIGINT", "HUGEINT",
+			"UTINYINT", "USMALLINT", "UINTEGER", "UBIGINT", "UHUGEINT", "FLOAT", "DOUBLE", "DECIMAL"),
 		// The syntax was usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143). DuckDB's parser comes from
 		// PostgreSQL's, and on 1.5.5 it reads `$$x;y$$` and `$tag$a;b$tag$` as

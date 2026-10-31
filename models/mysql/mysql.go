@@ -99,6 +99,12 @@ func frag(g dbmeta.Gate, query string) dbmeta.Fragment {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.MySQL, &dbmeta.Info{
+		// The names are what go-sql-driver/mysql reports, which puts UNSIGNED in
+		// front of an unsigned integer. Measured on MySQL 26.7 and MariaDB 13.0
+		// (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT",
+			"UNSIGNED TINYINT", "UNSIGNED SMALLINT", "UNSIGNED MEDIUMINT", "UNSIGNED INT", "UNSIGNED BIGINT",
+			"FLOAT", "DOUBLE", "DECIMAL", "YEAR"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:      dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true},

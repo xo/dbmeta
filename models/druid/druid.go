@@ -81,6 +81,9 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Druid, &dbmeta.Info{
+		// The names are what the driver of dbimp reports. Measured on Apache Druid
+		// 38.0.0 (D245).
+		ColumnAlign: dbmeta.RightAligned("BIGINT", "INTEGER", "FLOAT", "DOUBLE", "DECIMAL"),
 		// Druid SQL has line comments and block comments and names in double quotes.
 		// It keeps the case of a name that is not quoted, which is what
 		// scanEveryQuery measures (D143).

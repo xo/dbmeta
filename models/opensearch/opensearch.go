@@ -78,6 +78,10 @@ import (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.OpenSearch, &dbmeta.Info{
+		// The names are what the driver of dbimp reports for a mapped field. A
+		// half_float reports FLOAT and a scaled_float reports DOUBLE. Measured on
+		// OpenSearch 3.9.0, which has no unsigned_long field (D245).
+		ColumnAlign: dbmeta.RightAligned("BYTE", "SHORT", "INTEGER", "LONG", "FLOAT", "DOUBLE"),
 		// Its SQL takes `--`, `#` and `/* */` comments, and a name between
 		// backticks. It refuses a `//` comment, and it reads a double quote as
 		// a string and not as a name. It compares a name with its case, and an

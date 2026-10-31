@@ -68,6 +68,10 @@ var (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.SQLServer, &dbmeta.Info{
+		// The names are what go-mssqldb reports, which says DECIMAL for a NUMERIC
+		// column too. Measured on SQL Server 2025 (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INT", "BIGINT", "REAL", "FLOAT",
+			"DECIMAL", "MONEY", "SMALLMONEY"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:         dbmeta.Syntax{BlockComments: true},

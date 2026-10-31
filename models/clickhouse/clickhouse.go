@@ -77,6 +77,11 @@ func quoteName(name string) string {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.ClickHouse, &dbmeta.Info{
+		// The names are what the driver of dbimp reports, in upper case, with
+		// Nullable and LowCardinality already taken off and the size of a
+		// Decimal left out. Measured on ClickHouse 26.9 (D245).
+		ColumnAlign: dbmeta.RightAligned("INT8", "INT16", "INT32", "INT64", "INT128", "INT256",
+			"UINT8", "UINT16", "UINT32", "UINT64", "UINT128", "UINT256", "FLOAT32", "FLOAT64", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax: dbmeta.Syntax{BlockComments: true},

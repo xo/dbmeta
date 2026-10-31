@@ -67,6 +67,10 @@ import (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.BigQuery, &dbmeta.Info{
+		// The names are what the driver of dbimp reports. Measured on the BigQuery
+		// emulator 0.8.1, because the service needs a credential that this machine
+		// does not hold (D245).
+		ColumnAlign: dbmeta.RightAligned("INTEGER", "FLOAT", "NUMERIC", "BIGNUMERIC"),
 		// GoogleSQL has block comments and hash comments, and quotes a name
 		// with backticks.
 		Syntax: dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true},

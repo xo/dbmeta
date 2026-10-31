@@ -40,6 +40,11 @@ var (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.PostgreSQL, &dbmeta.Info{
+		// The names are what pgx and lib/pq report, measured on PostgreSQL 18.
+		// The set is the numeric types that psql right aligns. pgx names money
+		// by its OID, 790, because it has no name for that type (D245).
+		ColumnAlign: dbmeta.RightAligned("INT2", "INT4", "INT8", "FLOAT4", "FLOAT8", "NUMERIC",
+			"MONEY", "790", "OID", "XID", "XID8", "CID"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:         dbmeta.Syntax{DollarQuotes: true, BlockComments: true},

@@ -94,6 +94,10 @@ var (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Vertica, &dbmeta.Info{
+		// The names are what vertica-sql-go reports, which says INT for every
+		// integer width, FLOAT for FLOAT and DOUBLE PRECISION, and NUMERIC for
+		// MONEY and DECIMAL. Measured on Vertica 25.1 (D245).
+		ColumnAlign: dbmeta.RightAligned("INT", "FLOAT", "NUMERIC"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax: dbmeta.Syntax{DollarQuotes: true, BlockComments: true},

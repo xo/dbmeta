@@ -68,6 +68,9 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Trino, &dbmeta.Info{
+		// The names are what the driver of dbimp reports, with the size of a
+		// DECIMAL left out. Measured on Trino 484 (D245).
+		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INTEGER", "BIGINT", "REAL", "DOUBLE", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:     dbmeta.Syntax{BlockComments: true},

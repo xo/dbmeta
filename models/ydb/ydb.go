@@ -77,6 +77,7 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.YDB, &dbmeta.Info{
+		ColumnAlign: columnAlign,
 		// YQL quotes a name with backticks and has block comments. A string
 		// is between single or double quotes, so a double quote does not
 		// quote a name here. A name keeps its case, measured by
