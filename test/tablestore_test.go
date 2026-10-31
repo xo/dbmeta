@@ -113,7 +113,7 @@ func makeTablestoreBase(ctx context.Context, c *dbimpts.Connector, f tsfixture.F
 		}
 		for _, ix := range bt.Indexes {
 			im := dbimpts.Index{Name: ix.Name, Keys: ix.Columns}
-			if err := retry(ctx, func() error { return made(c.CreateIndex(ctx, bt.Name, im)) }); err != nil {
+			if err := retry(ctx, func() error { return made(c.CreateIndex(ctx, bt.Name, im, dbimpts.WithBaseData(false))) }); err != nil {
 				return fmt.Errorf("creating the index %s: %w", ix.Name, err)
 			}
 		}
