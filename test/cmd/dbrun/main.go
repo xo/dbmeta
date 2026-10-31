@@ -56,7 +56,9 @@ type options struct {
 	printOnly   bool
 	timeout     time.Duration
 	from        string
-	as          string
+	// fixture is the name that follows the command fixture.
+	fixture string
+	as      string
 	// extra is what follows `--` after cli, which goes to the client.
 	extra []string
 }
@@ -124,6 +126,13 @@ func run(args []string) error {
 		return errSilent
 	}
 	o.extra = extra
+	if command == "fixture" {
+		// The first word names the fixture and the rest select servers.
+		if len(selectors) < 2 {
+			return errors.New("fixture needs a name and a selector. Try: dbrun fixture examples postgres")
+		}
+		o.fixture, selectors = selectors[0], selectors[1:]
+	}
 	if o.keep && o.remove {
 		return errors.New("--keep and --remove ask for opposite things")
 	}
@@ -168,7 +177,7 @@ func run(args []string) error {
 		return cmdList(picked, o)
 	case "dsn":
 		return cmdDSN(picked, o)
-	case "start", "stop", "remove", "status", "version", "usql", "cli", "test", "logs":
+	case "start", "stop", "remove", "status", "version", "usql", "cli", "test", "logs", "fixture":
 		return withRunner(ctx, command, picked, o)
 	case "build":
 		return cmdBuild(ctx, picked)
@@ -230,6 +239,8 @@ Commands:
               on the path. Arguments after -- go to the client
   test        run the integration tests against it
   logs        show what the server said
+  fixture     drop and rebuild a data fixture, such as examples, which is the
+              tables authors and books. Run as: dbrun fixture examples <selector>
   list        show what a selector expands to, without touching anything
   build       build the images this repository makes, such as Cassandra's
   provision   build a Windows machine, which takes about an hour, or import

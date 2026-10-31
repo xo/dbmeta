@@ -200,6 +200,8 @@ func one(ctx context.Context, r runner, command string, t target, o options) err
 		return doCLI(ctx, r, t, o)
 	case "test":
 		return doTest(ctx, r, t, o)
+	case "fixture":
+		return doFixture(ctx, r, t, o)
 	}
 	return fmt.Errorf("no command called %q", command)
 }

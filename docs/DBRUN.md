@@ -198,6 +198,7 @@ dbrun logs postgres-18
 | `usql` | Runs the `usql` on your `PATH` with the URL of the server, and nothing else. | no |
 | `cli` | Runs the native command line client of the product, such as `psql`, with the connection of the server. It starts nothing, and the client must be on your `PATH`. `--as` picks the user, and `--print` prints the command line with the password masked and runs nothing. Arguments after `--` go to the client. See Native clients. | no |
 | `test` | Runs dbmeta's integration tests against the server, starting and removing it around them. | yes |
+| `fixture` | Drops and makes a data fixture on the server. `dbrun fixture examples <selector>` makes the tables `authors` and `books` with fixed rows, in the default schema of the user in the URL, so that a README prints the same example on PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, SQLite and DuckDB. On MySQL and MariaDB the tables are in the database `examples`. See D244. | yes |
 | `logs` | Prints what the server wrote. `-f` follows it. | no |
 | `list` | Prints what a selector names, and touches nothing. The embedded libraries come first, then the servers, containers and machines together, then the hosted services, each by product and then by release, oldest first. | no |
 | `build` | Builds the images this repository makes, such as the ones for Cassandra and Oracle 19c. Each one except Oracle 19c has a Containerfile in `test/cmd/dbrun/image/`. `start` and `test` build one when it is missing. | yes |

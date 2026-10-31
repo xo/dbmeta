@@ -122,6 +122,8 @@ linters:
         # A deferred Close on a file being read returns an error nothing can
         # act on, and the read already reported what mattered.
         - (*os.File).Close
+        # The same, for the temporary script that dbrun fixture deletes when it ends.
+        - os.Remove
         # Writing the help to a terminal. There is nowhere to report a
         # failure to write the report.
         - fmt.Fprint

@@ -262,3 +262,4 @@ file.
 | [D241](D241-tablestore-gets-a-model-that-answers-one-kind.md) | Tablestore gets a model that answers one kind | Amends D194, amended by D242 and D243 |
 | [D242](D242-tablestore-can-walk-describe-and-show-index.md) | Tablestore can walk DESCRIBE and SHOW INDEX | Amends D146 and D241 |
 | [D243](D243-maxcompute-and-tablestore-use-the-drivers-of-dbimp.md) | MaxCompute and Tablestore use the drivers of dbimp | Amends D154, D237, D238, D239 and D241 |
+| [D244](D244-dbrun-fixture-examples-makes-two-plain-tables.md) | dbrun fixture examples makes two plain tables | Decided |
