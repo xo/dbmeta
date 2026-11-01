@@ -44,6 +44,8 @@ func init() {
 	info.VersionColumns = 2
 	info.ParseVersion = parseVersion
 	info.ChangePassword = changePassword
+	// CrateDB has no stored program.
+	info.Syntax.BeginEndBlocks = false
 	dbmeta.RegisterDialect(dbmeta.CrateDB, &info)
 	register()
 }

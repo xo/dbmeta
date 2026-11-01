@@ -73,7 +73,7 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("INTEGER", "FLOAT", "NUMERIC", "BIGNUMERIC"),
 		// GoogleSQL has block comments and hash comments, and quotes a name
 		// with backticks.
-		Syntax: dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true, BeginEndBlocks: true},
 		// The driver sends every parameter by position, and a position is a
 		// question mark.
 		Placeholder: func(int) string { return "?" },

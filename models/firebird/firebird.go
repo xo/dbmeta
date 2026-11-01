@@ -84,7 +84,7 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("SHORT", "LONG", "INT64", "INT128", "FLOAT", "DOUBLE", "DECFLOAT"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{BlockComments: true},
+		Syntax: dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true},
 		Fold:   dbmeta.FoldUpper,
 		// Firebird binds by position and writes a question mark. A parameter
 		// repeated in the statement is sent twice, which is what every filter

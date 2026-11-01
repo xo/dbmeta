@@ -101,7 +101,7 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("DECIMAL", "DOUBLE"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{BlockComments: true},
+		Syntax: dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true},
 		Fold:   dbmeta.FoldUpper,
 		// The Exasol driver binds by position and writes a question mark.
 		Placeholder:    func(int) string { return "?" },

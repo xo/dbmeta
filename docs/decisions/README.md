@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-103 of them amend or replace an earlier one, and a decision read without its
+104 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -161,7 +161,7 @@ file.
 | [D140](D140-databend-reads-its-system-database.md) | Databend reads its system database | Decided |
 | [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no license | Amends D118 |
 | [D142](D142-ql-is-removed.md) | ql is removed | Amends D116, D119 and D129 |
-| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230 and D238 |
+| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230, D238 and D249 |
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided, amended by D182 and D190 |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
 | [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159, D175 and D242 |
@@ -267,3 +267,4 @@ file.
 | [D246](D246-oracle-autonomous-database-free-is-a-verified-release.md) | Oracle Autonomous Database Free is a Verified release | Decided |
 | [D247](D247-oracle-nne-26ai-requires-network-encryption.md) | oracle-nne-26ai requires native network encryption | Decided |
 | [D248](D248-oracle-19c-starts-on-a-copy-of-a-kept-database.md) | Oracle 19c starts on a copy of a kept database | Decided |
+| [D249](D249-syntax-says-which-dialects-have-begin-end-bodies.md) | Syntax says which dialects have BEGIN and END bodies | Amends D143 |

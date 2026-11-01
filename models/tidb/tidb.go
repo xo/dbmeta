@@ -42,6 +42,8 @@ func init() {
 	}
 	info := *my
 	info.ParseVersion = parseVersion
+	// TiDB parses CREATE PROCEDURE and refuses to run it, error 8108.
+	info.Syntax.BeginEndBlocks = false
 	dbmeta.RegisterDialect(dbmeta.TiDB, &info)
 	register()
 }

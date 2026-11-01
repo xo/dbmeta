@@ -18,6 +18,15 @@ type Syntax struct {
 	HashComments bool
 	// Backticks is a name between backticks.
 	Backticks bool
+	// BeginEndBlocks says that the body of a stored program can sit between
+	// BEGIN and END with no quotes around it, and hold semicolons that do
+	// not end the statement. A CREATE of a PROCEDURE, FUNCTION, TRIGGER or
+	// EVENT is the case, and a client that splits at each semicolon cuts the
+	// body into pieces that the server refuses. A transaction is not such a body.
+	// A client keeps splitting `BEGIN; ...; END;`.
+	// False for a product that quotes the body, as PostgreSQL does with
+	// dollar quotes, and for one with no stored programs. See D249.
+	BeginEndBlocks bool
 }
 
 // Terminator is what a product does with a semicolon that ends a statement.

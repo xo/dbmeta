@@ -74,7 +74,7 @@ func init() {
 			"DECIMAL", "MONEY", "SMALLMONEY"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax:         dbmeta.Syntax{BlockComments: true},
+		Syntax:         dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true},
 		OldPassword:    true,
 		Placeholder:    func(n int) string { return "@p" + strconv.Itoa(n) },
 		VersionQuery:   versionQuery,
