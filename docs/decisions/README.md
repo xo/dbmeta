@@ -266,3 +266,4 @@ file.
 | [D245](D245-each-model-says-how-a-column-aligns.md) | Each model says how a column aligns | Decided |
 | [D246](D246-oracle-autonomous-database-free-is-a-verified-release.md) | Oracle Autonomous Database Free is a Verified release | Decided |
 | [D247](D247-oracle-nne-26ai-requires-network-encryption.md) | oracle-nne-26ai requires native network encryption | Decided |
+| [D248](D248-oracle-19c-starts-on-a-copy-of-a-kept-database.md) | Oracle 19c starts on a copy of a kept database | Decided |

@@ -211,6 +211,19 @@ type Server struct {
 	// here and must not be: a caller finds it on the host and mounts it, and
 	// dbrun lists such a server only while it finds the file. See D118.
 	License string
+	// Seed is the path inside the container that holds the database the
+	// first start builds, for a product whose first start takes too long to
+	// repeat. Empty means the product keeps nothing outside the container.
+	//
+	// Oracle 19c is the only one. Its entrypoint runs DBCA on a start that
+	// finds no database, which takes a quarter of an hour, and it skips DBCA
+	// when this path already holds one. dbrun builds the database once, keeps
+	// it, and starts each container on a copy. See D248.
+	Seed string
+	// RunImage is the image a container runs on once the seed exists, and it
+	// is a smaller one than [Server.Image], which builds the seed. Empty
+	// means every container runs on Image. See D248.
+	RunImage string
 	// Startup is how long this server needs before it answers, where the
 	// usual budget is not enough. Zero means the caller's default.
 	//
@@ -492,9 +505,13 @@ type product struct {
 	init      []string
 	initInput string
 	runFlags  []string
-	args      []string
-	memory    string
-	license   string
+	// seed is [Server.Seed].
+	seed string
+	// runImage is [Server.RunImage].
+	runImage string
+	args     []string
+	memory   string
+	license  string
 	// client is the native command line client. Every product sets it, and a
 	// product with none says why. See [Client].
 	client  Client
@@ -550,6 +567,8 @@ func (l list) add(p product, tier Tier, versions ...string) list {
 			Init:       p.init,
 			InitInput:  p.initInput,
 			RunFlags:   p.runFlags,
+			Seed:       p.seed,
+			RunImage:   p.runImage,
 			Args:       p.args,
 			Client:     p.client,
 			Memory:     p.memory,

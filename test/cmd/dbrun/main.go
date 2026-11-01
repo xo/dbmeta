@@ -43,6 +43,7 @@ var errSilent = errors.New("already reported")
 type options struct {
 	allReleases bool
 	keep        bool
+	seed        bool
 	remove      bool
 	asJSON      bool
 	namesOnly   bool
@@ -87,6 +88,8 @@ func run(args []string) error {
 	fs.BoolVar(&o.allReleases, "releases", false,
 		"widen a product selector to every release of it")
 	fs.BoolVar(&o.keep, "keep", false, "after test, leave the server running")
+	fs.BoolVar(&o.seed, "seed", false,
+		"with remove, also delete the kept database of a server that keeps one")
 	fs.BoolVar(&o.remove, "remove", false, "after test, delete the server")
 	fs.BoolVar(&o.asJSON, "json", false, "print machine readable output")
 	fs.BoolVar(&o.namesOnly, "names", false,
@@ -262,6 +265,7 @@ Flags:
   --releases      widen a product selector to every release of it
   --keep          after test, leave the server running
   --remove        after test, delete the server
+  --seed          with remove, also delete the kept database of a server that keeps one
   --timeout       how long to wait for a server to answer
   --json          machine readable output, for list, dsn, status and version
   --names         with --json, just the names, which is what a CI matrix takes

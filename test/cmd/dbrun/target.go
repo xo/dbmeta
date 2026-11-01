@@ -124,6 +124,13 @@ type target struct {
 	Run    []string `json:"-"`
 	Ready  []string `json:"-"`
 	Remove []string `json:"-"`
+	// Seed is the path inside the container that dbrun keeps a copy of. See
+	// container.Server.Seed.
+	Seed string `json:"-"`
+	// Ref is the image the container is created from, and SeedImage is the
+	// smaller one it runs on once the seed exists. See
+	// container.Server.RunImage.
+	Ref, SeedImage string `json:"-"`
 	// Init installs the catalog once the server answers, for a product
 	// whose catalog is not there until it is. Empty for every product but
 	// Apache Hive.
@@ -328,6 +335,9 @@ func targets() []target {
 			Startup:       s.Startup,
 			Settle:        s.Settle,
 			Remove:        s.RemoveArgs(s.Name()),
+			Seed:          s.Seed,
+			Ref:           s.Ref(),
+			SeedImage:     s.RunImage,
 		})
 	}
 	for _, m := range container.Machines() {

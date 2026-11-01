@@ -141,10 +141,17 @@ var (
 		// buildContainerImage.sh tags an enterprise build this way.
 		tagSuffix: "-ee",
 		port:      1521,
-		env:       map[string]string{"ORACLE_PWD": Password},
-		startup:   oracleStartup,
-		ready:     oracleReady("ORCLCDB"),
-		dsn:       oracleService("ORCLCDB"),
+		// The entrypoint skips DBCA when this path holds a database.
+		seed: "/opt/oracle/oradata",
+		// dbrun builds this one from the image above. See D248.
+		runImage: "localhost/dbmeta/oracle:19.3.0-slim",
+		// DBCA is killed by the kernel under the usual 4g, in the step that
+		// creates the instance, and the container exits with ORA-03113.
+		memory:  "8g",
+		env:     map[string]string{"ORACLE_PWD": Password},
+		startup: oracleStartup,
+		ready:   oracleReady("ORCLCDB"),
+		dsn:     oracleService("ORCLCDB"),
 	}
 )
 

@@ -401,6 +401,12 @@ func doStart(ctx context.Context, r runner, t target, o options) error {
 		if err := makeRoom(ctx, r, t.Name, o); err != nil {
 			return err
 		}
+		if r.seeded(t) {
+			var err error
+			if t, err = prepareSeed(ctx, r, t, o); err != nil {
+				return err
+			}
+		}
 		if err := r.create(ctx, t); err != nil {
 			return err
 		}
@@ -535,12 +541,15 @@ func doRemove(ctx context.Context, r runner, t target, o options) error {
 	// removed is false. It costs no call, because the listing already said
 	// so.
 	if !r.exists(ctx, t.Name) {
-		return nil
+		return dropSeed(ctx, r, t, o.seed)
 	}
 	if t.Kind == kindMachine {
 		r.quiet(ctx, "rm", "--force", t.Name)
 	} else {
 		r.quiet(ctx, t.Remove...)
+	}
+	if err := dropSeed(ctx, r, t, o.seed); err != nil {
+		return err
 	}
 	fmt.Printf("  removed %s\n", t.Name)
 	return nil

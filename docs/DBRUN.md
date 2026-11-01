@@ -590,8 +590,14 @@ and then reads asks for `scan_consistency=request_plus` (D96).
 | --- | --- | --- | --- | --- |
 | `start` | creates or resumes it | starts the provisioned machine | prints where the file will be, and gives csvq its sample files | prints where the connection string came from |
 | `stop` | stops it and keeps it | stops it and keeps it | nothing to do | nothing to do |
-| `remove` | deletes it | deletes it, after asking | deletes the file | nothing to do |
+| `remove` | deletes it. `--seed` also deletes the kept database of `oracle-19c` | deletes it, after asking | deletes the file | nothing to do |
 | after `test` | removed, unless `--keep` | kept, because it takes an hour to rebuild, unless `--remove` | kept, unless `--remove` | nothing to keep |
+
+`oracle-19c` keeps its database. The first `start` builds it, which takes up to
+half an hour, and every later `start` of a new container copies it with
+`cp --reflink=auto`, which on btrfs takes no time. It runs on a 2.3 GB image
+that `dbrun` builds from the 7 GB one, and it needs 8g. Only podman does this.
+See D248.
 
 An embedded database runs in the process that opens it and has no server.
 SQLite and DuckDB have dbmeta models. moderncsqlite is SQLite without cgo,
@@ -730,6 +736,7 @@ one into a command that others can see.
 | `DBMETA_TEST_RUN` | A pattern for `go test -run`. `dbrun test` runs only the tests that match, which saves a hosted service from a full run. |
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
 | `DBMETA_ORACLE_STATE` | Where the Oracle 19c checkout and installer archive live. |
+| `DBMETA_SEED_STATE` | Where `oracle-19c` keeps its golden database and the copy a container runs on. It is large and works best on btrfs (D248). |
 | `DBMETA_EMBEDDED_STATE` | Where the files and directories of the embedded databases live. |
 | `DBMETA_<DIALECT>` | The DSN that dbmeta's tests read, such as `DBMETA_COUCHBASE`. A server with no dialect yet uses its product, such as `DBMETA_PINOT` (D112), and moderncsqlite uses `DBMETA_MODERNCSQLITE` (D116). `dbrun test` sets it, and each `alsoEnv` variable too (D114). A test skips when it is not set. |
 

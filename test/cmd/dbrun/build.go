@@ -46,6 +46,7 @@ type buildSpec struct {
 // release as the build argument RELEASE.
 //
 //go:embed image/*.Containerfile
+//go:embed image/oracle19/slim.Containerfile
 var images embed.FS
 
 // containerfile is the Containerfile of a product, and false when it has
@@ -157,7 +158,7 @@ const (
 // Oracle publishes no free 19c image, and 19c is the long term release most
 // installations run. The archive is the caller's to obtain and the license is
 // the caller's to accept: nothing here downloads it.
-func buildOracle19c(ctx context.Context, r runner, _ target) error {
+func buildOracle19c(ctx context.Context, r runner, t target) error {
 	archive, fetched, err := oracleArchive(ctx)
 	if err != nil {
 		return err
@@ -223,6 +224,12 @@ func buildOracle19c(ctx context.Context, r runner, _ target) error {
 		// on. Check the result rather than the exit code.
 		return errors.New("the build finished and the image is not there." +
 			" Read the output above for [FATAL]")
+	}
+	// The smaller image is made from this one, so a new build makes it again.
+	// The kept database is not touched. A person who wants it built again
+	// runs remove --seed.
+	if r.seeded(t) {
+		return buildRunImage(ctx, r, t)
 	}
 	return nil
 }
