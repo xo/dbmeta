@@ -27,6 +27,13 @@ type Syntax struct {
 	// False for a product that quotes the body, as PostgreSQL does with
 	// dollar quotes, and for one with no stored programs. See D249.
 	BeginEndBlocks bool
+	// AnonymousBlocks says that a statement which starts with BEGIN or
+	// DECLARE is a block of code that the server runs, and a client must keep
+	// it whole to its last END. Oracle is the case. The block ends at the
+	// semicolon after its last END, or at a line that holds only a slash.
+	// False where a bare BEGIN starts a transaction, and where DECLARE is a
+	// statement of its own, as in SQL Server. See D252.
+	AnonymousBlocks bool
 }
 
 // Terminator is what a product does with a semicolon that ends a statement.

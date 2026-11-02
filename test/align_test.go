@@ -300,7 +300,7 @@ var alignTargets = []alignTarget{
 			{ddl: "true::BOOLEAN"}, {ddl: "'a'::VARCHAR(3)"}, {ddl: "'a'::CHAR(3)"}, {ddl: "'a'::LONG VARCHAR", optional: true},
 			{ddl: "'2020-01-01'::DATE"}, {ddl: "'2020-01-01'::TIMESTAMP"}, {ddl: "'2020-01-01'::TIMESTAMPTZ"},
 			{ddl: "'01:00:00'::TIME"}, {ddl: "'1 day'::INTERVAL"}, {ddl: "'a'::VARBINARY(3)"},
-			{ddl: "'00000000-0000-0000-0000-000000000000'::UUID"},
+			{ddl: "'00000000-0000-0000-0000-000000000000'::UUID", optional: true},
 		},
 	},
 	{

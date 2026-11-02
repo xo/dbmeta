@@ -32,6 +32,8 @@ func TestClickHouseLexicalFormsAreMeasured(t *testing.T) {
 		accept bool
 	}{
 		{name: "backticks", query: "select 1 as `a;b`", flag: syntax.Backticks, accept: true},
+		{name: "dollar quotes with a tag", query: "select $x$a;b$x$", flag: syntax.DollarQuotes, accept: true},
+		{name: "dollar quotes with no tag", query: "select $$a;b$$", flag: syntax.DollarQuotes, accept: true},
 		{name: "block comment", query: "select 1 /* a; b */", flag: syntax.BlockComments, accept: true},
 		{name: "slash comment", query: "select 1 // a; b\n", flag: syntax.SlashComments, accept: true},
 		{name: "hash and space", query: "select 1 # a; b\n", flag: syntax.HashComments, accept: true},

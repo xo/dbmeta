@@ -159,7 +159,8 @@ func registerTypes() {
 			always(`, y.type_name AS "name"`),
 			always(`, y.type_name AS "internal"`),
 			always(`, LOWER(y.logical_type) AS "kind"`),
-			always(`, COALESCE(LIST_REDUCE(y.labels, (a, b) -> a || ', ' || b), '') AS "elements"`),
+			// A lambda joined the labels before, and DuckDB 2.0 refuses the arrow form.
+			always(`, COALESCE(ARRAY_TO_STRING(y.labels, ', '), '') AS "elements"`),
 			always(`, NULL AS "owner"`),
 			always(`, NULL AS "access"`),
 			always(`, y.comment AS "comment"`),

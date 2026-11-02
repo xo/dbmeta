@@ -2,6 +2,8 @@ package test
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -19,6 +21,37 @@ type beginEndProbe struct {
 	whole string
 	// cleanup removes what the probe made.
 	cleanup []string
+	// tooOld says why the server is too old for the form, or returns an empty
+	// string. The model is true when some release takes the form, so a
+	// release before it is skipped and not held to the model.
+	tooOld func(ctx context.Context, conn *sql.Conn) (string, error)
+}
+
+// pgBeginAtomic is PostgreSQL's release 14, which added BEGIN ATOMIC.
+func pgBeginAtomic(ctx context.Context, conn *sql.Conn) (string, error) {
+	var n int
+	if err := conn.QueryRowContext(ctx, "SELECT current_setting('server_version_num')::int").Scan(&n); err != nil {
+		return "", fmt.Errorf("reading the release: %w", err)
+	}
+	if n < 140000 {
+		return fmt.Sprintf("BEGIN ATOMIC came in PostgreSQL 14, and this is %d", n), nil
+	}
+	return "", nil
+}
+
+// cockroachBeginAtomic is CockroachDB 26.3, the first release that took it.
+func cockroachBeginAtomic(ctx context.Context, conn *sql.Conn) (string, error) {
+	var v string
+	if err := conn.QueryRowContext(ctx, "SELECT version()").Scan(&v); err != nil {
+		return "", fmt.Errorf("reading the release: %w", err)
+	}
+	var major, minor int
+	if _, rest, ok := strings.Cut(v, " v"); ok {
+		if _, err := fmt.Sscanf(rest, "%d.%d", &major, &minor); err == nil && (major < 26 || major == 26 && minor < 3) {
+			return "BEGIN ATOMIC came in CockroachDB 26.3, and this is " + v, nil
+		}
+	}
+	return "", nil
 }
 
 // beginEndProbes holds one probe for each dialect that a server here can
@@ -43,17 +76,19 @@ var beginEndProbes = map[dbmeta.Dialect]beginEndProbe{
 		cleanup: []string{"DROP PROCEDURE IF EXISTS dbm_p"},
 	},
 	dbmeta.Oracle: {
-		whole:   "CREATE OR REPLACE PROCEDURE dbm_p AS n NUMBER; BEGIN n := 1; n := 2; END;",
-		cleanup: []string{"DROP PROCEDURE dbm_p"},
+		whole:   "CREATE OR REPLACE PROCEDURE dbm_begin_p AS n NUMBER; BEGIN n := 1; n := 2; END;",
+		cleanup: []string{"DROP PROCEDURE dbm_begin_p"},
 	},
 	// PostgreSQL 14 added a function body between BEGIN ATOMIC and END.
 	dbmeta.PostgreSQL: {
 		whole:   "CREATE FUNCTION dbm_f() RETURNS integer LANGUAGE sql BEGIN ATOMIC SELECT 1; SELECT 2; END",
 		cleanup: []string{"DROP FUNCTION IF EXISTS dbm_f()"},
+		tooOld:  pgBeginAtomic,
 	},
 	dbmeta.CockroachDB: {
 		whole:   "CREATE FUNCTION dbm_f() RETURNS integer LANGUAGE sql BEGIN ATOMIC SELECT 1; SELECT 2; END",
 		cleanup: []string{"DROP FUNCTION IF EXISTS dbm_f()"},
+		tooOld:  cockroachBeginAtomic,
 	},
 	dbmeta.CrateDB: {
 		whole: "CREATE FUNCTION dbm_f() RETURNS integer LANGUAGE sql BEGIN ATOMIC SELECT 1; SELECT 2; END",
@@ -159,6 +194,15 @@ func measureBeginEnd(t *testing.T, tg alignTarget, probe beginEndProbe, driver, 
 		t.Fatalf("connecting: %v", err)
 	}
 	defer conn.Close()
+	if probe.tooOld != nil {
+		why, err := probe.tooOld(ctx, conn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if why != "" {
+			t.Skip(why)
+		}
+	}
 	for _, q := range tg.before {
 		if _, err := conn.ExecContext(ctx, q); err != nil {
 			t.Fatalf("preparing the session: %v", err)
@@ -189,4 +233,33 @@ func measureBeginEnd(t *testing.T, tg alignTarget, probe beginEndProbe, driver, 
 		t.Errorf("the server accepts the whole program is %t (%v), and the model says %t", accepted, werr, syntax.BeginEndBlocks)
 	}
 	t.Logf("whole program: accepted=%t err=%v", werr == nil, werr)
+}
+
+// TestOracleRunsAnonymousBlocks sends each block that starts with BEGIN or
+// DECLARE as one statement, and holds Syntax.AnonymousBlocks of the model to
+// the answer (D252). A slash on a line of its own is not sent, because it is
+// a word of SQL*Plus and the server never reads it.
+func TestOracleRunsAnonymousBlocks(t *testing.T) {
+	dsn := os.Getenv("DBMETA_ORACLE")
+	if dsn == "" {
+		t.Skip("set DBMETA_ORACLE to run against a server")
+	}
+	syntax, _ := dbmeta.Oracle.Syntax()
+	if !syntax.AnonymousBlocks {
+		t.Fatal("the model says that Oracle has no anonymous block")
+	}
+	db := openAt(t, "oracle", dsn)
+	for _, q := range []string{
+		"begin\n  null;\n  commit;\nend;",
+		"declare x number;\nbegin\n  x := 1;\nend;",
+		"begin\n  for i in 1..2 loop\n    null;\n  end loop;\n  null;\nend;",
+	} {
+		if _, err := db.ExecContext(t.Context(), q); err != nil {
+			t.Errorf("the server refuses %q: %v", q, err)
+		}
+	}
+	// The piece before the first semicolon is not a block.
+	if _, err := db.ExecContext(t.Context(), "begin\n  null;"); err == nil {
+		t.Error("the server accepted half a block")
+	}
 }

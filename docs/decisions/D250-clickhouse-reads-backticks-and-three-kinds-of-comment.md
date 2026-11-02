@@ -1,6 +1,6 @@
 # D250. ClickHouse reads backticks and three kinds of comment
 
-Status: Amends D143.
+Status: Amends D143, amended by D251.
 
 usql asked whether the `Syntax` of ClickHouse was complete, because its
 splitter ends a statement at a semicolon inside a name between backticks or
