@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/sijms/go-ora/v3"
+	_ "github.com/xo/oracle"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/oracle"

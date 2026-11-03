@@ -445,3 +445,14 @@ one principal besides the administrator, and a RAM user with rights on some tabl
 instance and not on others was not made (D241). The walks of Columns, Indexes and
 IndexColumns run one statement for each table, and the cost was measured on four tables only
 (D242). A column of an automatic key, whose Extra the model does not read, was not measured either.
+
+## The Oracle 19c statement that reads tables takes 77 seconds
+
+On `oracle-19c`, the tables statement of `models/oracle` takes 77 seconds on
+the server, and the server is busy on its CPU while it runs. The same time
+comes from `go-ora` and from `xo/oracle`, and from SQL*Plus it does not finish
+in 290 seconds. On 26ai and 11g it takes under a second. The scan test and
+the whole suite on 19c are slow because of it. The cause is not found. Dictionary
+and fixed object statistics exist, and `optimizer_features_enable` did not
+change it. Read the plan of the statement with `dbms_xplan.display_cursor`
+and find the join that explodes. See D253.

@@ -19,7 +19,6 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/nakagami/firebirdsql"
 	_ "github.com/sclgo/impala-go"
-	_ "github.com/sijms/go-ora/v3"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cassandra"
 	_ "github.com/xo/dbimp/arangodb"
@@ -46,6 +45,7 @@ import (
 	_ "github.com/xo/dbimp/surrealdb"
 	_ "github.com/xo/dbimp/tablestore"
 	_ "github.com/xo/dbimp/trino"
+	_ "github.com/xo/oracle"
 	_ "github.com/ydb-platform/ydb-go-sdk/v3"
 
 	"github.com/xo/dbmeta"

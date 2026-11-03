@@ -1,6 +1,6 @@
 # D244. dbrun fixture examples makes two plain tables
 
-Status: Decided.
+Status: Decided, amended by D254.
 
 ## The decision
 

@@ -15,12 +15,12 @@ require (
 	github.com/microsoft/go-mssqldb v1.11.2
 	github.com/nakagami/firebirdsql v0.9.23
 	github.com/sclgo/impala-go v1.9.0
-	github.com/sijms/go-ora/v3 v3.0.2-0.20260914154503-360b4b7ac9e9
 	github.com/vertica/vertica-sql-go v1.3.9
-	github.com/xo/cassandra v0.1.1
-	github.com/xo/dbimp v0.23.0
-	github.com/xo/dbmeta v0.23.0
-	github.com/xo/dburl v0.54.0
+	github.com/xo/cassandra v0.2.1
+	github.com/xo/dbimp v0.24.0
+	github.com/xo/dbmeta v0.24.0
+	github.com/xo/dburl v0.55.0
+	github.com/xo/oracle v0.1.1
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.155.1
 	google.golang.org/grpc v1.85.0
 	modernc.org/sqlite v1.61.1

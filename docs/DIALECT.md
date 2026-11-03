@@ -66,7 +66,7 @@ for the driver. SQLite and PostgreSQL both do this: `sqlite3` and
 `moderncsqlite`, `postgres` and `pgx`.
 
 D154 lists the exceptions. `godror` and `mymysql` are not tested, and Oracle
-is tested on `go-ora/v3` at a commit rather than a tag (D157).
+is tested on `xo/oracle`, the driver that dburl names (D253).
 
 ## Standing the server up
 

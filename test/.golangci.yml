@@ -93,7 +93,7 @@ linters:
             - github.com/jackc/pgx
             - github.com/lib/pq
             - github.com/microsoft/go-mssqldb
-            - github.com/sijms/go-ora
+            - github.com/xo/oracle
             - github.com/xo/cassandra
             - github.com/xo/dbimp
             - github.com/xo/dburl

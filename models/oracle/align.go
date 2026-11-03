@@ -7,15 +7,23 @@ import (
 	"github.com/xo/dbmeta"
 )
 
-// columnAlign right aligns a column that go-ora scans into a number, and left
-// aligns the rest. go-ora reports no name for any type, because its
-// DatabaseTypeName returns the empty string, so the Go type that it scans a
-// column into is the only fact it gives. It says int64 or float64 for NUMBER and
-// float32 or float64 for BINARY_FLOAT and BINARY_DOUBLE (D245).
+// nameAlign aligns by the name of a type, for the driver that reports one.
+var nameAlign = dbmeta.AlignName("NUMBER", "FLOAT", "BINARY_FLOAT", "BINARY_DOUBLE")
+
+// columnAlign right aligns a numeric column and left aligns the rest.
 //
-// A type for which go-ora names no Go type says nothing, and a client aligns it
-// by its values.
+// github.com/xo/oracle reports the name of every type, and it scans NUMBER and
+// FLOAT into a decimal type, so the name is the fact to read. go-ora reports no
+// name, because its DatabaseTypeName returns the empty string, so for it the Go
+// type that it scans a column into is the only fact. It says int64 or float64
+// for NUMBER and float32 or float64 for BINARY_FLOAT and BINARY_DOUBLE (D245).
+//
+// A type for which the driver gives neither a name nor a Go type says nothing,
+// and a client aligns it by its values.
 func columnAlign(ct *sql.ColumnType) (dbmeta.Align, bool) {
+	if name := ct.DatabaseTypeName(); name != "" {
+		return nameAlign(name)
+	}
 	t := ct.ScanType()
 	if t == nil {
 		return 0, false

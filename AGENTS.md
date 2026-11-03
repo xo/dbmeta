@@ -35,7 +35,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 252. Read the status, because 107
+`docs/decisions/README.md` is a table of all 254. Read the status, because 109
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -185,10 +185,8 @@ something is written down, it is not written down, and it is an open question.
    dialect name two packages, test both as subtests named for the driver:
    SQLite runs on `mattn/go-sqlite3` and `modernc.org/sqlite`, and PostgreSQL
    on `jackc/pgx/v5/stdlib` and `lib/pq`. Parity is the one exception, and
-   D52 says why. The `go-ora/v3` release that dburl names panics rather than
-   connecting on 11g and 18c, and the fix is upstream and untagged. So the
-   Oracle tests pin v3 at the commit that fixes it, and move to the tag when
-   one holds the fix (D59, D157). If what `usql` imports differs from
+   D52 says why. Oracle is tested on `github.com/xo/oracle`, which dburl
+   names for it (D59, D157 and D253). If what `usql` imports differs from
    what dburl names, the fault is in one of those two, and the fix goes
    there. A query that works here and fails on the driver dburl names is a
    query that does not work. See D52, D80 and D154.

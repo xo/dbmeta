@@ -170,11 +170,11 @@ const adbPassword = Password + "Adb1"
 // plain TCP, although the tnsnames.ora of the image names it as TLS in the
 // aliases that end in _tls.
 //
-// The options are the ones of the go-ora that the test module pins, which are
-// ssl and ssl verify. A driver with its own names, such as sslmode=require,
-// changes the query of this URL and nothing else.
+// The option is sslmode=require, which turns TLS on and does not check the
+// certificate. It is the form of the driver that dburl names for Oracle,
+// github.com/xo/oracle, and it follows pgx.
 func adbService(port int) string {
-	return fmt.Sprintf("oracle://admin:%s@127.0.0.1:%d/myatp_low.adb.oraclecloud.com?ssl=true&ssl+verify=false",
+	return fmt.Sprintf("oracle://admin:%s@127.0.0.1:%d/myatp_low.adb.oraclecloud.com?sslmode=require",
 		url.QueryEscape(adbPassword), port)
 }
 

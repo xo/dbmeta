@@ -1,6 +1,6 @@
 # D157. Oracle is tested on go-ora v3 at the commit that fixes it
 
-Status: Amends D59, D136 and D154, amended by D166.
+Status: Amends D59, D136 and D154, amended by D166 and D253.
 
 ## The decision
 
