@@ -60,18 +60,38 @@ func TestTheNorthwindFilesSplitIntoWholeStatements(t *testing.T) {
 				t.Fatal(err)
 			}
 			got := splitStatements(string(b), src.blocks, d == dbmeta.PostgreSQL)
+			if src.slash {
+				got = splitSlash(string(b))
+			}
 			if len(got) < 20 {
 				t.Errorf("%s: %d statements, and the expected count is above 20", name, len(got))
 			}
 			for _, s := range got {
-				if s == "" || strings.HasSuffix(s, ";") {
+				if s == "" || (!src.slash && strings.HasSuffix(s, ";")) {
 					t.Errorf("%s: a statement is empty or ends in a semicolon: %q", name, firstLines(s, 3))
 				}
 			}
 		}
 	}
-	if got := len(northwindSources); got != 2 {
-		t.Errorf("the fixture is for %d products, and the expected count is 2", got)
+	if got := len(northwindSources); got != 3 {
+		t.Errorf("the fixture is for %d products, and the expected count is 3", got)
+	}
+}
+
+// TestSplitSlashEndsAtALineWithOnlyASlash holds the splitter of the Oracle
+// files to the way SQL*Plus reads them.
+func TestSplitSlashEndsAtALineWithOnlyASlash(t *testing.T) {
+	t.Parallel()
+	src := "-- a comment\ncreate table t (a integer)\n/\n-- only a comment\n/\n" +
+		"begin\n  null;\nend;\n/\nselect 1 / 2 from dual\n/\n"
+	want := []string{
+		"-- a comment\ncreate table t (a integer)",
+		"begin\n  null;\nend;",
+		"select 1 / 2 from dual",
+	}
+	got := splitSlash(src)
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

@@ -7,17 +7,19 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/xo/dbmeta"
+	"github.com/xo/dbmeta/container"
 )
 
 // northwindFiles holds the SQL of the northwind fixture (D254). For each
 // product there is the Northwind database, and a second file with a schema
 // named hr that holds what Northwind lacks.
 //
-//go:embed northwind/postgres.sql northwind/postgres-hr.sql northwind/sqlserver.sql northwind/sqlserver-hr.sql
+//go:embed northwind/postgres.sql northwind/postgres-hr.sql northwind/sqlserver.sql northwind/sqlserver-hr.sql northwind/oracle.sql northwind/oracle-hr.sql
 var northwindFiles embed.FS
 
 // northwindSource names the files of a product, in the order they load, and
@@ -28,12 +30,17 @@ type northwindSource struct {
 	// or a trigger between BEGIN and END with semicolons inside, and a name
 	// between brackets, which is T-SQL.
 	blocks bool
+	// slash says that a line with only a slash ends each statement, which is
+	// how SQL*Plus reads Oracle, and that the statements have no semicolon of
+	// their own except the one that ends a PL/SQL block.
+	slash bool
 }
 
 // northwindSources is every product that has the fixture.
 var northwindSources = map[dbmeta.Dialect]northwindSource{
 	dbmeta.PostgreSQL: {files: []string{"northwind/postgres.sql", "northwind/postgres-hr.sql"}},
 	dbmeta.SQLServer:  {files: []string{"northwind/sqlserver.sql", "northwind/sqlserver-hr.sql"}, blocks: true},
+	dbmeta.Oracle:     {files: []string{"northwind/oracle.sql", "northwind/oracle-hr.sql"}, slash: true},
 }
 
 // northwindDatabase is the name of the database that the fixture makes.
@@ -50,7 +57,7 @@ const northwindDatabase = "northwind"
 func doNorthwind(ctx context.Context, r runner, t target) error {
 	src, ok := northwindSources[t.Dialect]
 	if !ok || t.Kind != kindContainer {
-		return fmt.Errorf("the northwind fixture is for PostgreSQL and SQL Server servers, and %s is not one", t.Name)
+		return fmt.Errorf("the northwind fixture is for PostgreSQL, SQL Server and Oracle servers, and %s is not one", t.Name)
 	}
 	if !r.running(ctx, t.Name) {
 		return fmt.Errorf("it is not running. Start it with: dbrun start %s", t.Name)
@@ -60,6 +67,10 @@ func doNorthwind(ctx context.Context, r runner, t target) error {
 		b, err := northwindFiles.ReadFile(name)
 		if err != nil {
 			return fmt.Errorf("reading %s: %w", name, err)
+		}
+		if src.slash {
+			statements = append(statements, splitSlash(string(b))...)
+			continue
 		}
 		statements = append(statements, splitStatements(string(b), src.blocks, t.Dialect == dbmeta.PostgreSQL)...)
 	}
@@ -81,6 +92,11 @@ func doNorthwind(ctx context.Context, r runner, t target) error {
 		}
 		u.Path = "/" + northwindDatabase
 		dsn = u.String()
+	case dbmeta.Oracle:
+		if err := runSteps(ctx, dsn, dialectDriver(t), oracleNorthwindPrepare()); err != nil {
+			return err
+		}
+		statements = slices.Insert(statements, 0, "ALTER SESSION SET CURRENT_SCHEMA = "+northwindDatabase)
 	case dbmeta.SQLServer:
 		if err := runSteps(ctx, dsn, dialectDriver(t), []string{
 			"IF DB_ID('" + northwindDatabase + "') IS NOT NULL BEGIN ALTER DATABASE [" + northwindDatabase +
@@ -117,8 +133,12 @@ func doNorthwind(ctx context.Context, r runner, t target) error {
 	}
 	var orders, customers int
 	count := "SELECT (SELECT COUNT(*) FROM orders), (SELECT COUNT(*) FROM customers)"
-	if t.Dialect == dbmeta.SQLServer {
+	switch t.Dialect {
+	case dbmeta.SQLServer:
 		count = "SELECT (SELECT COUNT(*) FROM [Orders]), (SELECT COUNT(*) FROM [Customers])"
+	case dbmeta.Oracle:
+		count = "SELECT (SELECT COUNT(*) FROM " + northwindDatabase + ".orders), (SELECT COUNT(*) FROM " +
+			northwindDatabase + ".customers) FROM dual"
 	}
 	if err := conn.QueryRowContext(ctx, count).Scan(&orders, &customers); err != nil {
 		return fmt.Errorf("counting the rows: %w", err)
@@ -126,6 +146,24 @@ func doNorthwind(ctx context.Context, r runner, t target) error {
 	fmt.Printf("  %-*s northwind: %d statements, %d customers and %d orders, in the database %s\n",
 		nameWidth(), t.Name, len(statements), customers, orders, northwindDatabase)
 	return nil
+}
+
+// oracleNorthwindPrepare drops and makes the two users that hold the fixture,
+// because Oracle calls a schema a user. The drop ignores the error for a user
+// that is not there, ORA-01918, and for a role that is not there, ORA-01919.
+func oracleNorthwindPrepare() []string {
+	drop := func(kind, name string, code int) string {
+		return fmt.Sprintf("BEGIN EXECUTE IMMEDIATE 'DROP %s %s%s'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -%d THEN RAISE; END IF; END;",
+			kind, name, map[string]string{"USER": " CASCADE"}[kind], code)
+	}
+	steps := []string{drop("USER", northwindDatabase, 1918), drop("USER", "hr", 1918), drop("ROLE", "northwind_reader", 1919)}
+	for _, user := range []string{northwindDatabase, "hr"} {
+		steps = append(steps,
+			fmt.Sprintf(`CREATE USER %s IDENTIFIED BY "%s"`, user, container.Password),
+			"GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE, CREATE PROCEDURE, CREATE TRIGGER, "+
+				"CREATE TYPE, CREATE SYNONYM, CREATE MATERIALIZED VIEW, UNLIMITED TABLESPACE TO "+user)
+	}
+	return steps
 }
 
 // dialectDriver is the name that sql.Open takes for a server.
@@ -275,6 +313,33 @@ func splitStatements(src string, blocks, dollar bool) []string {
 	for k, s := range out {
 		out[k] = strings.TrimSuffix(s, ";")
 	}
+	return out
+}
+
+// splitSlash splits SQL at each line that holds only a slash, and drops a
+// piece that holds nothing but space and comments. A statement keeps what it
+// ends with, so a PL/SQL block keeps its final semicolon.
+func splitSlash(src string) []string {
+	var out []string
+	var buf []string
+	flush := func() {
+		text := strings.TrimSpace(strings.Join(buf, "\n"))
+		buf = nil
+		for l := range strings.SplitSeq(text, "\n") {
+			if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "--") {
+				out = append(out, text)
+				return
+			}
+		}
+	}
+	for l := range strings.SplitSeq(src, "\n") {
+		if strings.TrimSpace(l) == "/" {
+			flush()
+			continue
+		}
+		buf = append(buf, l)
+	}
+	flush()
 	return out
 }
 

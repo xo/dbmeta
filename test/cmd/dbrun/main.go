@@ -243,8 +243,8 @@ Commands:
   test        run the integration tests against it
   logs        show what the server said
   fixture     drop and rebuild a data fixture. examples is the tables authors
-              and books. northwind is the database northwind, for PostgreSQL
-              and SQL Server only. Run as: dbrun fixture examples <selector>
+              and books. northwind is the database northwind, for PostgreSQL,
+              SQL Server and Oracle only. Run as: dbrun fixture examples <selector>
   list        show what a selector expands to, without touching anything
   build       build the images this repository makes, such as Cassandra's
   provision   build a Windows machine, which takes about an hour, or import
