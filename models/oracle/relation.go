@@ -154,9 +154,15 @@ func registerRelations() {
 
 	// \dt, \dv and bare \d. Tables and views in one answer, which is the
 	// shape psql uses, joined to the comment the dictionary keeps separately.
+	//
+	// The hint keeps the optimizer from pushing the join into all_tables. With
+	// fresh dictionary statistics it expects one row from all_objects, which
+	// holds thousands, and it then runs all_tables once for each object. The
+	// statement took more than 200 seconds on 19c and 26ai, and 5 seconds with
+	// the hint. See D255.
 	dbmeta.Tables.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Table]{
 		Stmt: dbmeta.Stmt{
-			always(`SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS "catalog"`),
+			always(`SELECT /*+ NO_PUSH_PRED(t) */ SYS_CONTEXT('USERENV', 'DB_NAME') AS "catalog"`),
 			always(`, o.owner AS "schema"`),
 			always(`, o.object_name AS "name"`),
 			always(`, ` + objectType + ` AS "type"`),

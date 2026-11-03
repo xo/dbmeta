@@ -1,6 +1,6 @@
 # D253. Oracle is tested on xo/oracle
 
-Status: Amends D154 and D157.
+Status: Amends D154 and D157, amended by D255.
 
 dburl v0.55.0 names `github.com/xo/oracle` as the driver of the oracle scheme,
 where it named `github.com/sijms/go-ora/v3` before. D154 says that the test
