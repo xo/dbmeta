@@ -93,6 +93,9 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INTEGER", "BIGINT", "REAL", "DOUBLE", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
+		// presto-cli prints VARBINARY as lower case hex pairs with a space between
+		// them (D258).
+		IsBinary:   dbmeta.BinaryNames("VARBINARY"),
 		Syntax:     dbmeta.Syntax{BlockComments: true},
 		Terminator: dbmeta.TerminatorStripped,
 		Fold:       dbmeta.FoldLower,

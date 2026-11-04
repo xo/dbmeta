@@ -34,3 +34,18 @@ func columnAlign(ct *sql.ColumnType) (dbmeta.Align, bool) {
 	}
 	return dbmeta.AlignLeft, true
 }
+
+// nameBinary says that a column has a binary type of Oracle.
+var nameBinary = dbmeta.BinaryNames("RAW", "LONG RAW", "BLOB")
+
+// isBinary says that a RAW, LONG RAW or BLOB column is binary. The driver
+// github.com/xo/oracle reports the name of the type. go-ora reports none, and
+// for it a column that scans into bytes is binary, because no other type of
+// Oracle does (D258).
+func isBinary(ct *sql.ColumnType) bool {
+	if ct.DatabaseTypeName() != "" {
+		return nameBinary(ct)
+	}
+	t := ct.ScanType()
+	return t != nil && t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8
+}

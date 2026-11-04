@@ -59,8 +59,8 @@ not in the data:
 - A flag is `true` on PostgreSQL and SQL Server and `1` on Oracle.
 - `discontinued` is a `smallint` on PostgreSQL and a `bit` on SQL Server, so
   usql prints `0` and `false`.
-- A RAW, a bytea and a varbinary print with Go escapes. A later decision
-  gives them one form.
+- A RAW, a bytea and a varbinary print with Go escapes. D258 gives them
+  one form.
 - A JSON column has spaces on PostgreSQL and Oracle and none on SQL Server.
 
 ## A fault found on the way

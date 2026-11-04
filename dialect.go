@@ -301,6 +301,13 @@ type Info struct {
 	// Each model measured the type names of its drivers against a live server,
 	// and [RightAligned] builds the function. See D245.
 	ColumnAlign func(*sql.ColumnType) (Align, bool)
+	// IsBinary says whether a column holds binary data, from the type that a
+	// driver reports for it. Nil when the model records nothing. The driver
+	// scans more than binary types into bytes, such as the text columns of
+	// MySQL, so the name decides. [Dialect.FormatBinary] writes the value in
+	// one form for every dialect, and [BinaryNames] builds the function. See
+	// D258.
+	IsBinary func(*sql.ColumnType) bool
 }
 
 var (

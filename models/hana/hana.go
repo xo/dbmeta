@@ -74,8 +74,10 @@ func init() {
 			"DECIMAL", "FIXED8", "FIXED12", "FIXED16"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true},
-		Fold:   dbmeta.FoldUpper,
+		// hdbsql prints binary types as 0x and upper case hex (D258).
+		IsBinary: dbmeta.BinaryNames("BINARY", "VARBINARY", "BLOB"),
+		Syntax:   dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true},
+		Fold:     dbmeta.FoldUpper,
 		// go-hdb binds by position and writes a question mark. A parameter
 		// repeated in the statement is sent twice, which is what every
 		// filter here does, and HANA infers the type from the comparison

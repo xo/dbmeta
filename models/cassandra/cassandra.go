@@ -201,6 +201,8 @@ func init() {
 		// The type COUNTER is a number too, and no probe reached it, because a
 		// counter lives only in a table (D245).
 		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INT", "BIGINT", "VARINT", "FLOAT", "DOUBLE", "DECIMAL"),
+		// cqlsh prints a blob as 0x and lower case hex (D258).
+		IsBinary: dbmeta.BinaryNames("BLOB"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:  dbmeta.Syntax{DollarQuotes: true, BlockComments: true, SlashComments: true},

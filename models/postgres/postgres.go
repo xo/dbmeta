@@ -47,6 +47,8 @@ func init() {
 			"MONEY", "790", "OID", "XID", "XID8", "CID"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
+		// psql prints bytea as \x and lower case hex (D258).
+		IsBinary:       dbmeta.BinaryNames("BYTEA"),
 		Syntax:         dbmeta.Syntax{DollarQuotes: true, BlockComments: true, BeginEndBlocks: true},
 		Fold:           dbmeta.FoldLower,
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },

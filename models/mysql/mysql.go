@@ -105,6 +105,9 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT",
 			"UNSIGNED TINYINT", "UNSIGNED SMALLINT", "UNSIGNED MEDIUMINT", "UNSIGNED INT", "UNSIGNED BIGINT",
 			"FLOAT", "DOUBLE", "DECIMAL", "YEAR"),
+		// The mysql client of 8.0.19 and later prints binary types as 0x and
+		// upper case hex in a terminal (D258).
+		IsBinary: dbmeta.BinaryNames("BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:      dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true, BeginEndBlocks: true},

@@ -73,6 +73,9 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INTEGER", "BIGINT", "REAL", "DOUBLE", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
+		// The trino command prints VARBINARY as lower case hex pairs with a space
+		// between them (D258).
+		IsBinary:   dbmeta.BinaryNames("VARBINARY"),
 		Syntax:     dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true},
 		Terminator: dbmeta.TerminatorStripped,
 		Fold:       dbmeta.FoldLower,
