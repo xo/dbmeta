@@ -381,7 +381,7 @@ columns. The vector rows of `$index_paths` were not read, for the same reason.
 
 ### Databricks table size, defaults and checks have no source
 
-Databricks answers 17 of the 65 kinds (D224). The size, the row count, the location and
+Databricks answers 17 of the 66 kinds (D224). The size, the row count, the location and
 the clustering columns of a table are in DESCRIBE DETAIL. A column default, an identity
 column, a generated column and a CHECK constraint are in SHOW CREATE TABLE and SHOW
 TBLPROPERTIES. All of them are statements that a SELECT cannot read, and INFORMATION_SCHEMA
@@ -404,7 +404,7 @@ out (D224).
 
 ### Athena table comments, partitions and functions have no source
 
-Athena answers 8 of the 65 kinds (D222). The comment and the location of a table,
+Athena answers 8 of the 66 kinds (D222). The comment and the location of a table,
 the values of a partition and the function list are behind SHOW CREATE TABLE, SHOW
 TBLPROPERTIES, SHOW PARTITIONS, DESCRIBE and SHOW FUNCTIONS, which a SELECT cannot
 read. D146 allows a walk for five products, and Athena is not one. A walk costs
@@ -422,7 +422,7 @@ hide a table, was not made (D222).
 
 ### MaxCompute reader, primary keys, external tables and schemas
 
-MaxCompute answers 15 of the 65 kinds (D237). Three pieces of work are known and not done.
+MaxCompute answers 15 of the 66 kinds (D237). Three pieces of work are known and not done.
 
 - The primary key of a transactional table is in DESC and in no view. Ask Alibaba for a
   key column in COLUMNS or a view of constraints. D146 allows a walk for five products,

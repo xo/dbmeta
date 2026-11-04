@@ -21,7 +21,7 @@ v0.15.0 is the release that carries the opt in for the table size and rows of Re
 the Exasol tests on the driver of dbimp (D234). The Tested tier passed in CI on a58e5c0.
 The dependencies of the test module were bumped after the tag, in a6300d0.
 
-MaxCompute got a model after v0.15.0, which answers 15 of the 65 kinds (D237 to D240).
+MaxCompute got a model after v0.15.0, which answers 15 of the 66 kinds (D237 to D240).
 It reads the project level INFORMATION_SCHEMA with the driver of Alibaba. The views show a
 new object after about an hour, so the fixture stays up, and the reader of the test account
 needs two grants before the parity test can record it. The Verified tier ran on the hosted
@@ -176,7 +176,7 @@ In progress:
   two errors changed in `parity.txt`. The Community Edition machine was not run
   (BACKLOG.md).
 - The Cosmos DB completion (D233, which amends D228) is on dbimp v0.20.0, which holds the five
-  statements. The model answers 15 of the 65 kinds from the five
+  statements. The model answers 15 of the 66 kinds from the five
   new statements `$index_paths`, `$unique_keys`, `$unique_key_paths`, `$routines`,
   `$partition_key_ranges` and `$session`, It passed on the hosted account with the
   released driver.

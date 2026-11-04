@@ -28,7 +28,7 @@
 //
 // # What it answers
 //
-// 18 of the 65. Tables, columns, indexes, index columns, constraints,
+// 18 of the 66. Tables, columns, indexes, index columns, constraints,
 // constraint columns, views, functions, aggregates, routine parameters,
 // comments, partitioned tables, partitions, the current user, databases,
 // schemas, the current schema and privileges.

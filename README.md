@@ -163,7 +163,7 @@ call and filter in the loop.
 
 | Database   | Model              | Queries | Status      |
 | ---------- | ------------------ | ------- | ----------- |
-| PostgreSQL | native             | 65      | Complete    |
+| PostgreSQL | native             | 66      | Complete    |
 | any with an information_schema | shared | 12 | Ready to build on |
 | MariaDB    | native             | 30      | Complete    |
 | MySQL      | native             | 27      | Complete    |
@@ -217,7 +217,7 @@ call and filter in the loop.
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
-It answers 12 object kinds where the native PostgreSQL model answers 65, and
+It answers 12 object kinds where the native PostgreSQL model answers 66, and
 answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
@@ -240,7 +240,7 @@ indexes, and the native model here answers 32 kinds instead, including the
 sequences and constraints that reader turns off.
 
 [`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
-and which analogues were found and rejected. MariaDB answers 30 of the 65 and
+and which analogues were found and rejected. MariaDB answers 30 of the 66 and
 MySQL answers 27, because a native model beats the shared one by seventeen.
 
 MariaDB and MySQL share one model. A query written for one of them gates on the

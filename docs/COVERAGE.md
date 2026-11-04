@@ -1,6 +1,6 @@
 # What Each Database Can Answer
 
-`dbmeta` asks every database the same 65 questions. PostgreSQL answers all of
+`dbmeta` asks every database the same 66 questions. PostgreSQL answers all of
 them, because PostgreSQL is the model. No other database answers all of them,
 and this document says which ones each database answers, which ones it cannot,
 and why.
@@ -28,55 +28,55 @@ rather than reading one.
 
 | Model | Answers | Of | Tested against |
 | --- | --- | --- | --- |
-| `models/postgres` | 65 | 65 | PostgreSQL 9.6 through 18 |
-| `models/mysql` | 30 on MariaDB, 27 on MySQL | 65 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
-| `models/sqlite3` | 14 | 65 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
-| `models/duckdb` | 21 | 65 | duckdb/duckdb-go, the driver usql uses |
-| `models/sqlserver` | 34 | 65 | SQL Server 2017, 2019, 2022 and 2025 |
-| `models/oracle` | 29 | 65 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
-| `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 65 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
-| `models/clickhouse` | 25 | 65 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
-| `models/trino` | 13 | 65 | Trino 476 and 484 |
-| `models/presto` | 9 | 65 | Presto 0.299 |
-| `models/firebird` | 25 | 65 | Firebird 3.0, 4.0 and 5.0 |
-| `models/hana` | 33 | 65 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
-| `models/hive` | 18 | 65 | Apache Hive 4.0 and 4.2 |
-| `models/exasol` | 26 | 65 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
-| `models/vertica` | 28 | 65 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
-| `models/couchbase` | 12 | 65 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
-| `models/cockroachdb` | 54 | 65 | CockroachDB 24.3.36, 26.2.8 and 26.3.2. 47 of its statements are the postgres model's (D123) |
-| `models/cratedb` | 27 | 65 | CrateDB 6.3.7 and 6.4.6, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
-| `models/questdb` | 11 | 65 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
-| `models/tidb` | 20 | 65 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 17 of its statements are the mysql model's (D133) |
-| `models/vitess` | 21 | 65 | Vitess 23.0.8 and 24.0.5, on vttestserver. 20 of its statements are the mysql model's, and a schema is a keyspace (D135) |
-| `models/databend` | 20 | 65 | Databend 1.2.881 and 1.2.954, from the system database, with dbimp's driver (D140) |
-| `models/singlestore` | 23 | 65 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
-| `models/snowflake` | 15 | 65 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08 and 2026-10-09. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193, and D203 reads the columns of a key. Since D213 the tests and `dbrun` connect through the driver of dbimp, which is the one dburl v0.49.0 names |
-| `models/redshift` | 18 | 65 | measured on Redshift Serverless 1.0.434008 on 2026-10-08 and 2026-10-09. Written before a cluster existed (D144) and corrected by D182 and D204, and it reads the Spectrum external tables (D221) |
-| `models/impala` | 11 | 65 | Apache Impala 4.4.1 and 4.5.3, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
-| `models/neo4j` | 17 | 65 | Neo4j 2026.10.0, and 5.26.32, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
-| `models/influxdb` | 9 | 65 | InfluxDB 3 Core 3.10.6, 3.11.7 and 3.12.1, from DataFusion's information_schema, with dbimp's driver (D152) |
-| `models/ydb` | 7 | 65 | YDB 26.2.1.14 and 26.3.1.19, from the .sys views, with ydb-go-sdk (D161) |
-| `models/influxql` | 7 | 65 | InfluxDB 1.11.8 and 1.13.1, and 2.8.0 and 2.9.1, which answer 4 of the 7. Most kinds are a walk of SHOW statements, with dbimp's driver (D159, D165) |
-| `models/surrealdb` | 18 | 65 | SurrealDB 3.1.6, 3.2.6 and 3.3.4, and 2.7.0, which answers the current schema alone, because a 2.x statement cannot read INFO as a value. With dbimp's driver (D164) |
-| `models/rqlite` | 14 | 65 | rqlite 9.4.5 and 10.6.3, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
-| `models/libsql` | 14 | 65 | libSQL 0.24.33, the sqld server, with dbimp's driver. Every statement is the sqlite3 model's, with a fragment for the vector index (D160) |
-| `models/arangodb` | 7 | 65 | ArangoDB 3.12.12, in AQL through dbimp's driver. A database is the schema, a collection is a table, and its JSON schema rule gives its columns (D163, D168) |
-| `models/druid` | 7 | 65 | Apache Druid 37.0.0 and 38.0.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. The version and the settings need an administrator (D171) |
-| `models/drill` | 10 | 65 | Apache Drill 1.21.2 and 1.22.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. A file table is listed only when the Metastore is on (D178) |
-| `models/elasticsearch` | 8 | 65 | Elasticsearch 8.19.23, 9.4.8 and 9.5.5, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D177, D191, D192) |
-| `models/opensearch` | 3 | 65 | OpenSearch 3.9.0 and 2.19.7, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
-| `models/solr` | 4 | 65 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
-| `models/gizmosql` | 21 | 65 | GizmoSQL 1.41.0 and 1.42.0, where DuckDB 1.5.6 was measured on 1.40.0 and 1.41.0, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
-| `models/spanner` | 22 | 65 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect. Cloud Spanner is tested with the driver of dbimp, and Omni with go-sql-spanner in a binary of its own (D216, D219, D231) |
-| `models/bigquery` | 18 | 65 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with the driver of dbimp (D220, D226, D229) |
-| `models/athena` | 8 | 65 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of dbimp, which binds with ExecutionParameters (D222, D229) |
-| `models/databricks` | 17 | 65 | the hosted Databricks SQL service on Unity Catalog, which reports the release of its SQL channel, 2026.38, with the driver of dbimp (D224, D229) |
-| `models/cosmos` | 15 | 65 | the hosted Azure Cosmos DB account with the API for NoSQL, which has no release, with the driver of dbimp. A statement is a SELECT against one of twelve reserved names that the driver answers with REST requests. The five newest need the dbimp tag after v0.19.0 (D228, D233) |
-| `models/maxcompute` | 15 | 65 | the hosted Alibaba Cloud MaxCompute service, which reports the build V59.group_cn.SQL_RC60_hf9, from the project level INFORMATION_SCHEMA, with the driver of Alibaba. The views show a new object after about an hour (D237, D238, D239, D240) |
-| `models/tablestore` | 4 | 65 | the hosted Alibaba Cloud Tablestore service through its SQL feature, which reports the text of `SELECT @@version` and has no catalog a SELECT reads. Tables come from SHOW FULL TABLES (D241). Columns, Indexes and IndexColumns are a walk of DESCRIBE and SHOW INDEX (D242) |
-| `models/avatica` | 24 | 65 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
-| `models/informationschema` | 12 | 65 | any database with a standard `information_schema` |
+| `models/postgres` | 66 | 66 | PostgreSQL 9.6 through 18 |
+| `models/mysql` | 30 on MariaDB, 27 on MySQL | 66 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
+| `models/sqlite3` | 14 | 66 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
+| `models/duckdb` | 21 | 66 | duckdb/duckdb-go, the driver usql uses |
+| `models/sqlserver` | 34 | 66 | SQL Server 2017, 2019, 2022 and 2025 |
+| `models/oracle` | 29 | 66 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
+| `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 66 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
+| `models/clickhouse` | 25 | 66 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
+| `models/trino` | 13 | 66 | Trino 476 and 484 |
+| `models/presto` | 9 | 66 | Presto 0.299 |
+| `models/firebird` | 25 | 66 | Firebird 3.0, 4.0 and 5.0 |
+| `models/hana` | 33 | 66 | SAP HANA 2.00.076, 2.00.082 and 2.00.088, which are SPS 07 and SPS 08 |
+| `models/hive` | 18 | 66 | Apache Hive 4.0 and 4.2 |
+| `models/exasol` | 26 | 66 | Exasol 2026.2.0 on the nano image, and 2025.2.1 on the Community Edition machine |
+| `models/vertica` | 28 | 66 | Vertica 7.2.1, 9.1.0, 10.1.1 and 25.1.0, on copies of community images in `docker.io/usql/vertica` |
+| `models/couchbase` | 12 | 66 | Couchbase 7.6.12 and 8.0.3, and 7.2.9, which is Tested and refused as too old |
+| `models/cockroachdb` | 54 | 66 | CockroachDB 24.3.36, 26.2.8 and 26.3.2. 47 of its statements are the postgres model's (D123) |
+| `models/cratedb` | 27 | 66 | CrateDB 6.3.7 and 6.4.6, where 6.3 answers one fewer, collations. 3 of its statements are the postgres model's (D123) |
+| `models/questdb` | 11 | 66 | QuestDB 9.4.3 and 10.0.1, on the PostgreSQL interface with pgx |
+| `models/tidb` | 20 | 66 | TiDB 7.5.8, 8.1.2 and 8.5.8, where privileges needs 8.5. 17 of its statements are the mysql model's (D133) |
+| `models/vitess` | 21 | 66 | Vitess 23.0.8 and 24.0.5, on vttestserver. 20 of its statements are the mysql model's, and a schema is a keyspace (D135) |
+| `models/databend` | 20 | 66 | Databend 1.2.881 and 1.2.954, from the system database, with dbimp's driver (D140) |
+| `models/singlestore` | 23 | 66 | SingleStore 9.0 and 9.1, on the development image with no license. 16 of its statements are the mysql model's (D141) |
+| `models/snowflake` | 15 | 66 | measured on a Snowflake trial account, release 10.36.101, on 2026-10-08 and 2026-10-09. Written before an account existed (D144) and corrected by D190. Parity, conformance and the password statement were measured by D193, and D203 reads the columns of a key. Since D213 the tests and `dbrun` connect through the driver of dbimp, which is the one dburl v0.49.0 names |
+| `models/redshift` | 18 | 66 | measured on Redshift Serverless 1.0.434008 on 2026-10-08 and 2026-10-09. Written before a cluster existed (D144) and corrected by D182 and D204, and it reads the Spectrum external tables (D221) |
+| `models/impala` | 11 | 66 | Apache Impala 4.4.1 and 4.5.3, in one container dbrun builds. Most kinds are a walk of SHOW statements (D146) |
+| `models/neo4j` | 17 | 66 | Neo4j 2026.10.0, and 5.26.32, which is too old for four of them because a SHOW command cannot be joined with other clauses. With dbimp's driver (D162) |
+| `models/influxdb` | 9 | 66 | InfluxDB 3 Core 3.10.6, 3.11.7 and 3.12.1, from DataFusion's information_schema, with dbimp's driver (D152) |
+| `models/ydb` | 7 | 66 | YDB 26.2.1.14 and 26.3.1.19, from the .sys views, with ydb-go-sdk (D161) |
+| `models/influxql` | 7 | 66 | InfluxDB 1.11.8 and 1.13.1, and 2.8.0 and 2.9.1, which answer 4 of the 7. Most kinds are a walk of SHOW statements, with dbimp's driver (D159, D165) |
+| `models/surrealdb` | 18 | 66 | SurrealDB 3.1.6, 3.2.6 and 3.3.4, and 2.7.0, which answers the current schema alone, because a 2.x statement cannot read INFO as a value. With dbimp's driver (D164) |
+| `models/rqlite` | 14 | 66 | rqlite 9.4.5 and 10.6.3, with dbimp's driver. Every statement is the sqlite3 model's (D148, D151) |
+| `models/libsql` | 14 | 66 | libSQL 0.24.33, the sqld server, with dbimp's driver. Every statement is the sqlite3 model's, with a fragment for the vector index (D160) |
+| `models/arangodb` | 7 | 66 | ArangoDB 3.12.12, in AQL through dbimp's driver. A database is the schema, a collection is a table, and its JSON schema rule gives its columns (D163, D168) |
+| `models/druid` | 7 | 66 | Apache Druid 37.0.0 and 38.0.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. The version and the settings need an administrator (D171) |
+| `models/drill` | 10 | 66 | Apache Drill 1.21.2 and 1.22.0, from INFORMATION_SCHEMA and sys, with dbimp's driver. A file table is listed only when the Metastore is on (D178) |
+| `models/elasticsearch` | 8 | 66 | Elasticsearch 8.19.23, 9.4.8 and 9.5.5, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D177, D191, D192) |
+| `models/opensearch` | 3 | 66 | OpenSearch 3.9.0 and 2.19.7, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
+| `models/solr` | 4 | 66 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
+| `models/gizmosql` | 21 | 66 | GizmoSQL 1.41.0 and 1.42.0, where DuckDB 1.5.6 was measured on 1.40.0 and 1.41.0, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
+| `models/spanner` | 22 | 66 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect. Cloud Spanner is tested with the driver of dbimp, and Omni with go-sql-spanner in a binary of its own (D216, D219, D231) |
+| `models/bigquery` | 18 | 66 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with the driver of dbimp (D220, D226, D229) |
+| `models/athena` | 8 | 66 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of dbimp, which binds with ExecutionParameters (D222, D229) |
+| `models/databricks` | 17 | 66 | the hosted Databricks SQL service on Unity Catalog, which reports the release of its SQL channel, 2026.38, with the driver of dbimp (D224, D229) |
+| `models/cosmos` | 15 | 66 | the hosted Azure Cosmos DB account with the API for NoSQL, which has no release, with the driver of dbimp. A statement is a SELECT against one of twelve reserved names that the driver answers with REST requests. The five newest need the dbimp tag after v0.19.0 (D228, D233) |
+| `models/maxcompute` | 15 | 66 | the hosted Alibaba Cloud MaxCompute service, which reports the build V59.group_cn.SQL_RC60_hf9, from the project level INFORMATION_SCHEMA, with the driver of Alibaba. The views show a new object after about an hour (D237, D238, D239, D240) |
+| `models/tablestore` | 4 | 66 | the hosted Alibaba Cloud Tablestore service through its SQL feature, which reports the text of `SELECT @@version` and has no catalog a SELECT reads. Tables come from SHOW FULL TABLES (D241). Columns, Indexes and IndexColumns are a walk of DESCRIBE and SHOW INDEX (D242) |
+| `models/avatica` | 24 | 66 | the standalone Avatica server 1.28.0 and 1.29.0, which is Avatica over HSQLDB 2.4.1, from INFORMATION_SCHEMA and the SYSTEM_ views, with dbimp's driver. Phoenix has no model (D186) |
+| `models/informationschema` | 12 | 66 | any database with a standard `information_schema` |
 
 The shared `information_schema` model answers twelve: tables, schemas,
 columns, functions, privileges, constraints, sequences, constraint columns,
@@ -161,7 +161,7 @@ is true of both. Where they differ, the model gates on the product rather than
 on the release number, because MariaDB is at 11.8 and MySQL at 9 and neither
 number says anything about the other. See D44.
 
-MariaDB answers 30 of the 65 and MySQL answers 27. The three MySQL cannot
+MariaDB answers 30 of the 66 and MySQL answers 27. The three MySQL cannot
 answer are sequences, which it has never had, aggregates, which it has no form
 of and whose catalog table it dropped in 8.0, and column statistics, below.
 
@@ -358,7 +358,7 @@ form of. `information_schema.PERIODS` holds application time periods. It is pres
 
 ## SQLite
 
-SQLite answers 14 of the 65. It is a small native model and it still beats
+SQLite answers 14 of the 66. It is a small native model and it still beats
 the shared `information_schema` one, which SQLite does not have at all.
 
 It is also one of the two databases here with no server, and DuckDB is the
@@ -503,7 +503,7 @@ calls it `shadow`, and relabeling it is not done.
 
 ## Cassandra
 
-Cassandra answers 17 of the 65, verified against 5.0.9 and 3.11.19.
+Cassandra answers 17 of the 66, verified against 5.0.9 and 3.11.19.
 
 It is the first database here that is not SQL, and CQL is narrower than the
 name suggests. D62 holds the four consequences and this is the short version.
@@ -694,7 +694,7 @@ The table options, the class and the options of a custom index, and `Prosrc` of 
 
 ## ScyllaDB
 
-ScyllaDB answers 18 of the 65, verified against 2025.1.15, 2026.1, 2026.2 and
+ScyllaDB answers 18 of the 66, verified against 2025.1.15, 2026.1, 2026.2 and
 2026.3.1. It is a second product that speaks CQL, and `models/cassandra` reads
 it. Cassandra is the reference product and ScyllaDB is the flavor, the way
 MariaDB and MySQL share `models/mysql`. D91 is the decision.
@@ -816,7 +816,7 @@ Tables reads the table options from `compaction`, `compression`, `gc_grace_secon
 
 ## ClickHouse
 
-ClickHouse answers 25 of the 65, verified against 26.9.2.8 and 25.8.33.6.
+ClickHouse answers 25 of the 66, verified against 26.9.2.8 and 25.8.33.6.
 
 ### system, not information_schema
 
@@ -1066,7 +1066,7 @@ None are filled. `system.metadata.tables_authorization` is empty for the memory 
 
 ## Firebird
 
-`models/firebird` answers 25 of the 65, against Firebird 3.0.14, 4.0.7 and
+`models/firebird` answers 25 of the 66, against Firebird 3.0.14, 4.0.7 and
 5.0.4.
 
 ### It reads RDB$, and there is no information_schema
@@ -1307,7 +1307,7 @@ returns the same columns on every release.
 
 ## SAP HANA
 
-`models/hana` answers 33 of the 65, against SAP HANA 2.00.088, which is
+`models/hana` answers 33 of the 66, against SAP HANA 2.00.088, which is
 Tested, and 2.00.076 and 2.00.082, which run nightly. It ties SQL Server for
 the richest answer after PostgreSQL and CockroachDB, which shares the
 PostgreSQL model.
@@ -1528,7 +1528,7 @@ with one grant and a user with none.
 
 ## Apache Hive
 
-`models/hive` answers 18 of the 65, against Apache Hive 4.2.1, which is
+`models/hive` answers 18 of the 66, against Apache Hive 4.2.1, which is
 Tested, and 4.0.1, which runs nightly. It is the
 only model here that writes its filter values into the statement, and the
 reason is in D78 rather than here.
@@ -1810,7 +1810,7 @@ None are filled. Presto has no `tables_authorization`, and `SHOW STATS` is one s
 
 ## Exasol
 
-`models/exasol` answers 26 of the 65. It was run against Exasol 2026.2.0 on
+`models/exasol` answers 26 of the 66. It was run against Exasol 2026.2.0 on
 the nano image and 2025.2.1 on the Community Edition machine, and the two
 answer identically, so the model has no version fragment. D85 says why there
 are two, and D87 records what was decided here. The tests use the driver of dbimp,
@@ -2014,7 +2014,7 @@ machine is Verified and was not run.
 
 ## Vertica
 
-`models/vertica` answers 28 of the 65 on 25.1, 26 on 9.1.0 and 10.1.1, and 25
+`models/vertica` answers 28 of the 66 on 25.1, 26 on 9.1.0 and 10.1.1, and 25
 on 7.2.1. The older releases have no triggers and no per user settings to read,
 and 7.2.1 has no row access policy. It was run
 against 7.2.1, 9.1.0, 10.1.1 and 25.1.0, all four community images, and D88
@@ -2195,7 +2195,7 @@ On 10.1 `Privileges` is refused to both, because a lesser principal cannot read
 
 ## Couchbase
 
-`models/couchbase` answers 12 of the 65 on 7.6 and 8.0. It was run against
+`models/couchbase` answers 12 of the 66 on 7.6 and 8.0. It was run against
 7.6.12 and 8.0.3 through `github.com/xo/dbimp/couchbase`, the driver `usql`
 uses. 7.2.9 reports that it is too old, and D104 says why.
 
@@ -2626,7 +2626,7 @@ caller writes one join for every database.
 
 ## DuckDB
 
-DuckDB answers 21 of the 65. Its catalog is
+DuckDB answers 21 of the 66. Its catalog is
 unusually complete for an embedded database: comments on most objects, real
 enumerated types, sequences with their bounds, and a constraint catalog that
 names both the columns of a key and the columns they reference.
@@ -2755,7 +2755,7 @@ replication.
 
 ## Microsoft SQL Server
 
-SQL Server answers 34 of the 65, more than SAP HANA and fewer than only
+SQL Server answers 34 of the 66, more than SAP HANA and fewer than only
 PostgreSQL and CockroachDB, which shares the PostgreSQL model. It is the only
 one of its own model with roles, privileges, tablespaces and DDL triggers, and
 the only one that keeps comments in a catalog of their own rather than on the
@@ -2962,7 +2962,7 @@ there is no object with an identity and an owner of its own to list.
 
 ## Oracle
 
-Oracle answers 29 of the 65. Every one is verified on six releases, apart from
+Oracle answers 29 of the 66. Every one is verified on six releases, apart from
 the three that D206 added, which were run on 11g, 21c, 23ai and 26ai.
 
 It needs no Windows and no virtual machine, which is the opposite of SQL
@@ -3270,7 +3270,7 @@ view carries: `ALL_PDBS` does not exist on any release here. `DBA_PDBS` and
 
 ## CockroachDB
 
-`models/cockroachdb` answers 54 of the 65, on 24.3.36, 26.2.7 and 26.3.2. It
+`models/cockroachdb` answers 54 of the 66, on 24.3.36, 26.2.7 and 26.3.2. It
 was measured on 2026-09-29, with pgx, which is the driver dburl opens for
 `cockroachdb://`. CockroachDB imitates PostgreSQL's catalog, so 47 of its
 statements are the postgres model's, shared with `Query.Share`. The version
@@ -3346,7 +3346,7 @@ rule 2 follows, and D128 keeps it.
 
 ## CrateDB
 
-`models/cratedb` answers 27 of the 65 on 6.4.5 and 26 on 6.3.7, which has no
+`models/cratedb` answers 27 of the 66 on 6.4.5 and 26 on 6.3.7, which has no
 `information_schema.collations`. It was measured on 2026-09-29 with pgx, on
 the PostgreSQL port, which is what dburl opens for `cratedb://`. The main
 version is the PostgreSQL release that CrateDB claims, 14.0 on both, and
@@ -3462,7 +3462,7 @@ written above.
 
 ## QuestDB
 
-`models/questdb` answers 11 of the 65 on 9.4.3 and 10.0.1. It was measured on
+`models/questdb` answers 11 of the 66 on 9.4.3 and 10.0.1. It was measured on
 2026-09-29 with pgx, on the PostgreSQL interface on 8812, which is what
 dburl opens for `questdb://` and what usql uses.
 
@@ -3565,7 +3565,7 @@ cannot do. Each lead was run against 10.0.1.
 
 ## TiDB
 
-`models/tidb` answers 20 of the 65 on 8.5.8, and 19 on 7.5.8 and 8.1.2,
+`models/tidb` answers 20 of the 66 on 8.5.8, and 19 on 7.5.8 and 8.1.2,
 where privileges is too old. It was measured on 2026-09-29 with the mysql
 driver, which is what dburl opens for `tidb://` and what usql uses. TiDB
 imitates MySQL's information_schema, so 17 of its statements are the mysql
@@ -3645,7 +3645,7 @@ SUBPARTITION BY and ignores it, so it has no subpartition rows.
 
 ## Vitess
 
-`models/vitess` answers 21 of the 65 on 23.0.6 and 24.0.3. It was measured on
+`models/vitess` answers 21 of the 66 on 23.0.6 and 24.0.3. It was measured on
 2026-09-30 on vttestserver, with the mysql driver, which is what dburl opens
 for `vitess://` and what usql uses. vtgate passes a query of
 information_schema to the MySQL of one tablet, so 19 of its statements are
@@ -3727,7 +3727,7 @@ shards of a keyspace.
 
 ## Databend
 
-`models/databend` answers 20 of the 65 on 1.2.881 and 1.2.948. It was
+`models/databend` answers 20 of the 66 on 1.2.881 and 1.2.948. It was
 measured on 2026-09-30 with dbimp's driver, which is what usql's databend
 scheme opens. It reads the system database, as the ClickHouse model does,
 and the table function show_sequences(). See D140.
@@ -3809,7 +3809,7 @@ cluster key orders the rows of a table rather than partitioning it.
 
 ## SingleStore
 
-`models/singlestore` answers 23 of the 65 on 9.0 and 9.1. It was measured on
+`models/singlestore` answers 23 of the 66 on 9.0 and 9.1. It was measured on
 2026-09-30 on the development image, which runs with no license on a machine
 with at most 8 cores and 64 GB, through the mysql driver, which is what
 dburl's memsql scheme opens and what usql uses. SingleStore imitates MySQL's
@@ -3882,7 +3882,7 @@ is NULL, because SingleStore claims MySQL 5.7. It has no `Partitions`, because
 
 ## Snowflake and Amazon Redshift
 
-`models/snowflake` answers 15 of the 65 and `models/redshift` answers 18.
+`models/snowflake` answers 15 of the 66 and `models/redshift` answers 18.
 Ken chose on 2026-09-30 to write both from the vendors' documentation before
 an account or a cluster was provisioned (D144). Both ran on 2026-10-08.
 D182 holds what Redshift found and D190 holds what Snowflake found. The tests
@@ -3899,7 +3899,7 @@ upper case, as Snowflake documents.
 Measured on 2026-10-08 on a trial account, release 10.36.101, as the role
 DBMETA_ROLE, which owns the database DBMETA and uses the warehouse DBMETA_WH.
 
-- The server answers 13 of the 65 questions: schemas, databases, tables,
+- The server answers 13 of the 66 questions: schemas, databases, tables,
   columns, views, constraints, sequences, functions, comments, privileges,
   role grants, the current schema and the current user.
 - One statement failed. INCREMENT is a keyword, so `s.increment` in the
@@ -3954,7 +3954,7 @@ DBMETA_ROLE, which owns the database DBMETA and uses the warehouse DBMETA_WH.
 ### Measured on Snowflake on 2026-10-09
 
 D203 measured what INFORMATION_SCHEMA and SHOW expose, on the same trial
-account, release 10.36.101. The model answers 15 of the 65 questions: the 13
+account, release 10.36.101. The model answers 15 of the 66 questions: the 13
 above, the columns of a constraint, and the session parameters as settings.
 
 - The columns of a key. INFORMATION_SCHEMA has no view of them. SHOW PRIMARY
@@ -4057,7 +4057,7 @@ Measured on 2026-10-08 on Redshift Serverless in us-east-1, release
 1.0.434008, whose banner says PostgreSQL 8.0.2. Every statement ran,
 and roles needed a cast. The fixture built on the first try.
 
-- The server answers 18 of the 65 questions: schemas, databases, tables,
+- The server answers 18 of the 66 questions: schemas, databases, tables,
   columns, views, constraints, constraint columns, functions, roles, role
   grants, privileges, column privileges, default ACLs, languages, settings,
   comments, the current schema and the current user. The other 47 are covered
@@ -4213,7 +4213,7 @@ Redshift fixture builds one, and the scan reads it.
 
 ## Apache Impala
 
-`models/impala` answers 11 of the 65 on 4.4.1 and 4.5.2, measured on
+`models/impala` answers 11 of the 66 on 4.4.1 and 4.5.2, measured on
 2026-09-30 in the one container dbrun builds (D145), with sclgo/impala-go,
 which is what usql uses.
 
@@ -4261,7 +4261,7 @@ cost no statement. D209 fills them on 4.4.1 and 4.5.2.
 
 ## rqlite
 
-`models/rqlite` answers 14 of the 65 on 9.4.5 and 10.3.6. It was first
+`models/rqlite` answers 14 of the 66 on 9.4.5 and 10.3.6. It was first
 measured on 2026-09-30 through the driver of `github.com/rqlite/gorqlite`
 (D148), and again on 2026-10-01 through dbimp's driver, which usql uses, from
 dbimp v0.8.0 (D151). rqlite runs SQLite 3.53 behind an HTTP API, so every statement is the
@@ -4307,7 +4307,7 @@ same checks on it.
 
 ## libSQL
 
-`models/libsql` answers 14 of the 65 on 0.24.33, measured on 2026-10-01
+`models/libsql` answers 14 of the 66 on 0.24.33, measured on 2026-10-01
 through dbimp's libSQL driver, which dburl names and usql imports, from dbimp
 v0.10.0. libSQL is the fork of SQLite by Turso, and sqld is the server that
 serves it over HTTP. sqld 0.24.33 runs SQLite 3.45.1. Every statement is the
@@ -4427,7 +4427,7 @@ the rest, and the tests run the same checks on it.
 
 ## InfluxDB 3
 
-`models/influxdb` answers 9 of the 65 on InfluxDB 3 Core, measured on
+`models/influxdb` answers 9 of the 66 on InfluxDB 3 Core, measured on
 2026-10-01 on 3.11.5 and on 2026-10-07 on 3.10.6, 3.11.6 and 3.12.0, through dbimp's influxdb driver, which is what dburl's
 influxdb scheme opens and what usql uses. InfluxDB 3 answers SQL with Apache
 DataFusion, and DataFusion keeps an information_schema, which the model
@@ -4517,7 +4517,7 @@ is no lesser principal, and InfluxDB is exempt from parity with that reason.
 
 ## Neo4j
 
-`models/neo4j` answers 17 of the 65 on 2026.09.0 and 13 on 5.26.31, measured
+`models/neo4j` answers 17 of the 66 on 2026.09.0 and 13 on 5.26.31, measured
 on 2026-10-01 through dbimp's neo4j driver, which is what dburl's neo4j scheme
 opens and what usql uses. Both releases are Tested. D162 holds the mapping
 and the reasons for it, for Ken to review.
@@ -4678,7 +4678,7 @@ Indexes reads `state`, `createStatement`, `indexProvider` and the `indexConfig` 
 
 ## YDB
 
-`models/ydb` answers 7 of the 65, measured on 2026-10-01 on 26.2.1.14 and
+`models/ydb` answers 7 of the 66, measured on 2026-10-01 on 26.2.1.14 and
 26.3.1.17 through ydb-go-sdk, which is the driver dburl names and usql uses.
 YQL has no information_schema, so the model reads the views in the directory
 `.sys` of the database, and nothing else. See D161.
@@ -4822,7 +4822,7 @@ Tables reads the owner from `.sys/auth_owners`, and the size and the rows from `
 
 ## ArangoDB
 
-`models/arangodb` answers 7 of the 65 on ArangoDB 3.12.12, measured on
+`models/arangodb` answers 7 of the 66 on ArangoDB 3.12.12, measured on
 2026-10-01 and 2026-10-02 through dbimp's arangodb driver, which is what
 dburl's arangodb scheme opens and what usql uses. ArangoDB is queried in AQL
 rather than SQL, and it has no relational catalog. D163 holds the mapping,
@@ -4973,7 +4973,7 @@ cannot access, so the reader gets fewer tables, columns and constraints.
 
 ## InfluxQL
 
-`models/influxql` answers 7 of the 65 on InfluxDB 1, measured on 2026-10-01
+`models/influxql` answers 7 of the 66 on InfluxDB 1, measured on 2026-10-01
 on 1.13.1 and 1.11.8 through dbimp's influxdb driver, which is what dburl's
 influxql scheme opens and what usql uses. InfluxDB 2.9.1 and 2.8.0 answer 4
 of the 7 through their v1 API, and so does the InfluxQL of InfluxDB 3 Core.
@@ -5094,7 +5094,7 @@ administrator, so the test skips it.
 
 ## SurrealDB
 
-`models/surrealdb` answers 18 of the 65 on 3.1.6, 3.2.4 and 3.3.0, and 1 on
+`models/surrealdb` answers 18 of the 66 on 3.1.6, 3.2.4 and 3.3.0, and 1 on
 2.7.0, measured on 2026-10-01 through dbimp's surrealdb driver at v0.10.0,
 which is what dburl's surrealdb scheme opens and what usql uses. 2.7.0 and
 3.3.0 are Tested, and 3.1.6 and 3.2.4 are Nightly. D164 holds the mapping
@@ -5260,7 +5260,7 @@ schema, which every principal reads. The sections `surrealdb/same/user`,
 
 ## Apache Druid
 
-`models/druid` answers 7 of the 65 on Apache Druid 37.0.0 and 38.0.0, measured
+`models/druid` answers 7 of the 66 on Apache Druid 37.0.0 and 38.0.0, measured
 on 2026-10-07 through dbimp's druid driver, which is what dburl's druid scheme
 opens. Both releases are Tested. Druid answers SQL on the Router with Apache
 Calcite, and Calcite keeps an INFORMATION_SCHEMA and Druid adds a sys schema.
@@ -5390,7 +5390,7 @@ Tables reads `IS_JOINABLE` and `IS_BROADCAST` as the options. The size and the r
 
 ## Apache Drill
 
-`models/drill` answers 10 of the 65 on Apache Drill 1.21.2 and 1.22.0,
+`models/drill` answers 10 of the 66 on Apache Drill 1.21.2 and 1.22.0,
 measured on 2026-10-08 through dbimp's drill driver, which is what dburl's
 drill scheme opens. Both releases are Tested. Drill answers SQL with Apache
 Calcite, and it has an INFORMATION_SCHEMA and a sys schema. D178 holds the
@@ -5512,7 +5512,7 @@ Tables reads `NUM_ROWS` as `Rows`, which is set only for a table that `ANALYZE T
 
 ## Elasticsearch
 
-`models/elasticsearch` answers 8 of the 65 on Elasticsearch 8.19.22, 9.4.6 and
+`models/elasticsearch` answers 8 of the 66 on Elasticsearch 8.19.22, 9.4.6 and
 9.5.3, measured on 2026-10-08 through dbimp's elasticsearch driver, which is
 what dburl's elasticsearch scheme opens. 8.19.22 and 9.5.3 are Tested and 9.4.6
 is Nightly. Elasticsearch answers SQL on `POST /_sql`. D177 holds the mapping
@@ -5633,7 +5633,7 @@ asserts it (D192). The sections
 principals.
 ## Apache Solr
 
-`models/solr` answers 4 of the 65 on Apache Solr 9.9.0, 9.10.1 and 10.0.0,
+`models/solr` answers 4 of the 66 on Apache Solr 9.9.0, 9.10.1 and 10.0.0,
 measured on 2026-10-08 through dbimp's solr driver, which is what dburl's solr
 scheme opens. 9.9.0 and 10.0.0 are Tested and 9.10.1 is Nightly. Solr answers
 SQL with Apache Calcite, at `POST /solr/{collection}/sql`, and the three
@@ -5749,7 +5749,7 @@ A reader with less than the role search was not measured.
 
 ## OpenSearch
 
-`models/opensearch` answers 3 of the 65 on OpenSearch 3.9.0, and 2 of the 3 on
+`models/opensearch` answers 3 of the 66 on OpenSearch 3.9.0, and 2 of the 3 on
 2.19.6, measured on 2026-10-08 through dbimp's opensearch driver, which is what
 dburl's opensearch scheme opens. Both releases are Tested. OpenSearch answers
 SQL on `POST /_plugins/_sql`. D181 holds the mapping and the reasons for it, for
@@ -5878,7 +5878,7 @@ again, and the position starts at 0 on both.
 
 ## GizmoSQL
 
-`models/gizmosql` answers 21 of the 65 on GizmoSQL 1.40.0 and 1.41.0, measured
+`models/gizmosql` answers 21 of the 66 on GizmoSQL 1.40.0 and 1.41.0, measured
 on 2026-10-08 through the Arrow Flight SQL driver in `arrow-go`, which dburl
 names for the scheme gizmosql. Both releases run DuckDB 1.5.6 and are Tested.
 GizmoSQL is a server for Arrow Flight SQL, and its engine is DuckDB, or SQLite
@@ -5965,7 +5965,7 @@ DuckDB, and answers the NotNulls kind. The tests run the same checks on it.
 
 ## Spanner
 
-`models/spanner` answers 22 of the 65, in the GoogleSQL dialect, measured on
+`models/spanner` answers 22 of the 66, in the GoogleSQL dialect, measured on
 2026-10-10 on Spanner Omni 2026.r4-lts and on Cloud Spanner. Omni runs with
 go-sql-spanner, which usql uses and which reaches gRPC. Cloud Spanner runs with
 `github.com/xo/dbimp/spanner`, which dburl v0.51.0 names, since D231. The two
@@ -6176,7 +6176,7 @@ of a stored index column and of a column grantee are counted with a join.
 
 ## BigQuery
 
-`models/bigquery` answers 18 of the 65, in the GoogleSQL dialect, measured on
+`models/bigquery` answers 18 of the 66, in the GoogleSQL dialect, measured on
 2026-10-10 on the hosted service, in the location US, with gorm.io/driver/bigquery
 v1.2.1. Schemas, CurrentSchema and Privileges were measured on 2026-10-11, after
 the principals gained `roles/bigquery.metadataViewer` on the project. The tests
@@ -6426,7 +6426,7 @@ was not built, because a table is a job and takes seconds.
 
 ## Amazon Athena
 
-`models/athena` answers 8 of the 65, in the Trino based dialect of Athena engine
+`models/athena` answers 8 of the 66, in the Trino based dialect of Athena engine
 version 3, measured on 2026-10-10 on the hosted service in us-east-1, with
 `github.com/uber/athenadriver` v1.1.15. The tests moved on 2026-10-11 to
 `github.com/xo/dbimp/athena` v0.17.0, which dburl v0.50.0 names, and the model lost
@@ -6577,7 +6577,7 @@ because a table is a job and takes seconds.
 
 ## Databricks
 
-`models/databricks` answers 17 of the 65, in the SQL of Databricks SQL on Unity
+`models/databricks` answers 17 of the 66, in the SQL of Databricks SQL on Unity
 Catalog, measured on 2026-10-11 on the hosted service, a serverless SQL
 warehouse of the free edition on AWS, with databricks-sql-go v1.16.0. The tests
 moved on 2026-10-11 to `github.com/xo/dbimp/databricks` v0.17.0, which dburl v0.50.0
@@ -6772,7 +6772,7 @@ not checked.
 
 ## Alibaba Cloud Tablestore
 
-`models/tablestore` answers 4 of the 65, through the SQL feature of Tablestore,
+`models/tablestore` answers 4 of the 66, through the SQL feature of Tablestore,
 measured on 2026-10-29 on the hosted service, an instance of type HYBRID in the region
 ap-southeast-5, with github.com/aliyun/aliyun-tablestore-go-sql-driver at
 v0.0.0-20220418015234-4d337cb3eed9, which dburl v0.53.0 named. The tests now use github.com/xo/dbimp/tablestore, which
@@ -6930,7 +6930,7 @@ product is `stardog`, `graphdb` or `voltdb`, or name its path in
 
 ## Apache Avatica
 
-`models/avatica` answers 24 of the 65 on the standalone Avatica server 1.28.0 and
+`models/avatica` answers 24 of the 66 on the standalone Avatica server 1.28.0 and
 1.29.0, measured on 2026-10-08 through dbimp's avatica driver, which is what
 dburl's avatica scheme opens. Both releases are Tested. Avatica is the wire
 protocol of Apache Calcite, and the standalone server runs HSQLDB 2.4.1 in
@@ -7041,7 +7041,7 @@ Tables reads the owner from `SCHEMATA`, which is the owner of the schema and is 
 
 ## Azure Cosmos DB
 
-`models/cosmos` answers 15 of the 65, with the API for NoSQL, measured on
+`models/cosmos` answers 15 of the 66, with the API for NoSQL, measured on
 2026-10-11 on the hosted account with the driver of dbimp, `github.com/xo/dbimp/cosmos`.
 That is the driver that dburl v0.50.0 names for the cosmos scheme, so D154 is met. D228
 built the model on v0.17.0 with 10 kinds. D233 adds five kinds from the five statements that
@@ -7290,7 +7290,7 @@ containers and users and with the pages of a feed, never with the number of docu
 
 ## Alibaba Cloud MaxCompute
 
-`models/maxcompute` answers 15 of the 65, in the SQL of MaxCompute, measured on
+`models/maxcompute` answers 15 of the 66, in the SQL of MaxCompute, measured on
 2026-10-29 on the hosted service, the project `dbmeta` in the region
 ap-southeast-5, with `github.com/aliyun/aliyun-odps-go-sdk/sqldriver` v0.4.26, which
 dburl v0.53.0 names for the maxcompute scheme and usql uses. The version of the SQL
