@@ -34,11 +34,18 @@ func hasName(name string, names []string) bool {
 // and the bytes in lower case hex, and \x alone for an empty value. It returns
 // false when the column is not binary in this dialect or the dialect records
 // nothing, so that a caller leaves the value alone. The caller does not call it
-// for a NULL, because it cannot tell one from an empty value. See D258.
+// for a NULL, because it cannot tell one from an empty value. The one
+// exception is a value of 16 bytes in a column that the model says is a GUID,
+// which is written as a lower case UUID with dashes, in the order of the
+// bytes. See D258 and D263.
 func (d Dialect) FormatBinary(ct *sql.ColumnType, b []byte) (string, bool) {
 	info, ok := d.Info()
 	if !ok || info.IsBinary == nil || !info.IsBinary(ct) {
 		return "", false
+	}
+	if len(b) == 16 && info.IsGUID != nil && info.IsGUID(ct) {
+		h := hex.EncodeToString(b)
+		return h[:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:], true
 	}
 	return `\x` + hex.EncodeToString(b), true
 }

@@ -128,12 +128,12 @@ var binaryProbes = map[dbmeta.Dialect]binaryProbe{
 	},
 	dbmeta.Oracle: {
 		setup: []string{
-			"CREATE TABLE dbm_bin (r raw(8), l long raw, b blob, c clob, v varchar2(8), n number)",
-			"INSERT INTO dbm_bin VALUES (hextoraw('151C2F00FFAB'), hextoraw('151C2F00FFAB'), to_blob(hextoraw('151C2F00FFAB')), 'abc', 'abc', 1)",
+			"CREATE TABLE dbm_bin (r raw(8), l long raw, b blob, c clob, v varchar2(8), n number, g raw(16))",
+			"INSERT INTO dbm_bin VALUES (hextoraw('151C2F00FFAB'), hextoraw('151C2F00FFAB'), to_blob(hextoraw('151C2F00FFAB')), 'abc', 'abc', 1, hextoraw('5F6CE3362B560FBDE0630501A8C0AF0E'))",
 		},
-		query:   "SELECT r, l, b, c, v, n FROM dbm_bin",
+		query:   "SELECT r, l, b, c, v, n, g FROM dbm_bin",
 		cleanup: []string{"DROP TABLE dbm_bin PURGE"},
-		cols:    []binaryColumn{{"raw", true}, {"long raw", true}, {"blob", true}, {"clob", false}, {"varchar2", false}, {"number", false}},
+		cols:    []binaryColumn{{"raw", true}, {"long raw", true}, {"blob", true}, {"clob", false}, {"varchar2", false}, {"number", false}, {"raw16", true}},
 	},
 }
 
@@ -231,8 +231,14 @@ func measureBinary(t *testing.T, tg alignTarget, probe binaryProbe, driver, dsn 
 			t.Errorf("%s: the driver reports %q, and the model does not format it", c.name, ct.DatabaseTypeName())
 			continue
 		}
-		if want := `\x` + hex.EncodeToString(b); got != want {
-			t.Errorf("%s: got %s, and psql shows bytea as %s", c.name, got, want)
+		want := `\x` + hex.EncodeToString(b)
+		if c.name == "raw16" {
+			// An Oracle RAW(16) is a GUID and prints as a UUID (D263).
+			h := hex.EncodeToString(b)
+			want = h[:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:]
+		}
+		if got != want {
+			t.Errorf("%s: got %s, and the expected form is %s", c.name, got, want)
 		}
 	}
 }

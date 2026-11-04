@@ -3,6 +3,7 @@ package oracle
 import (
 	"database/sql"
 	"reflect"
+	"strings"
 
 	"github.com/xo/dbmeta"
 )
@@ -48,4 +49,12 @@ func isBinary(ct *sql.ColumnType) bool {
 	}
 	t := ct.ScanType()
 	return t != nil && t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8
+}
+
+// isGUID says that a column is a RAW(16), where Oracle keeps a GUID such as
+// SYS_GUID() returns. The driver must report the length, and a driver that
+// reports none leaves the value in the form of D258 (D263).
+func isGUID(ct *sql.ColumnType) bool {
+	n, ok := ct.Length()
+	return ok && n == 16 && strings.EqualFold(ct.DatabaseTypeName(), "RAW")
 }

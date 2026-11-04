@@ -1,6 +1,6 @@
 # D258. A binary value prints as psql prints bytea
 
-Status: Amends D143.
+Status: Amends D143, amended by D263.
 
 usql printed a binary column with Go escapes, such as `\x15\x1C/\x00`. usql
 first asked for the form of the own client of each product. Ken decided on
@@ -53,7 +53,7 @@ Some details of what was seen:
   treats a column that scans into bytes as binary when the name is empty. That
   case was not run against go-ora, which the tests no longer use (D253).
 - An Oracle RAW(16) key prints as `\x` and 32 lower case hex digits, the same
-  as a bytea.
+  as a bytea. D263 changes that to a UUID.
 - The hdb driver scans a varchar into bytes. The name decides.
 
 ## The forms of the clients

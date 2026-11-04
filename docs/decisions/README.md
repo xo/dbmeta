@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-116 of them amend or replace an earlier one, and a decision read without its
+117 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -276,8 +276,9 @@ file.
 | [D255](D255-the-oracle-tables-statement-keeps-its-join-out-of-all-tables.md) | The Oracle tables statement keeps its join out of all_tables | Amends D253 |
 | [D256](D256-the-northwind-fixture-is-on-oracle-too.md) | The northwind fixture is on Oracle too | Amends D254, amended by D257 and D259 |
 | [D257](D257-the-northwind-values-agree-on-the-three-servers.md) | The northwind values agree on the three servers | Amends D254 and D256, amended by D259 |
-| [D258](D258-a-binary-value-prints-as-psql-prints-bytea.md) | A binary value prints as psql prints bytea | Amends D143 |
+| [D258](D258-a-binary-value-prints-as-psql-prints-bytea.md) | A binary value prints as psql prints bytea | Amends D143, amended by D263 |
 | [D259](D259-usql-applies-the-fixtures-and-the-northwind-fixture-is-on-five-more-products.md) | usql applies the fixtures, and the northwind fixture is on five more products | Amends D254, D256 and D257 |
 | [D260](D260-the-movies-fixture-is-a-graph-on-neo4j.md) | The movies fixture is a graph on Neo4j | Decided |
 | [D261](D261-cypher-and-aql-have-no-dash-comments.md) | Cypher and AQL have no comment that starts with two dashes | Amends D143 |
 | [D262](D262-the-postgresql-model-gives-usql-what-psql-describe-needs.md) | The PostgreSQL model gives usql what psql describe needs | Amends D47 and D201 |
+| [D263](D263-an-oracle-raw16-prints-as-a-uuid.md) | An Oracle RAW(16) prints as a UUID | Amends D258 |

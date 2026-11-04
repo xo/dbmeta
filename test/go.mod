@@ -16,11 +16,11 @@ require (
 	github.com/nakagami/firebirdsql v0.9.23
 	github.com/sclgo/impala-go v1.9.0
 	github.com/vertica/vertica-sql-go v1.3.9
-	github.com/xo/cassandra v0.2.1
-	github.com/xo/dbimp v0.24.0
+	github.com/xo/cassandra v0.2.2
+	github.com/xo/dbimp v0.24.3
 	github.com/xo/dbmeta v0.24.0
 	github.com/xo/dburl v0.55.0
-	github.com/xo/oracle v0.1.1
+	github.com/xo/oracle v0.3.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.155.1
 	google.golang.org/grpc v1.85.0
 	modernc.org/sqlite v1.61.1

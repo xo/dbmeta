@@ -85,6 +85,8 @@ func init() {
 		// SQL*Plus prints RAW, LONG RAW and BLOB as upper case hex with no
 		// prefix (D258).
 		IsBinary: isBinary,
+		// A RAW(16) is a GUID and prints as a UUID (D263).
+		IsGUID: isGUID,
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax:         dbmeta.Syntax{DashComments: true, BlockComments: true, BeginEndBlocks: true, AnonymousBlocks: true},
