@@ -758,48 +758,48 @@ func registerComments() {
 			{{Query: `, d.description AS "comment"`}},
 			{{Query: `, x.visible AS "visible"`}},
 			{{Query: `FROM (`}},
-			{{Query: `SELECT c.oid AS oid, c.tableoid AS tableoid, n.nspname AS nspname, c.relname::text AS name,` +
+			{{Query: `SELECT c.oid AS oid, 'pg_catalog.pg_class'::regclass::oid AS tableoid, n.nspname AS nspname, c.relname::text AS name,` +
 				` CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'table'` +
 				` WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view'` +
 				` WHEN 'S' THEN 'sequence' WHEN 'i' THEN 'index' WHEN 'f' THEN 'foreign table'` +
 				` ELSE c.relkind::text END AS object,` +
 				` pg_catalog.pg_table_is_visible(c.oid) AS visible` +
 				` FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
-			{{Query: `UNION ALL SELECT pgc.oid, pgc.tableoid, n.nspname, pgc.conname::text, 'table constraint'::text,` +
+			{{Query: `UNION ALL SELECT pgc.oid, 'pg_catalog.pg_constraint'::regclass::oid, n.nspname, pgc.conname::text, 'table constraint'::text,` +
 				` pg_catalog.pg_table_is_visible(c.oid)` +
 				` FROM pg_catalog.pg_constraint pgc JOIN pg_catalog.pg_class c ON c.oid = pgc.conrelid` +
 				` LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
-			{{Query: `UNION ALL SELECT pgc.oid, pgc.tableoid, n.nspname, pgc.conname::text, 'domain constraint'::text,` +
+			{{Query: `UNION ALL SELECT pgc.oid, 'pg_catalog.pg_constraint'::regclass::oid, n.nspname, pgc.conname::text, 'domain constraint'::text,` +
 				` pg_catalog.pg_type_is_visible(t.oid)` +
 				` FROM pg_catalog.pg_constraint pgc JOIN pg_catalog.pg_type t ON t.oid = pgc.contypid` +
 				` LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
 			// CockroachDB has no pg_opclass_is_visible and no pg_opfamily_is_visible,
 			// so the visibility of an operator class and of a family is unknown
 			{
-				{Query: `UNION ALL SELECT o.oid, o.tableoid, n.nspname, o.opcname::text, 'operator class'::text,` +
+				{Query: `UNION ALL SELECT o.oid, 'pg_catalog.pg_opclass'::regclass::oid, n.nspname, o.opcname::text, 'operator class'::text,` +
 					` pg_catalog.pg_opclass_is_visible(o.oid)` +
 					` FROM pg_catalog.pg_opclass o JOIN pg_catalog.pg_am am ON o.opcmethod = am.oid` +
 					` JOIN pg_catalog.pg_namespace n ON n.oid = o.opcnamespace`},
-				{Key: "cockroachdb", Query: `UNION ALL SELECT o.oid, o.tableoid, n.nspname, o.opcname::text, 'operator class'::text,` +
+				{Key: "cockroachdb", Query: `UNION ALL SELECT o.oid, 'pg_catalog.pg_opclass'::regclass::oid, n.nspname, o.opcname::text, 'operator class'::text,` +
 					` NULL::boolean` +
 					` FROM pg_catalog.pg_opclass o JOIN pg_catalog.pg_am am ON o.opcmethod = am.oid` +
 					` JOIN pg_catalog.pg_namespace n ON n.oid = o.opcnamespace`},
 			},
 			{
-				{Query: `UNION ALL SELECT opf.oid, opf.tableoid, n.nspname, opf.opfname::text, 'operator family'::text,` +
+				{Query: `UNION ALL SELECT opf.oid, 'pg_catalog.pg_opfamily'::regclass::oid, n.nspname, opf.opfname::text, 'operator family'::text,` +
 					` pg_catalog.pg_opfamily_is_visible(opf.oid)` +
 					` FROM pg_catalog.pg_opfamily opf JOIN pg_catalog.pg_am am ON opf.opfmethod = am.oid` +
 					` JOIN pg_catalog.pg_namespace n ON n.oid = opf.opfnamespace`},
-				{Key: "cockroachdb", Query: `UNION ALL SELECT opf.oid, opf.tableoid, n.nspname, opf.opfname::text, 'operator family'::text,` +
+				{Key: "cockroachdb", Query: `UNION ALL SELECT opf.oid, 'pg_catalog.pg_opfamily'::regclass::oid, n.nspname, opf.opfname::text, 'operator family'::text,` +
 					` NULL::boolean` +
 					` FROM pg_catalog.pg_opfamily opf JOIN pg_catalog.pg_am am ON opf.opfmethod = am.oid` +
 					` JOIN pg_catalog.pg_namespace n ON n.oid = opf.opfnamespace`},
 			},
-			{{Query: `UNION ALL SELECT r.oid, r.tableoid, n.nspname, r.rulename::text, 'rule'::text,` +
+			{{Query: `UNION ALL SELECT r.oid, 'pg_catalog.pg_rewrite'::regclass::oid, n.nspname, r.rulename::text, 'rule'::text,` +
 				` pg_catalog.pg_table_is_visible(c.oid)` +
 				` FROM pg_catalog.pg_rewrite r JOIN pg_catalog.pg_class c ON c.oid = r.ev_class` +
 				` LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE r.rulename <> '_RETURN'`}},
-			{{Query: `UNION ALL SELECT t.oid, t.tableoid, n.nspname, t.tgname::text, 'trigger'::text,` +
+			{{Query: `UNION ALL SELECT t.oid, 'pg_catalog.pg_trigger'::regclass::oid, n.nspname, t.tgname::text, 'trigger'::text,` +
 				` pg_catalog.pg_table_is_visible(c.oid)` +
 				` FROM pg_catalog.pg_trigger t JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid` +
 				` LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},

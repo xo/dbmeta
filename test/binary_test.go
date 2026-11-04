@@ -108,7 +108,7 @@ var binaryProbes = map[dbmeta.Dialect]binaryProbe{
 		setup: []string{
 			"CREATE LOCAL TEMPORARY TABLE dbm_bin (b binary(8), vb varbinary(8), lv long varbinary(100), t varchar(8), i int) ON COMMIT PRESERVE ROWS",
 			"INSERT INTO dbm_bin (b, t, i) VALUES (HEX_TO_BINARY('151C2F00FFAB'), 'abc', 1)",
-			"UPDATE dbm_bin SET vb = b, lv = b",
+			"UPDATE dbm_bin SET vb = b, lv = 'abc'::long varbinary",
 		},
 		query: "SELECT b, vb, lv, t, i FROM dbm_bin",
 		cols:  []binaryColumn{{"binary", true}, {"varbinary", true}, {"long varbinary", true}, {"varchar", false}, {"int", false}},

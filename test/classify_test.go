@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/xo/dbmeta"
@@ -82,7 +84,8 @@ var classifyProbes = []classifyProbe{
 	},
 	{
 		dialect: dbmeta.MySQL, env: "DBMETA_MYSQL", drivers: []string{"mysql"},
-		setup: []string{"CREATE TEMPORARY TABLE dbm_cls (a integer)"},
+		setup:   []string{"CREATE DATABASE IF NOT EXISTS dbm_cls_db", "USE dbm_cls_db", "CREATE TEMPORARY TABLE dbm_cls (a integer)"},
+		cleanup: []string{"DROP DATABASE IF EXISTS dbm_cls_db"},
 		// MariaDB has no RETURNING on UPDATE, so that case is not here.
 		stmts: []string{
 			"INSERT INTO dbm_cls (a) VALUES (1) RETURNING a",
@@ -185,7 +188,12 @@ func measureClassify(t *testing.T, p classifyProbe, driver, dsn string) {
 			t.Fatalf("making the probe table: %v\n%s", err, q)
 		}
 	}
+	skip := classifySkipper(ctx, t, p.dialect, conn)
 	for _, q := range p.stmts {
+		if reason := skip(q); reason != "" {
+			t.Logf("%s: skipped, %s", q, reason)
+			continue
+		}
 		rows, err := conn.QueryContext(ctx, q)
 		if err != nil {
 			t.Errorf("%s: the server refused it: %v", q, err)
@@ -215,4 +223,43 @@ func readColumns(rows *sql.Rows) ([]string, error) {
 	for rows.Next() {
 	}
 	return cols, rows.Err()
+}
+
+// classifySkipper returns a function that says why a server is too old for a
+// statement, or an empty string. PostgreSQL has MERGE from 15 and RETURNING on
+// it from 17, and only MariaDB has RETURNING in the MySQL family.
+func classifySkipper(ctx context.Context, t *testing.T, d dbmeta.Dialect, conn *sql.Conn) func(string) string {
+	t.Helper()
+	var text string
+	switch d {
+	case dbmeta.PostgreSQL:
+		if err := conn.QueryRowContext(ctx, "SHOW server_version_num").Scan(&text); err != nil {
+			t.Fatalf("reading the version: %v", err)
+		}
+		n, err := strconv.Atoi(text)
+		if err != nil {
+			t.Fatalf("reading the version %q: %v", text, err)
+		}
+		return func(q string) string {
+			switch {
+			case strings.HasPrefix(q, "MERGE") && strings.Contains(q, "RETURNING") && n < 170000:
+				return "PostgreSQL has no RETURNING on MERGE before 17"
+			case strings.HasPrefix(q, "MERGE") && n < 150000:
+				return "PostgreSQL has no MERGE before 15"
+			}
+			return ""
+		}
+	case dbmeta.MySQL:
+		if err := conn.QueryRowContext(ctx, "SELECT VERSION()").Scan(&text); err != nil {
+			t.Fatalf("reading the version: %v", err)
+		}
+		maria := strings.Contains(text, "MariaDB")
+		return func(q string) string {
+			if !maria && strings.Contains(q, "RETURNING") {
+				return "only MariaDB has RETURNING"
+			}
+			return ""
+		}
+	}
+	return func(string) string { return "" }
 }

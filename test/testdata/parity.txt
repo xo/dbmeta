@@ -290,6 +290,7 @@ user_mappings refused: Error 1142 (42000): SELECT command denied to user 'dbmeta
 current_user the same rows with different values
 
 [memsql/same/grantee]
+current_database the same rows with different values
 current_schema more rows than the administrator
 current_user the same rows with different values
 privileges fewer rows than the administrator
@@ -298,6 +299,7 @@ roles fewer rows than the administrator
 
 [memsql/same/reader]
 aggregates fewer rows than the administrator
+current_database the same rows with different values
 current_schema more rows than the administrator
 current_user the same rows with different values
 functions fewer rows than the administrator
@@ -614,6 +616,7 @@ roles refused: surrealdb: NotAllowed: IAM error: Not enough permissions to perfo
 schemas refused: surrealdb: NotAllowed: IAM error: Not enough permissions to perform this action
 
 [tidb/same/grantee]
+current_database the same rows with different values
 current_schema the same rows with different values
 current_user the same rows with different values
 databases fewer rows than the administrator
@@ -623,6 +626,7 @@ schemas fewer rows than the administrator
 settings the same rows with different values
 
 [tidb/same/reader]
+current_database the same rows with different values
 current_schema the same rows with different values
 current_user the same rows with different values
 databases fewer rows than the administrator
@@ -632,6 +636,7 @@ schemas fewer rows than the administrator
 settings the same rows with different values
 
 [tidb@8.5/same/grantee]
+current_database the same rows with different values
 current_schema the same rows with different values
 current_user the same rows with different values
 databases fewer rows than the administrator
@@ -642,6 +647,7 @@ schemas fewer rows than the administrator
 settings the same rows with different values
 
 [tidb@8.5/same/reader]
+current_database the same rows with different values
 current_schema the same rows with different values
 current_user the same rows with different values
 databases fewer rows than the administrator
