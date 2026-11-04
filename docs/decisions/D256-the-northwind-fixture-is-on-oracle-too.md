@@ -1,6 +1,6 @@
 # D256. The northwind fixture is on Oracle too
 
-Status: Amends D254.
+Status: Amends D254, amended by D257.
 
 D254 made `dbrun fixture northwind` for PostgreSQL and SQL Server only. Ken
 decided on 2026-11-04 to add Oracle, because Oracle is the most like those two

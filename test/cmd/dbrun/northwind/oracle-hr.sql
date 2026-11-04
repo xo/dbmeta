@@ -47,8 +47,8 @@ create table staff (
   salary number(19, 4),
   rating binary_float,
   photo blob,
-  started_on date,
-  ended_on date,
+  started timestamp(0),
+  ended timestamp(0),
   notes clob
 )
 /
@@ -167,31 +167,31 @@ insert into departments (code, name, budget, head_count, is_active, tags, settin
 insert into departments (code, name, budget, head_count, is_active, tags, settings, office, network, opened_on, review_every) values
   ('MKTG', 'Marketing — 市場', 780000.00, 1, 1, tag_list('brand', 'social media'), '{"channels": {"tv": 2, "web": 9}}', postal_address('4 Rue Lepic', 'Paris', '75018', 'France'), '10.4.0.0/16', date '1996-09-30', interval '0-2' year to month)
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (1, 1, 'nancy.davolio@northwind.test', 'active', 62000, 4.5, date '1992-05-01', null, 'Top seller of 1997.')
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (2, 1, 'andrew.fuller@northwind.test', 'active', 98000, 4.9, date '1992-08-14', null, null)
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (3, 1, 'janet.leverling@northwind.test', 'on_leave', 59000, 4.1, date '1992-04-01', null, 'Line one.' || chr(10) || 'Line two.')
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (4, 1, 'margaret.peacock@northwind.test', 'active', 61000, null, date '1993-05-03', null, null)
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (5, 2, 'steven.buchanan@northwind.test', 'active', 105000, 3.8, date '1993-10-17', null, 'Leads the UK office.')
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (6, 2, 'michael.suyama@northwind.test', 'contractor', null, 3.2, date '1993-10-17', date '1999-01-01', null)
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (7, 2, 'robert.king@northwind.test', 'active', 88000, 4.0, date '1994-01-02', null, null)
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (8, 3, 'laura.callahan@northwind.test', 'active', 54000, 4.4, date '1994-03-05', null, 'Inside sales coordinator.')
 /
-insert into staff (employee_id, department_id, email, status, salary, rating, started_on, ended_on, notes) values
+insert into staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
   (9, 5, 'anne.dodsworth@northwind.test', 'retired', 0, 5.0, date '1994-11-15', date '2020-06-30', 'Ünïcödé, émojis 🎉 and a long note that goes on to be wider than most terminals are, so that the wrapped and aligned formats have something to wrap.')
 /
 update departments set budget = budget * 1.05 where code = 'SALE'

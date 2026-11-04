@@ -157,6 +157,11 @@ linters:
       - path: cosmos_test.go
         linters:
           - unqueryvet
+      # The northwind test compares every column of every table, so it reads the
+      # list *.
+      - path: northwind_test.go
+        linters:
+          - unqueryvet
       # A command prints. That is what it is for.
       - path: cmd/
         linters:

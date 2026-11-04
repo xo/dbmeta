@@ -86,7 +86,15 @@ def table(s):
 def view(s):
     s = names(s)
     s = re.sub(r"convert\(money,", "cast(", s)
-    s = re.sub(r"cast\(\((.*?)\)\)\*100", r"cast((\1) as money)*100", s)
+    # The T-SQL script divides by 100 and multiplies by 100 to round a price to
+    # cents. A money value of PostgreSQL has cents only, so the division loses
+    # the rest, and the product of a price, a quantity and a discount is already
+    # money rounded to cents.
+    # SQL Server subtracts the discount in single precision, and PostgreSQL
+    # would do it in double precision, so the cast brings the result back to a
+    # real, which gives the same cents.
+    s = re.sub(r"cast\(\((.*?)/100\)\)\*100", r"(\1)", s)
+    s = s.replace("*(1-discount)", "*((1-discount)::real)")
     s = s.replace("(first_name + ' ' + last_name)", "(first_name || ' ' || last_name)")
     # money has no avg, and compares only with money
     s = s.replace("avg(unit_price)", "avg(unit_price::numeric)::money")

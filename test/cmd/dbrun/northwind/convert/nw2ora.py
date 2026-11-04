@@ -148,8 +148,15 @@ def insert(s):
 
 def view(s):
     s = strip_comments(s)
-    s = re.sub(r"cast\((\(.*?\)) as money\)\*100", r"round(\1*100, 4)", s)
-    s = re.sub(r"\(\(([^()]*?)\)\s+as money\)\*100", r"\1", s)
+    # A price times a quantity times a discount is money in the PostgreSQL file.
+    # In SQL Server the discount is a float, so the product is a float that
+    # rounds to cents. Oracle multiplies a number and a BINARY_FLOAT in single
+    # precision, so the subtraction stays in single precision, as in SQL Server,
+    # and the product is a double that becomes a number.
+    s = s.replace(
+        "order_details.unit_price*quantity*((1-discount)::real)",
+        "round(cast(order_details.unit_price*quantity*to_binary_double(1-discount) as number), 2)",
+    )
     s = s.replace("2500::money", "2500")
     s = re.sub(r"'(\d{4})(\d{2})(\d{2})'", r"date '\1-\2-\3'", s)
     s = re.sub(r"avg\(unit_price::numeric\)::money", "avg(unit_price)", s)

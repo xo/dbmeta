@@ -201,7 +201,7 @@ create view invoices as
     orders.order_id, orders.order_date, orders.required_date, orders.shipped_date, shippers.company_name as shipper_name,
     order_details.product_id, products.product_name, order_details.unit_price, order_details.quantity,
     order_details.discount,
-    (round((order_details.unit_price*quantity*(1-discount)/100)*100, 4)) as extended_price, orders.freight
+    ((round(cast(order_details.unit_price*quantity*to_binary_double(1-discount) as number), 2))) as extended_price, orders.freight
   from 	shippers inner join
       (products inner join
         (
@@ -215,17 +215,17 @@ create view invoices as
 create view order_details_extended as
   select order_details.order_id, order_details.product_id, products.product_name,
     order_details.unit_price, order_details.quantity, order_details.discount,
-    (round((order_details.unit_price*quantity*(1-discount)/100)*100, 4)) as extended_price
+    ((round(cast(order_details.unit_price*quantity*to_binary_double(1-discount) as number), 2))) as extended_price
   from products inner join order_details on products.product_id = order_details.product_id
 /
 create view order_subtotals as
-  select order_details.order_id, sum(round((order_details.unit_price*quantity*(1-discount)/100)*100, 4)) as subtotal
+  select order_details.order_id, sum((round(cast(order_details.unit_price*quantity*to_binary_double(1-discount) as number), 2))) as subtotal
   from order_details
   group by order_details.order_id
 /
 create view product_sales_for_1997 as
   select categories.category_name, products.product_name,
-  sum(round((order_details.unit_price*quantity*(1-discount)/100)*100, 4)) as product_sales
+  sum((round(cast(order_details.unit_price*quantity*to_binary_double(1-discount) as number), 2))) as product_sales
   from (categories inner join products on categories.category_id = products.category_id)
     inner join (orders
       inner join order_details on orders.order_id = order_details.order_id)

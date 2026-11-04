@@ -45,7 +45,8 @@ create table hr.staff (
   salary money,
   rating real,
   photo bytea,
-  started tstzrange,
+  started timestamp(0),
+  ended timestamp(0),
   notes text
 );
 create index staff_department_idx on hr.staff (department_id, status);
@@ -126,15 +127,15 @@ insert into hr.departments (code, name, budget, head_count, is_active, tags, set
   ('RSCH', 'Research', 0, 0, false, '{closed}', '{"closed": "2001-12-31"}', null, null, '1995-06-01', null),
   ('MKTG', 'Marketing — 市場', 780000.00, 1, true, '{brand,"social media"}', '{"channels": {"tv": 2, "web": 9}}', row('4 Rue Lepic', 'Paris', '75018', 'France'), '10.4.0.0/16', '1996-09-30', '2 mons 15 days');
 
-insert into hr.staff (employee_id, department_id, email, status, salary, rating, started, notes) values
-  (1, 1, 'nancy.davolio@northwind.test', 'active', 62000, 4.5, '[1992-05-01,)', 'Top seller of 1997.'),
-  (2, 1, 'andrew.fuller@northwind.test', 'active', 98000, 4.9, '[1992-08-14,)', null),
-  (3, 1, 'janet.leverling@northwind.test', 'on_leave', 59000, 4.1, '[1992-04-01,)', e'Line one.\nLine two.'),
-  (4, 1, 'margaret.peacock@northwind.test', 'active', 61000, null, '[1993-05-03,)', null),
-  (5, 2, 'steven.buchanan@northwind.test', 'active', 105000, 3.8, '[1993-10-17,)', 'Leads the UK office.'),
-  (6, 2, 'michael.suyama@northwind.test', 'contractor', null, 3.2, '[1993-10-17,1999-01-01)', null),
-  (7, 2, 'robert.king@northwind.test', 'active', 88000, 4.0, '[1994-01-02,)', null),
-  (8, 3, 'laura.callahan@northwind.test', 'active', 54000, 4.4, '[1994-03-05,)', 'Inside sales coordinator.'),
-  (9, 5, 'anne.dodsworth@northwind.test', 'retired', 0, 5.0, '[1994-11-15,2020-06-30)', 'Ünïcödé, émojis 🎉 and a long note that goes on to be wider than most terminals are, so that the wrapped and aligned formats have something to wrap.');
+insert into hr.staff (employee_id, department_id, email, status, salary, rating, started, ended, notes) values
+  (1, 1, 'nancy.davolio@northwind.test', 'active', 62000, 4.5, '1992-05-01', null, 'Top seller of 1997.'),
+  (2, 1, 'andrew.fuller@northwind.test', 'active', 98000, 4.9, '1992-08-14', null, null),
+  (3, 1, 'janet.leverling@northwind.test', 'on_leave', 59000, 4.1, '1992-04-01', null, e'Line one.\nLine two.'),
+  (4, 1, 'margaret.peacock@northwind.test', 'active', 61000, null, '1993-05-03', null, null),
+  (5, 2, 'steven.buchanan@northwind.test', 'active', 105000, 3.8, '1993-10-17', null, 'Leads the UK office.'),
+  (6, 2, 'michael.suyama@northwind.test', 'contractor', null, 3.2, '1993-10-17', '1999-01-01', null),
+  (7, 2, 'robert.king@northwind.test', 'active', 88000, 4.0, '1994-01-02', null, null),
+  (8, 3, 'laura.callahan@northwind.test', 'active', 54000, 4.4, '1994-03-05', null, 'Inside sales coordinator.'),
+  (9, 5, 'anne.dodsworth@northwind.test', 'retired', 0, 5.0, '1994-11-15', '2020-06-30', 'Ünïcödé, émojis 🎉 and a long note that goes on to be wider than most terminals are, so that the wrapped and aligned formats have something to wrap.');
 
 update hr.departments set budget = budget * 1.05 where code = 'SALE';
