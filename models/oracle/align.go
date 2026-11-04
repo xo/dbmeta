@@ -51,10 +51,12 @@ func isBinary(ct *sql.ColumnType) bool {
 	return t != nil && t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8
 }
 
-// isGUID says that a column is a RAW(16), where Oracle keeps a GUID such as
-// SYS_GUID() returns. The driver must report the length, and a driver that
-// reports none leaves the value in the form of D258 (D263).
+// isGUID says that a column is a RAW(16) with "id" in its name, in any case,
+// where Oracle keeps a GUID such as SYS_GUID() returns. The driver must report
+// the length, and a driver that reports none leaves the value in the form of
+// D258 (D263).
 func isGUID(ct *sql.ColumnType) bool {
 	n, ok := ct.Length()
-	return ok && n == 16 && strings.EqualFold(ct.DatabaseTypeName(), "RAW")
+	return ok && n == 16 && strings.EqualFold(ct.DatabaseTypeName(), "RAW") &&
+		strings.Contains(strings.ToLower(ct.Name()), "id")
 }

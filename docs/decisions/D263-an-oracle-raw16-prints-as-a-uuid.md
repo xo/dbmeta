@@ -21,6 +21,8 @@ The Oracle model sets `IsGUID` for a column with these properties:
 
 - The type name is RAW.
 - The driver reports a length of 16, from `ColumnType.Length`.
+- The name of the column has `id` in it, in any case, such as `staff_id`, `ID`
+  or `guid`.
 
 The rules for the value:
 
@@ -31,8 +33,10 @@ The rules for the value:
   hex. A RAW of any other length keeps `\x` and hex.
 - A value of another length in a RAW(16) column, which Oracle allows, keeps
   `\x` and hex.
-- A RAW(16) that is not a GUID, such as an MD5 hash, also prints as a UUID. Ken
-  accepts that, because the hex digits are the same.
+- A RAW(16) column with no `id` in its name keeps `\x` and hex. Ken added the
+  name test on 2026-11-04 so that a RAW(16) that is not a GUID, such as an MD5
+  hash, is not shown as one. A hash in a column with `id` in its name still
+  prints as a UUID.
 
 ## Driver
 
