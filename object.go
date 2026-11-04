@@ -333,9 +333,13 @@ type Setting struct {
 	Display sql.Null[string]
 	// Source says where the value came from, such as default, configuration
 	// file, environment variable or override, as pg_settings.source says it.
-	// psql's \dconfig lists only the settings whose source is not default or
-	// override when it has no pattern. See D262.
+	// See D262.
 	Source sql.Null[string]
+	// Boot is the value the server starts with when nothing sets it, as
+	// pg_settings.boot_val says it, and it is written the way Value is. psql's
+	// \dconfig with no pattern lists the settings whose source is not default
+	// and whose Value is not their Boot. See D262.
+	Boot sql.Null[string]
 }
 
 // Queries for the objects above.

@@ -132,6 +132,9 @@ func describeFactsForUsql(t *testing.T, db *sql.DB, m *dbmeta.Meta) {
 		if !s.Source.Valid {
 			t.Errorf("the setting %s has no source", s.Name)
 		}
+		if s.Name == "DateStyle" && (!s.Boot.Valid || s.Boot.V != "ISO, MDY") {
+			t.Errorf("the boot value of DateStyle is %+v, and the expected value is ISO, MDY", s.Boot)
+		}
 	}
 	if !slices.Contains(names, "DateStyle") {
 		t.Errorf("the settings that match %%style%% are %v, and the expected list has DateStyle", names)

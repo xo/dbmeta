@@ -21,9 +21,13 @@ here is a fact and none is the text of psql.
 2. `Comments` returns the comments on table constraints, domain constraints,
    operator classes, operator families, rules and triggers, as psql lists with
    `\dd`, and keeps the relations. The `Type` column says which kind a row is.
-3. `Setting.Source` is `pg_settings.source`. `\dconfig` with no pattern lists
-   the settings whose source is not `default` or `override`. The name of a
-   setting is matched without case, as psql does.
+3. `Setting.Source` is `pg_settings.source` and `Setting.Boot` is
+   `pg_settings.boot_val`. `\dconfig` with no pattern lists the settings whose
+   source is not `default` and whose value is not their boot value, so a setting
+   that the configuration file sets to its boot value is not listed. An earlier
+   version of this decision said that psql also leaves out the source
+   `override`, and it does not. The name of a setting is matched without case,
+   as psql does.
 4. `Languages` and `RoleGrants` take `with_system`. Without it, and with no
    name, `Languages` leaves out the languages that have no call handler and
    `RoleGrants` leaves out the memberships of the roles named `pg_...`. The

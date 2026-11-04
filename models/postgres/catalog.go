@@ -348,6 +348,7 @@ func registerSettings() {
 			// \dconfig prints it.
 			{{Query: `, pg_catalog.current_setting(s.name) AS "display"`}},
 			{{Query: `, s.source AS "source"`}},
+			{{Query: `, s.boot_val AS "boot"`}},
 			{{Query: `FROM pg_catalog.pg_settings s`}},
 			{
 				{Query: ``},
@@ -363,11 +364,12 @@ func registerSettings() {
 			{Name: "access", Desc: "grants on the parameter", Min: v15},
 			{Name: "display", Desc: "value with its unit, as the server shows it"},
 			{Name: "source", Desc: "where the value came from, such as default or configuration file"},
+			{Name: "boot", Desc: "the value the server starts with when nothing sets it, written as value is"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "parameter name pattern, empty for every parameter", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display, &v.Source)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display, &v.Source, &v.Boot)
 			return v, err
 		},
 	})
