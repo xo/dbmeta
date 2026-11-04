@@ -252,6 +252,7 @@ func (p Profile) systemSchemas() string {
 // supported rather than returning an empty result.
 func Register(d dbmeta.Dialect, p Profile) {
 	dbmeta.RegisterDialect(d, &dbmeta.Info{
+		Syntax:         dbmeta.Syntax{DashComments: true},
 		Placeholder:    p.Placeholder,
 		VersionQuery:   p.VersionQuery,
 		VersionColumns: p.VersionColumns,

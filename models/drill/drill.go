@@ -89,7 +89,7 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("INT", "BIGINT", "FLOAT4", "FLOAT8", "VARDECIMAL"),
 		// Drill has block comments and names in backticks. It refuses a
 		// semicolon at the end of a statement, so a client removes it.
-		Syntax:     dbmeta.Syntax{BlockComments: true, Backticks: true},
+		Syntax:     dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true},
 		Terminator: dbmeta.TerminatorStripped,
 		// Drill compares names without their case and keeps the case it
 		// reads, which is what scanEveryQuery measures (D143).

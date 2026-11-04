@@ -42,6 +42,7 @@ const versionQuery = `SELECT version()`
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Databend, &dbmeta.Info{
+		Syntax: dbmeta.Syntax{DashComments: true},
 		// The names are what the driver of dbimp reports, with the size of a
 		// DECIMAL in the name. Measured on Databend 1.2.954 (D245).
 		ColumnAlign: dbmeta.RightAligned("INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "UINT32", "UINT64",

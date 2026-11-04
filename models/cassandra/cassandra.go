@@ -205,7 +205,7 @@ func init() {
 		IsBinary: dbmeta.BinaryNames("BLOB"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax:  dbmeta.Syntax{DollarQuotes: true, BlockComments: true, SlashComments: true},
+		Syntax:  dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true, SlashComments: true},
 		Batches: []dbmeta.Batch{{Begin: "BEGIN BATCH", End: "APPLY BATCH"}},
 		Fold:    dbmeta.FoldLower,
 		// CQL binds by position and writes a question mark, the same as

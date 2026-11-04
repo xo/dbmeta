@@ -1,6 +1,6 @@
 # D257. The northwind values agree on the three servers
 
-Status: Amends D254 and D256.
+Status: Amends D254 and D256, amended by D259.
 
 Ken found that the PostgreSQL fixture differed from the other two. The table
 `hr.staff` had one column `started` of the type `tstzrange`, which prints as

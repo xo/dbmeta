@@ -31,6 +31,7 @@ import (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.InfluxDB, &dbmeta.Info{
+		Syntax: dbmeta.Syntax{DashComments: true},
 		// The names are the Arrow types that InfluxDB 3 reports through the driver
 		// of dbimp, with the size of a decimal left out. Measured on InfluxDB 3.12.1
 		// (D245).

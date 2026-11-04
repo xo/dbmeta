@@ -18,6 +18,11 @@ type Syntax struct {
 	HashComments bool
 	// Backticks is a name between backticks.
 	Backticks bool
+	// DashComments is a comment from two dashes to the end of the line. Every
+	// SQL product reads one. Cypher does not: `(a)--(b)` is a relationship and
+	// `5--3` is 8, so a client that reads two dashes as a comment cuts the
+	// statement there. See D261.
+	DashComments bool
 	// BeginEndBlocks says that the body of a stored program can sit between
 	// BEGIN and END with no quotes around it, and hold semicolons that do
 	// not end the statement. A CREATE of a PROCEDURE, FUNCTION, TRIGGER or
@@ -30,7 +35,7 @@ type Syntax struct {
 	// AnonymousBlocks says that a statement which starts with BEGIN or
 	// DECLARE is a block of code that the server runs, and a client must keep
 	// it whole to its last END. Oracle is the case. The block ends at the
-	// semicolon after its last END, or at a line that holds only a slash.
+	// semicolon after its last END.
 	// False where a bare BEGIN starts a transaction, and where DECLARE is a
 	// statement of its own, as in SQL Server. See D252.
 	AnonymousBlocks bool
@@ -48,7 +53,8 @@ const (
 	TerminatorStripped
 	// TerminatorStrippedUnlessEnd is Oracle, which refuses the semicolon at
 	// the end of a statement and needs it at the end of a PL/SQL block, so a
-	// client removes it unless the statement ends with `END;`.
+	// client removes it unless the statement ends with `END;` or with `END` and
+	// the name of the unit, as `END payroll;` does.
 	TerminatorStrippedUnlessEnd
 	// TerminatorRequired is a product that refuses a statement that does not
 	// end with a semicolon, such as MaxCompute, so a client adds one when the

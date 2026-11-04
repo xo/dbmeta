@@ -76,7 +76,7 @@ func init() {
 		// is measured by scanEveryQuery (D143).
 		// hdbsql prints binary types as 0x and upper case hex (D258).
 		IsBinary: dbmeta.BinaryNames("BINARY", "VARBINARY", "BLOB"),
-		Syntax:   dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true},
+		Syntax:   dbmeta.Syntax{DashComments: true, BlockComments: true, BeginEndBlocks: true},
 		Fold:     dbmeta.FoldUpper,
 		// go-hdb binds by position and writes a question mark. A parameter
 		// repeated in the statement is sent twice, which is what every

@@ -5,7 +5,13 @@ Status: Amends D143.
 transit built the option `AnonymousBlocks` for its usql grammar, and usql asked
 for a flag here that says which dialect needs it. A statement that starts with
 BEGIN or DECLARE is a block of code. It ends at the semicolon after its last
-END, or at a line that holds only a slash.
+END.
+
+The first version of this decision also said that a block ends at a line that
+holds only a slash. That form comes from SQL*Plus. Ken decided on 2026-11-04
+that usql works like psql and not like the client of each database, and psql has
+no such terminator, so usql ends a statement at a semicolon only. The slash line
+is not part of the meaning of this flag.
 
 ## Decision
 

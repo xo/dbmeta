@@ -61,7 +61,7 @@ func init() {
 		// strings, which usql's flags left out. It reads `E''` strings with
 		// backslash escapes, it refuses a backtick and a `#` comment, and
 		// `//` is integer division. Measured on 2026-10-02.
-		Syntax: dbmeta.Syntax{DollarQuotes: true, BlockComments: true},
+		Syntax: dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true},
 		// DuckDB is a library, the same as SQLite.
 		Embedded:       true,
 		Placeholder:    func(int) string { return "?" },

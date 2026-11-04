@@ -94,7 +94,7 @@ func init() {
 	dbmeta.RegisterDialect(dbmeta.Spanner, &dbmeta.Info{
 		// GoogleSQL has block comments and hash comments, and quotes a name
 		// with backticks. A name keeps its case and is compared without it.
-		Syntax: dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, HashComments: true, Backticks: true},
 		// go-sql-spanner turns a ? into @p1, @p2 and so on.
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

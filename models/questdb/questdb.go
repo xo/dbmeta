@@ -41,7 +41,7 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("INT2", "INT4", "INT8", "FLOAT4", "FLOAT8", "NUMERIC"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax:         dbmeta.Syntax{DollarQuotes: true, BlockComments: true},
+		Syntax:         dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true},
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
 		VersionQuery:   versionQuery,
 		VersionColumns: 1,

@@ -1,6 +1,6 @@
 # D256. The northwind fixture is on Oracle too
 
-Status: Amends D254, amended by D257.
+Status: Amends D254, amended by D257 and D259.
 
 D254 made `dbrun fixture northwind` for PostgreSQL and SQL Server only. Ken
 decided on 2026-11-04 to add Oracle, because Oracle is the most like those two
@@ -15,9 +15,11 @@ containers. It runs as the administrator of the server and sets its current
 schema, so it never connects as the new users.
 
 The files are `oracle.sql` and `oracle-hr.sql` in `test/cmd/dbrun/northwind/`.
-Oracle reads a statement that ends with a line that holds only a slash, as
-SQL*Plus does, so these files use that form, and dbrun splits them the same
-way.
+Each statement ends with a semicolon, and a PL/SQL unit ends with the semicolon
+after its last END. usql applies the files and ends a statement at a semicolon
+only, as psql does. The first version of the files ended each statement with a
+line that holds only a slash, as SQL*Plus does, and dbrun split them itself.
+Ken decided on 2026-11-04 to drop that form.
 
 ## How the files were made
 

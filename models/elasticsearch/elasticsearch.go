@@ -84,7 +84,7 @@ func init() {
 		// and refuses a backtick, a `//` and a `#`. It compares a name with
 		// its case, measured on 9.5.3. It refuses a semicolon at the end of
 		// a statement, so a client removes it.
-		Syntax:      dbmeta.Syntax{BlockComments: true},
+		Syntax:      dbmeta.Syntax{DashComments: true, BlockComments: true},
 		Terminator:  dbmeta.TerminatorStripped,
 		Fold:        dbmeta.FoldNone,
 		Placeholder: func(int) string { return "?" },

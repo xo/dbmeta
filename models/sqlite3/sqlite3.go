@@ -59,7 +59,7 @@ func init() {
 		ColumnAlign: columnAlign,
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{BlockComments: true, Backticks: true, BeginEndBlocks: true},
+		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true, BeginEndBlocks: true},
 		// SQLite is a library. There is no server, no port and no user.
 		Embedded:       true,
 		Placeholder:    func(int) string { return "?" },

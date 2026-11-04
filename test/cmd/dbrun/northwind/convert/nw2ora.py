@@ -5,7 +5,8 @@ usage: python3 -I nw2ora.py postgres.sql out.sql ora-tail.sql
 It reads the tables, the indexes, the rows, the foreign keys and the views of
 the PostgreSQL file, and leaves its functions out, because ora-tail.sql holds
 the same procedures written in PL/SQL. Each statement of the output ends with a
-line that holds only a slash, which is how dbrun splits an Oracle file.
+semicolon, which is how usql splits an Oracle file. A PL/SQL block ends with its
+own END and a semicolon, and a slash line is not written.
 """
 import re
 import sys
@@ -165,6 +166,31 @@ def view(s):
     return s
 
 
+def unslash(src):
+    """Turn statements that end with a slash line into statements that end with
+    a semicolon. A block already ends with one."""
+    out, buf = [], []
+
+    def flush():
+        text = "\n".join(buf).strip("\n")
+        buf.clear()
+        if not any(l.strip() and not l.strip().startswith("--") for l in text.split("\n")):
+            if text.strip():
+                out.append(text)
+            return
+        if not text.rstrip().endswith(";"):
+            text = text.rstrip() + ";"
+        out.append(text)
+
+    for l in src.split("\n"):
+        if l.strip() == "/":
+            flush()
+        else:
+            buf.append(l)
+    flush()
+    return "\n".join(out) + "\n"
+
+
 def main():
     src, dst, tail = sys.argv[1:4]
     statements = split(open(src).read())
@@ -207,7 +233,7 @@ def main():
     text = "-- Northwind for Oracle, converted from the PostgreSQL script.\n"
     text += "\n/\n".join(out) + "\n/\n"
     text += open(tail).read().rstrip("\n") + "\n"
-    open(dst, "w").write(text)
+    open(dst, "w").write(unslash(text))
 
 
 main()

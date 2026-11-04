@@ -6,7 +6,6 @@ begin
     from products order by unit_price desc fetch first 10 rows only;
   return c;
 end;
-/
 create or replace function employee_sales_by_country(beginning_date timestamp, ending_date timestamp) return sys_refcursor as
   c sys_refcursor;
 begin
@@ -18,7 +17,6 @@ begin
     where o.shipped_date between beginning_date and ending_date;
   return c;
 end;
-/
 create or replace function sales_by_year(beginning_date timestamp, ending_date timestamp) return sys_refcursor as
   c sys_refcursor;
 begin
@@ -28,7 +26,6 @@ begin
     where o.shipped_date between beginning_date and ending_date;
   return c;
 end;
-/
 create or replace function cust_orders_detail(order_id integer) return sys_refcursor as
   c sys_refcursor;
 begin
@@ -40,7 +37,6 @@ begin
     where od.order_id = cust_orders_detail.order_id;
   return c;
 end;
-/
 create or replace function cust_orders_orders(customer_id char) return sys_refcursor as
   c sys_refcursor;
 begin
@@ -51,7 +47,6 @@ begin
     order by o.order_id;
   return c;
 end;
-/
 create or replace function cust_order_hist(customer_id char) return sys_refcursor as
   c sys_refcursor;
 begin
@@ -63,7 +58,6 @@ begin
     group by p.product_name;
   return c;
 end;
-/
 create or replace function sales_by_category_for_year(category_name varchar2, ord_year varchar2 default '1998') return sys_refcursor as
   c sys_refcursor;
   y varchar2(4) := ord_year;
@@ -84,4 +78,3 @@ begin
     order by p.product_name;
   return c;
 end;
-/

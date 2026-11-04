@@ -103,7 +103,7 @@ func init() {
 		// vsql prints a byte that prints as itself, a backslash doubled and every
 		// other byte as three octal digits (D258).
 		IsBinary: dbmeta.BinaryNames("BINARY", "VARBINARY", "LONG VARBINARY"),
-		Syntax:   dbmeta.Syntax{DollarQuotes: true, BlockComments: true},
+		Syntax:   dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true},
 		// vertica-sql-go binds by position and writes a question mark.
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

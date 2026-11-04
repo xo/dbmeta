@@ -93,7 +93,7 @@ func init() {
 		// HSQLDB has line comments and block comments, and a name between
 		// double quotes. It folds a name that is not quoted to upper case.
 		// It takes a trailing semicolon, so the terminator stays as it is.
-		Syntax:         dbmeta.Syntax{BlockComments: true},
+		Syntax:         dbmeta.Syntax{DashComments: true, BlockComments: true},
 		Fold:           dbmeta.FoldUpper,
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

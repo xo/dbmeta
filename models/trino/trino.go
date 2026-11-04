@@ -76,7 +76,7 @@ func init() {
 		// The trino command prints VARBINARY as lower case hex pairs with a space
 		// between them (D258).
 		IsBinary:   dbmeta.BinaryNames("VARBINARY"),
-		Syntax:     dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true},
+		Syntax:     dbmeta.Syntax{DashComments: true, BlockComments: true, BeginEndBlocks: true},
 		Terminator: dbmeta.TerminatorStripped,
 		Fold:       dbmeta.FoldLower,
 		// dbimp's driver binds by position and writes a question mark. It

@@ -44,7 +44,7 @@ func init() {
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is Snowflake's documented rule: a name that is not quoted is
 		// stored in upper case (D143).
-		Syntax: dbmeta.Syntax{DollarQuotes: true, BlockComments: true, BeginEndBlocks: true},
+		Syntax: dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true, BeginEndBlocks: true},
 		Fold:   dbmeta.FoldUpper,
 		// A bind parameter is refused after the pipe operator, so the
 		// dialect writes every value into the statement and a query never

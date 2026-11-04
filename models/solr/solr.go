@@ -100,7 +100,7 @@ func init() {
 		// backticks and a comment can be a block. It refuses a semicolon at
 		// the end of a statement. It keeps the case of a name that is not
 		// quoted and matches names without regard to case.
-		Syntax:      dbmeta.Syntax{BlockComments: true, Backticks: true},
+		Syntax:      dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true},
 		Terminator:  dbmeta.TerminatorStripped,
 		Fold:        dbmeta.FoldNone,
 		Placeholder: func(int) string { return "?" },

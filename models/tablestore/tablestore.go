@@ -82,7 +82,7 @@ const versionQuery = "SELECT @@version"
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Tablestore, &dbmeta.Info{
 		// The front end reads block comments and quotes a name with backticks.
-		Syntax: dbmeta.Syntax{BlockComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true},
 		// A table name is case sensitive, so nothing folds one.
 		Fold: dbmeta.FoldNone,
 		// The driver binds on the client, with a question mark.

@@ -87,7 +87,7 @@ func init() {
 		IsBinary: isBinary,
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax:         dbmeta.Syntax{BlockComments: true, BeginEndBlocks: true, AnonymousBlocks: true},
+		Syntax:         dbmeta.Syntax{DashComments: true, BlockComments: true, BeginEndBlocks: true, AnonymousBlocks: true},
 		Terminator:     dbmeta.TerminatorStrippedUnlessEnd,
 		Fold:           dbmeta.FoldUpper,
 		Placeholder:    func(n int) string { return ":" + itoa(n) },

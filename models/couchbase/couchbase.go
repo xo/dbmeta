@@ -90,7 +90,7 @@ func init() {
 		ColumnAlign: dbmeta.RightAligned("NUMBER"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{BlockComments: true},
+		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true},
 		// The driver binds a positional value at $1, $2 and so on.
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
 		VersionQuery:   versionQuery,

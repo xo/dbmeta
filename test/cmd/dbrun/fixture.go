@@ -85,8 +85,11 @@ func doFixture(ctx context.Context, r runner, t target, o options) error {
 	if o.fixture == "northwind" {
 		return doNorthwind(ctx, r, t)
 	}
+	if o.fixture == "movies" {
+		return doMovies(ctx, r, t)
+	}
 	if o.fixture != "examples" {
-		return fmt.Errorf("no fixture called %q. They are examples and northwind", o.fixture)
+		return fmt.Errorf("no fixture called %q. They are examples, northwind and movies", o.fixture)
 	}
 	if t.Kind == kindHosted {
 		return errors.New("a hosted service is not a place to drop and make tables")

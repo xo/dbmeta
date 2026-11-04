@@ -88,7 +88,7 @@ func init() {
 		// index name is lower case. It takes a semicolon at the end of a
 		// statement on both releases, so a client keeps it. Measured on 2.19.6
 		// and 3.9.0.
-		Syntax:      dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true},
+		Syntax:      dbmeta.Syntax{DashComments: true, BlockComments: true, HashComments: true, Backticks: true},
 		Terminator:  dbmeta.TerminatorKept,
 		Fold:        dbmeta.FoldNone,
 		Placeholder: func(int) string { return "?" },

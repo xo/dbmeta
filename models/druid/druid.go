@@ -87,7 +87,7 @@ func init() {
 		// Druid SQL has line comments and block comments and names in double quotes.
 		// It keeps the case of a name that is not quoted, which is what
 		// scanEveryQuery measures (D143).
-		Syntax:         dbmeta.Syntax{BlockComments: true},
+		Syntax:         dbmeta.Syntax{DashComments: true, BlockComments: true},
 		Fold:           dbmeta.FoldNone,
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

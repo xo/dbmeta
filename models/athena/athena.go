@@ -58,7 +58,7 @@ import (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Athena, &dbmeta.Info{
-		Syntax: dbmeta.Syntax{BlockComments: true},
+		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true},
 		// usql strips the semicolon at the end of a statement for Athena, and
 		// Athena refuses it.
 		Terminator:  dbmeta.TerminatorStripped,

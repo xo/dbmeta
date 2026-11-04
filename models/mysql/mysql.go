@@ -110,7 +110,7 @@ func init() {
 		IsBinary: dbmeta.BinaryNames("BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax:      dbmeta.Syntax{BlockComments: true, HashComments: true, Backticks: true, BeginEndBlocks: true},
+		Syntax:      dbmeta.Syntax{DashComments: true, BlockComments: true, HashComments: true, Backticks: true, BeginEndBlocks: true},
 		Placeholder: func(int) string { return "?" },
 		// usql scans each column into the type the driver reports, and tidb,
 		// vitess and singlestore copy this Info (D230).

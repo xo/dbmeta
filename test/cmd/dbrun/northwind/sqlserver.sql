@@ -432,6 +432,7 @@ INSERT [Customers] VALUES('WILMK','Wilman Kala','Matti Karttunen','Owner/Marketi
 INSERT [Customers] VALUES('WOLZA','Wolski  Zajazd','Zbyszek Piestrzeniewicz','Owner','ul. Filtrowa 68','Warszawa',NULL,'01-012','Poland','(26) 642-7012','(26) 642-7012');
 ALTER TABLE [Customers] CHECK CONSTRAINT ALL;
 
+SET identity_insert [Categories] off;
 SET identity_insert [Employees] on
 ALTER TABLE [Employees] NOCHECK CONSTRAINT ALL;
 SET identity_insert [Employees] on
@@ -2615,6 +2616,7 @@ INSERT order_details VALUES(11077,75,7.75,4,0);
 INSERT order_details VALUES(11077,77,13,2,0);
 ALTER TABLE order_details CHECK CONSTRAINT ALL;
 
+SET identity_insert [Employees] off;
 SET identity_insert [Orders] on
 ALTER TABLE [Orders] NOCHECK CONSTRAINT ALL;
 SET identity_insert [Orders] on
@@ -9258,6 +9260,7 @@ VALUES (11077,N'RATTC',1,'5/6/1998','6/3/1998',NULL,2,8.53,
 	N'NM',N'87110',N'USA');
 ALTER TABLE [Orders] CHECK CONSTRAINT ALL;
 
+SET identity_insert [Orders] off;
 SET identity_insert [Products] on
 ALTER TABLE [Products] NOCHECK CONSTRAINT ALL;
 SET identity_insert [Products] on
@@ -9416,6 +9419,7 @@ SET identity_insert [Products] on
 INSERT [Products] ([ProductID],[ProductName],[SupplierID],[CategoryID],[QuantityPerUnit],[UnitPrice],[UnitsInStock],[UnitsOnOrder],[ReorderLevel],[Discontinued]) VALUES(77,'Original Frankfurter grüne Soße',12,2,'12 boxes',13,32,0,15,0);
 ALTER TABLE [Products] CHECK CONSTRAINT ALL;
 
+SET identity_insert [Products] off;
 SET identity_insert [Shippers] on
 ALTER TABLE [Shippers] NOCHECK CONSTRAINT ALL;
 SET identity_insert [Shippers] on
@@ -9426,6 +9430,7 @@ SET identity_insert [Shippers] on
 INSERT [Shippers] ([ShipperID],[CompanyName],[Phone]) VALUES(3,'Federal Shipping','(503) 555-9931');
 ALTER TABLE [Shippers] CHECK CONSTRAINT ALL;
 
+SET identity_insert [Shippers] off;
 SET identity_insert [Suppliers] on
 ALTER TABLE [Suppliers] NOCHECK CONSTRAINT ALL;
 SET identity_insert [Suppliers] on
@@ -9711,3 +9716,4 @@ ALTER TABLE EmployeeTerritories
 ALTER TABLE EmployeeTerritories
   ADD CONSTRAINT [FK_EmployeeTerritories_Territories] FOREIGN KEY ([TerritoryID]) REFERENCES [Territories] ([TerritoryID])
 ;
+SET identity_insert [Suppliers] off;

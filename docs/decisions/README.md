@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-113 of them amend or replace an earlier one, and a decision read without its
+115 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -161,7 +161,7 @@ file.
 | [D140](D140-databend-reads-its-system-database.md) | Databend reads its system database | Decided |
 | [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no license | Amends D118 |
 | [D142](D142-ql-is-removed.md) | ql is removed | Amends D116, D119 and D129 |
-| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230, D238, D249, D250, D251, D252 and D258 |
+| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230, D238, D249, D250, D251, D252, D258 and D261 |
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided, amended by D182 and D190 |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
 | [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159, D175 and D242 |
@@ -272,8 +272,11 @@ file.
 | [D251](D251-clickhouse-reads-dollar-quoted-strings.md) | ClickHouse reads dollar quoted strings | Amends D143 and D250 |
 | [D252](D252-oracle-has-anonymous-blocks.md) | Oracle has anonymous blocks | Amends D143 |
 | [D253](D253-oracle-is-tested-on-xo-oracle.md) | Oracle is tested on xo/oracle | Amends D154 and D157, amended by D255 |
-| [D254](D254-dbrun-fixture-northwind-makes-a-database-with-variety.md) | dbrun fixture northwind makes a database with variety | Amends D244, amended by D256 and D257 |
+| [D254](D254-dbrun-fixture-northwind-makes-a-database-with-variety.md) | dbrun fixture northwind makes a database with variety | Amends D244, amended by D256, D257 and D259 |
 | [D255](D255-the-oracle-tables-statement-keeps-its-join-out-of-all-tables.md) | The Oracle tables statement keeps its join out of all_tables | Amends D253 |
-| [D256](D256-the-northwind-fixture-is-on-oracle-too.md) | The northwind fixture is on Oracle too | Amends D254, amended by D257 |
-| [D257](D257-the-northwind-values-agree-on-the-three-servers.md) | The northwind values agree on the three servers | Amends D254 and D256 |
+| [D256](D256-the-northwind-fixture-is-on-oracle-too.md) | The northwind fixture is on Oracle too | Amends D254, amended by D257 and D259 |
+| [D257](D257-the-northwind-values-agree-on-the-three-servers.md) | The northwind values agree on the three servers | Amends D254 and D256, amended by D259 |
 | [D258](D258-a-binary-value-prints-as-psql-prints-bytea.md) | A binary value prints as psql prints bytea | Amends D143 |
+| [D259](D259-usql-applies-the-fixtures-and-the-northwind-fixture-is-on-five-more-products.md) | usql applies the fixtures, and the northwind fixture is on five more products | Amends D254, D256 and D257 |
+| [D260](D260-the-movies-fixture-is-a-graph-on-neo4j.md) | The movies fixture is a graph on Neo4j | Decided |
+| [D261](D261-cypher-and-aql-have-no-dash-comments.md) | Cypher and AQL have no comment that starts with two dashes | Amends D143 |

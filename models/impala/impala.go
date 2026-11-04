@@ -40,7 +40,7 @@ func init() {
 		// Impala folds a name to lower case, and takes block comments and
 		// names between backticks. usql had no lexer flags for Impala, and
 		// these are Impala's documented syntax (D143).
-		Syntax:         dbmeta.Syntax{BlockComments: true, Backticks: true},
+		Syntax:         dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true},
 		Fold:           dbmeta.FoldLower,
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

@@ -49,7 +49,7 @@ func init() {
 		// is measured by scanEveryQuery (D143).
 		// psql prints bytea as \x and lower case hex (D258).
 		IsBinary:       dbmeta.BinaryNames("BYTEA"),
-		Syntax:         dbmeta.Syntax{DollarQuotes: true, BlockComments: true, BeginEndBlocks: true},
+		Syntax:         dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true, BeginEndBlocks: true},
 		Fold:           dbmeta.FoldLower,
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
 		VersionQuery:   `SHOW server_version`,

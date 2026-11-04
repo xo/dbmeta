@@ -96,7 +96,7 @@ func init() {
 		// presto-cli prints VARBINARY as lower case hex pairs with a space between
 		// them (D258).
 		IsBinary:   dbmeta.BinaryNames("VARBINARY"),
-		Syntax:     dbmeta.Syntax{BlockComments: true},
+		Syntax:     dbmeta.Syntax{DashComments: true, BlockComments: true},
 		Terminator: dbmeta.TerminatorStripped,
 		Fold:       dbmeta.FoldLower,
 		// dbimp's driver binds by position and writes a question mark. It
