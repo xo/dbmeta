@@ -143,12 +143,18 @@ func registerLanguages() {
 			{{Query: `, d.description AS "comment"`}},
 			{{Query: `FROM pg_catalog.pg_language l`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_description d ON d.objoid = l.oid AND d.classoid = 'pg_language'::regclass`}},
-			{{Query: `WHERE l.lanplcallfoid != 0`}},
+			// psql lists the languages that have a call handler, which leaves out
+			// c, internal and sql, unless it is asked for the system objects or
+			// for a name.
+			{{Query: `WHERE (@with_system OR @name <> '' OR l.lanplcallfoid != 0)`}},
 			{{Query: `AND (@name = '' OR l.lanname LIKE @name)`}},
 			{{Query: `ORDER BY 1`}},
 		},
 		Fields: fields("name", "owner", "trusted", "internal", "handler", "validator", "inline", "access", "comment"),
-		Params: []dbmeta.Param{{Name: "name", Desc: "language name pattern, empty for every language", Default: ""}},
+		Params: []dbmeta.Param{
+			{Name: "name", Desc: "language name pattern, empty for every language", Default: ""},
+			{Name: "with_system", Desc: "include the languages that have no call handler, which are c, internal and sql", Default: false},
+		},
 		Scan: func(rows *sql.Rows) (dbmeta.Language, error) {
 			var v dbmeta.Language
 			err := rows.Scan(&v.Name, &v.Owner, &v.Trusted, &v.Internal,
@@ -341,23 +347,27 @@ func registerSettings() {
 			// current_setting gives the value with its unit, as psql's
 			// \dconfig prints it.
 			{{Query: `, pg_catalog.current_setting(s.name) AS "display"`}},
+			{{Query: `, s.source AS "source"`}},
 			{{Query: `FROM pg_catalog.pg_settings s`}},
 			{
 				{Query: ``},
 				{Min: v15, Query: `LEFT JOIN pg_catalog.pg_parameter_acl p ON p.parname = s.name`},
 			},
-			{{Query: `WHERE (@name = '' OR s.name LIKE @name)`}},
+			// A setting name is not case sensitive, so the pattern is not
+			// either, which is how psql matches \dconfig *style* to DateStyle.
+			{{Query: `WHERE (@name = '' OR s.name ILIKE @name)`}},
 			{{Query: `ORDER BY 1`}},
 		},
 		Fields: []dbmeta.Field{
 			{Name: "name"}, {Name: "value"}, {Name: "type"}, {Name: "context"},
 			{Name: "access", Desc: "grants on the parameter", Min: v15},
 			{Name: "display", Desc: "value with its unit, as the server shows it"},
+			{Name: "source", Desc: "where the value came from, such as default or configuration file"},
 		},
 		Params: []dbmeta.Param{{Name: "name", Desc: "parameter name pattern, empty for every parameter", Default: ""}},
 		Scan: func(rows *sql.Rows) (dbmeta.Setting, error) {
 			var v dbmeta.Setting
-			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display)
+			err := rows.Scan(&v.Name, &v.Value, &v.Type, &v.Context, &v.Access, &v.Display, &v.Source)
 			return v, err
 		},
 	})

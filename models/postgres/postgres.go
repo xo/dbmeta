@@ -133,6 +133,8 @@ const relationType = `CASE c.relkind` +
 	` WHEN 'S' THEN 'sequence'` +
 	` WHEN 'f' THEN 'foreign table'` +
 	` WHEN 'c' THEN 'composite type'` +
+	` WHEN 'i' THEN 'index'` +
+	` WHEN 'I' THEN 'partitioned index'` +
 	` ELSE c.relkind::text END`
 
 // persistence is the word for a relation's persistence, from
@@ -173,6 +175,7 @@ func registerTables() {
 				` ARRAY(SELECT 'toast.' || x FROM pg_catalog.unnest(tc.reloptions) x), ', '), '') AS "options"`}},
 			{{Query: `, c.relrowsecurity AS "row_security"`}},
 			{{Query: `, c.relforcerowsecurity AS "row_security_forced"`}},
+			{{Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_class tc ON tc.oid = c.reltoastrelid`}},
@@ -203,6 +206,7 @@ func registerTables() {
 			{Name: "options", Desc: "storage parameters, such as fillfactor=70, absent when none is set"},
 			{Name: "row_security", Desc: "whether row level security is on"},
 			{Name: "row_security_forced", Desc: "whether row level security applies to the owner too"},
+			{Name: "visible", Desc: "whether the object is on the search path of the session, as psql applies it to a list with no schema in its pattern. Absent where the product has no search path."},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -214,7 +218,7 @@ func registerTables() {
 			var t dbmeta.Table
 			err := rows.Scan(&t.Catalog, &t.Schema, &t.Name, &t.Type, &t.Comment,
 				&t.Owner, &t.Persistence, &t.AccessMethod, &t.Size, &t.Rows,
-				&t.Options, &t.RowSecurity, &t.RowSecurityForced)
+				&t.Options, &t.RowSecurity, &t.RowSecurityForced, &t.Visible)
 			return t, err
 		},
 	})
@@ -240,7 +244,7 @@ func registerColumns() {
 			{{Query: `, a.attnum AS "ordinal"`}},
 			{{Query: `, pg_catalog.format_type(a.atttypid, a.atttypmod) AS "data_type"`}},
 			{{Query: `, NOT a.attnotnull AS "nullable"`}},
-			{{Query: `, pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS "default"`}},
+			{{Query: `, pg_catalog.pg_get_expr(d.adbin, d.adrelid, true) AS "default"`}},
 			// One more join, to the primary key index of the table. It is an
 			// index lookup on the relation and it costs the same whether or
 			// not the caller reads the column. See D47.

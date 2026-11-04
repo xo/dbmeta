@@ -263,6 +263,11 @@ func readNorthwind(t *testing.T, srv northwindServer) map[string]northwindTable 
 // purpose is listed in the logs and does not fail the test. A table that has
 // the same name and columns on two servers must hold the same rows.
 func TestNorthwindServersAgree(t *testing.T) {
+	for _, srv := range northwindServers {
+		if os.Getenv(srv.env) == "" {
+			t.Skipf("set %s, because the test reads the three servers", srv.env)
+		}
+	}
 	data := make(map[string]map[string]northwindTable)
 	for _, srv := range northwindServers {
 		data[srv.name] = readNorthwind(t, srv)

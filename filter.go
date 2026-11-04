@@ -36,6 +36,10 @@ type Args struct {
 	Database string
 	// WithSystem includes the objects the database keeps for itself.
 	WithSystem bool
+	// WithIndexes adds the indexes that Partitions and Inherits leave out, so
+	// that a partitioned index has partitions and an index partition has a
+	// parent. See D262.
+	WithIndexes bool
 	// WithImplicit adds the tables that a publication of a schema or of
 	// every table offers without naming them, which PublicationTables reads.
 	// See D199 and D201.
@@ -73,6 +77,9 @@ func (a Args) Map() map[string]any {
 	}
 	if a.WithSystem {
 		m["with_system"] = true
+	}
+	if a.WithIndexes {
+		m["indexes"] = true
 	}
 	if a.WithImplicit {
 		m["with_implicit"] = true

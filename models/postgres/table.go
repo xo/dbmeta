@@ -39,6 +39,7 @@ func registerIndexes() {
 			{{Query: `, i.indisvalid AS "valid"`}},
 			{{Query: `, i.indisclustered AS "clustered"`}},
 			{{Query: `, i.indisreplident AS "replica_identity"`}},
+			{{Query: `, c.relkind = 'I' AS "partitioned"`}},
 			// Only a primary key, a unique constraint or an exclusion
 			// constraint owns an index. A foreign key names the index it
 			// reads in the same column, and the join leaves it out, so that
@@ -65,6 +66,7 @@ func registerIndexes() {
 				{Min: v18, Query: `, con.conperiod AS "constraint_period"`},
 			},
 			{{Query: `, pg_catalog.pg_table_is_visible(t.oid) AS "table_visible"`}},
+			{{Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
 			{{Query: `FROM pg_catalog.pg_index i`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`}},
 			{{Query: `JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
@@ -81,16 +83,16 @@ func registerIndexes() {
 		},
 		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment",
 			"owner", "persistence", "size", "predicate", "valid", "clustered", "replica_identity",
-			"deferrable", "initially_deferred", "options", "definition", "using", "constraint_type",
-			"constraint_definition", "constraint_period", "table_visible"),
+			"partitioned", "deferrable", "initially_deferred", "options", "definition", "using", "constraint_type",
+			"constraint_definition", "constraint_period", "table_visible", "visible"),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
 				&v.Unique, &v.Primary, &v.Comment, &v.Owner, &v.Persistence, &v.Size,
-				&v.Predicate, &v.Valid, &v.Clustered, &v.ReplicaIdentity,
+				&v.Predicate, &v.Valid, &v.Clustered, &v.ReplicaIdentity, &v.Partitioned,
 				&v.Deferrable, &v.InitiallyDeferred, &v.Options, &v.Definition, &v.Using,
-				&v.ConstraintType, &v.ConstraintDefinition, &v.ConstraintPeriod, &v.TableVisible)
+				&v.ConstraintType, &v.ConstraintDefinition, &v.ConstraintPeriod, &v.TableVisible, &v.Visible)
 			return v, err
 		},
 	})
@@ -114,24 +116,35 @@ func registerIndexColumns() {
 				{Query: `, false AS "include"`},
 				{Min: v11, Query: `, k.ordinality > i.indnkeyatts AS "include"`},
 			},
+			// the column of the index itself, which is a pg_attribute row of
+			// the index and not of the table
+			{{Query: `, ia.attname AS "column_name"`}},
+			{{Query: `, pg_catalog.format_type(ia.atttypid, ia.atttypmod) AS "column_type"`}},
+			{{Query: `, CASE ia.attstorage WHEN 'p' THEN 'plain' WHEN 'm' THEN 'main'` +
+				` WHEN 'e' THEN 'external' WHEN 'x' THEN 'extended'` +
+				` ELSE ia.attstorage::text END AS "storage"`}},
+			{{Query: `, NULLIF(ia.attstattarget, -1)::bigint AS "stats_target"`}},
 			{{Query: `FROM pg_catalog.pg_index i`}},
 			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid`}},
 			{{Query: `JOIN pg_catalog.pg_class t ON t.oid = i.indrelid`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Query: `CROSS JOIN LATERAL pg_catalog.unnest(i.indkey) WITH ORDINALITY AS k(attnum, ordinality)`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_attribute ia ON ia.attrelid = i.indexrelid AND ia.attnum = k.ordinality`}},
 			{{Query: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@parent = '' OR t.relname LIKE @parent)`}},
 			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2, 3, 5`}},
 		},
-		Fields: fields("schema", "table", "index", "name", "ordinal", "expression", "descending", "include"),
+		Fields: fields("schema", "table", "index", "name", "ordinal", "expression", "descending", "include",
+			"column_name", "column_type", "storage", "stats_target"),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
 			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &v.Name, &v.Ordinal,
-				&v.Expression, &v.Descending, &v.Include)
+				&v.Expression, &v.Descending, &v.Include,
+				&v.ColumnName, &v.ColumnType, &v.Storage, &v.StatsTarget)
 			return v, err
 		},
 	})
@@ -256,6 +269,13 @@ func registerSequences() {
 				{Query: `, NULL::bigint AS "cache_size"`},
 				{Min: v10, Query: `, s.seqcache AS "cache_size"`},
 			},
+			// an identity column owns its sequence with a dependency of the type i
+			// and a serial column with the type a
+			{{Query: `, (SELECT d.deptype = 'i' FROM pg_catalog.pg_depend d WHERE d.objid = c.oid` +
+				` AND d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass` +
+				` AND d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass` +
+				` AND d.refobjsubid > 0 AND d.deptype IN ('a', 'i') LIMIT 1) AS "identity"`}},
+			{{Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{
@@ -275,12 +295,14 @@ func registerSequences() {
 			{Name: "increment", Min: v10}, {Name: "cycles", Min: v10},
 			{Name: "owned_by"}, {Name: "comment"},
 			{Name: "cache_size", Desc: "values a session takes at once, absent below release 10", Min: v10},
+			{Name: "identity", Desc: "whether an identity column owns the sequence, absent when no column does"},
+			{Name: "visible", Desc: "whether the object is on the search path of the session, as psql applies it to a list with no schema in its pattern. Absent where the product has no search path."},
 		},
 		Params: schemaNameSystem("sequence"),
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
 			var v dbmeta.Sequence
 			err := rows.Scan(&v.Schema, &v.Name, &v.DataType, &v.Start, &v.Minimum,
-				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.CacheSize)
+				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.CacheSize, &v.Identity, &v.Visible)
 			return v, err
 		},
 	})
@@ -334,6 +356,7 @@ func registerPartitionedTables() {
 				{Min: v12, Query: `, (SELECT sum(pg_catalog.pg_table_size(ppt.relid))::bigint` +
 					` FROM pg_catalog.pg_partition_tree(c.oid) ppt) AS "total_size"`},
 			},
+			{{Min: v10, Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
 			{{Min: v10, Query: `FROM pg_catalog.pg_class c`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Min: v10, Query: `LEFT JOIN pg_catalog.pg_am am ON am.oid = c.relam`}},
@@ -356,13 +379,14 @@ func registerPartitionedTables() {
 			{Name: "table_visible", Desc: "the table of a partitioned index is on the search path of the session", Min: v10},
 			{Name: "direct_size", Desc: "bytes of the partitions one level down, absent below release 12", Min: v12},
 			{Name: "total_size", Desc: "bytes of every partition, absent below release 12", Min: v12},
+			{Name: "visible", Desc: "whether the object is on the search path of the session, as psql applies it to a list with no schema in its pattern. Absent where the product has no search path.", Min: v10},
 		},
 		Params: schemaNameSystem("partitioned table"),
 		Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 			var v dbmeta.PartitionedTable
 			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, &v.Parent,
 				dbmeta.NullAsEmpty(&v.Strategy), dbmeta.NullAsEmpty(&v.Expression), &v.Comment, &v.Table, &v.AccessMethod,
-				&v.ParentVisible, &v.TableVisible, &v.DirectSize, &v.TotalSize)
+				&v.ParentVisible, &v.TableVisible, &v.DirectSize, &v.TotalSize, &v.Visible)
 			return v, err
 		},
 	})

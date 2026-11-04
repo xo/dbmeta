@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-115 of them amend or replace an earlier one, and a decision read without its
+116 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -65,7 +65,7 @@ file.
 | [D44](D044-a-version-key-names-the-product-a-number-alone.md) | A version key names the product. A number alone never does | Decided |
 | [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query can answer partially, once, and must say so | Amended by D161 |
 | [D46](D046-five-object-kinds-are-missing-and-two-consumers.md) | Five object kinds are missing, and two consumers say which | Decided |
-| [D47](D047-dbmeta-supplies-the-data-the-consumer-decides.md) | dbmeta supplies the data. The consumer decides what to show | Amended by D146 |
+| [D47](D047-dbmeta-supplies-the-data-the-consumer-decides.md) | dbmeta supplies the data. The consumer decides what to show | Amended by D146 and D262 |
 | [D48](D048-cgo-is-allowed-in-the-test-module-and-nowhere.md) | cgo is allowed in the test module, and nowhere else | Amends D26 and D29, supersedes D35 |
 | [D49](D049-one-method-on-the-interface-and-a-not-null-is.md) | One method on the interface, and a NOT NULL is not a constraint row | Amended by D121 |
 | [D50](D050-documentation-lives-in-docs-and-the-decision-log.md) | Documentation lives in docs, and the decision log stays one file | Amended by D110 and D111 |
@@ -219,7 +219,7 @@ file.
 | [D198](D198-describe-fields-for-relations-indexes-columns-and-functions.md) | Describe fields for relations, indexes, columns and functions | Decided |
 | [D199](D199-describe-sections-for-partitions-inheritance-policies-and-rules.md) | Describe sections for partitions, inheritance, policies and rules | Decided, amended by D201 |
 | [D200](D200-a-binding-can-keep-rows-for-a-product-that-cannot-filter.md) | A binding can keep rows for a product that cannot filter | Amends D62, amended by D202 |
-| [D201](D201-the-third-group-of-describe-data-for-usql.md) | The third group of describe data for usql | Amends D147 and D199 |
+| [D201](D201-the-third-group-of-describe-data-for-usql.md) | The third group of describe data for usql | Amends D147 and D199, amended by D262 |
 | [D202](D202-cassandra-matches-names-ignoring-case-and-the-models-share-two-helpers.md) | Cassandra matches names ignoring case, and the models share two helpers | Amends D200 |
 | [D203](D203-snowflake-reads-the-columns-of-a-key-through-the-pipe-operator.md) | Snowflake reads the columns of a key through the pipe operator | Amends D190 and D193, amended by D213 |
 | [D204](D204-redshift-answers-the-grants-and-the-roles-and-takes-every-password.md) | Redshift answers the grants and the roles, and takes every password | Amends D182 |
@@ -280,3 +280,4 @@ file.
 | [D259](D259-usql-applies-the-fixtures-and-the-northwind-fixture-is-on-five-more-products.md) | usql applies the fixtures, and the northwind fixture is on five more products | Amends D254, D256 and D257 |
 | [D260](D260-the-movies-fixture-is-a-graph-on-neo4j.md) | The movies fixture is a graph on Neo4j | Decided |
 | [D261](D261-cypher-and-aql-have-no-dash-comments.md) | Cypher and AQL have no comment that starts with two dashes | Amends D143 |
+| [D262](D262-the-postgresql-model-gives-usql-what-psql-describe-needs.md) | The PostgreSQL model gives usql what psql describe needs | Amends D47 and D201 |

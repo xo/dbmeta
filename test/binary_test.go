@@ -22,7 +22,10 @@ type binaryProbe struct {
 	setup   []string
 	query   string
 	cleanup []string
-	cols    []binaryColumn
+	// fallback holds a statement to run when the setup statement that is its
+	// key fails, because ScyllaDB refuses what Cassandra takes.
+	fallback map[string]string
+	cols     []binaryColumn
 }
 
 // mysqlBinaryProbe is the probe of every product that speaks the protocol of
@@ -39,11 +42,20 @@ var mysqlBinaryProbe = binaryProbe{
 		{"longblob", true}, {"char", false}, {"varchar", false}, {"text", false}, {"int", false}},
 }
 
+// memsqlBinaryProbe is the MySQL probe for SingleStore, whose URL names no
+// database, so a table needs one chosen first.
+var memsqlBinaryProbe = func() binaryProbe {
+	p := mysqlBinaryProbe
+	p.setup = append([]string{"CREATE DATABASE IF NOT EXISTS dbm_bin", "USE dbm_bin"}, p.setup...)
+	p.cleanup = []string{"DROP DATABASE IF EXISTS dbm_bin"}
+	return p
+}()
+
 var binaryProbes = map[dbmeta.Dialect]binaryProbe{
 	dbmeta.PostgreSQL: {
 		setup: []string{
 			"CREATE TEMPORARY TABLE dbm_bin (b bytea, t text, u uuid, i integer, bits bit(8))",
-			"INSERT INTO dbm_bin VALUES (decode('151c2f00ffab', 'hex'), 'abc', gen_random_uuid(), 1, B'10101010')",
+			"INSERT INTO dbm_bin VALUES (decode('151c2f00ffab', 'hex'), 'abc', '123e4567-e89b-12d3-a456-426614174000', 1, B'10101010')",
 		},
 		query: "SELECT b, t, u, i, bits FROM dbm_bin",
 		cols:  []binaryColumn{{"bytea", true}, {"text", false}, {"uuid", false}, {"integer", false}, {"bit", false}},
@@ -77,7 +89,7 @@ var binaryProbes = map[dbmeta.Dialect]binaryProbe{
 			{"char", false}, {"varchar", false}, {"nvarchar", false}, {"uniqueidentifier", false}, {"int", false}},
 	},
 	dbmeta.TiDB:   mysqlBinaryProbe,
-	dbmeta.MemSQL: mysqlBinaryProbe,
+	dbmeta.MemSQL: memsqlBinaryProbe,
 	dbmeta.Vitess: mysqlBinaryProbe,
 	dbmeta.Trino: {
 		query: "SELECT from_hex('151C2F00FFAB') AS b, 'abc' AS t, 1 AS i, CAST('abc' AS varchar) AS v",
@@ -109,7 +121,10 @@ var binaryProbes = map[dbmeta.Dialect]binaryProbe{
 		},
 		query:   "SELECT b, t, u, i FROM dbm_bin.t",
 		cleanup: []string{"DROP KEYSPACE IF EXISTS dbm_bin"},
-		cols:    []binaryColumn{{"blob", true}, {"text", false}, {"uuid", false}, {"int", false}},
+		fallback: map[string]string{
+			"CREATE KEYSPACE IF NOT EXISTS dbm_bin WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}": "CREATE KEYSPACE IF NOT EXISTS dbm_bin WITH replication = {'class': 'NetworkTopologyStrategy', 'replication_factor': 1} AND tablets = {'enabled': false}",
+		},
+		cols: []binaryColumn{{"blob", true}, {"text", false}, {"uuid", false}, {"int", false}},
 	},
 	dbmeta.Oracle: {
 		setup: []string{
@@ -168,7 +183,11 @@ func measureBinary(t *testing.T, tg alignTarget, probe binaryProbe, driver, dsn 
 		defer conn.ExecContext(ctx, q) //nolint:errcheck // a cleanup at the end is best effort
 	}
 	for _, q := range probe.setup {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
+		_, err := conn.ExecContext(ctx, q)
+		if err != nil && probe.fallback[q] != "" {
+			_, err = conn.ExecContext(ctx, probe.fallback[q])
+		}
+		if err != nil {
 			t.Fatalf("making the probe table: %v\n%s", err, q)
 		}
 	}

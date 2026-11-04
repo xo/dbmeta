@@ -65,6 +65,12 @@ type Table struct {
 	// RowSecurityForced reports whether row level security also applies to
 	// the owner of the table. See D199.
 	RowSecurityForced sql.Null[bool]
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // Schema is a namespace within a catalog.
@@ -158,6 +164,10 @@ type Index struct {
 	// ReplicaIdentity reports whether this index is the table's replica
 	// identity for logical replication.
 	ReplicaIdentity sql.Null[bool]
+	// Partitioned says that the index is a partitioned index, which is the
+	// index of a partitioned table and has an index on each partition. See
+	// D262.
+	Partitioned sql.Null[bool]
 	// Deferrable and InitiallyDeferred describe the constraint that owns the
 	// index, and are absent for an index no constraint owns. See D198.
 	Deferrable        sql.Null[bool]
@@ -185,6 +195,12 @@ type Index struct {
 	// TableVisible reports that the table is on the search path of the
 	// session, so that psql prints its name with no schema. See D201.
 	TableVisible sql.Null[bool]
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // Queries. One value per object kind.
@@ -315,6 +331,11 @@ type Setting struct {
 	// Display is the value as the server shows it, with its unit, such as
 	// 128MB where Value holds 16384. psql's \dconfig prints it. See D147.
 	Display sql.Null[string]
+	// Source says where the value came from, such as default, configuration
+	// file, environment variable or override, as pg_settings.source says it.
+	// psql's \dconfig lists only the settings whose source is not default or
+	// override when it has no pattern. See D262.
+	Source sql.Null[string]
 }
 
 // Queries for the objects above.
@@ -382,6 +403,12 @@ type Function struct {
 	// only for the last two. It is absent where the product keeps no such
 	// column. See D198.
 	Prosrc sql.Null[string]
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // Type is a data type. psql lists them with \dT.
@@ -399,6 +426,12 @@ type Type struct {
 	// values vary in length, and tuple for a composite type, as psql's \dT+
 	// prints it. See D147.
 	Size sql.Null[string]
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // Domain is a type with a constraint. psql lists them with \dD.
@@ -413,6 +446,12 @@ type Domain struct {
 	Constraints string
 	Access      sql.Null[string]
 	Comment     sql.Null[string]
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // Operator is an operator. psql lists them with \do.
@@ -485,6 +524,12 @@ type Privilege struct {
 	Access       sql.Null[string]
 	ColumnAccess sql.Null[string]
 	Policies     sql.Null[string]
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // DefaultACL is a default grant applied to objects created later. psql lists
@@ -728,6 +773,17 @@ type TextSearchParserFunction struct {
 	Comment  sql.Null[string]
 }
 
+// TextSearchParserTokenType is a kind of token that a text search parser
+// returns, such as asciiword or email. psql prints them under a parser with
+// \dFp+. See D262.
+type TextSearchParserTokenType struct {
+	Schema      string
+	Parser      string
+	ID          int64
+	Alias       string
+	Description string
+}
+
 // TextSearchTemplate is the code behind a dictionary. psql lists them with
 // \dFt.
 type TextSearchTemplate struct {
@@ -890,6 +946,12 @@ type Comment struct {
 	Name    string
 	Type    string
 	Comment string
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // Queries for replication, text search, operator families and extensions.
@@ -908,6 +970,9 @@ var (
 	// TextSearchParserFunctions lists the five functions of each text search
 	// parser. See D201.
 	TextSearchParserFunctions = NewQuery[TextSearchParserFunction]("text_search_parser_functions")
+	// TextSearchParserTokenTypes lists the kinds of token that each text search
+	// parser returns. See D262.
+	TextSearchParserTokenTypes = NewQuery[TextSearchParserTokenType]("text_search_parser_token_types")
 	// TextSearchDictionaries lists the dictionaries that normalize tokens.
 	TextSearchDictionaries = NewQuery[TextSearchDictionary]("text_search_dictionaries")
 	// TextSearchTemplates lists the code behind the dictionaries.
@@ -949,6 +1014,17 @@ type IndexColumn struct {
 	// column, and that is a real false. Every other model leaves it false.
 	// See D199.
 	Include bool
+	// ColumnName, ColumnType, Storage and StatsTarget describe the column of
+	// the index itself, which is a column of its own in the catalog. For an
+	// expression such as lower(name) the name is lower and the type is the
+	// type of the expression, and for an operator class that stores another
+	// type, such as gin_trgm_ops, the type is the stored one. psql's \d+ of an
+	// index prints them. Storage is plain, main, external or extended, and
+	// StatsTarget is absent for the default. See D262.
+	ColumnName  sql.Null[string]
+	ColumnType  sql.Null[string]
+	Storage     sql.Null[string]
+	StatsTarget sql.Null[int64]
 }
 
 // Constraint is a check, unique, primary key, foreign key or exclusion
@@ -1004,6 +1080,16 @@ type Sequence struct {
 	// CacheSize is the number of values a session takes at once. It is absent
 	// below release 10, as the bounds are. See D201.
 	CacheSize sql.Null[int64]
+	// Identity says that the sequence belongs to an identity column and not to
+	// a column that has a serial default. psql prints a different footer for
+	// each. It is absent when no column owns the sequence. See D262.
+	Identity sql.Null[bool]
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // PartitionedTable is a table split into partitions. psql lists them with \dP.
@@ -1032,6 +1118,12 @@ type PartitionedTable struct {
 	// psql prints their names with no schema. See D201.
 	ParentVisible sql.Null[bool]
 	TableVisible  sql.Null[bool]
+	// Visible says whether the object is on the search path of the session,
+	// which is what psql tests with pg_table_is_visible and its relatives.
+	// psql lists only visible objects when a pattern has no schema, and lists
+	// every object when it has one. It is absent where the product has no
+	// search path. See D262.
+	Visible sql.Null[bool]
 }
 
 // Queries for the detail of a table.

@@ -123,7 +123,10 @@ func registerRoleGrants() {
 				{Query: ``},
 				{Min: v16, Query: `LEFT JOIN pg_catalog.pg_roles g ON g.oid = a.grantor`},
 			},
-			{{Query: `WHERE (@name = '' OR m.rolname LIKE @name)`}},
+			// psql leaves out the memberships of the roles whose names start with
+			// pg_ unless it is asked for the system objects or for a name.
+			{{Query: `WHERE (@with_system OR @name <> '' OR m.rolname !~ '^pg_')`}},
+			{{Query: `AND (@name = '' OR m.rolname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2`}},
 		},
 		Fields: []dbmeta.Field{
@@ -133,7 +136,10 @@ func registerRoleGrants() {
 			{Name: "inherit", Desc: "whether the member inherits the privileges. Always true below release 16, which had no other behavior"},
 			{Name: "set", Desc: "whether the member may SET ROLE to it. Always true below release 16, which had no other behavior"},
 		},
-		Params: []dbmeta.Param{{Name: "name", Desc: "member role name pattern, empty for every role", Default: ""}},
+		Params: []dbmeta.Param{
+			{Name: "name", Desc: "member role name pattern, empty for every role", Default: ""},
+			{Name: "with_system", Desc: "include the memberships of the roles whose names start with pg_", Default: false},
+		},
 		Scan: func(rows *sql.Rows) (dbmeta.RoleGrant, error) {
 			var v dbmeta.RoleGrant
 			err := rows.Scan(&v.Role, &v.MemberOf, &v.Grantor, &v.Admin, &v.Inherit, &v.Set)
@@ -161,6 +167,7 @@ func registerPrivileges() {
 				` WHERE a.attrelid = c.oid AND a.attnum > 0 AND a.attacl IS NOT NULL), '') AS "column_access"`}},
 			{{Query: `, COALESCE((SELECT pg_catalog.string_agg(p.polname, ', ' ORDER BY p.polname)` +
 				` FROM pg_catalog.pg_policy p WHERE p.polrelid = c.oid), '') AS "policies"`}},
+			{{Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Query: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')`}},
@@ -169,11 +176,11 @@ func registerPrivileges() {
 			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
 			{{Query: `ORDER BY 1, 2`}},
 		},
-		Fields: fields("schema", "name", "type", "access", "column_access", "policies"),
+		Fields: fields("schema", "name", "type", "access", "column_access", "policies", "visible"),
 		Params: schemaNameSystem("relation"),
 		Scan: func(rows *sql.Rows) (dbmeta.Privilege, error) {
 			var v dbmeta.Privilege
-			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Access, &v.ColumnAccess, &v.Policies)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Access, &v.ColumnAccess, &v.Policies, &v.Visible)
 			return v, err
 		},
 	})

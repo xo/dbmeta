@@ -1,6 +1,6 @@
 # D201. The third group of describe data for usql
 
-Status: Amends D147 and D199.
+Status: Amends D147 and D199, amended by D262.
 
 ## The decision
 

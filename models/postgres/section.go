@@ -42,7 +42,7 @@ func registerPartitions() {
 			{{Min: v10, Query: `, ` + relationType + ` AS "type"`}},
 			{{Min: v10, Query: `, pg_catalog.pg_get_expr(c.relpartbound, c.oid) AS "bound"`}},
 			{{Min: v10, Query: `, pg_catalog.pg_get_partition_constraintdef(c.oid) AS "constraint"`}},
-			{{Min: v10, Query: `, c.relkind = 'p' AS "partitioned"`}},
+			{{Min: v10, Query: `, c.relkind IN ('p', 'I') AS "partitioned"`}},
 			// inhdetachpending arrived in release 14
 			{
 				{Min: v10, Query: `, false AS "detach_pending"`},
@@ -57,7 +57,7 @@ func registerPartitions() {
 			{{Min: v10, Query: `JOIN pg_catalog.pg_class p ON p.oid = h.inhparent`}},
 			{{Min: v10, Query: `JOIN pg_catalog.pg_namespace pn ON pn.oid = p.relnamespace`}},
 			{{Min: v10, Query: `WHERE c.relispartition`}},
-			{{Min: v10, Query: `AND c.relkind NOT IN ('i', 'I')`}},
+			{{Min: v10, Query: `AND (@indexes OR c.relkind NOT IN ('i', 'I'))`}},
 			{{Min: v10, Query: `AND (@with_system OR (pn.nspname !~ '^pg_' AND pn.nspname <> 'information_schema'))`}},
 			{{Min: v10, Query: `AND (@schema = '' OR pn.nspname LIKE @schema)`}},
 			{{Min: v10, Query: `AND (@parent = '' OR p.relname LIKE @parent)`}},
@@ -84,6 +84,7 @@ func registerPartitions() {
 			{Name: "partition_schema", Desc: "schema name pattern of the partition, empty for every schema", Default: ""},
 			{Name: "name", Desc: "partition name pattern, empty for every partition", Default: ""},
 			{Name: "with_system", Desc: "include the objects PostgreSQL keeps for itself", Default: false},
+			{Name: "indexes", Desc: "include the indexes, which are left out by default. A partitioned index has the index of each partition as a partition", Default: false},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Partition, error) {
 			var v dbmeta.Partition
@@ -124,7 +125,7 @@ func registerInherits() {
 			{{Query: `JOIN pg_catalog.pg_namespace cn ON cn.oid = c.relnamespace`}},
 			{{Query: `JOIN pg_catalog.pg_class p ON p.oid = h.inhparent`}},
 			{{Query: `JOIN pg_catalog.pg_namespace pn ON pn.oid = p.relnamespace`}},
-			{{Query: `WHERE c.relkind NOT IN ('i', 'I')`}},
+			{{Query: `WHERE (@indexes OR c.relkind NOT IN ('i', 'I'))`}},
 			{{Query: `AND (@with_system OR (cn.nspname !~ '^pg_' AND cn.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@schema = '' OR cn.nspname LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
@@ -149,6 +150,7 @@ func registerInherits() {
 			{Name: "parent_schema", Desc: "schema name pattern of the parent, empty for every schema", Default: ""},
 			{Name: "parent", Desc: "parent table name pattern, empty for every parent", Default: ""},
 			{Name: "with_system", Desc: "include the objects PostgreSQL keeps for itself", Default: false},
+			{Name: "indexes", Desc: "include the indexes, which are left out by default. A partitioned index has the index of each partition as a partition", Default: false},
 		},
 		Scan: func(rows *sql.Rows) (dbmeta.Inherit, error) {
 			var v dbmeta.Inherit

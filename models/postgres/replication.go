@@ -320,6 +320,32 @@ func registerTextSearch() {
 		},
 	})
 
+	// The token types of a parser come from ts_token_type, which psql's \dFp+
+	// prints under the five functions. See D262.
+	dbmeta.TextSearchParserTokenTypes.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.TextSearchParserTokenType]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT n.nspname AS "schema"`}},
+			{{Query: `, p.prsname AS "parser"`}},
+			{{Query: `, t.tokid AS "id"`}},
+			{{Query: `, t.alias AS "alias"`}},
+			{{Query: `, t.description AS "description"`}},
+			{{Query: `FROM pg_catalog.pg_ts_parser p`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.prsnamespace`}},
+			{{Query: `CROSS JOIN LATERAL pg_catalog.ts_token_type(p.oid) AS t`}},
+			{{Query: `WHERE (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR p.prsname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2, 4`}},
+		},
+		Fields: fields("schema", "parser", "id", "alias", "description"),
+		Params: schemaNameSystem("parser"),
+		Scan: func(rows *sql.Rows) (dbmeta.TextSearchParserTokenType, error) {
+			var v dbmeta.TextSearchParserTokenType
+			err := rows.Scan(&v.Schema, &v.Parser, &v.ID, &v.Alias, &v.Description)
+			return v, err
+		},
+	})
+
 	dbmeta.TextSearchDictionaries.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.TextSearchDictionary]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT n.nspname AS "schema"`}},
@@ -716,33 +742,78 @@ func registerExtensions() {
 
 // registerComments backs \dd, from objectDescription.
 //
-// psql unions many catalogs here. This covers the relations, which is what a
-// caller asks for in practice, and the other object kinds carry their own
-// comment column already.
+// psql unions the catalogs of the kinds that have no list of their own: a table
+// constraint, a domain constraint, an operator class, an operator family, a rule
+// and a trigger. This returns those and the relations, and the Type column says
+// which kind a row is, so a caller that wants what psql lists keeps the first
+// six and a caller that wants every comment keeps all. Visible is whether the
+// object is on the search path, which psql tests for each kind with its own
+// function. See D262.
 func registerComments() {
 	dbmeta.Comments.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Comment]{
 		Stmt: dbmeta.Stmt{
-			{{Query: `SELECT n.nspname AS "schema"`}},
-			{{Query: `, c.relname AS "name"`}},
-			{{Query: `, CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'table'` +
+			{{Query: `SELECT DISTINCT x.nspname AS "schema"`}},
+			{{Query: `, x.name AS "name"`}},
+			{{Query: `, x.object AS "type"`}},
+			{{Query: `, d.description AS "comment"`}},
+			{{Query: `, x.visible AS "visible"`}},
+			{{Query: `FROM (`}},
+			{{Query: `SELECT c.oid AS oid, c.tableoid AS tableoid, n.nspname AS nspname, c.relname::text AS name,` +
+				` CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'table'` +
 				` WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view'` +
 				` WHEN 'S' THEN 'sequence' WHEN 'i' THEN 'index' WHEN 'f' THEN 'foreign table'` +
-				` ELSE c.relkind::text END AS "type"`}},
-			{{Query: `, d.description AS "comment"`}},
-			{{Query: `FROM pg_catalog.pg_description d`}},
-			{{Query: `JOIN pg_catalog.pg_class c ON c.oid = d.objoid AND d.classoid = 'pg_class'::regclass`}},
-			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
-			{{Query: `WHERE d.objsubid = 0`}},
-			{{Query: `AND (@with_system OR (n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))`}},
-			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
-			{{Query: `AND (@name = '' OR c.relname LIKE @name)`}},
-			{{Query: `ORDER BY 1, 2`}},
+				` ELSE c.relkind::text END AS object,` +
+				` pg_catalog.pg_table_is_visible(c.oid) AS visible` +
+				` FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `UNION ALL SELECT pgc.oid, pgc.tableoid, n.nspname, pgc.conname::text, 'table constraint'::text,` +
+				` pg_catalog.pg_table_is_visible(c.oid)` +
+				` FROM pg_catalog.pg_constraint pgc JOIN pg_catalog.pg_class c ON c.oid = pgc.conrelid` +
+				` LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `UNION ALL SELECT pgc.oid, pgc.tableoid, n.nspname, pgc.conname::text, 'domain constraint'::text,` +
+				` pg_catalog.pg_type_is_visible(t.oid)` +
+				` FROM pg_catalog.pg_constraint pgc JOIN pg_catalog.pg_type t ON t.oid = pgc.contypid` +
+				` LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
+			// CockroachDB has no pg_opclass_is_visible and no pg_opfamily_is_visible,
+			// so the visibility of an operator class and of a family is unknown
+			{
+				{Query: `UNION ALL SELECT o.oid, o.tableoid, n.nspname, o.opcname::text, 'operator class'::text,` +
+					` pg_catalog.pg_opclass_is_visible(o.oid)` +
+					` FROM pg_catalog.pg_opclass o JOIN pg_catalog.pg_am am ON o.opcmethod = am.oid` +
+					` JOIN pg_catalog.pg_namespace n ON n.oid = o.opcnamespace`},
+				{Key: "cockroachdb", Query: `UNION ALL SELECT o.oid, o.tableoid, n.nspname, o.opcname::text, 'operator class'::text,` +
+					` NULL::boolean` +
+					` FROM pg_catalog.pg_opclass o JOIN pg_catalog.pg_am am ON o.opcmethod = am.oid` +
+					` JOIN pg_catalog.pg_namespace n ON n.oid = o.opcnamespace`},
+			},
+			{
+				{Query: `UNION ALL SELECT opf.oid, opf.tableoid, n.nspname, opf.opfname::text, 'operator family'::text,` +
+					` pg_catalog.pg_opfamily_is_visible(opf.oid)` +
+					` FROM pg_catalog.pg_opfamily opf JOIN pg_catalog.pg_am am ON opf.opfmethod = am.oid` +
+					` JOIN pg_catalog.pg_namespace n ON n.oid = opf.opfnamespace`},
+				{Key: "cockroachdb", Query: `UNION ALL SELECT opf.oid, opf.tableoid, n.nspname, opf.opfname::text, 'operator family'::text,` +
+					` NULL::boolean` +
+					` FROM pg_catalog.pg_opfamily opf JOIN pg_catalog.pg_am am ON opf.opfmethod = am.oid` +
+					` JOIN pg_catalog.pg_namespace n ON n.oid = opf.opfnamespace`},
+			},
+			{{Query: `UNION ALL SELECT r.oid, r.tableoid, n.nspname, r.rulename::text, 'rule'::text,` +
+				` pg_catalog.pg_table_is_visible(c.oid)` +
+				` FROM pg_catalog.pg_rewrite r JOIN pg_catalog.pg_class c ON c.oid = r.ev_class` +
+				` LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE r.rulename <> '_RETURN'`}},
+			{{Query: `UNION ALL SELECT t.oid, t.tableoid, n.nspname, t.tgname::text, 'trigger'::text,` +
+				` pg_catalog.pg_table_is_visible(c.oid)` +
+				` FROM pg_catalog.pg_trigger t JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid` +
+				` LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+			{{Query: `) x JOIN pg_catalog.pg_description d ON d.objoid = x.oid AND d.classoid = x.tableoid AND d.objsubid = 0`}},
+			{{Query: `WHERE (@with_system OR (x.nspname !~ '^pg_' AND x.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR x.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR x.name LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2, 3`}},
 		},
-		Fields: fields("schema", "name", "type", "comment"),
+		Fields: fields("schema", "name", "type", "comment", "visible"),
 		Params: schemaNameSystem("object"),
 		Scan: func(rows *sql.Rows) (dbmeta.Comment, error) {
 			var v dbmeta.Comment
-			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Comment, &v.Visible)
 			return v, err
 		},
 	})

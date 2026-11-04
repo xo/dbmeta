@@ -64,6 +64,7 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		},
 		{{Query: `, p.proleakproof AS "leakproof"`}},
 		{{Query: `, p.prosrc AS "prosrc"`}},
+		{{Query: `, pg_catalog.pg_function_is_visible(p.oid) AS "visible"`}},
 		{{Query: `FROM pg_catalog.pg_proc p`}},
 		{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
 		{{Query: `LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang`}},
@@ -78,21 +79,21 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 	return append(stmt,
 		dbmeta.Choice{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 		dbmeta.Choice{{Query: `AND (@name = '' OR p.proname LIKE @name)`}},
-		dbmeta.Choice{{Query: `ORDER BY 2, 3, 6`}},
+		dbmeta.Choice{{Query: `ORDER BY 2, 3, 7`}},
 	)
 }
 
 func functionFields() []dbmeta.Field {
 	return fields("catalog", "schema", "name", "id", "kind", "result_type", "arg_types",
 		"volatility", "parallel", "owner", "security", "access", "language", "source", "comment",
-		"definition", "leakproof", "prosrc")
+		"definition", "leakproof", "prosrc", "visible")
 }
 
 func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 	var v dbmeta.Function
 	err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType, &v.ArgTypes,
 		&v.Volatility, &v.Parallel, &v.Owner, &v.Security, &v.Access, &v.Language,
-		&v.Source, &v.Comment, &v.Definition, &v.Leakproof, &v.Prosrc)
+		&v.Source, &v.Comment, &v.Definition, &v.Leakproof, &v.Prosrc, &v.Visible)
 	return v, err
 }
 
@@ -137,6 +138,7 @@ func registerTypes() {
 			{{Query: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
 			{{Query: `, CASE WHEN t.typrelid <> 0 THEN 'tuple' WHEN t.typlen < 0 THEN 'var'` +
 				` ELSE t.typlen::text END AS "size"`}},
+			{{Query: `, pg_catalog.pg_type_is_visible(t.oid) AS "visible"`}},
 			{{Query: `FROM pg_catalog.pg_type t`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
 			// leave out the composite types that back a table, and the array
@@ -148,12 +150,12 @@ func registerTypes() {
 			{{Query: `AND (@name = '' OR t.typname LIKE @name OR pg_catalog.format_type(t.oid, NULL) LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
-		Fields: fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment", "size"),
+		Fields: fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment", "size", "visible"),
 		Params: schemaNameSystem("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size, &v.Visible)
 			return v, err
 		},
 	})
@@ -181,6 +183,7 @@ func registerDomains() {
 				` AND r.contype = 'c'), '') AS "constraints"`}},
 			{{Query: `, pg_catalog.array_to_string(t.typacl, E'\n') AS "access"`}},
 			{{Query: `, pg_catalog.obj_description(t.oid, 'pg_type') AS "comment"`}},
+			{{Query: `, pg_catalog.pg_type_is_visible(t.oid) AS "visible"`}},
 			{{Query: `FROM pg_catalog.pg_type t`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
 			{{Query: `WHERE t.typtype = 'd'`}},
@@ -190,12 +193,12 @@ func registerDomains() {
 			{{Query: `ORDER BY 2, 3`}},
 		},
 		Fields: fields("catalog", "schema", "name", "data_type", "collation", "nullable",
-			"default", "constraints", "access", "comment"),
+			"default", "constraints", "access", "comment", "visible"),
 		Params: schemaNameSystem("domain"),
 		Scan: func(rows *sql.Rows) (dbmeta.Domain, error) {
 			var v dbmeta.Domain
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.DataType, &v.Collation,
-				&v.Nullable, &v.Default, &v.Constraints, &v.Access, &v.Comment)
+				&v.Nullable, &v.Default, &v.Constraints, &v.Access, &v.Comment, &v.Visible)
 			return v, err
 		},
 	})
