@@ -97,6 +97,7 @@ func scanEveryQueryWith(t *testing.T, m *dbmeta.Meta, db *sql.DB, system bool) {
 		dbmeta.Views.Name():                      scanOne(t, all, dbmeta.Views, m, db),
 		dbmeta.ColumnStats.Name():                scanOne(t, all, dbmeta.ColumnStats, m, db),
 		dbmeta.CurrentSchema.Name():              scanOne(t, all, dbmeta.CurrentSchema, m, db),
+		dbmeta.CurrentDatabase.Name():            scanOne(t, all, dbmeta.CurrentDatabase, m, db),
 		dbmeta.CurrentUser.Name():                scanOne(t, all, dbmeta.CurrentUser, m, db),
 	}
 	var read int

@@ -257,6 +257,21 @@ func registerCurrentSchema() {
 		},
 	})
 
+	// The database that the connection is using (D265).
+	dbmeta.CurrentDatabase.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.DatabaseName]{
+		Stmt: dbmeta.Stmt{
+			{{Query: "SELECT DATABASE() AS `name`"}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the database chosen by the URL or USE, and absent when none is chosen"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.DatabaseName, error) {
+			var v dbmeta.DatabaseName
+			err := rows.Scan(&v.Name)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT s.catalog_name AS "catalog"`}},

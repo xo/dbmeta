@@ -18,6 +18,9 @@ type Syntax struct {
 	HashComments bool
 	// Backticks is a name between backticks.
 	Backticks bool
+	// Brackets is a name between square brackets, as SQL Server and SQLite
+	// write one. See D264.
+	Brackets bool
 	// DashComments is a comment from two dashes to the end of the line. Every
 	// SQL product reads one. Cypher does not: `(a)--(b)` is a relationship and
 	// `5--3` is 8, so a client that reads two dashes as a comment cuts the

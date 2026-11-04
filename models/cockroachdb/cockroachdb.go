@@ -11,7 +11,7 @@
 // a statement of its own only where CockroachDB's catalog differs. It imports
 // the postgres model, which registers first. See D123.
 //
-// It answers 54 of the 66 questions, on every release measured: 24.3.36,
+// It answers 55 of the 67 questions, on every release measured: 24.3.36,
 // 26.2.7 and 26.3.2. 47 are the postgres model's statements and 7 are its
 // own. It does not answer column_stats, because CockroachDB keeps pg_stats
 // empty, or text_search_config_maps, because it has no text search
@@ -141,6 +141,7 @@ func register() {
 	// SHOW STATISTICS FOR TABLE, which takes the table in the statement and
 	// not as a bind parameter, so no one statement reads a schema's worth.
 	// system.table_statistics is refused from 26.3. See D123.
+	share(dbmeta.CurrentDatabase)
 	share(dbmeta.CurrentSchema)
 	share(dbmeta.CurrentUser)
 }

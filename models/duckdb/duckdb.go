@@ -30,7 +30,7 @@
 //
 // # What it answers
 //
-// Twenty one of the 66, which includes the named NOT NULL constraints. The catalog is unusually complete for an embedded
+// Twenty two of the 67, which includes the named NOT NULL constraints. The catalog is unusually complete for an embedded
 // database: it has comments on most objects, real enumerated types,
 // sequences, and a constraint catalog that names the columns of a key and the columns it references.
 //
@@ -62,6 +62,8 @@ func init() {
 		// backslash escapes, it refuses a backtick and a `#` comment, and
 		// `//` is integer division. Measured on 2026-10-02.
 		Syntax: dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true},
+		// RETURNING sends the changed rows to the client (D264).
+		Statements: dbmeta.Statements{Returning: dbmeta.ReturningRows},
 		// DuckDB is a library, the same as SQLite.
 		Embedded:       true,
 		Placeholder:    func(int) string { return "?" },

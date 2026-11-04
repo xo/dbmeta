@@ -381,7 +381,7 @@ columns. The vector rows of `$index_paths` were not read, for the same reason.
 
 ### Databricks table size, defaults and checks have no source
 
-Databricks answers 17 of the 66 kinds (D224). The size, the row count, the location and
+Databricks answers 17 of the 67 kinds (D224). The size, the row count, the location and
 the clustering columns of a table are in DESCRIBE DETAIL. A column default, an identity
 column, a generated column and a CHECK constraint are in SHOW CREATE TABLE and SHOW
 TBLPROPERTIES. All of them are statements that a SELECT cannot read, and INFORMATION_SCHEMA

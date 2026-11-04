@@ -31,7 +31,7 @@
 //
 // # What it answers
 //
-// Thirty four of the 66. SQL Server is the only database
+// Thirty five of the 67. SQL Server is the only database
 // with a model of its own, besides PostgreSQL and CockroachDB, with roles,
 // privileges, tablespaces and DDL triggers, and the only one with a catalog
 // of comments rather than a comment on each object.
@@ -75,8 +75,11 @@ func init() {
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		// sqlcmd prints binary types as 0x and upper case hex (D258).
-		IsBinary:       dbmeta.BinaryNames("BINARY", "VARBINARY", "IMAGE", "TIMESTAMP", "ROWVERSION"),
-		Syntax:         dbmeta.Syntax{DashComments: true, BlockComments: true, BeginEndBlocks: true},
+		IsBinary: dbmeta.BinaryNames("BINARY", "VARBINARY", "IMAGE", "TIMESTAMP", "ROWVERSION"),
+		Syntax:   dbmeta.Syntax{Brackets: true, DashComments: true, BlockComments: true, BeginEndBlocks: true},
+		// OUTPUT sends the changed rows to the client unless it has an INTO, and
+		// EXEC and EXECUTE return the rows of a procedure (D264).
+		Statements:     dbmeta.Statements{Returning: dbmeta.ReturningOutput, ExecuteReturnsRows: true},
 		OldPassword:    true,
 		Placeholder:    func(n int) string { return "@p" + strconv.Itoa(n) },
 		VersionQuery:   versionQuery,

@@ -342,6 +342,21 @@ func registerRoles() {
 	})
 
 	// The database a statement resolves an unqualified name in.
+	// The database that the connection is using (D265).
+	dbmeta.CurrentDatabase.Register(dbmeta.ClickHouse, &dbmeta.Binding[dbmeta.DatabaseName]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT currentDatabase() AS "name"`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the database in use, which USE changes"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.DatabaseName, error) {
+			var v dbmeta.DatabaseName
+			err := rows.Scan(&v.Name)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.ClickHouse, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT '' AS "catalog"`),

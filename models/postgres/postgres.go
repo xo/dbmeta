@@ -48,8 +48,10 @@ func init() {
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		// psql prints bytea as \x and lower case hex (D258).
-		IsBinary:       dbmeta.BinaryNames("BYTEA"),
-		Syntax:         dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true, BeginEndBlocks: true},
+		IsBinary: dbmeta.BinaryNames("BYTEA"),
+		Syntax:   dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true, BeginEndBlocks: true},
+		// RETURNING sends the changed rows to the client (D264).
+		Statements:     dbmeta.Statements{Returning: dbmeta.ReturningRows},
 		Fold:           dbmeta.FoldLower,
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
 		VersionQuery:   `SHOW server_version`,

@@ -282,3 +282,5 @@ file.
 | [D261](D261-cypher-and-aql-have-no-dash-comments.md) | Cypher and AQL have no comment that starts with two dashes | Amends D143 |
 | [D262](D262-the-postgresql-model-gives-usql-what-psql-describe-needs.md) | The PostgreSQL model gives usql what psql describe needs | Amends D47 and D201 |
 | [D263](D263-an-oracle-raw16-prints-as-a-uuid.md) | An Oracle RAW(16) prints as a UUID | Amends D258 |
+| [D264](D264-the-dialect-says-whether-a-statement-returns-rows.md) | The dialect says whether a statement returns rows | Decided |
+| [D265](D265-the-current-database-is-a-kind-of-its-own.md) | The current database is a kind of its own | Decided |

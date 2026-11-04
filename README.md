@@ -163,17 +163,17 @@ call and filter in the loop.
 
 | Database   | Model              | Queries | Status      |
 | ---------- | ------------------ | ------- | ----------- |
-| PostgreSQL | native             | 66      | Complete    |
+| PostgreSQL | native             | 67      | Complete    |
 | any with an information_schema | shared | 12 | Ready to build on |
-| MariaDB    | native             | 30      | Complete    |
-| MySQL      | native             | 27      | Complete    |
-| SQLite3    | native             | 14      | Complete    |
-| DuckDB     | native             | 21      | Complete    |
-| SQL Server | native             | 34      | Complete    |
-| Oracle     | native             | 29      | In progress |
+| MariaDB    | native             | 31      | Complete    |
+| MySQL      | native             | 28      | Complete    |
+| SQLite3    | native             | 15      | Complete    |
+| DuckDB     | native             | 22      | Complete    |
+| SQL Server | native             | 35      | Complete    |
+| Oracle     | native             | 30      | In progress |
 | Cassandra  | native             | 17      | In progress |
 | ScyllaDB   | native             | 18      | In progress |
-| ClickHouse | native             | 25      | In progress |
+| ClickHouse | native             | 26      | In progress |
 | Trino      | native             | 13      | In progress |
 | Presto     | native             | 9       | In progress |
 | Firebird   | native             | 25      | In progress |
@@ -182,18 +182,18 @@ call and filter in the loop.
 | Exasol     | native             | 26      | In progress |
 | Vertica    | native             | 28      | In progress |
 | Couchbase  | native             | 12      | In progress |
-| CockroachDB | native            | 54      | In progress |
+| CockroachDB | native            | 55      | In progress |
 | CrateDB    | native             | 27      | In progress |
 | QuestDB    | native             | 11      | In progress |
-| TiDB       | native             | 20      | In progress |
-| Vitess     | native             | 21      | In progress |
+| TiDB       | native             | 21      | In progress |
+| Vitess     | native             | 22      | In progress |
 | Databend   | native             | 20      | In progress |
-| SingleStore | native            | 23      | In progress |
+| SingleStore | native            | 24      | In progress |
 | Snowflake  | native             | 15      | In progress |
 | Amazon Redshift | native        | 18      | In progress |
 | Apache Impala | native          | 11      | In progress |
 | rqlite     | native             | 14      | In progress |
-| libSQL     | native             | 14      | In progress |
+| libSQL     | native             | 15      | In progress |
 | InfluxDB 3 | native             | 9       | In progress |
 | Neo4j      | native             | 17      | In progress |
 | YDB        | native             | 7       | In progress |
@@ -217,7 +217,7 @@ call and filter in the loop.
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
-It answers 12 object kinds where the native PostgreSQL model answers 66, and
+It answers 12 object kinds where the native PostgreSQL model answers 67, and
 answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
@@ -240,7 +240,7 @@ indexes, and the native model here answers 32 kinds instead, including the
 sequences and constraints that reader turns off.
 
 [`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
-and which analogues were found and rejected. MariaDB answers 30 of the 66 and
+and which analogues were found and rejected. MariaDB answers 31 of the 67 and
 MySQL answers 27, because a native model beats the shared one by seventeen.
 
 MariaDB and MySQL share one model. A query written for one of them gates on the
@@ -358,7 +358,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 263 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 117 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 265 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 117 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

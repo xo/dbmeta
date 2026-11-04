@@ -19,7 +19,7 @@
 // HiveServer2, which Impala serves, carries no parameter, so a statement
 // here binds nothing.
 //
-// It answers 11 of the 66 questions, on 4.4.1 and 4.5.2.
+// It answers 11 of the 67 questions, on 4.4.1 and 4.5.2.
 package impala
 
 import (
@@ -40,7 +40,9 @@ func init() {
 		// Impala folds a name to lower case, and takes block comments and
 		// names between backticks. usql had no lexer flags for Impala, and
 		// these are Impala's documented syntax (D143).
-		Syntax:         dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true},
+		// SET alone lists the settings (D264).
+		Statements:     dbmeta.Statements{SetListsSettings: true},
 		Fold:           dbmeta.FoldLower,
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

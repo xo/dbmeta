@@ -11,7 +11,7 @@
 // where TiDB's catalog differs. It imports the mysql model, which registers
 // first. See D123 and D133.
 //
-// It answers 20 of the 66 questions on 8.5.8, and 19 on 7.5.8 and 8.1.2,
+// It answers 21 of the 67 questions on 8.5.8, and 20 on 7.5.8 and 8.1.2,
 // where privileges is too old. 17 are the mysql model's statements and 3 are
 // its own: settings, sequences and privileges. TiDB has no stored function,
 // procedure or trigger and no foreign server, and docs/COVERAGE.md says what
@@ -101,6 +101,7 @@ func register() {
 	share(dbmeta.Collations)
 	share(dbmeta.Roles)
 	share(dbmeta.RoleGrants)
+	share(dbmeta.CurrentDatabase)
 	share(dbmeta.CurrentSchema)
 	share(dbmeta.CurrentUser)
 }

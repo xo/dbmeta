@@ -305,6 +305,21 @@ func registerCurrentSchema() {
 		},
 	})
 
+	// The database that the connection is using (D265).
+	dbmeta.CurrentDatabase.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.DatabaseName]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT current_database() AS "name"`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the database that the connection is on"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.DatabaseName, error) {
+			var v dbmeta.DatabaseName
+			err := rows.Scan(&v.Name)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			{{Query: `SELECT current_database() AS "catalog"`}},

@@ -442,7 +442,7 @@ field rather than the call.
 
 The statement is `SELECT version FROM v$instance`, and the defect is real but
 different. `v$instance` needs a privilege an ordinary user does not have.
-Measured on Oracle 26ai, as a user granted nothing but `CREATE SESSION`:
+Measured on Oracle 26ai and on 11g Express 11.2.0.2, as a user granted nothing but `CREATE SESSION`. The 26ai answers are below, and 11g gave the same two results:
 
 ```
 SELECT version FROM v$instance                -> ORA-00942: table or view

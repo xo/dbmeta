@@ -27,7 +27,7 @@
 //
 // # What it answers
 //
-// 22 of the 66. Schemas, tables, columns, indexes, index columns, constraints,
+// 22 of the 67. Schemas, tables, columns, indexes, index columns, constraints,
 // constraint columns, not null constraints, views, sequences, functions,
 // routine parameters, roles, role grants, privileges, column privileges,
 // settings, the current schema, the current user, publications, publication tables and
@@ -95,6 +95,9 @@ func init() {
 		// GoogleSQL has block comments and hash comments, and quotes a name
 		// with backticks. A name keeps its case and is compared without it.
 		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, HashComments: true, Backticks: true},
+		// THEN RETURN sends the changed rows to the client. This is from the
+		// documentation and was not run against a server (D264).
+		Statements: dbmeta.Statements{Returning: dbmeta.ReturningThenReturn},
 		// go-sql-spanner turns a ? into @p1, @p2 and so on.
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

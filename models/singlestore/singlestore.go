@@ -12,7 +12,7 @@
 // those are its own. It imports the mysql model, which registers first. The
 // dialect is memsql, the name SingleStore had until 2020, which dburl keeps.
 //
-// It answers 23 of the 66 questions, on 9.0 and 9.1. docs/COVERAGE.md says
+// It answers 24 of the 67 questions, on 9.0 and 9.1. docs/COVERAGE.md says
 // why each of the rest is not answered. See D141.
 package singlestore
 
@@ -96,6 +96,7 @@ func register() {
 	share(dbmeta.Functions)
 	share(dbmeta.RoutineParameters)
 	share(dbmeta.AccessMethods)
+	share(dbmeta.CurrentDatabase)
 	share(dbmeta.CurrentSchema)
 	share(dbmeta.CurrentUser)
 }

@@ -215,6 +215,12 @@ var (
 	Indexes = NewQuery[Index]("indexes")
 )
 
+// DatabaseName is the name of the database that a connection is using. It is
+// absent when the connection has chosen none.
+type DatabaseName struct {
+	Name sql.Null[string]
+}
+
 // Database is a database within a server. psql lists them with \l.
 type Database struct {
 	Name       string
@@ -1432,4 +1438,13 @@ var (
 	// carries itself: usql writes SELECT current_user for most products and
 	// SELECT user FROM dual for Oracle. See D55.
 	CurrentUser = NewQuery[User]("current_user")
+	// CurrentDatabase returns the name of the database that the connection is
+	// using, which is psql's %/ and what \conninfo calls the database.
+	//
+	// It is session dependent and answers one row. The name is absent when the
+	// connection has chosen no database, as MySQL's DATABASE() is. A product
+	// with no such notion has no model for it, and a caller falls back to
+	// what it was given. [CurrentSchema] reports the catalog of a schema, which
+	// is not always the database. See D265.
+	CurrentDatabase = NewQuery[DatabaseName]("current_database")
 )

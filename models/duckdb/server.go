@@ -341,6 +341,21 @@ func registerSettings() {
 		},
 	})
 
+	// The database that the connection is using (D265).
+	dbmeta.CurrentDatabase.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.DatabaseName]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT current_database() AS "name"`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the attached database in use"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.DatabaseName, error) {
+			var v dbmeta.DatabaseName
+			err := rows.Scan(&v.Name)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT current_database() AS "catalog"`),

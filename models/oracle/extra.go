@@ -335,6 +335,26 @@ func registerExtra() {
 		},
 	})
 
+	// The database that the connection is using (D265). In a pluggable
+	// database that is the container, which CON_NAME names from 12c. Before
+	// that, a database has one name and DB_NAME has it.
+	dbmeta.CurrentDatabase.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.DatabaseName]{
+		Stmt: dbmeta.Stmt{
+			dbmeta.Choice{
+				{Query: `SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS "name" FROM dual`},
+				{Min: v12, Query: `SELECT SYS_CONTEXT('USERENV', 'CON_NAME') AS "name" FROM dual`},
+			},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the pluggable database from 12c, and the database before that"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.DatabaseName, error) {
+			var v dbmeta.DatabaseName
+			err := rows.Scan(&v.Name)
+			return v, err
+		},
+	})
+
 	// The schema an unqualified name resolves in.
 	dbmeta.CurrentSchema.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{

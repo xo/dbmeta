@@ -24,7 +24,7 @@
 //
 // # What it answers
 //
-// 17 of the 66. Databases, schemas, tables, columns, views, constraints,
+// 17 of the 67. Databases, schemas, tables, columns, views, constraints,
 // constraint columns, functions, routine parameters, comments, partitioned
 // tables, privileges, policies, collations, foreign servers, the current schema
 // and the current user.

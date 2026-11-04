@@ -30,7 +30,7 @@
 //
 // # What it answers
 //
-// 29 of the 66. Schemas, tables, columns, indexes, index columns,
+// 30 of the 67. Schemas, tables, columns, indexes, index columns,
 // constraints, constraint columns, sequences, views, the current schema and
 // the current user. Then comments, triggers, event triggers, functions,
 // aggregates, routine parameters, types, domains, operators, privileges,
@@ -133,9 +133,9 @@ func bindValue(v any) any {
 // Oracle sells it, which no other source does, and its number separates 23ai
 // from 26ai: they report 23.0.0.0.0 and 23.26.3.0.0.
 //
-// It reads a V$ view, which needs a privilege an ordinary user does not have.
-// usql already requires that for Oracle, reading v$instance for the same
-// purpose, so this asks for nothing new.
+// Every user can read v$version. A user with only CREATE SESSION read it on 11g
+// Express 11.2.0.2 and on 26ai. v$instance, which usql reads, needs a
+// privilege that such a user does not have. See D38 and docs/USQL.md.
 const versionQuery = `SELECT banner FROM v$version WHERE ROWNUM = 1`
 
 // parseVersion pulls the version and the product name out of the banner.

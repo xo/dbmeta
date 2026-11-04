@@ -37,7 +37,7 @@
 //
 // # What it answers
 //
-// 25 of the 66. Tables, columns, views, indexes, index columns, constraints,
+// 25 of the 67. Tables, columns, views, indexes, index columns, constraints,
 // constraint columns, not nulls, triggers, event triggers, sequences, domains,
 // functions, routine parameters, types, collations, roles, role grants,
 // privileges, comments, databases, settings, publications, publication
@@ -85,7 +85,9 @@ func init() {
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
 		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, BeginEndBlocks: true},
-		Fold:   dbmeta.FoldUpper,
+		// RETURNING sends the changed rows to the client (D264).
+		Statements: dbmeta.Statements{Returning: dbmeta.ReturningRows},
+		Fold:       dbmeta.FoldUpper,
 		// Firebird binds by position and writes a question mark. A parameter
 		// repeated in the statement is sent twice, which is what every filter
 		// here does, and the server infers the type from the comparison

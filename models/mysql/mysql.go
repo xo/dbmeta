@@ -29,7 +29,7 @@
 //     credential every local user reaches it with
 //   - a foreign table is a table on an engine that reads remote data
 //
-// This model answers 30 of the 66 questions on MariaDB and 27 on MySQL. Six
+// This model answers 31 of the 67 questions on MariaDB and 28 on MySQL. Six
 // of them on MariaDB, and four on MySQL, read the mysql schema and need
 // SELECT on it, because neither product publishes those tables through
 // information_schema.
@@ -110,7 +110,10 @@ func init() {
 		IsBinary: dbmeta.BinaryNames("BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax:      dbmeta.Syntax{DashComments: true, BlockComments: true, HashComments: true, Backticks: true, BeginEndBlocks: true},
+		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, HashComments: true, Backticks: true, BeginEndBlocks: true},
+		// MariaDB has RETURNING and MySQL does not, and a statement that MySQL refuses
+		// is an error either way (D264).
+		Statements:  dbmeta.Statements{Returning: dbmeta.ReturningRows},
 		Placeholder: func(int) string { return "?" },
 		// usql scans each column into the type the driver reports, and tidb,
 		// vitess and singlestore copy this Info (D230).

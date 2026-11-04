@@ -308,6 +308,9 @@ type Info struct {
 	// one form for every dialect, and [BinaryNames] builds the function. See
 	// D258.
 	IsBinary func(*sql.ColumnType) bool
+	// Statements says what the statements of the product return, for
+	// [Dialect.Classify]. See D264.
+	Statements Statements
 	// IsGUID says whether a binary column holds a GUID, from the type that a
 	// driver reports for it. Nil when the model records none. [Dialect.FormatBinary]
 	// writes a value of 16 bytes in such a column as a UUID. Oracle has no UUID

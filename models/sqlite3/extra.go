@@ -159,6 +159,21 @@ func registerViews() {
 // is not in a temporary object, so main is what this reports. It is the one
 // kind here whose answer is a constant.
 func registerCurrentSchema() {
+	// The database that the connection is using (D265).
+	dbmeta.CurrentDatabase.Register(dbmeta.SQLite3, &dbmeta.Binding[dbmeta.DatabaseName]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT d.name AS "name" FROM pragma_database_list d WHERE d.seq = 0`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "always main: SQLite names the first database that way, and the file is d.file"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.DatabaseName, error) {
+			var v dbmeta.DatabaseName
+			err := rows.Scan(&v.Name)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.SQLite3, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT '' AS "catalog"`),

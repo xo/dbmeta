@@ -664,6 +664,21 @@ func registerStorage() {
 		},
 	})
 
+	// The database that the connection is using (D265).
+	dbmeta.CurrentDatabase.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.DatabaseName]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT DB_NAME() AS "name"`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name", Desc: "the database in use, which USE changes"},
+		},
+		Scan: func(rows *sql.Rows) (dbmeta.DatabaseName, error) {
+			var v dbmeta.DatabaseName
+			err := rows.Scan(&v.Name)
+			return v, err
+		},
+	})
+
 	dbmeta.CurrentSchema.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT DB_NAME() AS "catalog"`),
