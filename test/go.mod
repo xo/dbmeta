@@ -22,7 +22,6 @@ require (
 	github.com/xo/dburl v0.55.0
 	github.com/xo/oracle v0.3.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.155.1
-	google.golang.org/grpc v1.85.0
 	modernc.org/sqlite v1.61.1
 )
 
@@ -120,6 +119,7 @@ require (
 	google.golang.org/genproto v0.0.0-20261026165753-2ffab32bce7e // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261026165753-2ffab32bce7e // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261026165753-2ffab32bce7e // indirect
+	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	howett.net/plist v1.0.1 // indirect

@@ -226,5 +226,3 @@ In progress:
 
 - usql sends what it finds against the new fields, and the next database to
   bring to psql's level.
-- The arrow-go handshake that GizmoSQL needs is fixed upstream, and until then
-  the tests open the session themselves.

@@ -50,7 +50,6 @@ import (
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/all"
-	"github.com/xo/dbmeta/test/internal/gizmosql"
 )
 
 // drivers names the driver each dialect connects with. It is the one the
@@ -133,10 +132,6 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.InfluxQL:  "influxdb",
 	dbmeta.SurrealDB: "surrealdb",
 	dbmeta.Solr:      "solr",
-
-	// gizmosql:// opens the Arrow Flight SQL driver, which needs the session
-	// that readVersion opens first (D187).
-	dbmeta.GizmoSQL: "flightsql",
 }
 
 // doVersion connects and prints what dbmeta reads, rather than what the
@@ -172,14 +167,6 @@ func readVersion(ctx context.Context, t target) (dbmeta.VersionSet, error) {
 		return dbmeta.VersionSet{}, fmt.Errorf("%s needs the other dbrun: build it with -tags %s, or without it", t.Name, omniTag)
 	}
 	dsn := t.connectDSN()
-	if t.Dialect == dbmeta.GizmoSQL {
-		// The driver never makes the handshake that GizmoSQL needs, so the
-		// DSN carries the session token that internal/gizmosql opens.
-		var err error
-		if dsn, err = gizmosql.DSN(ctx, dsn); err != nil {
-			return dbmeta.VersionSet{}, fmt.Errorf("opening a session: %w", err)
-		}
-	}
 	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		return dbmeta.VersionSet{}, fmt.Errorf("opening: %w", err)

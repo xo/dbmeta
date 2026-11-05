@@ -59,7 +59,7 @@ of this file.
 
 `models/` holds 46 native models: arangodb, athena, avatica, bigquery, cassandra, clickhouse,
 cockroachdb, couchbase, cosmos, cratedb, databend, databricks, drill, druid, duckdb,
-elasticsearch, exasol, firebird, gizmosql, hana, hive, impala, influxdb,
+elasticsearch, exasol, firebird, hana, hive, impala, influxdb,
 influxql, libsql, mysql, neo4j, opensearch, oracle, postgres, presto, questdb,
 redshift, rqlite, singlestore, snowflake, solr, spanner, sqlite3, sqlserver, surrealdb,
 tidb, trino, vertica, vitess and ydb. ScyllaDB is a flavor of the Cassandra

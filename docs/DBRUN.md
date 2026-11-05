@@ -285,7 +285,6 @@ The administrator of each product:
 | MongoDB | `admin`, in the database `admin` | `container.Password` |
 | Elasticsearch | `elastic` | `container.Password` |
 | Dgraph | `groot` | `container.Password`, which Init sets |
-| GizmoSQL | `admin` | `container.Password` |
 | Virtuoso | `dba` | `container.Password` |
 | Milvus | `root` | `container.Password` |
 | Alternator | `cassandra`, the access key | the salted hash of `cassandra`, which is the secret key |
@@ -334,7 +333,7 @@ and ScyllaDB have `container.CassandraUser`, a role that can log in, is no
 superuser, and holds no permission. It reads `system` and `system_schema`, and
 it cannot read the tables that hold roles and permissions (D195). QuestDB
 has `container.QuestDBUser`, the user of its PostgreSQL interface that can
-only read. Chroma, GizmoSQL, Spanner, BigQuery, Vitess,
+only read. Chroma, Spanner, BigQuery, Vitess,
 DynamoDB, Cosmos and ksqlDB have none, and D118 says why. `dsn --json`
 prints each in the `principals` field, after the administrator, with its own
 connection string (D102). Every other ordinary user is created by the test
@@ -450,7 +449,6 @@ none:
 | TerminusDB, Stardog | the command runs one request for each call, and opens no shell |
 | VoltDB | its shell is called `sqlcmd`, as the SQL Server one is |
 | Virtuoso | the entry publishes the HTTP port, and its `isql` shell is on another port |
-| GizmoSQL | it speaks Arrow Flight SQL, and its client is not a common command |
 | YDB | the `ydb` command runs one statement for each call, and its login options were not measured |
 | InfluxDB 2 and 3 | the command runs one request for each call and opens no shell |
 | chai, csvq | a Go library with no shell |

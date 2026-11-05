@@ -1,6 +1,6 @@
 # D187. GizmoSQL shares the DuckDB model and the tests open the session
 
-Status: Decided.
+Status: Superseded by D267.
 
 ## The decision
 

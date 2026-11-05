@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-118 of them amend or replace an earlier one, and a decision read without its
+119 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -205,7 +205,7 @@ file.
 | [D184](D184-dynamodb-has-no-catalog-a-statement-can-reach.md) | DynamoDB has no catalog that a statement can reach | Decided |
 | [D185](D185-pinot-has-no-catalog-a-statement-can-reach.md) | Apache Pinot has no catalog that a statement can reach | Decided |
 | [D186](D186-avatica-reads-the-hsqldb-catalog-and-phoenix-has-no-model.md) | Avatica reads the HSQLDB catalog, and Phoenix has no model | Decided |
-| [D187](D187-gizmosql-shares-the-duckdb-model-and-the-tests-open-the-session.md) | GizmoSQL shares the DuckDB model and the tests open the session | Decided |
+| [D187](D187-gizmosql-shares-the-duckdb-model-and-the-tests-open-the-session.md) | GizmoSQL shares the DuckDB model and the tests open the session | Superseded by D267 |
 | [D188](D188-no-dialect-for-h2-voltdb-chai-or-csvq.md) | No dialect for H2, VoltDB, chai or csvq | Amends D158, amended by D194 |
 | [D189](D189-dbimp-reads-the-opensearch-2-19-6-describe-row.md) | dbimp reads the OpenSearch 2.19.6 DESCRIBE row | Amends D181 |
 | [D190](D190-snowflake-ran-against-a-trial-account.md) | Snowflake ran against a trial account | Amends D144, amended by D193, D203 and D213 |
@@ -285,3 +285,4 @@ file.
 | [D264](D264-the-dialect-says-whether-a-statement-returns-rows.md) | The dialect says whether a statement returns rows | Decided |
 | [D265](D265-the-current-database-is-a-kind-of-its-own.md) | The current database is a kind of its own | Decided |
 | [D266](D266-a-backslash-escapes-in-a-string.md) | A backslash escapes in a string for some dialects | Amends D143 |
+| [D267](D267-usql-drops-gizmosql-so-dbmeta-drops-its-model.md) | usql drops GizmoSQL, so dbmeta drops its model | Supersedes D187 |

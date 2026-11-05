@@ -78,8 +78,6 @@ const (
 
 	Exasol   Dialect = "exasol"
 	Firebird Dialect = "firebirdsql"
-	// GizmoSQL serves Arrow Flight SQL, and the flightsql driver reaches it.
-	GizmoSQL Dialect = "gizmosql"
 	Hive     Dialect = "hive"
 	HANA     Dialect = "hdb"
 	// Impala is Apache Impala, which serves HiveServer2's protocol and has

@@ -66,7 +66,6 @@ than from memory.
 | SQL Server | 9 | nothing |
 | Oracle | 9 | nothing |
 | DuckDB | 8 | `IndexColumns`: DuckDB names an index and does not list the columns of it |
-| GizmoSQL | 8 | the same as DuckDB, whose statements it shares |
 | SQLite | 8 | `RoutineParameters`: a SQLite function has no named parameters |
 | rqlite | 8 | the same as SQLite, whose statements it shares |
 | libSQL | 8 | the same as SQLite, whose statements it shares |
@@ -150,7 +149,6 @@ dialect is added.
 | Apache Solr | no | no. A collection has no key and no foreign key in SQL, so there is nothing to relate one collection to another, and every column reads nullable, the unique key included |
 | InfluxQL | no | no, for the same reason as InfluxDB 3. A measurement has tags and fields and no key, and `Schema` has no answer, because no statement returns the database of the request |
 | DuckDB | no | yes, without index columns |
-| GizmoSQL | no | yes, without index columns, the same as DuckDB. A generator needs a driver that opens a session, and the one dburl names does not (D187) |
 | ClickHouse | no | partly: no foreign key to follow and no parameter names |
 | Cassandra | no | partly: no current keyspace expression and no parameter names |
 | ScyllaDB | no | partly: the same as Cassandra |

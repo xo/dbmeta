@@ -777,9 +777,6 @@ func parityTargets() []parityTarget {
 var parityExempt = map[dbmeta.Dialect]string{
 	dbmeta.SQLite3: "a file on disk. It has no user, so there is no second principal to be",
 	dbmeta.DuckDB:  "an embedded library. It has no user either",
-	dbmeta.GizmoSQL: "the core has one user, admin, and its engine is DuckDB, which has no" +
-		" user. The other roles need an identity provider or an enterprise license." +
-		" See D118 and D187",
 	dbmeta.Impala: "the image configures no authentication, so every user is the same" +
 		" principal and nothing can be refused to one. See D146",
 	dbmeta.Vitess: "vttestserver starts vtcombo with no authentication and no table rules," +

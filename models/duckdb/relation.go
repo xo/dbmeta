@@ -96,10 +96,8 @@ func registerRelations() {
 			internalOf("WHERE", "t"),
 			always(`AND (@schema = '' OR t.schema_name LIKE @schema)`),
 			always(`AND (@name = '' OR t.table_name LIKE @name)`),
-			// The cast is for the Flight SQL driver of GizmoSQL. DuckDB cannot
-			// infer the type of a bare parameter in a || chain when it
-			// prepares the statement, so the server types every parameter as
-			// a string and the driver then refuses the boolean one. D187.
+			// The cast types the parameter, because DuckDB cannot infer the
+			// type of a bare one in a || chain when it prepares the statement.
 			always(`AND (@types = '' OR ` + dbmeta.InList(`CAST(@types AS VARCHAR)`, `CASE WHEN t.temporary THEN 'temporary table' ELSE 'table' END`) + `)`),
 			always(`UNION ALL`),
 			always(`SELECT v.database_name, v.schema_name, v.view_name`),

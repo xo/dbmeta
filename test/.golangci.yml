@@ -115,8 +115,6 @@ linters:
         - (*database/sql.Stmt).Close
         # The same, for the connection that runs a batch of DDL on Spanner.
         - (*database/sql.Conn).Close
-        # The same, for the Flight SQL client that opens a GizmoSQL session.
-        - (*github.com/apache/arrow-go/v18/arrow/flight/flightsql.Client).Close
         # The same, for the connector of the Tablestore driver of dbimp.
         - (*github.com/xo/dbimp/tablestore.Connector).Close
         # A deferred Close on a file being read returns an error nothing can

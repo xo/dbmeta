@@ -67,7 +67,6 @@ rather than reading one.
 | `models/elasticsearch` | 8 | 67 | Elasticsearch 8.19.23, 9.4.8 and 9.5.5, from SYS and SHOW statements that a walk reads, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D177, D191, D192) |
 | `models/opensearch` | 3 | 67 | OpenSearch 3.9.0 and 2.19.7, from SHOW TABLES and DESCRIBE that a walk reads, with dbimp's driver at v0.14.1. The release comes from `SELECT version()`, which every user can read (D181, D189, D191, D192) |
 | `models/solr` | 4 | 67 | Apache Solr 9.9.0, 9.10.1 and 10.0.0, from metadata.TABLES and metadata.COLUMNS, with dbimp's driver. The release comes from `SELECT version()`, which every user can read (D179, D191, D192) |
-| `models/gizmosql` | 21 | 67 | GizmoSQL 1.41.0 and 1.42.0, where DuckDB 1.5.6 was measured on 1.40.0 and 1.41.0, with the Arrow Flight SQL driver. Every statement is the duckdb model's (D187) |
 | `models/spanner` | 22 | 67 | Spanner Omni 2026.r4-lts and Cloud Spanner, in the GoogleSQL dialect. Cloud Spanner is tested with the driver of dbimp, and Omni with go-sql-spanner in a binary of its own (D216, D219, D231) |
 | `models/bigquery` | 18 | 67 | the hosted Google BigQuery service, which has no release, in the GoogleSQL dialect, with the driver of dbimp (D220, D226, D229) |
 | `models/athena` | 8 | 67 | the hosted Amazon Athena service, which has no release that SQL reads, in the Trino based dialect of engine version 3, with the driver of dbimp, which binds with ExecutionParameters (D222, D229) |
@@ -5875,93 +5874,6 @@ dbimp v0.14.1 reads both. The survey also said that the position starts at 1
 on 3.9.0, that 3.9.0 lists every mapping type, and that DESCRIBE of an index with
 no mapping fails with HTTP 500 on 3.9.0. None of that held when it was measured
 again, and the position starts at 0 on both.
-
-## GizmoSQL
-
-`models/gizmosql` answers 21 of the 67 on GizmoSQL 1.40.0 and 1.41.0, measured
-on 2026-10-08 through the Arrow Flight SQL driver in `arrow-go`, which dburl
-names for the scheme gizmosql. Both releases run DuckDB 1.5.6 and are Tested.
-GizmoSQL is a server for Arrow Flight SQL, and its engine is DuckDB, or SQLite
-when it starts with `--backend sqlite`. The entry starts DuckDB, and this model
-is for that backend only. D187 holds the decisions.
-
-### What it reads
-
-The DuckDB catalog, through the same statements as [DuckDB](#duckdb). The model
-shares all 20 bindings of `models/duckdb` and writes none. How much is shared:
-every statement, and the fixture. The answers on the fixture are line for line
-DuckDB's, and the conformance section of `gizmosql` is the same as the one of
-`duckdb`.
-
-Two things differ from the library, and each is a fragment of the duckdb
-model.
-
-- GizmoSQL attaches a database named `_gizmosql_system`, which holds two views
-  for the Flight SQL metadata calls. DuckDB does not flag it internal, so a
-  fragment that gates on the version key `gizmosql` leaves it out unless the
-  caller asks for the system objects. `TestGizmoSQLSystemDatabase` checks it.
-- The `types` filter of Tables casts its parameter to VARCHAR. Without the
-  cast, DuckDB cannot type the parameter when it prepares the statement,
-  GizmoSQL reports every parameter as a string, and the driver refuses the
-  boolean one.
-
-### The driver, which opens no session
-
-The driver sends the user and the password on each call and never makes the
-handshake that GizmoSQL needs, so every statement fails with "No session ID in
-request context". usql's gizmosql driver is in its bad group for the same
-reason. The tests make the handshake themselves, with the Flight client of the
-same module, and hand the driver the token (`test/internal/gizmosql`). The
-fault is in `arrow-go`.
-
-### What the driver returns
-
-Every column the model selects arrives as a typed Go value. The driver names no
-database type: `ColumnTypeDatabaseTypeName` is empty for every column. It
-refuses an unsigned 64 bit integer, a date, a list, a map, a struct, an enum
-and an interval, and reads `HUGEINT` and `DECIMAL` as a `float64`. No statement
-of the model returns one of those. A statement that ends in a semicolon runs,
-so the model does not strip it. A query of 3,000 tables, 1,000 views and
-1,000 indexes takes at most 25 ms for any kind, against a catalog of 4,005
-tables and 17,016 columns, measured with the fixture also in place.
-
-### What it cannot answer
-
-The 36 kinds that DuckDB cannot answer, for the same reasons: no role, grant,
-trigger, partition, foreign object, replication, text search or operator
-catalog. The core has one user, and GizmoSQL adds no SQL catalog of its own in
-the core. `gizmosql_metrics()` needs an enterprise license.
-
-### What a second opinion found
-
-Gemini and DeepSeek were asked. Gemini named `duckdb_indexes()` for index
-columns, which DuckDB rejected already because the columns are text in a list,
-`summarize` and `PRAGMA storage_info` for column statistics, which scan the
-data (D162), `duckdb_extensions()` for extension objects, which is the
-extensions kind and not the objects of an extension, and `duckdb_types()` for
-domains, which DuckDB does not have. It said the core adds no catalog. That
-held. DeepSeek named `gizmosql.sessions` and `gizmosql.users`,
-`pg_catalog.pg_roles`, `pg_user` and `pg_cast`, and `information_schema`
-views for roles, privileges, triggers and domains. None of the nine exists on
-1.40.0 and the server says so for each. Every lead of DeepSeek was invented.
-
-### Flight SQL metadata calls
-
-`GetCatalogs`, `GetDbSchemas`, `GetTables`, `GetPrimaryKeys`, `GetSqlInfo`
-and the others are calls of the protocol, and SQL does not reach them. The
-model does not use them. `GetSqlInfo` names the server `gizmosql` and the
-engine `duckdb v1.5.6`, and does not give the GizmoSQL release.
-
-### Which answers depend on who is asking
-
-Not measured. The core has one user, `admin`, and the other roles need an
-identity provider or an enterprise license, so the model has no parity target
-(`parityExempt`, D187).
-
-### The describe fields (D208)
-
-Every statement is the duckdb model's, so GizmoSQL fills the same fields as
-DuckDB, and answers the NotNulls kind. The tests run the same checks on it.
 
 ## Spanner
 

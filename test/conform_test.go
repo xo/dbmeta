@@ -29,7 +29,6 @@ import (
 	esfixture "github.com/xo/dbmeta/models/elasticsearch/fixture"
 	exfixture "github.com/xo/dbmeta/models/exasol/fixture"
 	fbfixture "github.com/xo/dbmeta/models/firebird/fixture"
-	gzfixture "github.com/xo/dbmeta/models/gizmosql/fixture"
 	hafixture "github.com/xo/dbmeta/models/hana/fixture"
 	hvfixture "github.com/xo/dbmeta/models/hive/fixture"
 	imfixture "github.com/xo/dbmeta/models/impala/fixture"
@@ -175,10 +174,6 @@ func conformTargets() []conformTarget {
 		{
 			name: "duckdb", dialect: dbmeta.DuckDB,
 			open: openDuckDB, schema: dkfixture.Everything.Schema, build: setupDuckDB,
-		},
-		{
-			name: "gizmosql", dialect: dbmeta.GizmoSQL,
-			open: openGizmoSQL, schema: gzfixture.Everything.Schema, build: setupGizmoSQL,
 		},
 		{
 			name: "sqlserver", dialect: dbmeta.SQLServer,

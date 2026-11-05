@@ -38,7 +38,6 @@ import (
 	_ "github.com/xo/dbmeta/all"
 	esfixture "github.com/xo/dbmeta/models/elasticsearch/fixture"
 	osfixture "github.com/xo/dbmeta/models/opensearch/fixture"
-	"github.com/xo/dbmeta/test/internal/gizmosql"
 )
 
 // alignColumn is a column of the probe table and the side on which a client
@@ -263,18 +262,6 @@ var alignTargets = []alignTarget{
 			{ddl: "smallint", right: true}, {ddl: "real", right: true}, {ddl: "double", right: true},
 			{ddl: "float", right: true}, {ddl: "numeric", right: true}, {ddl: "decimal(10,2)", right: true},
 			{ddl: "boolean"}, {ddl: "text"}, {ddl: "varchar(10)"}, {ddl: "blob"}, {ddl: "date"}, {ddl: "datetime"},
-		},
-	},
-	{
-		dialect: dbmeta.GizmoSQL, env: "DBMETA_GIZMOSQL", drivers: []string{"flightsql"},
-		prep: gizmosql.DSN, unnamed: true,
-		cols: []alignColumn{
-			{ddl: "CAST(1 AS TINYINT)", right: true}, {ddl: "CAST(1 AS SMALLINT)", right: true},
-			{ddl: "CAST(1 AS INTEGER)", right: true}, {ddl: "CAST(1 AS BIGINT)", right: true},
-			{ddl: "CAST(1 AS FLOAT)", right: true},
-			{ddl: "CAST(1 AS DOUBLE)", right: true}, {ddl: "CAST(1 AS DECIMAL(10,2))", right: true},
-			{ddl: "CAST(1 AS BOOLEAN)"}, {ddl: "CAST('a' AS VARCHAR)"}, {ddl: "CAST('2020-01-01' AS DATE)"},
-			{ddl: "CAST('2020-01-01' AS TIMESTAMP)"}, {ddl: "CAST('a' AS BLOB)"}, {ddl: "CAST('01:00:00' AS TIME)"},
 		},
 	},
 	{
