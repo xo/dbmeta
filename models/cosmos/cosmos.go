@@ -84,7 +84,7 @@ import (
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Cosmos, &dbmeta.Info{
-		Syntax: dbmeta.Syntax{DashComments: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true},
 		// The SQL of Cosmos DB has comments that start with two hyphens and
 		// names in double quotes, and it keeps the case of a name. The server
 		// refuses a semicolon at the end of a statement, so a client removes it.

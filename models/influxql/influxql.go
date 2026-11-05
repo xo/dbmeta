@@ -47,7 +47,7 @@ func init() {
 		// InfluxQL takes `--` and `/* */` comments, and keeps the case of a
 		// name, measured on 1.13.1 and 3.11.5. usql sets no lexer flags for
 		// InfluxQL (D143).
-		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true, BlockComments: true},
 		Fold:   dbmeta.FoldNone,
 		// The server binds $name and $1, and the driver sends a positional
 		// argument as $1 (dbimp D111).

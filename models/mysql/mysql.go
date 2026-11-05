@@ -110,7 +110,7 @@ func init() {
 		IsBinary: dbmeta.BinaryNames("BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, HashComments: true, Backticks: true, BeginEndBlocks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true, BlockComments: true, HashComments: true, Backticks: true, BeginEndBlocks: true},
 		// MariaDB has RETURNING and MySQL does not, and a statement that MySQL refuses
 		// is an error either way (D264).
 		Statements:  dbmeta.Statements{Returning: dbmeta.ReturningRows},

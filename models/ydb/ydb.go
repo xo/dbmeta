@@ -82,7 +82,7 @@ func init() {
 		// is between single or double quotes, so a double quote does not
 		// quote a name here. A name keeps its case, measured by
 		// scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true, BlockComments: true, Backticks: true},
 		// ydb-go-sdk names a parameter that has no name $p0, $p1 and so
 		// on, counting from zero, and YDB takes a parameter that no DECLARE
 		// names. So a positional value needs no option in the connection

@@ -87,6 +87,8 @@ func TestClassify(t *testing.T) {
 		{dbmeta.MySQL, "replace into t values (1) returning a", "REPLACE", true},
 		{dbmeta.MySQL, "insert into t values (1) # returning id", "INSERT", false},
 		{dbmeta.MySQL, "update t set `returning` = 1", "UPDATE", false},
+		{dbmeta.MySQL, `select 'a\' into b'`, "SELECT", true},
+		{dbmeta.PostgreSQL, `select 'a\' into b'`, "SELECT INTO", false},
 		{dbmeta.Firebird, "insert into t values (1) returning id", "INSERT", true},
 		{dbmeta.Spanner, "insert into t (a) values (1) then return a", "INSERT", true},
 		{dbmeta.Spanner, "insert into t (a) values (1)", "INSERT", false},

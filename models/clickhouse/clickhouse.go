@@ -84,7 +84,7 @@ func init() {
 			"UINT8", "UINT16", "UINT32", "UINT64", "UINT128", "UINT256", "FLOAT32", "FLOAT64", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
 		// is measured by scanEveryQuery (D143).
-		Syntax: dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true, SlashComments: true, HashComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true, DollarQuotes: true, BlockComments: true, SlashComments: true, HashComments: true, Backticks: true},
 		// dbimp's driver binds by position and writes a question mark.
 		Placeholder:    func(int) string { return "?" },
 		VersionQuery:   versionQuery,

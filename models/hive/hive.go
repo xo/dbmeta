@@ -76,7 +76,7 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Hive, &dbmeta.Info{
-		Syntax: dbmeta.Syntax{DashComments: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true},
 		// SET alone lists the settings (D264).
 		Statements: dbmeta.Statements{SetListsSettings: true},
 		// The names are what gohive reports. Measured on Apache Hive 4.2.1 (D245).

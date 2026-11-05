@@ -103,7 +103,7 @@ func init() {
 		// Cypher has block comments, comments from // to the end of the
 		// line, and names between backticks. A name keeps its case, and
 		// scanEveryQuery measures that (D143).
-		Syntax: dbmeta.Syntax{BlockComments: true, SlashComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, BlockComments: true, SlashComments: true, Backticks: true},
 		// The driver fills $1 with the first positional argument, $2 with the
 		// second, and so on (dbimp D64).
 		Placeholder:            func(n int) string { return "$" + strconv.Itoa(n) },

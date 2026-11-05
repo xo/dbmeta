@@ -94,7 +94,7 @@ func init() {
 	dbmeta.RegisterDialect(dbmeta.Spanner, &dbmeta.Info{
 		// GoogleSQL has block comments and hash comments, and quotes a name
 		// with backticks. A name keeps its case and is compared without it.
-		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, HashComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true, BlockComments: true, HashComments: true, Backticks: true},
 		// THEN RETURN sends the changed rows to the client. This is from the
 		// documentation and was not run against a server (D264).
 		Statements: dbmeta.Statements{Returning: dbmeta.ReturningThenReturn},

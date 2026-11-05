@@ -81,7 +81,7 @@ func init() {
 		// AQL has // and /* */ comments and names in backticks, which is
 		// what dbimp's driver parses. The fold is measured by
 		// scanEveryQuery: AQL keeps the case of a name (D143).
-		Syntax: dbmeta.Syntax{BlockComments: true, SlashComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, BlockComments: true, SlashComments: true, Backticks: true},
 		// The driver binds a positional value at @1, @2 and so on.
 		Placeholder:            func(n int) string { return "@" + strconv.Itoa(n) },
 		EveryStatementIsAQuery: true,

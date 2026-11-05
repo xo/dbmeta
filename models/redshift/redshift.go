@@ -45,7 +45,7 @@ func init() {
 		// The syntax is usql's lexer flags for this product, which uses the
 		// pgx driver's, and the fold is Redshift's documented rule: a name
 		// that is not quoted is stored in lower case (D143).
-		Syntax:         dbmeta.Syntax{DashComments: true, DollarQuotes: true, BlockComments: true},
+		Syntax:         dbmeta.Syntax{BackslashEscapes: true, DashComments: true, DollarQuotes: true, BlockComments: true},
 		Fold:           dbmeta.FoldLower,
 		Placeholder:    func(n int) string { return "$" + strconv.Itoa(n) },
 		VersionQuery:   versionQuery,

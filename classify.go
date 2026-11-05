@@ -83,9 +83,14 @@ func lex(stmt string, syn Syntax) []token {
 		return strings.HasPrefix(string(rs[i:min(i+len(s), len(rs))]), s)
 	}
 	// skipTo returns the index after the closer, doubling the closer to
-	// escape it when double is true.
-	skipTo := func(i int, closer rune, double bool) int {
+	// escape it when double is true, and reading a backslash as an escape
+	// when backslash is true.
+	skipTo := func(i int, closer rune, double, backslash bool) int {
 		for i++; i < len(rs); i++ {
+			if backslash && rs[i] == '\\' {
+				i++
+				continue
+			}
 			if rs[i] == closer {
 				if double && i+1 < len(rs) && rs[i+1] == closer {
 					i++
@@ -111,13 +116,13 @@ func lex(stmt string, syn Syntax) []token {
 				i += 2
 			}
 		case r == '\'' || r == '"':
-			i = skipTo(i, r, true)
+			i = skipTo(i, r, true, syn.BackslashEscapes)
 			toks = append(toks, token{kind: 'o', depth: depth})
 		case r == '`' && syn.Backticks:
-			i = skipTo(i, '`', true)
+			i = skipTo(i, '`', true, false)
 			toks = append(toks, token{kind: 'o', depth: depth})
 		case r == '[' && syn.Brackets:
-			i = skipTo(i, ']', true)
+			i = skipTo(i, ']', true, false)
 			toks = append(toks, token{kind: 'o', depth: depth})
 		case r == '$' && syn.DollarQuotes && dollarTag(rs, i) != "":
 			tag := dollarTag(rs, i)

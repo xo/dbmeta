@@ -105,7 +105,7 @@ func init() {
 		// SurrealQL has comments from --, from # and from // to the end of
 		// the line, block comments, and names between backticks. A name
 		// keeps its case, which scanEveryQuery measures (D143).
-		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, SlashComments: true, HashComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true, BlockComments: true, SlashComments: true, HashComments: true, Backticks: true},
 		// A parameter is bound by its name, because SurrealQL has no
 		// positional parameter. Placeholder writes what bind writes.
 		Named:                  true,

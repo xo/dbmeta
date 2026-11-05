@@ -75,7 +75,7 @@ const versionQuery = "SELECT COALESCE(current_version().dbsql_version, current_v
 func init() {
 	dbmeta.RegisterDialect(dbmeta.Databricks, &dbmeta.Info{
 		// Databricks has block comments and quotes a name with backticks.
-		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true, BeginEndBlocks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true, BlockComments: true, Backticks: true, BeginEndBlocks: true},
 		// An unquoted name is stored in lower case.
 		Fold: dbmeta.FoldLower,
 		// The driver binds by position, and a position is a question mark.

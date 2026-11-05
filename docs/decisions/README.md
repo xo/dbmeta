@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-117 of them amend or replace an earlier one, and a decision read without its
+118 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -161,7 +161,7 @@ file.
 | [D140](D140-databend-reads-its-system-database.md) | Databend reads its system database | Decided |
 | [D141](D141-singlestore-shares-the-mysql-model.md) | SingleStore shares the mysql model, and runs with no license | Amends D118 |
 | [D142](D142-ql-is-removed.md) | ql is removed | Amends D116, D119 and D129 |
-| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230, D238, D249, D250, D251, D252, D258 and D261 |
+| [D143](D143-a-dialect-says-how-its-sql-is-written.md) | A dialect says how its SQL is written | Decided, amended by D230, D238, D249, D250, D251, D252, D258, D261 and D266 |
 | [D144](D144-snowflake-and-redshift-are-written-before-they-run.md) | Snowflake and Redshift are written before they run | Decided, amended by D182 and D190 |
 | [D145](D145-impala-runs-in-one-container.md) | Impala runs in one container | Amends D118 |
 | [D146](D146-a-query-can-walk-several-statements.md) | A query can walk several statements | Amends D47 and D67, amended by D159, D175 and D242 |
@@ -284,3 +284,4 @@ file.
 | [D263](D263-an-oracle-raw16-prints-as-a-uuid.md) | An Oracle RAW(16) prints as a UUID | Amends D258 |
 | [D264](D264-the-dialect-says-whether-a-statement-returns-rows.md) | The dialect says whether a statement returns rows | Decided |
 | [D265](D265-the-current-database-is-a-kind-of-its-own.md) | The current database is a kind of its own | Decided |
+| [D266](D266-a-backslash-escapes-in-a-string.md) | A backslash escapes in a string for some dialects | Amends D143 |

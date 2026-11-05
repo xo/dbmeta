@@ -104,7 +104,7 @@ func init() {
 	dbmeta.RegisterDialect(dbmeta.MaxCompute, &dbmeta.Info{
 		// The language has block comments, hash comments are not measured, and a
 		// name is quoted with backticks.
-		Syntax: dbmeta.Syntax{DashComments: true, BlockComments: true, Backticks: true},
+		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true, BlockComments: true, Backticks: true},
 		// The service refuses a statement that does not end with a semicolon.
 		Terminator: dbmeta.TerminatorRequired,
 		// An unquoted name is stored in lower case.

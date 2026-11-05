@@ -21,6 +21,12 @@ type Syntax struct {
 	// Brackets is a name between square brackets, as SQL Server and SQLite
 	// write one. See D264.
 	Brackets bool
+	// BackslashEscapes says that a backslash in a string between single or
+	// double quotes escapes the next character, so `'it\'s'` is one string.
+	// The MySQL family reads one. PostgreSQL and the others read a backslash
+	// as an ordinary character, and a client that reads it as an escape
+	// joins two strings or cuts one. See D266.
+	BackslashEscapes bool
 	// DashComments is a comment from two dashes to the end of the line. Every
 	// SQL product reads one. Cypher does not: `(a)--(b)` is a relationship and
 	// `5--3` is 8, so a client that reads two dashes as a comment cuts the
