@@ -420,7 +420,6 @@ and D40 make that distinction, and the table must not claim more than is true.
 | VoltDB | 14.1.0 | 15.2.0 | The rule for an image that is never rebuilt (D112). The developer edition needs a license file, and not yet measured (D118) |
 | Solr | 9.9.0 | 10.0.0 | Criterion 2. 10.0.0, 9.10.1 and 9.9.0 were rebuilt on 2026-09-26. 9.10.1 is between them. The entry is for dbimp's driver (D118) |
 | Drill | 1.21.2 | 1.22.0 | The rule for an image that is never rebuilt (D112). The Java of 1.22.0 fails on a current host unless its container support is off (D118) |
-| H2 | 2.4.240 | 2.5.252 | The rule for an image that is never rebuilt (D112), applied to the jars on Maven Central. The image is built here (D118) |
 | Fuseki | 6.1.0 | 6.2.0 | The rule for an image that is never rebuilt (D112), applied to the jars on Maven Central. The image is built here (D118) |
 | PostgREST | 14.18 | 16.5 | The rule for an image that is never rebuilt (D112). There is no 15. The image is built here, on PostgreSQL 18 (D118) |
 | ksqlDB | 8.2.4 | 8.3.2 | The rule for an image that is never rebuilt (D112), from Confluent Platform's image, because confluentinc/ksqldb-server stopped in 2023. The image is built here, with the Kafka broker (D118) |
@@ -519,8 +518,8 @@ it.
 `podman-run.sh`. The products dbmeta already has a model for are started by
 `dbrun` from `container/`, and that list is the one copy of their images,
 ports, environment and passwords, so nothing of theirs was carried over.
-CockroachDB and YDB have a model now (D123, D161), and Flight SQL and H2
-have Staged entries. D118 added those three entries from the vendors'
+CockroachDB and YDB have a model now (D123, D161), and Flight SQL had
+a Staged entry, and so did H2. D118 added those three entries from the vendors'
 current images rather than from these. Apache Ignite is
 gone: usql removed its driver on 2026-09-27 and dburl v0.31.0 dropped the
 scheme, and a product nothing reads is removed (D118).

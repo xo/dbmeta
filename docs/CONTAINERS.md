@@ -137,7 +137,7 @@ no setting or argument can change it. Cassandra's image refuses a user
 defined function, a materialized view and a role, and Oracle publishes no free
 19c image, so both are built. D118 added more: an image with no shell, such as
 the Cloud Spanner emulator's, a product that publishes a jar and no image,
-such as H2 and Fuseki, and two programs that must run in one container, such
+such as Fuseki, and two programs that must run in one container, such
 as PostgREST with PostgreSQL and ksqlDB with Kafka. D145 added Impala, whose
 four Apache images are built into one.
 

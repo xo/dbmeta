@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-119 of them amend or replace an earlier one, and a decision read without its
+120 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -136,7 +136,7 @@ file.
 | [D115](D115-a-server-shows-its-owners-name-and-status-a-shows.md) | A server shows its owner's name, and status -a shows the stopped ones | Amends D98 |
 | [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 and D142 |
 | [D117](D117-a-hosted-service-appears-in-dbrun-when-its-credential-does.md) | A hosted service appears in dbrun when its credential does | Amended by D125 |
-| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123, D141, D145, D215 and D225 |
+| [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123, D141, D145, D215, D225 and D268 |
 | [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 and D142 |
 | [D120](D120-a-staged-release-keeps-its-cadence.md) | A Staged release keeps its cadence | Amends D119 |
 | [D121](D121-the-interface-is-named-queryer.md) | The interface is named Queryer | Amends D49 |
@@ -286,3 +286,4 @@ file.
 | [D265](D265-the-current-database-is-a-kind-of-its-own.md) | The current database is a kind of its own | Decided |
 | [D266](D266-a-backslash-escapes-in-a-string.md) | A backslash escapes in a string for some dialects | Amends D143 |
 | [D267](D267-usql-drops-gizmosql-so-dbmeta-drops-its-model.md) | usql drops GizmoSQL, so dbmeta drops its model | Supersedes D187 |
+| [D268](D268-usql-drops-h2-so-dbmeta-drops-its-entries.md) | usql drops H2, so dbmeta drops its entries | Amends D118 |

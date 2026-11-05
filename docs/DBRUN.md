@@ -292,7 +292,7 @@ The administrator of each product:
 | OpenSearch | `admin` | `container.Password`. The first start uses a stronger one that the installer accepts, and replaces it before the server starts (D118) |
 | DynamoDB | `dbmeta`, the access key | none. DynamoDB Local checks no key |
 | Cosmos | `container.CosmosKey`, the key of the emulator's one account, which Microsoft publishes. The URL has the key as the password and any word as the user, and the DSN of gocosmos has it in `AccountKey` (D225) | none |
-| Solr, Drill, Fuseki, ksqlDB, H2 | `admin`, and `sa` on H2 | `container.Password` |
+| Solr, Drill, Fuseki, ksqlDB | `admin` | `container.Password` |
 | PostgREST | `dbmeta_admin`, a role a token names | a signed token, which the DSN carries as the password. There is no anonymous role |
 | Stardog, GraphDB, VoltDB | `admin` | `container.Password`. Each appears only with its license file |
 | Avatica | `SA`, HSQLDB's administrator | none. SA has no password in HSQLDB, which checks each user the server passes on (D155). |
@@ -327,7 +327,7 @@ YDB has `dbmetauser`, because YDB allows no underscore in a user name.
 ClickHouse has `dbmeta_user`, who can read and write the database `dbmeta` and
 read `system.processes`. Its HTTP interface, 8123, is on the second host port,
 and the `api` field names it.
-Virtuoso, Milvus, Alternator, OpenSearch, Solr, Drill, H2, Fuseki, PostgREST,
+Virtuoso, Milvus, Alternator, OpenSearch, Solr, Drill, Fuseki, PostgREST,
 Stardog, GraphDB and VoltDB have `dbmeta_user`, who can only read. Cassandra
 and ScyllaDB have `container.CassandraUser`, a role that can log in, is no
 superuser, and holds no permission. It reads `system` and `system_schema`, and
@@ -445,7 +445,7 @@ none:
 | CouchDB, Dgraph, Druid, Pinot, GraphDB, Fuseki, PostgREST | the server answers over HTTP, with no shell |
 | DynamoDB, Alternator, Cosmos, BigQuery | an emulator of a hosted service that answers over HTTP |
 | Neo4j | `cypher-shell` speaks Bolt, and the image publishes only the HTTP port |
-| libSQL, H2, Drill, Spanner Omni | the shell is inside the image or the jar, and the host has none |
+| libSQL, Drill, Spanner Omni | the shell is inside the image or the jar, and the host has none |
 | TerminusDB, Stardog | the command runs one request for each call, and opens no shell |
 | VoltDB | its shell is called `sqlcmd`, as the SQL Server one is |
 | Virtuoso | the entry publishes the HTTP port, and its `isql` shell is on another port |

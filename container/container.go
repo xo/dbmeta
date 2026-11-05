@@ -445,7 +445,7 @@ func All() []Server {
 		CockroachDB, TiDB, MongoDB, Elasticsearch, Dgraph, YDB,
 		Spanner, SpannerEmulator, BigQuery, Virtuoso, Alternator, Vitess, Milvus,
 		OpenSearch, DynamoDB, Cosmos, Stardog, GraphDB, VoltDB,
-		Solr, Drill, H2, Fuseki, PostgREST, KsqlDB, SingleStore, Impala)
+		Solr, Drill, Fuseki, PostgREST, KsqlDB, SingleStore, Impala)
 }
 
 // AtTier returns the servers tested at t.

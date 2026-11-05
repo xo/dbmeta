@@ -184,11 +184,11 @@ func Example_support() {
 	}
 
 	// a dialect no model was built for is a different answer entirely.
-	// H2 is one usql speaks and dbmeta has no model for, because no driver
-	// reaches it yet (D158). This example moves on when it arrives, the way
-	// it moved off Trino, Vertica, YDB and Neo4j.
-	if _, err := dbmeta.New("h2", dbmeta.VersionSet{}); err != nil {
-		fmt.Println("h2:", err)
+	// DynamoDB is one dbmeta has a dialect for and no model, because it has
+	// no catalog to read. This example moves on when a model arrives, the way
+	// it moved off Trino, Vertica, YDB, Neo4j and H2.
+	if _, err := dbmeta.New("dynamodb", dbmeta.VersionSet{}); err != nil {
+		fmt.Println("dynamodb:", err)
 	}
 
 	// Output:
@@ -196,7 +196,7 @@ func Example_support() {
 	// indexes: supported
 	// publications on 9.6: version too old
 	// and building it: version too old
-	// h2: model not built
+	// dynamodb: model not built
 }
 
 func versionMeta(ver string) *dbmeta.Meta {
