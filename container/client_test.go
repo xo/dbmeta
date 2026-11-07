@@ -85,3 +85,36 @@ func TestParseConnection(t *testing.T) {
 		t.Errorf("read %+v", c)
 	}
 }
+
+// TestClientForFindsTheClientOfAType checks the lookup by the types that dbfwd
+// resolves, by product and by dialect, and that the lookup returns the client
+// of every release of a product.
+func TestClientForFindsTheClientOfAType(t *testing.T) {
+	t.Parallel()
+	for name, want := range map[string]string{
+		"postgres": "psql", "Postgres": "psql",
+		"mysql": "mysql", "mariadb": "mariadb", "MariaDB": "mariadb",
+		"sqlserver": "sqlcmd", "clickhouse": "clickhouse-client",
+		"cassandra": "cqlsh", "vertica": "vsql", "trino": "trino",
+	} {
+		c, ok := container.ClientFor(name)
+		if !ok {
+			t.Errorf("ClientFor(%q) found no product", name)
+			continue
+		}
+		if c.Command != want {
+			t.Errorf("ClientFor(%q) has the command %q, and the expected one is %q", name, c.Command, want)
+		}
+	}
+	if _, ok := container.ClientFor("nosuchdatabase"); ok {
+		t.Error("ClientFor found a product that does not exist")
+	}
+	// Every release of a product has the client that the lookup returns,
+	// except InfluxDB, whose releases 1 and 2 have another one than 3.
+	for _, s := range container.All() {
+		c, ok := container.ClientFor(s.Product)
+		if !ok || !strings.EqualFold(s.Product, "influxdb") && (c.Command != s.Client.Command || c.Why != s.Client.Why) {
+			t.Errorf("ClientFor(%q) differs from the client of %s", s.Product, s.Name())
+		}
+	}
+}

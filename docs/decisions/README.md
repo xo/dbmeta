@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-120 of them amend or replace an earlier one, and a decision read without its
+121 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -254,7 +254,7 @@ file.
 | [D233](D233-cosmos-answers-five-more-kinds-from-the-new-dbimp-statements.md) | Cosmos DB answers five more kinds from the new dbimp statements | Amends D228 |
 | [D234](D234-the-exasol-tests-use-the-driver-of-dbimp.md) | The Exasol tests use the driver of dbimp | Amends D154 and D87 |
 | [D235](D235-the-image-pins-moved-on-2026-10-22.md) | The image pins moved on 2026-10-22 | Decided |
-| [D236](D236-dbrun-cli-launches-the-native-client.md) | dbrun cli launches the native client | Decided |
+| [D236](D236-dbrun-cli-launches-the-native-client.md) | dbrun cli launches the native client | Decided, amended by D270 |
 | [D237](D237-maxcompute-gets-a-model-that-reads-the-project-level-information-schema.md) | MaxCompute gets a model that reads the project level INFORMATION_SCHEMA | Amends D194 and D218, amended by D238, D240 and D243 |
 | [D238](D238-a-statement-of-maxcompute-needs-its-semicolon-and-the-driver-writes-values-as-they-are.md) | A statement of MaxCompute needs its semicolon, and the driver writes values as they are | Amends D143 and D237, amended by D243 |
 | [D239](D239-the-maxcompute-tests-retry-a-reset-connection.md) | The MaxCompute tests retry a reset connection | Decided, amended by D243 |
@@ -288,3 +288,4 @@ file.
 | [D267](D267-usql-drops-gizmosql-so-dbmeta-drops-its-model.md) | usql drops GizmoSQL, so dbmeta drops its model | Supersedes D187 |
 | [D268](D268-usql-drops-h2-so-dbmeta-drops-its-entries.md) | usql drops H2, so dbmeta drops its entries | Amends D118 |
 | [D269](D269-dbrun-starts-a-kubernetes-cluster-for-dbfwd.md) | dbrun starts a Kubernetes cluster for dbfwd | Decided |
+| [D270](D270-the-client-of-a-product-is-found-by-its-name.md) | The client of a product is found by its name | Amends D236 |

@@ -1,6 +1,6 @@
 # D236. dbrun cli launches the native client
 
-Status: Decided.
+Status: Decided, amended by D270.
 
 ## The decision
 

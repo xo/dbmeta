@@ -480,3 +480,48 @@ func spannerCLIClient() Client {
 		return args, withEnv("SPANNER_EMULATOR_HOST", hostPort(c.Host, c.First))
 	}}
 }
+
+// ClientFor returns the native client of a product, for a caller that knows a
+// database by its type and has no release and no container. The name is a
+// product, such as mariadb or sqlserver, or a dialect that dburl names, such
+// as postgres. It is compared in lower case with the spaces removed.
+//
+// A product wins over a dialect, because MariaDB and MySQL share the dialect
+// mysql and have a client each. The dialect is read when no product has the
+// name, and the first server of the list that has the dialect answers, which
+// is PostgreSQL for postgres.
+//
+// A release does not change the client of a product, with one exception:
+// InfluxDB 1 and 2 have influx and InfluxDB 3 has influxdb3. The answer is the
+// client of the newest release of the product. The second result is false when
+// no server has the name. A product with no client returns it with an empty
+// Command and the reason in Why, as [Client] says. See D270.
+func ClientFor(name string) (Client, bool) {
+	key := clientKey(name)
+	servers := All()
+	newest := func(product string) Client {
+		var c Client
+		for _, s := range servers {
+			if s.Product == product {
+				c = s.Client
+			}
+		}
+		return c
+	}
+	for _, s := range servers {
+		if clientKey(s.Product) == key {
+			return newest(s.Product), true
+		}
+	}
+	for _, s := range servers {
+		if clientKey(string(s.Dialect)) == key {
+			return newest(s.Product), true
+		}
+	}
+	return Client{}, false
+}
+
+// clientKey is a name in lower case with the spaces removed.
+func clientKey(name string) string {
+	return strings.ToLower(strings.ReplaceAll(name, " ", ""))
+}

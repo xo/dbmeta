@@ -3,7 +3,7 @@
 Status: Decided.
 
 dbfwd forwards a port to a database that runs inside Kubernetes, and its tests
-need a temporary cluster. Ken decided on 2026-11-07, in dbfwd D14, that dbrun
+need a temporary cluster. Ken decided on 2026-11-07, in dbfwd D13, that dbrun
 starts and removes it. The first rule of dbrun says that nothing else starts a
 container on a shared machine, and a kind cluster is a container. dbfwd asked,
 and Ken answered the three open questions on the same day.
