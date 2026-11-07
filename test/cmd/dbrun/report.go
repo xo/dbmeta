@@ -35,6 +35,10 @@ func statusJSON(ctx context.Context, r runner, picked []target, all bool) error 
 	me := currentOwner()
 	out := []statusEntry{}
 	for _, t := range picked {
+		if t.Kind == kindCluster {
+			out = append(out, clusterEntries(ctx, r, t, all)...)
+			continue
+		}
 		if t.Kind == kindEmbedded {
 			out = append(out, statusEntry{target: t, State: "embedded", Mine: true})
 			continue

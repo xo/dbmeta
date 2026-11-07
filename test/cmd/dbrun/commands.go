@@ -118,6 +118,10 @@ func cmdDSN(picked []target, o options) error {
 		return printJSON(picked, o)
 	}
 	for _, t := range picked {
+		if t.Kind == kindCluster {
+			fmt.Printf("%-*s %s\n", nameWidth(), t.Name, t.Kubeconfig)
+			continue
+		}
 		fmt.Printf("%-*s %s\n", nameWidth(), t.Name, t.URL)
 	}
 	return nil
@@ -181,6 +185,9 @@ func withRunner(ctx context.Context, command string, picked []target, o options)
 }
 
 func one(ctx context.Context, r runner, command string, t target, o options) error {
+	if t.Kind == kindCluster {
+		return oneCluster(ctx, r, command, t, o)
+	}
 	switch command {
 	case "status":
 		return doStatus(ctx, r, t, o)
@@ -204,6 +211,26 @@ func one(ctx context.Context, r runner, command string, t target, o options) err
 		return doFixture(ctx, r, t, o)
 	}
 	return fmt.Errorf("no command called %q", command)
+}
+
+// oneCluster does a command for a cluster. A cluster holds no database, so the
+// commands that connect to one or read its version are refused.
+func oneCluster(ctx context.Context, r runner, command string, t target, o options) error {
+	switch command {
+	case "status":
+		return doStatusCluster(ctx, r, t, o)
+	case "start":
+		return doStartCluster(ctx, r, t, o)
+	case "stop":
+		return doStopCluster(ctx, r, t, o)
+	case "remove":
+		return doRemoveCluster(ctx, r, t, o)
+	case "logs":
+		return doLogsCluster(ctx, r, t, o)
+	case "version":
+		return nil
+	}
+	return fmt.Errorf("a cluster holds no database, so %s does not apply to it. Use kubectl with the kubeconfig that dsn --json names", command)
 }
 
 // doStatus says what is up, and for a machine says whether it answers.

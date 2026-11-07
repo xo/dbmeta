@@ -35,7 +35,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 268. Read the status, because 117
+`docs/decisions/README.md` is a table of all 269. Read the status, because 117
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -59,6 +59,7 @@ Then by what you are doing:
 | adding an old SQL Server that needs a Windows VM | `docs/DIALECT.md` for where the steps differ, then `docs/WINDOWS.md`, `container/windows.go` and D57 |
 | starting a database for any reason | `dbrun`, and nothing else. `docs/DBRUN.md` holds its use and the rules for a shared machine. Read those rules first |
 | adding a container or a machine that dbrun starts | `docs/CONTAINERS.md`, every step in order |
+| starting a Kubernetes cluster, which dbfwd needs | `docs/DBRUN.md`, under Kubernetes clusters, and D269 |
 | reaching a hosted service, such as Snowflake | `docs/DBRUN.md`, under Hosted services, and D117. Never enter a credential yourself |
 | running a product that needs a license file, such as Stardog | `docs/DBRUN.md`, under License files, and D118. Never sign up for one or download one yourself |
 | adding an entry for a product dbimp or usql reaches | D118, which holds the rules the entries follow and what each one cost to measure |

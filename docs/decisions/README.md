@@ -287,3 +287,4 @@ file.
 | [D266](D266-a-backslash-escapes-in-a-string.md) | A backslash escapes in a string for some dialects | Amends D143 |
 | [D267](D267-usql-drops-gizmosql-so-dbmeta-drops-its-model.md) | usql drops GizmoSQL, so dbmeta drops its model | Supersedes D187 |
 | [D268](D268-usql-drops-h2-so-dbmeta-drops-its-entries.md) | usql drops H2, so dbmeta drops its entries | Amends D118 |
+| [D269](D269-dbrun-starts-a-kubernetes-cluster-for-dbfwd.md) | dbrun starts a Kubernetes cluster for dbfwd | Decided |

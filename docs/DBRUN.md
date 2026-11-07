@@ -11,7 +11,7 @@ reference sections below them when you need a detail. To add a release, a
 product or a virtual machine to what `dbrun` can start, read
 [`CONTAINERS.md`](CONTAINERS.md) instead. The reasons behind the design are in
 `decisions/`: D68, D69, D75, D82, D86, D97, D98, D105, D108, D115, D116, D117, D118,
-D119, D120 and D122.
+D119, D120, D122 and D269.
 
 Run every command from the `test` directory of a dbmeta checkout:
 
@@ -226,8 +226,63 @@ A command acts on the servers that its selectors name. Every command except
 | `nightly` | every release that CI runs once a night |
 | `verified` | every release that a person runs before a release |
 | `staged` | every release that no model reads yet, which CI never runs (D119) |
-| `all` | every release of every product |
+| `all` | every release of every product, and no cluster |
+| `k8s-1.37` | a Kubernetes cluster (D269). `k8s` is the newest, and `clusters` is every release. No other selector reaches one. |
 | `sqlite3`, `duckdb`, `moderncsqlite`, `chai`, `csvq` | an embedded database, which is a file or a directory and not a server |
+
+## Kubernetes clusters
+
+`dbrun` starts a bare Kubernetes cluster for dbfwd, whose tests port forward to
+databases that run inside Kubernetes (D269). The cluster is kind, which runs
+the node as one container. `dbrun` installs nothing in the cluster, and dbfwd
+installs its own operators.
+
+```bash
+dbrun start k8s-1.37
+dbrun dsn --json k8s-1.37 | jq -r '.[0].kubeconfig'
+kubectl --kubeconfig <that file> get nodes
+dbrun stop k8s-1.37
+dbrun remove k8s-1.37
+```
+
+Four things differ from a server:
+
+1. Nobody shares a cluster. The name of your cluster is `k8s-<release>-<owner>`,
+   such as `k8s-1.37-05124815`, where the owner is the first eight letters and
+   digits of your session or of your login name. Each owner starts a cluster of
+   their own, because each test run installs operators across the whole
+   cluster.
+2. kind cannot label its node container, so the owner is in
+   `state.json` beside the kubeconfig, in
+   `~/.local/share/dbmeta/clusters/<cluster>/`.
+3. At most two clusters run at once. This is not part of the eight servers. A
+   start that makes a third run is refused, and the error names the owners.
+   `--force` removes the oldest cluster to make room. A cluster is never
+   stopped to make room, because it holds the operators of a test run and
+   takes minutes to build again.
+4. `stop` stops the node and keeps it, and `start` brings the same cluster back
+   and writes the kubeconfig again, because the port of the API server can
+   change. `remove` deletes the cluster and its directory. A stopped cluster
+   of another owner is removed as a stopped container is, and a running one is
+   not, unless you pass `--force`.
+
+The kubeconfig is a file of its own with mode 0600. `dbrun` never writes
+`~/.kube/config`. `dsn --json` gives the `cluster` name, the kube `context`,
+the `kubeconfig` path and the node `image`, with its digest. The node is Ready
+and the API answers before `start` returns.
+
+The node images are in `container/cluster.go`, one for each of the four
+newest Kubernetes lines, pinned by tag and digest from the notes of a kind
+release. Read them with `dbrun list --json --names clusters`. A command that
+connects to a database, such as `usql`, `cli`, `version` and `test`, does not
+apply to a cluster.
+
+kind and podman must be on the path. For rootless podman, kind asks for four
+kernel modules, `ip6_tables`, `ip6table_nat`, `ip_tables` and `iptable_nat`.
+Loading them needs root, and `start` names them if the cluster fails to come
+up and they are missing. If kind stops with `could not find a log line that
+matches`, set `log_driver = "k8s-file"` under `[containers]` in
+`~/.config/containers/containers.conf`.
 
 ## Names, ports and credentials
 
@@ -735,6 +790,7 @@ one into a command that others can see.
 | `DBMETA_VM_STATE` | Where the disks of the virtual machines live. They are tens of gigabytes each. |
 | `DBMETA_ORACLE_STATE` | Where the Oracle 19c checkout and installer archive live. |
 | `DBMETA_SEED_STATE` | Where `oracle-19c` keeps its golden database and the copy a container runs on. It is large and works best on btrfs (D248). |
+| `DBMETA_CLUSTER_STATE` | Where each cluster keeps its kubeconfig and its owner. It defaults to `~/.local/share/dbmeta/clusters`. |
 | `DBMETA_EMBEDDED_STATE` | Where the files and directories of the embedded databases live. |
 | `DBMETA_<DIALECT>` | The DSN that dbmeta's tests read, such as `DBMETA_COUCHBASE`. A server with no dialect yet uses its product, such as `DBMETA_PINOT` (D112), and moderncsqlite uses `DBMETA_MODERNCSQLITE` (D116). `dbrun test` sets it, and each `alsoEnv` variable too (D114). A test skips when it is not set. |
 

@@ -167,7 +167,13 @@ func run(args []string) error {
 	// A bare product resolves to the newest release, and every command says
 	// which one before it acts. The answer changes the month a release ships,
 	// and a silent default is the part that causes a fault.
+	// The note goes to the error output when the result is JSON, so that a
+	// program reads the JSON and nothing else.
 	for _, n := range notes {
+		if o.asJSON {
+			fmt.Fprintln(os.Stderr, n)
+			continue
+		}
 		fmt.Println(n)
 	}
 	if command == "cli" && len(picked) != 1 {
@@ -262,7 +268,13 @@ Selectors:
   nightly         the releases CI runs at night
   verified        the releases a person runs before a release, never in CI
   staged          the releases no model reads yet, which CI never runs
-  all             every release of every product
+  all             every release of every product, and no cluster
+  k8s-1.37        a bare Kubernetes cluster that kind runs, for dbfwd. k8s is
+                  the newest, and clusters is every release. No other selector
+                  reaches one. Each owner has a cluster of its own, at most two
+                  run at once, and stop keeps the node so that start brings
+                  the same cluster back. dsn --json names its kubeconfig and
+                  its kube context, and nothing is installed inside it
 
 Flags:
   --releases      widen a product selector to every release of it
@@ -286,6 +298,8 @@ Flags:
 
 Environment:
   DBMETA_RUNNER         podman by default, set to docker to use that instead
+  DBMETA_CLUSTER_STATE  where the clusters keep their kubeconfig and their owner,
+                        which is $XDG_DATA_HOME/dbmeta/clusters by default
   DBMETA_OWNER          who you are, which dbrun labels each server it creates
                         with. It defaults to the coding agent's session, or to
                         your login name

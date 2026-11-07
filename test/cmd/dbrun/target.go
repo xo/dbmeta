@@ -36,6 +36,10 @@ const (
 	// connection string that a person provisions. There is nothing to start,
 	// and it exists only while its connection string resolves. See D117.
 	kindHosted
+	// kindCluster is a bare Kubernetes cluster that kind runs for dbfwd. It
+	// is a target of its own, and no selector that names many servers
+	// reaches it. See D269.
+	kindCluster
 )
 
 // MarshalJSON writes the name rather than the number, because --json is for
@@ -56,6 +60,8 @@ func (k kind) String() string {
 		return "embedded"
 	case kindHosted:
 		return "hosted"
+	case kindCluster:
+		return "cluster"
 	}
 	return "unknown"
 }
@@ -114,6 +120,15 @@ type target struct {
 	License   string `json:"license,omitempty"`
 	secret    string
 	driverDSN string
+
+	// Image is the node image of a cluster, with its digest. Cluster is the
+	// name of the cluster of the caller, Context is the name of its kube
+	// context and Kubeconfig is the file that holds its credentials. All four
+	// are empty for anything but a cluster. See D269.
+	Image      string `json:"image,omitempty"`
+	Cluster    string `json:"cluster,omitempty"`
+	Context    string `json:"context,omitempty"`
+	Kubeconfig string `json:"kubeconfig,omitempty"`
 
 	// Principals is every user a test reaches the server as, the
 	// administrator first, with the connection string of each. It is empty
@@ -358,6 +373,12 @@ func targets() []target {
 	}
 	out = append(out, embedded...)
 	out = append(out, hostedTargets()...)
+	for _, c := range container.Clusters() {
+		out = append(out, withCluster(target{
+			Name: c.Name(), Product: "k8s", Release: c.Release, Kind: kindCluster,
+			Image: c.Ref(), Startup: clusterTimeout,
+		}, currentOwner()))
+	}
 	sortTargets(out)
 	return out
 }
@@ -452,6 +473,7 @@ func (t target) env() []string {
 //	postgres      the newest PostgreSQL, and only that
 //	tested        a tier
 //	all           every release of every product
+//	clusters      every Kubernetes cluster, which no other selector reaches
 //
 // A bare product resolving to the newest is the one that can surprise
 // somebody, because the answer changes the month a release ships. Every
@@ -475,14 +497,25 @@ func resolve(all []target, args []string, allReleases bool) ([]target, []string,
 	for _, arg := range args {
 		switch {
 		case arg == "all", arg == "--all":
+			// A cluster is not a database, and starting every one is not
+			// what anybody meant by all.
 			for _, t := range all {
-				add(t)
+				if t.Kind != kindCluster {
+					add(t)
+				}
 			}
 			continue
 		case arg == string(container.Tested), arg == string(container.Nightly),
 			arg == string(container.Verified), arg == string(container.Staged):
 			for _, t := range all {
-				if string(t.Tier) == arg {
+				if string(t.Tier) == arg && t.Kind != kindCluster {
+					add(t)
+				}
+			}
+			continue
+		case arg == "clusters":
+			for _, t := range all {
+				if t.Kind == kindCluster {
 					add(t)
 				}
 			}
@@ -558,6 +591,8 @@ func kindRank(k kind) int {
 		return 0
 	case kindHosted:
 		return 2
+	case kindCluster:
+		return 3
 	}
 	return 1
 }
