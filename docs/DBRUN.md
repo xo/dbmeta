@@ -277,6 +277,9 @@ release. Read them with `dbrun list --json --names clusters`. A command that
 connects to a database, such as `usql`, `cli`, `version` and `test`, does not
 apply to a cluster.
 
+Under podman, `start` raises the process limit of the node from 2048 to 16384,
+because a cluster that runs several operators uses the default up (D271).
+
 kind and podman must be on the path. For rootless podman, kind asks for four
 kernel modules, `ip6_tables`, `ip6table_nat`, `ip_tables` and `iptable_nat`.
 Loading them needs root, and `start` names them if the cluster fails to come

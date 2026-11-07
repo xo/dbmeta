@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -34,6 +35,10 @@ const (
 	// clusterWait is how long kind waits for the control plane. The cluster
 	// check that follows it is the one that decides.
 	clusterWait = "5m"
+	// clusterPids is the process limit of the node under podman, whose own
+	// default of 2048 is too small for a cluster that runs several operators.
+	// See D271.
+	clusterPids = 16384
 )
 
 // clusterState is what dbrun records about a cluster, in state.json beside its
@@ -254,6 +259,21 @@ func nodesReady(out string) bool {
 	return len(fields) > 0 && !slices.ContainsFunc(fields, func(s string) bool { return s != "True" })
 }
 
+// raisePids lifts the process limit of the node of a cluster to clusterPids.
+// Podman gives a container 2048, and a cluster that runs several operators
+// and their databases uses all of it: ClickHouse stops for want of threads
+// and probes fail with "resource temporarily unavailable". Docker has no such
+// default, so nothing is done for it. See D271.
+func raisePids(ctx context.Context, r runner, c cluster) error {
+	if !r.podman() {
+		return nil
+	}
+	if out, err := r.output(ctx, "update", "--pids-limit", strconv.Itoa(clusterPids), c.node()); err != nil {
+		return fmt.Errorf("raising the process limit of %s: %w\n%s", c.node(), err, lastLines(out, 10))
+	}
+	return nil
+}
+
 // waitClusterReady waits until the node is Ready and the API answers.
 func waitClusterReady(ctx context.Context, r runner, c cluster, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -338,6 +358,9 @@ func doStartCluster(ctx context.Context, r runner, t target, o options) error {
 		c = got
 	}
 	if r.clusterRunning(ctx, c) {
+		if err := raisePids(ctx, r, c); err != nil {
+			return err
+		}
 		if err := waitClusterReady(ctx, r, c, t.timeout(o)); err != nil {
 			return fmt.Errorf("it is running and not ready: %w", err)
 		}
@@ -371,6 +394,9 @@ func doStartCluster(ctx context.Context, r runner, t target, o options) error {
 		}
 		return errors.New(msg)
 	}
+	if err := raisePids(ctx, r, c); err != nil {
+		return err
+	}
 	if err := waitClusterReady(ctx, r, c, t.timeout(o)); err != nil {
 		return err
 	}
@@ -387,6 +413,9 @@ func restartCluster(ctx context.Context, r runner, t target, c cluster, o option
 	}
 	if out, err := r.kind(ctx, "export", "kubeconfig", "--name", c.name, "--kubeconfig", c.kubeconfig()); err != nil {
 		return fmt.Errorf("writing the kubeconfig: %w\n%s", err, lastLines(out, 10))
+	}
+	if err := raisePids(ctx, r, c); err != nil {
+		return err
 	}
 	if err := waitClusterReady(ctx, r, c, t.timeout(o)); err != nil {
 		return err

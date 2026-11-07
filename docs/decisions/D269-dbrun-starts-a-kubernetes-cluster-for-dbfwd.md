@@ -1,6 +1,6 @@
 # D269. dbrun starts a Kubernetes cluster for dbfwd
 
-Status: Decided.
+Status: Decided, amended by D271.
 
 dbfwd forwards a port to a database that runs inside Kubernetes, and its tests
 need a temporary cluster. Ken decided on 2026-11-07, in dbfwd D13, that dbrun

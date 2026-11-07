@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-121 of them amend or replace an earlier one, and a decision read without its
+122 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -287,5 +287,6 @@ file.
 | [D266](D266-a-backslash-escapes-in-a-string.md) | A backslash escapes in a string for some dialects | Amends D143 |
 | [D267](D267-usql-drops-gizmosql-so-dbmeta-drops-its-model.md) | usql drops GizmoSQL, so dbmeta drops its model | Supersedes D187 |
 | [D268](D268-usql-drops-h2-so-dbmeta-drops-its-entries.md) | usql drops H2, so dbmeta drops its entries | Amends D118 |
-| [D269](D269-dbrun-starts-a-kubernetes-cluster-for-dbfwd.md) | dbrun starts a Kubernetes cluster for dbfwd | Decided |
+| [D269](D269-dbrun-starts-a-kubernetes-cluster-for-dbfwd.md) | dbrun starts a Kubernetes cluster for dbfwd | Decided, amended by D271 |
 | [D270](D270-the-client-of-a-product-is-found-by-its-name.md) | The client of a product is found by its name | Amends D236 |
+| [D271](D271-a-cluster-node-gets-a-higher-process-limit.md) | A cluster node gets a higher process limit | Amends D269 |

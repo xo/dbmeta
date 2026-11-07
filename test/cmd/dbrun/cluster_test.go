@@ -1,7 +1,10 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -148,5 +151,33 @@ func TestACommandThatConnectsIsRefusedForACluster(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "holds no database") {
 			t.Errorf("%s: err = %v, want the refusal", command, err)
 		}
+	}
+}
+
+// TestPodmanRaisesThePidLimitOfTheNode checks the command that raisePids runs,
+// with a runner that records its arguments, and that docker is left alone.
+func TestPodmanRaisesThePidLimitOfTheNode(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	log := filepath.Join(dir, "args")
+	script := filepath.Join(dir, "podman")
+	body := "#!/bin/sh\necho \"$@\" >> " + log + "\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c := cluster{name: "k8s-1.37-abcd1234"}
+	if err := raisePids(t.Context(), runner{name: script}, c); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "update --pids-limit " + strconv.Itoa(clusterPids) + " " + c.node() + "\n"
+	if string(got) != want {
+		t.Errorf("podman was run as %q, and the expected command is %q", got, want)
+	}
+	if err := raisePids(t.Context(), runner{name: "docker-not-installed"}, c); err != nil {
+		t.Errorf("raising the limit for docker returned %v, and it must do nothing", err)
 	}
 }
