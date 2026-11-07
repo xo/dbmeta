@@ -81,7 +81,7 @@ func TestNodesReady(t *testing.T) {
 		want bool
 	}{
 		{"True\n", true},
-		{"True\nTrue\n", true},
+		{strings.Repeat("True\n", 2), true},
 		{"", false},
 		{"False\n", false},
 		{"True\nUnknown\n", false},
