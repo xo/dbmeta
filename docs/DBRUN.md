@@ -266,6 +266,9 @@ Four things differ from a server:
    of another owner is removed as a stopped container is, and a running one is
    not, unless you pass `--force`.
 
+`dbrun status` with no selector lists the running clusters after the servers.
+Pass `--all` to list the stopped ones too, and `clusters` to list only them.
+
 The kubeconfig is a file of its own with mode 0600. `dbrun` never writes
 `~/.kube/config`. `dsn --json` gives the `cluster` name, the kube `context`,
 the `kubeconfig` path and the node `image`, with its digest. The node is Ready

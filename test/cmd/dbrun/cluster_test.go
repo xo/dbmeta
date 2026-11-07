@@ -156,8 +156,10 @@ func TestACommandThatConnectsIsRefusedForACluster(t *testing.T) {
 
 // TestPodmanRaisesThePidLimitOfTheNode checks the command that raisePids runs,
 // with a runner that records its arguments, and that docker is left alone.
+//
+// It is not parallel, because a script that was just written fails with "text
+// file busy" while another test forks a process.
 func TestPodmanRaisesThePidLimitOfTheNode(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	log := filepath.Join(dir, "args")
 	script := filepath.Join(dir, "podman")

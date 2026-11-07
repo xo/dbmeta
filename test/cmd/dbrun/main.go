@@ -152,8 +152,12 @@ func run(args []string) error {
 		// and change nothing, so asking them about everything is what
 		// somebody meant. Every other command acts, and has to be told what
 		// to act on.
+		// A cluster is in no tier, so all skips it. status adds clusters by
+		// name, because a person who asks what is running wants them too.
 		switch command {
-		case "status", "version":
+		case "status":
+			selectors = []string{"all", "clusters"}
+		case "version":
 			selectors = []string{"all"}
 		default:
 			return fmt.Errorf("%s needs a selector. Try: dbrun %s all, or dbrun list all",
