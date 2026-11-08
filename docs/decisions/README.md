@@ -300,3 +300,4 @@ file.
 | [D279](D279-the-published-ports-are-below-the-ephemeral-range.md) | The published ports are below the ephemeral range | Amends D68 |
 | [D280](D280-a-product-with-the-sql-of-another-shares-its-dump.md) | A product with the SQL of another shares its dump | Decided |
 | [D281](D281-only-the-core-products-run-in-ci.md) | Only the core products run in CI | Amends D42 |
+| [D282](D282-hive-and-impala-have-http-entries-for-dbimp.md) | Hive and Impala have HTTP entries for dbimp | Decided |

@@ -372,6 +372,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Firebird | 3.0 | 5.0 | Criteria 2 and 3 agree, which is rare enough to record |
 | SAP HANA | 2.00.076 | 2.00.088 | Criterion 3. SAP publishes an express edition of 2.0 only |
 | Apache Hive | 4.0.1 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
+| Hive HTTP | 4.0.1 | 4.2.1 | The same image and releases as Apache Hive, with HiveServer2 in the HTTP transport, for dbimp (D282) |
 | Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images Ken chose so that a gate has something older to answer against, and D88 records why. The images are copies in `docker.io/usql/vertica` (D100) |
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
@@ -411,6 +412,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Vitess | 23.0.8 | 24.0.5 | The rule for an image that is never rebuilt (D112). `models/vitess` reads it, and shares the mysql model (D135) |
 | SingleStore | 9.0 | 9.1 | The newest two lines the development image serves, on image 0.2.85, which ships 9.1.1 and downloads 9.0 when it starts. It runs with no license on a machine with at most 8 cores and 64 GB. Ken asked for it on 2026-09-30, which amends D118 |
 | Apache Impala | 4.4.1 | 4.5.3 | The rule for an image that is never rebuilt (D112). Apache publishes each daemon as an image of its own, and dbrun builds them into one (D145). Ken asked for it on 2026-09-30, which amends D118 |
+| Impala HTTP | 4.4.1 | 4.5.3 | The same image and releases as Apache Impala, reached on the HTTP port of HiveServer2, for dbimp (D282) |
 | Milvus | 2.6.25 | 3.0.3 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | OpenSearch | 2.19.7 | 3.9.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | DynamoDB | 3.2.0 | 3.3.2 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary license Ken accepted (D118) |
