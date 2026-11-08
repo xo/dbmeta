@@ -18,8 +18,21 @@ type crossSide struct {
 	dialect dbmeta.Dialect
 	// open returns an empty database of the product, and the filter that reads
 	// the schema that the DDL builds.
-	open   func(t *testing.T) (*sql.DB, dump.Filter)
+	open   func(t *testing.T, role string) (*sql.DB, dump.Filter)
 	create []string
+}
+
+// table names a table of the fixture in a product, for the source or for the
+// copy. The source of PostgreSQL has a schema of its own, and the copy of the
+// products with schemas is in dump_cross.
+func (s crossSide) table(role, name string) string {
+	switch {
+	case s.dialect == dbmeta.PostgreSQL && role == "src":
+		return "dump_src." + name
+	case (s.dialect == dbmeta.PostgreSQL || s.dialect == dbmeta.DuckDB) && role == "dst":
+		return "dump_cross." + name
+	}
+	return name
 }
 
 // The tables have what every product has: integers, text, a decimal, a boolean,
@@ -59,26 +72,29 @@ var (
 func crossSides() []crossSide {
 	return []crossSide{
 		{name: "postgres", dialect: dbmeta.PostgreSQL, create: crossPG,
-			open: func(t *testing.T) (*sql.DB, dump.Filter) {
+			open: func(t *testing.T, role string) (*sql.DB, dump.Filter) {
 				db := openPostgresWith(t, postgresDrivers[0])
-				drop := func() {
-					_, _ = db.ExecContext(context.Background(), "DROP SCHEMA IF EXISTS dump_src CASCADE; DROP SCHEMA IF EXISTS dump_cross CASCADE")
-				}
+				schema := map[string]string{"src": "dump_src", "dst": "dump_cross"}[role]
+				drop := func() { _, _ = db.ExecContext(context.Background(), "DROP SCHEMA IF EXISTS "+schema+" CASCADE") }
 				drop()
 				t.Cleanup(drop)
-				return db, dump.Filter{Schemas: []string{"dump_src", "dump_cross"}}
+				return db, dump.Filter{Schemas: []string{schema}}
 			}},
 		{name: "sqlite3", dialect: dbmeta.SQLite3, create: crossSQLite,
-			open: func(t *testing.T) (*sql.DB, dump.Filter) {
+			open: func(t *testing.T, _ string) (*sql.DB, dump.Filter) {
 				return openSQLiteAt(t, "sqlite3"), dump.Filter{Schemas: []string{"main"}}
 			}},
 		{name: "duckdb", dialect: dbmeta.DuckDB, create: crossDuckDB,
-			open: func(t *testing.T) (*sql.DB, dump.Filter) {
-				return openDuckDBAt(t), dump.Filter{Schemas: []string{"main", "dump_cross"}}
+			open: func(t *testing.T, role string) (*sql.DB, dump.Filter) {
+				if role == "dst" {
+					return openDuckDBAt(t), dump.Filter{Schemas: []string{"dump_cross"}}
+				}
+				return openDuckDBAt(t), dump.Filter{Schemas: []string{"main"}}
 			}},
 		{name: "mysql", dialect: dbmeta.MySQL, create: crossMySQL,
-			open: func(t *testing.T) (*sql.DB, dump.Filter) {
-				return openMySQLNamed(t, "dbmeta_cross"), dump.Filter{Schemas: []string{"dbmeta_cross"}}
+			open: func(t *testing.T, role string) (*sql.DB, dump.Filter) {
+				name := "dbmeta_cross_" + role
+				return openMySQLNamed(t, name), dump.Filter{Schemas: []string{name}}
 			}},
 	}
 }
@@ -99,7 +115,12 @@ func shape(s *dump.Snapshot) string {
 				}
 			}
 			for _, c := range t.Columns {
-				lines = append(lines, fmt.Sprintf("%s.%s kind=%s null=%v default=%v", t.Name, c.Name, c.Type.Kind, c.Nullable || pk[c.Name], c.Default != nil))
+				// MariaDB gives the text NULL as the default of a nullable column that has
+				// none, which TestMySQLNullDefault pins, so that is no default here.
+				// A serial column reads a sequence, which is auto numbering and not a default.
+				hasDefault := c.Default != nil && !strings.EqualFold(*c.Default, "NULL") &&
+					!strings.HasPrefix(strings.ToLower(*c.Default), "nextval(")
+				lines = append(lines, fmt.Sprintf("%s.%s kind=%s null=%v default=%v", t.Name, c.Name, c.Type.Kind, c.Nullable || pk[c.Name], hasDefault))
 			}
 			for _, c := range t.Constraints {
 				text := t.Name + " " + c.Kind + " (" + strings.Join(c.Columns, ",") + ")"
@@ -130,7 +151,7 @@ func TestAScriptCrossesDialects(t *testing.T) {
 				continue
 			}
 			t.Run(src.name+" to "+dst.name, func(t *testing.T) {
-				srcDB, srcFilter := src.open(t)
+				srcDB, srcFilter := src.open(t, "src")
 				for _, s := range src.create {
 					mustExec(t, srcDB, s)
 				}
@@ -149,7 +170,7 @@ func TestAScriptCrossesDialects(t *testing.T) {
 					}
 					stmts = append(stmts, st)
 				}
-				dstDB, dstFilter := dst.open(t)
+				dstDB, dstFilter := dst.open(t, "dst")
 				runScript(t, dstDB, stmts)
 				dstMeta := metaFor(t, dst.dialect, dstDB)
 				copied, err := dump.Read(t.Context(), dstMeta, dstDB, dstFilter)

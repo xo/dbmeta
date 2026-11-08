@@ -39,10 +39,16 @@ var productSpecific = map[string][]string{
 	// and bigint(21) against bigint. Each product has its own default
 	// collation, which a text column takes: utf8mb4_uca1400_ai_ci on MariaDB
 	// from 11.4, and utf8mb4_0900_ai_ci on MySQL from 8.0.
-	"columns": {"data_type", "default", "collation"},
+	//
+	// default_is_literal is true on MySQL, which gives the text of a string
+	// default with no quotes, and false on MariaDB, which gives SQL (D276).
+	"columns": {"data_type", "default", "collation", "default_is_literal"},
 	// MariaDB records the check clause as written. MySQL rewrites it with the
 	// character set introducer, so `title` <> '' becomes (`title` <> _utf8mb4'').
-	"constraints": {"definition"},
+	//
+	// A foreign key with no rule has NO ACTION on MySQL and RESTRICT on MariaDB,
+	// which the two products treat the same way (D276).
+	"constraints": {"definition", "on_update", "on_delete"},
 	// The row count is an estimate, and each engine makes its own: InnoDB
 	// samples pages, and a server counts differently after a restart. The
 	// create options are spelled their own way, so MariaDB reads

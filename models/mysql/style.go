@@ -20,6 +20,8 @@ func init() {
 		TableOptions:  tableOptions,
 		Index:         index,
 		KeyType:       keyType,
+		Binary:        func(hex string) string { return "X'" + hex + "'" },
+		MaxParameters: 65535,
 		Trigger:       trigger,
 	})
 }
@@ -55,6 +57,10 @@ func column(c dump.Column, typeSQL string, q func(string) string, lit func(strin
 	}
 	if !c.Nullable {
 		b.WriteString(" NOT NULL")
+	} else if strings.HasPrefix(strings.ToLower(typeSQL), "timestamp") {
+		// A timestamp that does not say NULL is NOT NULL on a server that has
+		// explicit_defaults_for_timestamp off, which MariaDB before 10.10 has.
+		b.WriteString(" NULL")
 	}
 	if !generated && c.Default != nil {
 		text := *c.Default

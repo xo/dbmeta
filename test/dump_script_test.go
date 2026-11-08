@@ -77,6 +77,28 @@ func roundTripSchema(t *testing.T, db *sql.DB, m *dbmeta.Meta, filter dump.Filte
 	}
 }
 
+// postgresRoundTripSQL is the schema of the round trip, for a release. An identity
+// column came in 10, a generated column in 12, and EXECUTE FUNCTION in 11, so an
+// older release gets the older forms.
+func postgresRoundTripSQL(release int) []string {
+	steps := make([]string, len(postgresRoundTrip))
+	copy(steps, postgresRoundTrip)
+	for i, s := range steps {
+		if release < 10 {
+			s = strings.ReplaceAll(s, "AS bigint START", "START")
+			s = strings.ReplaceAll(s, "id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY", "id serial PRIMARY KEY")
+		}
+		if release < 12 {
+			s = strings.ReplaceAll(s, "\t\ttotal numeric GENERATED ALWAYS AS (price * qty) STORED,\n", "")
+		}
+		if release < 11 {
+			s = strings.ReplaceAll(s, "EXECUTE FUNCTION", "EXECUTE PROCEDURE")
+		}
+		steps[i] = s
+	}
+	return steps
+}
+
 var postgresRoundTrip = []string{
 	"CREATE SCHEMA dump_rt",
 	"CREATE SCHEMA dump_rt2",
@@ -121,7 +143,7 @@ func TestPostgreSQLScriptRoundTrips(t *testing.T) {
 			}
 			reset()
 			t.Cleanup(reset)
-			for _, s := range postgresRoundTrip {
+			for _, s := range postgresRoundTripSQL(pgRelease(m)) {
 				mustExec(t, db, s)
 			}
 			roundTripSchema(t, db, m, dump.Filter{Schemas: []string{"dump_rt", "dump_rt2"}}, reset)

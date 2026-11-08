@@ -59,6 +59,23 @@ type Style struct {
 	// key a text or a blob without a length. The result is false when the type of
 	// the column is fine in a key.
 	KeyType func(t Type) (Rendering, bool)
+	// Binary writes a binary value from its bytes in lower case hexadecimal, as
+	// the product reads a binary literal. It is required for a dump of data.
+	Binary func(hex string) string
+	// ZoneInTimestamps says that the product reads an offset in the literal of a
+	// timestamp, so an instant is written with +00:00. MySQL reads one only from
+	// 8.0.19 and MariaDB not at all, so an instant is the wall clock in UTC.
+	ZoneInTimestamps bool
+	// OverridingIdentity is the clause that lets an INSERT give a value to an
+	// identity column that the product always numbers, such as PostgreSQL's
+	// OVERRIDING SYSTEM VALUE. It is empty for a product with no such rule.
+	OverridingIdentity string
+	// MaxRows is the most rows of one INSERT that the product takes. Zero means
+	// that the default batch is right.
+	MaxRows int
+	// MaxParameters is the most parameters of one statement, for the INSERT with
+	// placeholders. Zero means that no limit is known.
+	MaxParameters int
 	// NoForeignKeyActions says that the product has no ON DELETE and ON UPDATE for
 	// a foreign key, so the rules are not written, and the table says so.
 	NoForeignKeyActions bool

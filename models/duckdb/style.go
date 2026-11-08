@@ -20,6 +20,8 @@ func init() {
 		AnonymousConstraints: true,
 		// DuckDB refuses ON DELETE and ON UPDATE other than the default.
 		NoForeignKeyActions: true,
+		Binary:              func(hex string) string { return "from_hex('" + hex + "')" },
+		ZoneInTimestamps:    true,
 		Sequence:            sequence,
 		Comment:             comment,
 		View:                definitionStatement,

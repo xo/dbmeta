@@ -18,15 +18,19 @@ func init() {
 		ExistingSchemas: []string{"public"},
 		CreateSchema:    func(quoted string) string { return "CREATE SCHEMA " + quoted },
 		// A function can name a table that is not there yet, as pg_dump allows.
-		Preamble:       []string{"SET check_function_bodies = false"},
-		Column:         column,
-		Enum:           enum,
-		Sequence:       sequence,
-		OwnedBy:        func(seq, owner string) string { return "ALTER SEQUENCE " + seq + " OWNED BY " + owner },
-		Comment:        comment,
-		View:           view,
-		IdentityValue:  identityValue,
-		ReferenceTable: referenceTable,
+		Preamble:           []string{"SET check_function_bodies = false"},
+		Column:             column,
+		Enum:               enum,
+		Sequence:           sequence,
+		OwnedBy:            func(seq, owner string) string { return "ALTER SEQUENCE " + seq + " OWNED BY " + owner },
+		Comment:            comment,
+		View:               view,
+		IdentityValue:      identityValue,
+		Binary:             func(hex string) string { return "decode('" + hex + "', 'hex')" },
+		OverridingIdentity: "OVERRIDING SYSTEM VALUE",
+		ZoneInTimestamps:   true,
+		MaxParameters:      65535,
+		ReferenceTable:     referenceTable,
 	})
 }
 
@@ -57,6 +61,10 @@ func column(c dump.Column, typeSQL string, q func(string) string, _ func(string)
 	switch {
 	case c.Generated != "" && c.Default != nil:
 		b.WriteString(" GENERATED ALWAYS AS (" + *c.Default + ") STORED")
+	case c.Identity != "" && serialType(typeSQL, c.Identity) != "":
+		// An identity from another product is a serial column, which every release
+		// has, and release 9.6 has no identity column.
+		return q(c.Name) + " " + serialType(typeSQL, c.Identity)
 	case c.Identity != "":
 		b.WriteString(" GENERATED " + identityKind(c.Identity) + " AS IDENTITY")
 	case c.Default != nil:
@@ -99,7 +107,8 @@ func enum(quoted string, values []string, lit func(string) string) string {
 func sequence(quoted string, s dump.Sequence) string {
 	var b strings.Builder
 	b.WriteString("CREATE SEQUENCE " + quoted)
-	if s.DataType != "" {
+	// Release 9.6 has no AS, and every sequence of it is a bigint.
+	if s.DataType != "" && !strings.EqualFold(s.DataType, "bigint") {
 		b.WriteString(" AS " + s.DataType)
 	}
 	for _, f := range []struct{ word, value string }{
@@ -170,4 +179,23 @@ func view(quoted string, v dump.View) string {
 		sql += " WITH LOCAL CHECK OPTION"
 	}
 	return sql
+}
+
+// serialType returns the serial type that stands for an integer type with
+// auto numbering from another product, or the empty string when the identity is
+// the one of PostgreSQL, which has the letters a and d, or the type is not an
+// integer.
+func serialType(typeSQL, identity string) string {
+	if identity != "by default" {
+		return ""
+	}
+	switch typeSQL {
+	case "smallint":
+		return "smallserial"
+	case "integer":
+		return "serial"
+	case "bigint":
+		return "bigserial"
+	}
+	return ""
 }
