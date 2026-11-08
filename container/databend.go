@@ -123,5 +123,5 @@ func databendDSN(user, database string) func(port int) string {
 
 // Databend is every Databend release dbmeta is tested against. Both are
 // Tested, which is the cadence they kept while they were Staged (D120).
-var Databend = list{}.add(databend, Tested, "1.2.881", "1.2.954").
+var Databend = list{}.add(databend, Verified, "1.2.881", "1.2.954").
 	on("1.2.954", func(s *Server) { s.Tag = "v1.2.954-nightly" })

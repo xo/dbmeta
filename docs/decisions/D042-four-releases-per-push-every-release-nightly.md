@@ -1,6 +1,6 @@
 # D42. Four releases per push, every release nightly
 
-Status: Supersedes D24, amended by D69 and D277.
+Status: Supersedes D24, amended by D69, D277 and D281.
 
 CI runs the integration tests against PostgreSQL 9.6, 12, 15 and 18 on every
 push, and against all ten releases on a nightly schedule.

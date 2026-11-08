@@ -128,5 +128,5 @@ func hanaMajor(release string) string {
 }
 
 // HANA is every SAP HANA release dbmeta is tested against.
-var HANA = list{}.add(hana, Tested, "2.00.088.00.20251110.1").
-	add(hana, Nightly, "2.00.076.00.20240701.1", "2.00.082.00.20250528.1")
+var HANA = list{}.add(hana, Verified, "2.00.088.00.20251110.1").
+	add(hana, Verified, "2.00.076.00.20240701.1", "2.00.082.00.20250528.1")

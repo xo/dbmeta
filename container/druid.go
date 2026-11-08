@@ -136,4 +136,4 @@ func druidHTTP(user string) func(port int) string {
 //
 // models/druid reads them, so each keeps the cadence it recorded while it was
 // Staged (D120, D171).
-var Druid = list{}.add(druid, Tested, "37.0.0", "38.0.0")
+var Druid = list{}.add(druid, Verified, "37.0.0", "38.0.0")

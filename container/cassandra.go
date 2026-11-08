@@ -157,5 +157,5 @@ func cassandraURL(scheme, user, password string, port int) string {
 // arrived in 4.0 and Settings is the one query that gates on it, so a pair
 // that spans 4.0 exercises both sides of the only fragment there is. 4.0 and
 // 4.1 run nightly.
-var Cassandra = list{}.add(cassandra, Tested, "3.11", "5.0").
-	add(cassandra, Nightly, "4.0", "4.1")
+var Cassandra = list{}.add(cassandra, Verified, "3.11", "5.0").
+	add(cassandra, Verified, "4.0", "4.1")

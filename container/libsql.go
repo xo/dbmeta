@@ -106,4 +106,4 @@ func libsqlURL(user, token string) func(port int) string {
 
 // LibSQL is every libSQL release dbrun starts. It is Tested, the cadence it
 // recorded while it was Staged (D120).
-var LibSQL = list{}.add(libsql, Tested, "0.24.33")
+var LibSQL = list{}.add(libsql, Verified, "0.24.33")

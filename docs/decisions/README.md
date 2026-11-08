@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-126 of them amend or replace an earlier one, and a decision read without its
+127 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -60,7 +60,7 @@ file.
 | [D39](D039-queries-are-listed-described-and-rendered-for.md) | Queries are listed, described, and rendered for the client to run | Decided |
 | [D40](D040-three-support-tiers-and-a-trigger-that-can.md) | Three support tiers, and a trigger that can remove a version | Amended by D119 and D277 |
 | [D41](D041-every-model-ships-its-fixtures-beside-its.md) | Every model ships its fixtures beside its queries | Decided |
-| [D42](D042-four-releases-per-push-every-release-nightly.md) | Four releases per push, every release nightly | Supersedes D24, amended by D69 and D277 |
+| [D42](D042-four-releases-per-push-every-release-nightly.md) | Four releases per push, every release nightly | Supersedes D24, amended by D69, D277 and D281 |
 | [D43](D043-ask-several-models-before-a-dialect-is-declared.md) | Ask several models before a dialect is declared finished | Decided |
 | [D44](D044-a-version-key-names-the-product-a-number-alone.md) | A version key names the product. A number alone never does | Decided |
 | [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query can answer partially, once, and must say so | Amended by D161 |
@@ -299,3 +299,4 @@ file.
 | [D278](D278-the-views-that-a-view-reads-are-a-kind-of-their-own.md) | The views that a view reads are a kind of their own | Decided |
 | [D279](D279-the-published-ports-are-below-the-ephemeral-range.md) | The published ports are below the ephemeral range | Amends D68 |
 | [D280](D280-a-product-with-the-sql-of-another-shares-its-dump.md) | A product with the SQL of another shares its dump | Decided |
+| [D281](D281-only-the-core-products-run-in-ci.md) | Only the core products run in CI | Amends D42 |

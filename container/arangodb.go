@@ -118,4 +118,4 @@ func arangoURL(user string) func(port int) string {
 //
 // models/arangodb reads it, so the release takes the cadence it recorded
 // while it was Staged, which is Tested (D119, D120, D163).
-var ArangoDB = list{}.add(arangodb, Tested, "3.12.12")
+var ArangoDB = list{}.add(arangodb, Verified, "3.12.12")

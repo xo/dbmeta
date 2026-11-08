@@ -88,4 +88,4 @@ var presto = product{
 }
 
 // Presto is every Presto release dbmeta is tested against.
-var Presto = list{}.add(presto, Tested, "0.299")
+var Presto = list{}.add(presto, Verified, "0.299")

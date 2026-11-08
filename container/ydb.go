@@ -90,4 +90,4 @@ func ydbURL(scheme, user string) func(port int) string {
 //
 // Both are Tested, which is the cadence each recorded while it was Staged.
 // See D119 and D120.
-var YDB = list{}.add(ydb, Tested, "26.2.1.14", "26.3.1.19")
+var YDB = list{}.add(ydb, Verified, "26.2.1.14", "26.3.1.19")

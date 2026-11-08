@@ -81,4 +81,4 @@ func rqliteAt(user string) func(port int) string {
 
 // Rqlite is every rqlite release dbrun starts. Both are Tested, the cadence
 // each recorded while it was Staged (D120).
-var Rqlite = list{}.add(rqlite, Tested, "9.4.5", "10.6.3")
+var Rqlite = list{}.add(rqlite, Verified, "9.4.5", "10.6.3")

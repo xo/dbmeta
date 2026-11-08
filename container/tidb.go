@@ -86,5 +86,5 @@ func tidbURL(user string) func(port int) string {
 
 // TiDB is every TiDB release dbmeta is tested against. Each takes the cadence
 // it kept while it was Staged as its tier (D120).
-var TiDB = list{}.add(tidb, Tested, "7.5.8", "8.5.8").
-	add(tidb, Nightly, "8.1.2")
+var TiDB = list{}.add(tidb, Verified, "7.5.8", "8.5.8").
+	add(tidb, Verified, "8.1.2")

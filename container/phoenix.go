@@ -64,7 +64,7 @@ var phoenix = product{
 // digest as well as by tag, as docs/CONTAINERS.md asks (D88). Without the
 // digest, a push to the same tag changes what dbrun starts, and nothing here
 // says so. Its cadence is Tested. See D119 and D120.
-var Phoenix = list{}.staged(phoenix, Tested, "2.0-5.0").
+var Phoenix = list{}.staged(phoenix, "2.0-5.0").
 	on("2.0-5.0", func(s *Server) {
 		s.Tag = "2.0-5.0@sha256:0360b932974ef41a278b0dab14c80a865bdb702eb806b8c1b8a1d28ce1207625"
 	})

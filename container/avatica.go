@@ -139,4 +139,4 @@ func avaticaHTTP(user string) func(port int) string {
 //
 // models/avatica reads them, so each keeps the cadence it recorded while it
 // was Staged (D120, D186).
-var Avatica = list{}.add(avatica, Tested, "1.28.0", "1.29.0")
+var Avatica = list{}.add(avatica, Verified, "1.28.0", "1.29.0")

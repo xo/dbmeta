@@ -149,5 +149,5 @@ func solrURL(user string) func(port int) string {
 //
 // models/solr reads them, so each keeps the cadence it recorded while it was
 // Staged (D120, D179).
-var Solr = list{}.add(solr, Tested, "9.9.0", "10.0.0").
-	add(solr, Nightly, "9.10.1")
+var Solr = list{}.add(solr, Verified, "9.9.0", "10.0.0").
+	add(solr, Verified, "9.10.1")

@@ -59,4 +59,4 @@ var impala = product{
 
 // Impala is every Apache Impala release dbmeta is tested against. Both are
 // Tested, which is the cadence they kept while they were Staged (D120).
-var Impala = list{}.add(impala, Tested, "4.4.1", "4.5.3")
+var Impala = list{}.add(impala, Verified, "4.4.1", "4.5.3")

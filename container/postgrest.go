@@ -108,4 +108,4 @@ var postgrest = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var PostgREST = list{}.staged(postgrest, Tested, "14.18", "16.5")
+var PostgREST = list{}.staged(postgrest, "14.18", "16.5")

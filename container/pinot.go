@@ -120,4 +120,4 @@ func pinotAt(scheme, user string) func(port int) string {
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Pinot = list{}.staged(pinot, Tested, "1.4.0", "1.5.1")
+var Pinot = list{}.staged(pinot, "1.4.0", "1.5.1")

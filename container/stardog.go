@@ -72,4 +72,4 @@ var stardog = product{
 // Staged, because dbmeta has no model that reads Stardog, so CI runs none
 // of them. Each also needs a license file that CI does not have,
 // so its cadence is Verified. See D119 and D120.
-var Stardog = list{}.staged(stardog, Verified, "12.1.5", "12.2.0")
+var Stardog = list{}.staged(stardog, "12.1.5", "12.2.0")

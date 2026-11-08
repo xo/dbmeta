@@ -105,5 +105,5 @@ func clickHouseHTTP(user string) func(port int) string {
 }
 
 // ClickHouse is every ClickHouse release dbmeta is tested against.
-var ClickHouse = list{}.add(clickhouse, Tested, "25.8", "26.9").
-	add(clickhouse, Nightly, "25.3", "26.8")
+var ClickHouse = list{}.add(clickhouse, Verified, "25.8", "26.9").
+	add(clickhouse, Verified, "25.3", "26.8")

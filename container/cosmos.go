@@ -75,4 +75,4 @@ var cosmos = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Cosmos = list{}.staged(cosmos, Tested, "EN20261019")
+var Cosmos = list{}.staged(cosmos, "EN20261019")

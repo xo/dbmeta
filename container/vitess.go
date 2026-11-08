@@ -62,4 +62,4 @@ var vitess = product{
 
 // Vitess is every Vitess release dbmeta is tested against. Both are Tested,
 // which is the cadence they kept while they were Staged (D120).
-var Vitess = list{}.add(vitess, Tested, "23.0.8", "24.0.5")
+var Vitess = list{}.add(vitess, Verified, "23.0.8", "24.0.5")

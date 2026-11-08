@@ -533,13 +533,14 @@ type product struct {
 // tier is the one thing this package exists to state.
 type list []Server
 
-// staged adds releases that no model reads yet, each with the cadence it
-// takes when a model reads it. See D119 and D120.
-func (l list) staged(p product, cadence Tier, versions ...string) list {
+// staged adds releases that no model reads yet. Each takes the cadence Verified
+// when a model reads it, because only the core products run in CI. See D119,
+// D120 and D281.
+func (l list) staged(p product, versions ...string) list {
 	l = l.add(p, Staged, versions...)
 	for i := range l {
 		if l[i].Tier == Staged && l[i].Cadence == "" {
-			l[i].Cadence = cadence
+			l[i].Cadence = Verified
 		}
 	}
 	return l

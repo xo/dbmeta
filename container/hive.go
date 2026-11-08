@@ -96,5 +96,5 @@ var hive = product{
 }
 
 // Hive is every Apache Hive release dbmeta is tested against.
-var Hive = list{}.add(hive, Tested, "4.2.1").
-	add(hive, Nightly, "4.0.1")
+var Hive = list{}.add(hive, Verified, "4.2.1").
+	add(hive, Verified, "4.0.1")

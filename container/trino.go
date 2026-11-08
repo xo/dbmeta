@@ -96,4 +96,4 @@ var trino = product{
 }
 
 // Trino is every Trino release dbmeta is tested against.
-var Trino = list{}.add(trino, Tested, "476", "484")
+var Trino = list{}.add(trino, Verified, "476", "484")

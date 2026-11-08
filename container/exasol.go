@@ -52,7 +52,7 @@ var exasol = product{
 }
 
 // Exasol is every Exasol container release dbmeta is tested against.
-var Exasol = list{}.add(exasol, Tested, "2026.2.0")
+var Exasol = list{}.add(exasol, Verified, "2026.2.0")
 
 // ExasolMachines is the Exasol release that runs on a virtual machine.
 //

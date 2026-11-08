@@ -84,4 +84,4 @@ var drill = product{
 //
 // models/drill reads them, so each keeps the cadence it recorded while it was
 // Staged (D120, D178).
-var Drill = list{}.add(drill, Tested, "1.21.2", "1.22.0")
+var Drill = list{}.add(drill, Verified, "1.21.2", "1.22.0")

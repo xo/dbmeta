@@ -71,4 +71,4 @@ var graphdb = product{
 // Staged, because dbmeta has no model that reads GraphDB, so CI runs none
 // of them. Each also needs a license file that CI does not have,
 // so its cadence is Verified. See D119 and D120.
-var GraphDB = list{}.staged(graphdb, Verified, "11.4.3", "11.5.2")
+var GraphDB = list{}.staged(graphdb, "11.4.3", "11.5.2")

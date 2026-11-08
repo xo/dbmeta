@@ -85,4 +85,4 @@ var meilisearch = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Meilisearch = list{}.staged(meilisearch, Tested, "1.54.3", "1.55.0")
+var Meilisearch = list{}.staged(meilisearch, "1.54.3", "1.55.0")

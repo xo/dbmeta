@@ -257,9 +257,9 @@ func influxHTTP(user, password string) func(port int) string {
 // models/influxdb reads InfluxDB 3, and models/influxql reads InfluxDB 1 and
 // 2, so every release takes the cadence it recorded while it was Staged
 // (D120, D152, D165).
-var InfluxDB = list{}.add(influxdb1, Tested, "1.13.1").
-	add(influxdb1, Nightly, "1.11.8").
-	add(influxdb2, Tested, "2.9.1").
-	add(influxdb2, Nightly, "2.8.0").
-	add(influxdb, Tested, "3.10.6", "3.12.1").
-	add(influxdb, Nightly, "3.11.7")
+var InfluxDB = list{}.add(influxdb1, Verified, "1.13.1").
+	add(influxdb1, Verified, "1.11.8").
+	add(influxdb2, Verified, "2.9.1").
+	add(influxdb2, Verified, "2.8.0").
+	add(influxdb, Verified, "3.10.6", "3.12.1").
+	add(influxdb, Verified, "3.11.7")

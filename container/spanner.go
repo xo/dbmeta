@@ -67,7 +67,7 @@ var spannerOmni = product{
 // Tested, which is the cadence the release recorded while it was Staged. The
 // image is public, because a request for its manifest needs no credential, so
 // CI pulls it as it pulls every other image. See D119, D120 and D216.
-var Spanner = list{}.add(spannerOmni, Tested, "2026.r4-lts")
+var Spanner = list{}.add(spannerOmni, Verified, "2026.r4-lts")
 
 // The Cloud Spanner emulator releases dbrun starts.
 //
@@ -123,4 +123,4 @@ var spannerEmulator = product{
 // Omni, which answers the real catalog, and the emulator is here for a driver
 // that speaks REST, which Omni does not serve. Each release keeps the cadence
 // it will have if a model reads it. See D119, D120 and D217.
-var SpannerEmulator = list{}.staged(spannerEmulator, Tested, "1.5.59")
+var SpannerEmulator = list{}.staged(spannerEmulator, "1.5.59")

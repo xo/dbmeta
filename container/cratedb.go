@@ -115,4 +115,4 @@ func cratePG(user string, password bool) func(port int) string {
 
 // CrateDB is every CrateDB release dbrun starts. Both are Tested, which is
 // the cadence they kept while they were Staged (D120).
-var CrateDB = list{}.add(cratedb, Tested, "6.3.7", "6.4.6")
+var CrateDB = list{}.add(cratedb, Verified, "6.3.7", "6.4.6")

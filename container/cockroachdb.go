@@ -93,5 +93,5 @@ func cockroachURL(scheme, user string) func(port int) string {
 // The newest of the last two lines on every push, and the oldest line with
 // long term support at night. They were the cadence each had while it was
 // Staged (D120).
-var CockroachDB = list{}.add(cockroachdb, Tested, "26.2.8", "26.3.2").
-	add(cockroachdb, Nightly, "24.3.36")
+var CockroachDB = list{}.add(cockroachdb, Verified, "26.2.8", "26.3.2").
+	add(cockroachdb, Verified, "24.3.36")

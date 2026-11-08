@@ -58,7 +58,7 @@ var singlestore = product{
 //
 // Image 0.2.85 ships 9.1.1, measured on 2026-09-30, and 9.0 is the line
 // before it, which the container downloads.
-var SingleStore = list{}.add(singlestore, Tested, "9.0", "9.1").
+var SingleStore = list{}.add(singlestore, Verified, "9.0", "9.1").
 	on("9.0", func(s *Server) {
 		s.Tag = singlestoreImage
 		s.Env = maps.Clone(s.Env)

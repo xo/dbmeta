@@ -49,6 +49,13 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch makes the older run useless, so cancel it.
+# GitHub limits the minutes and the concurrent jobs of an account, and a run
+# that nobody reads spends both.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
 jobs:
   unit:
     name: Unit
@@ -186,8 +193,12 @@ jobs:
     needs: releases
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
+      # Eight at once, so the matrix never takes the whole concurrency limit
+      # of the account and starves the other jobs.
+      max-parallel: 8
       matrix:
         server: ${{ fromJSON(needs.releases.outputs.tested) }}
 
@@ -230,8 +241,12 @@ jobs:
     needs: releases
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
+      # Eight at once, so the matrix never takes the whole concurrency limit
+      # of the account and starves the other jobs.
+      max-parallel: 8
       matrix:
         server: ${{ fromJSON(needs.releases.outputs.nightly) }}
 

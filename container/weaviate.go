@@ -73,4 +73,4 @@ var weaviate = product{
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Weaviate = list{}.staged(weaviate, Tested, "1.39.13", "1.40.2")
+var Weaviate = list{}.staged(weaviate, "1.39.13", "1.40.2")

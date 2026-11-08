@@ -97,4 +97,4 @@ func keyURL(scheme, user string) func(port int) string {
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var Qdrant = list{}.staged(qdrant, Tested, "1.19.2", "1.20.0")
+var Qdrant = list{}.staged(qdrant, "1.19.2", "1.20.0")

@@ -135,4 +135,4 @@ func neo4jURL(user string) func(port int) string {
 // models/neo4j reads both, so each takes the cadence it recorded while it was
 // Staged, and both run on every push (D120, D162). 5.26.32 is the floor of the
 // model and 2026.10.0 the newest monthly release.
-var Neo4j = list{}.add(neo4j, Tested, "5.26.32", "2026.10.0")
+var Neo4j = list{}.add(neo4j, Verified, "5.26.32", "2026.10.0")

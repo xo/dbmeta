@@ -94,4 +94,4 @@ func questPG(scheme, user string) func(port int) string {
 
 // QuestDB is every QuestDB release dbmeta is tested against. Both are Tested,
 // which is the cadence they kept while they were Staged (D120).
-var QuestDB = list{}.add(questdb, Tested, "9.4.3", "10.0.1")
+var QuestDB = list{}.add(questdb, Verified, "9.4.3", "10.0.1")

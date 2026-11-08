@@ -82,5 +82,5 @@ func mongoURL(user, source string) func(port int) string {
 // Staged, because dbmeta has no model that reads it, so CI runs none of
 // them. Each keeps the cadence it will have if a model reads it, which is
 // what dbimp runs on each push and at night. See D119 and D120.
-var MongoDB = list{}.staged(mongodb, Tested, "8.0.34", "9.0.4").
-	staged(mongodb, Nightly, "8.3.13")
+var MongoDB = list{}.staged(mongodb, "8.0.34", "9.0.4").
+	staged(mongodb, "8.3.13")

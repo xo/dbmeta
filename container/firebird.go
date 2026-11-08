@@ -88,5 +88,5 @@ func seriesOf(release string) string {
 }
 
 // Firebird is every Firebird release dbmeta is tested against.
-var Firebird = list{}.add(firebird, Tested, "3.0.14", "5.0.4").
-	add(firebird, Nightly, "4.0.7")
+var Firebird = list{}.add(firebird, Verified, "3.0.14", "5.0.4").
+	add(firebird, Verified, "4.0.7")

@@ -111,4 +111,4 @@ api=http://127.0.0.1:9200/_plugins/_security/api
 //
 // models/opensearch reads them, so each keeps the cadence it recorded while it
 // was Staged (D120, D181).
-var OpenSearch = list{}.add(opensearch, Tested, "2.19.7", "3.9.0")
+var OpenSearch = list{}.add(opensearch, Verified, "2.19.7", "3.9.0")

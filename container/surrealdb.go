@@ -127,5 +127,5 @@ func surrealDBURL(user, auth string) func(port int) string {
 // while it was Staged: 2.7.0 and 3.3.4 on every push, and 3.1.6 and 3.2.6 at
 // night (D120, D164). 2.7.0 answers one kind, because a 2.x statement
 // cannot read INFO as a value.
-var SurrealDB = list{}.add(surrealdb, Tested, "2.7.0", "3.3.4").
-	add(surrealdb, Nightly, "3.1.6", "3.2.6")
+var SurrealDB = list{}.add(surrealdb, Verified, "2.7.0", "3.3.4").
+	add(surrealdb, Verified, "3.1.6", "3.2.6")
