@@ -62,6 +62,7 @@ func init() {
 		QuotingColumns: 1,
 		ParseQuoting:   parseQuoting,
 		ChangePassword: changePassword,
+		TypeNames:      typeNames,
 	})
 	registerSchemas()
 	registerTables()
@@ -361,4 +362,18 @@ func sizeOf(oid string) dbmeta.Choice {
 		{Key: "cockroachdb", Query: `, NULL AS "size"`},
 		{Key: "cockroachdb", Min: dbmeta.V(26, 3), Query: size},
 	}
+}
+
+// typeNames builds the statement that names the types of a result, the way
+// psql's \gdesc does: a VALUES list of the numbers and format_type over it.
+// The numbers are written by strconv, so no value reaches the text as a string.
+// See D273.
+func typeNames(types []dbmeta.TypeRef) (string, error) {
+	rows := make([]string, len(types))
+	for i, t := range types {
+		rows[i] = "(" + strconv.Itoa(i+1) + ", '" + strconv.FormatUint(uint64(t.OID), 10) +
+			"'::pg_catalog.oid, '" + strconv.FormatInt(int64(t.Modifier), 10) + "'::pg_catalog.int4)"
+	}
+	return `SELECT s.ord, pg_catalog.format_type(s.tp, s.tpm) AS "type"` +
+		` FROM (VALUES ` + strings.Join(rows, ", ") + `) AS s(ord, tp, tpm) ORDER BY s.ord`, nil
 }

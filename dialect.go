@@ -253,6 +253,12 @@ type Info struct {
 	// statement or the model builds none, as for every embedded database
 	// here.
 	ChangePassword func(c PasswordChange, q Quoting) (string, error)
+	// DescribeResult builds the statement that describes a query without
+	// running it. Nil when the product has none. See D273.
+	DescribeResult func(query string) (ResultDescription, error)
+	// TypeNames builds the statement that names the types a driver reports as
+	// numbers. Nil when the product has none. See D273.
+	TypeNames func(types []TypeRef) (string, error)
 	// OldPassword says ChangePassword needs PasswordChange.Old: the product
 	// refuses a user's own password change without the current one. SQL
 	// Server is the case. A caller asks for the old password when it is

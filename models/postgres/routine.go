@@ -79,6 +79,7 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 	return append(stmt,
 		dbmeta.Choice{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 		dbmeta.Choice{{Query: `AND (@name = '' OR p.proname LIKE @name)`}},
+		argTypeFilter(`p.proargtypes[(a.i - 1)::int]`),
 		dbmeta.Choice{{Query: `ORDER BY 2, 3, 7`}},
 	)
 }
@@ -100,10 +101,11 @@ func scanFunction(rows *sql.Rows) (dbmeta.Function, error) {
 // registerFunctions backs \df.
 func registerFunctions() {
 	dbmeta.Functions.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Function]{
-		Stmt:   functionStmt(""),
-		Fields: functionFields(),
-		Params: schemaNameSystem("function"),
-		Scan:   scanFunction,
+		Stmt:    functionStmt(""),
+		Fields:  functionFields(),
+		Params:  argTypeParams("function"),
+		Derived: argTypeDerived(),
+		Scan:    scanFunction,
 	})
 }
 
@@ -111,10 +113,11 @@ func registerFunctions() {
 // query narrowed to one kind, which is how psql writes it too.
 func registerAggregates() {
 	dbmeta.Aggregates.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Function]{
-		Stmt:   functionStmt("a"),
-		Fields: functionFields(),
-		Params: schemaNameSystem("aggregate"),
-		Scan:   scanFunction,
+		Stmt:    functionStmt("a"),
+		Fields:  functionFields(),
+		Params:  argTypeParams("aggregate"),
+		Derived: argTypeDerived(),
+		Scan:    scanFunction,
 	})
 }
 
@@ -228,11 +231,15 @@ func registerOperators() {
 			{{Query: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
 			{{Query: `AND (@schema = '' OR n.nspname LIKE @schema)`}},
 			{{Query: `AND (@name = '' OR o.oprname LIKE @name)`}},
+			// The operands are the arguments, left then right. A third pattern
+			// matches nothing, because an operator has two.
+			argTypeFilter(`CASE (a.i - 1)::int WHEN 0 THEN o.oprleft WHEN 1 THEN o.oprright END`),
 			{{Query: `ORDER BY 1, 2, 3, 4`}},
 		},
 		Fields: fields("schema", "name", "left_type", "right_type", "result_type", "function", "comment",
 			"leakproof"),
-		Params: schemaNameSystem("operator"),
+		Params:  argTypeParams("operator"),
+		Derived: argTypeDerived(),
 		Scan: func(rows *sql.Rows) (dbmeta.Operator, error) {
 			var v dbmeta.Operator
 			err := rows.Scan(&v.Schema, &v.Name, &v.LeftType, &v.RightType,

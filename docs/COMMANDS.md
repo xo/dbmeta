@@ -104,6 +104,14 @@ and the cost.
 | `\dC` | `dbmeta.Casts` | `Cast` | no |
 | `\dL` | `dbmeta.Languages` | `Language` | no |
 
+`\df` and `\do` take the type patterns of psql in `Args.ArgTypes`, one for each
+argument, with `-` for no more arguments. For `\do` they are the left and right
+operand, and a caller that copies psql passes `-` first when it has one pattern.
+Only PostgreSQL and CockroachDB take them, and `Each` refuses them elsewhere
+with `ErrNotSupported`. See D272. `\gdesc` has no query of its own. It uses
+`Dialect.DescribeResult` and `Dialect.TypeNames`, which return statements and
+run nothing. See D273.
+
 `\dfn`, `\dfp`, `\dft` and `\dfw` narrow `\df` to normal functions, procedures,
 triggers and window functions. They are the same query narrowed by
 `Function.Kind`, not separate values.

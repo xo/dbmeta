@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"iter"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -574,6 +575,16 @@ func (q *Query[T]) Each(ctx context.Context, m *Meta, db Queryer, args Args) ite
 		return func(yield func(T, error) bool) {
 			var zero T
 			yield(zero, err)
+		}
+	}
+	// Every other field that a query does not take is left out, because it
+	// only narrows or widens a result. ArgTypes is different. Leaving it out
+	// returns every function for a caller that asked for the ones that take an
+	// integer, which is a wrong answer and not a wider one. See D272.
+	if len(args.ArgTypes) != 0 && !slices.ContainsFunc(params, func(p Param) bool { return p.Name == "arg_types" }) {
+		return func(yield func(T, error) bool) {
+			var zero T
+			yield(zero, ErrNotSupported)
 		}
 	}
 	all := args.Map()

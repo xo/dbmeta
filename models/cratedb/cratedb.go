@@ -44,6 +44,9 @@ func init() {
 	info.VersionColumns = 2
 	info.ParseVersion = parseVersion
 	info.ChangePassword = changePassword
+	// CrateDB has no format_type and its parser refuses the oid casts that the
+	// PostgreSQL statement writes, so it names no type. See D273.
+	info.TypeNames = nil
 	// CrateDB has no stored program.
 	info.Syntax.BeginEndBlocks = false
 	dbmeta.RegisterDialect(dbmeta.CrateDB, &info)

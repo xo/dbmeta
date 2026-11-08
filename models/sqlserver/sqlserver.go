@@ -90,6 +90,7 @@ func init() {
 		// escaped, and a backslash is an ordinary character. Verified on
 		// 2022, where LEN('a\b') is 3.
 		ChangePassword: changePassword,
+		DescribeResult: describeResult,
 	})
 	registerRelations()
 	registerServer()
@@ -275,4 +276,16 @@ func changePassword(c dbmeta.PasswordChange, q dbmeta.Quoting) (string, error) {
 		stmt += " OLD_PASSWORD = N" + dbmeta.QuoteLiteral(c.Old, q)
 	}
 	return stmt, nil
+}
+
+// describeResult builds the call of sp_describe_first_result_set, which
+// describes the first result of a batch without running it. The query is the
+// text of a string literal prefixed N, so that a name outside the code page
+// survives. T-SQL doubles the quote and has no backslash escape, so a zero
+// Quoting is right. It returns one row for each column in order. See D273.
+func describeResult(query string) (dbmeta.ResultDescription, error) {
+	return dbmeta.ResultDescription{
+		Stmt: "EXEC sys.sp_describe_first_result_set @tsql = N" + dbmeta.QuoteLiteral(query, dbmeta.Quoting{}),
+		Name: "name", Type: "system_type_name",
+	}, nil
 }

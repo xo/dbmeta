@@ -7,11 +7,13 @@ and `dbtpl` consume it.
 `Reader` and `Writer` pair from `usql` is a `usql` concept and it does not
 come here.
 
-One statement is the exception and it is a narrow one. `Dialect.ChangePassword`
+Three statements are the exception and it is a narrow one. `Dialect.ChangePassword`
 builds the statement that sets a password and returns it as text, because the
 statement and its escaping are per product knowledge and a password cannot be
-bound as a parameter. It takes no database and runs nothing, so everything
-`dbmeta` executes is still a read. Do not widen that. See D56.
+bound as a parameter. `Dialect.DescribeResult` and `Dialect.TypeNames` build the
+statements that describe the columns of a query and name their types. None of
+them takes a database or runs anything, so everything `dbmeta` executes is still
+a read. Do not widen that. See D56 and D273.
 
 Every quoting rule lives here, and none in a consumer. A rule two products
 share goes in the root package, as `QuoteLiteral` and `QuoteIdentifier` do,
@@ -35,7 +37,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 271. Read the status, because 118
+`docs/decisions/README.md` is a table of all 273. Read the status, because 119
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 

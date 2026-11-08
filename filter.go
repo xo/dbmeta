@@ -52,6 +52,18 @@ type Args struct {
 	// it, so Query.All refuses it there and Query.Each leaves it out. See
 	// D232.
 	WithTableInfo bool
+	// ArgTypes narrows a function or an operator by the types of its
+	// arguments, as the type patterns of psql's \df and \do do. Each item is
+	// a name pattern for the type at that position, matched against the
+	// internal name of the type and the name that format_type gives, and the
+	// item - means that there is no argument at that position. For an operator
+	// the first item is the left operand and the second is the right one. An
+	// item can name a schema, such as pg_catalog.int4. A name that is not
+	// quoted must be in lower case, because the model reads the aliases int,
+	// float and decimal and the rest as psql does, and does not fold case.
+	// Only the Functions, Aggregates and Operators of PostgreSQL take it, so
+	// Query.All and Query.Each refuse it where it is not taken. See D272.
+	ArgTypes []string
 }
 
 // Map returns the arguments as a map, leaving out every field that is unset.
@@ -86,6 +98,9 @@ func (a Args) Map() map[string]any {
 	}
 	if a.WithTableInfo {
 		m["with_table_info"] = true
+	}
+	if len(a.ArgTypes) != 0 {
+		m["arg_types"] = a.ArgTypes
 	}
 	return m
 }

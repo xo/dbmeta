@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"io"
+	"reflect"
 	"testing"
 )
 
@@ -60,5 +61,21 @@ func TestOpenReadsTheVersion(t *testing.T) {
 	record("SHOW server_version", nil, nil, io.ErrClosedPipe)
 	if m, err := Open(context.Background(), testDialect, db); m != nil || !errors.Is(err, io.ErrClosedPipe) {
 		t.Errorf("expected no metadata and the error, got %v and %v", m, err)
+	}
+}
+
+// TestEachRefusesTypesItCannotMatch checks that Each does not drop ArgTypes
+// from a query that does not take it, because the caller gets every row
+// and reads it as the rows with those types. See D272.
+func TestEachRefusesTypesItCannotMatch(t *testing.T) {
+	t.Parallel()
+	m := meta(t, "18")
+	args := Args{Schema: "public", ArgTypes: []string{"integer"}}
+	if _, _, err := First(Columns.Each(context.Background(), m, nil, args)); !errors.Is(err, ErrNotSupported) {
+		t.Errorf("expected ErrNotSupported, got: %v", err)
+	}
+	want := map[string]any{"arg_types": []string{"integer", "-"}}
+	if got := (Args{ArgTypes: []string{"integer", "-"}}).Map(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Map: got %v, want %v", got, want)
 	}
 }
