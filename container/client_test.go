@@ -41,7 +41,7 @@ func TestTheNativeClientBuildsACall(t *testing.T) {
 		if s.Client.Command == "" {
 			continue
 		}
-		first := 55000 + i
+		first := 20000 + i
 		for _, p := range s.Principals() {
 			conn, err := container.ParseConnection(p.URL(first), first)
 			if err != nil {

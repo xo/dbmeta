@@ -16,7 +16,13 @@ cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 on
 tier passed in CI on each tagged commit. Ken chose that CI stands in for a run
 of every tier, and the Verified tier was not run again for any of them.
 
-The `dump` package is started (D274, D275, `DUMP.md`). Step 1 of its order of work is
+The `dump` package is built for PostgreSQL, SQLite, DuckDB and MySQL and not released
+(D274 to D279, `DUMP.md`): the type model, the snapshot with its JSON format, the script for
+the same dialect and for another, the plan and the policy, the loader that writes the rows
+in two forms, and the report of what a dialect can do. The tests move a schema and its rows
+between every pair of the four, on PostgreSQL 9.6 and 18, MariaDB 10.6 and 13.0, MySQL 8.4
+and 26.7, SQLite and DuckDB. What a dump leaves out is in `BACKLOG.md`, under Dump. The old
+notes of the steps follow and are kept for the record. Step 1 of its order of work was
 done and not released: the type model, with `ParseType` and `RenderType` for PostgreSQL,
 SQLite, DuckDB and MySQL, tested on real columns of PostgreSQL 18 with both drivers, SQLite
 with both drivers, DuckDB, MySQL 26.7 and MariaDB 13.0. Step 2 is built and not released: the

@@ -1,6 +1,6 @@
 # D68. Every container is started by the runner and named product-release
 
-Status: Amended by D70 and D124.
+Status: Amended by D70, D124 and D279.
 
 Nobody reaches for podman or docker by hand. One command starts every
 container this project uses, and every container is named

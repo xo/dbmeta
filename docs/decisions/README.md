@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-125 of them amend or replace an earlier one, and a decision read without its
+126 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -86,7 +86,7 @@ file.
 | [D65](D065-a-windows-machine-rearms-its-evaluation-before.md) | A Windows machine rearms its evaluation before it expires | Decided |
 | [D66](D066-the-order-the-remaining-dialects-are-written-in.md) | The order the remaining dialects are written in | Amended by D67, D77, D88, D91, D94 and D129 |
 | [D67](D067-impala-cannot-be-a-dbmeta-model-and-clickhouse.md) | Impala cannot be a dbmeta model, and ClickHouse goes first | Amends D66, amended by D146 |
-| [D68](D068-every-container-is-started-by-the-runner-and.md) | Every container is started by the runner and named product-release | Amended by D70 and D124 |
+| [D68](D068-every-container-is-started-by-the-runner-and.md) | Every container is started by the runner and named product-release | Amended by D70, D124 and D279 |
 | [D69](D069-the-workflow-builds-its-matrix-from-the-go-list.md) | The workflow builds its matrix from the Go list | Amends D42 |
 | [D70](D070-the-runner-is-a-go-command-called-dbrun.md) | The runner is a Go command called dbrun | Amends D68 and D12 |
 | [D71](D071-nothing-here-is-generated-the-models-are-written.md) | Nothing here is generated. The models are written | Amends D2, D12 and D30, supersedes D11 and D6a |
@@ -297,3 +297,4 @@ file.
 | [D276](D276-the-mysql-model-reads-what-a-dump-needs-of-a-column-and-a-key.md) | The MySQL model reads what a dump needs of a column and a key | Decided |
 | [D277](D277-databases-whose-image-fails-to-pull-are-not-in-ci.md) | Databases whose image fails to pull are not in CI | Amends D40, D42 and D119 |
 | [D278](D278-the-views-that-a-view-reads-are-a-kind-of-their-own.md) | The views that a view reads are a kind of their own | Decided |
+| [D279](D279-the-published-ports-are-below-the-ephemeral-range.md) | The published ports are below the ephemeral range | Amends D68 |

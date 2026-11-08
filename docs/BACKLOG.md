@@ -154,6 +154,42 @@ returns the object as JSON text and not as `name=value` lines, because CrateDB
 cannot read the value of a key that the statement does not name. A later
 release can change that.
 
+## Dump
+
+Found by the round trip tests of `dump` on 2026-11-08 (D274, D276, D278). Each is a
+fact that the snapshot does not hold, so a dump leaves it out.
+
+- SQLite check constraints. The model reads none, and a CHECK of a SQLite table is
+  not in the snapshot. A dump of SQLite writes the table with no check, and says
+  nothing about it.
+- MySQL `ON UPDATE CURRENT_TIMESTAMP` of a column is in `EXTRA` and not read.
+- The prefix length of a MySQL index column, such as `name(10)`, and the visibility
+  of an index are not read.
+- The engine, the character set and the row format of a MySQL table are not read.
+  The table takes the defaults of the server that runs the script.
+- The relations that a view reads are answered for PostgreSQL only. SQL Server has
+  `sys.sql_expression_dependencies` and Oracle has `all_dependencies`, both named
+  from memory. MySQL, SQLite and DuckDB have none, so their views are in order of
+  name.
+- The next value of a sequence that no column owns is not set after the rows. A
+  serial or identity column of PostgreSQL is set from its rows. DuckDB has no way to
+  set a sequence.
+- An identity column becomes `AUTO_INCREMENT` in MySQL and a serial in PostgreSQL.
+  It is not kept in DuckDB, which numbers with a sequence, and SQLite numbers only
+  an integer primary key.
+- An enum is a string with its values for another dialect and has no CHECK there. A
+  PostgreSQL target does not create the type of a MySQL enum.
+- An unbounded text in a key is a `varchar(255)` in MySQL, and the plan says Lossy.
+  A key longer than the limit of the engine is not checked.
+- A partitioned table, a materialized view and a foreign table are in
+  `Snapshot.Skipped`. The extensions of PostgreSQL, the grants and the owners are not
+  read.
+- CockroachDB and MariaDB have no style of their own, so a script for them is the one
+  of PostgreSQL and MySQL. SQL Server and Oracle have type functions and a style to
+  write, which D274 puts after the four.
+- The data check for a boolean by convention is a statement in the plan, and the
+  client has to run it. dbmeta runs no query, so the stop is the client's.
+
 ## PostgreSQL model
 
 ### Read the sections of `\d` that no kind answers

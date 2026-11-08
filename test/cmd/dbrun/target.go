@@ -178,7 +178,12 @@ type target struct {
 // always gets the same one however it was selected. Numbering a filtered list
 // instead gave every server started on its own the first port, and two of
 // them collided. See D68.
-const basePort = 55000
+//
+// It is below 32768, which is where the ephemeral ports of Linux start. The
+// kernel gives those ports to the outgoing connections of a busy host, such as
+// the pull of an image, so a published port above it is taken at random and a
+// container fails to start with address already in use. See D279.
+const basePort = 20000
 
 // embeddedTargets are the databases that are a library rather than a server.
 //

@@ -296,7 +296,7 @@ A server is named `<product>-<release>`, such as `clickhouse-26.9` or
 `couchbase-8.0.3`. The name is the container name, the selector and what every
 message calls it.
 
-The host port of a container is 55000 plus the place of the release in
+The host port of a container is 20000 plus the place of the release in
 `container.All`. It stays the same from one start to the next. Do not write a
 port into a script or a test. Read it from `dsn --json`, because a release
 added earlier in the list moves every port after it. When that happens,

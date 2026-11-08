@@ -1,10 +1,36 @@
 # Dump and copy
 
-Status: decided in D274 and D275 on 2026-11-08. Nothing is built yet. This
-document is the design of the `dump` package. usql asked for a `\dump` command,
+Status: decided in D274 and D275 on 2026-11-08, and built for PostgreSQL, SQLite,
+DuckDB and MySQL. The section "As built" says where the code differs from the
+design below. This document is the design of the `dump` package. usql asked for a `\dump` command,
 a `--dump` flag, a target dialect and a rewritten `\copy`, and this is the
 dbmeta side. Where a claim comes from a measurement it says so. Where it comes
 from memory it says that too, and the claim must be measured before it is built.
+
+## As built
+
+The names that the code has, where they differ from the design below:
+
+- `dump.MakePlan(snapshot, target, policy)` is the plan, and it returns a `Plan`
+  or a `*PlanError` that lists every column with no allowed level.
+- `dump.Policy` has `Default`, `Kinds` and `Columns`, each an `Allow{Lossy, Text}`,
+  and `Casts`. A `Cast` matches a column pattern and a source type text and names a
+  kind.
+- `dump.Support(dialect)` returns a `Capability` with `Source`, `Target` and the
+  reason that each is not true. It replaces the `Dialect.Dump()` of the design,
+  because a method cannot be added to a type of another package.
+- `dump.NewLoader(snapshot, schema, table, target, policy)` returns a `Loader` with
+  `Columns`, `SelectAll`, `Insert`, `InsertArgs`, `Args`, `BatchSize` and `Ordered`.
+  `dump.Convert(value, from, to)` reads a value by its kind. The loader is the
+  `dump.Loader` of "One API for dump and copy".
+- A model registers `dump.RegisterTypes` and `dump.RegisterStyle` from `init`. The
+  style holds the quoting, the literals and the syntax that differ by product.
+- `dbmeta.ViewDependencies` is the reader of D278, for PostgreSQL.
+- The MySQL model reads the rules of a foreign key, the expression of a generated
+  column and whether a default is a value (D276).
+- The published ports of `dbrun` start at 20000 (D279).
+
+What a dump leaves out is in `docs/BACKLOG.md`, under Dump.
 
 ## What was decided
 
@@ -364,7 +390,7 @@ Two rules hold:
 A planning step runs before the first statement:
 
 ```go
-func Plan(s *Snapshot, target dbmeta.Dialect, p Policy) (Plan, error)
+func MakePlan(s *Snapshot, target dbmeta.Dialect, p Policy) (Plan, error)
 ```
 
 The plan holds:
@@ -484,7 +510,7 @@ in usql.
 
 ## What cannot be dumped
 
-`Dialect.Dump() DumpSupport` has two answers: whether the product can be a source,
+`dump.Support(dialect)` has two answers: whether the product can be a source,
 and whether it can be a target. A source needs the `Tables` and `Columns` readers.
 A target needs the type functions, the builders and a statement of the syntax. The
 reason is a constant, so usql prints it:

@@ -87,7 +87,7 @@ dbmeta's CI does not run it, and the other repository runs it with
 Do not edit the CI workflow. Its matrix comes from the list (D69).
 
 A release added to the list moves the host port of every server after it,
-because a port is 55000 plus the place of the server in `container.All`. A
+because a port is 20000 plus the place of the server in `container.All`. A
 container that another session built before your change keeps its old port.
 `dbrun start` rebuilds it and `dbrun status` reports it, so tell the person
 that the ports moved.
