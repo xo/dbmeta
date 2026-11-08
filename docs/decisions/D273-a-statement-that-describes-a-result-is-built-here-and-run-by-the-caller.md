@@ -1,6 +1,6 @@
 # D273. A statement that describes a result is built here and run by the caller
 
-Status: Amends D56.
+Status: Amends D56, amended by D274.
 
 psql's `\gdesc` shows the name and type of each column of the query in the
 buffer, without running it. usql runs on database/sql, which cannot describe a

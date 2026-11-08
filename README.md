@@ -357,7 +357,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 273 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 123 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 275 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 124 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |
@@ -368,6 +368,7 @@ Everything else is in [`docs/`](docs/):
 | [`DBTPL.md`](docs/DBTPL.md) | The same measurement for `dbtpl`. |
 | [`DBRUN.md`](docs/DBRUN.md) | How to use `dbrun`, the command that starts the databases the tests run against, and the rules for sharing one machine. |
 | [`CONTAINERS.md`](docs/CONTAINERS.md) | How to add a container or a virtual machine that `dbrun` can start. |
+| [`DUMP.md`](docs/DUMP.md) | The design for dumping a database and copying data between databases, decided in D274 and not built. |
 | [`BACKLOG.md`](docs/BACKLOG.md) | Work that is known and not done, with the decision or the measurement that found each item. |
 | [`PROGRESS.md`](docs/PROGRESS.md) | Where the work stands, so that a session that ends or crashes can resume. |
 | [`WINDOWS.md`](docs/WINDOWS.md) | The Windows machines that host the SQL Server releases with no Linux container, and why each of them is awkward. |
@@ -431,7 +432,7 @@ a client can take the parts it needs.
   driver, and D80 says why `dbmeta` reads it as a document rather than
   importing it.
 - [`tblfmt`][tblfmt] renders a result set the way `psql` does. `dbmeta` reads
-  metadata and does not render it, so a client that wants a table passes the
+  metadata and does not display it, so a client that wants a table passes the
   rows to `tblfmt`.
 
 # Contributing

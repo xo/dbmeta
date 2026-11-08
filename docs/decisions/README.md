@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-123 of them amend or replace an earlier one, and a decision read without its
+124 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -23,7 +23,7 @@ file.
 | [D2](D002-models-are-one-package-per-driver-under-models.md) | Models are one package per driver under `models/<driver>` | Amended by D71 |
 | [D3](D003-the-root-package-is-the-driver-agnostic-api.md) | The root package is the driver agnostic API | Decided |
 | [D4](D004-keep-the-object-coverage-drop-the-reader-naming.md) | Keep the object coverage, drop the Reader naming | Decided |
-| [D5](D005-dbmeta-only-reads.md) | dbmeta only reads | Amended by D56 |
+| [D5](D005-dbmeta-only-reads.md) | dbmeta only reads | Amended by D56 and D274 |
 | [D6](D006-fix-the-null-scan-defect-once-and-never-hide-a.md) | Fix the NULL scan defect once, and never hide a NULL | Decided, amended in place, D6a superseded by D71 |
 | [D7](D007-use-the-standard-library-third-party-packages.md) | Use the standard library. Third party packages are a last resort | Decided |
 | [D8](D008-version-differences-are-generated-data-not.md) | Version differences are generated data, not packages | Decided |
@@ -74,7 +74,7 @@ file.
 | [D53](D053-one-canonical-expectation-checked-in-that-every.md) | One canonical expectation, checked in, that every database must meet | Decided |
 | [D54](D054-sql-server-covers-every-release-that-ships-a.md) | SQL Server covers every release that ships a Linux container | Amended by D63 |
 | [D55](D055-the-current-user-moves-here-changing-a-password.md) | The current user moves here. Changing a password does not | Decided |
-| [D56](D056-the-password-statement-is-built-here-and-run-by.md) | The password statement is built here and run by the caller | Amends D5, amended by D127 and D273 |
+| [D56](D056-the-password-statement-is-built-here-and-run-by.md) | The password statement is built here and run by the caller | Amends D5, amended by D127, D273 and D274 |
 | [D57](D057-a-windows-machine-is-how-a-pre-2017-sql-server.md) | A Windows machine is how a pre 2017 SQL Server gets tested, and it is Verified | Decided |
 | [D58](D058-one-gitignore-in-the-repository-root.md) | One .gitignore, in the repository root | Decided |
 | [D59](D059-oracle-is-tested-with-go-ora-v2-until-v3-tags.md) | Oracle is tested with go-ora v2 until v3 tags its fix | Amends D52, amended by D136 and D157 |
@@ -291,4 +291,6 @@ file.
 | [D270](D270-the-client-of-a-product-is-found-by-its-name.md) | The client of a product is found by its name | Amends D236 |
 | [D271](D271-a-cluster-node-gets-a-higher-process-limit.md) | A cluster node gets a higher process limit | Amends D269 |
 | [D272](D272-a-function-or-an-operator-is-matched-by-the-types-of-its-arguments.md) | A function or an operator is matched by the types of its arguments | Decided |
-| [D273](D273-a-statement-that-describes-a-result-is-built-here-and-run-by-the-caller.md) | A statement that describes a result is built here and run by the caller | Amends D56 |
+| [D273](D273-a-statement-that-describes-a-result-is-built-here-and-run-by-the-caller.md) | A statement that describes a result is built here and run by the caller | Amends D56, amended by D274 |
+| [D274](D274-a-dump-is-built-here-as-statements-and-run-by-the-client.md) | A dump is built here as statements and run by the client | Amends D5, D56 and D273 |
+| [D275](D275-dump-names-the-types-of-dbimp-and-imports-none-of-them.md) | dump names the types of dbimp and imports none of them | Decided |

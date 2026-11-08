@@ -1,6 +1,6 @@
 # D5. dbmeta only reads
 
-Status: Amended by D56.
+Status: Amended by D56 and D274.
 
 `dbmeta` reads metadata. It does not render it and it does not write it.
 

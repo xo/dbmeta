@@ -3,9 +3,10 @@
 `dbmeta` holds database metadata queries and models in one Go module. `usql`
 and `dbtpl` consume it.
 
-`dbmeta` only reads. It does not render metadata and it does not write it. The
-`Reader` and `Writer` pair from `usql` is a `usql` concept and it does not
-come here.
+`dbmeta` only reads. It does not display metadata and it does not write to a
+database. The `Reader` and `Writer` pair from `usql` is a `usql` concept and it
+does not come here. D274 lets it build the text of statements, which the next
+paragraph limits.
 
 Three statements are the exception and it is a narrow one. `Dialect.ChangePassword`
 builds the statement that sets a password and returns it as text, because the
@@ -13,7 +14,8 @@ statement and its escaping are per product knowledge and a password cannot be
 bound as a parameter. `Dialect.DescribeResult` and `Dialect.TypeNames` build the
 statements that describe the columns of a query and name their types. None of
 them takes a database or runs anything, so everything `dbmeta` executes is still
-a read. Do not widen that. See D56 and D273.
+a read. A dump is built the same way, as statements that the client runs, and
+none of it exists yet. Do not widen that further. See D56, D273 and D274.
 
 Every quoting rule lives here, and none in a consumer. A rule two products
 share goes in the root package, as `QuoteLiteral` and `QuoteIdentifier` do,
@@ -37,7 +39,7 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 273. Read the status, because 119
+`docs/decisions/README.md` is a table of all 275. Read the status, because 120
 of them amend or replace an earlier one. Do not decide an open question on
 your own. They are at the end of `docs/PLAN.md`. Ask Ken.
 
@@ -75,6 +77,7 @@ Then by what you are doing:
 | writing a document, a code comment, an error message or a commit message | the `simple-english` skill. Load it first. See below, under Writing documentation |
 | writing or reviewing Go code | the `go-pedantry` skill. Load it first. See Standing rules |
 | looking for work that is known and not done | `docs/BACKLOG.md` |
+| asking how a dump or a copy between databases fits | `docs/DUMP.md` and D274. The design is decided and nothing is built |
 | resuming a session that ended or crashed | `docs/PROGRESS.md`, which says where the work stands |
 | adding or updating an agent skill | `CONTRIBUTING.md`, under Agent skills, D89 and D110 |
 
