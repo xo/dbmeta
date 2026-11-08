@@ -352,8 +352,6 @@ current_user the same rows with different values
 indexes the same rows with different values
 tables the same rows with different values
 
-[tablestore/same/reader]
-
 [postgres/same/grantee]
 current_user the same rows with different values
 settings fewer rows than the administrator
@@ -593,10 +591,12 @@ views fewer rows than the administrator
 
 [sqlserver/contained/contained]
 current_user the same rows with different values
+view_dependencies refused: mssql: The SELECT permission was denied on the object 'sql_expression_dependencies', database 'mssqlsystemresource', schema 'sys'. (229)
 
 [sqlserver/same/login]
 current_user the same rows with different values
 roles fewer rows than the administrator
+view_dependencies refused: mssql: The SELECT permission was denied on the object 'sql_expression_dependencies', database 'mssqlsystemresource', schema 'sys'. (229)
 
 [surrealdb/same/namespace]
 databases refused: surrealdb: NotAllowed: IAM error: Not enough permissions to perform this action
@@ -614,6 +614,8 @@ databases refused: surrealdb: NotAllowed: IAM error: Not enough permissions to p
 role_grants refused: surrealdb: NotAllowed: IAM error: Not enough permissions to perform this action
 roles refused: surrealdb: NotAllowed: IAM error: Not enough permissions to perform this action
 schemas refused: surrealdb: NotAllowed: IAM error: Not enough permissions to perform this action
+
+[tablestore/same/reader]
 
 [tidb/same/grantee]
 current_database the same rows with different values
