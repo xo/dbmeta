@@ -440,12 +440,12 @@ func (s Server) Environ() []string {
 
 // All returns every server, PostgreSQL first.
 func All() []Server {
-	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j, ArangoDB, InfluxDB, CrateDB, Rqlite, LibSQL, Pinot, Databend, Avatica, Phoenix, Druid, Qdrant,
+	return slices.Concat(PostgreSQL, MariaDB, MySQL, SQLServer, Oracle, Cassandra, ClickHouse, Trino, Presto, Firebird, HANA, Hive, HiveHTTP, Exasol, Vertica, Scylla, Couchbase, SurrealDB, Neo4j, ArangoDB, InfluxDB, CrateDB, Rqlite, LibSQL, Pinot, Databend, Avatica, Phoenix, Druid, Qdrant,
 		Chroma, Weaviate, CouchDB, QuestDB, Meilisearch, Typesense, TerminusDB,
 		CockroachDB, TiDB, MongoDB, Elasticsearch, Dgraph, YDB,
 		Spanner, SpannerEmulator, BigQuery, Virtuoso, Alternator, Vitess, Milvus,
 		OpenSearch, DynamoDB, Cosmos, Stardog, GraphDB, VoltDB,
-		Solr, Drill, Fuseki, PostgREST, KsqlDB, SingleStore, Impala)
+		Solr, Drill, Fuseki, PostgREST, KsqlDB, SingleStore, Impala, ImpalaHTTP)
 }
 
 // AtTier returns the servers tested at t.

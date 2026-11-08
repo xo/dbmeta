@@ -98,3 +98,49 @@ var hive = product{
 // Hive is every Apache Hive release dbmeta is tested against.
 var Hive = list{}.add(hive, Verified, "4.2.1").
 	add(hive, Verified, "4.0.1")
+
+// hiveHTTP is Apache Hive with HiveServer2 in the HTTP transport, which is the
+// only way dbimp's driver reaches it (dbimp D232, and D282 here). It is the same image
+// as hive, and the container starts HiveServer2 with
+// hive.server2.transport.mode set to http, so it does not answer on 10000.
+//
+// The port and the path are the defaults of HiveServer2: 10001 and cliservice.
+// The properties are written out anyway, so that an image with other defaults
+// still answers where the DSN says.
+//
+// # No users
+//
+// The image runs with hive.server2.authentication set to NONE, so the server
+// accepts any user name and any password, and the PLAIN exchange that the HTTP
+// mode of a client sends is not checked. A user cannot be made and no
+// Init is needed. The sys database that hive creates is not made, because
+// dbimp reads tables and not the metastore.
+var hiveHTTP = product{
+	dialect: dbmeta.Hive,
+	name:    "hivehttp",
+	client:  beelineClient(),
+	image:   "docker.io/apache/hive",
+	port:    10001,
+	env: map[string]string{
+		"SERVICE_NAME": "hiveserver2",
+		"SERVICE_OPTS": "-Dhive.server2.transport.mode=http" +
+			" -Dhive.server2.thrift.http.port=10001" +
+			" -Dhive.server2.thrift.http.path=cliservice",
+	},
+	ready: []string{
+		"sh", "-c",
+		"TERM=dumb beeline -u 'jdbc:hive2://localhost:10001/;transportMode=http;httpPath=cliservice' -e 'SELECT 1'",
+	},
+	startup: 5 * time.Minute,
+	dsn: func(port int) string {
+		return fmt.Sprintf("http://hive:%s@127.0.0.1:%d/cliservice", url.QueryEscape(Password), port)
+	},
+	url: func(port int) string {
+		return fmt.Sprintf("hive://hive:%s@127.0.0.1:%d/default?auth=PLAIN&transport=http&httpPath=cliservice",
+			url.QueryEscape(Password), port)
+	},
+}
+
+// HiveHTTP is the Hive releases that dbimp reaches over HTTP. They are Verified,
+// so CI never starts them. models/hive reads the binary entries above.
+var HiveHTTP = list{}.add(hiveHTTP, Verified, "4.2.1", "4.0.1")

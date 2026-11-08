@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/xo/dbmeta"
@@ -60,3 +61,33 @@ var impala = product{
 // Impala is every Apache Impala release dbmeta is tested against. Both are
 // Tested, which is the cadence they kept while they were Staged (D120).
 var Impala = list{}.add(impala, Verified, "4.4.1", "4.5.3")
+
+// impalaHTTP is the Impala image with HiveServer2 reached over HTTP, on the
+// port of the hs2_http_port flag, which defaults to 28000. dbimp's driver
+// reaches Impala that way and no other (dbimp D232, and D282 here). It is the same
+// image and the same daemon as impala, and a second port is published.
+//
+// The image configures no authentication, so the daemon accepts any user name
+// and any password, and the PLAIN exchange of the HTTP mode is not checked. A
+// user cannot be made and no Init is needed.
+var impalaHTTP = product{
+	dialect: dbmeta.Impala,
+	name:    "impalahttp",
+	client:  impalaClient(),
+	image:   "localhost/dbmeta/impala",
+	port:    28000,
+	ready: []string{"bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/25000 &&" +
+		" printf 'GET /healthz HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q OK <&3"},
+	startup: 5 * time.Minute,
+	dsn: func(port int) string {
+		return fmt.Sprintf("http://impala:%s@127.0.0.1:%d/cliservice", url.QueryEscape(Password), port)
+	},
+	url: func(port int) string {
+		return fmt.Sprintf("impala://impala:%s@127.0.0.1:%d?auth=PLAIN&transport=http&httpPath=cliservice",
+			url.QueryEscape(Password), port)
+	},
+}
+
+// ImpalaHTTP is the Impala releases that dbimp reaches over HTTP. They are
+// Verified, so CI never starts them.
+var ImpalaHTTP = list{}.add(impalaHTTP, Verified, "4.4.1", "4.5.3")
