@@ -718,6 +718,11 @@ func (g *generator) views() {
 // source's own statement is taken off, and the target writes its own.
 func (g *generator) view(schema string, v View) string {
 	name := g.qualified(schema, v.Name)
+	// A product whose schema is its database keeps the name of the database in the
+	// query of a view, and the copy lives in another database.
+	if src, err := styleOf(g.source); err == nil && src.DefaultSchema == "*" && schema != "" {
+		v.Definition = strings.ReplaceAll(v.Definition, src.Quote(schema)+".", "")
+	}
 	if g.cross {
 		return "CREATE VIEW " + name + " AS " + viewQuery(v.Definition)
 	}

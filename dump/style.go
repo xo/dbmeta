@@ -74,6 +74,15 @@ type Style struct {
 	// that can be NULL, so the table writes NOT NULL for each such column. SQLite
 	// accepts one, and a table that has one is written back the way it was read.
 	PrimaryKeyNotNull bool
+	// FloatSpecial writes NaN and the two infinities as a literal, for a product
+	// that reads them. The result is false for a product that does not.
+	FloatSpecial func(v float64) (string, bool)
+	// Session is the statements that set the session that reads or writes rows, so
+	// that a value means the same on both sides. MySQL reads and writes a timestamp
+	// in the zone of the session, so both sessions are set to UTC. The client runs
+	// them on the connection of the source before it reads and on the connection of
+	// the target before it writes. [Style.Preamble] holds them for a script.
+	Session []string
 	// Boolean writes a boolean value, for a product that has no TRUE and FALSE
 	// in a default or in a row, such as 1 and 0 in SQL Server. It is nil where the
 	// words are right.

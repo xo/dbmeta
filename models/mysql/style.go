@@ -23,6 +23,9 @@ func init() {
 		Binary:        func(hex string) string { return "X'" + hex + "'" },
 		MaxParameters: 65535,
 		Trigger:       trigger,
+		// A timestamp is read and written in the zone of the session, so both are UTC.
+		Session:  []string{"SET time_zone = '+00:00'"},
+		Preamble: []string{"SET time_zone = '+00:00'"},
 	})
 }
 

@@ -118,6 +118,16 @@ func (l *Loader) Epilogue() string {
 	return ""
 }
 
+// SourceSession returns the statements that the client runs on the connection of
+// the source before it runs SelectAll, so that a value is read in the zone that the
+// loader assumes. It is empty for a product whose values do not depend on the session.
+func (l *Loader) SourceSession() []string { return l.src.Session }
+
+// TargetSession returns the statements that the client runs on the connection of
+// the target before it runs an INSERT. A script holds the same statements in its
+// preamble.
+func (l *Loader) TargetSession() []string { return l.dst.Session }
+
 // Columns returns the names of the columns that the loader moves, in order.
 func (l *Loader) Columns() []string {
 	out := make([]string, len(l.cols))
@@ -271,6 +281,11 @@ func (l *Loader) literal(c loadColumn, v any) (string, error) {
 		return strconv.FormatInt(x, 10), nil
 	case float64:
 		if math.IsNaN(x) || math.IsInf(x, 0) {
+			if l.dst.FloatSpecial != nil {
+				if text, ok := l.dst.FloatSpecial(x); ok {
+					return text, nil
+				}
+			}
 			return "", fmt.Errorf("%v has no literal in %s: %w", x, l.target, ErrBadValue)
 		}
 		return strconv.FormatFloat(x, 'g', -1, 64), nil
@@ -296,7 +311,8 @@ func (l *Loader) literal(c loadColumn, v any) (string, error) {
 // timeLiteral writes a date or a time, with an offset for an instant when the
 // product reads one.
 func (l *Loader) timeLiteral(kind Kind, t time.Time) (string, error) {
-	if t.Year() < 1 || t.Year() > 9999 {
+	// A time of day has no year, and a driver gives it year 0 or 1.
+	if kind != TimeOfDay && kind != TimeOfDayOffset && (t.Year() < 1 || t.Year() > 9999) {
 		return "", fmt.Errorf("the year %d is outside the years that dump writes: %w", t.Year(), ErrBadValue)
 	}
 	switch kind {

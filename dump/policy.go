@@ -267,7 +267,12 @@ func keyColumns(t Table) map[string]bool {
 		}
 	}
 	for _, ix := range t.Indexes {
-		for _, c := range ix.Columns {
+		cols := ix.Columns
+		// A source that keeps the statement and no columns, as DuckDB does.
+		if len(cols) == 0 {
+			cols = definitionColumns(ix.Definition)
+		}
+		for _, c := range cols {
 			if c.Name != "" {
 				keys[c.Name] = true
 			}

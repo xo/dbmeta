@@ -184,9 +184,27 @@ fact that the snapshot does not hold, so a dump leaves it out.
 - A partitioned table, a materialized view and a foreign table are in
   `Snapshot.Skipped`. The extensions of PostgreSQL, the grants and the owners are not
   read.
-- CockroachDB and MariaDB have no style of their own, so a script for them is the one
-  of PostgreSQL and MySQL. SQL Server and Oracle have type functions and a style to
-  write, which D274 puts after the four.
+- MariaDB has no style of its own, so a script for it is the one of MySQL. Oracle
+  has type functions and a style to write, which D274 puts after the four. The
+  other products that dbrun starts have none either, and a type function for each
+  makes it a source at least.
+- A PostgreSQL array value moves to DuckDB as the text of PostgreSQL, such as
+  `{a,"b c"}`, and DuckDB refuses the cast. `Convert` has no form of an array for
+  another dialect. usql found it on 2026-11-08.
+- A unique index of SQLite that was made with `CREATE UNIQUE INDEX` is read as a
+  unique constraint with a made up name, so the script writes it unnamed inside
+  `CREATE TABLE` and loses the name. SQLite also loses `AUTOINCREMENT`, which the
+  model does not read. usql found both on 2026-11-08.
+- The next value of a sequence that a column does not own needs `last_value` and
+  `is_called` of the sequence, and a snapshot holds neither. A script can set one
+  only when the client reads them, one statement for each sequence. usql found it
+  on 2026-11-08 with `app.ticket_seq`.
+- `Style.CheckAfterData` is a query that returns rows for a fault, and a client
+  that cannot stop on a row only prints them. A text script has no statement that
+  raises an error on a fault in every product, so the stop stays with the client.
+- A script for SingleStore leaves out its foreign keys and the unique keys that do
+  not hold its primary key, and says so in the note of the statement. A client
+  that must keep them has no way to ask for it.
 - The data check for a boolean by convention is a statement in the plan, and the
   client has to run it. dbmeta runs no query, so the stop is the client's.
 

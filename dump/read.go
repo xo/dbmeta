@@ -36,6 +36,9 @@ type Filter struct {
 // of data.
 func Read(ctx context.Context, m *dbmeta.Meta, db dbmeta.Queryer, f Filter) (*Snapshot, error) {
 	r := &reader{m: m, db: db, filter: f}
+	if err := r.scope(ctx); err != nil {
+		return nil, err
+	}
 	snap := &Snapshot{
 		Version: SnapshotVersion,
 		Dialect: string(m.Dialect()),
@@ -47,6 +50,31 @@ func Read(ctx context.Context, m *dbmeta.Meta, db dbmeta.Queryer, f Filter) (*Sn
 	}
 	snap.ViewDependencies = r.viewDependencies
 	return snap, nil
+}
+
+// scope narrows a read with no schema named to the database of the connection, for
+// a product whose schema is its database, so that a dump of one database does not
+// take every database of the server. A connection that names no database reads
+// them all.
+func (r *reader) scope(ctx context.Context) error {
+	if len(r.filter.Schemas) > 0 || dbmeta.CurrentDatabase.Support(r.m) != dbmeta.Supported || !schemaIsDatabase(r.m.Dialect()) {
+		return nil
+	}
+	rows, err := collect(dbmeta.CurrentDatabase.Each(ctx, r.m, r.db, dbmeta.Args{}))
+	if err != nil {
+		return fmt.Errorf("reading the current database: %w", err)
+	}
+	if len(rows) == 1 && rows[0].Name.Valid && rows[0].Name.V != "" {
+		escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(rows[0].Name.V)
+		r.filter.Schemas = []string{escaped}
+	}
+	return nil
+}
+
+// schemaIsDatabase reports whether the schema of a product is its database.
+func schemaIsDatabase(d dbmeta.Dialect) bool {
+	style, err := styleOf(d)
+	return err == nil && style.DefaultSchema == "*"
 }
 
 // tableKey names a table in a map.
@@ -183,6 +211,8 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 			s.Tables = append(s.Tables, Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}})
 		case "view":
 			s.Views = append(s.Views, View{Name: t.Name, Comment: text(t.Comment)})
+		case "sequence":
+			// A sequence is read with the objects of its schema.
 		default:
 			snap.Skipped = append(snap.Skipped, Skipped{Schema: t.Schema, Name: t.Name, Kind: kind,
 				Reason: "this kind of relation is not read"})
@@ -279,6 +309,12 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 		// A default constraint of SQL Server is the default of its column, which
 		// the column already holds.
 		if strings.EqualFold(strings.TrimSpace(c.Type), "default") {
+			continue
+		}
+		// MariaDB adds a check of json_valid to a column of the type json, named for
+		// the column. The type brings it back, so it is no constraint of the table.
+		if r.m.Dialect() == dbmeta.MySQL && strings.EqualFold(strings.TrimSpace(c.Type), "check") &&
+			strings.HasPrefix(strings.ToLower(text(c.Definition)), "json_valid(") {
 			continue
 		}
 		con := Constraint{

@@ -51,6 +51,11 @@ func roundTripSchema(t *testing.T, db *sql.DB, m *dbmeta.Meta, filter dump.Filte
 	if err != nil {
 		t.Fatalf("reading: %v", err)
 	}
+	for _, sk := range first.Skipped {
+		if sk.Kind == "sequence" {
+			t.Errorf("the sequence %s.%s is skipped, and it is read with its schema", sk.Schema, sk.Name)
+		}
+	}
 	want, err := first.JSON()
 	if err != nil {
 		t.Fatal(err)
@@ -121,7 +126,7 @@ var postgresRoundTrip = []string{
 	"CREATE INDEX item_note ON dump_rt.item (lower(note)) WHERE note IS NOT NULL",
 	"CREATE INDEX item_price ON dump_rt.item (price DESC, qty)",
 	"CREATE UNIQUE INDEX item_mood_owner ON dump_rt.item (mood, owner_id)",
-	"CREATE VIEW [dump_rt].[cheap] AS SELECT id, price FROM dump_rt.item WHERE price < 10",
+	"CREATE VIEW dump_rt.cheap AS SELECT id, price FROM dump_rt.item WHERE price < 10",
 	// a_top sorts before cheap and reads it, so a script in order of name fails.
 	"CREATE VIEW dump_rt.a_top AS SELECT id FROM dump_rt.cheap WITH CASCADED CHECK OPTION",
 	"COMMENT ON TABLE dump_rt.item IS 'it''s a table'",
@@ -407,5 +412,29 @@ func TestSQLServerScriptRoundTrips(t *testing.T) {
 			script.WriteString(st.SQL + ";\n")
 		}
 		t.Logf("script:\n%s", script.String())
+	}
+}
+
+// TestMySQLReadsTheCurrentDatabase reads with no filter and requires only the
+// database of the connection, though the server holds others.
+func TestMySQLReadsTheCurrentDatabase(t *testing.T) {
+	db := openMySQLNamed(t, "dbmeta_scope_a")
+	other := openMySQLNamed(t, "dbmeta_scope_b")
+	mustExec(t, db, "CREATE TABLE a (id int PRIMARY KEY)")
+	mustExec(t, other, "CREATE TABLE b (id int PRIMARY KEY)")
+	mustExec(t, db, "CREATE VIEW v AS SELECT id FROM dbmeta_scope_a.a")
+	snap, err := dump.Read(t.Context(), metaFor(t, dbmeta.MySQL, db), db, dump.Filter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Schemas) != 1 || snap.Schemas[0].Name != "dbmeta_scope_a" {
+		t.Fatalf("the schemas are %+v, want only dbmeta_scope_a", snap.Schemas)
+	}
+	var script strings.Builder
+	for _, st := range scriptOf(t, snap, dbmeta.MySQL) {
+		script.WriteString(st.SQL + ";\n")
+	}
+	if strings.Contains(script.String(), "dbmeta_scope_a`.") {
+		t.Errorf("the view keeps the name of its database:\n%s", script.String())
 	}
 }

@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"math"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -31,6 +32,15 @@ func init() {
 		ZoneInTimestamps:   true,
 		MaxParameters:      65535,
 		ReferenceTable:     referenceTable,
+		FloatSpecial: func(v float64) (string, bool) {
+			switch {
+			case math.IsNaN(v):
+				return "'NaN'::double precision", true
+			case math.IsInf(v, 1):
+				return "'Infinity'::double precision", true
+			}
+			return "'-Infinity'::double precision", true
+		},
 	})
 }
 
