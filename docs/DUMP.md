@@ -27,6 +27,13 @@ D274 and D275 hold the decisions. The rest of this document follows from them.
    usql prints a column as it does today.
 7. `dump` takes no dependency. It names the Go types of the kinds as strings, and
    it has its own small ISO 8601 parser (D275).
+8. The `Snapshot` is the format that dbtpl moves to later.
+9. The idioms and the cast rules of "Conventions that are not types" are approved.
+10. A lossy mapping never happens unless the client asks for it with an explicit
+    option of `\dump`.
+11. dbmeta adds the readers that the dump needs, such as `Dependencies`.
+12. The snapshot reads get a cost test, as D47 requires, against a catalog with
+    thousands of tables.
 
 ## What dbmeta has today
 
@@ -149,8 +156,8 @@ that reads `xo.Schema`, and the fields that exist only to generate Go. dbtpl can
 build an `xo.Schema` from a snapshot and keep its templates as they are. dbtpl
 also has a `createdb` template of 641 lines that writes CREATE statements from an
 `xo.Schema`. It overlaps the DDL builders of the dump. dbtpl can keep it until
-the builders exist and are measured. Whether dbtpl adopts the snapshot is the
-decision of dbtpl.
+the builders exist and are measured. Ken decided that the snapshot is the format that dbtpl
+moves to later, and the move is dbtpl's work.
 
 ## The type model
 
@@ -547,6 +554,12 @@ Avoid:
   the readers here.
 
 ## Order of work
+
+Step 1 is built for PostgreSQL, SQLite, DuckDB and MySQL, and tested on real columns.
+It found two things that the text of a type cannot say. MySQL writes `int unsigned`
+with no brackets, which the parser now reads, and MariaDB writes a JSON column as
+`longtext`, so the kind json comes from the check constraint, which the snapshot
+reads, and not from the text.
 
 usql accepted three phases on its side. Phase 1 is a dump to the same dialect for
 PostgreSQL, SQLite, MySQL and DuckDB. Phase 2 is the new `\copy`, which commits after

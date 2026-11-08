@@ -277,6 +277,9 @@ something is written down, it is not written down, and it is an open question.
   supported version of that database. For example, `models/sqlite3`. A model
   registers its queries from `init` and nothing generates it, so edit it
   directly. See D71.
+- `dump/` builds the statements of a dump and a copy, and runs nothing. It uses the
+  standard library only, and a model registers its type functions with it from `init`.
+  See D274, D275 and `docs/DUMP.md`.
 - `all/` holds one file per model, such as `all/postgres.go`, each a blank
   import gated by a build tag. Importing `all` registers the base set, and
   `no_base`, a model's own name and `no_<model>` change which. A model can be

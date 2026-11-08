@@ -34,6 +34,14 @@ dialect and a rewritten `\copy`, and dbmeta proposed a design in
    gets the string type of the target for any type that has no numeric or
    other equivalent.
 
+6. The idioms and the cast rules in `DUMP.md` are approved, and they serve the
+   export only.
+7. The `Snapshot` is the format that dbtpl moves to later.
+8. A lossy mapping never happens without an explicit option that the client
+   passes to `\dump`.
+9. dbmeta adds the readers that the dump needs, and the snapshot reads get the
+   cost test of D47 against a catalog with thousands of tables.
+
 ## Consequences
 
 `dump.Statement` has a field that says the SQL is in the source dialect and was

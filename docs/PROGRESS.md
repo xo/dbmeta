@@ -16,6 +16,12 @@ cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 on
 tier passed in CI on each tagged commit. Ken chose that CI stands in for a run
 of every tier, and the Verified tier was not run again for any of them.
 
+The `dump` package is started (D274, D275, `DUMP.md`). Step 1 of its order of work is
+done and not released: the type model, with `ParseType` and `RenderType` for PostgreSQL,
+SQLite, DuckDB and MySQL, tested on real columns of PostgreSQL 18 with both drivers, SQLite
+with both drivers, DuckDB, MySQL 26.7 and MariaDB 13.0. Step 2 is next: the `Snapshot`, its
+JSON format and `Read`.
+
 v0.15.0 is the release that carries the opt in for the table size and rows of Redshift
 (D232, `Args.WithTableInfo`), the completion of the Cosmos DB model to 15 kinds (D233) and
 the Exasol tests on the driver of dbimp (D234). The Tested tier passed in CI on a58e5c0.
