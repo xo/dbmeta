@@ -555,6 +555,14 @@ Avoid:
 
 ## Order of work
 
+Step 2 is built: `Snapshot`, `Read`, the JSON format with the version field, and the stable
+order, for PostgreSQL, SQLite, DuckDB, MySQL and MariaDB. `Read` makes one query for each kind
+of object and not one for each table, and `Skipped` lists what it saw and did not read. The
+cost test of D47 read 3000 tables of PostgreSQL 18, each with 5 columns and 2 indexes, in 0.42
+seconds. The `Dependencies` reader for views is part of step 3, where the order of views is
+needed. DuckDB reports no index columns and keeps no length for a varchar, and the tests say
+so.
+
 Step 1 is built for PostgreSQL, SQLite, DuckDB and MySQL, and tested on real columns.
 It found two things that the text of a type cannot say. MySQL writes `int unsigned`
 with no brackets, which the parser now reads, and MariaDB writes a JSON column as

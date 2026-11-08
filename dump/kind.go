@@ -42,27 +42,28 @@ const (
 // interval it means the digits of the fraction of a second. A field that the
 // kind does not use is zero.
 type Type struct {
-	Kind Kind
+	Kind Kind `json:"kind"`
 	// Bits is 8, 16, 32 or 64 for an integer or a float, and zero when the text
 	// does not say.
-	Bits int
+	Bits int `json:"bits,omitempty"`
 	// Length is the length of a string or a binary value, in characters or in
 	// bytes. Zero means that the type has no limit, or that the text names none.
-	Length int
+	Length int `json:"length,omitempty"`
 	// Fixed means a char and not a varchar, and a binary and not a varbinary.
-	Fixed bool
+	Fixed bool `json:"fixed,omitempty"`
 	// Precision and Scale are the digits of a decimal.
-	Precision, Scale int
+	Precision int `json:"precision,omitempty"`
+	Scale     int `json:"scale,omitempty"`
 	// Unsigned means that an integer or a decimal has no negative values.
-	Unsigned bool
+	Unsigned bool `json:"unsigned,omitempty"`
 	// Elem is the type of the element of an array or a set.
-	Elem *Type
+	Elem *Type `json:"elem,omitempty"`
 	// Values are the labels of an enum, which is a string with a list of values.
-	Values []string
+	Values []string `json:"values,omitempty"`
 
 	// Raw is the text that the product wrote, kept so that a dump to the same
 	// dialect writes the type back as it was.
-	Raw string
+	Raw string `json:"raw,omitempty"`
 }
 
 // Go returns the Go type that stands for the kind, as dbimp names it. The

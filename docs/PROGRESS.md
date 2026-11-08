@@ -19,8 +19,10 @@ of every tier, and the Verified tier was not run again for any of them.
 The `dump` package is started (D274, D275, `DUMP.md`). Step 1 of its order of work is
 done and not released: the type model, with `ParseType` and `RenderType` for PostgreSQL,
 SQLite, DuckDB and MySQL, tested on real columns of PostgreSQL 18 with both drivers, SQLite
-with both drivers, DuckDB, MySQL 26.7 and MariaDB 13.0. Step 2 is next: the `Snapshot`, its
-JSON format and `Read`.
+with both drivers, DuckDB, MySQL 26.7 and MariaDB 13.0. Step 2 is built and not released: the
+`Snapshot`, its JSON format with a version, and `Read`, tested on PostgreSQL, SQLite, DuckDB,
+MySQL and MariaDB, with a read of 3000 tables in 0.42 seconds on PostgreSQL. Step 3 is next:
+`Script` for a dump to the same dialect.
 
 v0.15.0 is the release that carries the opt in for the table size and rows of Redshift
 (D232, `Args.WithTableInfo`), the completion of the Cosmos DB model to 15 kinds (D233) and
