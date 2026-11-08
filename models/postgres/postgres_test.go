@@ -127,14 +127,15 @@ func TestFieldsMatchTheStatement(t *testing.T) {
 }
 
 // TestPaddingAtOldReleases covers the two gated columns of the column query.
-// attidentity arrived in release 11 and attgenerated in release 12.
+// attidentity arrived in release 10 and attgenerated in release 12.
 func TestPaddingAtOldReleases(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		ver      string
 		contains string
 	}{
-		{"10.23", `, NULL AS "identity"`},
+		{"9.6.24", `, NULL AS "identity"`},
+		{"10.23", `a.attidentity`},
 		{"10.23", `, NULL AS "generated"`},
 		{"11.22", `a.attidentity`},
 		{"11.22", `, NULL AS "generated"`},
@@ -162,7 +163,7 @@ func TestFieldMinMatchesTheGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	mins := map[string]string{"identity": "11", "generated": "12", "compression": "14"}
+	mins := map[string]string{"identity": "10", "generated": "12", "compression": "14"}
 	for _, f := range fields {
 		want, gated := mins[f.Name]
 		switch {

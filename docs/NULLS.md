@@ -67,7 +67,7 @@ Before padding, ask one question:
 
 Unknown. The catalog column does not exist, so there is no answer. Pad with
 NULL, make the field nullable, and set `Field.Min`. Examples: a column's
-identity kind below release 11, a collation's provider below 10, a sequence's
+identity kind below release 10, a collation's provider below 10, a sequence's
 bounds below 10.
 
 Genuinely this. The release had one behavior and that behavior is the

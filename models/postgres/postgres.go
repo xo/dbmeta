@@ -235,7 +235,7 @@ func registerTables() {
 // prints are separate objects and follow later.
 //
 // Two fragments show the padding rule. The generated column expression arrived
-// in release 12, and identity arrived in release 11, so an older server
+// in release 12, and identity arrived in release 10, so an older server
 // selects a literal under the same name and the column set never changes.
 func registerColumns() {
 	dbmeta.Columns.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Column]{
@@ -252,10 +252,10 @@ func registerColumns() {
 			// index lookup on the relation and it costs the same whether or
 			// not the caller reads the column. See D47.
 			{{Query: `, COALESCE(a.attnum = ANY(pk.indkey), FALSE) AS "primary_key"`}},
-			// attidentity arrived in release 11
+			// attidentity arrived in release 10
 			{
 				{Query: `, NULL AS "identity"`},
-				{Min: v11, Query: `, a.attidentity AS "identity"`},
+				{Min: v10, Query: `, a.attidentity AS "identity"`},
 			},
 			// attgenerated arrived in release 12
 			{
@@ -297,7 +297,7 @@ func registerColumns() {
 			{Name: "nullable", Desc: "whether the column accepts NULL"},
 			{Name: "default", Desc: "default expression, empty when there is none"},
 			{Name: "primary_key", Desc: "whether the column is part of the primary key"},
-			{Name: "identity", Desc: "identity kind, empty when the column is not an identity", Min: v11},
+			{Name: "identity", Desc: "identity kind, empty when the column is not an identity", Min: v10},
 			{Name: "generated", Desc: "generated kind, empty when the column is not generated", Min: v12},
 			{Name: "comment", Desc: "comment on the column"},
 			{Name: "collation", Desc: "the collation of the column, which is default where the column chose none, and absent for a type that cannot be collated"},

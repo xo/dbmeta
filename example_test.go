@@ -132,17 +132,17 @@ func Example_oldServer() {
 		}
 		return query
 	}
-	// attidentity arrived in release 11 and attgenerated in release 12, so an
+	// attidentity arrived in release 10 and attgenerated in release 12, so an
 	// older server selects a literal under the same name. The column set never
 	// changes, which is what lets one scan function read every release.
-	fmt.Println("10 pads identity: ", strings.Contains(sqlOf("10.23"), `, NULL AS "identity"`))
+	fmt.Println("9.6 pads identity: ", strings.Contains(sqlOf("9.6.24"), `, NULL AS "identity"`))
 	fmt.Println("11 reads identity:", strings.Contains(sqlOf("11.22"), `a.attidentity`))
 	fmt.Println("11 pads generated:", strings.Contains(sqlOf("11.22"), `, NULL AS "generated"`))
 	fmt.Println("12 reads generated:", strings.Contains(sqlOf("12.18"), `a.attgenerated`))
 
 	// a caller tells "absent at this version" from "genuinely null" by the
 	// minimum the field declares
-	m, err := dbmeta.New(dbmeta.PostgreSQL, versionSet("10.23"))
+	m, err := dbmeta.New(dbmeta.PostgreSQL, versionSet("9.6.24"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -152,16 +152,16 @@ func Example_oldServer() {
 	}
 	for _, f := range fields {
 		if f.Name == "identity" {
-			fmt.Println("identity present at 10.23:", m.Version().Main().AtLeast(f.Min))
+			fmt.Println("identity present at 9.6:", m.Version().Main().AtLeast(f.Min))
 		}
 	}
 
 	// Output:
-	// 10 pads identity:  true
+	// 9.6 pads identity:  true
 	// 11 reads identity: true
 	// 11 pads generated: true
 	// 12 reads generated: true
-	// identity present at 10.23: false
+	// identity present at 9.6: false
 }
 
 // Example_support shows the four states a client must tell apart before it
