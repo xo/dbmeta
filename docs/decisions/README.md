@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-124 of them amend or replace an earlier one, and a decision read without its
+125 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -58,9 +58,9 @@ file.
 | [D37](D037-a-version-is-a-list-of-numbers-with-a-name-and.md) | A version is a list of numbers with a name, and there can be several | Decided |
 | [D38](D038-dbmeta-holds-the-version-query-and-will-run-it.md) | dbmeta holds the version query, and will run it on request | Amended in place |
 | [D39](D039-queries-are-listed-described-and-rendered-for.md) | Queries are listed, described, and rendered for the client to run | Decided |
-| [D40](D040-three-support-tiers-and-a-trigger-that-can.md) | Three support tiers, and a trigger that can remove a version | Amended by D119 |
+| [D40](D040-three-support-tiers-and-a-trigger-that-can.md) | Three support tiers, and a trigger that can remove a version | Amended by D119 and D277 |
 | [D41](D041-every-model-ships-its-fixtures-beside-its.md) | Every model ships its fixtures beside its queries | Decided |
-| [D42](D042-four-releases-per-push-every-release-nightly.md) | Four releases per push, every release nightly | Supersedes D24, amended by D69 |
+| [D42](D042-four-releases-per-push-every-release-nightly.md) | Four releases per push, every release nightly | Supersedes D24, amended by D69 and D277 |
 | [D43](D043-ask-several-models-before-a-dialect-is-declared.md) | Ask several models before a dialect is declared finished | Decided |
 | [D44](D044-a-version-key-names-the-product-a-number-alone.md) | A version key names the product. A number alone never does | Decided |
 | [D45](D045-a-query-may-answer-partially-once-and-must-say.md) | A query can answer partially, once, and must say so | Amended by D161 |
@@ -137,7 +137,7 @@ file.
 | [D116](D116-dbrun-knows-the-embedded-databases-before-their-models.md) | dbrun knows the embedded databases before their models | Amended by D119 and D142 |
 | [D117](D117-a-hosted-service-appears-in-dbrun-when-its-credential-does.md) | A hosted service appears in dbrun when its credential does | Amended by D125 |
 | [D118](D118-every-database-usql-or-dbimp-reaches-gets-an-entry.md) | Every database that usql or dbimp reaches gets an entry | Amended by D123, D141, D145, D215, D225 and D268 |
-| [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 and D142 |
+| [D119](D119-a-release-no-model-reads-is-staged.md) | A release that no model reads is Staged | Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120, D142 and D277 |
 | [D120](D120-a-staged-release-keeps-its-cadence.md) | A Staged release keeps its cadence | Amends D119 |
 | [D121](D121-the-interface-is-named-queryer.md) | The interface is named Queryer | Amends D49 |
 | [D122](D122-dbrun-calls-the-runner-as-few-times-as-it-can.md) | dbrun calls the runner as few times as it can | Decided |
@@ -294,3 +294,5 @@ file.
 | [D273](D273-a-statement-that-describes-a-result-is-built-here-and-run-by-the-caller.md) | A statement that describes a result is built here and run by the caller | Amends D56, amended by D274 |
 | [D274](D274-a-dump-is-built-here-as-statements-and-run-by-the-client.md) | A dump is built here as statements and run by the client | Amends D5, D56 and D273 |
 | [D275](D275-dump-names-the-types-of-dbimp-and-imports-none-of-them.md) | dump names the types of dbimp and imports none of them | Decided |
+| [D276](D276-the-mysql-model-reads-what-a-dump-needs-of-a-column-and-a-key.md) | The MySQL model reads what a dump needs of a column and a key | Decided |
+| [D277](D277-databases-whose-image-fails-to-pull-are-not-in-ci.md) | Databases whose image fails to pull are not in CI | Amends D40, D42 and D119 |

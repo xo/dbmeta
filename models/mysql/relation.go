@@ -141,13 +141,25 @@ func registerRelations() {
 			{{Query: `, c.ordinal_position AS "ordinal"`}},
 			{{Query: `, c.column_type AS "data_type"`}},
 			{{Query: `, c.is_nullable = 'YES' AS "nullable"`}},
-			{{Query: `, c.column_default AS "default"`}},
+			// A generated column holds its expression in GENERATION_EXPRESSION, and a
+			// default that is an expression holds it in COLUMN_DEFAULT with its
+			// quotes escaped, which is not SQL until the escape is removed and the
+			// text is in brackets. A string default is the text with no quotes.
+			// See D276.
+			{{Query: `, CASE WHEN c.extra LIKE '%STORED GENERATED%' OR c.extra LIKE '%VIRTUAL GENERATED%'` +
+				` THEN c.generation_expression` +
+				` WHEN c.extra LIKE '%DEFAULT_GENERATED%' AND c.column_default LIKE 'CURRENT\_TIMESTAMP%'` +
+				` THEN c.column_default` +
+				` WHEN c.extra LIKE '%DEFAULT_GENERATED%'` +
+				` THEN CONCAT('(', REPLACE(c.column_default, CHAR(92, 39), CHAR(39)), ')')` +
+				` ELSE c.column_default END AS "default"`}},
 			// Free: information_schema.COLUMNS already says which columns are
 			// in the primary key, so this costs nothing. See D47.
 			{{Query: `, c.column_key = 'PRI' AS "primary_key"`}},
 			// auto_increment is the closest thing to an identity column
 			{{Query: `, CASE WHEN c.extra LIKE '%auto_increment%' THEN 'a' ELSE NULL END AS "identity"`}},
-			{{Query: `, CASE WHEN c.extra LIKE '%GENERATED%' THEN 's' ELSE NULL END AS "generated"`}},
+			{{Query: `, CASE WHEN c.extra LIKE '%STORED GENERATED%' THEN 's'` +
+				` WHEN c.extra LIKE '%VIRTUAL GENERATED%' THEN 'v' ELSE NULL END AS "generated"`}},
 			{{Query: `, NULLIF(c.column_comment, '') AS "comment"`}},
 			{{Query: `, c.collation_name AS "collation"`}},
 			// MariaDB 10.3 can compress a column and marks it in COLUMN_TYPE
@@ -157,6 +169,12 @@ func registerRelations() {
 			{
 				{Query: `, NULL AS "compression"`},
 				frag(mariaAgg, `, CASE WHEN c.column_type LIKE '%/*M!100301 COMPRESSED*/%' THEN 'zlib' END AS "compression"`),
+			},
+			// MySQL gives the text of a string default with no quotes, and MariaDB
+			// gives SQL. See D276.
+			{
+				{Query: `, c.column_default IS NOT NULL AND c.extra NOT LIKE '%GENERATED%' AS "default_is_literal"`},
+				frag(onMaria, `, FALSE AS "default_is_literal"`),
 			},
 			{{Query: `FROM information_schema.COLUMNS c`}},
 			notSystem("WHERE", "c.table_schema"),
@@ -173,13 +191,14 @@ func registerRelations() {
 				Name: "compression", Desc: "zlib for a compressed column, which only MariaDB has",
 				Min: mariaAgg.Min, Key: mariaAgg.Key,
 			},
+			{Name: "default_is_literal", Desc: "true when the default is a value that a statement must quote, which is a MySQL default that is not an expression (D276)"},
 		},
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated,
-				&v.Comment, &v.Collation, &v.Compression)
+				&v.Comment, &v.Collation, &v.Compression, &v.DefaultIsLiteral)
 			return v, err
 		},
 	})
@@ -297,7 +316,23 @@ func registerRelations() {
 				frag(onMaria, `, TRUE AS "enforced"`),
 				frag(mysqlCheck, `, t.enforced = 'YES' AS "enforced"`),
 			},
+			// What a foreign key does on update and on delete. See D276.
+			{
+				{Query: `, NULL AS "on_update"`},
+				frag(onMaria, `, r.update_rule AS "on_update"`),
+				frag(onMySQL, `, r.update_rule AS "on_update"`),
+			},
+			{
+				{Query: `, NULL AS "on_delete"`},
+				frag(onMaria, `, r.delete_rule AS "on_delete"`),
+				frag(onMySQL, `, r.delete_rule AS "on_delete"`),
+			},
 			{{Query: `FROM information_schema.TABLE_CONSTRAINTS t`}},
+			{
+				{Query: ``},
+				frag(onMaria, referentialJoin),
+				frag(onMySQL, referentialJoin),
+			},
 			{
 				{Query: ``},
 				frag(mariaCheck, mariaCheckJoin),
@@ -325,12 +360,14 @@ func registerRelations() {
 				Key:  onMaria.Key,
 				Also: []dbmeta.Gate{mysqlCheck},
 			},
+			{Name: "on_update", Desc: "what a foreign key does on update, absent for any other constraint (D276)"},
+			{Name: "on_delete", Desc: "what a foreign key does on delete, absent for any other constraint (D276)"},
 		},
 		Params: schemaParentName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced, &v.OnUpdate, &v.OnDelete)
 			return v, err
 		},
 	})
@@ -518,6 +555,13 @@ func registerRelations() {
 // matches on the schema and the constraint name alone. A constraint name is
 // unique within a schema in MySQL, so that is enough.
 const (
+	// referentialJoin adds what a foreign key does on update and on delete. A
+	// constraint name is unique within a schema in MySQL and within a table in
+	// MariaDB, so the table name is part of the join. See D276.
+	referentialJoin = `LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS r` +
+		` ON r.constraint_schema = t.constraint_schema` +
+		` AND r.table_name = t.table_name` +
+		` AND r.constraint_name = t.constraint_name`
 	mariaCheckJoin = `LEFT JOIN information_schema.CHECK_CONSTRAINTS k` +
 		` ON k.constraint_schema = t.constraint_schema` +
 		` AND k.table_name = t.table_name` +

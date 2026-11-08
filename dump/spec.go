@@ -54,7 +54,7 @@ func ParseSpec(text string) (Spec, error) {
 	}
 	j += i
 	s.Name, s.Rest = words(text[:i]), words(text[j+1:])
-	for _, part := range strings.Split(text[i+1:j], ",") {
+	for part := range strings.SplitSeq(text[i+1:j], ",") {
 		n, err := strconv.Atoi(strings.TrimSpace(part))
 		if err != nil {
 			return Spec{}, fmt.Errorf("the brackets of %q hold %q, which is not a number: %w", text, part, ErrUnknownType)

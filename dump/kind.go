@@ -1,6 +1,9 @@
 package dump
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // Kind is a family of types that means the same thing in any database, such as
 // an integer or a date. The names are the kinds in the types document of dbimp, so
@@ -134,12 +137,11 @@ func (g GoType) String() string {
 	if g.Package == "" {
 		return g.Name
 	}
-	prefix, name := "", g.Name
-	for len(name) > 0 && (name[0] == '*' || name[0] == '[' || name[0] == ']') {
-		prefix += name[:1]
-		name = name[1:]
+	i := strings.IndexFunc(g.Name, func(r rune) bool { return r != '*' && r != '[' && r != ']' })
+	if i < 0 {
+		i = len(g.Name)
 	}
-	return prefix + g.Package + "." + name
+	return g.Name[:i] + g.Package + "." + g.Name[i:]
 }
 
 // Level says how well a type in the target stands for a type in the source.

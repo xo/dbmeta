@@ -137,7 +137,8 @@ func couchbaseDSN(user string) func(port int) string {
 
 // Couchbase is every Couchbase Server release dbmeta is tested against.
 //
-// All three run on every push. 7.2.9 and 8.0.3 are the two ends of the range
+// None runs in CI, because the image pull failed there often enough to fail the
+// whole run (D277). A person runs all three before a release. 7.2.9 and 8.0.3 are the two ends of the range
 // that the dbimp driver supports. 7.6.12 is the floor of the dbmeta model, and
 // 7.2.9 proves that the model reports it too old. See D104.
-var Couchbase = list{}.add(couchbase, Tested, "7.2.9", "7.6.12", "8.0.3")
+var Couchbase = list{}.add(couchbase, Verified, "7.2.9", "7.6.12", "8.0.3")

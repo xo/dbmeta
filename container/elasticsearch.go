@@ -69,7 +69,8 @@ var elasticsearch = product{
 
 // Elasticsearch is every Elasticsearch release dbrun starts.
 //
-// models/elasticsearch reads them, so each keeps the cadence it recorded while
-// it was Staged (D120, D177).
-var Elasticsearch = list{}.add(elasticsearch, Tested, "8.19.23", "9.5.5").
-	add(elasticsearch, Nightly, "9.4.8")
+// models/elasticsearch reads them. None runs in CI, because the image pull failed
+// there often enough to fail the whole run (D277). A person runs them before a
+// release.
+var Elasticsearch = list{}.add(elasticsearch, Verified, "8.19.23", "9.5.5").
+	add(elasticsearch, Verified, "9.4.8")

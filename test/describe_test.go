@@ -45,18 +45,19 @@ func TestSQLServerDescribesAResultWithoutRunningIt(t *testing.T) {
 	}
 	var got []result
 	for rows.Next() {
-		vals := make([]any, len(cols))
-		for i := range vals {
-			vals[i] = new(any)
+		cells := make([]any, len(cols))
+		dest := make([]any, len(cols))
+		for i := range cells {
+			dest[i] = &cells[i]
 		}
-		if err := rows.Scan(vals...); err != nil {
+		if err := rows.Scan(dest...); err != nil {
 			t.Fatalf("scanning: %v", err)
 		}
 		var r result
-		if v := *(vals[index[d.Name]].(*any)); v != nil {
-			r.name = sql.NullString{String: v.(string), Valid: true}
+		if name, ok := cells[index[d.Name]].(string); ok {
+			r.name = sql.NullString{String: name, Valid: true}
 		}
-		r.typ, _ = (*(vals[index[d.Type]].(*any))).(string)
+		r.typ, _ = cells[index[d.Type]].(string)
 		got = append(got, r)
 	}
 	if err := rows.Err(); err != nil {

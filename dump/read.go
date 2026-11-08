@@ -35,14 +35,14 @@ type Filter struct {
 // answer is empty, and the snapshot says nothing about it. Read never reads a row
 // of data.
 func Read(ctx context.Context, m *dbmeta.Meta, db dbmeta.Queryer, f Filter) (*Snapshot, error) {
-	r := &reader{ctx: ctx, m: m, db: db, filter: f}
+	r := &reader{m: m, db: db, filter: f}
 	snap := &Snapshot{
 		Version: SnapshotVersion,
 		Dialect: string(m.Dialect()),
 		Server:  m.Version().String(),
 		Schemas: []Schema{},
 	}
-	if err := r.read(snap); err != nil {
+	if err := r.read(ctx, snap); err != nil {
 		return nil, err
 	}
 	return snap, nil
@@ -55,7 +55,6 @@ type tableKey struct{ schema, table string }
 type childKey struct{ schema, table, name string }
 
 type reader struct {
-	ctx    context.Context
 	m      *dbmeta.Meta
 	db     dbmeta.Queryer
 	filter Filter
@@ -124,9 +123,9 @@ func (r *reader) wantTable(schema, name string) bool {
 	return !hit(r.filter.ExcludeTables)
 }
 
-func (r *reader) read(snap *Snapshot) error {
+func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	a := r.args()
-	schemas, err := collect(dbmeta.Schemas.Each(r.ctx, r.m, r.db, a))
+	schemas, err := collect(dbmeta.Schemas.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading schemas: %w", err)
 	}
@@ -147,7 +146,7 @@ func (r *reader) read(snap *Snapshot) error {
 			names[s.Name] = text(s.Comment)
 		}
 	}
-	tables, err := collect(dbmeta.Tables.Each(r.ctx, r.m, r.db, a))
+	tables, err := collect(dbmeta.Tables.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading tables: %w", err)
 	}
@@ -197,22 +196,22 @@ func (r *reader) read(snap *Snapshot) error {
 			views[tableKey{s.Name, s.Views[j].Name}] = &s.Views[j]
 		}
 	}
-	if err := r.readColumns(a, kept); err != nil {
+	if err := r.readColumns(ctx, a, kept); err != nil {
 		return err
 	}
-	if err := r.readConstraints(a, kept); err != nil {
+	if err := r.readConstraints(ctx, a, kept); err != nil {
 		return err
 	}
-	if err := r.readIndexes(a, kept); err != nil {
+	if err := r.readIndexes(ctx, a, kept); err != nil {
 		return err
 	}
-	if err := r.readViews(a, views); err != nil {
+	if err := r.readViews(ctx, a, views); err != nil {
 		return err
 	}
-	if err := r.readTriggers(a, kept); err != nil {
+	if err := r.readTriggers(ctx, a, kept); err != nil {
 		return err
 	}
-	if err := r.readObjects(a, byName); err != nil {
+	if err := r.readObjects(ctx, a, byName); err != nil {
 		return err
 	}
 	slices.SortFunc(snap.Skipped, func(a, b Skipped) int {
@@ -222,8 +221,8 @@ func (r *reader) read(snap *Snapshot) error {
 }
 
 // readColumns puts each column in its table, in order of position.
-func (r *reader) readColumns(a dbmeta.Args, kept map[tableKey]*Table) error {
-	cols, err := collect(dbmeta.Columns.Each(r.ctx, r.m, r.db, a))
+func (r *reader) readColumns(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
+	cols, err := collect(dbmeta.Columns.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading columns: %w", err)
 	}
@@ -241,6 +240,7 @@ func (r *reader) readColumns(a dbmeta.Args, kept map[tableKey]*Table) error {
 			Name: c.Name, Type: typ, Nullable: c.Nullable,
 			Identity: text(c.Identity), Generated: text(c.Generated),
 			Collation: text(c.Collation), Comment: text(c.Comment),
+			DefaultLiteral: c.DefaultIsLiteral.Valid && c.DefaultIsLiteral.V,
 		}
 		if c.Default.Valid {
 			d := c.Default.V
@@ -252,12 +252,12 @@ func (r *reader) readColumns(a dbmeta.Args, kept map[tableKey]*Table) error {
 }
 
 // readConstraints puts each constraint in its table, with its columns in order.
-func (r *reader) readConstraints(a dbmeta.Args, kept map[tableKey]*Table) error {
-	cons, err := collect(dbmeta.Constraints.Each(r.ctx, r.m, r.db, a))
+func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
+	cons, err := collect(dbmeta.Constraints.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading constraints: %w", err)
 	}
-	ccols, err := collect(dbmeta.ConstraintColumns.Each(r.ctx, r.m, r.db, a))
+	ccols, err := collect(dbmeta.ConstraintColumns.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading constraint columns: %w", err)
 	}
@@ -274,8 +274,8 @@ func (r *reader) readConstraints(a dbmeta.Args, kept map[tableKey]*Table) error 
 		}
 		con := Constraint{
 			Name: c.Name, Kind: strings.ToLower(strings.TrimSpace(c.Type)),
-			Definition: text(c.Definition), Deferrable: c.Deferrable, Deferred: c.Deferred,
-			Comment: text(c.Comment),
+			Definition: text(c.Definition), OnUpdate: text(c.OnUpdate), OnDelete: text(c.OnDelete),
+			Deferrable: c.Deferrable, Deferred: c.Deferred, Comment: text(c.Comment),
 		}
 		for _, cc := range byCons[childKey{c.Schema, c.Table, c.Name}] {
 			con.Columns = append(con.Columns, cc.Name)
@@ -295,12 +295,12 @@ func (r *reader) readConstraints(a dbmeta.Args, kept map[tableKey]*Table) error 
 }
 
 // readIndexes puts each index in its table, with its columns in order.
-func (r *reader) readIndexes(a dbmeta.Args, kept map[tableKey]*Table) error {
-	idxs, err := collect(dbmeta.Indexes.Each(r.ctx, r.m, r.db, a))
+func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
+	idxs, err := collect(dbmeta.Indexes.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading indexes: %w", err)
 	}
-	icols, err := collect(dbmeta.IndexColumns.Each(r.ctx, r.m, r.db, a))
+	icols, err := collect(dbmeta.IndexColumns.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading index columns: %w", err)
 	}
@@ -328,7 +328,8 @@ func (r *reader) readIndexes(a dbmeta.Args, kept map[tableKey]*Table) error {
 		t.Indexes = append(t.Indexes, Index{
 			Name: i.Name, Type: i.Type, Unique: i.Unique, Primary: i.Primary,
 			Columns:   byIdx[childKey{i.Schema, i.Table, i.Name}],
-			Predicate: text(i.Predicate), Comment: text(i.Comment),
+			Predicate: text(i.Predicate), Definition: text(i.Definition),
+			Constraint: text(i.ConstraintType), Comment: text(i.Comment),
 		})
 	}
 	for _, t := range kept {
@@ -338,8 +339,8 @@ func (r *reader) readIndexes(a dbmeta.Args, kept map[tableKey]*Table) error {
 }
 
 // readViews puts the definition in each view that a table row named.
-func (r *reader) readViews(a dbmeta.Args, views map[tableKey]*View) error {
-	rows, err := collect(dbmeta.Views.Each(r.ctx, r.m, r.db, a))
+func (r *reader) readViews(ctx context.Context, a dbmeta.Args, views map[tableKey]*View) error {
+	rows, err := collect(dbmeta.Views.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading views: %w", err)
 	}
@@ -356,8 +357,8 @@ func (r *reader) readViews(a dbmeta.Args, views map[tableKey]*View) error {
 }
 
 // readTriggers puts each trigger in its table.
-func (r *reader) readTriggers(a dbmeta.Args, kept map[tableKey]*Table) error {
-	rows, err := collect(dbmeta.Triggers.Each(r.ctx, r.m, r.db, a))
+func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
+	rows, err := collect(dbmeta.Triggers.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading triggers: %w", err)
 	}
@@ -376,8 +377,8 @@ func (r *reader) readTriggers(a dbmeta.Args, kept map[tableKey]*Table) error {
 
 // readObjects reads the objects that belong to a schema and not to a table:
 // sequences, enums and routines.
-func (r *reader) readObjects(a dbmeta.Args, schemas map[string]*Schema) error {
-	seqs, err := collect(dbmeta.Sequences.Each(r.ctx, r.m, r.db, a))
+func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[string]*Schema) error {
+	seqs, err := collect(dbmeta.Sequences.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading sequences: %w", err)
 	}
@@ -391,11 +392,11 @@ func (r *reader) readObjects(a dbmeta.Args, schemas map[string]*Schema) error {
 			})
 		}
 	}
-	types, err := collect(dbmeta.Types.Each(r.ctx, r.m, r.db, a))
+	types, err := collect(dbmeta.Types.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading types: %w", err)
 	}
-	labels, err := collect(dbmeta.EnumValues.Each(r.ctx, r.m, r.db, a))
+	labels, err := collect(dbmeta.EnumValues.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading enum values: %w", err)
 	}
@@ -410,7 +411,7 @@ func (r *reader) readObjects(a dbmeta.Args, schemas map[string]*Schema) error {
 			s.Enums = append(s.Enums, Enum{Name: t.Internal, Values: byEnum[tableKey{t.Schema, t.Internal}]})
 		}
 	}
-	fns, err := collect(dbmeta.Functions.Each(r.ctx, r.m, r.db, a))
+	fns, err := collect(dbmeta.Functions.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading routines: %w", err)
 	}
@@ -421,7 +422,7 @@ func (r *reader) readObjects(a dbmeta.Args, schemas map[string]*Schema) error {
 				def = text(f.Source)
 			}
 			s.Routines = append(s.Routines, Routine{
-				Name: f.Name, ID: text(f.ID), Kind: f.Kind, Arguments: text(f.ArgTypes),
+				Name: f.Name, Kind: f.Kind, Arguments: text(f.ArgTypes),
 				ResultType: text(f.ResultType), Language: f.Language, Definition: def, Comment: text(f.Comment),
 			})
 		}
@@ -430,7 +431,7 @@ func (r *reader) readObjects(a dbmeta.Args, schemas map[string]*Schema) error {
 		slices.SortFunc(s.Sequences, func(x, y Sequence) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Enums, func(x, y Enum) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Routines, func(x, y Routine) int {
-			return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.ID, y.ID), cmp.Compare(x.Arguments, y.Arguments))
+			return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.Arguments, y.Arguments))
 		})
 	}
 	return nil
@@ -475,9 +476,8 @@ func like(pattern, s string) bool {
 	// next[j] is whether the tokens after the current one match text[j:].
 	next := make([]bool, len(text)+1)
 	next[len(text)] = true
-	for i := len(tokens) - 1; i >= 0; i-- {
+	for _, tok := range slices.Backward(tokens) {
 		cur := make([]bool, len(text)+1)
-		tok := tokens[i]
 		if tok.any {
 			cur[len(text)] = next[len(text)]
 		}

@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"reflect"
@@ -44,12 +45,12 @@ func roundTripTypes(t *testing.T, db *sql.DB, m *dbmeta.Meta, cases []typeCase, 
 		defs[i] = c.name + " " + c.def
 	}
 	for _, name := range []string{"dump_copy", "dump_source"} {
-		_, _ = db.ExecContext(t.Context(), "DROP TABLE IF EXISTS "+qualify(name))
+		_, _ = db.ExecContext(context.Background(), "DROP TABLE IF EXISTS "+qualify(name))
 	}
 	mustExec(t, db, "CREATE TABLE "+qualify("dump_source")+" ("+strings.Join(defs, ", ")+")")
 	t.Cleanup(func() {
 		for _, name := range []string{"dump_copy", "dump_source"} {
-			_, _ = db.ExecContext(t.Context(), "DROP TABLE IF EXISTS "+qualify(name))
+			_, _ = db.ExecContext(context.Background(), "DROP TABLE IF EXISTS "+qualify(name))
 		}
 	})
 	source := readDumpTypes(t, m, db, args("dump_source"))
@@ -173,7 +174,7 @@ func TestPostgreSQLTypesRoundTrip(t *testing.T) {
 			m := metaFor(t, dbmeta.PostgreSQL, db)
 			mustExec(t, db, "DROP SCHEMA IF EXISTS dump_types CASCADE")
 			mustExec(t, db, "CREATE SCHEMA dump_types")
-			t.Cleanup(func() { _, _ = db.ExecContext(t.Context(), "DROP SCHEMA IF EXISTS dump_types CASCADE") })
+			t.Cleanup(func() { _, _ = db.ExecContext(context.Background(), "DROP SCHEMA IF EXISTS dump_types CASCADE") })
 			roundTripTypes(t, db, m, cases,
 				func(name string) string { return "dump_types." + name },
 				func(table string) dbmeta.Args { return dbmeta.Args{Schema: "dump_types", Parent: table} })
@@ -202,7 +203,7 @@ func TestSQLiteTypesRoundTrip(t *testing.T) {
 	}
 	for _, driver := range sqliteDrivers {
 		t.Run(driver, func(t *testing.T) {
-			db := openSQLiteWith(t, driver)
+			db := openSQLiteAt(t, driver)
 			m := metaFor(t, dbmeta.SQLite3, db)
 			roundTripTypes(t, db, m, cases,
 				func(name string) string { return name },
@@ -239,7 +240,7 @@ func TestDuckDBTypesRoundTrip(t *testing.T) {
 		{name: "c_array", def: "INTEGER[]", kind: dump.Array},
 		{name: "c_struct", def: "STRUCT(a INTEGER, b VARCHAR)", kind: dump.Tuple, none: true},
 	}
-	db := openDuckDB(t)
+	db := openDuckDBAt(t)
 	m := metaFor(t, dbmeta.DuckDB, db)
 	roundTripTypes(t, db, m, cases,
 		func(name string) string { return name },
@@ -248,7 +249,7 @@ func TestDuckDBTypesRoundTrip(t *testing.T) {
 
 // TestMySQLTypesRoundTrip is the round trip for MySQL and MariaDB.
 func TestMySQLTypesRoundTrip(t *testing.T) {
-	db := openMySQL(t)
+	db := openMySQLDump(t)
 	m := metaFor(t, dbmeta.MySQL, db)
 	// MariaDB keeps a JSON column as longtext with a json_valid check, so the
 	// text of the type says string. A snapshot reads the check to find the

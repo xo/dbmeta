@@ -133,6 +133,12 @@ type Column struct {
 	// StatsTarget is the statistics target that was set on the column with
 	// ALTER TABLE, and absent when the column uses the default. See D198.
 	StatsTarget sql.Null[int64]
+	// DefaultIsLiteral says that Default is the value and not an expression, so
+	// that a statement that sets it must quote it. MySQL gives the text of a
+	// string default with no quotes, and that is the only product that does.
+	// It is absent where Default is already the text of SQL, which is every
+	// other model. See D276.
+	DefaultIsLiteral sql.Null[bool]
 }
 
 // Index is an index on a table.
@@ -1052,6 +1058,12 @@ type Constraint struct {
 	Deferrable bool
 	Deferred   bool
 	Comment    sql.Null[string]
+	// OnUpdate and OnDelete are what a foreign key does to the row that points at
+	// a changed or removed row, such as CASCADE, SET NULL, RESTRICT or NO ACTION.
+	// They are absent for any other constraint and where Definition holds the
+	// whole text of the key, which is every model but the MySQL one. See D276.
+	OnUpdate sql.Null[string]
+	OnDelete sql.Null[string]
 	// Enforced reports whether the server checks the constraint. It is absent
 	// where the model does not read it, which is every model but Snowflake.
 	// Snowflake records a key and checks none, so it reads false for each of

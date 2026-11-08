@@ -132,11 +132,12 @@ var verticaLegacy = product{
 
 // Vertica is every Vertica release dbmeta is tested against.
 //
-// 25.1 is the one current release and runs on every push. The three older
-// ones run nightly: they are the gates' floor rather than what a consumer
-// connects to today, and they are large.
-var Vertica = list{}.add(vertica, Tested, "25.1").
-	add(verticaLegacy, Nightly, "7.2", "9.1", "10.1").
+// None runs in CI, because the image pull failed there often enough to fail the
+// nightly run (D277). A person runs them before a release. 25.1 is the one
+// current release. The three older ones are the floor of the gates, and they are
+// large.
+var Vertica = list{}.add(vertica, Verified, "25.1").
+	add(verticaLegacy, Verified, "7.2", "9.1", "10.1").
 	// The tag is the release, and the digest is the copy in usql/vertica.
 	on("25.1", func(s *Server) {
 		s.Tag = "25.1@sha256:8092461075f6a7cefaa9c82af95a7234f410363a2a431ffc011e4ffad2500215"

@@ -27,4 +27,10 @@ const (
 	// of the dialect, because the model was left out of the binary, or the
 	// model has none.
 	ErrNoTypes Error = "no type functions"
+	// ErrNoStyle is the no style error. No model registered the statement style
+	// of the dialect, so the dump cannot write for it.
+	ErrNoStyle Error = "no statement style"
+	// ErrCycle is the cycle error. The foreign keys of the tables run in a
+	// circle, and the product cannot add a foreign key after its table exists.
+	ErrCycle Error = "foreign keys form a cycle"
 )

@@ -1,0 +1,315 @@
+package test
+
+import (
+	"context"
+	"database/sql"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+
+	mysqldriver "github.com/go-sql-driver/mysql"
+
+	"github.com/xo/dbmeta"
+	"github.com/xo/dbmeta/dump"
+)
+
+// runScript runs the statements of a script in order, and fails the test on the
+// first error, with the statement.
+func runScript(t *testing.T, db *sql.DB, stmts []dump.Statement) {
+	t.Helper()
+	for _, st := range stmts {
+		if st.SQL == "" {
+			continue
+		}
+		if _, err := db.ExecContext(t.Context(), st.SQL); err != nil {
+			t.Fatalf("running the %s %s: %v\n%s", st.Kind, st.Name, err, st.SQL)
+		}
+	}
+}
+
+// scriptOf collects the statements of a script.
+func scriptOf(t *testing.T, snap *dump.Snapshot, d dbmeta.Dialect) []dump.Statement {
+	t.Helper()
+	var out []dump.Statement
+	for st, err := range dump.Script(snap, d, dump.Policy{}) {
+		if err != nil {
+			t.Fatalf("writing the script: %v", err)
+		}
+		out = append(out, st)
+	}
+	return out
+}
+
+// roundTripSchema reads a snapshot, writes its script, runs it on a database
+// that has none of the objects, reads the snapshot again, and requires the same
+// bytes. reset drops what the first read found, and again drops it at the end.
+func roundTripSchema(t *testing.T, db *sql.DB, m *dbmeta.Meta, filter dump.Filter, reset func()) {
+	t.Helper()
+	first, err := dump.Read(t.Context(), m, db, filter)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	want, err := first.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmts := scriptOf(t, first, m.Dialect())
+	reset()
+	t.Cleanup(reset)
+	runScript(t, db, stmts)
+	second, err := dump.Read(t.Context(), m, db, filter)
+	if err != nil {
+		t.Fatalf("reading the copy: %v", err)
+	}
+	got, err := second.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("the copy differs from the source:\n%s", lineDiff(string(want), string(got)))
+		var script strings.Builder
+		for _, st := range stmts {
+			script.WriteString(st.SQL + ";\n")
+		}
+		t.Logf("script:\n%s", script.String())
+	}
+}
+
+var postgresRoundTrip = []string{
+	"CREATE SCHEMA dump_rt",
+	"CREATE SCHEMA dump_rt2",
+	"CREATE TYPE dump_rt.mood AS ENUM ('sad', 'it''s ok', 'back\\slash')",
+	"CREATE SEQUENCE dump_rt.counter AS bigint START 10 INCREMENT 5 MINVALUE 10 MAXVALUE 1000 CYCLE",
+	`CREATE TABLE dump_rt2.owner (
+		id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+		name text NOT NULL COLLATE "C",
+		UNIQUE (name))`,
+	`CREATE TABLE dump_rt.item (
+		id serial PRIMARY KEY,
+		owner_id integer NOT NULL REFERENCES dump_rt2.owner(id) ON DELETE CASCADE,
+		mood dump_rt.mood DEFAULT 'sad',
+		price numeric(10,2) CHECK (price >= 0),
+		qty integer DEFAULT 1,
+		total numeric GENERATED ALWAYS AS (price * qty) STORED,
+		tags text[],
+		made timestamp(3) with time zone DEFAULT now(),
+		note text)`,
+	"CREATE INDEX item_note ON dump_rt.item (lower(note)) WHERE note IS NOT NULL",
+	"CREATE INDEX item_price ON dump_rt.item (price DESC, qty)",
+	"CREATE UNIQUE INDEX item_mood_owner ON dump_rt.item (mood, owner_id)",
+	"CREATE VIEW dump_rt.cheap AS SELECT id, price FROM dump_rt.item WHERE price < 10",
+	"COMMENT ON TABLE dump_rt.item IS 'it''s a table'",
+	"COMMENT ON COLUMN dump_rt.item.note IS 'a note'",
+	`CREATE FUNCTION dump_rt.touch() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.note := 'x'; RETURN NEW; END $$`,
+	"CREATE TRIGGER item_touch BEFORE INSERT ON dump_rt.item FOR EACH ROW EXECUTE FUNCTION dump_rt.touch()",
+}
+
+// TestPostgreSQLScriptRoundTrips writes a script for a schema that has one of
+// each object, runs it on an empty database, and compares the two snapshots.
+func TestPostgreSQLScriptRoundTrips(t *testing.T) {
+	for _, driver := range postgresDrivers {
+		t.Run(driver, func(t *testing.T) {
+			db := openPostgresWith(t, driver)
+			m := metaFor(t, dbmeta.PostgreSQL, db)
+			reset := func() {
+				_, _ = db.ExecContext(context.Background(), "DROP SCHEMA IF EXISTS dump_rt CASCADE")
+				_, _ = db.ExecContext(context.Background(), "DROP SCHEMA IF EXISTS dump_rt2 CASCADE")
+			}
+			reset()
+			t.Cleanup(reset)
+			for _, s := range postgresRoundTrip {
+				mustExec(t, db, s)
+			}
+			roundTripSchema(t, db, m, dump.Filter{Schemas: []string{"dump_rt", "dump_rt2"}}, reset)
+		})
+	}
+}
+
+// lineDiff lists the lines that differ, with the line number, which is enough to
+// find the difference between two renderings of one snapshot.
+func lineDiff(want, got string) string {
+	w, g := strings.Split(want, "\n"), strings.Split(got, "\n")
+	var b strings.Builder
+	n := 0
+	for i := 0; i < len(w) || i < len(g); i++ {
+		var x, y string
+		if i < len(w) {
+			x = w[i]
+		}
+		if i < len(g) {
+			y = g[i]
+		}
+		if x != y {
+			b.WriteString("line " + strconv.Itoa(i+1) + "\n  source: " + x + "\n  copy:   " + y + "\n")
+			if n++; n >= 12 {
+				b.WriteString("...\n")
+				break
+			}
+		}
+	}
+	return b.String()
+}
+
+var embeddedRoundTrip = []string{
+	"CREATE TABLE dump_owner (id integer PRIMARY KEY, name varchar(20) NOT NULL UNIQUE)",
+	`CREATE TABLE dump_item (
+		id integer PRIMARY KEY,
+		owner_id integer NOT NULL REFERENCES dump_owner(id) ON DELETE CASCADE,
+		price decimal(10,2),
+		qty integer DEFAULT 1,
+		note varchar(40) DEFAULT 'it''s',
+		UNIQUE (owner_id, price))`,
+	"CREATE INDEX dump_item_note ON dump_item (note)",
+	"CREATE INDEX dump_item_qty ON dump_item (qty DESC, price)",
+	"CREATE VIEW dump_cheap AS SELECT id, price FROM dump_item WHERE price < 10",
+}
+
+// TestSQLiteScriptRoundTrips runs the script of a snapshot on a second, empty
+// database of the same kind.
+func TestSQLiteScriptRoundTrips(t *testing.T) {
+	for _, driver := range sqliteDrivers {
+		t.Run(driver, func(t *testing.T) {
+			source := openSQLiteAt(t, driver)
+			m := metaFor(t, dbmeta.SQLite3, source)
+			for _, s := range embeddedRoundTrip {
+				mustExec(t, source, s)
+			}
+			copyViaScript(t, source, m, dump.Filter{Schemas: []string{"main"}}, func() *sql.DB { return openSQLiteAt(t, driver) })
+		})
+	}
+}
+
+// TestDuckDBScriptRoundTrips runs the script of a snapshot on a second, empty
+// database of the same kind.
+func TestDuckDBScriptRoundTrips(t *testing.T) {
+	source := openDuckDBAt(t)
+	m := metaFor(t, dbmeta.DuckDB, source)
+	for _, s := range embeddedRoundTrip {
+		// DuckDB refuses ON DELETE CASCADE.
+		mustExec(t, source, strings.ReplaceAll(s, " ON DELETE CASCADE", ""))
+	}
+	copyViaScript(t, source, m, dump.Filter{Schemas: []string{"main"}}, func() *sql.DB { return openDuckDBAt(t) })
+}
+
+// copyViaScript reads a snapshot of a database, writes its script, runs it on
+// the second database that fresh opens, and requires the same snapshot.
+func copyViaScript(t *testing.T, source *sql.DB, m *dbmeta.Meta, filter dump.Filter, fresh func() *sql.DB) {
+	t.Helper()
+	first, err := dump.Read(t.Context(), m, source, filter)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	want, err := first.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmts := scriptOf(t, first, m.Dialect())
+	target := fresh()
+	runScript(t, target, stmts)
+	second, err := dump.Read(t.Context(), m, target, filter)
+	if err != nil {
+		t.Fatalf("reading the copy: %v", err)
+	}
+	got, err := second.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		var script strings.Builder
+		for _, st := range stmts {
+			script.WriteString(st.SQL + ";\n")
+		}
+		t.Errorf("the copy differs from the source:\n%s\nscript:\n%s", lineDiff(string(want), string(got)), script.String())
+	}
+}
+
+// openSQLiteAt opens a second, empty SQLite database.
+func openSQLiteAt(t *testing.T, driver string) *sql.DB {
+	t.Helper()
+	db, err := sql.Open(driver, filepath.Join(t.TempDir(), "copy.db"))
+	if err != nil {
+		t.Fatalf("opening the copy: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+// openDuckDBAt opens a second, empty DuckDB database.
+func openDuckDBAt(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("duckdb", filepath.Join(t.TempDir(), "copy.duckdb"))
+	if err != nil {
+		t.Fatalf("opening the copy: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+var mysqlRoundTrip = []string{
+	"CREATE TABLE rt_owner (id int AUTO_INCREMENT PRIMARY KEY, name varchar(20) NOT NULL UNIQUE) COMMENT='the owners'",
+	`CREATE TABLE rt_item (
+		id int AUTO_INCREMENT PRIMARY KEY,
+		owner_id int NOT NULL,
+		label varchar(30) DEFAULT 'it''s a \\ label',
+		qty int DEFAULT 5,
+		code varchar(5) DEFAULT (concat('a', 'b')),
+		made timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+		price decimal(10,2) COMMENT 'the price',
+		twice int GENERATED ALWAYS AS (qty * 2) STORED,
+		half int GENERATED ALWAYS AS (qty / 2) VIRTUAL,
+		CONSTRAINT rt_fk_owner FOREIGN KEY (owner_id) REFERENCES rt_owner(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+		CONSTRAINT rt_chk CHECK (qty > 0),
+		KEY rt_idx_label (label, price),
+		UNIQUE KEY rt_uq (owner_id, code))`,
+	"CREATE VIEW rt_cheap AS SELECT id, price FROM rt_item WHERE price < 10",
+	"CREATE TRIGGER rt_touch BEFORE INSERT ON rt_item FOR EACH ROW SET NEW.qty = 1",
+}
+
+// TestMySQLScriptRoundTrips writes the script of a schema that has one of each
+// object, runs it on a database that has none of them, and compares the two
+// snapshots. It runs on MySQL and on MariaDB, whichever DBMETA_MYSQL names.
+func TestMySQLScriptRoundTrips(t *testing.T) {
+	db := openMySQLDump(t)
+	m := metaFor(t, dbmeta.MySQL, db)
+	var schema string
+	if err := db.QueryRowContext(t.Context(), "SELECT DATABASE()").Scan(&schema); err != nil || schema == "" {
+		t.Skipf("the connection names no database: %v", err)
+	}
+	reset := func() {
+		for _, s := range []string{"DROP VIEW IF EXISTS rt_cheap", "DROP TABLE IF EXISTS rt_item", "DROP TABLE IF EXISTS rt_owner"} {
+			_, _ = db.ExecContext(context.Background(), s)
+		}
+	}
+	reset()
+	t.Cleanup(reset)
+	for _, s := range mysqlRoundTrip {
+		mustExec(t, db, s)
+	}
+	roundTripSchema(t, db, m, dump.Filter{Schemas: []string{schema}, Tables: []string{`rt\_%`}}, reset)
+}
+
+// openMySQLDump opens a connection to a database of its own on the server that
+// DBMETA_MYSQL names, and drops the database at the end, so that the dump tests
+// share no table with another test. The DSN of CI names no database.
+func openMySQLDump(t *testing.T) *sql.DB {
+	t.Helper()
+	admin := openMySQL(t)
+	const name = "dbmeta_dump"
+	for _, s := range []string{"DROP DATABASE IF EXISTS " + name, "CREATE DATABASE " + name} {
+		mustExec(t, admin, s)
+	}
+	t.Cleanup(func() { _, _ = admin.ExecContext(context.Background(), "DROP DATABASE IF EXISTS "+name) })
+	cfg, err := mysqldriver.ParseDSN(os.Getenv("DBMETA_MYSQL"))
+	if err != nil {
+		t.Fatalf("reading DBMETA_MYSQL: %v", err)
+	}
+	cfg.DBName = name
+	db, err := sql.Open("mysql", cfg.FormatDSN())
+	if err != nil {
+		t.Fatalf("opening %s: %v", name, err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}

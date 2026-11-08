@@ -109,7 +109,8 @@ var scylla = product{
 
 // Scylla is every ScyllaDB release dbmeta is tested against.
 //
-// 2025.1 and 2026.3 on every push, because they are the two ends. 2026.1 and
-// 2026.2 run nightly.
-var Scylla = list{}.add(scylla, Tested, "2025.1", "2026.3").
-	add(scylla, Nightly, "2026.1", "2026.2")
+// None runs in CI, because the image pull failed there often enough to fail the
+// nightly run (D277). A person runs them before a release. 2025.1 and 2026.3 are
+// the two ends of the range.
+var Scylla = list{}.add(scylla, Verified, "2025.1", "2026.3").
+	add(scylla, Verified, "2026.1", "2026.2")

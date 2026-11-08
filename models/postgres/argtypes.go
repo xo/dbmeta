@@ -62,8 +62,8 @@ func argTypeItem(pattern string) string {
 		return noMoreArguments
 	}
 	schema, name := "", pattern
-	if i := strings.IndexByte(pattern, '.'); i >= 0 {
-		schema, name = pattern[:i], pattern[i+1:]
+	if before, after, found := strings.Cut(pattern, "."); found {
+		schema, name = before, after
 	}
 	format := name
 	if schema == "" {

@@ -56,6 +56,8 @@ var canonicalFields = map[string]string{
 	// dropped, because a default is stored as the database renders it:
 	// `'red'` on MariaDB, `red` on MySQL, `'red'::colour` on PostgreSQL
 	"Column.Default": "dropped: a default is rendered per product",
+	// dropped, because it says how Default is spelled, and Default is dropped
+	"Column.DefaultIsLiteral": "dropped: it only says whether the dropped Default is quoted (D276)",
 	// mapped to whether the column has an explicit default other than NULL.
 	//
 	// MariaDB records the four character string NULL as the default of a

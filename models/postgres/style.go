@@ -1,0 +1,150 @@
+package postgres
+
+import (
+	"strings"
+
+	"github.com/xo/dbmeta"
+	"github.com/xo/dbmeta/dump"
+)
+
+// The statement style of the dump. See D274 and docs/DUMP.md.
+
+func init() {
+	dump.RegisterStyle(dbmeta.PostgreSQL, dump.Style{
+		Quote:           quoteIdentifier,
+		Literal:         literal,
+		DefaultSchema:   "public",
+		QualifyAll:      true,
+		ExistingSchemas: []string{"public"},
+		CreateSchema:    func(quoted string) string { return "CREATE SCHEMA " + quoted },
+		// A function can name a table that is not there yet, as pg_dump allows.
+		Preamble:       []string{"SET check_function_bodies = false"},
+		Column:         column,
+		Enum:           enum,
+		Sequence:       sequence,
+		OwnedBy:        func(seq, owner string) string { return "ALTER SEQUENCE " + seq + " OWNED BY " + owner },
+		Comment:        comment,
+		ReferenceTable: referenceTable,
+	})
+}
+
+// quoteIdentifier quotes a name with double quotes.
+func quoteIdentifier(name string) string {
+	return dbmeta.QuoteIdentifier(name, `"`, `"`)
+}
+
+// literal writes a string literal. A backslash is plain when
+// standard_conforming_strings is on, which is the default since release 9.1, and
+// a literal with a backslash is written in the E form, which reads it the same
+// whatever the setting is.
+func literal(s string) string {
+	s = strings.ReplaceAll(s, "'", "''")
+	if strings.Contains(s, `\`) {
+		return "E'" + strings.ReplaceAll(s, `\`, `\\`) + "'"
+	}
+	return "'" + s + "'"
+}
+
+// column writes a column with its identity or its generation expression.
+func column(c dump.Column, typeSQL string, q func(string) string, _ func(string) string) string {
+	var b strings.Builder
+	b.WriteString(q(c.Name) + " " + typeSQL)
+	if c.Collation != "" && c.Collation != "default" {
+		b.WriteString(" COLLATE " + q(c.Collation))
+	}
+	switch {
+	case c.Generated != "" && c.Default != nil:
+		b.WriteString(" GENERATED ALWAYS AS (" + *c.Default + ") STORED")
+	case c.Identity != "":
+		b.WriteString(" GENERATED " + identityKind(c.Identity) + " AS IDENTITY")
+	case c.Default != nil:
+		b.WriteString(" DEFAULT " + *c.Default)
+	}
+	if !c.Nullable {
+		b.WriteString(" NOT NULL")
+	}
+	return b.String()
+}
+
+// identityKind reads the identity that the catalog reports, which is a letter or
+// the words, and returns the words of the clause.
+func identityKind(identity string) string {
+	switch strings.ToLower(identity) {
+	case "d", "by default":
+		return "BY DEFAULT"
+	}
+	return "ALWAYS"
+}
+
+// enum writes CREATE TYPE ... AS ENUM.
+func enum(quoted string, values []string, lit func(string) string) string {
+	quotedValues := make([]string, len(values))
+	for i, v := range values {
+		quotedValues[i] = lit(v)
+	}
+	return "CREATE TYPE " + quoted + " AS ENUM (" + strings.Join(quotedValues, ", ") + ")"
+}
+
+// sequence writes CREATE SEQUENCE with the bounds that the catalog gives.
+func sequence(quoted string, s dump.Sequence) string {
+	var b strings.Builder
+	b.WriteString("CREATE SEQUENCE " + quoted)
+	if s.DataType != "" {
+		b.WriteString(" AS " + s.DataType)
+	}
+	for _, f := range []struct{ word, value string }{
+		{"INCREMENT BY", s.Increment}, {"MINVALUE", s.Minimum}, {"MAXVALUE", s.Maximum}, {"START WITH", s.Start},
+	} {
+		if f.value != "" {
+			b.WriteString(" " + f.word + " " + f.value)
+		}
+	}
+	if s.Cycles {
+		b.WriteString(" CYCLE")
+	} else {
+		b.WriteString(" NO CYCLE")
+	}
+	return b.String()
+}
+
+// comment writes COMMENT ON.
+func comment(target, quotedName, text string, lit func(string) string) string {
+	return "COMMENT ON " + target + " " + quotedName + " IS " + lit(text)
+}
+
+// referenceTable puts the schema in front of the table that a foreign key
+// points at. pg_get_constraintdef leaves it out for a table on the search path
+// of the session that read it, and the script runs in another session.
+func referenceTable(def string, ref dump.Reference, q func(string) string) string {
+	if ref.Schema == "" {
+		return def
+	}
+	const word = "REFERENCES "
+	i := strings.Index(def, word)
+	if i < 0 {
+		return def
+	}
+	start := i + len(word)
+	// The name of the table is quoted or runs to the bracket. A name that has a
+	// dot is already qualified.
+	end := start
+	quoted := false
+	hasDot := false
+	for ; end < len(def); end++ {
+		c := def[end]
+		if c == '"' {
+			quoted = !quoted
+			continue
+		}
+		if !quoted && (c == '(' || c == ' ') {
+			break
+		}
+		if !quoted && c == '.' {
+			hasDot = true
+		}
+	}
+	if hasDot {
+		return def
+	}
+	return def[:start] + q(ref.Schema) + "." + def[start:]
+}

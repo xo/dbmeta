@@ -2,6 +2,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"strconv"
 	"strings"
@@ -29,7 +30,9 @@ type readOptions struct {
 
 var readSetup = []string{
 	"CREATE TABLE {parent} (id integer PRIMARY KEY, name varchar(20) NOT NULL UNIQUE, n integer CHECK (n > 0))",
-	"CREATE TABLE {child} (id integer PRIMARY KEY, parent_id integer REFERENCES {parent}(id), a integer, b integer, UNIQUE (a, b))",
+	// The key is a table constraint, because MySQL reads a REFERENCES in a column
+	// and ignores it.
+	"CREATE TABLE {child} (id integer PRIMARY KEY, parent_id integer, a integer, b integer, UNIQUE (a, b), FOREIGN KEY (parent_id) REFERENCES {parent}(id))",
 	"CREATE INDEX child_a ON {child} (a)",
 	"CREATE VIEW {view} AS SELECT id FROM {parent}",
 }
@@ -41,7 +44,7 @@ func buildReadFixture(t *testing.T, db *sql.DB, o readOptions) {
 	drop := func() {
 		for _, s := range []string{"DROP VIEW IF EXISTS " + o.qualify("dump_view"),
 			"DROP TABLE IF EXISTS " + o.qualify("dump_child"), "DROP TABLE IF EXISTS " + o.qualify("dump_parent")} {
-			_, _ = db.ExecContext(t.Context(), s)
+			_, _ = db.ExecContext(context.Background(), s)
 		}
 	}
 	drop()
@@ -199,7 +202,7 @@ func TestPostgreSQLReadsASnapshot(t *testing.T) {
 			m := metaFor(t, dbmeta.PostgreSQL, db)
 			mustExec(t, db, "DROP SCHEMA IF EXISTS dump_read CASCADE")
 			mustExec(t, db, "CREATE SCHEMA dump_read")
-			t.Cleanup(func() { _, _ = db.ExecContext(t.Context(), "DROP SCHEMA IF EXISTS dump_read CASCADE") })
+			t.Cleanup(func() { _, _ = db.ExecContext(context.Background(), "DROP SCHEMA IF EXISTS dump_read CASCADE") })
 			readSnapshotChecks(t, db, m, readOptions{
 				schema: "dump_read", qualify: func(n string) string { return "dump_read." + n },
 			})
@@ -210,7 +213,7 @@ func TestPostgreSQLReadsASnapshot(t *testing.T) {
 func TestSQLiteReadsASnapshot(t *testing.T) {
 	for _, driver := range sqliteDrivers {
 		t.Run(driver, func(t *testing.T) {
-			db := openSQLiteWith(t, driver)
+			db := openSQLiteAt(t, driver)
 			m := metaFor(t, dbmeta.SQLite3, db)
 			readSnapshotChecks(t, db, m, readOptions{
 				schema: "main", qualify: func(n string) string { return n }, noChecks: true,
@@ -220,7 +223,7 @@ func TestSQLiteReadsASnapshot(t *testing.T) {
 }
 
 func TestDuckDBReadsASnapshot(t *testing.T) {
-	db := openDuckDB(t)
+	db := openDuckDBAt(t)
 	m := metaFor(t, dbmeta.DuckDB, db)
 	readSnapshotChecks(t, db, m, readOptions{
 		schema: "main", qualify: func(n string) string { return n }, noIndexColumns: true, noLength: true,
@@ -235,9 +238,21 @@ func TestPostgreSQLSnapshotCost(t *testing.T) {
 	const tables = 3000
 	db := openPostgresWith(t, postgresDrivers[0])
 	m := metaFor(t, dbmeta.PostgreSQL, db)
-	mustExec(t, db, "DROP SCHEMA IF EXISTS dump_cost CASCADE")
+	dropCost := func() {
+		// Thousands of tables in one DROP exhaust the lock table of the server, so
+		// they go in batches of their own.
+		for i := 1; i <= tables; i += 100 {
+			var batch strings.Builder
+			for j := i; j < i+100 && j <= tables; j++ {
+				batch.WriteString("DROP TABLE IF EXISTS dump_cost.t" + strconv.Itoa(j) + ";")
+			}
+			_, _ = db.ExecContext(context.Background(), batch.String())
+		}
+		_, _ = db.ExecContext(context.Background(), "DROP SCHEMA IF EXISTS dump_cost CASCADE")
+	}
+	dropCost()
 	mustExec(t, db, "CREATE SCHEMA dump_cost")
-	t.Cleanup(func() { _, _ = db.ExecContext(t.Context(), "DROP SCHEMA IF EXISTS dump_cost CASCADE") })
+	t.Cleanup(dropCost)
 	// A batch is its own transaction, because thousands of tables in one
 	// exhaust the lock table of the server.
 	for from := 1; from <= tables; from += 100 {
@@ -275,7 +290,7 @@ func TestPostgreSQLSnapshotCost(t *testing.T) {
 }
 
 func TestMySQLReadsASnapshot(t *testing.T) {
-	db := openMySQL(t)
+	db := openMySQLDump(t)
 	m := metaFor(t, dbmeta.MySQL, db)
 	var schema string
 	if err := db.QueryRowContext(t.Context(), "SELECT DATABASE()").Scan(&schema); err != nil || schema == "" {

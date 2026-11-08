@@ -75,8 +75,11 @@ type Column struct {
 	// nothing reports true.
 	Nullable bool `json:"nullable"`
 	// Default is the expression of the default, as the source writes it. It is
-	// nil when the column has none, and a default of the empty string is "".
+	// nil when the column has none, and a default of the empty string is "". For a
+	// generated column it is the expression that computes the value.
 	Default *string `json:"default,omitempty"`
+	// DefaultLiteral says that Default is a value to quote, and not SQL.
+	DefaultLiteral bool `json:"default_literal,omitempty"`
 	// Identity says how the database numbers the column, such as always, by
 	// default or rowid, and is empty for a column it does not number.
 	Identity string `json:"identity,omitempty"`
@@ -97,6 +100,10 @@ type Constraint struct {
 	Ref *Reference `json:"ref,omitempty"`
 	// Definition is the text of the source, such as CHECK (n > 0).
 	Definition string `json:"definition,omitempty"`
+	// OnUpdate and OnDelete are what a foreign key does, when the source says it
+	// apart from Definition.
+	OnUpdate   string `json:"on_update,omitempty"`
+	OnDelete   string `json:"on_delete,omitempty"`
 	Deferrable bool   `json:"deferrable,omitempty"`
 	Deferred   bool   `json:"deferred,omitempty"`
 	Comment    string `json:"comment,omitempty"`
@@ -121,7 +128,15 @@ type Index struct {
 	Columns []IndexColumn `json:"columns,omitempty"`
 	// Predicate is the WHERE clause of a partial index.
 	Predicate string `json:"predicate,omitempty"`
-	Comment   string `json:"comment,omitempty"`
+	// Definition is the whole CREATE INDEX statement of the source, for a
+	// product that keeps one. It holds what the columns cannot, such as an
+	// operator class.
+	Definition string `json:"definition,omitempty"`
+	// Constraint is p, u or x for an index that a primary key, a unique
+	// constraint or an exclusion constraint owns, and empty for any other. The
+	// constraint writes the index, so the index is not written again.
+	Constraint string `json:"constraint,omitempty"`
+	Comment    string `json:"comment,omitempty"`
 }
 
 // IndexColumn is a column of an index, or an expression.
@@ -178,9 +193,7 @@ type Enum struct {
 // Routine is a function, a procedure or an aggregate. Its definition is the text
 // of the source and is not translated.
 type Routine struct {
-	Name string `json:"name"`
-	// ID tells overloads apart where the product has them.
-	ID         string `json:"id,omitempty"`
+	Name       string `json:"name"`
 	Kind       string `json:"kind"`
 	Arguments  string `json:"arguments,omitempty"`
 	ResultType string `json:"result_type,omitempty"`

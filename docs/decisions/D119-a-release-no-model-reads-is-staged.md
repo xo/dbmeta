@@ -1,6 +1,6 @@
 # D119. A release that no model reads is Staged
 
-Status: Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120 and D142.
+Status: Amends D40, D103, D106, D112, D113, D114 and D116, amended by D120, D142 and D277.
 
 ## The problem
 
