@@ -24,6 +24,8 @@ func init() {
 		Sequence:       sequence,
 		OwnedBy:        func(seq, owner string) string { return "ALTER SEQUENCE " + seq + " OWNED BY " + owner },
 		Comment:        comment,
+		View:           view,
+		IdentityValue:  identityValue,
 		ReferenceTable: referenceTable,
 	})
 }
@@ -70,10 +72,18 @@ func column(c dump.Column, typeSQL string, q func(string) string, _ func(string)
 // the words, and returns the words of the clause.
 func identityKind(identity string) string {
 	switch strings.ToLower(identity) {
-	case "d", "by default":
-		return "BY DEFAULT"
+	case "a", "always":
+		return "ALWAYS"
 	}
-	return "ALWAYS"
+	return "BY DEFAULT"
+}
+
+// identityValue sets the next value of a serial or identity column from the rows
+// that were loaded, as pg_dump does with setval. The sequence is the one that
+// pg_get_serial_sequence finds for the column.
+func identityValue(quotedTable, quotedColumn, column string, lit func(string) string) string {
+	return "SELECT pg_catalog.setval(pg_catalog.pg_get_serial_sequence(" + lit(quotedTable) + ", " + lit(column) +
+		"), COALESCE((SELECT MAX(" + quotedColumn + ") FROM " + quotedTable + "), 0) + 1, false)"
 }
 
 // enum writes CREATE TYPE ... AS ENUM.
@@ -147,4 +157,17 @@ func referenceTable(def string, ref dump.Reference, q func(string) string) strin
 		return def
 	}
 	return def[:start] + q(ref.Schema) + "." + def[start:]
+}
+
+// view writes CREATE VIEW from the query that the catalog keeps, and the check
+// option that the view has.
+func view(quoted string, v dump.View) string {
+	sql := "CREATE VIEW " + quoted + " AS " + strings.TrimRight(strings.TrimSpace(v.Definition), "; \n\t")
+	switch strings.ToLower(v.CheckOption) {
+	case "cascaded":
+		sql += " WITH CASCADED CHECK OPTION"
+	case "local":
+		sql += " WITH LOCAL CHECK OPTION"
+	}
+	return sql
 }

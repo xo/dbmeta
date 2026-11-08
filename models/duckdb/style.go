@@ -18,9 +18,11 @@ func init() {
 		CreateSchema:         func(quoted string) string { return "CREATE SCHEMA " + quoted },
 		InlineConstraints:    true,
 		AnonymousConstraints: true,
-		Sequence:             sequence,
-		Comment:              comment,
-		View:                 definitionStatement,
+		// DuckDB refuses ON DELETE and ON UPDATE other than the default.
+		NoForeignKeyActions: true,
+		Sequence:            sequence,
+		Comment:             comment,
+		View:                definitionStatement,
 	})
 }
 

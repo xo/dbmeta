@@ -45,6 +45,7 @@ func Read(ctx context.Context, m *dbmeta.Meta, db dbmeta.Queryer, f Filter) (*Sn
 	if err := r.read(ctx, snap); err != nil {
 		return nil, err
 	}
+	snap.ViewDependencies = r.viewDependencies
 	return snap, nil
 }
 
@@ -55,6 +56,9 @@ type tableKey struct{ schema, table string }
 type childKey struct{ schema, table, name string }
 
 type reader struct {
+	// viewDependencies is set when the source answered the dependencies of views.
+	viewDependencies bool
+
 	m      *dbmeta.Meta
 	db     dbmeta.Queryer
 	filter Filter
@@ -344,6 +348,9 @@ func (r *reader) readViews(ctx context.Context, a dbmeta.Args, views map[tableKe
 	if err != nil {
 		return fmt.Errorf("reading views: %w", err)
 	}
+	if err := r.readViewDependencies(ctx, a, views); err != nil {
+		return err
+	}
 	for _, v := range rows {
 		if view, ok := views[tableKey{v.Schema, v.Name}]; ok {
 			view.Definition = text(v.Definition)
@@ -491,4 +498,35 @@ func like(pattern, s string) bool {
 		next = cur
 	}
 	return next[0]
+}
+
+// readViewDependencies puts the views that each view reads in DependsOn. The
+// snapshot says whether the source answered, so that a missing answer is not
+// read as a view that reads nothing.
+func (r *reader) readViewDependencies(ctx context.Context, a dbmeta.Args, views map[tableKey]*View) error {
+	if dbmeta.ViewDependencies.Support(r.m) != dbmeta.Supported {
+		return nil
+	}
+	rows, err := collect(dbmeta.ViewDependencies.Each(ctx, r.m, r.db, a))
+	if err != nil {
+		return fmt.Errorf("reading view dependencies: %w", err)
+	}
+	r.viewDependencies = true
+	for _, d := range rows {
+		view, ok := views[tableKey{d.Schema, d.View}]
+		if !ok {
+			continue
+		}
+		if _, isView := views[tableKey{d.ReferencedSchema, d.Referenced}]; !isView {
+			continue
+		}
+		name := d.ReferencedSchema + "." + d.Referenced
+		if !slices.Contains(view.DependsOn, name) {
+			view.DependsOn = append(view.DependsOn, name)
+		}
+	}
+	for _, v := range views {
+		slices.Sort(v.DependsOn)
+	}
+	return nil
 }

@@ -70,6 +70,7 @@ var parityWalks = map[string]parityWalk{
 	dbmeta.RoutineParameters.Name():       walkAnswer(dbmeta.RoutineParameters),
 	dbmeta.EnumValues.Name():              walkAnswer(dbmeta.EnumValues),
 	dbmeta.Views.Name():                   walkAnswer(dbmeta.Views),
+	dbmeta.ViewDependencies.Name():        walkAnswer(dbmeta.ViewDependencies),
 	dbmeta.ColumnStats.Name():             walkAnswer(dbmeta.ColumnStats),
 	dbmeta.CurrentSchema.Name():           walkAnswer(dbmeta.CurrentSchema),
 	dbmeta.CurrentUser.Name():             walkAnswer(dbmeta.CurrentUser),

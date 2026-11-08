@@ -19,8 +19,9 @@ const (
 	// Pre holds what the data needs to exist: schemas, types, sequences, tables
 	// with their columns and primary keys.
 	Pre Stage = iota
-	// Data is where the rows go. Script writes no statement of this stage. The
-	// builders of the data side do.
+	// Data holds the settings that go round the rows, such as a product turning
+	// its foreign key checks off. The rows are the client's, and the builders of
+	// the data side write them.
 	Data
 	// Post holds what is cheaper to build once the rows are in: unique keys,
 	// checks, foreign keys, indexes, views, triggers and comments.
@@ -55,15 +56,21 @@ type Statement struct {
 	// is empty.
 	Note string
 	// Untranslated says that SQL is in the dialect of the source and was not
-	// translated. A view, a routine or a trigger for another dialect is.
+	// translated. A view, a routine, a trigger or a check for another dialect is.
 	Untranslated bool
+	// Check says that the statement returns a row for each fault, and that the
+	// dump fails when it returns one.
+	Check bool
 }
 
 // Script yields the statements that recreate the schema of a snapshot in the
 // target dialect, in the order of the stages. A client runs the Pre statements,
-// then loads the rows, then runs the Post statements.
+// then the Data settings, then loads the rows, then runs the Post statements.
 //
-// A snapshot is written back to its own dialect with each type as it was read.
+// A snapshot written back to its own dialect keeps each type as it was read. For
+// any other dialect the types come from the plan, and the objects that hold SQL
+// are written as the text of the source and marked Untranslated. Script fails
+// with a [*PlanError] when a column has no type that the policy allows.
 func Script(s *Snapshot, target dbmeta.Dialect, p Policy) iter.Seq2[Statement, error] {
 	return func(yield func(Statement, error) bool) {
 		stmts, err := build(s, target, p)
@@ -85,22 +92,30 @@ type generator struct {
 	source dbmeta.Dialect
 	target dbmeta.Dialect
 	style  Style
+	cross  bool
+	plan   map[string]ColumnPlan
 	out    []Statement
 }
 
-func build(s *Snapshot, target dbmeta.Dialect, _ Policy) ([]Statement, error) {
+func build(s *Snapshot, target dbmeta.Dialect, p Policy) ([]Statement, error) {
 	source := dbmeta.Dialect(s.Dialect)
-	if source != target {
-		return nil, fmt.Errorf("writing a %s snapshot for %s: %w", source, target, dbmeta.ErrNotSupported)
-	}
 	style, err := styleOf(target)
 	if err != nil {
 		return nil, err
 	}
-	g := &generator{snap: s, source: source, target: target, style: style}
+	plan, err := MakePlan(s, target, p)
+	if err != nil {
+		return nil, err
+	}
+	g := &generator{snap: s, source: source, target: target, style: style, cross: source != target,
+		plan: make(map[string]ColumnPlan, len(plan.Columns))}
+	for _, c := range plan.Columns {
+		g.plan[c.Name] = c
+	}
 	if err := g.pre(); err != nil {
 		return nil, err
 	}
+	g.data()
 	g.post()
 	return g.out, nil
 }
@@ -126,21 +141,24 @@ func (g *generator) pre() error {
 		}
 		g.add(Statement{Stage: Pre, Kind: "schema", Name: sc.Name, SQL: g.style.CreateSchema(g.style.Quote(sc.Name))})
 	}
-	for _, sc := range g.snap.Schemas {
-		if g.style.Enum != nil {
-			for _, e := range sc.Enums {
-				name := g.qualified(sc.Name, e.Name)
-				g.add(Statement{Stage: Pre, Kind: "type", Name: sc.Name + "." + e.Name,
-					SQL: g.style.Enum(name, e.Values, g.style.Literal)})
-			}
-		}
-		if g.style.Sequence != nil {
-			for _, q := range sc.Sequences {
-				if q.Identity {
-					continue
+	// Enums and sequences are the objects of the source, and another dialect
+	// builds its own from the columns.
+	if !g.cross {
+		for _, sc := range g.snap.Schemas {
+			if g.style.Enum != nil {
+				for _, e := range sc.Enums {
+					g.add(Statement{Stage: Pre, Kind: "type", Name: sc.Name + "." + e.Name,
+						SQL: g.style.Enum(g.qualified(sc.Name, e.Name), e.Values, g.style.Literal)})
 				}
-				g.add(Statement{Stage: Pre, Kind: "sequence", Name: sc.Name + "." + q.Name,
-					SQL: g.style.Sequence(g.qualified(sc.Name, q.Name), q)})
+			}
+			if g.style.Sequence != nil {
+				for _, q := range sc.Sequences {
+					if q.Identity {
+						continue
+					}
+					g.add(Statement{Stage: Pre, Kind: "sequence", Name: sc.Name + "." + q.Name,
+						SQL: g.style.Sequence(g.qualified(sc.Name, q.Name), q)})
+				}
 			}
 		}
 	}
@@ -158,22 +176,29 @@ func (g *generator) pre() error {
 		if err != nil {
 			return err
 		}
-		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: sql})
+		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: sql, Note: g.droppedRules(t.table)})
 	}
 	return nil
 }
 
+// data writes the settings that go round the rows.
+func (g *generator) data() {
+	for _, text := range g.style.BeforeData {
+		g.add(Statement{Stage: Data, Kind: "setting", SQL: text})
+	}
+}
+
 // routine writes a routine from the definition that the source keeps. The text
-// is the source's own, so a statement for the same dialect needs no change.
+// is the source's own, so it is marked Untranslated for another dialect.
 func (g *generator) routine(schema string, r Routine) {
 	name := schema + "." + r.Name
 	def := strings.TrimSpace(r.Definition)
 	if !strings.HasPrefix(strings.ToLower(def), "create") {
-		g.add(Statement{Stage: Pre, Kind: "routine", Name: name,
+		g.add(Statement{Stage: Pre, Kind: "routine", Name: name, Untranslated: g.cross,
 			Note: "the source keeps no statement that creates this " + r.Kind + ", so it is not written"})
 		return
 	}
-	g.add(Statement{Stage: Pre, Kind: "routine", Name: name, SQL: strings.TrimRight(def, "; \n\t")})
+	g.add(Statement{Stage: Pre, Kind: "routine", Name: name, SQL: strings.TrimRight(def, "; \n\t"), Untranslated: g.cross})
 }
 
 // schemaTable is a table with the schema it is in.
@@ -248,31 +273,77 @@ func (g *generator) orderedTables() ([]schemaTable, error) {
 	return out, nil
 }
 
+// column returns a column as the target writes it. For the same dialect it is
+// the column as it was read. For another dialect the collation is dropped, a
+// default is kept only when every product writes it the same way, and a
+// generated column loses its expression, because dbmeta translates no SQL.
+func (g *generator) column(c Column) Column {
+	if !g.cross {
+		return c
+	}
+	c.Collation = ""
+	// Auto numbering is the one idiom that moves with the column. A serial column
+	// of PostgreSQL is an integer with a default that reads a sequence, and the
+	// sequence does not move, so the column is an identity column of the target.
+	// Any identity of the source is one that a load can still give a value to.
+	if c.Identity != "" {
+		c.Identity = "by default"
+	}
+	if g.source == dbmeta.PostgreSQL && c.Default != nil && isNextval(*c.Default) && c.Identity == "" {
+		c.Identity, c.Default = "by default", nil
+	}
+	switch {
+	case c.Generated != "":
+		c.Generated, c.Default, c.DefaultLiteral = "", nil, false
+	case c.Default != nil:
+		if text, ok := portableDefault(g.source, g.target, c); ok {
+			c.Default, c.DefaultLiteral = &text, false
+		} else {
+			c.Default, c.DefaultLiteral = nil, false
+		}
+	}
+	return c
+}
+
+// inCreate says whether a constraint of this kind is written inside CREATE TABLE.
+// A primary key always is. A product that cannot add a key to a table that exists
+// writes unique keys and foreign keys there. For another dialect a check keeps the
+// text of the source, so it is a statement of its own and can be refused alone.
+func (g *generator) inCreate(kind string) bool {
+	switch {
+	case kind == "primary key":
+		return true
+	case !g.style.InlineConstraints:
+		return false
+	case g.cross:
+		return kind != "check" && kind != "exclusion"
+	}
+	return true
+}
+
 // createTable writes the CREATE TABLE of a table.
 func (g *generator) createTable(schema string, t Table) (string, error) {
 	q, lit := g.style.Quote, g.style.Literal
 	var parts []string
 	for _, c := range t.Columns {
-		r, err := TypeFor(g.source, g.target, c.Type)
-		if err != nil {
-			return "", fmt.Errorf("the column %s.%s.%s: %w", schema, t.Name, c.Name, err)
+		cp, ok := g.plan[schema+"."+t.Name+"."+c.Name]
+		if !ok {
+			return "", fmt.Errorf("the column %s.%s.%s has no plan: %w", schema, t.Name, c.Name, ErrNoEquivalent)
 		}
+		col := g.column(c)
 		if g.style.Column != nil {
-			parts = append(parts, g.style.Column(c, r.SQL, q, lit))
+			parts = append(parts, g.style.Column(col, cp.SQL, q, lit))
 		} else {
-			parts = append(parts, genericColumn(c, r.SQL, q, lit))
+			parts = append(parts, genericColumn(col, cp.SQL, q))
 		}
 	}
 	for _, c := range t.Constraints {
-		inline := c.Kind == "primary key" || g.style.InlineConstraints
-		if !inline {
+		if !g.inCreate(c.Kind) {
 			continue
 		}
-		text, ok := g.constraintSQL(schema, c)
-		if !ok {
-			continue
+		if text, ok := g.constraintSQL(schema, c); ok {
+			parts = append(parts, text)
 		}
-		parts = append(parts, text)
 	}
 	sql := "CREATE TABLE " + g.qualified(schema, t.Name) + " (\n  " + strings.Join(parts, ",\n  ") + "\n)"
 	if g.style.TableOptions != nil {
@@ -281,8 +352,28 @@ func (g *generator) createTable(schema string, t Table) (string, error) {
 	return sql, nil
 }
 
+// droppedRules says which foreign key rules a product that has none leaves out.
+func (g *generator) droppedRules(t Table) string {
+	if !g.style.NoForeignKeyActions {
+		return ""
+	}
+	var names []string
+	for _, c := range t.Constraints {
+		if c.Kind != "foreign key" {
+			continue
+		}
+		if del, upd := foreignKeyActions(c); (del != "" && del != "NO ACTION") || (upd != "" && upd != "NO ACTION") {
+			names = append(names, c.Name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return "the target has no ON DELETE and ON UPDATE, so the rules of these foreign keys are not written: " + strings.Join(names, ", ")
+}
+
 // genericColumn writes a column as the name, the type, the default and NOT NULL.
-func genericColumn(c Column, typeSQL string, q func(string) string, lit func(string) string) string {
+func genericColumn(c Column, typeSQL string, q func(string) string) string {
 	var b strings.Builder
 	b.WriteString(q(c.Name) + " " + typeSQL)
 	if c.Default != nil {
@@ -291,13 +382,16 @@ func genericColumn(c Column, typeSQL string, q func(string) string, lit func(str
 	if !c.Nullable {
 		b.WriteString(" NOT NULL")
 	}
-	_ = lit
 	return b.String()
 }
 
 // constraintSQL writes a constraint as it appears in CREATE TABLE and after ALTER
 // TABLE ... ADD. The second result is false for a constraint that the source
 // kept no text for, and the caller says so in a note.
+//
+// For the same dialect the definition of the source is used. For another dialect
+// a primary key, a unique key and a foreign key are built from their columns,
+// and a check keeps the text of the source.
 func (g *generator) constraintSQL(schema string, c Constraint) (string, bool) {
 	q := g.style.Quote
 	cols := make([]string, len(c.Columns))
@@ -309,7 +403,7 @@ func (g *generator) constraintSQL(schema string, c Constraint) (string, bool) {
 	case "primary key":
 		body = "PRIMARY KEY (" + strings.Join(cols, ", ") + ")"
 	case "unique":
-		if body == "" {
+		if body == "" || g.cross {
 			body = "UNIQUE (" + strings.Join(cols, ", ") + ")"
 		}
 	case "check":
@@ -321,43 +415,100 @@ func (g *generator) constraintSQL(schema string, c Constraint) (string, bool) {
 			body = "CHECK " + body
 		}
 	case "foreign key":
-		if c.Ref != nil && body == "" {
-			ref := make([]string, len(c.Ref.Columns))
-			for i, name := range c.Ref.Columns {
-				ref[i] = q(name)
-			}
-			refSchema := c.Ref.Schema
-			if refSchema == "" {
-				refSchema = schema
-			}
-			body = "FOREIGN KEY (" + strings.Join(cols, ", ") + ") REFERENCES " +
-				g.qualified(refSchema, c.Ref.Table) + " (" + strings.Join(ref, ", ") + ")"
-			if c.OnDelete != "" && !strings.EqualFold(c.OnDelete, "NO ACTION") {
-				body += " ON DELETE " + c.OnDelete
-			}
-			if c.OnUpdate != "" && !strings.EqualFold(c.OnUpdate, "NO ACTION") {
-				body += " ON UPDATE " + c.OnUpdate
-			}
-		} else if c.Ref != nil && g.style.ReferenceTable != nil {
+		switch {
+		case c.Ref != nil && (body == "" || g.cross):
+			body = g.foreignKey(schema, c, cols)
+		case c.Ref != nil && g.style.ReferenceTable != nil:
 			body = g.style.ReferenceTable(body, *c.Ref, q)
 		}
 	}
 	if body == "" {
 		return "", false
 	}
-	if g.style.AnonymousConstraints || c.Name == "" {
+	// MySQL names every primary key PRIMARY, which is not a name that a person gave.
+	if g.style.AnonymousConstraints || c.Name == "" || (c.Kind == "primary key" && c.Name == "PRIMARY") ||
+		(g.cross && g.sourceNamesAreMadeUp()) {
 		return body, true
 	}
 	return "CONSTRAINT " + q(c.Name) + " " + body, true
 }
 
+// sourceNamesAreMadeUp reports whether the source keeps no name that a person
+// gave a constraint, so that the names in the snapshot are the model's own and
+// another dialect does not keep them.
+func (g *generator) sourceNamesAreMadeUp() bool {
+	return g.source == dbmeta.SQLite3 || g.source == dbmeta.DuckDB
+}
+
+// foreignKey builds a foreign key from its columns and the rules that the source
+// gave, with the words that every product knows.
+func (g *generator) foreignKey(schema string, c Constraint, cols []string) string {
+	q := g.style.Quote
+	ref := make([]string, len(c.Ref.Columns))
+	for i, name := range c.Ref.Columns {
+		ref[i] = q(name)
+	}
+	refSchema := c.Ref.Schema
+	if refSchema == "" {
+		refSchema = schema
+	}
+	body := "FOREIGN KEY (" + strings.Join(cols, ", ") + ") REFERENCES " +
+		g.qualified(refSchema, c.Ref.Table) + " (" + strings.Join(ref, ", ") + ")"
+	del, upd := foreignKeyActions(c)
+	if g.style.NoForeignKeyActions {
+		return body
+	}
+	if del != "" && del != "NO ACTION" {
+		body += " ON DELETE " + del
+	}
+	if upd != "" && upd != "NO ACTION" {
+		body += " ON UPDATE " + upd
+	}
+	return body
+}
+
 // post writes the statements that come after the rows.
 func (g *generator) post() {
-	// Unique keys and checks first, because a foreign key needs the key that it
-	// points at.
+	for _, text := range g.style.AfterData {
+		st := Statement{Stage: Post, Kind: "setting", SQL: text}
+		if text != "" && text == g.style.CheckAfterData {
+			st.Kind, st.Check = "check", true
+			st.Note = "this statement returns a row for each fault in the data, and the dump fails when it returns one"
+		}
+		g.add(st)
+	}
+	g.constraints()
+	g.indexes()
+	if !g.cross {
+		for _, sc := range g.snap.Schemas {
+			for _, q := range sc.Sequences {
+				if q.OwnedBy == "" || q.Identity || g.style.OwnedBy == nil {
+					continue
+				}
+				g.add(Statement{Stage: Post, Kind: "sequence owner", Name: sc.Name + "." + q.Name,
+					SQL: g.style.OwnedBy(g.qualified(sc.Name, q.Name), q.OwnedBy)})
+			}
+		}
+	}
+	g.identities()
+	g.views()
+	for _, sc := range g.snap.Schemas {
+		for _, t := range sc.Tables {
+			for _, tg := range t.Triggers {
+				g.trigger(sc.Name, t, tg)
+			}
+		}
+	}
+	g.comments()
+}
+
+// constraints writes the keys and checks that are not inside CREATE TABLE. A
+// unique key and a check come before a foreign key, because a foreign key needs
+// the key that it points at.
+func (g *generator) constraints() {
 	for _, kind := range []string{"unique", "exclusion", "check", "foreign key"} {
-		if g.style.InlineConstraints {
-			break
+		if g.inCreate(kind) {
+			continue
 		}
 		for _, sc := range g.snap.Schemas {
 			for _, t := range sc.Tables {
@@ -365,18 +516,24 @@ func (g *generator) post() {
 					if c.Kind != kind {
 						continue
 					}
+					name := sc.Name + "." + t.Name + "." + c.Name
 					text, ok := g.constraintSQL(sc.Name, c)
 					if !ok {
-						g.add(Statement{Stage: Post, Kind: "constraint", Name: sc.Name + "." + t.Name + "." + c.Name,
+						g.add(Statement{Stage: Post, Kind: "constraint", Name: name,
 							Note: "the source keeps no text for this " + c.Kind + ", so it is not written"})
 						continue
 					}
-					g.add(Statement{Stage: Post, Kind: "constraint", Name: sc.Name + "." + t.Name + "." + c.Name,
-						SQL: "ALTER TABLE " + g.qualified(sc.Name, t.Name) + " ADD " + text})
+					g.add(Statement{Stage: Post, Kind: "constraint", Name: name,
+						SQL:          "ALTER TABLE " + g.qualified(sc.Name, t.Name) + " ADD " + text,
+						Untranslated: g.cross && (kind == "check" || kind == "exclusion")})
 				}
 			}
 		}
 	}
+}
+
+// indexes writes the indexes that no constraint writes.
+func (g *generator) indexes() {
 	for _, sc := range g.snap.Schemas {
 		for _, t := range sc.Tables {
 			names := map[string]bool{}
@@ -388,44 +545,30 @@ func (g *generator) post() {
 					continue
 				}
 				name := sc.Name + "." + t.Name + "." + ix.Name
-				if ix.Definition == "" && len(ix.Columns) == 0 {
+				if g.cross && len(ix.Columns) == 0 {
+					ix.Columns = definitionColumns(ix.Definition)
+				}
+				if (g.cross || ix.Definition == "") && len(ix.Columns) == 0 {
 					g.add(Statement{Stage: Post, Kind: "index", Name: name,
-						Note: "the source keeps no columns and no statement for this index, so it is not written"})
+						Note: "the source keeps no columns for this index, so it is not written"})
 					continue
 				}
-				g.add(Statement{Stage: Post, Kind: "index", Name: name, SQL: g.index(sc.Name, t, ix)})
+				st := Statement{Stage: Post, Kind: "index", Name: name, SQL: g.index(sc.Name, t, ix)}
+				if g.cross && (ix.Predicate != "" || slices.ContainsFunc(ix.Columns, func(c IndexColumn) bool { return c.Expression != "" })) {
+					st.Untranslated = true
+				}
+				g.add(st)
 			}
 		}
 	}
-	for _, sc := range g.snap.Schemas {
-		for _, q := range sc.Sequences {
-			if q.OwnedBy == "" || q.Identity || g.style.OwnedBy == nil {
-				continue
-			}
-			g.add(Statement{Stage: Post, Kind: "sequence owner", Name: sc.Name + "." + q.Name,
-				SQL: g.style.OwnedBy(g.qualified(sc.Name, q.Name), q.OwnedBy)})
-		}
-	}
-	for _, sc := range g.snap.Schemas {
-		for _, v := range sc.Views {
-			g.add(Statement{Stage: Post, Kind: "view", Name: sc.Name + "." + v.Name, SQL: g.view(sc.Name, v)})
-		}
-	}
-	for _, sc := range g.snap.Schemas {
-		for _, t := range sc.Tables {
-			for _, tg := range t.Triggers {
-				g.trigger(sc.Name, t, tg)
-			}
-		}
-	}
-	g.comments()
 }
 
-// index writes a CREATE INDEX. The definition that the source keeps is used when
-// there is one, because it holds the parts that the columns do not.
+// index writes a CREATE INDEX. For the same dialect the definition that the
+// source keeps is used when there is one, because it holds the parts that the
+// columns do not.
 func (g *generator) index(schema string, t Table, ix Index) string {
 	table := g.qualified(schema, t.Name)
-	if ix.Definition != "" {
+	if ix.Definition != "" && !g.cross {
 		return strings.TrimRight(strings.TrimSpace(ix.Definition), "; \n\t")
 	}
 	if g.style.Index != nil {
@@ -459,9 +602,77 @@ func genericIndex(table string, ix Index, q func(string) string) string {
 	return sql
 }
 
-// view writes a view from its definition.
+// identities writes the statements that set the next value of each identity
+// column from the rows, for a product that does not follow the rows itself.
+func (g *generator) identities() {
+	if g.style.IdentityValue == nil {
+		return
+	}
+	for _, sc := range g.snap.Schemas {
+		for _, t := range sc.Tables {
+			for _, c := range t.Columns {
+				if c.Identity == "" && (g.cross || c.Default == nil || !isNextval(*c.Default)) {
+					continue
+				}
+				g.add(Statement{Stage: Post, Kind: "sequence value", Name: sc.Name + "." + t.Name + "." + c.Name,
+					SQL: g.style.IdentityValue(g.qualified(sc.Name, t.Name), g.style.Quote(c.Name), c.Name, g.style.Literal)})
+			}
+		}
+	}
+}
+
+// views writes the views, each after the views that it reads. A source that did
+// not say what a view reads gets the views in order of name, and the first
+// statement says that the order is not checked, so that a client can run a view
+// that failed again once the others exist.
+func (g *generator) views() {
+	type entry struct {
+		schema string
+		view   View
+	}
+	var all []entry
+	index := map[string]int{}
+	for _, sc := range g.snap.Schemas {
+		for _, v := range sc.Views {
+			index[sc.Name+"."+v.Name] = len(all)
+			all = append(all, entry{sc.Name, v})
+		}
+	}
+	state := make([]int, len(all))
+	var order []int
+	var visit func(i int)
+	visit = func(i int) {
+		if state[i] != 0 {
+			return
+		}
+		state[i] = 1
+		for _, dep := range all[i].view.DependsOn {
+			if j, ok := index[dep]; ok {
+				visit(j)
+			}
+		}
+		order = append(order, i)
+	}
+	for i := range all {
+		visit(i)
+	}
+	for n, i := range order {
+		e := all[i]
+		st := Statement{Stage: Post, Kind: "view", Name: e.schema + "." + e.view.Name, SQL: g.view(e.schema, e.view), Untranslated: g.cross}
+		if n == 0 && len(all) > 1 && !g.snap.ViewDependencies {
+			st.Note = "the order of the views is by name and is not checked, because the source did not say what each view reads"
+		}
+		g.add(st)
+	}
+}
+
+// view writes a view from its definition. For another dialect the head of the
+// source's own statement is taken off, and the target writes its own.
 func (g *generator) view(schema string, v View) string {
 	name := g.qualified(schema, v.Name)
+	if g.cross {
+		return "CREATE VIEW " + name + " AS " + viewQuery(v.Definition)
+	}
 	if g.style.View != nil {
 		return g.style.View(name, v)
 	}
@@ -472,23 +683,28 @@ func (g *generator) view(schema string, v View) string {
 // trigger writes a trigger from what the source keeps.
 func (g *generator) trigger(schema string, t Table, tg Trigger) {
 	name := schema + "." + t.Name + "." + tg.Name
-	if g.style.Trigger != nil {
+	def := strings.TrimSpace(tg.Definition)
+	hasStatement := strings.HasPrefix(strings.ToLower(def), "create")
+	missing := Statement{Stage: Post, Kind: "trigger", Name: name, Untranslated: g.cross,
+		Note: "the source keeps no statement that creates this trigger, so it is not written"}
+	switch {
+	case g.cross && hasStatement:
+		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, Untranslated: true, SQL: strings.TrimRight(def, "; \n\t")})
+	case g.cross:
+		g.add(missing)
+	case g.style.Trigger != nil:
 		sql := g.style.Trigger(g.qualified(schema, t.Name), tg, g.style.Quote)
 		if sql == "" {
-			g.add(Statement{Stage: Post, Kind: "trigger", Name: name,
-				Note: "the definition of this trigger is not in a form that the dump reads, so it is not written"})
+			missing.Note = "the definition of this trigger is not in a form that the dump reads, so it is not written"
+			g.add(missing)
 			return
 		}
 		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: sql})
-		return
+	case hasStatement:
+		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: strings.TrimRight(def, "; \n\t")})
+	default:
+		g.add(missing)
 	}
-	def := strings.TrimSpace(tg.Definition)
-	if !strings.HasPrefix(strings.ToLower(def), "create") {
-		g.add(Statement{Stage: Post, Kind: "trigger", Name: name,
-			Note: "the source keeps no statement that creates this trigger, so it is not written"})
-		return
-	}
-	g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: strings.TrimRight(def, "; \n\t")})
 }
 
 // comments writes the comment of each table and column, for a product that sets
@@ -514,4 +730,10 @@ func (g *generator) comments() {
 			}
 		}
 	}
+}
+
+// isNextval reports whether a default reads the next value of a sequence, which is
+// how PostgreSQL writes a serial column.
+func isNextval(def string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(def)), "nextval(")
 }

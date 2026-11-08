@@ -163,7 +163,7 @@ call and filter in the loop.
 
 | Database   | Model              | Queries | Status      |
 | ---------- | ------------------ | ------- | ----------- |
-| PostgreSQL | native             | 67      | Complete    |
+| PostgreSQL | native             | 68      | Complete    |
 | any with an information_schema | shared | 12 | Ready to build on |
 | MariaDB    | native             | 31      | Complete    |
 | MySQL      | native             | 28      | Complete    |
@@ -216,7 +216,7 @@ call and filter in the loop.
 
 A native model reads the catalog the database keeps for itself. A shared model
 reads `information_schema`, which is a smaller answer that many databases have.
-It answers 12 object kinds where the native PostgreSQL model answers 67, and
+It answers 12 object kinds where the native PostgreSQL model answers 68, and
 answers none of them completely: no size, owner or access method for a table,
 no storage or index detail for a column, no exclusion constraint, no aggregate.
 
@@ -239,7 +239,7 @@ indexes, and the native model here answers 32 kinds instead, including the
 sequences and constraints that reader turns off.
 
 [`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
-and which analogues were found and rejected. MariaDB answers 31 of the 67 and
+and which analogues were found and rejected. MariaDB answers 31 of the 68 and
 MySQL answers 27, because a native model beats the shared one by seventeen.
 
 MariaDB and MySQL share one model. A query written for one of them gates on the
@@ -357,7 +357,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for Ken. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 277 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 125 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 278 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 125 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

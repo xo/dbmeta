@@ -35,7 +35,7 @@
 //
 // # What it answers
 //
-// 18 of the 67. Tables, schemas, columns, views, constraints, constraint
+// 18 of the 68. Tables, schemas, columns, views, constraints, constraint
 // columns, not nulls, partitioned tables, partitions, functions, roles, role grants, privileges,
 // comments, column statistics, access methods, the current schema and the
 // current user.

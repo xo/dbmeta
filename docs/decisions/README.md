@@ -296,3 +296,4 @@ file.
 | [D275](D275-dump-names-the-types-of-dbimp-and-imports-none-of-them.md) | dump names the types of dbimp and imports none of them | Decided |
 | [D276](D276-the-mysql-model-reads-what-a-dump-needs-of-a-column-and-a-key.md) | The MySQL model reads what a dump needs of a column and a key | Decided |
 | [D277](D277-databases-whose-image-fails-to-pull-are-not-in-ci.md) | Databases whose image fails to pull are not in CI | Amends D40, D42 and D119 |
+| [D278](D278-the-views-that-a-view-reads-are-a-kind-of-their-own.md) | The views that a view reads are a kind of their own | Decided |

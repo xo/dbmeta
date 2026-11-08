@@ -249,6 +249,7 @@ object model and does not set the column set.
 | `dbmeta.RoutineParameters` | `RoutineParameter` | `psql` prints a signature as one line, which `Function.ArgTypes` still holds |
 | `dbmeta.EnumValues` | `EnumValue` | `\dT+` prints the labels joined into one string, which `Type.Elements` still holds |
 | `dbmeta.Views` | `View` | `\d name` on a view prints the definition, and `\sv` shows it outside `describe.c` |
+| `dbmeta.ViewDependencies` | `ViewDependency` | `psql` shows the dependents of a relation only in `\d+` of a table. A dump needs the views that a view reads (D278) |
 | `dbmeta.ColumnStats` | `ColumnStat` | `psql` has no such command. `usql` added `\ss` |
 | `dbmeta.CurrentSchema` | `Schema` | session state rather than an object. `dbtpl` reads it in every loader |
 | `dbmeta.CurrentUser` | `User` | session state rather than an object. It came from auditing `usql` (D55) |

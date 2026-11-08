@@ -31,6 +31,10 @@ type Snapshot struct {
 	Server string `json:"server,omitempty"`
 
 	Schemas []Schema `json:"schemas"`
+	// ViewDependencies is true when the source answered which relations each view
+	// reads, so that an empty View.DependsOn means that the view reads no other
+	// view. When it is false the order of the views is not known.
+	ViewDependencies bool `json:"view_dependencies,omitempty"`
 	// Skipped lists the objects that the reader saw and did not read, with the
 	// reason, so that nothing is left out without a record.
 	Skipped []Skipped `json:"skipped,omitempty"`
@@ -162,10 +166,12 @@ type Trigger struct {
 // View is a view. Its definition is the text of the source and is not
 // translated.
 type View struct {
-	Name        string `json:"name"`
-	Definition  string `json:"definition,omitempty"`
-	CheckOption string `json:"check_option,omitempty"`
-	Comment     string `json:"comment,omitempty"`
+	Name string `json:"name"`
+	// DependsOn lists the views that this view reads, as schema.name, in order.
+	DependsOn   []string `json:"depends_on,omitempty"`
+	Definition  string   `json:"definition,omitempty"`
+	CheckOption string   `json:"check_option,omitempty"`
+	Comment     string   `json:"comment,omitempty"`
 }
 
 // Sequence is a sequence.

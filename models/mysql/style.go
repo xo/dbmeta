@@ -19,6 +19,7 @@ func init() {
 		Column:        column,
 		TableOptions:  tableOptions,
 		Index:         index,
+		KeyType:       keyType,
 		Trigger:       trigger,
 	})
 }
@@ -56,11 +57,18 @@ func column(c dump.Column, typeSQL string, q func(string) string, lit func(strin
 		b.WriteString(" NOT NULL")
 	}
 	if !generated && c.Default != nil {
+		text := *c.Default
 		if c.DefaultLiteral {
-			b.WriteString(" DEFAULT " + lit(*c.Default))
-		} else {
-			b.WriteString(" DEFAULT " + *c.Default)
+			text = lit(text)
 		}
+		// A text, a blob and a JSON column take a default only as an expression,
+		// which is in brackets.
+		if lower := strings.ToLower(typeSQL); strings.Contains(lower, "text") || strings.Contains(lower, "blob") || lower == "json" {
+			if !strings.HasPrefix(text, "(") {
+				text = "(" + text + ")"
+			}
+		}
+		b.WriteString(" DEFAULT " + text)
 	}
 	if c.Identity != "" {
 		b.WriteString(" AUTO_INCREMENT")
@@ -122,4 +130,20 @@ func trigger(table string, tg dump.Trigger, q func(string) string) string {
 	}
 	return "CREATE TRIGGER " + q(tg.Name) + " " + strings.ToUpper(m[1]) + " " + strings.ToUpper(m[2]) +
 		" ON " + table + " FOR EACH ROW " + strings.TrimSpace(m[3])
+}
+
+// keyType gives a text or a binary value of no length a length, because MySQL
+// cannot key a column of the types that have none. The length is the longest that
+// every storage engine keys.
+func keyType(t dump.Type) (dump.Rendering, bool) {
+	const length = "255"
+	switch {
+	case t.Kind == dump.String && len(t.Values) == 0 && t.Length == 0 && !t.Fixed:
+		return dump.Rendering{SQL: "varchar(" + length + ")", Level: dump.Lossy,
+			Note: "MySQL cannot key a text with no length, so the column is a varchar of " + length}, true
+	case t.Kind == dump.Binary && t.Length == 0:
+		return dump.Rendering{SQL: "varbinary(" + length + ")", Level: dump.Lossy,
+			Note: "MySQL cannot key a blob with no length, so the column is a varbinary of " + length}, true
+	}
+	return dump.Rendering{}, false
 }

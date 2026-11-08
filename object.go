@@ -1391,6 +1391,22 @@ type View struct {
 	Comment     sql.Null[string]
 }
 
+// ViewDependency says that a view reads a relation. A view that reads three
+// tables has three rows.
+//
+// It is durable. It is a separate kind rather than a field on [View], because a
+// view has many and a child of an object is its own kind with flat rows (D47).
+type ViewDependency struct {
+	Schema string
+	// View is the name of the view.
+	View string
+	// ReferencedSchema and Referenced name the relation that the view reads.
+	ReferencedSchema string
+	Referenced       string
+	// ReferencedType is table, view or materialized view, in lower case.
+	ReferencedType string
+}
+
 // ColumnStat is what the planner knows about the values in a column.
 //
 // It is runtime and it can be stale. Every database here computes it when
@@ -1432,6 +1448,9 @@ var (
 	EnumValues = NewQuery[EnumValue]("enum_values")
 	// Views lists views and the statements that define them.
 	Views = NewQuery[View]("views")
+	// ViewDependencies lists, for each view, the relations that its query reads,
+	// which a dump needs to write one view after the views it reads. See D278.
+	ViewDependencies = NewQuery[ViewDependency]("view_dependencies")
 	// ColumnStats lists what the planner knows about a column's values.
 	ColumnStats = NewQuery[ColumnStat]("column_stats")
 	// CurrentSchema returns the schema an unqualified name resolves in.

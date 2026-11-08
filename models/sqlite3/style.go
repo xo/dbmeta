@@ -11,14 +11,21 @@ import (
 
 func init() {
 	dump.RegisterStyle(dbmeta.SQLite3, dump.Style{
-		Quote:                quoteIdentifier,
-		Literal:              literal,
-		DefaultSchema:        "main",
+		Quote:   quoteIdentifier,
+		Literal: literal,
+		// SQLite has one schema, and every schema of a snapshot is written into it.
+		DefaultSchema:        "*",
 		InlineConstraints:    true,
 		OrderFree:            true,
 		AnonymousConstraints: true,
-		ImplicitIndex:        func(_ dump.Table, ix dump.Index) bool { return strings.HasPrefix(ix.Name, "sqlite_autoindex_") },
-		View:                 definitionStatement,
+		// The tables can be written in any order, and the rows can be loaded in any
+		// order when the checks are off, and checked at the end. The pragma has no
+		// effect inside a transaction, so it comes before one. See docs/DUMP.md.
+		BeforeData:     []string{"PRAGMA foreign_keys = OFF"},
+		AfterData:      []string{"PRAGMA foreign_keys = ON", "PRAGMA foreign_key_check"},
+		CheckAfterData: "PRAGMA foreign_key_check",
+		ImplicitIndex:  func(_ dump.Table, ix dump.Index) bool { return strings.HasPrefix(ix.Name, "sqlite_autoindex_") },
+		View:           definitionStatement,
 	})
 }
 

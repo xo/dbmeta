@@ -50,7 +50,7 @@
 //
 // # What it answers
 //
-// 17 of the 67 on Cassandra, and 18 on ScyllaDB. Keyspaces as schemas,
+// 17 of the 68 on Cassandra, and 18 on ScyllaDB. Keyspaces as schemas,
 // tables, columns, materialized views as views, user defined types, indexes,
 // index columns, the primary key as a constraint and its columns, triggers,
 // comments, functions, aggregates, roles, role grants, privileges and

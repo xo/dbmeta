@@ -33,6 +33,17 @@ type Style struct {
 	// Preamble is the statements that begin a script, such as a setting that
 	// lets a function name a table that is not there yet.
 	Preamble []string
+	// BeforeData and AfterData are the statements that go round the rows. SQLite
+	// turns its foreign key checks off before the rows and checks at the end.
+	BeforeData []string
+	AfterData  []string
+	// CheckAfterData is the statement in AfterData that returns a row for each
+	// fault, and the dump fails when it returns one.
+	CheckAfterData string
+	// IdentityValue writes the statement that sets the next value of an identity
+	// column from the rows that were loaded. It is nil where the product follows
+	// the rows by itself, as MySQL and SQLite do.
+	IdentityValue func(quotedTable, quotedColumn, column string, literal func(string) string) string
 
 	// Column writes one column of a CREATE TABLE. It is nil for the generic form,
 	// which writes the name, the type, the default and NOT NULL.
@@ -43,6 +54,14 @@ type Style struct {
 	// unless OrderFree says that the product does not mind.
 	InlineConstraints bool
 	OrderFree         bool
+	// KeyType writes the type of a column that is in a key, when the product wants
+	// another than the one it writes for the same column elsewhere. MySQL cannot
+	// key a text or a blob without a length. The result is false when the type of
+	// the column is fine in a key.
+	KeyType func(t Type) (Rendering, bool)
+	// NoForeignKeyActions says that the product has no ON DELETE and ON UPDATE for
+	// a foreign key, so the rules are not written, and the table says so.
+	NoForeignKeyActions bool
 	// AnonymousConstraints says that a constraint is written with no name, because
 	// the product keeps no name that a person gave it, and the model makes one up.
 	AnonymousConstraints bool

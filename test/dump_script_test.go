@@ -100,6 +100,8 @@ var postgresRoundTrip = []string{
 	"CREATE INDEX item_price ON dump_rt.item (price DESC, qty)",
 	"CREATE UNIQUE INDEX item_mood_owner ON dump_rt.item (mood, owner_id)",
 	"CREATE VIEW dump_rt.cheap AS SELECT id, price FROM dump_rt.item WHERE price < 10",
+	// a_top sorts before cheap and reads it, so a script in order of name fails.
+	"CREATE VIEW dump_rt.a_top AS SELECT id FROM dump_rt.cheap WITH CASCADED CHECK OPTION",
 	"COMMENT ON TABLE dump_rt.item IS 'it''s a table'",
 	"COMMENT ON COLUMN dump_rt.item.note IS 'a note'",
 	`CREATE FUNCTION dump_rt.touch() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.note := 'x'; RETURN NEW; END $$`,
@@ -295,8 +297,14 @@ func TestMySQLScriptRoundTrips(t *testing.T) {
 // share no table with another test. The DSN of CI names no database.
 func openMySQLDump(t *testing.T) *sql.DB {
 	t.Helper()
+	return openMySQLNamed(t, "dbmeta_dump")
+}
+
+// openMySQLNamed opens a connection to a database of the given name, made empty
+// and dropped at the end.
+func openMySQLNamed(t *testing.T, name string) *sql.DB {
+	t.Helper()
 	admin := openMySQL(t)
-	const name = "dbmeta_dump"
 	for _, s := range []string{"DROP DATABASE IF EXISTS " + name, "CREATE DATABASE " + name} {
 		mustExec(t, admin, s)
 	}

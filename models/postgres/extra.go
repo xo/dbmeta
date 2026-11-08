@@ -19,6 +19,7 @@ func registerExtra() {
 	registerRoutineParameters()
 	registerEnumValues()
 	registerViews()
+	registerViewDependencies()
 	registerColumnStats()
 	registerCurrentSchema()
 }
@@ -337,6 +338,42 @@ func registerCurrentSchema() {
 		Scan: func(rows *sql.Rows) (dbmeta.Schema, error) {
 			var v dbmeta.Schema
 			err := rows.Scan(&v.Catalog, &v.Name, &v.Owner, &v.Comment)
+			return v, err
+		},
+	})
+}
+
+// registerViewDependencies backs the order of views in a dump. A view reads a
+// relation when its rewrite rule depends on it, which pg_depend records with the
+// type n for a normal dependency. The view depends on its own rule and on its
+// own columns, which are left out. See D278.
+func registerViewDependencies() {
+	dbmeta.ViewDependencies.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.ViewDependency]{
+		Stmt: dbmeta.Stmt{
+			{{Query: `SELECT DISTINCT vn.nspname AS "schema"`}},
+			{{Query: `, v.relname AS "view"`}},
+			{{Query: `, rn.nspname AS "referenced_schema"`}},
+			{{Query: `, r.relname AS "referenced"`}},
+			{{Query: `, CASE r.relkind WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view' ELSE 'table' END AS "referenced_type"`}},
+			{{Query: `FROM pg_catalog.pg_rewrite rw`}},
+			{{Query: `JOIN pg_catalog.pg_class v ON v.oid = rw.ev_class`}},
+			{{Query: `JOIN pg_catalog.pg_namespace vn ON vn.oid = v.relnamespace`}},
+			{{Query: `JOIN pg_catalog.pg_depend d ON d.classid = 'pg_catalog.pg_rewrite'::pg_catalog.regclass`}},
+			{{Query: `AND d.objid = rw.oid AND d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.deptype = 'n'`}},
+			{{Query: `JOIN pg_catalog.pg_class r ON r.oid = d.refobjid AND r.oid <> v.oid`}},
+			{{Query: `JOIN pg_catalog.pg_namespace rn ON rn.oid = r.relnamespace`}},
+			{{Query: `WHERE v.relkind IN ('v', 'm')`}},
+			{{Query: `AND r.relkind IN ('r', 'p', 'v', 'm', 'f')`}},
+			{{Query: `AND (@with_system OR (vn.nspname <> 'pg_catalog' AND vn.nspname <> 'information_schema'))`}},
+			{{Query: `AND (@schema = '' OR vn.nspname LIKE @schema)`}},
+			{{Query: `AND (@name = '' OR v.relname LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2, 3, 4`}},
+		},
+		Fields: fields("schema", "view", "referenced_schema", "referenced", "referenced_type"),
+		Params: schemaNameSystem("view"),
+		Scan: func(rows *sql.Rows) (dbmeta.ViewDependency, error) {
+			var v dbmeta.ViewDependency
+			err := rows.Scan(&v.Schema, &v.View, &v.ReferencedSchema, &v.Referenced, &v.ReferencedType)
 			return v, err
 		},
 	})
