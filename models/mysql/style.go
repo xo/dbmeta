@@ -44,7 +44,9 @@ func literal(s string) string {
 func column(c dump.Column, typeSQL string, q func(string) string, lit func(string) string) string {
 	var b strings.Builder
 	b.WriteString(q(c.Name) + " " + typeSQL)
-	if c.Collation != "" {
+	// The collation of a binary type is the word binary, which is the type and not
+	// a collation that a column can name.
+	if c.Collation != "" && !strings.EqualFold(c.Collation, "binary") {
 		b.WriteString(" COLLATE " + c.Collation)
 	}
 	generated := c.Generated != "" && c.Default != nil
@@ -62,7 +64,10 @@ func column(c dump.Column, typeSQL string, q func(string) string, lit func(strin
 		// explicit_defaults_for_timestamp off, which MariaDB before 10.10 has.
 		b.WriteString(" NULL")
 	}
-	if !generated && c.Default != nil {
+	// A default of NULL is no default, and MariaDB reports it for a nullable column
+	// that has none. A text column cannot take it as an expression in brackets.
+	nullDefault := c.Default != nil && c.Nullable && !c.DefaultLiteral && strings.EqualFold(strings.TrimSpace(*c.Default), "NULL")
+	if !generated && c.Default != nil && !nullDefault {
 		text := *c.Default
 		if c.DefaultLiteral {
 			text = lit(text)

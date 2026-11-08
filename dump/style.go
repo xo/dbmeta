@@ -66,6 +66,23 @@ type Style struct {
 	// timestamp, so an instant is written with +00:00. MySQL reads one only from
 	// 8.0.19 and MariaDB not at all, so an instant is the wall clock in UTC.
 	ZoneInTimestamps bool
+	// TypedNullBinary says that a NULL for a binary column is bound as a nil byte
+	// slice and not as an untyped nil. The driver of SQL Server sends the second as
+	// text, and the server refuses to convert it.
+	TypedNullBinary bool
+	// PrimaryKeyNotNull says that the product refuses a primary key over a column
+	// that can be NULL, so the table writes NOT NULL for each such column. SQLite
+	// accepts one, and a table that has one is written back the way it was read.
+	PrimaryKeyNotNull bool
+	// Boolean writes a boolean value, for a product that has no TRUE and FALSE
+	// in a default or in a row, such as 1 and 0 in SQL Server. It is nil where the
+	// words are right.
+	Boolean func(v bool) string
+	// IdentityInsert writes the statement that lets an INSERT give a value to an
+	// identity column of a table, and the one that ends it, for a product that
+	// has a session setting for it, such as SET IDENTITY_INSERT. Both run on the
+	// connection that runs the INSERT. It is nil for a product with no such rule.
+	IdentityInsert func(quotedTable string, on bool) string
 	// OverridingIdentity is the clause that lets an INSERT give a value to an
 	// identity column that the product always numbers, such as PostgreSQL's
 	// OVERRIDING SYSTEM VALUE. It is empty for a product with no such rule.
@@ -79,9 +96,18 @@ type Style struct {
 	// NoForeignKeyActions says that the product has no ON DELETE and ON UPDATE for
 	// a foreign key, so the rules are not written, and the table says so.
 	NoForeignKeyActions bool
+	// NoRestrict says that the product has no RESTRICT for a foreign key and that
+	// NO ACTION is the same rule, as SQL Server has it.
+	NoRestrict bool
 	// AnonymousConstraints says that a constraint is written with no name, because
 	// the product keeps no name that a person gave it, and the model makes one up.
 	AnonymousConstraints bool
+	// RefuseConstraint returns the reason that the product cannot hold a constraint
+	// of a table, or the empty string when it can. A constraint that it refuses is
+	// not written, and the script says why, so that the client can warn. SingleStore
+	// has no foreign key and takes only a unique key that holds every column of its
+	// primary key.
+	RefuseConstraint func(t Table, c Constraint) string
 	// TableOptions writes what follows the closing bracket of CREATE TABLE.
 	TableOptions func(t Table, literal func(string) string) string
 	// ImplicitIndex says that the product builds an index of its own for a

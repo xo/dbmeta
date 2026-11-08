@@ -19,13 +19,31 @@ var (
 	timeDefault    = regexp.MustCompile(`(?i)^(current_time|curtime\(\))(\(\d*\))?$`)
 	boolDefault    = regexp.MustCompile(`(?i)^(true|false)$`)
 	nullDefault    = regexp.MustCompile(`(?i)^null(::[A-Za-z_ ]+)?$`)
-	createViewHead = regexp.MustCompile(`(?is)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:TEMP(?:ORARY)?\s+)?VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"[^"]+"|` + "`[^`]+`" + `|\[[^\]]+\]|[\w.]+)(?:\s*\.\s*(?:"[^"]+"|` + "`[^`]+`" + `|[\w]+))?\s+AS\s+`)
+	createViewHead = regexp.MustCompile(`(?is)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:TEMP(?:ORARY)?\s+)?VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"[^"]+"|` + "`[^`]+`" + `|\[[^\]]+\]|[\w.]+)(?:\s*\.\s*(?:"[^"]+"|` + "`[^`]+`" + `|\[[^\]]+\]|[\w]+))?\s+AS\s+`)
 )
 
 // portableDefault writes the default of a column for the target, when it is one
 // that every product writes the same way: a number, a string, a boolean, NULL, or
 // the current time or date. The second result is false for any other default.
 func portableDefault(source, target dbmeta.Dialect, c Column) (string, bool) {
+	text, ok := portableDefaultText(source, target, c)
+	if !ok {
+		return text, ok
+	}
+	if style, err := styleOf(target); err == nil && style.Boolean != nil {
+		switch text {
+		case "TRUE":
+			return style.Boolean(true), true
+		case "FALSE":
+			return style.Boolean(false), true
+		}
+	}
+	return text, ok
+}
+
+// portableDefaultText is portableDefault before the words of a boolean are chosen
+// for the target.
+func portableDefaultText(source, target dbmeta.Dialect, c Column) (string, bool) {
 	if c.Default == nil {
 		return "", false
 	}

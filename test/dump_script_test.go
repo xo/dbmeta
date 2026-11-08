@@ -121,7 +121,7 @@ var postgresRoundTrip = []string{
 	"CREATE INDEX item_note ON dump_rt.item (lower(note)) WHERE note IS NOT NULL",
 	"CREATE INDEX item_price ON dump_rt.item (price DESC, qty)",
 	"CREATE UNIQUE INDEX item_mood_owner ON dump_rt.item (mood, owner_id)",
-	"CREATE VIEW dump_rt.cheap AS SELECT id, price FROM dump_rt.item WHERE price < 10",
+	"CREATE VIEW [dump_rt].[cheap] AS SELECT id, price FROM dump_rt.item WHERE price < 10",
 	// a_top sorts before cheap and reads it, so a script in order of name fails.
 	"CREATE VIEW dump_rt.a_top AS SELECT id FROM dump_rt.cheap WITH CASCADED CHECK OPTION",
 	"COMMENT ON TABLE dump_rt.item IS 'it''s a table'",
@@ -342,4 +342,70 @@ func openMySQLNamed(t *testing.T, name string) *sql.DB {
 	}
 	t.Cleanup(func() { db.Close() })
 	return db
+}
+
+// sqlServerRoundTrip is a schema with one of each object that SQL Server has and
+// the dump reads: an identity column, a computed column, a check, a default, a
+// unique key, a foreign key, an index with an included column and a filter, a
+// sequence and two views, one reading the other.
+var sqlServerRoundTrip = []string{
+	"CREATE SCHEMA dump_rt",
+	"CREATE SEQUENCE dump_rt.counter AS bigint START WITH 10 INCREMENT BY 5 MINVALUE 10 MAXVALUE 1000 CYCLE",
+	`CREATE TABLE dump_rt.owner (
+		id int IDENTITY(1,1) PRIMARY KEY,
+		name nvarchar(40) NOT NULL UNIQUE)`,
+	`CREATE TABLE dump_rt.item (
+		id int NOT NULL PRIMARY KEY,
+		owner_id int NOT NULL REFERENCES dump_rt.owner (id) ON DELETE CASCADE,
+		price decimal(10,2) CHECK (price >= 0),
+		qty int NULL DEFAULT 1,
+		total AS (price * qty) PERSISTED,
+		made datetime2(3) NULL DEFAULT (getdate()),
+		active bit NOT NULL DEFAULT 1,
+		note nvarchar(100) NULL,
+		data varbinary(max) NULL)`,
+	"CREATE INDEX item_note ON dump_rt.item (note) INCLUDE (qty) WHERE note IS NOT NULL",
+	"CREATE UNIQUE INDEX item_owner_note ON dump_rt.item (owner_id, note DESC)",
+	"CREATE VIEW [dump_rt].[cheap] AS SELECT id, price FROM dump_rt.item WHERE price < 10",
+	// a_top sorts before cheap and reads it, so a script in order of name fails.
+	"CREATE VIEW [dump_rt].[a_top] AS SELECT id FROM dump_rt.cheap",
+}
+
+// TestSQLServerScriptRoundTrips writes a script for a schema that has one of each
+// object, runs it on an empty database, and compares the two snapshots.
+func TestSQLServerScriptRoundTrips(t *testing.T) {
+	db := openSQLServerNamed(t, "dbmeta_dump")
+	m := metaFor(t, dbmeta.SQLServer, db)
+	for _, s := range sqlServerRoundTrip {
+		mustExec(t, db, s)
+	}
+	filter := dump.Filter{Schemas: []string{"dump_rt"}}
+	first, err := dump.Read(t.Context(), m, db, filter)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	want, err := first.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmts := scriptOf(t, first, dbmeta.SQLServer)
+	// The copy goes in a database of its own, so the same names are free.
+	copyDB := openSQLServerNamed(t, "dbmeta_dump_copy")
+	runScript(t, copyDB, stmts)
+	second, err := dump.Read(t.Context(), metaFor(t, dbmeta.SQLServer, copyDB), copyDB, filter)
+	if err != nil {
+		t.Fatalf("reading the copy: %v", err)
+	}
+	got, err := second.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("the copy differs from the source:\n%s", lineDiff(string(want), string(got)))
+		var script strings.Builder
+		for _, st := range stmts {
+			script.WriteString(st.SQL + ";\n")
+		}
+		t.Logf("script:\n%s", script.String())
+	}
 }

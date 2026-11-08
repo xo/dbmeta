@@ -34,7 +34,7 @@ rather than reading one.
 | `models/mysql` | 31 on MariaDB, 28 on MySQL | 68 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
 | `models/sqlite3` | 15 | 68 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
 | `models/duckdb` | 22 | 68 | duckdb/duckdb-go, the driver usql uses |
-| `models/sqlserver` | 35 | 68 | SQL Server 2017, 2019, 2022 and 2025 |
+| `models/sqlserver` | 36 | 68 | SQL Server 2017, 2019, 2022 and 2025 |
 | `models/oracle` | 30 | 68 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 68 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
 | `models/clickhouse` | 26 | 68 | ClickHouse 25.3, 25.8, 26.8 and 26.9 |
@@ -2756,7 +2756,7 @@ replication.
 
 ## Microsoft SQL Server
 
-SQL Server answers 35 of the 68, more than SAP HANA and fewer than only
+SQL Server answers 36 of the 68, more than SAP HANA and fewer than only
 PostgreSQL and CockroachDB, which shares the PostgreSQL model. It is the only
 one of its own model with roles, privileges, tablespaces and DDL triggers, and
 the only one that keeps comments in a catalog of their own rather than on the

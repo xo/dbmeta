@@ -276,6 +276,11 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 		if !ok {
 			continue
 		}
+		// A default constraint of SQL Server is the default of its column, which
+		// the column already holds.
+		if strings.EqualFold(strings.TrimSpace(c.Type), "default") {
+			continue
+		}
 		con := Constraint{
 			Name: c.Name, Kind: strings.ToLower(strings.TrimSpace(c.Type)),
 			Definition: text(c.Definition), OnUpdate: text(c.OnUpdate), OnDelete: text(c.OnDelete),
@@ -313,8 +318,9 @@ func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableK
 	for _, c := range icols {
 		k := childKey{c.Schema, c.Table, c.Index}
 		col := IndexColumn{Descending: c.Descending.Valid && c.Descending.V, Include: c.Include}
-		// A plain column has the expression that equals its name.
-		if c.Name.Valid && (!c.Expression.Valid || c.Expression.V == c.Name.V) {
+		// A plain column has the expression that equals its name. An included column
+		// is a plain one, whatever a model puts in its expression.
+		if c.Name.Valid && (c.Include || !c.Expression.Valid || c.Expression.V == c.Name.V) {
 			col.Name = c.Name.V
 		} else {
 			col.Expression = text(c.Expression)
@@ -327,6 +333,11 @@ func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableK
 	for _, i := range idxs {
 		t, ok := kept[tableKey{i.Schema, i.Table}]
 		if !ok {
+			continue
+		}
+		// SingleStore keeps an index of its own for the shard key of a table, which a
+		// person did not write and which the product makes again.
+		if r.m.Dialect() == dbmeta.MemSQL && i.Name == "__SHARDKEY" {
 			continue
 		}
 		t.Indexes = append(t.Indexes, Index{

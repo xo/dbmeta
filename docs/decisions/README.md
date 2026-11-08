@@ -298,3 +298,4 @@ file.
 | [D277](D277-databases-whose-image-fails-to-pull-are-not-in-ci.md) | Databases whose image fails to pull are not in CI | Amends D40, D42 and D119 |
 | [D278](D278-the-views-that-a-view-reads-are-a-kind-of-their-own.md) | The views that a view reads are a kind of their own | Decided |
 | [D279](D279-the-published-ports-are-below-the-ephemeral-range.md) | The published ports are below the ephemeral range | Amends D68 |
+| [D280](D280-a-product-with-the-sql-of-another-shares-its-dump.md) | A product with the SQL of another shares its dump | Decided |

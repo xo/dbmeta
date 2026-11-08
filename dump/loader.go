@@ -25,6 +25,7 @@ type Loader struct {
 	cols           []loadColumn
 	key            []string
 	override       bool
+	identity       bool
 }
 
 // loadColumn is a column that the loader moves.
@@ -79,6 +80,9 @@ func NewLoader(s *Snapshot, schema, table string, target dbmeta.Dialect, p Polic
 		}
 		cp := byName[schema+"."+table+"."+c.Name]
 		l.cols = append(l.cols, loadColumn{name: c.Name, from: c.Type, to: cp.Type})
+		if c.Identity != "" {
+			l.identity = true
+		}
 		if source == target && (strings.EqualFold(c.Identity, "a") || strings.EqualFold(c.Identity, "always")) {
 			l.override = true
 		}
@@ -92,6 +96,26 @@ func NewLoader(s *Snapshot, schema, table string, target dbmeta.Dialect, p Polic
 		return nil, fmt.Errorf("the table %s.%s has no column to move: %w", schema, table, dbmeta.ErrNotFound)
 	}
 	return l, nil
+}
+
+// Prologue returns the statement that the client runs before the INSERT of this
+// table, or the empty string. SQL Server needs SET IDENTITY_INSERT for a table
+// with an identity column, and the statement holds for the connection that runs
+// it, so the client runs the Prologue, the inserts and the Epilogue on one
+// connection.
+func (l *Loader) Prologue() string {
+	if l.identity && l.dst.IdentityInsert != nil {
+		return l.dst.IdentityInsert(l.qualify(l.dst), true)
+	}
+	return ""
+}
+
+// Epilogue returns the statement that ends the Prologue, or the empty string.
+func (l *Loader) Epilogue() string {
+	if l.identity && l.dst.IdentityInsert != nil {
+		return l.dst.IdentityInsert(l.qualify(l.dst), false)
+	}
+	return ""
 }
 
 // Columns returns the names of the columns that the loader moves, in order.
@@ -194,6 +218,13 @@ func (l *Loader) Args(rows [][]any) ([]any, error) {
 			if err != nil {
 				return nil, fmt.Errorf("the column %s.%s.%s of row %d: %w", l.schema, l.table, c.name, i+1, err)
 			}
+			// A NULL of a binary column is a typed nil for a product whose driver sends
+			// an untyped NULL as text, which the server refuses for a varbinary column.
+			// Another driver can read a typed nil as an empty value, so it is not
+			// the rule for every product.
+			if conv == nil && c.to.Kind == Binary && l.dst.TypedNullBinary {
+				conv = []byte(nil)
+			}
 			out = append(out, conv)
 		}
 	}
@@ -229,6 +260,9 @@ func (l *Loader) literal(c loadColumn, v any) (string, error) {
 	case nil:
 		return "NULL", nil
 	case bool:
+		if l.dst.Boolean != nil {
+			return l.dst.Boolean(x), nil
+		}
 		if x {
 			return "TRUE", nil
 		}

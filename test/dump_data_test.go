@@ -24,7 +24,7 @@ var (
 	dataItem = [][]any{
 		{int64(1), int64(1), "12.50", int64(7), "hello", time.Date(2024, 2, 29, 13, 14, 15, 0, time.UTC), time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), []byte{0, 1, 0xfe, 0xff}},
 		{int64(2), int64(2), "-0.25", int64(-2147483648), "it's", time.Date(1999, 12, 31, 23, 59, 59, 0, time.UTC), time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), []byte{}},
-		{int64(3), int64(2), nil, nil, nil, nil, nil, nil},
+		{int64(3), int64(2), nil, nil, nil, nil, nil, []byte(nil)},
 	}
 )
 
@@ -132,7 +132,7 @@ func TestRowsMoveBetweenDialects(t *testing.T) {
 			// The index of PostgreSQL and of DuckDB keeps the schema in its definition,
 			// which the test renames, so the round trip test of the script covers the
 			// same product.
-			if src.name == dst.name && (src.name == "postgres" || src.name == "duckdb") {
+			if src.name == dst.name && (src.name == "postgres" || src.name == "duckdb" || src.name == "cockroachdb" || src.shared) {
 				continue
 			}
 			for _, form := range []string{"literal", "args"} {
@@ -211,6 +211,18 @@ func moveRows(t *testing.T, srcDB, dstDB *sql.DB, snap *dump.Snapshot, src, dst 
 	// is written for the product directly.
 	query := "SELECT " + strings.Join(l.Columns(), ", ") + " FROM " + src.table("src", table) + " ORDER BY " + l.Columns()[0]
 	cells := readCells(t, srcDB, query)
+	// A statement that lets an INSERT number an identity column holds for one
+	// connection, so the whole table goes through one.
+	conn, err := dstDB.Conn(t.Context())
+	if err != nil {
+		t.Fatalf("taking a connection: %v", err)
+	}
+	defer conn.Close()
+	if p := l.Prologue(); p != "" {
+		if _, err := conn.ExecContext(t.Context(), p); err != nil {
+			t.Fatalf("%s: %v", p, err)
+		}
+	}
 	for start := 0; start < len(cells); start += l.BatchSize() {
 		batch := cells[start:min(start+l.BatchSize(), len(cells))]
 		switch form {
@@ -219,15 +231,22 @@ func moveRows(t *testing.T, srcDB, dstDB *sql.DB, snap *dump.Snapshot, src, dst 
 			if err != nil {
 				t.Fatalf("writing the INSERT of %s: %v", table, err)
 			}
-			mustExec(t, dstDB, stmt)
+			if _, err := conn.ExecContext(t.Context(), stmt); err != nil {
+				t.Fatalf("%s: %v", stmt, err)
+			}
 		default:
 			args, err := l.Args(batch)
 			if err != nil {
 				t.Fatalf("converting the rows of %s: %v", table, err)
 			}
-			if _, err := dstDB.ExecContext(t.Context(), l.InsertArgs(len(batch)), args...); err != nil {
+			if _, err := conn.ExecContext(t.Context(), l.InsertArgs(len(batch)), args...); err != nil {
 				t.Fatalf("%s: %v", l.InsertArgs(len(batch)), err)
 			}
+		}
+	}
+	if e := l.Epilogue(); e != "" {
+		if _, err := conn.ExecContext(t.Context(), e); err != nil {
+			t.Fatalf("%s: %v", e, err)
 		}
 	}
 }

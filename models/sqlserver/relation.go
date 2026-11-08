@@ -334,9 +334,12 @@ func registerRelations() {
 				`   ELSE CAST(c.max_length / 2 AS varchar(8)) END + ')'` +
 				` WHEN ty.name IN ('decimal', 'numeric')` +
 				`  THEN '(' + CAST(c.precision AS varchar(8)) + ',' + CAST(c.scale AS varchar(8)) + ')'` +
+				` WHEN ty.name IN ('datetime2', 'datetimeoffset', 'time')` +
+				`  THEN '(' + CAST(c.scale AS varchar(8)) + ')'` +
 				` ELSE '' END AS "data_type"`),
 			always(`, c.is_nullable AS "nullable"`),
-			always(`, d.definition AS "default"`),
+			// A computed column has no default, so its expression takes the place.
+			always(`, CASE WHEN c.is_computed = 1 THEN cc.definition ELSE d.definition END AS "default"`),
 			// One more join, to the primary key index of the object.
 			always(`, CAST(CASE WHEN EXISTS (SELECT 1 FROM sys.index_columns ic` +
 				` JOIN sys.indexes i ON i.object_id = ic.object_id AND i.index_id = ic.index_id` +
@@ -367,10 +370,10 @@ func registerRelations() {
 			{Name: "ordinal", Desc: "one based, which is how column_id counts"},
 			{
 				Name: "data_type",
-				Desc: "the declared type with its length, precision and scale. An nvarchar length is halved, because max_length counts bytes",
+				Desc: "the declared type with its length, precision and scale, and the digits of a second of a time. An nvarchar length is halved, because max_length counts bytes",
 			},
 			{Name: "nullable"},
-			{Name: "default", Desc: "the default expression as SQL Server stores it, in brackets"},
+			{Name: "default", Desc: "the default expression as SQL Server stores it, in brackets, and for a computed column its expression"},
 			{Name: "primary_key"},
 			{Name: "identity", Desc: "identity for an IDENTITY column, and absent otherwise"},
 			{Name: "generated", Desc: "stored for a persisted computed column, virtual for one computed on read"},
@@ -572,6 +575,38 @@ func registerRelations() {
 		},
 	})
 
+	// ViewDependencies backs the order of views in a dump. A view reads a relation
+	// when sql_expression_dependencies names it. The row of a name that the server
+	// did not resolve has no referenced_id, and the join leaves it out. See D278.
+	dbmeta.ViewDependencies.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.ViewDependency]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT DISTINCT s.name AS "schema"`),
+			always(`, v.name AS "view"`),
+			always(`, rs.name AS "referenced_schema"`),
+			always(`, r.name AS "referenced"`),
+			always(`, CASE r.type WHEN 'V' THEN 'view' ELSE 'table' END AS "referenced_type"`),
+			always(`FROM sys.sql_expression_dependencies d`),
+			always(`JOIN sys.views v ON v.object_id = d.referencing_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = v.schema_id`),
+			always(`JOIN sys.objects r ON r.object_id = d.referenced_id AND r.object_id <> v.object_id`),
+			always(`JOIN sys.schemas rs ON rs.schema_id = r.schema_id`),
+			always(`WHERE r.type IN ('U', 'V')`),
+			always(`AND ` + notSystem),
+			always(`AND (@schema = '' OR s.name LIKE @schema)`),
+			always(`AND (@name = '' OR v.name LIKE @name)`),
+			always(`ORDER BY 1, 2, 3, 4`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "view"}, {Name: "referenced_schema"}, {Name: "referenced"}, {Name: "referenced_type"},
+		},
+		Params: schemaNameSystem("view"),
+		Scan: func(rows *sql.Rows) (dbmeta.ViewDependency, error) {
+			var v dbmeta.ViewDependency
+			err := rows.Scan(&v.Schema, &v.View, &v.ReferencedSchema, &v.Referenced, &v.ReferencedType)
+			return v, err
+		},
+	})
+
 	dbmeta.Views.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.View]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT DB_NAME() AS "catalog"`),
@@ -672,6 +707,8 @@ func registerConstraints() {
 			always(`, CAST(0 AS bit) AS "deferred"`),
 			always(`, ` + commentOn("k.object_id") + ` AS "comment"`),
 			always(`, CAST(1 AS bit) AS "enforced"`),
+			always(`, NULL AS "on_update"`),
+			always(`, NULL AS "on_delete"`),
 			always(`FROM sys.key_constraints k`),
 			always(`JOIN sys.objects o ON o.object_id = k.parent_object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -683,7 +720,9 @@ func registerConstraints() {
 			always(`UNION ALL`),
 			always(`SELECT s.name, o.name, f.name, 'foreign key', NULL,` +
 				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("f.object_id") +
-				`, CAST(CASE WHEN f.is_disabled = 1 THEN 0 ELSE 1 END AS bit)`),
+				`, CAST(CASE WHEN f.is_disabled = 1 THEN 0 ELSE 1 END AS bit)` +
+				`, REPLACE(f.update_referential_action_desc, '_', ' ')` +
+				`, REPLACE(f.delete_referential_action_desc, '_', ' ')`),
 			always(`FROM sys.foreign_keys f`),
 			always(`JOIN sys.objects o ON o.object_id = f.parent_object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -695,7 +734,7 @@ func registerConstraints() {
 			always(`UNION ALL`),
 			always(`SELECT s.name, o.name, c.name, 'check', c.definition,` +
 				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("c.object_id") +
-				`, CAST(CASE WHEN c.is_disabled = 1 THEN 0 ELSE 1 END AS bit)`),
+				`, CAST(CASE WHEN c.is_disabled = 1 THEN 0 ELSE 1 END AS bit), NULL, NULL`),
 			always(`FROM sys.check_constraints c`),
 			always(`JOIN sys.objects o ON o.object_id = c.parent_object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -710,7 +749,7 @@ func registerConstraints() {
 			always(`UNION ALL`),
 			always(`SELECT s.name, o.name, d.name, 'default', d.definition,` +
 				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("d.object_id") +
-				`, CAST(1 AS bit)`),
+				`, CAST(1 AS bit), NULL, NULL`),
 			always(`FROM sys.default_constraints d`),
 			always(`JOIN sys.objects o ON o.object_id = d.parent_object_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -741,12 +780,14 @@ func registerConstraints() {
 				Name: "enforced",
 				Desc: "false for a foreign key or a check constraint that was disabled with NOCHECK CONSTRAINT, and true for every other. A constraint that was enabled WITH NOCHECK is enforced for new rows and its is_not_trusted flag is not returned. See D206",
 			},
+			{Name: "on_update", Desc: "the action of a foreign key on update, such as CASCADE or NO ACTION, and absent for any other constraint"},
+			{Name: "on_delete", Desc: "the action of a foreign key on delete, and absent for any other constraint"},
 		},
 		Params: schemaParentName("constraint"),
 		Scan: func(rows *sql.Rows) (dbmeta.Constraint, error) {
 			var v dbmeta.Constraint
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Type, &v.Definition,
-				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced)
+				&v.Deferrable, &v.Deferred, &v.Comment, &v.Enforced, &v.OnUpdate, &v.OnDelete)
 			return v, err
 		},
 	})

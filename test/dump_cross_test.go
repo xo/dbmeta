@@ -20,6 +20,12 @@ type crossSide struct {
 	// the schema that the DDL builds.
 	open   func(t *testing.T, role string) (*sql.DB, dump.Filter)
 	create []string
+	// shared says that both roles are one database, as a server of one database
+	// is, so a pair of the same product runs over itself, so it is left out.
+	shared bool
+	// dropsUnique says that the product has no foreign key and refuses a unique key
+	// that does not hold its shard key, so the copy has neither.
+	dropsUnique bool
 }
 
 // table names a table of the fixture in a product, for the source or for the
@@ -27,9 +33,9 @@ type crossSide struct {
 // products with schemas is in dump_cross.
 func (s crossSide) table(role, name string) string {
 	switch {
-	case s.dialect == dbmeta.PostgreSQL && role == "src":
+	case (s.dialect == dbmeta.PostgreSQL || s.dialect == dbmeta.CockroachDB) && role == "src":
 		return "dump_src." + name
-	case (s.dialect == dbmeta.PostgreSQL || s.dialect == dbmeta.DuckDB) && role == "dst":
+	case (s.dialect == dbmeta.PostgreSQL || s.dialect == dbmeta.CockroachDB || s.dialect == dbmeta.DuckDB || s.dialect == dbmeta.SQLServer) && role == "dst":
 		return "dump_cross." + name
 	}
 	return name
@@ -70,6 +76,10 @@ var (
 )
 
 func crossSides() []crossSide {
+	return append(baseCrossSides(), extraCrossSides()...)
+}
+
+func baseCrossSides() []crossSide {
 	return []crossSide{
 		{name: "postgres", dialect: dbmeta.PostgreSQL, create: crossPG,
 			open: func(t *testing.T, role string) (*sql.DB, dump.Filter) {
@@ -118,8 +128,10 @@ func shape(s *dump.Snapshot) string {
 				// MariaDB gives the text NULL as the default of a nullable column that has
 				// none, which TestMySQLNullDefault pins, so that is no default here.
 				// A serial column reads a sequence, which is auto numbering and not a default.
+				// CockroachDB numbers a serial with unique_rowid().
 				hasDefault := c.Default != nil && !strings.EqualFold(*c.Default, "NULL") &&
-					!strings.HasPrefix(strings.ToLower(*c.Default), "nextval(")
+					!strings.HasPrefix(strings.ToLower(*c.Default), "nextval(") &&
+					!strings.EqualFold(*c.Default, "unique_rowid()")
 				lines = append(lines, fmt.Sprintf("%s.%s kind=%s null=%v default=%v", t.Name, c.Name, c.Type.Kind, c.Nullable || pk[c.Name], hasDefault))
 			}
 			for _, c := range t.Constraints {
@@ -162,6 +174,9 @@ func TestAScriptCrossesDialects(t *testing.T) {
 				}
 				renameSchemas(snap, "dump_cross")
 				want := shape(snap)
+				if dst.dropsUnique {
+					want = withoutLines(want, " unique (", " foreign key ")
+				}
 
 				var stmts []dump.Statement
 				for st, err := range dump.Script(snap, dst.dialect, policy) {
@@ -204,4 +219,15 @@ func renameSchemas(s *dump.Snapshot, name string) {
 		}
 	}
 	s.Schemas = []dump.Schema{merged}
+}
+
+// withoutLines removes the lines of a shape that hold a word.
+func withoutLines(shape string, words ...string) string {
+	var keep []string
+	for line := range strings.SplitSeq(shape, "\n") {
+		if !slices.ContainsFunc(words, func(w string) bool { return strings.Contains(line, w) }) {
+			keep = append(keep, line)
+		}
+	}
+	return strings.Join(keep, "\n")
 }

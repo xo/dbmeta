@@ -296,7 +296,10 @@ func (g *generator) column(c Column) Column {
 	case c.Generated != "":
 		c.Generated, c.Default, c.DefaultLiteral = "", nil, false
 	case c.Default != nil:
-		if text, ok := portableDefault(g.source, g.target, c); ok {
+		if text, ok := portableDefault(g.source, g.target, c); ok && text == "NULL" {
+			// A default of NULL is the same as none.
+			c.Default, c.DefaultLiteral = nil, false
+		} else if ok {
 			c.Default, c.DefaultLiteral = &text, false
 		} else {
 			c.Default, c.DefaultLiteral = nil, false
@@ -325,12 +328,25 @@ func (g *generator) inCreate(kind string) bool {
 func (g *generator) createTable(schema string, t Table) (string, error) {
 	q, lit := g.style.Quote, g.style.Literal
 	var parts []string
+	pk := map[string]bool{}
+	if g.style.PrimaryKeyNotNull {
+		for _, c := range t.Constraints {
+			if c.Kind == "primary key" {
+				for _, name := range c.Columns {
+					pk[name] = true
+				}
+			}
+		}
+	}
 	for _, c := range t.Columns {
 		cp, ok := g.plan[schema+"."+t.Name+"."+c.Name]
 		if !ok {
 			return "", fmt.Errorf("the column %s.%s.%s has no plan: %w", schema, t.Name, c.Name, ErrNoEquivalent)
 		}
 		col := g.column(c)
+		if pk[c.Name] {
+			col.Nullable = false
+		}
 		if g.style.Column != nil {
 			parts = append(parts, g.style.Column(col, cp.SQL, q, lit))
 		} else {
@@ -338,7 +354,7 @@ func (g *generator) createTable(schema string, t Table) (string, error) {
 		}
 	}
 	for _, c := range t.Constraints {
-		if !g.inCreate(c.Kind) {
+		if !g.inCreate(c.Kind) || g.refused(t, c) != "" {
 			continue
 		}
 		if text, ok := g.constraintSQL(schema, c); ok {
@@ -458,6 +474,15 @@ func (g *generator) foreignKey(schema string, c Constraint, cols []string) strin
 	if g.style.NoForeignKeyActions {
 		return body
 	}
+	if g.style.NoRestrict {
+		// RESTRICT is NO ACTION in a product that checks at the end of the statement.
+		if del == "RESTRICT" {
+			del = ""
+		}
+		if upd == "RESTRICT" {
+			upd = ""
+		}
+	}
 	if del != "" && del != "NO ACTION" {
 		body += " ON DELETE " + del
 	}
@@ -517,6 +542,10 @@ func (g *generator) constraints() {
 						continue
 					}
 					name := sc.Name + "." + t.Name + "." + c.Name
+					if why := g.refused(t, c); why != "" {
+						g.add(Statement{Stage: Post, Kind: "constraint", Name: name, Note: why})
+						continue
+					}
 					text, ok := g.constraintSQL(sc.Name, c)
 					if !ok {
 						g.add(Statement{Stage: Post, Kind: "constraint", Name: name,
@@ -532,6 +561,15 @@ func (g *generator) constraints() {
 	}
 }
 
+// refused returns why the target cannot hold a constraint of a table, or the empty
+// string when it can.
+func (g *generator) refused(t Table, c Constraint) string {
+	if g.style.RefuseConstraint == nil {
+		return ""
+	}
+	return g.style.RefuseConstraint(t, c)
+}
+
 // indexes writes the indexes that no constraint writes.
 func (g *generator) indexes() {
 	for _, sc := range g.snap.Schemas {
@@ -545,6 +583,16 @@ func (g *generator) indexes() {
 					continue
 				}
 				name := sc.Name + "." + t.Name + "." + ix.Name
+				if ix.Unique {
+					cols := make([]string, len(ix.Columns))
+					for i, c := range ix.Columns {
+						cols[i] = c.Name
+					}
+					if why := g.refused(t, Constraint{Name: ix.Name, Kind: "unique", Columns: cols}); why != "" {
+						g.add(Statement{Stage: Post, Kind: "index", Name: name, Note: why})
+						continue
+					}
+				}
 				if g.cross && len(ix.Columns) == 0 {
 					ix.Columns = definitionColumns(ix.Definition)
 				}
