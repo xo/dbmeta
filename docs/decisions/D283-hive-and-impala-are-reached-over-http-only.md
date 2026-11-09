@@ -25,6 +25,9 @@ The release names are `hive-4.2.1`, `hive-4.0.1`, `impala-4.5.3` and
   password.
 - The Hive entry keeps its Init, which creates the `sys` database over the
   metastore, because `models/hive` reads it. beeline runs it over HTTP.
+- The URL of Impala that `dbrun` prints is `impala://`, which dburl turns into the
+  DSN of the driver, so that a client opens Impala with the impala dialect. The
+  DSN stays `hive://`.
 - beeline connects with `transportMode=http` and impala-shell with
   `--protocol hs2-http`.
 - The `test` module opens Hive and Impala with the one driver name `hive`.

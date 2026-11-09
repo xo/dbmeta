@@ -171,3 +171,59 @@ func TestTheBatchHoldsTheParametersOfTheProduct(t *testing.T) {
 		t.Errorf("the batch is %d, want 249", got)
 	}
 }
+
+// mysqlTimestamps is a snapshot of one MySQL table with a TIMESTAMP column.
+func mysqlTimestamps() *dump.Snapshot {
+	typ, err := dump.ParseType(dbmeta.MySQL, "timestamp")
+	if err != nil {
+		panic(err)
+	}
+	return &dump.Snapshot{
+		Version: dump.SnapshotVersion, Dialect: "mysql",
+		Schemas: []dump.Schema{{Name: "app", Tables: []dump.Table{{
+			Name:    "t",
+			Columns: []dump.Column{{Name: "at", Type: typ, Nullable: true}},
+		}}}},
+	}
+}
+
+// TestAMySQLTimestampIsTheClockOfTheSessionWhateverTheLocation checks that a time
+// that the driver of MySQL read in the local zone is still the UTC clock of the
+// session, so a client that is not in UTC does not move it.
+func TestAMySQLTimestampIsTheClockOfTheSessionWhateverTheLocation(t *testing.T) {
+	t.Parallel()
+	zone := time.FixedZone("UTC+7", 7*60*60)
+	// The server sent 12:34:56 in a UTC session. The driver read it as a local time.
+	read := time.Date(2024, 2, 29, 12, 34, 56, 0, zone)
+
+	l, err := dump.NewLoader(mysqlTimestamps(), "app", "t", dbmeta.MySQL, dump.Policy{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt, err := l.Insert([][]any{{read}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "VALUES ('2024-02-29 12:34:56')"; !strings.HasSuffix(stmt, want) {
+		t.Errorf("got %s, want it to end with %s", stmt, want)
+	}
+	args, err := l.Args([][]any{{read}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(args) != 1 || args[0] != "2024-02-29 12:34:56" {
+		t.Errorf("the bound value is %#v, want the text of the UTC clock", args)
+	}
+
+	l, err = dump.NewLoader(mysqlTimestamps(), "app", "t", dbmeta.PostgreSQL, dump.Policy{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt, err = l.Insert([][]any{{read}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "'2024-02-29 12:34:56+00:00'"; !strings.Contains(stmt, want) {
+		t.Errorf("got %s, want it to hold %s", stmt, want)
+	}
+}

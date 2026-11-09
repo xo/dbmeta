@@ -56,6 +56,12 @@ var impala = product{
 	api: func(port int) string {
 		return fmt.Sprintf("http://impala:%s@127.0.0.1:%d/cliservice", url.QueryEscape(Password), port)
 	},
+	// The URL is what a person types, and dburl turns the impala:// scheme
+	// into the DSN above, so a client such as usql opens Impala with the
+	// impala dialect and not the hive one.
+	url: func(port int) string {
+		return fmt.Sprintf("impala://impala:%s@127.0.0.1:%d?httpPath=cliservice", url.QueryEscape(Password), port)
+	},
 }
 
 // Impala is every Apache Impala release dbmeta is tested against.

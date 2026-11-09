@@ -17,7 +17,7 @@ require (
 	github.com/xo/cassandra v0.2.2
 	github.com/xo/dbimp v0.26.0
 	github.com/xo/dbmeta v0.34.0
-	github.com/xo/dburl v0.57.0
+	github.com/xo/dburl v0.58.0
 	github.com/xo/oracle v0.3.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.156.1
 	modernc.org/sqlite v1.61.1

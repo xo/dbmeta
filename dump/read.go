@@ -311,10 +311,17 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 		if strings.EqualFold(strings.TrimSpace(c.Type), "default") {
 			continue
 		}
-		// MariaDB adds a check of json_valid to a column of the type json, named for
-		// the column. The type brings it back, so it is no constraint of the table.
+		// MariaDB adds a check of json_valid to a column that is declared json, named
+		// for the column, and it reports the column as longtext. The check is no
+		// constraint of the table, so the column is the type json again, which
+		// brings the check back when the table is written for MariaDB.
 		if r.m.Dialect() == dbmeta.MySQL && strings.EqualFold(strings.TrimSpace(c.Type), "check") &&
 			strings.HasPrefix(strings.ToLower(text(c.Definition)), "json_valid(") {
+			for i := range t.Columns {
+				if t.Columns[i].Name == c.Name && t.Columns[i].Type.Kind == String {
+					t.Columns[i].Type = Type{Kind: JSON}
+				}
+			}
 			continue
 		}
 		con := Constraint{

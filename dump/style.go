@@ -66,6 +66,16 @@ type Style struct {
 	// timestamp, so an instant is written with +00:00. MySQL reads one only from
 	// 8.0.19 and MariaDB not at all, so an instant is the wall clock in UTC.
 	ZoneInTimestamps bool
+	// SessionClock says that a driver of the product reads and writes a timestamp
+	// as the wall clock of the session, and that the Location of the time.Time is
+	// the zone of the driver and not of the value. MySQL is one: its driver reads
+	// the clock that the server sends as a time in its own location, which is the
+	// local zone unless the DSN says otherwise, and it writes the clock of the time
+	// in that location. Both sessions are UTC (see [Style.Session]), so the clock
+	// is the UTC one whatever the Location is. The loader reads the clock of a
+	// value from such a source as UTC, and binds a date or a time for such a
+	// target as text, which a driver sends unchanged.
+	SessionClock bool
 	// TypedNullBinary says that a NULL for a binary column is bound as a nil byte
 	// slice and not as an untyped nil. The driver of SQL Server sends the second as
 	// text, and the server refuses to convert it.

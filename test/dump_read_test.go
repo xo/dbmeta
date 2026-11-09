@@ -301,3 +301,56 @@ func TestMySQLReadsASnapshot(t *testing.T) {
 		// MariaDB 10.2 and later report a check, and MySQL 8.0.16 and later.
 	})
 }
+
+// TestMySQLReadsAJSONColumnAsJSON checks that a column declared json is a JSON
+// column in the snapshot. MariaDB reports it as longtext and holds a json_valid
+// check for it, which the snapshot does not keep as a constraint.
+func TestMySQLReadsAJSONColumnAsJSON(t *testing.T) {
+	db := openMySQLDump(t)
+	m := metaFor(t, dbmeta.MySQL, db)
+	ctx := t.Context()
+	var schema string
+	if err := db.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&schema); err != nil || schema == "" {
+		t.Skipf("the connection names no database: %v", err)
+	}
+	const table = "dump_json_column"
+	drop := func() { _, _ = db.ExecContext(context.WithoutCancel(ctx), "DROP TABLE IF EXISTS "+table) }
+	drop()
+	t.Cleanup(drop)
+	if _, err := db.ExecContext(ctx, "CREATE TABLE "+table+" (id integer PRIMARY KEY, profile json, note longtext)"); err != nil {
+		t.Fatalf("creating the table: %v", err)
+	}
+	snap, err := dump.Read(ctx, m, db, dump.Filter{Schemas: []string{schema}})
+	if err != nil {
+		t.Fatalf("reading the snapshot: %v", err)
+	}
+	var found bool
+	for _, s := range snap.Schemas {
+		for _, tb := range s.Tables {
+			if tb.Name != table {
+				continue
+			}
+			found = true
+			for _, c := range tb.Columns {
+				switch c.Name {
+				case "profile":
+					if c.Type.Kind != dump.JSON {
+						t.Errorf("profile has the kind %s, want json", c.Type.Kind)
+					}
+				case "note":
+					if c.Type.Kind != dump.String {
+						t.Errorf("note has the kind %s, want string", c.Type.Kind)
+					}
+				}
+			}
+			for _, k := range tb.Constraints {
+				if k.Kind == "check" {
+					t.Errorf("expected no check, got %v", k)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("the snapshot has no table %s", table)
+	}
+}

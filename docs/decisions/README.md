@@ -302,3 +302,4 @@ file.
 | [D281](D281-only-the-core-products-run-in-ci.md) | Only the core products run in CI | Amends D42 |
 | [D282](D282-hive-and-impala-have-http-entries-for-dbimp.md) | Hive and Impala have HTTP entries for dbimp | Decided, amended by D283 |
 | [D283](D283-hive-and-impala-are-reached-over-http-only.md) | Hive and Impala are reached over HTTP only | Amends D282 |
+| [D284](D284-a-mysql-timestamp-is-the-clock-of-the-session.md) | A MySQL timestamp is the clock of the session | Decided |

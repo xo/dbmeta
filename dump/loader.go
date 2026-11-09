@@ -224,10 +224,11 @@ func (l *Loader) Args(rows [][]any) ([]any, error) {
 		}
 		for j, v := range row {
 			c := l.cols[j]
-			conv, err := Convert(v, c.from, c.to)
+			conv, err := Convert(l.sessionClock(c, v), c.from, c.to)
 			if err != nil {
 				return nil, fmt.Errorf("the column %s.%s.%s of row %d: %w", l.schema, l.table, c.name, i+1, err)
 			}
+			conv = l.boundClock(c, conv)
 			// A NULL of a binary column is a typed nil for a product whose driver sends
 			// an untyped NULL as text, which the server refuses for a varbinary column.
 			// Another driver can read a typed nil as an empty value, so it is not
@@ -239,6 +240,41 @@ func (l *Loader) Args(rows [][]any) ([]any, error) {
 		}
 	}
 	return out, nil
+}
+
+// sessionClock gives the instant that a source with a session clock meant. The
+// clock of the value is the UTC clock of the session, so it is read as UTC,
+// whatever Location the driver gave it. See [Style.SessionClock].
+func (l *Loader) sessionClock(c loadColumn, v any) any {
+	t, ok := v.(time.Time)
+	if !ok || !l.src.SessionClock || c.from.Kind != Timestamp {
+		return v
+	}
+	y, m, d := t.Date()
+	h, mi, s := t.Clock()
+	return time.Date(y, m, d, h, mi, s, t.Nanosecond(), time.UTC)
+}
+
+// boundClock binds a date or a time for a target with a session clock as text,
+// because a driver that takes a time.Time moves it to its own location first, and
+// that changes the clock and sometimes the date. A timestamp is the text of the
+// UTC clock. See [Style.SessionClock].
+func (l *Loader) boundClock(c loadColumn, v any) any {
+	t, ok := v.(time.Time)
+	if !ok || !l.dst.SessionClock {
+		return v
+	}
+	switch c.to.Kind {
+	case Date:
+		return t.Format("2006-01-02")
+	case TimeOfDay:
+		return t.Format("15:04:05.999999999")
+	case LocalTimestamp:
+		return t.Format("2006-01-02 15:04:05.999999999")
+	case Timestamp:
+		return t.UTC().Format("2006-01-02 15:04:05.999999999")
+	}
+	return v
 }
 
 // qualify writes the name of the table in a style.
@@ -262,7 +298,7 @@ func (l *Loader) head() string {
 
 // literal writes one value as a literal of the target.
 func (l *Loader) literal(c loadColumn, v any) (string, error) {
-	conv, err := Convert(v, c.from, c.to)
+	conv, err := Convert(l.sessionClock(c, v), c.from, c.to)
 	if err != nil {
 		return "", err
 	}

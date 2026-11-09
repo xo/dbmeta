@@ -291,7 +291,8 @@ caller can change.
 - MySQL and MariaDB: BOOL and BOOLEAN are `tinyint(1)`, and the catalog says
   `tinyint(1)` for both. A column that really holds a small number looks the
   same. `bit(1)` is also used as a boolean.
-- MariaDB: JSON is `longtext` with a `json_valid` check.
+- MariaDB: JSON is `longtext` with a `json_valid` check. The snapshot reads the
+  check and makes the column a JSON column (D284).
 - MySQL: `char(36)` and `binary(16)` often hold a UUID. `year` is a 4 digit type.
   `enum` and `set` are column types and not named types.
 - SQLite: a declared type is free text with an affinity. `BOOLEAN` is stored as a
