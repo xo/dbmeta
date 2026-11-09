@@ -144,8 +144,25 @@ func registerTypes() {
 				` ELSE t.typlen::text END AS "size"`}},
 			{{Query: `, pg_catalog.pg_type_is_visible(t.oid) AS "visible"`}},
 			{{Query: extensionOf("t.oid", "pg_type")}},
+			// the parts of a range type
+			{{Query: `, pg_catalog.format_type(rg.rngsubtype, NULL) AS "range_subtype"`}},
+			{{Query: `, CASE WHEN NOT opc.opcdefault THEN opcn.nspname || '.' || opc.opcname END AS "range_opclass"`}},
+			{{Query: `, CASE WHEN rg.rngcollation <> 0 AND rg.rngcollation IS DISTINCT FROM rsub.typcollation` +
+				` THEN (SELECT cn.nspname || '.' || co.collname FROM pg_catalog.pg_collation co` +
+				` JOIN pg_catalog.pg_namespace cn ON cn.oid = co.collnamespace WHERE co.oid = rg.rngcollation) END AS "range_collation"`}},
+			{{Query: `, CASE WHEN rg.rngcanonical <> 0 THEN rg.rngcanonical::pg_catalog.regproc::pg_catalog.text END AS "range_canonical"`}},
+			{{Query: `, CASE WHEN rg.rngsubdiff <> 0 THEN rg.rngsubdiff::pg_catalog.regproc::pg_catalog.text END AS "range_subtype_diff"`}},
+			{
+				{Query: `, NULL AS "range_multirange"`},
+				{Min: v14, Query: `, (SELECT mn.nspname || '.' || mt.typname FROM pg_catalog.pg_type mt` +
+					` JOIN pg_catalog.pg_namespace mn ON mn.oid = mt.typnamespace WHERE mt.oid = rg.rngmultitypid) AS "range_multirange"`},
+			},
 			{{Query: `FROM pg_catalog.pg_type t`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_type rsub ON rsub.oid = rg.rngsubtype`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_opclass opc ON opc.oid = rg.rngsubopc`}},
+			{{Query: `LEFT JOIN pg_catalog.pg_namespace opcn ON opcn.oid = opc.opcnamespace`}},
 			// leave out the composite types that back a table, and the array
 			// type that every scalar type creates
 			{{Query: `WHERE (t.typrelid = 0 OR (SELECT c.relkind = 'c' FROM pg_catalog.pg_class c WHERE c.oid = t.typrelid))`}},
@@ -155,12 +172,20 @@ func registerTypes() {
 			{{Query: `AND (@name = '' OR t.typname LIKE @name OR pg_catalog.format_type(t.oid, NULL) LIKE @name)`}},
 			{{Query: `ORDER BY 2, 3`}},
 		},
-		Fields: fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment", "size", "visible", "extension"),
+		Fields: append(fields("catalog", "schema", "name", "internal", "kind", "elements", "owner", "access", "comment", "size", "visible", "extension"),
+			dbmeta.Field{Name: "range_subtype", Desc: "the type of the bounds of a range type"},
+			dbmeta.Field{Name: "range_opclass", Desc: "the operator class of the bounds, absent for the default"},
+			dbmeta.Field{Name: "range_collation", Desc: "the collation of the bounds, absent for the one of the subtype"},
+			dbmeta.Field{Name: "range_canonical", Desc: "the canonical function of a range type, absent when there is none"},
+			dbmeta.Field{Name: "range_subtype_diff", Desc: "the function that gives the difference of two bounds, absent when there is none"},
+			dbmeta.Field{Name: "range_multirange", Desc: "the multirange type of a range type, absent below release 14", Min: v14},
+		),
 		Params: schemaNameSystem("type"),
 		Scan: func(rows *sql.Rows) (dbmeta.Type, error) {
 			var v dbmeta.Type
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Internal, &v.Kind,
-				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size, &v.Visible, &v.Extension)
+				&v.Elements, &v.Owner, &v.Access, &v.Comment, &v.Size, &v.Visible, &v.Extension,
+				&v.RangeSubtype, &v.RangeOpClass, &v.RangeCollation, &v.RangeCanonical, &v.RangeSubtypeDiff, &v.RangeMultirange)
 			return v, err
 		},
 	})

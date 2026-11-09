@@ -17,6 +17,7 @@ func init() {
 		DefaultSchema:        "*",
 		InlineConstraints:    true,
 		OrderFree:            true,
+		TableText:            true,
 		AnonymousConstraints: true,
 		// The tables can be written in any order, and the rows can be loaded in any
 		// order when the checks are off, and checked at the end. The pragma has no

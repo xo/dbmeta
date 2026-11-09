@@ -270,6 +270,9 @@ func normalizeViews(s *dump.Snapshot) {
 			def := viewHead.ReplaceAllString(v.Definition, "")
 			def = strings.TrimRight(strings.Join(strings.Fields(def), " "), "; ")
 			v.Definition = def
+			for k := range v.Triggers {
+				v.Triggers[k].Definition = strings.TrimRight(strings.TrimSpace(v.Triggers[k].Definition), "; \n\t")
+			}
 		}
 		// The server names the keys and the indexes of a table type, so the names
 		// of the copy are other ones.

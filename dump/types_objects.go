@@ -25,6 +25,11 @@ func (g *generator) customTypes() {
 				all = append(all, customType{sc.Name, d.Name, d.Type, g.style.Domain(g.qualified(sc.Name, d.Name), d, g.style.Quote, g.style.Literal)})
 			}
 		}
+		if g.style.Range != nil {
+			for _, r := range sc.Ranges {
+				all = append(all, customType{sc.Name, r.Name, r.Subtype, g.style.Range(g.qualified(sc.Name, r.Name), r, g.style.Quote)})
+			}
+		}
 		if g.style.Composite != nil {
 			for _, c := range sc.Composites {
 				var uses []string
@@ -88,6 +93,12 @@ func (g *generator) typeComments() {
 			if d.Comment != "" && g.style.Domain != nil {
 				g.add(Statement{Stage: Post, Kind: "comment", Name: sc.Name + "." + d.Name,
 					SQL: g.style.Comment("DOMAIN", g.qualified(sc.Name, d.Name), d.Comment, g.style.Literal)})
+			}
+		}
+		for _, r := range sc.Ranges {
+			if r.Comment != "" && g.style.Range != nil {
+				g.add(Statement{Stage: Post, Kind: "comment", Name: sc.Name + "." + r.Name,
+					SQL: g.style.Comment("TYPE", g.qualified(sc.Name, r.Name), r.Comment, g.style.Literal)})
 			}
 		}
 		for _, c := range sc.Composites {

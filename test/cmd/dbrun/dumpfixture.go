@@ -69,7 +69,7 @@ var dumpSources = map[dbmeta.Dialect]dumpSource{
 	},
 	dbmeta.SQLite3: {
 		files: []string{"dump/sqlite3.sql"},
-		count: `SELECT (SELECT COUNT(*) FROM main.people), (SELECT COUNT(*) FROM extra.people)`,
+		count: `SELECT (SELECT COUNT(*) FROM people), (SELECT COUNT(*) FROM extra_people)`,
 	},
 	dbmeta.DuckDB: {
 		files: []string{"dump/duckdb.sql"},
@@ -105,13 +105,6 @@ func doDump(ctx context.Context, r runner, t target) error {
 	target, err := dumpURL(t)
 	if err != nil {
 		return err
-	}
-	if t.Dialect == dbmeta.SQLite3 {
-		// SQLite keeps its second schema in a file of its own. A statement can
-		// only name that file by its path, so the path is written here, and the
-		// count needs the same attachment as the files.
-		src.header = "ATTACH DATABASE '" + strings.ReplaceAll(dumpExtraFile(t), "'", "''") + "' AS extra;\n"
-		src.count = src.header + src.count
 	}
 	files := slices.Concat(src.files, src.more[t.Product])
 	for _, name := range files {
@@ -175,9 +168,8 @@ func dumpPrepare(ctx context.Context, t target) error {
 		})
 	case dbmeta.SQLite3, dbmeta.DuckDB:
 		// An embedded database is a file, and the fixture owns a file of its own,
-		// so that a run leaves nothing of the one before. SQLite also keeps its
-		// second schema in a file that sits beside it.
-		for _, file := range []string{dumpFile(t), dumpExtraFile(t)} {
+		// so that a run leaves nothing of the one before.
+		for _, file := range []string{dumpFile(t)} {
 			if err := os.Remove(file); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("removing %s: %w", file, err)
 			}
@@ -229,11 +221,4 @@ func dumpURL(t target) (string, error) {
 // that dbrun keeps for the product.
 func dumpFile(t target) string {
 	return filepath.Join(filepath.Dir(t.DSN), dumpDatabase+filepath.Ext(t.DSN))
-}
-
-// dumpExtraFile is the file that holds the second schema of SQLite, which
-// attaches it. The file of DuckDB has two schemas of its own, so it is unused
-// there.
-func dumpExtraFile(t target) string {
-	return filepath.Join(filepath.Dir(t.DSN), dumpDatabase+"_extra"+filepath.Ext(t.DSN))
 }

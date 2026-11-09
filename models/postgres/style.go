@@ -30,6 +30,8 @@ func init() {
 		Extension:          extension,
 		Domain:             domain,
 		Composite:          composite,
+		Range:              rangeType,
+		TriggerState:       triggerState,
 		PartitionBy:        partitionBy,
 		PartitionOf:        partitionOf,
 		IdentityValue:      identityValue,
@@ -234,6 +236,19 @@ func composite(quoted string, c dump.Composite, q func(string) string) string {
 	return "CREATE TYPE " + quoted + " AS (" + strings.Join(attrs, ", ") + ")"
 }
 
+// rangeType writes CREATE TYPE AS RANGE with the parts that are not the default.
+// The multirange type is made with the range, so it is named here and not made.
+func rangeType(quoted string, r dump.RangeType, _ func(string) string) string {
+	parts := []string{"subtype = " + r.Subtype}
+	for _, p := range [][2]string{{"subtype_opclass", r.OpClass}, {"collation", r.Collation},
+		{"canonical", r.Canonical}, {"subtype_diff", r.SubtypeDiff}, {"multirange_type_name", r.Multirange}} {
+		if p[1] != "" {
+			parts = append(parts, p[0]+" = "+p[1])
+		}
+	}
+	return "CREATE TYPE " + quoted + " AS RANGE (" + strings.Join(parts, ", ") + ")"
+}
+
 // materializedView writes CREATE MATERIALIZED VIEW. A script makes it after the
 // rows of its tables are loaded, so it is made with its rows.
 func materializedView(quoted string, v dump.View) string {
@@ -266,6 +281,19 @@ func serialType(typeSQL, identity string) string {
 		return "serial"
 	case "bigint":
 		return "bigserial"
+	}
+	return ""
+}
+
+// triggerState switches a trigger off, or sets it for the replica role.
+func triggerState(_, quotedTable, quotedTrigger, state string) string {
+	switch state {
+	case "disabled":
+		return "ALTER TABLE " + quotedTable + " DISABLE TRIGGER " + quotedTrigger
+	case "replica":
+		return "ALTER TABLE " + quotedTable + " ENABLE REPLICA TRIGGER " + quotedTrigger
+	case "always":
+		return "ALTER TABLE " + quotedTable + " ENABLE ALWAYS TRIGGER " + quotedTrigger
 	}
 	return ""
 }

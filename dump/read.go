@@ -239,8 +239,18 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 			continue
 		}
 		switch kind := strings.ToLower(strings.TrimSpace(t.Type)); kind {
-		case "table", "base table":
-			s.Tables = append(s.Tables, Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}})
+		case "table", "base table", "virtual":
+			tb := Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}}
+			if r.m.Dialect() == dbmeta.SQLite3 {
+				tb.Definition = text(t.Definition)
+			} else if kind == "virtual" {
+				snap.Skipped = append(snap.Skipped, Skipped{Schema: t.Schema, Name: t.Name, Kind: kind,
+					Reason: "this kind of relation is not read"})
+				continue
+			}
+			s.Tables = append(s.Tables, tb)
+		case "shadow":
+			// A virtual table makes its shadow tables again.
 		case "partitioned table":
 			s.Tables = append(s.Tables, Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}})
 		case "system versioned table":
@@ -297,7 +307,7 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	if err := r.readViews(ctx, a, views); err != nil {
 		return err
 	}
-	if err := r.readTriggers(ctx, a, kept); err != nil {
+	if err := r.readTriggers(ctx, a, kept, views); err != nil {
 		return err
 	}
 	if err := r.readObjects(ctx, a, byName); err != nil {
@@ -667,7 +677,7 @@ func (r *reader) readViews(ctx context.Context, a dbmeta.Args, views map[tableKe
 }
 
 // readTriggers puts each trigger in its table.
-func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
+func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, views map[tableKey]*View) error {
 	rows, err := collect(dbmeta.Triggers.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading triggers: %w", err)
@@ -677,6 +687,15 @@ func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[table
 		return err
 	}
 	for _, g := range rows {
+		// An INSTEAD OF trigger belongs to a view.
+		if v, ok := views[tableKey{g.Schema, g.Table}]; ok {
+			def := g.Definition
+			if text, found := source[sourceKey{g.Schema, "trigger", g.Name}]; found {
+				def = "CREATE OR REPLACE " + strings.TrimSpace(text)
+			}
+			v.Triggers = append(v.Triggers, Trigger{Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment)})
+			continue
+		}
 		if t, ok := kept[tableKey{g.Schema, g.Table}]; ok {
 			def := g.Definition
 			// A product that keeps its source by line has the whole statement there.
@@ -690,6 +709,9 @@ func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[table
 	}
 	for _, t := range kept {
 		slices.SortFunc(t.Triggers, func(x, y Trigger) int { return cmp.Compare(x.Name, y.Name) })
+	}
+	for _, v := range views {
+		slices.SortFunc(v.Triggers, func(x, y Trigger) int { return cmp.Compare(x.Name, y.Name) })
 	}
 	return nil
 }
@@ -792,6 +814,12 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 			s.Composites = append(s.Composites, Composite{Name: t.Internal, Comment: text(t.Comment), Columns: cols})
 		case r.m.Dialect() == dbmeta.Oracle && kind == "collection":
 			s.Collections = append(s.Collections, Collection{Name: t.Internal, Element: t.Elements})
+		case own && kind == "range" && t.RangeSubtype.Valid:
+			s.Ranges = append(s.Ranges, RangeType{Name: t.Internal, Subtype: t.RangeSubtype.V, OpClass: text(t.RangeOpClass),
+				Collation: text(t.RangeCollation), Canonical: text(t.RangeCanonical), SubtypeDiff: text(t.RangeSubtypeDiff),
+				Multirange: text(t.RangeMultirange), Comment: text(t.Comment)})
+		case own && kind == "multirange":
+			// The range type makes it again.
 		case !aliases:
 		case kind == "domain" || kind == "alias":
 			if d, found := byDomain[tableKey{t.Schema, t.Internal}]; found {
@@ -837,16 +865,45 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 	if fromSource {
 		fns = nil
 	}
+	// MySQL and MariaDB keep the body of a routine apart from its parameters.
+	mysqlParams := map[tableKey][]dbmeta.RoutineParameter{}
+	if (r.m.Dialect() == dbmeta.MySQL || r.m.Dialect() == dbmeta.DuckDB) && dbmeta.RoutineParameters.Support(r.m) == dbmeta.Supported {
+		list, err := collect(dbmeta.RoutineParameters.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading routine parameters: %w", err)
+		}
+		slices.SortStableFunc(list, func(x, y dbmeta.RoutineParameter) int { return cmp.Compare(x.Ordinal, y.Ordinal) })
+		for _, p := range list {
+			mysqlParams[tableKey{p.Schema, p.Routine}] = append(mysqlParams[tableKey{p.Schema, p.Routine}], p)
+		}
+	}
 	for _, f := range fns {
+		// A function in the language internal is one that the server made, such as
+		// the constructor of a range type or of its multirange. The type makes it
+		// again, and a script that writes it names a type that is not there yet.
+		if f.Language == "internal" && r.m.Dialect() == dbmeta.PostgreSQL {
+			continue
+		}
 		if s, ok := schemas[f.Schema]; ok && !f.Extension.Valid {
 			def := text(f.Definition)
 			if def == "" {
 				def = text(f.Source)
 			}
+			args := text(f.ArgTypes)
+			switch r.m.Dialect() {
+			case dbmeta.MySQL:
+				def, args = mysqlRoutineStatement(f, mysqlParams[tableKey{f.Schema, f.Name}])
+			case dbmeta.DuckDB:
+				def, args = duckdbMacroStatement(f, mysqlParams[tableKey{f.Schema, f.Name}])
+			}
 			s.Routines = append(s.Routines, Routine{
-				Name: f.Name, Kind: f.Kind, Arguments: text(f.ArgTypes),
+				Name: f.Name, Kind: f.Kind, Arguments: args,
 				ResultType: text(f.ResultType), Language: f.Language, Definition: def, Comment: text(f.Comment),
 			})
+			if f.SQLMode.Valid {
+				mode := f.SQLMode.V
+				s.Routines[len(s.Routines)-1].SQLMode = &mode
+			}
 		}
 	}
 	for _, s := range schemas {
@@ -854,6 +911,7 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		slices.SortFunc(s.Enums, func(x, y Enum) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Domains, func(x, y Domain) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Composites, func(x, y Composite) int { return cmp.Compare(x.Name, y.Name) })
+		slices.SortFunc(s.Ranges, func(x, y RangeType) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Collections, func(x, y Collection) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Synonyms, func(x, y Synonym) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Routines, func(x, y Routine) int {

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -24,6 +25,9 @@ type fixtureSide struct {
 	source func(t *testing.T) *sql.DB
 	// fresh opens an empty database of its own for the copy.
 	fresh func(t *testing.T) *sql.DB
+	// rename gives the schemas other names, so that the copy lives in the server
+	// of the source. A product whose schema is a database needs it.
+	rename map[string]string
 	// schemas are the schemas to read. None means every schema that is not a
 	// system schema.
 	schemas []string
@@ -58,8 +62,22 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 		"mysql": {
 			dialect: dbmeta.MySQL,
 			source:  func(t *testing.T) *sql.DB { return openMySQLAt(t, "dump_core") },
-			fresh:   func(t *testing.T) *sql.DB { return openMySQLNamed(t, "dbmeta_dump_core") },
+			fresh:   openMySQLCopy,
 			schemas: []string{"dump_core", "dump_extra", "thing"},
+			rename:  map[string]string{"dump_core": "cp_dump_core", "dump_extra": "cp_dump_extra", "thing": "cp_thing"},
+		},
+		"sqlite3": {
+			dialect: dbmeta.SQLite3,
+			source:  func(t *testing.T) *sql.DB { return openEmbeddedFixture(t, sqliteDrivers[0], "dump.db") },
+			fresh:   func(t *testing.T) *sql.DB { return openSQLiteAt(t, sqliteDrivers[0]) },
+			schemas: []string{"main"},
+		},
+		"oracle": {
+			dialect: dbmeta.Oracle,
+			source:  openOracle,
+			fresh:   openOracleCopy,
+			schemas: []string{"DUMP_CORE", "DUMP_EXTRA"},
+			rename:  map[string]string{"DUMP_CORE": "CP_CORE", "DUMP_EXTRA": "CP_EXTRA"},
 		},
 		"duckdb": {
 			dialect: dbmeta.DuckDB,
@@ -76,31 +94,51 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			if err != nil {
 				t.Fatalf("reading: %v", err)
 			}
-			stmts := scriptOf(t, first, side.dialect)
+			want := first
+			filter2 := filter
+			if len(side.rename) > 0 {
+				if side.dialect == dbmeta.Oracle {
+					want = renameOracleSchemas(t, first, side.rename)
+				} else {
+					want = renameFixtureSchemas(t, first, side.rename)
+				}
+				filter2 = dump.Filter{}
+				for _, sc := range side.schemas {
+					filter2.Schemas = append(filter2.Schemas, side.rename[sc])
+				}
+			}
+			stmts := scriptOf(t, want, side.dialect)
 			dst := side.fresh(t)
 			var report strings.Builder
 			var script strings.Builder
+			// One connection runs the script, as a client does, because USE and the
+			// settings belong to a connection.
+			conn, err := dst.Conn(t.Context())
+			if err != nil {
+				t.Fatalf("taking a connection: %v", err)
+			}
+			defer conn.Close()
 			for _, st := range stmts {
 				if st.SQL == "" {
 					continue
 				}
 				script.WriteString(st.SQL + ";\n")
-				if _, err := dst.ExecContext(t.Context(), st.SQL); err != nil {
+				if _, err := conn.ExecContext(t.Context(), st.SQL); err != nil {
 					msg, _, _ := strings.Cut(strings.TrimSpace(err.Error()), "\n")
 					fmt.Fprintf(&report, "statement failed: %s %s: %s\n", st.Kind, st.Name, msg)
 				}
 			}
-			second, err := dump.Read(t.Context(), m, dst, filter)
+			second, err := dump.Read(t.Context(), m, dst, filter2)
 			if err != nil {
 				t.Fatalf("reading the copy: %v", err)
 			}
-			first.Skipped, second.Skipped = nil, nil
+			want.Skipped, second.Skipped = nil, nil
 			if side.dialect == dbmeta.SQLServer {
 				// The server names the keys of a table type, and the names change.
-				normalizeViews(first)
+				normalizeViews(want)
 				normalizeViews(second)
 			}
-			want, err := first.JSON()
+			wantJSON, err := want.JSON()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -108,13 +146,30 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(got) != string(want) {
-				report.WriteString("the copy differs from the source:\n" + lineDiff(string(want), string(got)) + "\n")
+			if side.dialect == dbmeta.Oracle {
+				// The server names a key, an index or a column that it makes itself, and
+				// the names differ in each run.
+				wantJSON, got = generatedNames.ReplaceAll(wantJSON, []byte("SYS_GENERATED")), generatedNames.ReplaceAll(got, []byte("SYS_GENERATED"))
+				fixed := generatedNames.ReplaceAllString(report.String(), "SYS_GENERATED")
+				report.Reset()
+				report.WriteString(fixed)
+			}
+			if string(got) != string(wantJSON) {
+				report.WriteString("the copy differs from the source:\n" + lineDiff(string(wantJSON), string(got)) + "\n")
 			}
 			if out := os.Getenv("DBMETA_SCRIPT_OUT"); out != "" {
 				_ = os.WriteFile(filepath.Join(out, "fixture-"+name+".sql"), []byte(script.String()), 0o644)
 			}
-			golden := filepath.Join("testdata", "dump_fixture", name+".txt")
+			product := name
+			if name == "mysql" {
+				// MySQL and MariaDB share the dialect and not the answers.
+				var version string
+				if err := src.QueryRowContext(t.Context(), "SELECT VERSION()").Scan(&version); err == nil &&
+					strings.Contains(strings.ToLower(version), "mariadb") {
+					product = "mariadb"
+				}
+			}
+			golden := filepath.Join("testdata", "dump_fixture", product+".txt")
 			if *update {
 				if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
 					t.Fatal(err)
@@ -190,10 +245,84 @@ func openEmbeddedFixture(t *testing.T, driver, file string) *sql.DB {
 	if _, err := os.Stat(path); err != nil {
 		t.Skipf("no %s: run dbrun fixture dump %s", path, driver)
 	}
-	db, err := sql.Open(driver, path+"?access_mode=read_only")
+	dsn := path
+	if driver == "duckdb" {
+		dsn += "?access_mode=read_only"
+	}
+	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		t.Fatalf("opening %s: %v", path, err)
 	}
 	t.Cleanup(func() { db.Close() })
 	return db
 }
+
+// renameFixtureSchemas gives the schemas of a snapshot other names. A name in
+// the text of a view or a routine is renamed where it stands for a database,
+// which is where a backtick, a dot or the name alone shows it. The name thing is
+// also a table, so it is renamed only before a dot that follows a backtick.
+func renameFixtureSchemas(t *testing.T, snap *dump.Snapshot, names map[string]string) *dump.Snapshot {
+	t.Helper()
+	b, err := snap.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(b)
+	for from, to := range names {
+		if from == "thing" {
+			text = strings.ReplaceAll(text, "`thing`.`", "`"+to+"`.`")
+			continue
+		}
+		text = regexp.MustCompile(`\b`+from+`\b`).ReplaceAllString(text, to)
+	}
+	out, err := dump.ParseSnapshot([]byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range out.Schemas {
+		if to, ok := names[out.Schemas[i].Name]; ok {
+			out.Schemas[i].Name = to
+		}
+	}
+	return out
+}
+
+// openMySQLCopy opens the server without a database, and drops the databases of
+// the copy at the end.
+func openMySQLCopy(t *testing.T) *sql.DB {
+	t.Helper()
+	admin := openMySQL(t)
+	drop := func() {
+		// The two databases refer to each other, so the keys are off for the drops.
+		conn, err := admin.Conn(context.Background())
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _ = conn.ExecContext(context.Background(), "SET FOREIGN_KEY_CHECKS = 0")
+		for _, name := range []string{"cp_dump_core", "cp_dump_extra", "cp_thing"} {
+			_, _ = conn.ExecContext(context.Background(), "DROP DATABASE IF EXISTS "+name)
+		}
+	}
+	drop()
+	t.Cleanup(drop)
+	return admin
+}
+
+// openOracleCopy opens the server, and drops the two users of the copy before and
+// after, because Oracle calls a schema a user.
+func openOracleCopy(t *testing.T) *sql.DB {
+	t.Helper()
+	admin := openOracle(t)
+	drop := func() {
+		for _, u := range []string{"CP_CORE", "CP_EXTRA"} {
+			_, _ = admin.ExecContext(context.Background(), "BEGIN EXECUTE IMMEDIATE 'DROP USER "+u+" CASCADE'; EXCEPTION WHEN OTHERS THEN NULL; END;")
+		}
+	}
+	drop()
+	t.Cleanup(drop)
+	return admin
+}
+
+// generatedNames matches the names that Oracle gives to what it makes itself.
+var generatedNames = regexp.MustCompile(`SYS_[A-Z]+[0-9]+[A-Z0-9$]*`)

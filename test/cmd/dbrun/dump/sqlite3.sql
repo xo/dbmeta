@@ -1,5 +1,6 @@
--- The fixture of the dump (D291) for SQLite. The file is the schema main, and
--- dbrun attaches a second file as the schema extra before this script runs.
+-- The fixture of the dump (D291) for SQLite. dbmeta reads the schema main of
+-- SQLite and no attached one, so the file is one schema, and the tables of the
+-- second schema have the prefix extra_.
 -- SQLite has no type, no function that a user writes and no schema that a
 -- foreign key can cross, and each section says what stands in for them.
 
@@ -35,8 +36,8 @@ insert into main.people (person_id, full_name, manager_id, score, photo, born, n
   (4, 'Ёлка Müller', 2, 0, x'', '2001-01-01', ''),
   (5, 'Plain Person', 3, -1.5, x'01', '1970-07-04', 'last');
 
--- The second schema is extra, in the attached file.
-create table extra.people (
+-- The second schema is the tables that start with extra_.
+create table extra_people (
   person_id integer primary key,
   full_name text not null,
   score real,
@@ -44,8 +45,8 @@ create table extra.people (
   born text,
   note text
 );
-create index extra.people_name_idx on people (full_name);
-insert into extra.people (person_id, full_name, score, photo, born, note) values
+create index extra_people_name_idx on extra_people (full_name);
+insert into extra_people (person_id, full_name, score, photo, born, note) values
   (1, 'Bruno Çelik', 3.5, x'aa', '1999-09-09', 'in the second file'),
   (2, 'Łukasz Żółć', null, null, null, null),
   (3, '田中太郎', 12, x'bb00', '2010-10-10', 'Unicode: 日本語');
@@ -159,16 +160,16 @@ create view main.all_people as
   select 'main' as source, person_id, full_name from main.people
   union all
   select 'chicken', chicken_id, name from main.chicken;
-create view extra.people_names as
-  select person_id, full_name from extra.people;
+create view extra_people_names as
+  select person_id, full_name from extra_people;
 
 -- A view on a view.
 create view main.big_ticket_titles as
   select * from main.ticket_titles where ticket_id > 1;
 
 -- Names.
--- One name for a table, a column and a schema. The attached schema is called
--- extra, and so are the table and its column here. SQLite has no type to name.
+-- One name for a table and a column. The table and its column are called extra,
+-- like the prefix of the second schema. SQLite has no type to name.
 create table main."extra" (
   "extra" text not null primary key,
   other text

@@ -193,7 +193,9 @@ create table measures (
 insert into measures (id, value) values (1, 21);
 insert into measures (id, value) values (2, null);
 commit;
-create index measures_double_idx on measures (double_it(value));
+-- The index is on the virtual column, because 21c refuses an index on an
+-- expression that a virtual column already holds (ORA-54018).
+create index measures_double_idx on measures (doubled);
 
 -- AUTHID CURRENT_USER
 create function who_am_i return varchar2 authid current_user as

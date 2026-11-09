@@ -1,0 +1,14 @@
+the copy differs from the source:
+line 201
+  source:               "on_update": "RESTRICT",
+  copy:                 "on_update": "NO ACTION",
+line 202
+  source:               "on_delete": "RESTRICT"
+  copy:                 "on_delete": "NO ACTION"
+line 756
+  source:               "on_update": "RESTRICT",
+  copy:                 "on_update": "NO ACTION",
+line 757
+  source:               "on_delete": "RESTRICT"
+  copy:                 "on_delete": "NO ACTION"
+

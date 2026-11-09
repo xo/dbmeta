@@ -15,7 +15,15 @@ const indexType = `CASE i.origin WHEN 'c' THEN 'btree' WHEN 'u' THEN 'unique con
 // tableType is the word for the kind of the entry m of sqlite_schema.
 const tableType = `CASE m.type WHEN 'view' THEN 'view'` +
 	` WHEN 'table' THEN CASE WHEN m.sql LIKE 'CREATE VIRTUAL TABLE%'` +
-	` THEN 'virtual' ELSE 'table' END ELSE m.type END`
+	` THEN 'virtual' WHEN ` + shadowTable + ` THEN 'shadow' ELSE 'table' END ELSE m.type END`
+
+// shadowTable tells that the table m is one that a virtual table keeps for
+// itself, such as the content table of an FTS5 table. The module makes it, so a
+// script that wrote it again collides with the one the module makes.
+const shadowTable = `EXISTS (SELECT 1 FROM sqlite_schema v WHERE v.type = 'table'` +
+	` AND v.sql LIKE 'CREATE VIRTUAL TABLE%' AND m.name IN (v.name || '_data', v.name || '_idx',` +
+	` v.name || '_content', v.name || '_docsize', v.name || '_config', v.name || '_segdir',` +
+	` v.name || '_segments', v.name || '_stat', v.name || '_node', v.name || '_rowid', v.name || '_parent'))`
 
 // indexPredicate is the WHERE clause of a partial index, cut from the
 // statement that made it. SQLite keeps the statement as written, and it has no
@@ -111,6 +119,7 @@ func registerRelations() {
 			// sqlite_schema is the main database, and a temporary table is
 			// in sqlite_temp_schema, which this query does not read.
 			always(`, CASE m.type WHEN 'table' THEN 'permanent' END AS "persistence"`),
+			always(`, CASE m.type WHEN 'table' THEN m.sql END AS "definition"`),
 			always(`FROM sqlite_schema m`),
 			always(`WHERE m.type IN ('table', 'view')`),
 			notSystem("m.name"),
@@ -132,11 +141,12 @@ func registerRelations() {
 				Name: "persistence",
 				Desc: "permanent for a table, because this query reads the main database and a temporary table is in the temp one. Absent for a view",
 			},
+			{Name: "definition", Desc: "the CREATE TABLE statement as written, absent for a view"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
-			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Persistence)
+			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment, &v.Persistence, &v.Definition)
 			return v, err
 		},
 	})

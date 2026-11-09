@@ -1,6 +1,6 @@
 # D291. dbrun fixture dump makes a database that tests a dump
 
-Status: Decided.
+Status: Decided, amended by D293.
 
 The maintainers agreed on 2026-11-10, with the `usql` session, to a fixture
 that tests the dump of D274. It is separate from northwind and hr, because the
@@ -20,8 +20,8 @@ to one in the other schema.
 - MySQL and MariaDB: the databases `dump_core` and `dump_extra`.
 - Oracle: the users `dump_core` and `dump_extra`.
 - DuckDB: the file `dump.duckdb` with the schemas `core` and `extra`.
-- SQLite: the file `dump.db` and a second file that it attaches as `extra`.
-  The first schema is `main`.
+- SQLite: the file `dump.db`. dbmeta reads the schema `main` only, so the file
+  is one schema and the tables of the second one start with `extra_` (D293).
 
 Each product has one file in `test/cmd/dbrun/dump/`, with one section for each
 area: types, routines, triggers, tables and indexes, dependencies and names.

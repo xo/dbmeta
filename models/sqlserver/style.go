@@ -20,6 +20,7 @@ func init() {
 		Column:            column,
 		Sequence:          sequence,
 		Index:             index,
+		TriggerState:      triggerState,
 		View:              view,
 		KeyType:           keyType,
 		PrimaryKeyNotNull: true,
@@ -158,7 +159,9 @@ func index(table string, ix dump.Index, q func(string) string) string {
 		return "CREATE CLUSTERED COLUMNSTORE INDEX " + q(ix.Name) + " ON " + table
 	case "nonclustered columnstore":
 		sql = "CREATE NONCLUSTERED COLUMNSTORE "
-		keys = nil
+		// A columnstore index has no included columns. The catalog marks each of
+		// its columns as included.
+		keys, include = nil, nil
 		for _, c := range ix.Columns {
 			keys = append(keys, q(c.Name))
 		}
@@ -336,4 +339,13 @@ func synonym(quoted string, y dump.Synonym, q func(string) string) string {
 	}
 	parts = append(parts, q(y.Target))
 	return "CREATE SYNONYM " + quoted + " FOR " + strings.Join(parts, ".")
+}
+
+// triggerState switches a trigger off. A trigger belongs to the schema of its
+// table.
+func triggerState(quotedSchema, quotedTable, quotedTrigger, state string) string {
+	if state != "disabled" {
+		return ""
+	}
+	return "DISABLE TRIGGER " + quotedSchema + "." + quotedTrigger + " ON " + quotedTable
 }

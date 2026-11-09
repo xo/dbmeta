@@ -17,6 +17,11 @@ func init() {
 		Quote:         quoteIdentifier,
 		Literal:       literal,
 		DefaultSchema: "*",
+		// A dump of several databases makes each one.
+		CreateSchema: func(quoted string) string { return "CREATE DATABASE " + quoted },
+		// A view, a routine and a trigger keep names that mean the database they
+		// are in, so a script of several databases chooses it first.
+		UseSchema:     func(quoted string) string { return "USE " + quoted },
 		Column:        column,
 		TableOptions:  tableOptions,
 		PartitionBy:   partitionBy,
@@ -25,6 +30,11 @@ func init() {
 		Binary:        func(hex string) string { return "X'" + hex + "'" },
 		MaxParameters: 65535,
 		Trigger:       trigger,
+		// A view can call a function, and a function can read a view.
+		RoutinesAfterTables: true,
+		// A routine keeps the mode that it was made under.
+		SQLMode:      func(mode string) string { return "SET SESSION sql_mode = " + literal(mode) },
+		ResetSQLMode: "SET SESSION sql_mode = DEFAULT",
 		// A timestamp is read and written in the zone of the session, so both are UTC.
 		Session: []string{"SET time_zone = '+00:00'"},
 		// The driver gives the clock of that session in the zone of its own DSN.

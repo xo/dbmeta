@@ -37,6 +37,9 @@ func registerRoutines() {
 			// The same text as source: the body, and absent for an external
 			// routine. See D205.
 			{{Query: `, r.routine_definition AS "prosrc"`}},
+			// the declarations that a script writes back with the routine
+			{{Query: `, r.sql_data_access AS "data_access"`}},
+			{{Query: `, r.sql_mode AS "sql_mode"`}},
 			{{Query: `FROM information_schema.ROUTINES r`}},
 			notSystem("WHERE", "r.routine_schema"),
 			schemaLike("schema", "r.routine_schema"),
@@ -56,13 +59,16 @@ func registerRoutines() {
 			{Name: "source"}, {Name: "comment"},
 			{Name: "definition", Desc: "always absent: the catalog keeps the body, which is source, and SHOW CREATE FUNCTION is a statement of its own"},
 			{Name: "prosrc", Desc: "the body, which is the same text as source"},
+			{Name: "data_access", Desc: "contains sql, no sql, reads sql data or modifies sql data"},
+			{Name: "sql_mode", Desc: "the sql_mode that the routine was made under"},
 		},
 		Params: schemaNameSystem("routine"),
 		Scan: func(rows *sql.Rows) (dbmeta.Function, error) {
 			var v dbmeta.Function
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.ID, &v.Kind, &v.ResultType,
 				&v.ArgTypes, &v.Volatility, &v.Parallel, &v.Owner, &v.Security,
-				&v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition, &v.Prosrc)
+				&v.Access, &v.Language, &v.Source, &v.Comment, &v.Definition, &v.Prosrc,
+				&v.DataAccess, &v.SQLMode)
 			return v, err
 		},
 	})

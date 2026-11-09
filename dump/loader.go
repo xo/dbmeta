@@ -335,6 +335,11 @@ func (l *Loader) head() string {
 
 // literal writes one value as a literal of the target.
 func (l *Loader) literal(c loadColumn, v any, vars *variables) (string, error) {
+	if l.dst.ValueLiteral != nil && l.source == l.target {
+		if text, ok := l.dst.ValueLiteral(c.from, v); ok {
+			return text, nil
+		}
+	}
 	conv, err := Convert(l.sourceValue(c, v), c.from, c.to)
 	if err != nil {
 		return "", err

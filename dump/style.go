@@ -125,6 +125,10 @@ type Style struct {
 	// generator takes every other trailing semicolon off. It is nil for a product
 	// whose statements never end in one.
 	KeepTerminator func(definition string) bool
+	// ValueLiteral writes the literal of a value that the driver gives as a Go value
+	// of its own, such as a list, a struct, a map or a union of DuckDB. It says
+	// whether it did. See D293.
+	ValueLiteral func(t Type, v any) (string, bool)
 	// SelectColumn writes the expression that reads a column, for a column that the
 	// driver cannot read as it is, from the schema and the column and the quoted
 	// name of the column with the alias of its table. It returns false for a column
@@ -187,15 +191,31 @@ type Style struct {
 	// constraint, so the dump does not write it. A model leaves it nil when the
 	// name of the index is the name of the constraint.
 	ImplicitIndex func(t Table, ix Index) bool
+	// SQLMode writes the statement that sets the mode of the session, which a
+	// routine keeps from the time it was made, and Reset the statement that puts
+	// it back. They are nil for a product with no such setting.
+	SQLMode func(mode string) string
+	// ResetSQLMode is the statement that puts the mode of the session back.
+	ResetSQLMode string
+	// TriggerState writes the statement that sets a trigger that is not
+	// enabled, from its state: disabled, replica or always. It is nil for a product
+	// that has no such switch.
+	TriggerState func(quotedSchema, quotedTable, quotedTrigger, state string) string
 	// Trigger writes a CREATE TRIGGER from what the source keeps.
 	Trigger func(quotedTable string, tg Trigger, q func(string) string) string
 
+	// TableText says that a script of the same product writes the statement of
+	// the source for a table, in place of one built from its columns, because the
+	// product keeps clauses that no catalog lists.
+	TableText bool
 	// Enum writes the statement for an enumerated type. It is nil when the
 	// product has none as a type of its own.
 	Enum func(quoted string, values []string, literal func(string) string) string
 	// Extension writes the statement that installs an extension, from its quoted
 	// name and its quoted schema. It is nil for a product with no extensions.
 	Extension func(quotedName, quotedSchema string) string
+	// Range writes a CREATE TYPE AS RANGE. It is nil for a product with none.
+	Range func(quoted string, r RangeType, q func(string) string) string
 	// Domain writes a CREATE DOMAIN. It is nil for a product with none.
 	Domain func(quoted string, d Domain, q func(string) string, literal func(string) string) string
 	// Composite writes a CREATE TYPE of a composite type. It is nil for a product

@@ -126,10 +126,17 @@ func (g *generator) add(st Statement) { g.out = append(g.out, st) }
 
 // qualified writes the name of an object, with its schema where the style asks.
 func (g *generator) qualified(schema, name string) string {
-	if g.style.QualifyAll || (g.style.DefaultSchema != "*" && schema != g.style.DefaultSchema && schema != "") {
+	if g.style.QualifyAll || g.severalDatabases() || (g.style.DefaultSchema != "*" && schema != g.style.DefaultSchema && schema != "") {
 		return g.style.Quote(schema) + "." + g.style.Quote(name)
 	}
 	return g.style.Quote(name)
+}
+
+// severalDatabases reports that the snapshot holds more than one schema of a
+// product whose schema is its database. The statements name each database then,
+// because the connection of a script has one default database at most. See D293.
+func (g *generator) severalDatabases() bool {
+	return g.snap != nil && g.style.DefaultSchema == "*" && len(g.snap.Schemas) > 1
 }
 
 // pre writes the statements that come before the rows.
@@ -138,7 +145,7 @@ func (g *generator) pre() error {
 		g.add(Statement{Stage: Pre, Kind: "setting", SQL: text})
 	}
 	for _, sc := range g.snap.Schemas {
-		if g.style.CreateSchema == nil || g.style.DefaultSchema == "*" || slices.Contains(g.style.ExistingSchemas, sc.Name) {
+		if g.style.CreateSchema == nil || (g.style.DefaultSchema == "*" && !g.severalDatabases()) || slices.Contains(g.style.ExistingSchemas, sc.Name) {
 			continue
 		}
 		g.add(Statement{Stage: Pre, Kind: "schema", Name: sc.Name, SQL: g.style.CreateSchema(g.style.Quote(sc.Name))})
@@ -221,6 +228,10 @@ func (g *generator) routine(stage Stage, schema string, r Routine) {
 		return
 	}
 	g.use(stage, schema)
+	if r.SQLMode != nil && g.style.SQLMode != nil && !g.cross {
+		g.add(Statement{Stage: stage, Kind: "setting", Name: name, SQL: g.style.SQLMode(*r.SQLMode)})
+		defer g.add(Statement{Stage: stage, Kind: "setting", Name: name, SQL: g.style.ResetSQLMode})
+	}
 	g.add(Statement{Stage: stage, Kind: "routine", Name: name, SQL: g.endOf(def), Untranslated: g.cross})
 }
 
@@ -229,6 +240,11 @@ func (g *generator) routine(stage Stage, schema string, r Routine) {
 // the last statement of the stage named another schema.
 func (g *generator) use(stage Stage, schema string) {
 	if g.style.UseSchema == nil || schema == "" || g.used[stage] == schema {
+		return
+	}
+	// A product whose schema is its database has the one default database of the
+	// connection, unless the script makes several.
+	if g.style.DefaultSchema == "*" && !g.severalDatabases() {
 		return
 	}
 	if g.used == nil {
@@ -375,6 +391,9 @@ func (g *generator) inCreate(kind string) bool {
 
 // createTable writes the CREATE TABLE of a table.
 func (g *generator) createTable(schema string, t Table) (string, error) {
+	if g.style.TableText && !g.cross && t.Definition != "" {
+		return strings.TrimRight(strings.TrimSpace(t.Definition), "; \n\t"), nil
+	}
 	q, lit := g.style.Quote, g.style.Literal
 	var parts []string
 	pk := map[string]bool{}
@@ -577,6 +596,11 @@ func (g *generator) post() {
 		for _, t := range sc.Tables {
 			for _, tg := range t.Triggers {
 				g.trigger(sc.Name, t, tg)
+			}
+		}
+		for _, v := range sc.Views {
+			for _, tg := range v.Triggers {
+				g.trigger(sc.Name, Table{Name: v.Name}, tg)
 			}
 		}
 	}
@@ -851,7 +875,7 @@ func (g *generator) view(schema string, v View) string {
 	name := g.qualified(schema, v.Name)
 	// A product whose schema is its database keeps the name of the database in the
 	// query of a view, and the copy lives in another database.
-	if src, err := styleOf(g.source); err == nil && src.DefaultSchema == "*" && schema != "" {
+	if src, err := styleOf(g.source); err == nil && src.DefaultSchema == "*" && schema != "" && !g.severalDatabases() {
 		v.Definition = strings.ReplaceAll(v.Definition, src.Quote(schema)+".", "")
 	}
 	if g.cross || (v.Materialized && !g.materialized()) {
@@ -864,7 +888,13 @@ func (g *generator) view(schema string, v View) string {
 		return g.style.View(name, v)
 	}
 	def := strings.TrimRight(strings.TrimSpace(v.Definition), "; \n\t")
-	return "CREATE VIEW " + name + " AS " + def
+	sql := "CREATE VIEW " + name + " AS " + def
+	// A view that checks the rows that go through it says so, and the source
+	// keeps it apart from the query.
+	if option := strings.ToLower(v.CheckOption); option == "local" || option == "cascaded" {
+		sql += " WITH " + strings.ToUpper(option) + " CHECK OPTION"
+	}
+	return sql
 }
 
 // trigger writes a trigger from what the source keeps.
@@ -888,11 +918,24 @@ func (g *generator) trigger(schema string, t Table, tg Trigger) {
 			return
 		}
 		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: sql})
+		g.triggerState(schema, t, tg)
 	case hasStatement:
 		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: g.endOf(def)})
+		g.triggerState(schema, t, tg)
 	default:
 		g.add(missing)
 	}
+}
+
+// triggerState switches off a trigger that the source has switched off, or sets
+// it for the replica role.
+func (g *generator) triggerState(schema string, t Table, tg Trigger) {
+	state := strings.ToLower(tg.Enabled)
+	if g.style.TriggerState == nil || state == "" || state == "enabled" {
+		return
+	}
+	g.add(Statement{Stage: Post, Kind: "trigger state", Name: schema + "." + t.Name + "." + tg.Name,
+		SQL: g.style.TriggerState(g.style.Quote(schema), g.qualified(schema, t.Name), g.style.Quote(tg.Name), state)})
 }
 
 // comments writes the comment of each table and column, for a product that sets

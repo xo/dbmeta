@@ -83,6 +83,11 @@ type Table struct {
 	// writes it first and turns versioning on after the rows are loaded.
 	HistorySchema sql.Null[string]
 	HistoryTable  sql.Null[string]
+	// Definition is the statement that makes the table, as the product keeps it,
+	// and absent where the product keeps none. SQLite keeps the text of CREATE
+	// TABLE, with the clauses that no catalog lists, such as STRICT and WITHOUT
+	// ROWID. See D293.
+	Definition sql.Null[string]
 }
 
 // Schema is a namespace within a catalog.
@@ -442,6 +447,15 @@ type Function struct {
 	// EXTENSION instead, because the extension makes it again. It is absent where
 	// the product has no extensions.
 	Extension sql.Null[string]
+
+	// DataAccess is what the routine says about the data it touches: contains
+	// sql, no sql, reads sql data or modifies sql data. It is absent where the
+	// product has no such declaration. See D293.
+	DataAccess sql.Null[string]
+	// SQLMode is the sql_mode that the routine was made under, which MySQL and
+	// MariaDB keep with it, and absent elsewhere. A dump sets it again before
+	// the statement that makes the routine.
+	SQLMode sql.Null[string]
 }
 
 // Type is a data type. psql lists them with \dT.
@@ -470,6 +484,24 @@ type Type struct {
 	// EXTENSION instead, because the extension makes it again. It is absent where
 	// the product has no extensions.
 	Extension sql.Null[string]
+
+	// RangeSubtype is the type of the bounds of a range type, and absent for any
+	// other type. The five fields after it are absent for a range type that
+	// takes the default. A dump writes them back with CREATE TYPE AS RANGE. See
+	// D292.
+	RangeSubtype sql.Null[string]
+	// RangeOpClass is the operator class of the subtype, when it is not the
+	// default one.
+	RangeOpClass sql.Null[string]
+	// RangeCollation is the collation of the bounds, when it is not the one of the subtype.
+	RangeCollation sql.Null[string]
+	// RangeCanonical is the function that puts a range in its canonical form.
+	RangeCanonical sql.Null[string]
+	// RangeSubtypeDiff is the function that gives the difference of two bounds.
+	RangeSubtypeDiff sql.Null[string]
+	// RangeMultirange is the name of the multirange type of a range type, which
+	// release 14 made. It is absent on an older release.
+	RangeMultirange sql.Null[string]
 }
 
 // Domain is a type with a constraint. psql lists them with \dD.

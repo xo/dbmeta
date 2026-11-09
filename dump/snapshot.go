@@ -62,6 +62,9 @@ type Schema struct {
 	Sequences []Sequence `json:"sequences,omitempty"`
 	Enums     []Enum     `json:"enums,omitempty"`
 	Domains   []Domain   `json:"domains,omitempty"`
+	// Ranges are the range types that a person made. The multirange type of each
+	// is made with it.
+	Ranges []RangeType `json:"ranges,omitempty"`
 	// Composites are the composite types that a person made, which are not the row
 	// type of a table.
 	Composites []Composite `json:"composites,omitempty"`
@@ -79,7 +82,7 @@ type Schema struct {
 
 // empty reports whether the schema holds no object.
 func (s Schema) empty() bool {
-	return len(s.Tables)+len(s.Views)+len(s.Sequences)+len(s.Enums)+len(s.Domains)+len(s.Composites)+
+	return len(s.Tables)+len(s.Views)+len(s.Sequences)+len(s.Enums)+len(s.Domains)+len(s.Ranges)+len(s.Composites)+
 		len(s.Synonyms)+len(s.Collections)+len(s.TableTypes)+len(s.Routines) == 0
 }
 
@@ -150,6 +153,11 @@ type Table struct {
 	// The history table is a table of the snapshot, and a client loads its rows
 	// like those of any table. See [Versioning].
 	Versioning *Versioning `json:"versioning,omitempty"`
+
+	// Definition is the statement of the source that makes the table, for a
+	// product that keeps it, so that a script of the same product writes it as it
+	// was. See D293.
+	Definition string `json:"definition,omitempty"`
 
 	Columns     []Column     `json:"columns"`
 	Constraints []Constraint `json:"constraints,omitempty"`
@@ -311,6 +319,8 @@ type View struct {
 	// Options are the clauses that follow the name of a materialized view, such as
 	// BUILD IMMEDIATE REFRESH COMPLETE ON DEMAND, for a product that has them.
 	Options string `json:"options,omitempty"`
+	// Triggers are the triggers of the view, which are the INSTEAD OF ones.
+	Triggers []Trigger `json:"triggers,omitempty"`
 	// Indexes are the indexes of a materialized view, which a plain view has none
 	// of.
 	Indexes []Index `json:"indexes,omitempty"`
@@ -338,6 +348,19 @@ type Enum struct {
 	Values []string `json:"values"`
 }
 
+// RangeType is a range type. The parts after the subtype are empty when the type
+// takes the default. See D292.
+type RangeType struct {
+	Name        string `json:"name"`
+	Subtype     string `json:"subtype"`
+	OpClass     string `json:"opclass,omitempty"`
+	Collation   string `json:"collation,omitempty"`
+	Canonical   string `json:"canonical,omitempty"`
+	SubtypeDiff string `json:"subtype_diff,omitempty"`
+	Multirange  string `json:"multirange,omitempty"`
+	Comment     string `json:"comment,omitempty"`
+}
+
 // Routine is a function, a procedure or an aggregate. Its definition is the text
 // of the source and is not translated.
 type Routine struct {
@@ -348,6 +371,9 @@ type Routine struct {
 	Language   string `json:"language,omitempty"`
 	Definition string `json:"definition,omitempty"`
 	Comment    string `json:"comment,omitempty"`
+	// SQLMode is the sql_mode that a MySQL or MariaDB routine was made under.
+	// It is a pointer, because an empty mode is a mode.
+	SQLMode *string `json:"sql_mode,omitempty"`
 }
 
 // JSON writes the snapshot as indented JSON with a newline at the end. The

@@ -516,20 +516,34 @@ IndexColumns run one statement for each table, and the cost was measured on four
 
 `TestDumpFixtureRoundTrips` in the `test` module loads the dump fixture (D291), writes the
 script of its snapshot, runs it on an empty database and compares the two snapshots. The
-files in `test/testdata/dump_fixture/` hold what differs, and an empty file will mean a
-perfect copy. It covers PostgreSQL, SQL Server, MySQL and DuckDB. These gaps are known and
-not fixed.
+files in `test/testdata/dump_fixture/` hold what differs, and an empty file means a perfect
+copy. PostgreSQL, SQL Server, MySQL, SQLite and DuckDB copy with no difference (D292, D293).
+MariaDB and Oracle do not. A copy that matches the snapshot is not a copy of everything,
+because an object that the dump does not read is in neither snapshot. These are known and not
+fixed.
 
-- PostgreSQL reads the constructor function of a range type and of its multirange as a
-  routine. The script writes it before the type, which fails, and every table after it
-  fails too. The reader must leave out a function that belongs to a range type.
-- MySQL writes the tables of the second database with no database name, so a dump of two
-  databases creates `people` of `dump_extra` in the first one. A view that calls a function
-  of another database fails for the same reason.
-- SQL Server writes a columnstore index with included columns, which it refuses. A disabled
-  trigger comes back enabled, and the order of triggers that `sp_settriggerorder` set is not
-  written back.
-- DuckDB does not read a macro, scalar or table, so a view that calls one fails.
-- Oracle and SQLite are not in the test. Oracle needs the two users renamed, as the northwind
-  copy test does, and SQLite needs its attached schema in the copy. The rows are not
-  compared by value either, and nothing fires a trigger or calls a function.
+- MariaDB reports a foreign key that the source made with no action as RESTRICT, and the copy
+  of the same foreign key, written with ON DELETE RESTRICT, as NO ACTION. The cause is not
+  known. `mariadb.txt` holds the difference.
+- Oracle writes a nested table column with no `STORE AS`, and writes the storage table of the
+  nested table as a table of its own. It writes an object table with its system column
+  `SYS_NC_OID$` in a key, and a REF column then fails. It writes a function-based index on the
+  expression that a virtual column holds, which 21c refuses (ORA-54018). A view of one schema
+  that reads an object of the other needs a grant on the object, and the dump writes none.
+- Grants and roles are not dumped for any product. Oracle has no query for them.
+- PostgreSQL does not write an aggregate or an event trigger, a user function that is the
+  canonical function or the difference function of a range type, or the value of a sequence
+  that no column owns.
+- SQL Server does not write the name of a named default constraint, a database DDL trigger, a
+  security policy, an XML schema collection, the order that `sp_settriggerorder` set, or the
+  position of a sequence.
+- MySQL does not write the INVISIBLE attribute of a column, the length of a prefix index, an
+  event, or the order of triggers that FOLLOWS and PRECEDES set. A trigger does not run under
+  its own `sql_mode`.
+- SQLite does not write the value of AUTOINCREMENT in `sqlite_sequence`, and the FTS5 table of
+  the fixture is a known skip because the SQLite of usql has no `fts5` module.
+- DuckDB does not write a macro default, a nested value in a table of rows that a foreign key
+  orders, or a foreign key across schemas, which DuckDB refuses.
+- The round trip does not compare the rows by value, call each function, fire each trigger
+  or read the next value of each sequence. It covers PostgreSQL, SQL Server, MySQL, MariaDB,
+  Oracle, SQLite and DuckDB.
