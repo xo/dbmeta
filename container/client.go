@@ -324,11 +324,12 @@ func hdbsqlClient() Client {
 	}}
 }
 
-// beelineClient is beeline. The Hive here takes no password (auth is NONE), so
-// NoClient is given.
+// beelineClient is beeline, on the HTTP port of HiveServer2. The Hive here takes
+// no password (auth is NONE), so NoClient is given.
 func beelineClient() Client {
 	return Client{Command: "beeline", build: func(c Connection) ([]string, []string) {
-		args := []string{"-u", "jdbc:hive2://" + hostPort(c.Host, c.Port) + "/" + c.Database}
+		args := []string{"-u", "jdbc:hive2://" + hostPort(c.Host, c.Port) + "/" + c.Database +
+			";transportMode=http;httpPath=cliservice"}
 		return append(args, opt("-n", c.User)...), nil
 	}}
 }
@@ -425,10 +426,10 @@ func exaplusClient() Client {
 	}}
 }
 
-// impalaClient is impala-shell, on the HiveServer2 port.
+// impalaClient is impala-shell, on the HTTP port of HiveServer2.
 func impalaClient() Client {
 	return Client{Command: "impala-shell", build: func(c Connection) ([]string, []string) {
-		return []string{"--impalad", hostPort(c.Host, c.Port), "--protocol", "hs2"}, nil
+		return []string{"--impalad", hostPort(c.Host, c.Port), "--protocol", "hs2-http"}, nil
 	}}
 }
 

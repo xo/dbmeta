@@ -13,12 +13,10 @@ import (
 
 	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/apache/arrow-go/v18/arrow/flight/flightsql/driver"
-	_ "github.com/beltran/gohive/v2"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/nakagami/firebirdsql"
-	_ "github.com/sclgo/impala-go"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/cassandra"
 	_ "github.com/xo/dbimp/arangodb"
@@ -34,6 +32,7 @@ import (
 	_ "github.com/xo/dbimp/druid"
 	_ "github.com/xo/dbimp/elasticsearch"
 	_ "github.com/xo/dbimp/exasol"
+	_ "github.com/xo/dbimp/hive"
 	_ "github.com/xo/dbimp/influxdb"
 	_ "github.com/xo/dbimp/libsql"
 	_ "github.com/xo/dbimp/maxcompute"
@@ -90,7 +89,7 @@ var drivers = map[dbmeta.Dialect]string{
 	dbmeta.Databend:   "databend",
 	dbmeta.Drill:      "drill",
 	dbmeta.Druid:      "druid",
-	dbmeta.Impala:     "impala",
+	dbmeta.Impala:     "hive",
 	dbmeta.Rqlite:     "rqlite",
 	dbmeta.InfluxDB:   "influxdb",
 	dbmeta.LibSQL:     "libsql",

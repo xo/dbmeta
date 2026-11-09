@@ -1,6 +1,6 @@
 # D282. Hive and Impala have HTTP entries for dbimp
 
-Status: Decided.
+Status: Decided, amended by D283.
 
 ## Decision
 

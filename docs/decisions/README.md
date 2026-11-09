@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-127 of them amend or replace an earlier one, and a decision read without its
+128 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -300,4 +300,5 @@ file.
 | [D279](D279-the-published-ports-are-below-the-ephemeral-range.md) | The published ports are below the ephemeral range | Amends D68 |
 | [D280](D280-a-product-with-the-sql-of-another-shares-its-dump.md) | A product with the SQL of another shares its dump | Decided |
 | [D281](D281-only-the-core-products-run-in-ci.md) | Only the core products run in CI | Amends D42 |
-| [D282](D282-hive-and-impala-have-http-entries-for-dbimp.md) | Hive and Impala have HTTP entries for dbimp | Decided |
+| [D282](D282-hive-and-impala-have-http-entries-for-dbimp.md) | Hive and Impala have HTTP entries for dbimp | Decided, amended by D283 |
+| [D283](D283-hive-and-impala-are-reached-over-http-only.md) | Hive and Impala are reached over HTTP only | Amends D282 |

@@ -29,13 +29,16 @@ var hive = product{
 	name:    "hive",
 	client:  beelineClient(),
 	image:   "docker.io/apache/hive",
-	// 10000 is HiveServer2's Thrift port. 9083 is the metastore and 10002
-	// is the web interface, and nothing here uses either.
-	port: 10000,
+	// 10001 is HiveServer2's HTTP port. 9083 is the metastore and 10002 is
+	// the web interface, and nothing here uses either.
+	port: 10001,
 	env: map[string]string{
 		// The image is one program per container and this picks which.
 		// Without it the entrypoint does not know what to start.
 		"SERVICE_NAME": "hiveserver2",
+		"SERVICE_OPTS": "-Dhive.server2.transport.mode=http" +
+			" -Dhive.server2.thrift.http.port=10001" +
+			" -Dhive.server2.thrift.http.path=cliservice",
 	},
 	// TERM is set because beeline builds a jline terminal before it
 	// connects, and there is no TTY inside a podman exec:
@@ -47,7 +50,7 @@ var hive = product{
 	// answered.
 	ready: []string{
 		"sh", "-c",
-		"TERM=dumb beeline -u jdbc:hive2://localhost:10000/ -e 'SELECT 1'",
+		"TERM=dumb beeline -u '" + beelineHTTP + "' -e 'SELECT 1'",
 	},
 	// The metastore is relational and it is not readable through SQL
 	// until the sys database is created over it. Hive ships the script
@@ -70,77 +73,27 @@ var hive = product{
 		"f=$(ls /opt/hive/scripts/metastore/upgrade/hive/hive-schema-*.hive.sql" +
 			" | grep -v alpha | grep -v beta | sort -V | tail -1)" +
 			" && sed -E 's/^CREATE (EXTERNAL )?TABLE `/CREATE \\1TABLE IF NOT EXISTS `/' \"$f\" > /tmp/dbmeta-schema.sql" +
-			" && TERM=dumb beeline -u jdbc:hive2://localhost:10000/ --silent=true -f /tmp/dbmeta-schema.sql",
+			" && TERM=dumb beeline -u '" + beelineHTTP + "' --silent=true -f /tmp/dbmeta-schema.sql",
 	},
 	// HiveServer2 starts a metastore, a compactor and a session pool
 	// before it listens, and it took longer than the usual budget here.
 	startup: 5 * time.Minute,
-	// The DSN keeps its scheme, which is unusual here and is what the
-	// driver requires: beltran/gohive/v2 rejects anything that does not
-	// begin with hive://. dburl truncates the scheme for this driver and
-	// that is recorded in D78 as a requirement on dburl rather than
-	// worked around here.
-	//
-	// auth=NONE is the mode the image runs in and it has to be stated.
-	// The driver panics rather than returning an error when the mode is
-	// missing or unknown:
-	//
-	//	panic: Unrecognized auth
-	//
-	// A password is still sent because the SASL exchange happens even
-	// when nothing is validated.
+	// The driver of dbimp takes only the hive:// URL, so the DSN is that URL,
+	// and the api is the http:// address that the tools of dbimp read. The
+	// server checks neither the user nor the password, and the driver always
+	// sends one, because Hive answers 401 to a request with none.
 	dsn: func(port int) string {
-		return fmt.Sprintf("hive://hive:%s@127.0.0.1:%d/default?auth=NONE",
+		return fmt.Sprintf("hive://hive:%s@127.0.0.1:%d/default?httpPath=cliservice",
 			url.QueryEscape(Password), port)
 	},
-}
-
-// Hive is every Apache Hive release dbmeta is tested against.
-var Hive = list{}.add(hive, Verified, "4.2.1").
-	add(hive, Verified, "4.0.1")
-
-// hiveHTTP is Apache Hive with HiveServer2 in the HTTP transport, which is the
-// only way dbimp's driver reaches it (dbimp D232, and D282 here). It is the same image
-// as hive, and the container starts HiveServer2 with
-// hive.server2.transport.mode set to http, so it does not answer on 10000.
-//
-// The port and the path are the defaults of HiveServer2: 10001 and cliservice.
-// The properties are written out anyway, so that an image with other defaults
-// still answers where the DSN says.
-//
-// # No users
-//
-// The image runs with hive.server2.authentication set to NONE, so the server
-// accepts any user name and any password, and the PLAIN exchange that the HTTP
-// mode of a client sends is not checked. A user cannot be made and no
-// Init is needed. The sys database that hive creates is not made, because
-// dbimp reads tables and not the metastore.
-var hiveHTTP = product{
-	dialect: dbmeta.Hive,
-	name:    "hivehttp",
-	client:  beelineClient(),
-	image:   "docker.io/apache/hive",
-	port:    10001,
-	env: map[string]string{
-		"SERVICE_NAME": "hiveserver2",
-		"SERVICE_OPTS": "-Dhive.server2.transport.mode=http" +
-			" -Dhive.server2.thrift.http.port=10001" +
-			" -Dhive.server2.thrift.http.path=cliservice",
-	},
-	ready: []string{
-		"sh", "-c",
-		"TERM=dumb beeline -u 'jdbc:hive2://localhost:10001/;transportMode=http;httpPath=cliservice' -e 'SELECT 1'",
-	},
-	startup: 5 * time.Minute,
-	dsn: func(port int) string {
+	api: func(port int) string {
 		return fmt.Sprintf("http://hive:%s@127.0.0.1:%d/cliservice", url.QueryEscape(Password), port)
 	},
-	url: func(port int) string {
-		return fmt.Sprintf("hive://hive:%s@127.0.0.1:%d/default?auth=PLAIN&transport=http&httpPath=cliservice",
-			url.QueryEscape(Password), port)
-	},
 }
 
-// HiveHTTP is the Hive releases that dbimp reaches over HTTP. They are Verified,
-// so CI never starts them. models/hive reads the binary entries above.
-var HiveHTTP = list{}.add(hiveHTTP, Verified, "4.2.1", "4.0.1")
+// beelineHTTP is the JDBC URL that beeline takes inside the container, for
+// HiveServer2 in the HTTP transport.
+const beelineHTTP = "jdbc:hive2://localhost:10001/;transportMode=http;httpPath=cliservice"
+
+// Hive is every Apache Hive release dbmeta is tested against.
+var Hive = list{}.add(hive, Verified, "4.2.1", "4.0.1")

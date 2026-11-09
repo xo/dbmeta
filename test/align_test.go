@@ -11,7 +11,6 @@ import (
 
 	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/apache/arrow-go/v18/arrow/flight/flightsql/driver"
-	_ "github.com/beltran/gohive/v2"
 	_ "github.com/duckdb/duckdb-go/v2"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -19,7 +18,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/nakagami/firebirdsql"
-	_ "github.com/sclgo/impala-go"
 	_ "github.com/vertica/vertica-sql-go"
 	_ "github.com/xo/dbimp/avatica"
 	_ "github.com/xo/dbimp/clickhouse"
@@ -27,6 +25,7 @@ import (
 	_ "github.com/xo/dbimp/drill"
 	_ "github.com/xo/dbimp/druid"
 	_ "github.com/xo/dbimp/exasol"
+	_ "github.com/xo/dbimp/hive"
 	_ "github.com/xo/dbimp/libsql"
 	_ "github.com/xo/dbimp/rqlite"
 	_ "github.com/xo/dbimp/trino"
@@ -413,7 +412,7 @@ var alignTargets = []alignTarget{
 		},
 	},
 	{
-		dialect: dbmeta.Impala, env: "DBMETA_IMPALA", drivers: []string{"impala"},
+		dialect: dbmeta.Impala, env: "DBMETA_IMPALA", drivers: []string{"hive"},
 		cols: []alignColumn{
 			{ddl: "CAST(1 AS TINYINT)", right: true},
 			{ddl: "CAST(1 AS SMALLINT)", right: true},

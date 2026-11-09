@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/sclgo/impala-go"
+	_ "github.com/xo/dbimp/hive"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/impala"
@@ -16,14 +16,15 @@ import (
 )
 
 // openImpala returns a connection to the server named by DBMETA_IMPALA, with
-// sclgo/impala-go, which is what dburl names (D154).
+// the driver of github.com/xo/dbimp/hive, which is what dburl names for it
+// (D154 and D283). That driver serves Hive and Impala under one name.
 func openImpala(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("DBMETA_IMPALA")
 	if dsn == "" {
 		t.Skip("set DBMETA_IMPALA to run against a real server")
 	}
-	db, err := sql.Open("impala", dsn)
+	db, err := sql.Open("hive", dsn)
 	if err != nil {
 		t.Fatalf("opening: %v", err)
 	}

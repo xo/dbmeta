@@ -5,7 +5,6 @@ go 1.27.1
 require (
 	github.com/SAP/go-hdb v1.21.0
 	github.com/apache/arrow-go/v18 v18.8.0
-	github.com/beltran/gohive/v2 v2.1.0
 	github.com/duckdb/duckdb-go/v2 v2.20000.0
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/googleapis/go-sql-spanner v1.28.0
@@ -14,10 +13,9 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/microsoft/go-mssqldb v1.11.2
 	github.com/nakagami/firebirdsql v0.9.23
-	github.com/sclgo/impala-go v1.9.0
 	github.com/vertica/vertica-sql-go v1.3.9
 	github.com/xo/cassandra v0.2.2
-	github.com/xo/dbimp v0.24.3
+	github.com/xo/dbimp v0.26.0
 	github.com/xo/dbmeta v0.34.0
 	github.com/xo/dburl v0.57.0
 	github.com/xo/oracle v0.3.0
@@ -39,8 +37,6 @@ require (
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.6.0 // indirect
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.2 // indirect
 	github.com/apache/thrift v0.25.0 // indirect
-	github.com/beltran/gosasl v1.0.0 // indirect
-	github.com/beltran/gssapi v0.0.0-20200324152954-d86554db4bab // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.3 // indirect
@@ -74,16 +70,12 @@ require (
 	github.com/klauspost/cpuid/v2 v2.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/murfffi/conncheck v0.2.1 // indirect
-	github.com/murfffi/gorich v0.3.0 // indirect
 	github.com/nakagami/chacha20 v0.1.0 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/prometheus/procfs v0.23.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/samber/lo v1.53.0 // indirect
 	github.com/shopspring/decimal v1.6.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.9.0 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260810123728-f0c151ab31b9 // indirect

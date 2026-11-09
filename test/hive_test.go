@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/beltran/gohive/v2"
+	_ "github.com/xo/dbimp/hive"
 
 	"github.com/xo/dbmeta"
 	_ "github.com/xo/dbmeta/models/hive"
@@ -387,7 +387,7 @@ func TestHiveAccessMethods(t *testing.T) {
 // nullable field in this model is a silent lie, and the model looked correct
 // until this was measured.
 //
-// beltran/gohive/v2 distinguishes them. This asserts that it still does,
+// The driver of dbimp distinguishes them. This asserts that it still does,
 // because a driver change that regresses it leaves no other trace.
 func TestHiveTellsNullFromEmpty(t *testing.T) {
 	db := openHive(t)

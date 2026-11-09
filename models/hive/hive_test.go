@@ -130,3 +130,15 @@ func TestNoValuesAreBound(t *testing.T) {
 		}
 	}
 }
+
+// TestTheTerminatorIsStripped checks that Hive is a product that refuses a
+// semicolon at the end of a statement, so a client removes it.
+func TestTheTerminatorIsStripped(t *testing.T) {
+	info, ok := dbmeta.Hive.Info()
+	if !ok {
+		t.Fatal("expected the dialect to be registered")
+	}
+	if info.Terminator != dbmeta.TerminatorStripped {
+		t.Errorf("expected the terminator to be stripped, got %v", info.Terminator)
+	}
+}

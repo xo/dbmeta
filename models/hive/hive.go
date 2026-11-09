@@ -79,6 +79,9 @@ func init() {
 		Syntax: dbmeta.Syntax{BackslashEscapes: true, DashComments: true},
 		// SET alone lists the settings (D264).
 		Statements: dbmeta.Statements{SetListsSettings: true},
+		// Hive refuses a semicolon at the end of a statement with a
+		// ParseException. usql measured this on Hive 4.2.1.
+		Terminator: dbmeta.TerminatorStripped,
 		// The names are what gohive reports. Measured on Apache Hive 4.2.1 (D245).
 		ColumnAlign: dbmeta.RightAligned("TINYINT", "SMALLINT", "INT", "BIGINT", "FLOAT", "DOUBLE", "DECIMAL"),
 		// The syntax is usql's lexer flags for this product, and the fold
