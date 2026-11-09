@@ -69,20 +69,20 @@ func mentions(text string, t customType) bool {
 // composite types.
 func (g *generator) typeComments() {
 	for _, e := range g.snap.Extensions {
-		if e.Comment != "" {
+		if e.Comment != "" && g.style.Extension != nil {
 			g.add(Statement{Stage: Post, Kind: "comment", Name: e.Name,
 				SQL: g.style.Comment("EXTENSION", g.style.Quote(e.Name), e.Comment, g.style.Literal)})
 		}
 	}
 	for _, sc := range g.snap.Schemas {
 		for _, d := range sc.Domains {
-			if d.Comment != "" {
+			if d.Comment != "" && g.style.Domain != nil {
 				g.add(Statement{Stage: Post, Kind: "comment", Name: sc.Name + "." + d.Name,
 					SQL: g.style.Comment("DOMAIN", g.qualified(sc.Name, d.Name), d.Comment, g.style.Literal)})
 			}
 		}
 		for _, c := range sc.Composites {
-			if c.Comment != "" {
+			if c.Comment != "" && g.style.Composite != nil {
 				g.add(Statement{Stage: Post, Kind: "comment", Name: sc.Name + "." + c.Name,
 					SQL: g.style.Comment("TYPE", g.qualified(sc.Name, c.Name), c.Comment, g.style.Literal)})
 			}

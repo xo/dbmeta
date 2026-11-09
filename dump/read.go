@@ -572,9 +572,14 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		k := tableKey{l.Schema, l.Enum}
 		byEnum[k] = append(byEnum[k], l.Label)
 	}
-	doms, err := collect(dbmeta.Domains.Each(ctx, r.m, r.db, a))
-	if err != nil {
-		return fmt.Errorf("reading domains: %w", err)
+	// Only PostgreSQL has a domain or a composite type that a script can make
+	// again. Another product that names such a type is read as before.
+	own := r.m.Dialect() == dbmeta.PostgreSQL
+	var doms []dbmeta.Domain
+	if own {
+		if doms, err = collect(dbmeta.Domains.Each(ctx, r.m, r.db, a)); err != nil {
+			return fmt.Errorf("reading domains: %w", err)
+		}
 	}
 	byDomain := map[tableKey]dbmeta.Domain{}
 	for _, d := range doms {
@@ -594,10 +599,11 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		if !ok || t.Extension.Valid {
 			continue
 		}
-		switch strings.ToLower(t.Kind) {
-		case "enum":
+		switch kind := strings.ToLower(t.Kind); {
+		case kind == "enum":
 			s.Enums = append(s.Enums, Enum{Name: t.Internal, Values: byEnum[tableKey{t.Schema, t.Internal}]})
-		case "domain":
+		case !own:
+		case kind == "domain":
 			if d, found := byDomain[tableKey{t.Schema, t.Internal}]; found {
 				dom := Domain{Name: d.Name, Type: d.DataType, Collation: d.Collation, NotNull: !d.Nullable,
 					Constraints: d.Constraints, Comment: text(d.Comment)}
@@ -607,7 +613,7 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 				}
 				s.Domains = append(s.Domains, dom)
 			}
-		case "composite":
+		case kind == "composite":
 			cols := byComposite[tableKey{t.Schema, t.Internal}]
 			if cols == nil {
 				cols = []Column{}
@@ -646,6 +652,11 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 // readExtensions lists the installed extensions that live in a schema of the
 // filter. The language that every database has is left out.
 func (r *reader) readExtensions(ctx context.Context, snap *Snapshot) error {
+	// Only PostgreSQL installs an extension with a statement. DuckDB lists the ones
+	// that it loads for itself, and they are not part of a schema.
+	if r.m.Dialect() != dbmeta.PostgreSQL {
+		return nil
+	}
 	exts, err := collect(dbmeta.Extensions.Each(ctx, r.m, r.db, dbmeta.Args{}))
 	if err != nil {
 		return fmt.Errorf("reading extensions: %w", err)

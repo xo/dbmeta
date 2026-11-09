@@ -338,6 +338,22 @@ func TestSQLiteScriptRoundTrips(t *testing.T) {
 // TestDuckDBScriptRoundTrips runs the script of a snapshot on a second, empty
 // database of the same kind.
 func TestDuckDBScriptRoundTrips(t *testing.T) {
+	t.Run("every schema", func(t *testing.T) {
+		// DuckDB lists the extensions that it loads, such as json and icu, and a
+		// dump of the whole file does not write them.
+		source := openDuckDBAt(t)
+		m := metaFor(t, dbmeta.DuckDB, source)
+		mustExec(t, source, "CREATE TABLE only_one (id integer PRIMARY KEY, name varchar)")
+		snap, err := dump.Read(t.Context(), m, source, dump.Filter{})
+		if err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+		if len(snap.Extensions) != 0 {
+			t.Errorf("the snapshot has the extensions %+v", snap.Extensions)
+		}
+		target := openDuckDBAt(t)
+		runScript(t, target, scriptOf(t, snap, dbmeta.DuckDB))
+	})
 	source := openDuckDBAt(t)
 	m := metaFor(t, dbmeta.DuckDB, source)
 	for _, s := range embeddedRoundTrip {

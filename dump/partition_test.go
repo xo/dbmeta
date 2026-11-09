@@ -234,3 +234,14 @@ func TestAnotherProductGetsNoExtensionDomainOrCompositeType(t *testing.T) {
 		}
 	}
 }
+
+func TestAProductWithoutTheseObjectsWritesNoCommentOnThem(t *testing.T) {
+	t.Parallel()
+	s := typeSnapshot()
+	s.Dialect = "duckdb"
+	for _, st := range scriptText(t, s, dbmeta.DuckDB) {
+		if strings.Contains(st.SQL, "EXTENSION") || strings.Contains(st.SQL, "DOMAIN") || st.Kind == "comment" {
+			t.Errorf("the script for DuckDB has the %s %s: %s", st.Kind, st.Name, st.SQL)
+		}
+	}
+}
