@@ -15,7 +15,7 @@ D69). The package starts nothing and imports no container client.
 Adding a server is one step of adding a database. [`DIALECT.md`](DIALECT.md)
 holds the rest, and its step 4 points here. Another repository that needs a
 server, such as `dbimp` or a driver, gets its entry here too, through a dbmeta
-session or through Ken. Such an entry is Staged while no model reads it, so
+session or through the maintainers. Such an entry is Staged while no model reads it, so
 dbmeta's CI does not run it, and the other repository runs it with
 `dbrun test staged` or by name (D119).
 
@@ -23,7 +23,7 @@ dbmeta's CI does not run it, and the other repository runs it with
 
 1. Add the entry to `container/` before anything else that needs the server.
    Nothing else starts one (D68).
-2. A new product needs Ken's agreement first. D66 holds the order for a dbmeta
+2. A new product needs a maintainer's agreement first. D66 holds the order for a dbmeta
    model, and dbimp's order holds it for a server that one of its drivers
    needs (D112, D113). D90 says which products qualify.
 3. Choose the releases with [`EVALUATION.md`](EVALUATION.md), and record the
@@ -66,7 +66,7 @@ dbmeta's CI does not run it, and the other repository runs it with
     vendor pushed. CI runs docker, and the Docker on GitHub's runners refuses
     a Docker image manifest of schema 1, which podman still pulls. Such an
     image is copied into `docker.io/usql` with
-    `podman push --format v2s2`, which Ken does, because it needs his login
+    `podman push --format v2s2`, which a maintainer does, because it needs his login
     (D100).
 
 ## A new release of a product
@@ -94,7 +94,7 @@ that the ports moved.
 
 ## A new product
 
-1. Ask Ken whether the product is next.
+1. Ask the maintainers whether the product is next.
 2. Choose its releases with `EVALUATION.md`, and add a row to the table
    Databases evaluated so far. `TestEveryProductIsEvaluated` fails until the
    row exists.

@@ -3,7 +3,7 @@
 Status: Amends D91.
 
 D91 found ScyllaDB from `system.local` and did not read its release, which is
-only in `system.versions`. It left that as an open question, and Ken
+only in `system.versions`. It left that as an open question, and the maintainers
 answered it on 2026-09-27: read the release with a second statement.
 
 ## What changed in the API

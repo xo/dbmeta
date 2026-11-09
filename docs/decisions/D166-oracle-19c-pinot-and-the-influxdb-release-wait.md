@@ -4,18 +4,18 @@ Status: Amends D157.
 
 ## The decision
 
-On 2026-10-02 Ken settled three items that were open after the dialects of
+On 2026-10-02 the maintainers settled three items that were open after the dialects of
 2026-10-01.
 
 Oracle 19c is not measured further. D157 left it unmeasured on go-ora v3,
 because its first start stayed at 36% of its database creation at the 4 GB
-memory limit, and the backlog held a measurement of the memory it needs. Ken
+memory limit, and the backlog held a measurement of the memory it needs. The maintainers
 chose not to spend the time, because 19c is an old release. It stays
 Verified, and D59 holds its last measurement, on the same go-ora commit.
 
 Apache Pinot gets no model for now. Its catalog is only in the Controller's
 REST API, and a model needs a driver that answers metadata statements from
-it. Ken chose not to do that work now. He will consider a generic SQL layer
+it. The maintainers chose not to do that work now. He will consider a generic SQL layer
 that answers what a product does not, such as SHOW TABLES or DESCRIBE, but it
 is not a priority.
 

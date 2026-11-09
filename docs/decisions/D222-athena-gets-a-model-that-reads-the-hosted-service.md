@@ -4,7 +4,7 @@ Status: Amends D194, amended by D227 and D229.
 
 ## The decision
 
-Ken asked on 2026-10-10 for a model for Amazon Athena, and D218 made it one of
+The maintainers asked on 2026-10-10 for a model for Amazon Athena, and D218 made it one of
 the hosted services that get a model. The model is `models/athena`. It answers 8
 of the 65 kinds: databases, schemas, tables, columns, views, partitioned tables,
 the current schema and the current user.
@@ -23,7 +23,7 @@ SESSION and SHOW STATS are syntax errors. SHOW FUNCTIONS, SHOW CREATE TABLE, SHO
 TBLPROPERTIES, SHOW PARTITIONS and DESCRIBE answer, and they are statements that a
 SELECT cannot read. D146 allows a walk for Impala, InfluxQL, Elasticsearch and
 OpenSearch only, so the table comment, the location, the partition values and the
-function list are not answered. Ken can allow a walk for Athena, and the report of
+function list are not answered. A maintainer can allow a walk for Athena, and the report of
 the session that wrote this holds what it adds.
 
 A partitioned table is a Hive table with a partition column, which COLUMNS marks

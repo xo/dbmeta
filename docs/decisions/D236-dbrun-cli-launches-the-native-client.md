@@ -4,7 +4,7 @@ Status: Decided, amended by D270.
 
 ## The decision
 
-Ken asked for a command that does for the client of a database what
+The maintainers asked for a command that does for the client of a database what
 `dbrun usql <name>` does for `usql`. `dbrun cli <name>` runs the native command
 line client of the product, such as `psql`, `mysql`, `mariadb` or `sqlcmd`,
 connected to the server that `dbrun` started.
@@ -62,13 +62,13 @@ variable.
 Nine clients take the password only as an argument: `sqlplus`, `cqlsh`,
 `mongosh`, `hdbsql`, `arangosh`, `rqlite`, `cbq`, `ksql` and `exaplus`. `cli`
 prints a note about it before it runs one, and the two `argvPassword` lists in
-the tests name them, so a new one cannot arrive without a decision. Ken chose to keep the argument and the note for
+the tests name them, so a new one cannot arrive without a decision. The maintainers chose to keep the argument and the note for
 `cqlsh` and `sqlplus`, and to write no temporary file.
 
 ## What it does not do
 
 The only hosted services reached are the ones whose client reads the password
-from the environment, through the environment (Ken, 2026-10-22): Redshift and
+from the environment, through the environment (the maintainers, 2026-10-22): Redshift and
 Neon with `psql`, and PlanetScale with `mysql`. Each sets TLS to required where
 the connection string names no mode. `hosted.Service` has a `Client` field like
 the container products, and every other hosted service says why it has none
@@ -83,7 +83,7 @@ arguments, the `--print` output and every error leave out the password.
 `--as` is not supported for a hosted service, because `dbrun` resolves one
 credential for each and no `<name>-reader` one. Only the parity tests read those.
 
-It does not run the client inside the container when the host has none. Ken
+It does not run the client inside the container when the host has none. The maintainers
 chose host only for now.
 
 ## What was measured

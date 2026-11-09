@@ -22,7 +22,7 @@ JSON, at dbimp's request.
 Each release answered openConnection and closeConnection in JSON, and
 Phoenix did so again after a stop and a start.
 
-Ken decided the URL of dbimp's Avatica driver the same day (dbimp D156):
+The maintainers decided the URL of dbimp's Avatica driver the same day (dbimp D156):
 `avatica://user:password@host:port`, with no path, the default port 8765, and
 the keys tls and auth alone. The driver sends the user and the password in the
 info of openConnection. So each principal's url is that form,
@@ -30,7 +30,7 @@ info of openConnection. So each principal's url is that form,
 the standalone server and `avatica://phoenix@...` on Phoenix, and the dsn stays
 `http://` for dbimp's recorder.
 
-Druid is not an Avatica server here any more. Ken decided on 2026-10-01 that
+Druid is not an Avatica server here any more. The maintainers decided on 2026-10-01 that
 Druid gets a driver of its own in dbimp, on its SQL API, with the name druid
 (dbimp D154), so its entry keeps what D113 describes until that driver asks
 for more.

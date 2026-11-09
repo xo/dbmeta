@@ -240,7 +240,7 @@ func embeddedTargets() []target {
 }
 
 // unmodeled are the embedded databases that have no dbmeta model yet, so no
-// model declares them. Ken asked on 2026-09-28 for dbrun to know them before a
+// model declares them. The maintainers asked on 2026-09-28 for dbrun to know them before a
 // dialect is written for them, and the list goes when a model does. The
 // dialect is the one dburl names. moderncsqlite is SQLite without cgo, which
 // dburl gives the dialect sqlite3, and it has a file of its own beside the

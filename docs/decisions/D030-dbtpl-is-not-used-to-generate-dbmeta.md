@@ -9,7 +9,7 @@ The other half said that ordinary Go code in a sub-package was to drive
 generation. There is no such sub-package and there is no generation at all.
 D71 records what actually happened, which is that the models were written.
 
-Ken decided this. Both reviews questioned the stated reason and their objection
+The maintainers decided this. Both reviews questioned the stated reason and their objection
 is recorded here, because a later reader will ask.
 
 Neither review accepted that the bootstrap was a cycle. Go modules pin

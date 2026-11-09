@@ -4,7 +4,7 @@ Status: Amends D216.
 
 ## The decision
 
-Ken approved on 2026-10-10 that the Spanner model is measured on Cloud Spanner
+The maintainers approved on 2026-10-10 that the Spanner model is measured on Cloud Spanner
 (D218). dbsetup made the instance dbimp-spanner and the database dbmeta, and
 two principals: an administrator and a reader that holds databaseReader. This
 decision records what that measurement found and changes three things in D216.

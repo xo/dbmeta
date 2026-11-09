@@ -2,7 +2,7 @@
 
 Status: Decided.
 
-Ken decided on 2026-09-29 that the CrateDB model leaves the four text search
+The maintainers decided on 2026-09-29 that the CrateDB model leaves the four text search
 kinds unanswered.
 
 CrateDB's `information_schema.routines` lists analyzers, tokenizers and token

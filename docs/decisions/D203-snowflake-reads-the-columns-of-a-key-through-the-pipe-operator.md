@@ -4,7 +4,7 @@ Status: Amends D190 and D193, amended by D213.
 
 ## The decision
 
-D193 left five things open for Snowflake. Ken said on 2026-10-09 to finish the
+D193 left five things open for Snowflake. The maintainers said on 2026-10-09 to finish the
 dialect. All of it ran on 2026-10-09 against the trial account, release
 10.36.101, as the role DBMETA_ROLE.
 
@@ -18,7 +18,7 @@ dialect. All of it ran on 2026-10-09 against the trial account, release
 
 ## The warehouse
 
-Ken granted USAGE on DBMETA_WH to DBMETA_ROLE with the grant option. The role
+The maintainers granted USAGE on DBMETA_WH to DBMETA_ROLE with the grant option. The role
 also owns the warehouse. The test grants USAGE to each role that it makes, and
 revokes it before it drops the role. It never alters, suspends, resizes or
 drops the warehouse, and it grants nothing to a role that it did not make,
@@ -61,7 +61,7 @@ Three things about the pipe came out of the measurement.
 - A bind parameter is refused after the pipe. The server answers "invalid
   identifier '1'". So the first version took no filter in SQL, and its
   bindings set `Keep` (D200) to filter in Go. That read the whole database for
-  one table (see Cost). Ken decided on 2026-10-09 to write the values into the
+  one table (see Cost). The maintainers decided on 2026-10-09 to write the values into the
   statement, which is the section below.
 - A session with no current database makes SHOW IN DATABASE read every database
   that the role can see. The stranger of parity read more rows than the
@@ -72,7 +72,7 @@ No cap of 10000 rows applied. One SHOW PRIMARY KEYS answered 10803 rows.
 
 ## Values are written into the statement, and the SHOW is scoped
 
-Ken decided on 2026-10-09 to use `Info.Literal` (D78) for Snowflake and to scope
+The maintainers decided on 2026-10-09 to use `Info.Literal` (D78) for Snowflake and to scope
 the SHOW. Both followed.
 
 `Info.Literal` is a dialect switch, so every statement of the Snowflake model
@@ -92,7 +92,7 @@ type, `dbmeta.Derived`, and `Binding.Derived` lists values that the binding
 computes from the arguments and that a caller cannot pass. A statement reads one
 as `@scope`, and `bind` asks the dialect's `Literal` to write it. Only Snowflake
 uses it. This is an addition to the root API and is not in any decision before
-this one, so Ken must say if it is the shape he wants. The alternative was
+this one, so a maintainer must say if it is the shape he wants. The alternative was
 `Binding.Walk`, which makes `Build` fail for two kinds.
 
 `keyScope` computes the scope, and the Snowflake `Literal` writes a scope as it
@@ -109,7 +109,7 @@ is, because only `keyScope` makes one and it quotes every name with
 The two key statements take a new parameter, `catalog`, a name pattern for the
 database. It is there because SHOW refuses a schema without its database with
 "Must specify the full search path starting from database", and the statement
-cannot name the current database. So the schema scope of Ken's rule needs the
+cannot name the current database. So the schema scope of a maintainer's rule needs the
 catalog, and a caller that gives an exact schema and no catalog gets the
 database scope. A table scope needs no catalog, because a name of two parts
 starts at the current database. A consumer that never sets the catalog reads
@@ -117,7 +117,7 @@ the table scope and the database scope only. `Args.Catalog` already exists, and
 `Each` passes it to these two statements.
 
 A pattern is an exact name when it is not empty and holds no `%`, no `_` and no
-backslash. The model treats a backslash as not exact. Ken's rule counts an
+backslash. The model treats a backslash as not exact. A maintainer's rule counts an
 escaped underscore as exact, but whether the server reads a backslash in a LIKE
 as an escape depends on the statement, and a wider scope loses no row. So a
 name with an underscore, such as `DBMETA_FIXTURE` or `ORDER_LINES`, reads the

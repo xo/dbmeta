@@ -10,7 +10,7 @@
 // statements SHOW TABLES LIKE and DESCRIBE TABLES LIKE. A statement of that
 // kind takes no WHERE and no ORDER BY, and SHOW TABLES must have a LIKE. So
 // each kind here is a walk, [dbmeta.Binding.Walk], that matches the patterns
-// of the caller in Go, with [dbmeta.Like]. Ken allowed a walk for OpenSearch on
+// of the caller in Go, with [dbmeta.Like]. The maintainers allowed a walk for OpenSearch on
 // 2026-10-07, and the cost of each one is written beside it. See D175 and D181.
 //
 // # The mapping

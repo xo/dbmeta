@@ -2,7 +2,7 @@
 
 Status: Amends D50 and D89.
 
-Ken decided on 2026-09-27 that every repository in the `xo` namespace is set
+The maintainers decided on 2026-09-27 that every repository in the `xo` namespace is set
 up for coding agents the same way. dbmeta, dbimp and cql had the same setup,
 the others differed, and one repository had its skills as links that a
 Windows checkout breaks. This decision is the standard. dbmeta follows it, and
@@ -28,7 +28,7 @@ In the root:
 
 In `docs/`:
 
-- `PLAN.md`, which holds the plan and the open questions for Ken.
+- `PLAN.md`, which holds the plan and the open questions for a maintainer.
 - The decisions, with an index. A large project keeps each decision in a file
   of its own under `docs/decisions/`, and a small library keeps them in
   `PLAN.md`. D111 says which is which.
@@ -48,13 +48,13 @@ copies that differ.
 
 `AGENTS.md` holds three rules that are the same in every repository:
 
-1. Stage changes for review. Commit and push only when Ken says so.
+1. Stage changes for review. Commit and push only when a maintainer says so.
 2. Load `simple-english` before writing any text that a person reads: project
    documentation, a code comment, an error message or a commit message.
 3. In a Go project, load `go-pedantry` before writing or reviewing Go code. A
    rule of the project wins where the two conflict.
 
-Until now each agent learned the first rule from Ken and kept it in its own
+Until now each agent learned the first rule from a maintainer and kept it in its own
 memory, so an agent new to a repository did not know it.
 
 ## What changed in dbmeta
@@ -66,5 +66,5 @@ holds four documents, not three, which amends D50, and
 skills and test did not change, and the rule that names `go-pedantry` amends
 it.
 
-n1ql and cql are not part of the rollout. Ken decided the same day that a clean
+n1ql and cql are not part of the rollout. The maintainers decided the same day that a clean
 driver in dbimp replaces each, so neither gets further work.

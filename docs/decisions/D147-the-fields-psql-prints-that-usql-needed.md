@@ -5,7 +5,7 @@ Status: Decided, amended by D201.
 ## The decision
 
 usql's W31 wires up every psql describe command in `COMMANDS.md`, and it
-found facts that psql prints and dbmeta did not return. Ken chose on
+found facts that psql prints and dbmeta did not return. The maintainers chose on
 2026-09-30 to add all of them, and to add one kind for the mappings that
 `\dF+` prints.
 
@@ -35,7 +35,7 @@ kinds, and 49 of them come from psql.
 from `pg_get_functiondef`. That function refuses an aggregate, and psql's
 `\sf` refuses one too, so an aggregate has no definition. SQL Server,
 ClickHouse, SAP HANA and Exasol keep the whole statement in a catalog column,
-and those models returned it as `Source` before this field existed. Ken chose
+and those models returned it as `Source` before this field existed. The maintainers chose
 on 2026-09-30 that they return it in `Definition` alone and pad `Source`, so
 that `Source` means one thing in every model: what the product keeps apart
 from the whole statement. usql reads `Source` only for the Source code column
@@ -64,7 +64,7 @@ PostgreSQL 14, which added statistics on expressions. Below 14 it names the
 columns from `stxkeys`, as psql does. The MCV kind arrived in 12. Below 12 no
 object has it, so the field is false and not padded. SQL Server and SAP HANA
 answer from their own catalogs. Their `Kinds` field held the columns before
-this field existed, and Ken chose on 2026-09-30 that it holds the kind alone.
+this field existed, and the maintainers chose on 2026-09-30 that it holds the kind alone.
 On SQL Server it is `d`, PostgreSQL's letter for ndistinct, which is the one
 kind SQL Server builds over several columns. On HANA it is the statistics type
 in lower case, such as `histogram`, because HANA's types do not match

@@ -59,7 +59,7 @@ already in this file.
    different users, which the testing plan already requires and which two of
    the five open `usql` pull requests exist because of.
 
-## The third party question is still Ken's
+## The third party question is still a maintainer's
 
 The two reviews split on whether to grant D7 an exception for a test only
 container library.

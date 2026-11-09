@@ -2,7 +2,7 @@
 
 Status: Amends D112.
 
-Ken decided on 2026-09-30 that dbrun's TDengine entry is removed.
+The maintainers decided on 2026-09-30 that dbrun's TDengine entry is removed.
 
 D112 added TDengine to dbrun for a TDengine driver that dbimp planned. dbimp's
 D127 decided that no such driver is coming, and dburl's D41 removed the

@@ -5,7 +5,7 @@ Status: Decided, amended by D212.
 ## The decision
 
 D198, D199, D201 and D203 added fields and kinds that only PostgreSQL filled.
-Ken said on 2026-10-10 to refresh every model. This decision does it for the
+The maintainers said on 2026-10-10 to refresh every model. This decision does it for the
 MySQL family: MariaDB and MySQL (`models/mysql`), TiDB, SingleStore and
 Vitess. TiDB, SingleStore and Vitess share the statements of `models/mysql`
 with `Query.Share`, so one change reaches all five products, and a fragment

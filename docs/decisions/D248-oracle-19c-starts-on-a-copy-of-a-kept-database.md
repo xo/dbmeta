@@ -4,7 +4,7 @@ Status: Decided.
 
 The first start of `oracle-19c` runs DBCA, which builds the whole database
 and takes a quarter of an hour. Removing the container threw that work away,
-so every new container paid it again. Ken asked for a way to keep the database
+so every new container paid it again. The maintainers asked for a way to keep the database
 and copy it, because a copy on btrfs costs almost nothing.
 
 ## Decision
@@ -77,7 +77,7 @@ volume and the entrypoint keeps nothing else.
 
 ## The smaller image
 
-Ken set the bar at about 2 GB and said that 2.28 GB is fine. It keeps the
+The maintainers set the bar at about 2 GB and said that 2.28 GB is fine. It keeps the
 Oracle home that the server reads and removes the rest: the other products in
 the home, the static libraries, the math and backup libraries, and the spatial,
 text and OLAP directories. The database still holds those components as

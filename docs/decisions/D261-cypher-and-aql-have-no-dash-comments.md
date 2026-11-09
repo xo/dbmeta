@@ -5,7 +5,7 @@ Status: Amends D143.
 usql read two dashes as the start of a comment in every dialect, so it cut
 `MATCH (p:Person) RETURN count{(p)--()}` after `count{(p)` and sent half a
 statement. Neo4j reads `--` as part of a relationship pattern, and `5--3` is 8.
-usql asked for a flag that says which dialect reads two dashes as a comment. Ken decided on 2026-11-04 to record it here.
+usql asked for a flag that says which dialect reads two dashes as a comment. The maintainers decided on 2026-11-04 to record it here.
 
 ## Decision
 
@@ -13,7 +13,7 @@ usql asked for a flag that says which dialect reads two dashes as a comment. Ken
 line. It is true for every model but Neo4j and ArangoDB. The flag is positive, like
 `SlashComments` and `HashComments`, and the zero value means no dash comments.
 An earlier version of this decision had the negative flag `NoDashComments`, and
-Ken chose the positive sense on 2026-11-04 (transit D139).
+The maintainers chose the positive sense on 2026-11-04 (transit D139).
 
 Every SQL product reads two dashes as a comment, so a model that forgets the
 flag makes a client stop reading them as one.

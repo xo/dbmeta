@@ -2,7 +2,7 @@
 
 Status: Amends D94, amended by D101 and D104.
 
-D94 tied the Couchbase model to a rewrite of `xo/n1ql`. Ken decided on
+D94 tied the Couchbase model to a rewrite of `xo/n1ql`. The maintainers decided on
 2026-09-27 that the first driver in `github.com/xo/dbimp` is a new Couchbase
 driver for SQL++ over HTTP, and that it replaces `xo/n1ql`. dbimp's D23
 records it. So the model waits for that driver instead.
@@ -22,7 +22,7 @@ The `n1ql` session measured the query service itself on 2026-09-27. 7.2.9
 sends the fields of each result object in name order, and 7.6.12 and 8.0.3
 send them in the order the statement selects them. So on 8.0.3 the name order
 that D94 found came from `go_n1ql` decoding into a map, and on 7.2.9 it comes
-from the server, where no driver can undo it. Ken chose, for dbimp, to accept
+from the server, where no driver can undo it. The maintainers chose, for dbimp, to accept
 name order on 7.2 rather than send a PREPARE to learn the order.
 
 Every Scan in a dbmeta model reads a column by its position. So a Couchbase

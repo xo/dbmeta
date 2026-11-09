@@ -7,7 +7,7 @@ Status: Amends D146 and D159.
 D146 allowed a query to walk several SHOW statements for Impala alone, and
 D159 allowed it for InfluxQL as well. Elasticsearch and OpenSearch read their
 catalog the same way. Their SQL has `SHOW TABLES` and `DESCRIBE`, and no table
-that a SELECT reads. Ken allowed on 2026-10-07 that both can walk.
+that a SELECT reads. The maintainers allowed on 2026-10-07 that both can walk.
 
 Everything else in D146 holds. A walk is for a kind that no single statement
 answers, and for nothing else. Its cost is written beside it: one statement

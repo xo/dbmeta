@@ -6,7 +6,7 @@ Status: Decided.
 
 Oracle is a source and a target of a dump. The schemas NORTHWIND and HR of the
 northwind fixture copy into schemas of the same database with the same objects and
-the same rows, which `TestOracleCopiesTheNorthwindFixture` checks. Ken asked for it
+the same rows, which `TestOracleCopiesTheNorthwindFixture` checks. The maintainers asked for it
 on 2026-11-09.
 
 ## What the models read

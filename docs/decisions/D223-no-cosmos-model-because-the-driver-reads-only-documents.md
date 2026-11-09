@@ -5,7 +5,7 @@ Status: Decided, amended by D228.
 ## The decision
 
 dbmeta builds no model for Azure Cosmos DB with the API for NoSQL. The session
-that measured it stopped before a model. Ken chose what comes next, and the last section
+that measured it stopped before a model. The maintainers chose what comes next, and the last section
 says what. The entry in `container/cosmos.go` stays Staged and the dialect `cosmos` has no
 queries.
 
@@ -45,7 +45,7 @@ not apply here, because the Queryer has no way to send a REST request on a
 resource. No statement of either driver reads the partition key, the unique keys,
 the functions, the procedures or the triggers. So a walk answers at most the
 database list, the container list and the indexing policy as text, through the
-driver that dburl does not name. Ken must decide one of three things:
+driver that dburl does not name. A maintainer must decide one of three things:
 allow a walk through gocosmos, ask dbimp for statements that read the resources,
 or leave Cosmos DB without a model. The recommendation is the second, because it
 keeps D154 and costs one request for each list and no request for each container.
@@ -69,8 +69,8 @@ for it disagree, so it stays unmeasured. Each lead for the feeds of a container
 is recorded by dbimp on the hosted account, except roles, materialized views and
 the vector and full-text policies, which no run read.
 
-## What Ken decided
+## What the maintainers decided
 
-Ken decided on 2026-10-11 to ask dbimp for statements that read the REST resources of
+The maintainers decided on 2026-10-11 to ask dbimp for statements that read the REST resources of
 Cosmos DB. dbmeta writes the model when the driver has them and is tagged. No walk is
 allowed for Cosmos DB.

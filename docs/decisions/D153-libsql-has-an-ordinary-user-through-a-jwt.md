@@ -5,7 +5,7 @@ Status: Amends D112, amended by D160.
 ## The decision
 
 D112 gave the libSQL entry one user, because sqld's basic authentication has
-one, and a user with fewer rights needs a signed JWT. Ken decided on
+one, and a user with fewer rights needs a signed JWT. The maintainers decided on
 2026-10-01 that the entry has an ordinary user that way, for dbimp's libSQL
 and Turso driver (dbimp W23).
 
@@ -22,7 +22,7 @@ or `dbmeta_user`, as every key and token entry does (D102). sqld reads no
 user name, and dbimp's driver sends only the password, as Bearer (dbimp D94).
 The ready check sends the administrator's token.
 
-Ken decided the driver's URL the same day (dbimp D148). Each principal's url
+The maintainers decided the driver's URL the same day (dbimp D148). Each principal's url
 is `libsql://<user>:<token>@127.0.0.1:<port>?tls=false`. TLS is on by default
 for a libsql:// URL, so the local server needs `tls=false`, and with it the
 URL names a port. The dsn stays `http://`, which dbimp's recorder takes.

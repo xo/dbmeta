@@ -17,7 +17,7 @@ import (
 //
 // A principal in Snowflake is a user that holds roles, and a role holds the
 // grants. The test makes a role and a user for each principal, with the
-// CREATE ROLE and CREATE USER grants that Ken gave the role of the test
+// CREATE ROLE and CREATE USER grants that a maintainer gave the role of the test
 // account. Neither is the one login of the account, which only the account's
 // own user is, and the test never changes it. See D193.
 //

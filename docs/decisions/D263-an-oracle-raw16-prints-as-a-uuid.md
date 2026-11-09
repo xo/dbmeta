@@ -5,7 +5,7 @@ Status: Amends D258.
 Oracle has no UUID type. It keeps a GUID, such as `SYS_GUID()` returns, in a
 RAW(16). In the northwind fixture the column `staff_id` is a `uuid` on
 PostgreSQL, a `uniqueidentifier` on SQL Server, which usql prints as a lower
-case UUID, and a RAW(16) on Oracle. Ken decided on 2026-11-04 that the column
+case UUID, and a RAW(16) on Oracle. The maintainers decided on 2026-11-04 that the column
 displays the same on every database. This is an exception to D258, and it is
 the only one.
 
@@ -33,7 +33,7 @@ The rules for the value:
   hex. A RAW of any other length keeps `\x` and hex.
 - A value of another length in a RAW(16) column, which Oracle allows, keeps
   `\x` and hex.
-- A RAW(16) column with no `id` in its name keeps `\x` and hex. Ken added the
+- A RAW(16) column with no `id` in its name keeps `\x` and hex. The maintainers added the
   name test on 2026-11-04 so that a RAW(16) that is not a GUID, such as an MD5
   hash, is not shown as one. A hash in a column with `id` in its name still
   prints as a UUID.

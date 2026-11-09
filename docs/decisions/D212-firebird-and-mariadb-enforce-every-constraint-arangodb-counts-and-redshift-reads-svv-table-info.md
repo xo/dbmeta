@@ -4,7 +4,7 @@ Status: Amends D205, D207, D209 and D210, amended by D221 and D232.
 
 ## The decision
 
-Ken decided four things on 2026-10-10. Each fills a field that an earlier
+The maintainers decided four things on 2026-10-10. Each fills a field that an earlier
 decision left NULL and listed as open in `docs/BACKLOG.md`.
 
 1. Firebird fills `Constraint.Enforced` with true for every constraint. D209
@@ -48,7 +48,7 @@ collections.
 ## Redshift reads SVV_TABLE_INFO
 
 D207 left the view out for four reasons. The first is that Redshift refuses
-it to every user who is not a superuser. Ken decided that the model reads it
+it to every user who is not a superuser. The maintainers decided that the model reads it
 and that the administrator grants SELECT on it. The measurement came first:
 `GRANT SELECT ON svv_table_info TO` a made user works, and the user then reads
 the view. Redshift Serverless 1.0.477953 accepted it.

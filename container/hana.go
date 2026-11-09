@@ -97,7 +97,7 @@ var hana = product{
 		"--master-password", Password,
 		// SAP HANA, express edition refuses to start without this. It
 		// accepts the SAP Developer Center Software Developer License
-		// Agreement, which Ken agreed to on 2026-09-26 for this project's
+		// Agreement, which the maintainers agreed to on 2026-09-26 for this project's
 		// test containers.
 		"--agree-to-sap-license",
 		"--dont-check-system",

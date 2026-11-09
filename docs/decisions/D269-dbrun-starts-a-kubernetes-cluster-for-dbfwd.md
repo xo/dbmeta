@@ -3,10 +3,10 @@
 Status: Decided, amended by D271.
 
 dbfwd forwards a port to a database that runs inside Kubernetes, and its tests
-need a temporary cluster. Ken decided on 2026-11-07, in dbfwd D13, that dbrun
+need a temporary cluster. The maintainers decided on 2026-11-07, in dbfwd D13, that dbrun
 starts and removes it. The first rule of dbrun says that nothing else starts a
 container on a shared machine, and a kind cluster is a container. dbfwd asked,
-and Ken answered the three open questions on the same day.
+and the maintainers answered the three open questions on the same day.
 
 ## Decision
 
@@ -57,7 +57,7 @@ of D108 do not count a cluster, because one cluster is several processes and
 one to two GB of memory. A start that makes a third run is refused and names
 the owners. `--force` removes the oldest. A cluster is never stopped to make
 room, because it holds the operators and fixtures of a test run and takes
-minutes to build again. Ken confirmed the limit on 2026-11-07.
+minutes to build again. The maintainers confirmed the limit on 2026-11-07.
 
 ## The host
 

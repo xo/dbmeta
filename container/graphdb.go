@@ -17,7 +17,7 @@ package container
 // # The license
 //
 // GraphDB 11 does not run without a license file. GraphDB Free is a license
-// that a person requests with an email address, and Ken chose on 2026-09-28
+// that a person requests with an email address, and the maintainers chose on 2026-09-28
 // to provision it. dbrun mounts the file at [Server.License] and lists these
 // releases only while it finds the file. CI has no license, and no model
 // reads them, so they are Staged. GraphDB 10.8 ran free with no file, and is a line older.

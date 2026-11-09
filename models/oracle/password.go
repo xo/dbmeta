@@ -15,7 +15,7 @@ import (
 //
 // A plain user name folds to upper case, as Oracle stores it, so scott means
 // SCOTT. A name given between double quotes is kept as it is written, so
-// "scott" means the user created in lower case. Ken decided both for usql,
+// "scott" means the user created in lower case. The maintainers decided both for usql,
 // whose rules these are.
 //
 // REPLACE names the current password. A user changing its own password needs

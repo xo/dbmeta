@@ -4,8 +4,8 @@ Status: Decided, amended by D188.
 
 ## The decision
 
-On 2026-10-01 Ken asked for dialects for eight products that dburl names and
-that had no model. Two of them cannot be built now, and Ken chose to leave
+On 2026-10-01 the maintainers asked for dialects for eight products that dburl names and
+that had no model. Two of them cannot be built now, and the maintainers chose to leave
 both Staged.
 
 H2 waits for a driver. dburl names `github.com/jmrobles/h2go` for the h2

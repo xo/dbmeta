@@ -4,7 +4,7 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-09-29 for Vitess to be built as a dialect of its own, as
+The maintainers asked on 2026-09-29 for Vitess to be built as a dialect of its own, as
 dburl's D37 made it. `models/vitess` shares the mysql model's statements where
 they answer, the way `models/tidb` does (D133), and writes one statement of
 its own, for sequences.
@@ -20,11 +20,11 @@ release is under the key `vitess`.
 
 A keyspace is stored in one MySQL database for each shard, named
 `vt_<keyspace>_<shard>`, and information_schema names that database and never
-the keyspace. Ken first chose on 2026-09-30 that the model reports that name.
+the keyspace. The maintainers first chose on 2026-09-30 that the model reports that name.
 It was then measured that vtgate does not accept it in a query. A SELECT from
 `vt_dbmeta_q_0.t` failed with VT05003, unknown database, and a SELECT from
 `dbmeta_q.t` succeeded, on 24.0.3. So a client was not able to query a table under
-the name the model reported, and Ken changed the choice the same day: the
+the name the model reported, and the maintainers changed the choice the same day: the
 model reports the keyspace.
 
 `mysql.Keyspace` is the expression that reads the keyspace from the name of

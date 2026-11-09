@@ -50,7 +50,7 @@ dbmeta from testing them, and then nobody knows they are broken.
 to Oracle 11g or 18c today gets a Go panic rather than a message. A panic takes
 the program down, which is worse than not supporting the release.
 
-Ken is moving the `xo` database projects back to v2 for now. The fix being
+A maintainer is moving the `xo` database projects back to v2 for now. The fix being
 already upstream makes that an interim measure rather than a direction.
 
 ## The driver to want, which now exists

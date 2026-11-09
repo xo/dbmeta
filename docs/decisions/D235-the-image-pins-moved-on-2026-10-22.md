@@ -4,7 +4,7 @@ Status: Decided.
 
 ## The decision
 
-Ken asked for a check of every image registry and for the pins to move where the
+The maintainers asked for a check of every image registry and for the pins to move where the
 coverage rules say so. Four read only checks ran on 2026-10-22. Each product
 followed the rule that its own file in `container/` records, which is step 2 of
 `docs/EVALUATION.md` or the rule for an image that is never rebuilt (D112). The
@@ -57,7 +57,7 @@ Some moves carry a caution.
   measured, because no license file is provisioned.
 - The notes on what the Cosmos DB emulator answers were measured on EN20260907. The
   registry gives no date for a tag, so the date comes from the name of the tag.
-- Ken accepted the license of DynamoDB Local on 2026-09-28. Nobody checked whether
+- the maintainers accepted the license of DynamoDB Local on 2026-09-28. Nobody checked whether
   the terms of 3.3.2 changed.
 - Apache Impala 4.5.3 is built here. The `RELEASE` defaults in
   `test/cmd/dbrun/image/impala.Containerfile` moved with the entry.
@@ -66,7 +66,7 @@ Some moves carry a caution.
 ## What stayed
 
 - Solr stayed. The release 9.11.0 is a new line, rebuilt on 2026-10-17, and the rule in
-  `container/solr.go` does not say whether it replaces 9.10.1. Ken decides.
+  `container/solr.go` does not say whether it replaces 9.10.1. A maintainer decides.
 - SingleStore stayed on image 0.2.85. The image 0.2.86 exists, and its engine is not
   known until `dbrun` measures it.
 - MariaDB stayed. The vendor ended 10.6 in 2026-07, and the image still got a patch on
@@ -79,4 +79,4 @@ Some moves carry a caution.
 The goldens in `test/testdata` did not change, because each section is named for a
 product and a major release, and no major changed.
 
-`docs/BACKLOG.md` holds the decisions that need Ken.
+`docs/BACKLOG.md` holds the decisions that need the maintainers.

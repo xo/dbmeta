@@ -4,8 +4,8 @@ This document lists work that is known and not done. Each item names the
 decision or the measurement that found it.
 
 A decision is not a backlog item. It goes in [`decisions/`](decisions/README.md).
-A question for Ken goes at the end of [`PLAN.md`](PLAN.md), under Open questions
-for Ken. When an item here is done, delete it, and record in `decisions/`
+A question for a maintainer goes at the end of [`PLAN.md`](PLAN.md), under Open questions
+for a maintainer. When an item here is done, delete it, and record in `decisions/`
 anything that was decided on the way (D110).
 
 ## Servers
@@ -14,7 +14,7 @@ anything that was decided on the way (D110).
 
 D236 added `dbrun cli`. Three things are left:
 
-1. Ken chose on 2026-10-22 that `cqlsh` and `sqlplus` keep the password as an
+1. The maintainers chose on 2026-10-22 that `cqlsh` and `sqlplus` keep the password as an
    argument, with a note, and that `dbrun` writes no temporary file for them.
    Nine clients take it that way: `sqlplus`, `cqlsh`, `mongosh`, `hdbsql`,
    `arangosh`, `rqlite`, `cbq`, `ksql` and `exaplus`. The last seven need a
@@ -24,11 +24,11 @@ D236 added `dbrun cli`. Three things are left:
 3. Redshift, Neon and PlanetScale have a client. The other hosted services have
    none, and each one says why in `hosted/hosted.go`. A hosted service has one
    credential, so `--as` is not supported. Running a client inside the
-   container when the host has none is open. Ken chose host only for now.
+   container when the host has none is open. The maintainers chose host only for now.
 
-### Decide the pins that need Ken
+### Decide the pins that need the maintainers
 
-D235 moved most pins and left four for Ken. The first is Solr 9.11.0, a new line
+D235 moved most pins and left four for a maintainer. The first is Solr 9.11.0, a new line
 that was rebuilt on 2026-10-17, and the rule in `container/solr.go` does not say
 whether it replaces 9.10.1 or sits beside it. The second is SingleStore image
 0.2.86, which needs `dbrun` to measure its engine before the pin moves. The third
@@ -105,7 +105,7 @@ Controller's REST API, and its Broker's SQL has no information_schema, no
 SHOW and no DESCRIBE, measured on 1.4 and 1.5 on 2026-10-01. InfluxDB names
 its release only in `GET /ping`. A generic SQL layer, in a driver or beside
 one, can answer such statements, for example SHOW TABLES, DESCRIBE and
-`SELECT version()`, from what the product does expose. If Ken takes it up,
+`SELECT version()`, from what the product does expose. If a maintainer takes it up,
 a Pinot model can walk those statements, as Impala's does (D146), and the
 InfluxDB models can read the release with a statement.
 
@@ -281,7 +281,7 @@ sources are `mysql.innodb_index_stats` (the size in pages, a table of the mysql
 schema) and `INNODB_INDEXES` or `INNODB_SYS_INDEXES` (the type, where 1 is the
 clustered index). Both refuse a user without the PROCESS privilege or SELECT on
 the mysql schema, as measured on MariaDB 12.3. They can come back as a
-fragment that a parity scene marks as refused for the grantee, if Ken wants the
+fragment that a parity scene marks as refused for the grantee, if a maintainer wants the
 fields more than the statement that answers for every principal.
 
 ### MariaDB puts the compression comment in the data type
@@ -330,7 +330,7 @@ the fields can be added.
 D208 leaves `Table.Options` NULL on SQLite. `pragma_table_list` has the strict
 and the WITHOUT ROWID flags, and joining it for every table grows with the
 square of the catalog. A shadow table is listed as a `table`, and
-`pragma_table_list` calls it `shadow`. Ken decides whether the type changes.
+`pragma_table_list` calls it `shadow`. A maintainer decides whether the type changes.
 `Table.Size` needs `dbstat`, which scans the file and is not in the mattn
 driver.
 
@@ -383,7 +383,7 @@ Spanner has objects that the 65 kinds have no place for (D216). A property graph
 in `INFORMATION_SCHEMA.PROPERTY_GRAPHS` as one JSON value, a model is in `MODELS`
 and refused by Spanner Omni, a placement is in `PLACEMENTS` and needs an instance
 partition, a table synonym has no kind but is a `Table` of type synonym, and a
-proto bundle is one binary descriptor in `SCHEMATA`. Ask Ken whether any of
+proto bundle is one binary descriptor in `SCHEMATA`. Ask the maintainers whether any of
 them is worth a kind, with the cost test of D47. The ON UPDATE expression, the
 hidden flag and the identity kind of a column, the options of a sequence, and
 the security type of a view are columns of INFORMATION_SCHEMA that no field holds
@@ -431,7 +431,7 @@ development machine and read the diff of the goldens.
 `Indexes` for Cosmos DB is one row for each container, the policy (D233). One row for each
 entry, with a composite index as one row, needs a hook that expands a row into several
 objects, or a way to drop the rows of a composite index after the first. Both change the
-root package, which is Ken's decision. `IndexColumn` has no field for the kind of an entry,
+root package, which is a maintainer's decision. `IndexColumn` has no field for the kind of an entry,
 so `Expression` carries it. A `Kind` field on the index column is cleaner. The status
 and the parents of a partition key range have no field on `Partition` either.
 
@@ -453,7 +453,7 @@ column, a generated column and a CHECK constraint are in SHOW CREATE TABLE and S
 TBLPROPERTIES. All of them are statements that a SELECT cannot read, and INFORMATION_SCHEMA
 reports a default as NULL and an identity column as NO. D146 allows a walk for four
 products, and Databricks is not one. A walk costs one statement for each table, and the
-warehouse is shared and has a daily quota. Ken decided on 2026-10-11 that Athena gets no
+warehouse is shared and has a daily quota. The maintainers decided on 2026-10-11 that Athena gets no
 walk, and Databricks follows the same rule. Ask Databricks and dbimp for a relation that holds them: `system.information_schema.tables`
 has no size column on the release that was measured.
 
@@ -475,7 +475,7 @@ the values of a partition and the function list are behind SHOW CREATE TABLE, SH
 TBLPROPERTIES, SHOW PARTITIONS, DESCRIBE and SHOW FUNCTIONS, which a SELECT cannot
 read. D146 allows a walk for five products, and Athena is not one. A walk costs
 one statement for each table, and each Athena statement is a job of one to six
-seconds. Ken decided on 2026-10-11 that Athena gets no walk. The hidden tables `"t$partitions"`,
+seconds. The maintainers decided on 2026-10-11 that Athena gets no walk. The hidden tables `"t$partitions"`,
 `"t$properties"` and `"t$files"` are per table too.
 
 ### Athena on a large catalog and on other workgroups

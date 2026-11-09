@@ -2,7 +2,7 @@
 
 Status: Decided.
 
-Ken decided on 2026-09-29 that Netezza is out of scope and is removed. As far
+The maintainers decided on 2026-09-29 that Netezza is out of scope and is removed. As far
 as he can tell it was never tested, nobody uses it, and there is no copy of it
 to test with.
 

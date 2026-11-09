@@ -2,7 +2,7 @@
 
 Status: Amends D50.
 
-Ken decided on 2026-09-27 that a large project keeps each decision in a file
+The maintainers decided on 2026-09-27 that a large project keeps each decision in a file
 of its own. He said that a markdown file many thousands of lines long is not
 readable. `docs/PLAN.md` held all 109 decisions in 7,979 lines and 397 KB,
 which is about 100,000 tokens, while the median decision is 59 lines.
@@ -42,7 +42,7 @@ existed and not what it said. Both now say "Amends D66, amended by D84".
 
 A large project splits its decisions: dbmeta, dbimp and usql. A small library
 keeps its decisions in `docs/PLAN.md`, with the index at the top, until it
-grows. Ken chose that line.
+grows. The maintainers chose that line.
 
 ## How it was moved
 

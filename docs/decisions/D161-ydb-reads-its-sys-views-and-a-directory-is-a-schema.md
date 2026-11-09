@@ -4,14 +4,14 @@ Status: Amends D45.
 
 ## The decision
 
-Ken chose YDB as a dialect. `models/ydb` answers 7 of the 56 under the
+The maintainers chose YDB as a dialect. `models/ydb` answers 7 of the 56 under the
 dialect `ydb`, which is the name dburl gives the scheme. The driver is
 `github.com/ydb-platform/ydb-go-sdk/v3`, which dburl names, through the
 `database/sql` driver it registers as `ydb`. usql opens YDB the same way.
 Both releases in `container/ydb.go`, 26.2.1.14 and 26.3.1.17, move from
 Staged to Tested, the cadence each recorded (D119, D120).
 
-The mapping below is for Ken to review.
+The mapping below is for a maintainer to review.
 
 ## Where the facts are
 

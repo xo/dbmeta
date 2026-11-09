@@ -2,7 +2,7 @@
 
 Status: Amended by D123, D141, D145, D215, D225 and D268.
 
-Ken asked on 2026-09-28 for a `dbrun` entry for every database that `usql`
+The maintainers asked on 2026-09-28 for a `dbrun` entry for every database that `usql`
 supports and has none yet, such as CockroachDB, and for every target in
 dbimp's TARGETS table that has none. A hosted service gets the D117 form
 instead. dbmeta has no model for most of these products, and none of them
@@ -161,9 +161,9 @@ for them again:
     `org.eclipse.jetty.security.jaas.spi.PropertyFileLoginModule`, and not
     the `org.eclipse.jetty.jaas` name older documentation gives.
 
-## What Ken decided on 2026-09-28
+## What the maintainers decided on 2026-09-28
 
-1. DynamoDB Local and the Cosmos DB emulator get entries, and Ken accepted
+1. DynamoDB Local and the Cosmos DB emulator get entries, and the maintainers accepted
    their licenses for this project.
 2. Stardog, GraphDB 11 and VoltDB get entries, each with a license file that
    a person downloads. The file is the license's equivalent of a

@@ -14,7 +14,7 @@ which is D57 and `docs/WINDOWS.md`, so a machine stays a target like any
 other and `dbrun start`, `stop`, `status`, `version`, `dsn`, `usql` and
 `test` all keep working on it.
 
-Ken decided this.
+The maintainers decided this.
 
 ## Why both, when the containers are so much cheaper
 
@@ -89,8 +89,8 @@ tried.
 
 On 2026-09-27 the VirtualBox OVA,
 `Exasol_Community_Edition_v8_202521_virtualbox.ova`, ran under
-`qemux/qemu` on Ken's machine and answered `usql`. It was started by hand,
-with Ken's agreement, because `dbrun` has no entry for it yet. This is the
+`qemux/qemu` on a maintainer's machine and answered `usql`. It was started by hand,
+with a maintainer's agreement, because `dbrun` has no entry for it yet. This is the
 one exception to rule 15 and it ends when the entry exists.
 
 The OVA holds two disks, not one. The first is the system disk, 100 GiB

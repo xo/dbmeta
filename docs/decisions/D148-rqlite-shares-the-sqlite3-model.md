@@ -4,7 +4,7 @@ Status: Amended by D151.
 
 ## The decision
 
-Ken asked for an rqlite dialect on 2026-09-30. rqlite runs SQLite behind an
+The maintainers asked for an rqlite dialect on 2026-09-30. rqlite runs SQLite behind an
 HTTP API, so `models/rqlite` shares every statement of the sqlite3 model with
 `Query.Share`, as D123 lets a model do. It writes no statement of its own.
 Its dialect is `dbmeta.Rqlite`, which is `rqlite`, the name dburl gives the
@@ -17,8 +17,8 @@ while it was Staged (D120). The conformance report is line for line SQLite's.
 ## The driver
 
 dburl names `github.com/xo/dbimp/rqlite` as the driver, and dbimp has not
-written it. usql imports no rqlite driver. DIALECT.md says to ask Ken when a
-driver is missing, and Ken chose on 2026-09-30 to test through the
+written it. usql imports no rqlite driver. DIALECT.md says to ask a maintainer when a
+driver is missing, and the maintainers chose on 2026-09-30 to test through the
 `database/sql` driver of `github.com/rqlite/gorqlite` until dbimp has one.
 The tests and dbrun move to dbimp's driver when it exists, as the Couchbase
 tests moved in D101. `docs/BACKLOG.md` holds the move.

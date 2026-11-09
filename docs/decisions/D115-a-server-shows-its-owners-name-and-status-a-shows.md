@@ -2,7 +2,7 @@
 
 Status: Amends D98.
 
-Ken asked on 2026-09-28 for two changes to `dbrun status`, so that he can see
+The maintainers asked on 2026-09-28 for two changes to `dbrun status`, so that he can see
 which session owns which server.
 
 ## The owner's name

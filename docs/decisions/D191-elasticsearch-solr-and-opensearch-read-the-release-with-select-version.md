@@ -51,7 +51,7 @@ principal. The comments of the three parity targets say so, and
 ## What stays open
 
 The ordinary user cannot read the release on Elasticsearch, Solr and OpenSearch
-2.19.6. This change does not solve that, and Ken has not chosen. The options
+2.19.6. This change does not solve that, and a maintainer has not chosen. The options
 are these:
 
 1. Leave it as it is. The caller gets the refusal and can hand the release to
@@ -75,7 +75,7 @@ The SurrealDB model keeps its probe of the major release. D164 chose it on
 purpose because it works on 2.x, where nothing else reads INFO as a value, and
 it is correct for every principal. `ParseVersion` already reads a full
 release, so the model can take `SELECT version()` too. Whether the major
-release alone is still the better answer is Ken's choice, and this change does
+release alone is still the better answer is a maintainer's choice, and this change does
 not make it.
 
 The Presto model keeps `SELECT node_version FROM system.runtime.nodes WHERE

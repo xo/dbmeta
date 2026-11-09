@@ -4,7 +4,7 @@ Status: Amends D254 and D259.
 
 D254 gave the northwind fixture a schema named `hr` on PostgreSQL, SQL Server
 and Oracle. MySQL, MariaDB, DuckDB and SQLite had only the Northwind tables.
-Ken asked on 2026-11-10 for as much of `hr` as each product can hold. Where a
+The maintainers asked on 2026-11-10 for as much of `hr` as each product can hold. Where a
 feature is missing, the file says so in a comment and uses the nearest object
 that the product has.
 

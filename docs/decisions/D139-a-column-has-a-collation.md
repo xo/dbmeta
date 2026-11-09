@@ -10,7 +10,7 @@ on 2026-09-30.
 
 ## The decision
 
-Ken chose on 2026-09-30 to add it. `Column.Collation` is a
+The maintainers chose on 2026-09-30 to add it. `Column.Collation` is a
 `sql.Null[string]`, and every model's Columns selects it as the last column,
 `collation`. It passes the cost test in D47, because it is a column of the
 same catalog row, or one join to the collation catalog on PostgreSQL.

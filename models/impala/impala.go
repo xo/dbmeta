@@ -11,7 +11,7 @@
 // and SHOW VIEWS IN, the columns of one table with DESCRIBE, and the
 // functions of one database with SHOW FUNCTIONS IN. So most kinds here are
 // answered by a walk, [dbmeta.Binding.Walk], which lists the parents and then
-// asks inside each one. Ken allowed that for Impala on 2026-09-30, and it
+// asks inside each one. The maintainers allowed that for Impala on 2026-09-30, and it
 // costs a statement for each database, or for each table, as a walk goes
 // deeper. The caller's patterns are matched in Go, with [dbmeta.Like],
 // because a SHOW statement takes none. See D146.

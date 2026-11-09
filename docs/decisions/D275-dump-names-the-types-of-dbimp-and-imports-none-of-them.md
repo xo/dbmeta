@@ -6,7 +6,7 @@ D274 puts the dump in a package of the root module. The root module has no
 dependency (hard rule 1). The date, time, interval, UUID and decimal kinds need
 Go types that the standard library lacks, and `dbimp` already holds them in
 `civil.go`, with `uuid.UUID` and `*apd.Decimal` for the other two. `dbimp`
-requires `apd`. Ken asked on 2026-11-08 whether `dump` can use them, and decided
+requires `apd`. The maintainers asked on 2026-11-08 whether `dump` can use them, and decided
 that it takes no dependency.
 
 ## Decision

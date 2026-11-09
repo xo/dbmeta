@@ -8,7 +8,7 @@ holds the whole cluster. dbfwd ran every operator suite in one cluster and used
 the limit up. ClickHouse stopped for want of threads, and Couchbase probes
 failed with "resource temporarily unavailable" at 1934 of 2048. dbfwd raised
 the limit by hand with `podman update --pids-limit 16384`, and asked on
-2026-11-08 that dbrun do it. Ken agreed.
+2026-11-08 that dbrun do it. The maintainers agreed.
 
 ## Decision
 

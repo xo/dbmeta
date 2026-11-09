@@ -5,7 +5,7 @@ Status: Decided.
 ## Decision
 
 The dump reads the installed extensions, the domains and the composite types of
-PostgreSQL, and writes them back for the same product. Ken asked for this on
+PostgreSQL, and writes them back for the same product. The maintainers asked for this on
 2026-11-09. A copy of the `hr` schema of the northwind fixture failed without
 them, because a column named `hr.email` and `hr.postal_address` and a type
 `citext` did not exist.

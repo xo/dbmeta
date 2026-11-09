@@ -2,10 +2,10 @@
 
 Status: Amended by D119 and D142.
 
-Ken asked on 2026-09-28 for `dbrun` to know the other embedded databases,
+The maintainers asked on 2026-09-28 for `dbrun` to know the other embedded databases,
 before a dialect or a model is written for any of them. An embedded database
 runs in the process that opens it and has no server, as SQLite and DuckDB do.
-Ken chose four, from the embedded drivers `usql` ships: chai, csvq, ql and
+The maintainers chose four, from the embedded drivers `usql` ships: chai, csvq, ql and
 moderncsqlite. H2 is left out, because its driver talks to an H2 server, so
 it belongs in a container entry.
 
@@ -24,7 +24,7 @@ entry leaves that list when its model is written.
 
 Each dialect is the one dburl names for the scheme, as Databend's was in
 D112, and `dialect.go` gains `Chai`, `CSVQ` and `QL`. dburl gives
-moderncsqlite the dialect `sqlite3`, because it is SQLite without cgo. Ken
+moderncsqlite the dialect `sqlite3`, because it is SQLite without cgo. The maintainers
 chose that it has an entry and a file of its own beside the sqlite3 entry.
 Its test variable is `DBMETA_MODERNCSQLITE`, so that it does not take
 `DBMETA_SQLITE3`.
@@ -35,7 +35,7 @@ removed with what it holds, and `test` makes a directory before it runs.
 ## csvq starts from sample files
 
 csvq reads a directory of CSV files as its tables, so an empty directory is a
-database with nothing in it. Ken asked for sample files that are extracted to
+database with nothing in it. The maintainers asked for sample files that are extracted to
 the directory. `dbrun` embeds four, the core tables of D53: `author.csv`,
 `book.csv`, `region.csv` and `shipment.csv`, with a few rows that agree with
 each other. `start`, `test` and `usql` write each one that is missing, and

@@ -4,9 +4,9 @@ Status: Decided, amended by D191.
 
 ## The decision
 
-Ken asked on 2026-10-08 for an Apache Solr dialect. `models/solr` answers 4 of
+The maintainers asked on 2026-10-08 for an Apache Solr dialect. `models/solr` answers 4 of
 the 56 on Solr 9.9.0, 9.10.1 and 10.0.0, through dbimp's solr driver at
-v0.14.0, which dburl v0.46.0 names. The dialect is `solr`. Ken reviews the
+v0.14.0, which dburl v0.46.0 names. The dialect is `solr`. A maintainer reviews the
 mapping below.
 
 Solr answers SQL with Apache Calcite, at `POST /solr/{collection}/sql`. The SQL
@@ -30,7 +30,7 @@ of them. Solr has no DDL in SQL.
 
 TABLES and COLUMNS name the schema of a collection with the address of
 ZooKeeper, such as `192.168.1.5:9983`. It changes with the machine, and a
-consumer cannot depend on it. Ken chose a fixed name on 2026-10-07 (D176). The
+consumer cannot depend on it. The maintainers chose a fixed name on 2026-10-07 (D176). The
 statement turns every name but `metadata` into `solr`, and a filter on the
 schema matches the name that the model reports and not the one that Solr gives.
 
@@ -88,7 +88,7 @@ every user and `version()` does not exist. `GET /solr/admin/info/system` holds
 user gets HTTP 403. So the model has no version statement and
 `Dialect.Version` reports an unknown version, as it does for InfluxQL (D165).
 A caller that reads the release over HTTP as the administrator passes it to
-`Dialect.ParseVersion`, which reads `10.0.0`. This is Ken's answer in D176. The
+`Dialect.ParseVersion`, which reads `10.0.0`. This is a maintainer's answer in D176. The
 ordinary user gets no release. A test of the refusal,
 which D192 renamed, asserts it.
 
@@ -96,7 +96,7 @@ usql's driver reports the word Solr for the same reason (docs/USQL.md).
 
 ## The cost check of D47
 
-Ken asked on 2026-10-08 for the cost of metadata.TABLES and metadata.COLUMNS
+The maintainers asked on 2026-10-08 for the cost of metadata.TABLES and metadata.COLUMNS
 against a catalog with thousands of collections, before the model was written.
 It was measured on 10.0.0 with the entry as it is: 1 GB of heap, one node. A
 collection has one shard and a configuration set of its own, made through the
@@ -125,7 +125,7 @@ The measurement did not reach thousands, and the reason is the result.
   951 of 1065. A consumer cannot tell a collection with no fields from a
   collection that the statement dropped.
 
-Ken decided on 2026-10-08 to leave the heap of the entry at 1g and to record
+The maintainers decided on 2026-10-08 to leave the heap of the entry at 1g and to record
 the limit. A consumer that reads a large cluster must read one table at a time
 with a filter on TABLES, which is cheap, and must not rely on COLUMNS to name
 every collection. The queries stay as they are, because a field is added when

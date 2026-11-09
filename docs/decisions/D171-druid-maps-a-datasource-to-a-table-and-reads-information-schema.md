@@ -4,10 +4,10 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-10-07 for an Apache Druid dialect. `models/druid` answers 7
+The maintainers asked on 2026-10-07 for an Apache Druid dialect. `models/druid` answers 7
 of the 56 on 37.0.0 and 38.0.0, through dbimp's druid driver at v0.11.0, which
 dburl v0.42.0 names. The dialect is `druid`, which dbimp settled in its D154,
-and `dialect.go` holds it now. Ken reviews the mapping below.
+and `dialect.go` holds it now. A maintainer reviews the mapping below.
 
 Druid answers SQL on the Router with Apache Calcite. It has an
 INFORMATION_SCHEMA with four tables, SCHEMATA, TABLES, COLUMNS and ROUTINES,
@@ -35,7 +35,7 @@ The catalog is always `druid`.
 
 ## No kind is a walk
 
-D146 and D159 allow a walk for Impala and InfluxQL alone, and Ken did not
+D146 and D159 allow a walk for Impala and InfluxQL alone, and the maintainers did not
 allow one for Druid. Each kind is one statement or it is
 unanswered. A kind whose only source scans the data and not a catalog is
 unsupported, which D162 decided for Neo4j: the same rule applies here. So the
@@ -54,7 +54,7 @@ Insufficient permission to view servers. dbimp measured the same on 36.0.0 and
 So the version query is `SELECT version FROM sys.servers WHERE server_type =
 'broker' LIMIT 1`, and it works for an administrator. A user without STATE
 gets the refusal of the server as the error, which is a clear answer and not
-an unknown version. Ken can choose another rule. The two others that D164 and
+an unknown version. A maintainer can choose another rule. The two others that D164 and
 D166 used are a probe of the major release, as for SurrealDB, and no
 statement at all, as for InfluxQL. Neither is possible here, because no
 statement that a lesser principal can run tells one release from another.

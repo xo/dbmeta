@@ -7,7 +7,7 @@ Status: Decided, amended by D283.
 `container` has two more products, `hivehttp` and `impalahttp`. They start the
 same images as `hive` and `impala`, and a client reaches them over the HTTP
 transport of HiveServer2 and nowhere else. dbimp wrote its own driver for that
-transport and Ken chose to use only the HTTP connection with it.
+transport and the maintainers chose to use only the HTTP connection with it.
 
 The names of the releases are `hivehttp-4.2.1`, `hivehttp-4.0.1`,
 `impalahttp-4.5.3` and `impalahttp-4.4.1`. They are Verified, so CI never starts

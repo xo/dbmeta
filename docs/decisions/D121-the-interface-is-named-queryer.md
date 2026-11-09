@@ -9,7 +9,7 @@ and wrong for Go. Go's own packages spell the word Queryer:
 the interface by that name finds nothing, and one who reads `Querier` beside
 `driver.QueryerContext` sees two spellings of one idea.
 
-Ken asked on 2026-09-29 for the name to follow Go's. The interface is
+The maintainers asked on 2026-09-29 for the name to follow Go's. The interface is
 `Queryer`. Its method and everything D49 decided about it are unchanged. The
 test that holds the one method was renamed with it, and is
 `TestQueryerIsOneMethod`.

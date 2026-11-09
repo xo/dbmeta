@@ -4,7 +4,7 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-09-30 for dbmeta to answer for Databend, because usql
+The maintainers asked on 2026-09-30 for dbmeta to answer for Databend, because usql
 deletes its own readers in W21 and read Databend through its
 information_schema reader until then. `models/databend` is a native model
 that reads the system database, as the ClickHouse model does, and not the

@@ -2,7 +2,7 @@
 
 Status: Amends D66, amended by D142.
 
-Ken decided on 2026-09-29 that chai, csvq and ql wait for a model, as every
+The maintainers decided on 2026-09-29 that chai, csvq and ql wait for a model, as every
 other Staged release does, and stay in dbrun.
 
 D66 said that a product whose only local option is an emulator is Archived on

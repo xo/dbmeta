@@ -35,7 +35,7 @@ holds the list as data and `docs/COVERAGE.md` says where each name came from.
 not narrow. `usql` must not name a database, and it will not narrow with a
 `LIKE` of its own, because a model that filters can compare case
 insensitively. Only the model knows the rule of its product. So the model
-filters, and the library applies the model's rule to the rows. Ken's
+filters, and the library applies the model's rule to the rows. A maintainer's
 coordinator and `usql` agreed on this shape.
 
 ## What was rejected

@@ -5,11 +5,11 @@ Status: Decided.
 `models/hana` answers 32 of the 55 against SAP HANA 2.0 SPS 08.
 `docs/COVERAGE.md` holds the measurements. Four things had to be decided.
 
-## Ken agreed to the SAP license
+## The maintainers agreed to the SAP license
 
 SAP HANA, express edition will not start without `--agree-to-sap-license`,
 which accepts the SAP Developer Center Software Developer License Agreement.
-Ken agreed to it on 2026-09-26 for this project's test containers, and the
+The maintainers agreed to it on 2026-09-26 for this project's test containers, and the
 flag is in `container/hana.go` with that recorded beside it.
 
 It is written down because it is the only product here that needs an

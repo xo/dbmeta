@@ -4,7 +4,7 @@ Status: Amends D207 and D212.
 
 ## The decision
 
-Ken decided on 2026-10-11 that the Tables statement of Redshift does not read
+The maintainers decided on 2026-10-11 that the Tables statement of Redshift does not read
 SVV_TABLE_INFO by default. The caller opts in to the size, the rows and the
 options.
 

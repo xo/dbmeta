@@ -4,10 +4,10 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-10-08 for an Avatica dialect, and chose on the same day that
+The maintainers asked on 2026-10-08 for an Avatica dialect, and chose on the same day that
 it covers the standalone Avatica server alone. `models/avatica` answers 24 of
 the 56 on 1.28.0 and 1.29.0 through dbimp's avatica driver at v0.14.0, which
-dburl v0.46.0 names. The dialect is `avatica` and `dialect.go` holds it. Ken
+dburl v0.46.0 names. The dialect is `avatica` and `dialect.go` holds it. A maintainer
 reviews the mapping below.
 
 Avatica is the wire protocol of Apache Calcite. A client sends the calls of JDBC
@@ -81,7 +81,7 @@ that is not quoted to upper case.
 
 The Phoenix Query Server speaks the same protocol, in front of Phoenix on
 HBase, and dburl names `phoenix` as an alias of the scheme avatica, so both
-reach the one dialect. One model cannot serve both, and Ken chose to leave
+reach the one dialect. One model cannot serve both, and the maintainers chose to leave
 Phoenix without one. dbmeta measured Phoenix 2.0-5.0 on 2026-10-08 with the same
 driver.
 

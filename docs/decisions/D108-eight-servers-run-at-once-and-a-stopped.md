@@ -2,11 +2,11 @@
 
 Status: Amends D75 and D98.
 
-Ken asked on 2026-09-27 for two changes to `dbrun`.
+The maintainers asked on 2026-09-27 for two changes to `dbrun`.
 
 ## Eight servers, not four
 
-D75 allowed four running servers. Ken raised it to eight. Each container is
+D75 allowed four running servers. The maintainers raised it to eight. Each container is
 limited to 4 GB, so eight use 32 GB at most, and the machine has 60 GB and 32
 cores. A start that brings the count to nine stops the caller's own oldest
 server, as D98 does for five today.
@@ -17,7 +17,7 @@ D98 made a start of a stopped server refuse when another owner created it.
 A container's owner is a label, and a label cannot change on a container that
 exists. So a server that stopped when the computer restarted, or when its
 session ended, kept an owner that no longer existed. Every command refused it,
-and an agent then tested an older release that was free. Ken said that most
+and an agent then tested an older release that was free. The maintainers said that most
 testing belongs on the newest release, not on whichever one is free.
 
 Now ownership counts only while a container runs:

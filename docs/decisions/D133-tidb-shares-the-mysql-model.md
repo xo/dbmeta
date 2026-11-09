@@ -4,7 +4,7 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-09-29 for TiDB to be built as a dialect of its own, as
+The maintainers asked on 2026-09-29 for TiDB to be built as a dialect of its own, as
 dburl's D37 made it. `models/tidb` shares the mysql model's statements where
 they answer, the way `models/cockroachdb` shares the postgres model's (D123),
 and writes a statement of its own only where TiDB's catalog differs.

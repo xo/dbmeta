@@ -4,7 +4,7 @@ Status: Amends D118.
 
 ## The decision
 
-D118 gave Apache Impala no entry. Ken asked on 2026-09-30 for dbmeta to
+D118 gave Apache Impala no entry. The maintainers asked on 2026-09-30 for dbmeta to
 answer for Impala, because usql deletes its own readers in W21, and chose
 to build one image from Apache's images, because dbrun starts one container
 for a server and Apache's quickstart runs four.
@@ -29,6 +29,6 @@ create and list a table, measured on 2026-09-30.
 
 ## The model
 
-Impala has no catalog a SELECT can read. Ken chose that a query can walk
+Impala has no catalog a SELECT can read. The maintainers chose that a query can walk
 SHOW statements for it, and D146 holds that. `models/impala` reads 4.4.1
 and 4.5.2, which are Tested.

@@ -3,7 +3,7 @@
 Status: Decided.
 
 One job builds `dbrun` and the test binary and uploads them. Every job in
-both release matrices downloads those two and compiles nothing. Ken asked
+both release matrices downloads those two and compiles nothing. The maintainers asked
 whether it was possible to build `dbrun` once, and the answer is that it is,
 along with the thing that costs four times as much.
 

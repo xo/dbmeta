@@ -61,7 +61,7 @@ it reads in the same column and gives one index two rows. A primary key,
 a unique constraint and an exclusion constraint each own one index, so one
 index stays one row.
 
-`Leakproof` is a plain `bool`, as Ken asked. A product with no such property
+`Leakproof` is a plain `bool`, as the maintainers asked. A product with no such property
 answers false, which is true of it.
 
 `Prosrc` is new beside `Source`, and `Source` did not change. `Source` still

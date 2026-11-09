@@ -5,7 +5,7 @@ Status: Decided, amended by D212.
 ## The decision
 
 D198, D199 and D201 gave the root types new fields and new kinds, and only the
-PostgreSQL model filled them. Ken said on 2026-10-10 to finish it. This decision
+PostgreSQL model filled them. The maintainers said on 2026-10-10 to finish it. This decision
 audits five more models and fills each field that one statement can produce at
 a cost that follows the rows returned (D47, rule 13). A field with no such
 source stays NULL, and the reason is written here and in `docs/COVERAGE.md`.
@@ -156,7 +156,7 @@ table at 3000 tables and 41 ms when the database holds only the fixture, so it
 grows with the catalog. An inner join takes 10 ms, but it drops a table that the
 user can see in `EXA_ALL_TABLES` and cannot see in `EXA_ALL_OBJECT_SIZES`, and no
 parity principal proved that the two views agree for every user. The left join is
-kept and the cost is written down. If Ken wants the 10 ms, the test is the parity
+kept and the cost is written down. If a maintainer wants the 10 ms, the test is the parity
 run with an inner join. The key columns are read in a derived table with the same
 filters as the tables, and that took one table from 577 ms to 96 ms.
 
@@ -206,7 +206,7 @@ the type holds. None of the five has an INCLUDE column.
 
 - `Constraint.Enforced` for Firebird. A constraint cannot be disabled, so all
   are enforced, but no catalog column says so, and D207 left the same question
-  open for CrateDB and Redshift. Ken decides whether the fact of the product is
+  open for CrateDB and Redshift. A maintainer decides whether the fact of the product is
   enough. The change is one literal in `models/firebird/relation.go`.
 - The Exasol left join, which costs 85 ms at 3000 tables. See the cost.
 - The SAP HANA size and row count of a table, and the size of an index. See the

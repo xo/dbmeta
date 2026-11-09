@@ -2,7 +2,7 @@
 
 Status: Amends D106, amended by D112.
 
-Ken accepted dbimp's D60 and D61 on 2026-09-27, which D106 waited for. The
+The maintainers accepted dbimp's D60 and D61 on 2026-09-27, which D106 waited for. The
 dialect and the dburl scheme are `neo4j`, so `dbmeta.Neo4j` is `neo4j`, as
 `dbmeta.SurrealDB` was added for dbimp's SurrealDB driver. dbmeta has no
 Neo4j model.

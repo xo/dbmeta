@@ -2,11 +2,11 @@
 
 Status: Amends D112, amended by D119.
 
-Ken accepted dbimp's D78 on 2026-09-28. dbimp's InfluxDB driver has two
+The maintainers accepted dbimp's D78 on 2026-09-28. dbimp's InfluxDB driver has two
 dialects: `influxdb`, which is SQL on InfluxDB 3 and later, and `influxql`,
 which is InfluxQL through `/query` on InfluxDB 1, 2 and 3. A dbrun server had
 one dialect, and its test variable was named for it. InfluxDB 3 answers both,
-so Ken chose on 2026-09-28 that a server can answer more than one dialect.
+so the maintainers chose on 2026-09-28 that a server can answer more than one dialect.
 
 ## How it works
 
@@ -22,7 +22,7 @@ product, which never tests InfluxQL on InfluxDB 3.
 
 ## The InfluxDB entries
 
-Ken chose the releases in dbimp's D79. InfluxDB 1 and 2 are in maintenance,
+The maintainers chose the releases in dbimp's D79. InfluxDB 1 and 2 are in maintenance,
 so the newest of each is Tested and the oldest is Nightly. InfluxDB 3 changes
 fast, so its floor and its ceiling are Tested, as D112 made them.
 

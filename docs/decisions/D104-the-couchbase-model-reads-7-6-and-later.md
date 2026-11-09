@@ -8,7 +8,7 @@ answers 12 of the 55, and `docs/COVERAGE.md` holds what it answers and why.
 ## The floor is 7.6
 
 D95 left the model three choices for 7.2, which sends the fields of a result
-in name order. Ken chose on 2026-09-27 to raise the floor to 7.6. Every Scan
+in name order. The maintainers chose on 2026-09-27 to raise the floor to 7.6. Every Scan
 reads a column by its position, and 7.6 keeps the order the statement
 selects. The other two choices were to name every column so that name order
 and field order agree, or to read 7.2 by name. The first bends every query to

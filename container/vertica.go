@@ -29,7 +29,7 @@ import (
 //
 // Step 2 of docs/EVALUATION.md gives a floor of one for a maintained image,
 // because nothing current but 25.1.0-0 can be started outside Kubernetes.
-// Ken chose to go further back with three community images of older
+// the maintainers chose to go further back with three community images of older
 // Community Edition releases, each pushed once by the person who built it,
 // so that a version gate in the model has servers older than 25.1 to answer
 // against. D88 records that, and why D66's objection to exactly this kind of
@@ -45,7 +45,7 @@ import (
 // All four are copies in docker.io/usql/vertica, which the usql organization
 // owns, tagged by release. The 7.2 image was pushed in the Docker image
 // manifest schema 1, which the Docker on GitHub's runners refuses to pull, so
-// vertica-7.2 had never run in CI. Ken chose to push every image to one place
+// vertica-7.2 had never run in CI. The maintainers chose to push every image to one place
 // with proper tags, and podman wrote each as schema 2. See D100.
 //
 // Each tag is the release, such as 7.2 and 7.2.1, and each is pinned by the

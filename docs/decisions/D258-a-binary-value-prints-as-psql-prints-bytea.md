@@ -3,7 +3,7 @@
 Status: Amends D143, amended by D263.
 
 usql printed a binary column with Go escapes, such as `\x15\x1C/\x00`. usql
-first asked for the form of the own client of each product. Ken decided on
+first asked for the form of the own client of each product. The maintainers decided on
 2026-11-04 that this is wrong. The output of usql must be the same on every
 database and the same as psql, so one column of the northwind fixture prints
 the same way on PostgreSQL, SQL Server and Oracle.

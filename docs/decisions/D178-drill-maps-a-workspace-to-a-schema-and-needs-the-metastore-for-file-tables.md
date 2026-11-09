@@ -4,9 +4,9 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-10-08 for an Apache Drill dialect. `models/drill` answers 10
+The maintainers asked on 2026-10-08 for an Apache Drill dialect. `models/drill` answers 10
 of the 56 on 1.21.2 and 1.22.0, through dbimp's drill driver at v0.14.0, which
-dburl v0.46.0 names. The dialect is `drill`, and `dialect.go` holds it. Ken
+dburl v0.46.0 names. The dialect is `drill`, and `dialect.go` holds it. The maintainers
 accepted the price of the Drill Metastore in D176, and reviews the mapping
 below.
 
@@ -38,7 +38,7 @@ INFORMATION_SCHEMA lists no file table by default. A file table appears only
 when the option `metastore.enabled` is on and the table went through
 `ANALYZE TABLE ... REFRESH METADATA`. A model cannot set the option, which
 needs an administrator. If the Metastore is off, Tables answers the views and
-the system tables and no file table, and Drill gives no error. Ken accepted
+the system tables and no file table, and Drill gives no error. The maintainers accepted
 this price. The fixture turns the Metastore on as the administrator and runs
 ANALYZE for each table. COVERAGE.md records the limit, and
 `TestDrillMetastoreOff` asserts it.

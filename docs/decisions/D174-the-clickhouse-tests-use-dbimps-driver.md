@@ -6,7 +6,7 @@ Status: Decided.
 
 D154 says a test driver is the package that dburl names. dburl v0.44.0 names
 `github.com/xo/dbimp/clickhouse` for the clickhouse scheme, in place of
-`github.com/ClickHouse/clickhouse-go/v2`, and dbimp v0.13.0 holds it. Ken asked
+`github.com/ClickHouse/clickhouse-go/v2`, and dbimp v0.13.0 holds it. The maintainers asked
 on 2026-10-07 to switch, so the test module did.
 
 - `clickhouse-go` is out of the test module and out of the lint allow list.

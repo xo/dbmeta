@@ -52,7 +52,7 @@ looked absent, as rule 14 requires.
 | SQLite3 | `Table.Size` | no source. `dbstat` scans the file, and the mattn driver is built without it |
 | SQLite3 | `Table.Rows` | no source. SQLite keeps no row count |
 | SQLite3 | `Table.AccessMethod` | no source. The module of a virtual table is only in the text of its CREATE statement |
-| SQLite3 | `Table.Type` of a shadow table | left as `table`. `pragma_table_list` has the type `shadow`, and relabeling a row is a decision for Ken (see the end) |
+| SQLite3 | `Table.Type` of a shadow table | left as `table`. `pragma_table_list` has the type `shadow`, and relabeling a row is a decision for a maintainer (see the end) |
 | SQLite3 | `Index.Predicate` | the text after WHERE in the CREATE INDEX statement, taken only where `pragma_index_list` says `partial` |
 | SQLite3 | `Index.Clustered` | true for the primary key index of a WITHOUT ROWID table. See the statements below |
 | SQLite3 | `Index.Definition`, `Using`, `ConstraintType`, `Persistence` | the CREATE INDEX text, `btree` (`diskann` on libSQL), `p` or `u` from the origin, and `permanent` |
@@ -159,7 +159,7 @@ one more pass over the catalog, and `sqlite_schema` has no index by name, so
 the statement already does one pass to find the table. The two passes are
 6 times the cost of one at 3000 tables, and still 1.1 ms. This is the one
 place that D47 is stretched, and it is a constant factor on a scan that
-SQLite cannot avoid. Ken accepted it on 2026-10-10.
+SQLite cannot avoid. The maintainers accepted it on 2026-10-10.
 
 The Vertica size of a table and the encoding of a column each read a view of
 the whole catalog for every table or column returned. A read of one table got
@@ -209,7 +209,7 @@ fixture reads it back as NULL.
 ## What was left open
 
 - A shadow table of SQLite (the tables an fts5 table keeps) has the type
-  `shadow` in `pragma_table_list` and is `table` here. Ken decided on
+  `shadow` in `pragma_table_list` and is `table` here. The maintainers decided on
   2026-10-10 to keep `table`, because `Table.Type` is a small closed
   vocabulary that consumers match on.
 - The SETTINGS clause of a ClickHouse table is in `engine_full` as text. A
@@ -218,7 +218,7 @@ fixture reads it back as NULL.
   be read for one table with a call of its own, which this model does not make.
 - The module of a SQLite virtual table is in the CREATE statement only.
 
-## Ken's answers of 2026-10-10
+## a maintainer's answers of 2026-10-10
 
 - The SQLite index predicate stays, and the stretch of D47 is accepted.
 - A shadow table of SQLite keeps the type `table`.

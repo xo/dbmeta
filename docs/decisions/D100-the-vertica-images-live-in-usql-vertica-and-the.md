@@ -14,9 +14,9 @@ pull schema 1, and podman still pulls it, so `docker run` failed in the first
 second and vertica-7.2 had never run in CI. The other three images are schema
 2.
 
-Ken chose to copy all four into one repository that the usql organization
+The maintainers chose to copy all four into one repository that the usql organization
 owns, `docker.io/usql/vertica`, with proper tags, rather than to move 7.2 to
-Verified or to special case podman in `dbrun`. Ken logged in and podman
+Verified or to special case podman in `dbrun`. The maintainers logged in and podman
 pushed each image with `--format v2s2`. Every release has two tags, the
 release as `dbrun` names it and the full release, such as `7.2` and `7.2.1`.
 The registry reports every manifest as schema 2.

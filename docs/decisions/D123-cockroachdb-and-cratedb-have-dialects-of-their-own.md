@@ -4,14 +4,14 @@ Status: Amends D112 and D118.
 
 ## The decision
 
-Ken decided on 2026-09-29 that CrateDB is reached as a PostgreSQL wire
+The maintainers decided on 2026-09-29 that CrateDB is reached as a PostgreSQL wire
 compatible product, with pgx, and that dbimp writes no CrateDB driver. He
 asked for dbmeta to read the PostgreSQL wire compatible products, CockroachDB
 first and then CrateDB.
 
 Each has a dialect of its own, `cockroachdb` and `cratedb`, and a model package
 of its own. dburl's D30 gave them those dialects, and dburl v0.35.0 carries it.
-Ken chose this over making both flavors of the postgres model, which was
+The maintainers chose this over making both flavors of the postgres model, which was
 drafted first, on the same day.
 
 ## A model shares what answers
@@ -100,7 +100,7 @@ dialect, and both releases keep their cadence as their tier, Tested (D120).
 ## Rejected
 
 A flavor of the postgres model for each, with a product key. It was drafted,
-and dburl's D30 and Ken chose dialects of their own. A second product in one
+and dburl's D30 and the maintainers chose dialects of their own. A second product in one
 model needs every version gate of the postgres model to name the PostgreSQL
 key, because CockroachDB 26.3 claims 18 and a gate on the number alone treats
 it as PostgreSQL 18.

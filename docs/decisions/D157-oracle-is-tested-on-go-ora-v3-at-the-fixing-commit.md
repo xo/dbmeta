@@ -9,7 +9,7 @@ panic on 11g and 18c. D59 also considered a pin of v3 at the commit that
 fixes it, and did not take it, because a tagged release needs no explanation
 later. On 2026-10-01 the fix was still untagged. The newest tag was v3.0.1,
 of 2026-07-24, and the fix, commit 360b4b7 of 2026-09-14, was still the head
-of master. Ken decided to test on v3 at that commit and to drop v2.
+of master. The maintainers decided to test on v3 at that commit and to drop v2.
 
 The test module now pins `github.com/sijms/go-ora/v3` at
 v3.0.2-0.20260914154503-360b4b7ac9e9 and does not require v2. That is the
@@ -42,7 +42,7 @@ the rest.
 
 19c did not finish its first start. Its database creation stayed at 36% for 20
 minutes, at the 4 GB memory limit, while the load on the machine was 30. D59
-measured 19c on this same commit, so the driver is not the cause. Ken chose
+measured 19c on this same commit, so the driver is not the cause. The maintainers chose
 on 2026-10-02 not to measure it further (D166).
 
 A second run of 19c found a fault in dbrun. A container that was running and

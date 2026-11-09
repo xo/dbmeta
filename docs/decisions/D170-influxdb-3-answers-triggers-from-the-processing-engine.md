@@ -5,7 +5,7 @@ Status: Amends D152.
 ## The decision
 
 D152 left Triggers unanswered on InfluxDB 3, because the entry had no plugin
-directory and the server refuses a trigger without one. Ken asked on
+directory and the server refuses a trigger without one. The maintainers asked on
 2026-10-07 to build it, from the item in the backlog.
 
 A processing engine trigger runs a Python plugin when something happens: a

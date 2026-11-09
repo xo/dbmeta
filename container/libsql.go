@@ -28,7 +28,7 @@ import (
 //
 // sqld checks a JWT signed with Ed25519 against the public key in
 // SQLD_AUTH_JWT_KEY, the base64url of the raw 32 bytes. SQLD_HTTP_AUTH is not
-// set, because sqld then takes basic authentication and ignores the key. Ken
+// set, because sqld then takes basic authentication and ignores the key. The maintainers
 // decided on 2026-10-01 that the entry has an ordinary user this way, for
 // dbimp's libSQL driver (D153).
 //

@@ -4,7 +4,7 @@ Status: Amends D5, D56 and D273.
 
 usql asked on 2026-11-08 for a `\dump` command, a `--dump` flag, a target
 dialect and a rewritten `\copy`, and dbmeta proposed a design in
-[`DUMP.md`](../DUMP.md). Ken decided the points below on 2026-11-08.
+[`DUMP.md`](../DUMP.md). The maintainers decided the points below on 2026-11-08.
 
 ## Decision
 

@@ -4,10 +4,10 @@ Status: Decided, amended by D191.
 
 ## The decision
 
-Ken asked on 2026-10-08 for an Elasticsearch dialect. `models/elasticsearch`
+The maintainers asked on 2026-10-08 for an Elasticsearch dialect. `models/elasticsearch`
 answers 8 of the 56 on 8.19.22, 9.4.6 and 9.5.3, through dbimp's elasticsearch
 driver at v0.14.0, which dburl v0.46.0 names. The dialect is `elasticsearch`
-and `dialect.go` holds it. Ken reviews the mapping below.
+and `dialect.go` holds it. A maintainer reviews the mapping below.
 
 Elasticsearch answers SQL on `POST /_sql`. Its SQL reads only. It has no table
 that a SELECT reads, and it has the statements SYS TABLES, SYS COLUMNS, SYS
@@ -19,7 +19,7 @@ unknown index.
 
 | Elasticsearch | Kind | Why |
 | --- | --- | --- |
-| the cluster | database, and the catalog of every row | SHOW CATALOGS names it, and SYS TABLES and SYS COLUMNS put it in TABLE_CAT. D176 chose it. A remote cluster of cross cluster search is listed beside it. This is a close call for Ken |
+| the cluster | database, and the catalog of every row | SHOW CATALOGS names it, and SYS TABLES and SYS COLUMNS put it in TABLE_CAT. D176 chose it. A remote cluster of cross cluster search is listed beside it. This is a close call for a maintainer |
 | an index | table | SYS TABLES has the type TABLE |
 | an alias | view | SYS TABLES has the type VIEW. D176 chose it. The model gives a name and nothing more, because the indices and the filter of an alias are in the alias API |
 | a data stream | view | SYS TABLES lists it as a VIEW, the same as an alias. Its backing index, whose name starts with `.ds-`, is a hidden table |
@@ -95,7 +95,7 @@ statement, so `Dialect.Version` reports an unknown version, and no query
 depends on the release. `Dialect.ParseVersion` reads the `version.number` that a
 caller got from `GET /`, and gives the display line `Elasticsearch 9.5.3`.
 `TestElasticsearchVersion` reads the release over HTTP as the administrator and
-passes it, and a test of the refusal, which D192 renamed, asserts it. Ken
+passes it, and a test of the refusal, which D192 renamed, asserts it. A maintainer
 can choose another rule: a function of the driver that sends the
 request, which is a change in dbimp.
 

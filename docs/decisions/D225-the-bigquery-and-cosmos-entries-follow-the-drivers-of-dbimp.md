@@ -4,7 +4,7 @@ Status: Amends D118, amended by D228.
 
 ## The decision
 
-Ken approved on 2026-10-11 that dbmeta changes the entries of BigQuery and
+The maintainers approved on 2026-10-11 that dbmeta changes the entries of BigQuery and
 Cosmos DB for the drivers that dbimp wrote, which it tags as v0.17.0.
 
 ## What changes

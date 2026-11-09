@@ -2,7 +2,7 @@
 
 Status: Decided.
 
-Ken asked for Oracle Autonomous Database Free so that a driver can test the TLS
+The maintainers asked for Oracle Autonomous Database Free so that a driver can test the TLS
 path and the flags that Autonomous Database sets. The oracle session needs it
 to test XMLType, which comes back NULL there.
 

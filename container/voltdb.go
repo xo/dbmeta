@@ -23,7 +23,7 @@ import (
 // # The license
 //
 // The developer edition does not start without a license file, which a person
-// gets by signing up, and which lasts 100 days. Ken chose on 2026-09-28 to
+// gets by signing up, and which lasts 100 days. The maintainers chose on 2026-09-28 to
 // provision it. dbrun mounts the file at [Server.License] and lists these
 // releases only while it finds the file. CI has no license, and no model
 // reads them, so they are Staged.

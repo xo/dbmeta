@@ -4,7 +4,7 @@ Status: Amended by D168.
 
 ## The decision
 
-Ken asked on 2026-10-01 for a dialect for ArangoDB. `models/arangodb` answers
+The maintainers asked on 2026-10-01 for a dialect for ArangoDB. `models/arangodb` answers
 5 of the 56 under the dialect `arangodb`, which dburl names, through
 `github.com/xo/dbimp/arangodb` at v0.10.0, which dburl's scheme opens. The
 release 3.12.12 takes the cadence it recorded while it was Staged, which is
@@ -16,7 +16,7 @@ D167 later removed the flag. The DSN of the entry is now the URL that the
 driver takes, and the `http://` address is its `api`.
 
 ArangoDB has no relational catalog. This decision proposes how its objects
-map onto the kinds of dbmeta, and Ken reviews it. Each part was measured on
+map onto the kinds of dbmeta, and a maintainer reviews it. Each part was measured on
 3.12.12 on 2026-10-01, as root and as `dbmeta_user`.
 
 ## What AQL can read
@@ -37,7 +37,7 @@ AQL has no function that lists indexes, views or databases.
 `INDEXES()`, `VIEWS()`, `DATABASES()` and `COLLECTION_TYPE()` are each error
 1540, an unknown function. `_users` is in `_system` alone, and the ordinary
 user cannot reach `_system`. The HTTP API describes all of these, one call
-for each collection where it goes deeper. Ken chose on 2026-10-01 that a
+for each collection where it goes deeper. The maintainers chose on 2026-10-01 that a
 walk (D146) is not allowed for ArangoDB, so a kind that only the HTTP API
 answers is not answered.
 
@@ -57,12 +57,12 @@ The alternative for a database was the schema, with an empty catalog, as
 ClickHouse does. Then `Schemas` and `CurrentSchema` answer, but `Schemas`
 names only the database of the connection, because AQL lists no others, and
 no statement qualifies a collection by its database. The catalog is the
-closer fit, and Ken can choose the other.
+closer fit, and a maintainer can choose the other.
 
 ## A document attribute is a column only where a rule names it
 
 ArangoDB is schemaless and keeps no catalog of the attributes of the
-documents in a collection. Ken chose on 2026-10-01 that D47's cost test is
+documents in a collection. The maintainers chose on 2026-10-01 that D47's cost test is
 strict here, as it is for Neo4j: a kind whose only source reads the documents
 is not answered. So a column is a top-level property of the collection's JSON
 schema rule, in the order the rule lists it, and a collection with no rule
@@ -88,7 +88,7 @@ A collection with a rule has one constraint of the type `check`, with an
 empty name, because a rule has none. Its definition is the whole schema as
 JSON: the rule, the level, the message of a refused write and the type. A
 rule is a check on the whole document rather than on named columns, so
-`ConstraintColumns` is not answered, as on ClickHouse. If Ken holds this to
+`ConstraintColumns` is not answered, as on ClickHouse. If the maintainers holds this to
 be a stretch, `Constraints` is left unanswered and the model answers 4.
 
 ## What is not answered, and why

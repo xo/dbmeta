@@ -4,10 +4,10 @@ Status: Superseded by D267.
 
 ## The decision
 
-Ken asked on 2026-10-08 for a GizmoSQL dialect. `models/gizmosql` answers 20
+The maintainers asked on 2026-10-08 for a GizmoSQL dialect. `models/gizmosql` answers 20
 of the 56 on GizmoSQL 1.40.0 and 1.41.0, through the Arrow Flight SQL driver in
 `github.com/apache/arrow-go/v18`, which dburl v0.46.0 names for the scheme
-`gizmosql` and its aliases `gz` and `gizmo`. The dialect is `gizmosql`. Ken
+`gizmosql` and its aliases `gz` and `gizmo`. The dialect is `gizmosql`. A maintainer
 reviews the mapping below.
 
 GizmoSQL is a server for Arrow Flight SQL. Its engine is DuckDB, or SQLite when

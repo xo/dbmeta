@@ -2,7 +2,7 @@
 
 Status: Amends D116, D119 and D129.
 
-Ken decided on 2026-09-30 that the ql driver is removed from usql, and that
+The maintainers decided on 2026-09-30 that the ql driver is removed from usql, and that
 dbmeta removes every entry for it. His rule is that a database few people use
 must not force logic or architecture into usql. ql was the one product that
 needed BatchAsTransaction, and D129 had it waiting for a model that no one

@@ -2,7 +2,7 @@
 
 Status: Amends D66, amended by D92.
 
-Ken asked on 2026-09-27 for ScyllaDB to be tested against the `cql` dialect.
+The maintainers asked on 2026-09-27 for ScyllaDB to be tested against the `cql` dialect.
 `models/cassandra` now reads it. Cassandra is the reference product and
 ScyllaDB is the flavor, the way MariaDB and MySQL share `models/mysql`. It
 answers 18 of the 55 on ScyllaDB and 17 on Cassandra. D66 did not list it,

@@ -2,7 +2,7 @@
 
 Status: Amended by D107.
 
-Ken reported timeouts for `oracle-21c` and `hive-4.2.1` on 2026-09-27. The
+The maintainers reported timeouts for `oracle-21c` and `hive-4.2.1` on 2026-09-27. The
 push run of 323cd36 failed on both. In the 28 runs before it, `oracle-21c`
 did not fail and `hive-4.2.1` failed once.
 

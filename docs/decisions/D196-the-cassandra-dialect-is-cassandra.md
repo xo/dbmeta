@@ -5,7 +5,7 @@ Status: Amends D81, D93 and D195.
 ## The decision
 
 `dbmeta.Cassandra` is `"cassandra"`. D81 made it `"cql"`, because that was the
-name of the driver and of the dburl scheme. Ken decided on 2026-10-08 that
+name of the driver and of the dburl scheme. The maintainers decided on 2026-10-08 that
 Cassandra is named the way the other databases are, and the driver moved with
 the name.
 

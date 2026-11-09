@@ -48,7 +48,7 @@ from the catalogs themselves were each run against a server.
 | Neo4j | `Table.Rows` | `db.stats.retrieve('GRAPH COUNTS')` needs `db.stats.collect()` first, which is a second statement. A count of the nodes of each label is a scan |
 | Trino, Presto | all of them | no source. `system.metadata.tables_authorization` holds the owner and it is empty for the memory connector, so no value was measured. `SHOW STATS` is one statement for each table. The memory connector has no `$partitions` table, and Presto has no `tables_authorization` |
 | ArangoDB | `Table.Rows` | `COLLECTION_COUNT(name)` works in AQL. See the cost. It is not added, because a cluster counts with a round trip for each shard and no cluster was measured |
-| ArangoDB | the rest | `COLLECTIONS()` returns an id and a name. The index list and the figures are in the HTTP API, and Ken chose on 2026-10-01 that a walk is not allowed (D163) |
+| ArangoDB | the rest | `COLLECTIONS()` returns an id and a name. The index list and the figures are in the HTTP API, and the maintainers chose on 2026-10-01 that a walk is not allowed (D163) |
 | InfluxDB 3 | `Table.Rows`, `Table.Size` | `system.parquet_files` holds them for a table, and holds nothing until the first snapshot of the write buffer. A write was not in it after 12 seconds, so a value is a count of the persisted rows only. The fixture cannot wait for a snapshot |
 | InfluxQL | all of them | no source. A cardinality is one statement for each database |
 | SurrealDB | all of them | no source. `INFO FOR DB` returns the text of each `DEFINE` and a count is one `INFO FOR TABLE` for each table |
@@ -130,4 +130,4 @@ not run locally. The statements are the same as on the releases that ran.
 ## Open
 
 ArangoDB `COLLECTION_COUNT` is cheap on one server and unmeasured on a
-cluster. It is in `docs/BACKLOG.md` for Ken.
+cluster. It is in `docs/BACKLOG.md` for a maintainer.

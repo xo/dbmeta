@@ -36,7 +36,7 @@ test matrix by the number of platforms.
 
 Do not add a platform test because you suspect a difference. Report the
 difference to the vendor. If a real one is found that `dbmeta` must work
-around, bring it to Ken and this decision gets revisited. Do not quietly add a
+around, bring it to a maintainer and this decision gets revisited. Do not quietly add a
 build tag.
 
 ## Where the assumption is weakest

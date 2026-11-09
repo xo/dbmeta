@@ -7,7 +7,7 @@ Status: Decided.
 Every DynamoDB kind is unanswered. There is no DynamoDB model, no `Binding`
 and no change to the root package. The two DynamoDB Local releases stay Staged
 with the cadence Tested (D119, D120). This is the same answer as D180 gave for
-VoltDB, and it waits for Ken to confirm it.
+VoltDB, and it waits for a maintainer to confirm it.
 
 ## Why
 

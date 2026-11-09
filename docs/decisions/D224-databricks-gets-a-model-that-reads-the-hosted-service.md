@@ -4,7 +4,7 @@ Status: Amends D194, amended by D229.
 
 ## The decision
 
-Ken asked on 2026-10-11 for a model for Databricks SQL on Unity Catalog, and D218
+The maintainers asked on 2026-10-11 for a model for Databricks SQL on Unity Catalog, and D218
 made it one of the hosted services that get a model. The model is
 `models/databricks`. It answers 17 of the 65 kinds: databases, schemas, tables,
 columns, views, constraints, constraint columns, functions, routine parameters,
@@ -38,14 +38,14 @@ read. The size, the row count, the location and the clustering columns of a tabl
 are in DESCRIBE DETAIL. Those are statements and not relations, and D146 allows a
 walk for Impala, InfluxQL, Elasticsearch and OpenSearch alone, so the model does not
 answer them. The tests assert each absence, so a deliberate gap is not mistaken for
-a query that forgot. Ken can allow a walk, and the backlog holds what it adds.
+a query that forgot. A maintainer can allow a walk, and the backlog holds what it adds.
 
 The model passes on what the catalog says. It does not turn the NO of an identity
 column into a guess, and it does not hide that the catalog is wrong about it.
 
 ## The analogues
 
-Each is a choice that Ken can reverse:
+Each is a choice that a maintainer can reverse:
 
 - A connection of Lakehouse Federation is a foreign server. CREATE SERVER is a
   synonym of CREATE CONNECTION. The account cannot create a connection, so the query

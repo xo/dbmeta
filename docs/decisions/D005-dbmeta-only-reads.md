@@ -16,7 +16,7 @@ methods at lines 148 to 162, but that is no longer a reason either way, because
 D19 makes `dburl` a direct dependency.
 
 The `Reader` and `Writer` pair is a `usql` concept and it does not come here.
-Ken will change those names in `usql` itself. Do not design `dbmeta` around
+A maintainer will change those names in `usql` itself. Do not design `dbmeta` around
 them and do not preserve them for the sake of an easier phase 5.
 
 One consequence belongs to phase 5. The `usql` writer consumes the cursor types

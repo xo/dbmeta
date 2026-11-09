@@ -2,7 +2,7 @@
 
 Status: Amended by D125.
 
-Ken decided on 2026-09-27, answering the question that was open since D80,
+The maintainers decided on 2026-09-27, answering the question that was open since D80,
 that dburl is where a consumer learns the dialect of a scheme. dburl already
 does it. This session sent the dburl session a request for the field, and the
 dburl session answered that it had shipped: `Scheme.Dialect`, in dburl
@@ -24,7 +24,7 @@ which is what hard rule 1 asks.
 A parsed `URL` carries it from dburl v0.32.0. `Parse` sets `URL.Dialect` to
 the `Scheme.Dialect` of the parsed scheme, for a scheme registered at run time
 too, and a `file:` URL takes the Dialect of the scheme it resolves to. dburl's
-D24 records it. Ken chose a field on `URL` over a lookup by scheme name,
+D24 records it. The maintainers chose a field on `URL` over a lookup by scheme name,
 because a lookup has to be passed `UnaliasedDriver`, and passing `Driver` is
 the easy mistake.
 

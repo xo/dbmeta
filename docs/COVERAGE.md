@@ -3886,7 +3886,7 @@ is NULL, because SingleStore claims MySQL 5.7. It has no `Partitions`, because
 ## Snowflake and Amazon Redshift
 
 `models/snowflake` answers 15 of the 72 and `models/redshift` answers 18.
-Ken chose on 2026-09-30 to write both from the vendors' documentation before
+The maintainers chose on 2026-09-30 to write both from the vendors' documentation before
 an account or a cluster was provisioned (D144). Both ran on 2026-10-08.
 D182 holds what Redshift found and D190 holds what Snowflake found. The tests
 skip until dbrun resolves a connection string (D117).
@@ -3931,7 +3931,7 @@ DBMETA_ROLE, which owns the database DBMETA and uses the warehouse DBMETA_WH.
 - A procedure shows its argument signature as `(A NUMBER, B NUMBER)` and a
   result type of `NUMBER(38,0)`, where a function with a VARCHAR result shows
   `VARCHAR(134217728)`.
-- Ken granted CREATE USER and CREATE ROLE to DBMETA_ROLE, and D193 measured
+- the maintainers granted CREATE USER and CREATE ROLE to DBMETA_ROLE, and D193 measured
   parity with three principals. INFORMATION_SCHEMA shows a role only what the
   role holds a grant on. A grantee with one table reads fewer rows of tables,
   columns, constraints, views, functions, sequences and privileges. A role
@@ -3972,7 +3972,7 @@ above, the columns of a constraint, and the session parameters as settings.
   Every stage names a scope. SHOW listed 10803 primary key rows at once, so
   there is no cap of 10000.
 - A bind parameter is refused after the pipe, with "invalid identifier '1'".
-  Ken decided to write the values into the statement, so the Snowflake dialect
+  The maintainers decided to write the values into the statement, so the Snowflake dialect
   sets `Info.Literal` (D78) and every statement of the model has its values
   written in. The scope of each SHOW is a derived value (`Binding.Derived`):
   `IN TABLE "schema"."table"` for an exact schema and table, `IN SCHEMA
@@ -4178,7 +4178,7 @@ PostgreSQL filled. D207 measured each one on Snowflake 10.36.101 and Redshift
 | `Partitions`, `Policies`, `NotNulls`, `Inherits` | none of the four | none of the four |
 
 D207 first left SVV_TABLE_INFO out, for three defects and one refusal. D212
-reads it, after Ken decided that the administrator grants SELECT on it. The
+reads it, after the maintainers decided that the administrator grants SELECT on it. The
 grant works on Redshift Serverless 1.0.477953. The statement reads the view as
 a derived table joined by table id. It replaces `pg_get_userbyid` and
 `obj_description` with joins, because Redshift refuses the two beside the view.
@@ -4191,7 +4191,7 @@ three fields.
 D232 changed the cost of that decision. A user without SELECT on
 SVV_TABLE_INFO got the error "permission denied for relation svv_table_info"
 (SQLSTATE 42501) from the whole `tables` kind, and so `\dt`, `\dt+`, `\d t` and
-`\dv` of usql failed for every user who is not a superuser. Ken chose that the
+`\dv` of usql failed for every user who is not a superuser. The maintainers chose that the
 size and the rows are opt in. The default statement never names the view, so
 `Size`, `Rows` and `Options` are NULL for a table and a view, and every user
 reads the kind. A caller that wants them sets `Args.WithTableInfo`, the
@@ -4523,7 +4523,7 @@ is no lesser principal, and InfluxDB is exempt from parity with that reason.
 `models/neo4j` answers 17 of the 72 on 2026.09.0 and 13 on 5.26.31, measured
 on 2026-10-01 through dbimp's neo4j driver, which is what dburl's neo4j scheme
 opens and what usql uses. Both releases are Tested. D162 holds the mapping
-and the reasons for it, for Ken to review.
+and the reasons for it, for a maintainer to review.
 
 ### It reads SHOW commands and procedures
 
@@ -4573,7 +4573,7 @@ Six answer with an analogue:
 | `Tables` | node labels and relationship types | an index and a constraint are on one of them, and `db.labels()` lists a label from the count Neo4j keeps, not from the data |
 | `Roles` | users | a user logs in and holds roles. A role holds privileges and cannot log in, and SHOW ROLES cannot be joined with SHOW USERS |
 | `RoleGrants` | the roles each user holds | SHOW ROLES WITH USERS, with PUBLIC for every user |
-| `RoleSettings` | the home database of a user | the one setting Neo4j keeps for a user, which decides where a session that names no database runs. D162 asks Ken to confirm it |
+| `RoleSettings` | the home database of a user | the one setting Neo4j keeps for a user, which decides where a session that names no database runs. D162 asks a maintainer to confirm it |
 | `Privileges` | SHOW PRIVILEGES, grouped by graph, segment and resource | a privilege on one property is a row of its own, with the property in the type, such as `property(rating)` |
 
 A node key and a relationship key read `primary key`, a uniqueness constraint
@@ -4596,7 +4596,7 @@ label. The only source is `db.schema.nodeTypeProperties()` and
 `db.schema.relTypeProperties()`, which read every node and every
 relationship. On 2026.09.0 the first took 0.37 seconds for 1 million nodes and
 0.95 seconds for 4 million, so its cost grows with the data, and D47 forbids
-that. Ken chose on 2026-10-01 to leave Columns unsupported for that reason.
+that. The maintainers chose on 2026-10-01 to leave Columns unsupported for that reason.
 `TestNeo4jColumnsIsNotSupported` holds it. The same test was applied to every
 other kind. `db.labels()` and `db.relationshipTypes()` took 0.015 seconds
 together on an empty database and 0.024 seconds with 8 million nodes, on
@@ -4829,7 +4829,7 @@ Tables reads the owner from `.sys/auth_owners`, and the size and the rows from `
 2026-10-01 and 2026-10-02 through dbimp's arangodb driver, which is what
 dburl's arangodb scheme opens and what usql uses. ArangoDB is queried in AQL
 rather than SQL, and it has no relational catalog. D163 holds the mapping,
-and D168 holds what Ken changed in it.
+and D168 holds what the maintainers changed in it.
 
 ### What AQL reads
 
@@ -4837,13 +4837,13 @@ The model reads what one AQL statement reads for the whole database:
 `COLLECTIONS()`, `SCHEMA_GET`, the system collection `_aqlfunctions`, and the
 functions `CURRENT_DATABASE()` and `CURRENT_USER()`. The HTTP API describes
 much more, and it does so one call for each collection where it goes deeper.
-Ken chose on 2026-10-01 that a walk (D146) is not allowed for ArangoDB, so a
+The maintainers chose on 2026-10-01 that a walk (D146) is not allowed for ArangoDB, so a
 kind that only the HTTP API answers is not answered.
 
 A database is the schema, and the catalog is empty, as on MySQL and
 ClickHouse. A connection names one database in its path and AQL cannot reach
 another, so Schemas and CurrentSchema return the database of the connection,
-from `CURRENT_DATABASE()`. Ken chose this on 2026-10-02 (D168). D163 first
+from `CURRENT_DATABASE()`. The maintainers chose this on 2026-10-02 (D168). D163 first
 made the database the catalog, with no schema, as on Firebird.
 
 ### What it answers
@@ -4859,7 +4859,7 @@ the same statement that lists the collections (D212). A cluster counts with a
 round trip for each shard, and no cluster was measured.
 
 A document has no fixed shape, and ArangoDB keeps no catalog of the
-attributes of a collection's documents. Ken chose on 2026-10-01 that D47's
+attributes of a collection's documents. The maintainers chose on 2026-10-01 that D47's
 cost test is strict here, as it is for Neo4j, so an attribute that only the
 documents show is not a column. A column is a top-level property of the
 collection's JSON schema rule, which `SCHEMA_GET` reads from the collection's
@@ -4918,7 +4918,7 @@ graph uses. Each lead was run against 3.12.12:
 
 - `CURRENT_DATABASE()` for the current schema, from both. It holds under the
   other mapping, where a database is a schema, and D163 sets that out for
-  Ken. Under the mapping the model uses, there is no schema.
+  A maintainer. Under the mapping the model uses, there is no schema.
 - `_apps` for extensions, from both. A Foxx service is an application
   mounted at a path, and it adds no object to the database. A stretch.
 - An `enum` in a rule for enum values, from both. It is a check on one
@@ -5101,7 +5101,7 @@ administrator, so the test skips it.
 2.7.0, measured on 2026-10-01 through dbimp's surrealdb driver at v0.10.0,
 which is what dburl's surrealdb scheme opens and what usql uses. 2.7.0 and
 3.3.0 are Tested, and 3.1.6 and 3.2.4 are Nightly. D164 holds the mapping
-and the reasons for it, for Ken to review.
+and the reasons for it, for a maintainer to review.
 
 ### It reads INFO as a value
 
@@ -5111,7 +5111,7 @@ functions, the sequences, the users, the fields, the indexes and the events,
 and with STRUCTURE each one is an object with its parts. From 3.0 an INFO
 statement is a value that a SELECT reads. `INFO FOR TABLE $t.name` takes its
 table from a variable, so `array::map` over the tables reads INFO FOR TABLE
-for each table inside one statement. No kind is a walk, which Ken ruled out
+for each table inside one statement. No kind is a walk, which the maintainers ruled out
 for SurrealDB on 2026-10-01.
 
 A namespace is the catalog and a database is the schema. Every kind below a
@@ -5157,12 +5157,12 @@ Eight answer with an analogue:
 | --- | --- | --- |
 | `Databases` | namespaces | a namespace holds databases as a PostgreSQL database holds schemas |
 | `Schemas` | the database of the connection | each kind below reads only that database, so it is the only schema listed (D168) |
-| `Columns` | a DEFINE FIELD | the other fields of a schemaless table are known only from the records, which D47 forbids. Ken chose this for Neo4j on 2026-10-01 |
+| `Columns` | a DEFINE FIELD | the other fields of a schemaless table are known only from the records, which D47 forbids. The maintainers chose this for Neo4j on 2026-10-01 |
 | `Constraints` | a UNIQUE index, and the ASSERT of a field as a check | both refuse a write, and an ASSERT takes the name of its field |
 | `Triggers` | a DEFINE EVENT | it runs when a record of its table changes |
 | `Roles` | system users on the root, the namespace and the database | a user signs in and holds a role. OWNER on the root is the superuser |
 | `RoleGrants` | the roles OWNER, EDITOR and VIEWER that each user holds | the three roles are fixed, and a user holds them at its level |
-| `Privileges` | the PERMISSIONS of a table and of its fields | they say what a record user can do. D164 asks Ken to confirm it |
+| `Privileges` | the PERMISSIONS of a table and of its fields | they say what a record user can do. D164 asks a maintainer to confirm it |
 
 A view is a table defined AS SELECT, and a table defined TYPE RELATION has
 the type `relation`. The type of a column is its TYPE, and `any` where it has
@@ -5267,7 +5267,7 @@ schema, which every principal reads. The sections `surrealdb/same/user`,
 on 2026-10-07 through dbimp's druid driver, which is what dburl's druid scheme
 opens. Both releases are Tested. Druid answers SQL on the Router with Apache
 Calcite, and Calcite keeps an INFORMATION_SCHEMA and Druid adds a sys schema.
-D171 holds the mapping and the reasons for it, for Ken to review.
+D171 holds the mapping and the reasons for it, for a maintainer to review.
 
 ### What it reads
 
@@ -5397,7 +5397,7 @@ Tables reads `IS_JOINABLE` and `IS_BROADCAST` as the options. The size and the r
 measured on 2026-10-08 through dbimp's drill driver, which is what dburl's
 drill scheme opens. Both releases are Tested. Drill answers SQL with Apache
 Calcite, and it has an INFORMATION_SCHEMA and a sys schema. D178 holds the
-mapping and the reasons for it, for Ken to review.
+mapping and the reasons for it, for a maintainer to review.
 
 ### What it reads
 
@@ -5426,7 +5426,7 @@ otherwise, and the model returns no row and does not invent one.
 
 ### The Metastore
 
-This is the price Ken accepted. INFORMATION_SCHEMA lists no file table by
+This is the price the maintainers accepted. INFORMATION_SCHEMA lists no file table by
 default. A Parquet table that CREATE TABLE AS made does not appear. A file
 table appears only when the Drill Metastore is on, which is the option
 `metastore.enabled`, and only after `ANALYZE TABLE ... REFRESH METADATA` ran
@@ -5519,7 +5519,7 @@ Tables reads `NUM_ROWS` as `Rows`, which is set only for a table that `ANALYZE T
 9.5.3, measured on 2026-10-08 through dbimp's elasticsearch driver, which is
 what dburl's elasticsearch scheme opens. 8.19.22 and 9.5.3 are Tested and 9.4.6
 is Nightly. Elasticsearch answers SQL on `POST /_sql`. D177 holds the mapping
-and the reasons for it, for Ken to review.
+and the reasons for it, for a maintainer to review.
 
 ### What it reads
 
@@ -5641,7 +5641,7 @@ measured on 2026-10-08 through dbimp's solr driver, which is what dburl's solr
 scheme opens. 9.9.0 and 10.0.0 are Tested and 9.10.1 is Nightly. Solr answers
 SQL with Apache Calcite, at `POST /solr/{collection}/sql`, and the three
 releases answer every statement the same way. D179 holds the mapping and the
-reasons for it, for Ken to review.
+reasons for it, for a maintainer to review.
 
 ### What it reads
 
@@ -5756,7 +5756,7 @@ A reader with less than the role search was not measured.
 2.19.6, measured on 2026-10-08 through dbimp's opensearch driver, which is what
 dburl's opensearch scheme opens. Both releases are Tested. OpenSearch answers
 SQL on `POST /_plugins/_sql`. D181 holds the mapping and the reasons for it, for
-Ken to review.
+A maintainer to review.
 
 ### What it reads
 
@@ -6211,7 +6211,7 @@ in and its returned value is a row of ordinal zero with the mode return.
 
 An external table is not a foreign table. It has no server, and a person names the
 files it reads in `uris` and the format in `format`, which are options of the
-table, so `Table.Options` holds them and `ForeignTables` is not answered. Ken can
+table, so `Table.Options` holds them and `ForeignTables` is not answered. A maintainer can
 reverse that.
 
 ### What a second opinion found
@@ -6709,7 +6709,7 @@ is SHOW FULL TABLES. It answers the column `Tables_in_<instance>` and the column
 pattern and nothing that a parameter binds, so the `Keep` function of the binding matches
 the rows in Go, as the Cassandra model does (D200).
 
-Every other kind reads one table at a time. D242, which Ken decided on 2026-10-29, allows a
+Every other kind reads one table at a time. D242, which the maintainers decided on 2026-10-29, allows a
 walk for Tablestore because of that, and for no other reason (D146).
 
 ### What it answers
@@ -6851,7 +6851,7 @@ product is `stardog`, `graphdb` or `voltdb`, or name its path in
 dburl's avatica scheme opens. Both releases are Tested. Avatica is the wire
 protocol of Apache Calcite, and the standalone server runs HSQLDB 2.4.1 in
 memory, so the model reads the catalog of HSQLDB. D186 holds the mapping and the
-reasons for it, for Ken to review.
+reasons for it, for a maintainer to review.
 
 ### What it reads
 
@@ -7011,7 +7011,7 @@ refusal. `$session` needs neither. The test URL names the database
 
 The grammar of the driver can name a database in the WHERE of a statement, and the
 model does not use it. A parameter of dbmeta is a pattern and the key of the driver
-takes an exact name. A statement for each database is a walk, and Ken chose on
+takes an exact name. A statement for each database is a walk, and the maintainers chose on
 2026-10-11 that no walk is allowed for Cosmos DB (D223).
 
 Because a statement cannot filter, the `Keep` function of each binding narrows the rows
@@ -7090,7 +7090,7 @@ context is the scope.
 
 ### What the models call analogues
 
-Each is a choice that Ken can reverse:
+Each is a choice that a maintainer can reverse:
 
 - A database is both a database and a schema.
 - A container is a table.

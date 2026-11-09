@@ -4,7 +4,7 @@ Status: Decided.
 
 ## The decision
 
-Ken decided on 2026-10-08 that every VoltDB kind is unanswered. There is no
+The maintainers decided on 2026-10-08 that every VoltDB kind is unanswered. There is no
 VoltDB model, no `Binding` and no change to the root package. The VoltDB
 releases stay Staged with the cadence Verified (D119, D120). The model waits
 for a way to run a procedure or a way to filter a result, which
@@ -24,7 +24,7 @@ catalog is a set of system procedures. Three facts together stop a `Stmt`.
    `ErrUnknownParam`, and `@@` is not an escape.
 3. A walk is allowed for Impala, InfluxQL, Elasticsearch and OpenSearch alone
    (D146, D159, D175). A walk of one statement for each kind answers, and
-   it needs Ken to widen those decisions. He chose not to.
+   it needs a maintainer to widen those decisions. He chose not to.
 
 The Go driver is not the cause. `github.com/VoltDB/voltdb-client-go` v1.0.18 is
 the package dburl names for the scheme voltdb. It is not a dbimp driver. It

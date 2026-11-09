@@ -17,7 +17,7 @@ package container
 // # The license
 //
 // DynamoDB Local is under the Amazon DynamoDB Local License Agreement, which
-// is proprietary and binds whoever uses it. It needs no account. Ken accepted
+// is proprietary and binds whoever uses it. It needs no account. The maintainers accepted
 // it for this project on 2026-09-28. Nobody checked whether 3.3.2 changed the
 // terms.
 //

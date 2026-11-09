@@ -170,7 +170,7 @@ func TestNeo4jScansEveryQuery(t *testing.T) {
 }
 
 // TestNeo4jColumnsIsNotSupported checks that Columns stays unanswered. The
-// only source scans every node, which D47 forbids, and Ken chose on
+// only source scans every node, which D47 forbids, and the maintainers chose on
 // 2026-10-01 to leave it so (D162).
 func TestNeo4jColumnsIsNotSupported(t *testing.T) {
 	m, err := dbmeta.New(dbmeta.Neo4j, dbmeta.VersionSet{})

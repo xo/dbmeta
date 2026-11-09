@@ -4,10 +4,10 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-10-01 for a Neo4j dialect. `models/neo4j` answers 17 of the
+The maintainers asked on 2026-10-01 for a Neo4j dialect. `models/neo4j` answers 17 of the
 56 on 2026.09.0 and 13 on 5.26.31, through dbimp's neo4j driver, which dburl
-names. The dialect is `neo4j`, which D109 already named. Ken reviews the
-mapping below. Ken chose one part of it on 2026-10-01: Columns is not
+names. The dialect is `neo4j`, which D109 already named. A maintainer reviews the
+mapping below. The maintainers chose one part of it on 2026-10-01: Columns is not
 answered, for the reason under Columns.
 
 Neo4j has no relational catalog. A server holds databases. A database holds
@@ -82,7 +82,7 @@ for the same reason.
 A user can have a home database, set with ALTER USER SET HOME DATABASE. A
 session that names no database runs there. It is the one setting Neo4j keeps
 for a user, and RoleSettings returns it as `home=<database>`. This is the
-nearest thing to a role's `search_path` on PostgreSQL, and Ken can reverse it
+nearest thing to a role's `search_path` on PostgreSQL, and a maintainer can reverse it
 if it is a stretch.
 
 ### Functions and procedures are routines of the server
@@ -126,7 +126,7 @@ is `db.schema.nodeTypeProperties()` and `db.schema.relTypeProperties()`, which
 read every node and every relationship to find them. On 2026.09.0,
 `db.schema.nodeTypeProperties()` took 0.37 seconds for 1 million nodes and
 0.95 seconds for 4 million. Its cost grows with the data, and D47 forbids
-that. Ken chose on 2026-10-01 to leave Columns unsupported for that reason.
+that. The maintainers chose on 2026-10-01 to leave Columns unsupported for that reason.
 The same test was applied to every other kind, and none of the others reads
 the data.
 

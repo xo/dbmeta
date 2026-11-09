@@ -1,10 +1,10 @@
-# D176. The search dialects follow Ken's answers to the survey
+# D176. The search dialects follow a maintainer's answers to the survey
 
 Status: Amended by D183 and D192.
 
 ## The decision
 
-Ken answered the open questions of the surveys of Elasticsearch, OpenSearch,
+The maintainers answered the open questions of the surveys of Elasticsearch, OpenSearch,
 Drill and Solr on 2026-10-07. The surveys are the record of what each product
 answers. This decision records the choices. No model is built until dbimp tags
 the drivers and a dburl release names them. dburl v0.45.0 names the four.
@@ -28,6 +28,6 @@ the drivers and a dburl release names them. dburl v0.45.0 names the four.
    built, the cost check of D47 runs against a catalog with thousands of
    collections, because `metadata.COLUMNS` does not prune a filter.
 
-Ken also asked on 2026-10-07 that the DSN of every DynamoDB entry ends with
+The maintainers also asked on 2026-10-07 that the DSN of every DynamoDB entry ends with
 `tls=false`, because every endpoint is plain HTTP and the driver turns TLS on
 unless the DSN says otherwise.

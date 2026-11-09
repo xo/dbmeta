@@ -5,7 +5,7 @@ Status: Decided.
 The prompt escape `%/` of usql is the name of the current database in psql.
 usql took it from the URL path, so on SQL Server with `?database=northwind` it
 was empty, and after `USE master` on SQL Server or MySQL it kept the old name
-(xo/usql#467). Ken decided on 2026-11-04 that dbmeta answers it.
+(xo/usql#467). The maintainers decided on 2026-11-04 that dbmeta answers it.
 
 ## Decision
 

@@ -7,7 +7,7 @@ a coding agent loads for a task. `simple-english` sets how prose is written,
 and `go-pedantry` sets how Go is written. Commit 28ccdaa added both, with
 `skills-lock.json`. Three facts about them were not written down: where they
 come from, how a person updates them, and what a Windows checkout does with
-them. Ken decided all three on 2026-09-27.
+them. The maintainers decided all three on 2026-09-27.
 
 ## Where they come from
 
@@ -40,7 +40,7 @@ on two copies that differ, and on a skill folder that the lock file does not
 name.
 
 The alternative was to keep the links and to tell each Windows developer to
-turn on `core.symlinks`, which needs Developer Mode or an administrator. Ken
+turn on `core.symlinks`, which needs Developer Mode or an administrator. The maintainers
 wanted the repository to handle it. A folder works on every checkout with no
 setting.
 
@@ -71,7 +71,7 @@ project is committed.
 
 ## Which skill is for what
 
-Ken asked that `simple-english` apply to every text a person reads: a
+The maintainers asked that `simple-english` apply to every text a person reads: a
 document, a code comment, an error message and a commit message. `CLAUDE.md`
 tells an agent to load it first. Its rules include the ones `CLAUDE.md`
 already had, which are short sentences, the active voice, `can`, `will` and

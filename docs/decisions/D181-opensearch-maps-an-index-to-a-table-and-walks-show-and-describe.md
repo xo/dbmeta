@@ -4,10 +4,10 @@ Status: Decided, amended by D189 and D191.
 
 ## The decision
 
-Ken asked on 2026-10-08 for an OpenSearch dialect. `models/opensearch` answers 3
+The maintainers asked on 2026-10-08 for an OpenSearch dialect. `models/opensearch` answers 3
 of the 56 on 3.9.0, and 2 of the 3 on 2.19.6, through dbimp's opensearch driver
 at v0.14.0, which dburl v0.46.0 names. The dialect is `opensearch` and
-`dialect.go` holds it. Ken reviews the mapping below.
+`dialect.go` holds it. A maintainer reviews the mapping below.
 
 OpenSearch answers SQL on `POST /_plugins/_sql`. Its SQL reads only. It has no
 table that a SELECT reads, and its only metadata statements are `SHOW TABLES
@@ -20,7 +20,7 @@ DATABASES, GRANTS and VARIABLES fail with the same message. `SELECT VERSION()`,
 
 | OpenSearch | Kind | Why |
 | --- | --- | --- |
-| the cluster | database, and the catalog of every row | TABLE_CAT of SHOW TABLES names it. D176 chose it. No statement names a cluster that shows no index to the user, so this is a close call for Ken |
+| the cluster | database, and the catalog of every row | TABLE_CAT of SHOW TABLES names it. D176 chose it. No statement names a cluster that shows no index to the user, so this is a close call for a maintainer |
 | an index | table | SHOW TABLES lists it as BASE TABLE |
 | an alias | table on 2.19.6, and not listed on 3.9.0 | see below |
 | a field of the mapping | column | DESCRIBE. An object and a nested field are rows with the types object and nested, and a subfield is a row of its own, such as `dims.h` |
@@ -77,7 +77,7 @@ So the walk goes on to the next index when a DESCRIBE is refused, and the
 refused index has no column. A walk does not skip an error while it reads the
 rows of an answer, and it does not skip one when the context ends.
 
-This is a choice for Ken to review. The walk cannot tell a refusal of the plugin
+This is a choice for a maintainer to review. The walk cannot tell a refusal of the plugin
 from a broken connection by its type, because the model cannot import dbimp. A
 broken connection fails the first statement, SHOW TABLES, before any DESCRIBE.
 The survey said that DESCRIBE of an empty index fails with HTTP 500 on 3.9.0.

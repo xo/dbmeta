@@ -4,9 +4,9 @@ Status: Amends D188, amended by D216, D218, D222, D224, D237 and D241.
 
 ## The decision
 
-Ken decided on 2026-10-08 that dbmeta builds no model for a hosted service
+The maintainers decided on 2026-10-08 that dbmeta builds no model for a hosted service
 other than Amazon Redshift and Snowflake. This is no priority at present, and
-Ken can revisit it.
+A maintainer can revisit it.
 
 The hosted services without a model are Athena, BigQuery, Cosmos, Databricks,
 MaxCompute, Tablestore and Spanner. D188 listed them as the ones that usql

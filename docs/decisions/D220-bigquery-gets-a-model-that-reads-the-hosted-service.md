@@ -4,7 +4,7 @@ Status: Decided, amended by D226 and D229.
 
 ## The decision
 
-Ken asked on 2026-10-10 for a model for Google BigQuery, in the GoogleSQL
+The maintainers asked on 2026-10-10 for a model for Google BigQuery, in the GoogleSQL
 dialect, and D218 made it one of the hosted services that get a model. The model
 is `models/bigquery`. It answers 15 of the 65 kinds: tables, columns, indexes,
 index columns, constraints, constraint columns, views, functions, aggregates,
@@ -61,7 +61,7 @@ changes.
 
 ## The analogues
 
-Each is a choice that Ken can reverse:
+Each is a choice that a maintainer can reverse:
 
 - A search index and a vector index are indexes.
 - A user defined aggregate function is an aggregate.

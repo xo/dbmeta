@@ -41,7 +41,7 @@ does.
 ## The risk this carries
 
 Both external reviews objected to build tags in a library, and the objection is
-recorded because Ken chose this deliberately to match `usql`.
+recorded because the maintainers chose this deliberately to match `usql`.
 
 Their point: a build tag is global to a build, not per dependency. A consumer
 cannot ask for `dbmeta` with the `most` tier while another dependency asks for

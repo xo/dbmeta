@@ -11,7 +11,7 @@ import (
 //
 // CrateDB speaks the PostgreSQL wire protocol on 5432, and it is reached with
 // pgx, as dburl's cratedb:// scheme opens it from v0.35.0. There is no driver
-// of its own: Ken decided on 2026-09-29 that dbimp writes none, because the
+// of its own: The maintainers decided on 2026-09-29 that dbimp writes none, because the
 // HTTP interface builds each whole result in memory and has no paging. It has
 // a dialect of its own, cratedb, and a model of its own (D123).
 //

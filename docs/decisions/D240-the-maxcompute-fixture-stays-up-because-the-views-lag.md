@@ -35,7 +35,7 @@ documentation says that it also needs read on the package for the views. Both ar
     `grant read on package Information_Schema.systables to role reader;`
 
 The session that wrote the model did not make them, because a grant to a role is a
-change of the account and it asked nobody. Ken asked the session that sets up the
+change of the account and it asked nobody. The maintainers asked the session that sets up the
 account to make them, and it did on 2026-10-29. The service has no SQL grant for a
 role and its API cannot edit one, so that session deleted the role and made it again
 with a longer policy. `DBMETA_UPDATE=1` then recorded the reader in

@@ -6,7 +6,7 @@
 # this image builds on the daemon image and takes the metastore from the
 # quickstart's metastore image. The daemon image already holds statestored
 # and catalogd, because they are the impalad binary under other names, and
-# Java 8, which the metastore needs too. Ken asked for Impala on 2026-09-30,
+# Java 8, which the metastore needs too. The maintainers asked for Impala on 2026-09-30,
 # which amends D118. See D145.
 #
 # The metastore keeps its catalog in Derby under /var/lib/hive, and the

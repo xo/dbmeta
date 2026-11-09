@@ -2,7 +2,7 @@
 
 Status: Amended by D119.
 
-Ken agreed on 2026-09-27 to a `dbrun` entry for SurrealDB, which is the next
+The maintainers agreed on 2026-09-27 to a `dbrun` entry for SurrealDB, which is the next
 driver in dbimp. dbmeta has no SurrealDB model, and the entry is there for
 that driver's tests, as the Couchbase entry was first (D94).
 
@@ -57,7 +57,7 @@ that `Init` ran twice:
 
 ## The ordinary user's URL names its level
 
-dbimp's D51, which Ken decided the same day, adds `?auth=database` to the URL
+dbimp's D51, which the maintainers decided the same day, adds `?auth=database` to the URL
 of `dbmeta_user`, so that its principal reads
 `surrealdb://dbmeta_user:<password>@127.0.0.1:<port>/dbmeta/dbmeta?auth=database`.
 A database user signs in only with `Surreal-Auth-NS` and `Surreal-Auth-DB`,

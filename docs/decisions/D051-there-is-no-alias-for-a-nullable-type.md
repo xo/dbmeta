@@ -14,7 +14,7 @@ for no reason a caller can see.
 
 ## Why not alias all four instead
 
-Both reviews rejected that and so did Ken, for the same reason, and the reason
+Both reviews rejected that and so did the maintainers, for the same reason, and the reason
 is what a reader actually sees.
 
 `go doc` in a terminal prints plain text. With an alias a reader of

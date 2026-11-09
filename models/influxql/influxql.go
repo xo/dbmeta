@@ -10,7 +10,7 @@
 // InfluxQL reads metadata only through SHOW statements, and each one reads a
 // single database, which ON names. So most kinds here are answered by a
 // walk, [dbmeta.Binding.Walk], which lists the databases and then asks
-// inside each one. Ken allowed that for InfluxQL on 2026-10-01, and the cost
+// inside each one. The maintainers allowed that for InfluxQL on 2026-10-01, and the cost
 // of each walk is written beside it. A kind that one SHOW statement answers
 // is one statement. The caller's patterns are matched in Go, with
 // [dbmeta.Like], because a SHOW statement takes no LIKE. See D146 and D159.

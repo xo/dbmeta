@@ -4,9 +4,9 @@ Status: Amends D118.
 
 ## The decision
 
-Ken asked on 2026-09-30 for dbmeta to answer for SingleStore, because usql
+The maintainers asked on 2026-09-30 for dbmeta to answer for SingleStore, because usql
 deletes its own readers in W21 and read SingleStore through its mysql reader
-until then. D118 had given SingleStore no entry. Ken asked for it to be tried
+until then. D118 had given SingleStore no entry. The maintainers asked for it to be tried
 without a license key, and the development image,
 ghcr.io/singlestore-labs/singlestoredb-dev, starts with none on a machine
 with at most 8 cores and 64 GB, as its README says. So SingleStore has a

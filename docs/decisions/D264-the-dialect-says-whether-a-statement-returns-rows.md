@@ -6,7 +6,7 @@ usql chose between a query and an exec from the first words of a statement,
 in `QueryExecType` of `drivers/qtype.go`. A statement with a RETURNING clause
 on PostgreSQL, SQLite, MariaDB, CockroachDB and others, and one with an OUTPUT
 clause on SQL Server, returns rows, and usql printed only a command tag. psql
-prints the rows (xo/usql#540). Ken decided on 2026-11-04 that the
+prints the rows (xo/usql#540). The maintainers decided on 2026-11-04 that the
 classification moves into dbmeta and reads the whole statement for each dialect.
 
 ## Decision

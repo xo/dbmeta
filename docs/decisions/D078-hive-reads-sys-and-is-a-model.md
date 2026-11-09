@@ -61,7 +61,7 @@ silently, and nothing about the model looks wrong.
 `docs/NULLS.md` is the shortest document here and the one that cost the most
 to learn, and that driver breaks all of it.
 
-`usql` is replacing it with `github.com/beltran/gohive/v2`, which Ken
+`usql` is replacing it with `github.com/beltran/gohive/v2`, which the maintainers
 confirmed. v2 refuses parameters with a message instead of mangling them,
 and it tells NULL from empty. `TestHiveTellsNullFromEmpty` asserts the
 second, because a driver change that regressed it leaves no other trace.

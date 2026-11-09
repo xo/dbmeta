@@ -8,7 +8,7 @@ BEGIN or DECLARE is a block of code. It ends at the semicolon after its last
 END.
 
 The first version of this decision also said that a block ends at a line that
-holds only a slash. That form comes from SQL*Plus. Ken decided on 2026-11-04
+holds only a slash. That form comes from SQL*Plus. The maintainers decided on 2026-11-04
 that usql works like psql and not like the client of each database, and psql has
 no such terminator, so usql ends a statement at a semicolon only. The slash line
 is not part of the meaning of this flag.

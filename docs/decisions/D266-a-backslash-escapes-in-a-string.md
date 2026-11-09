@@ -7,7 +7,7 @@ MySQL a backslash inside `'...'` escapes the next character, so `'it\'s'` is
 one string. In PostgreSQL the same text is the string `'it\'` followed by `s'`.
 A client that reads the wrong rule either joins two statements or cuts one.
 
-usql asked on 2026-11-05 whether the rule is for the MySQL family only. Ken
+usql asked on 2026-11-05 whether the rule is for the MySQL family only. The maintainers
 decided that dbmeta holds the answer for every dialect, from what each product
 does, and that usql keeps no list of its own.
 

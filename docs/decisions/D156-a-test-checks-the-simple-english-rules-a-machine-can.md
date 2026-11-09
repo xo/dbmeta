@@ -7,7 +7,7 @@ Status: Decided.
 D89 and D110 say to follow the simple-english skill for every text that a
 person reads. Nothing checked that. On 2026-10-01 a sweep changed about 190
 British spellings, and the first run of the test then found 338 banned modals,
-34 bold markers and about 60 other faults. Ken asked for the rules to be
+34 bold markers and about 60 other faults. The maintainers asked for the rules to be
 checked by a machine.
 
 `TestProseIsSimpleEnglish`, in `prose_test.go` in the root module, checks

@@ -4,7 +4,7 @@ Status: Amends D19, D80, D99 and D117.
 
 ## The decision
 
-Ken approved dburl's D37 on 2026-09-29, and dburl v0.36.0 carries it. It
+The maintainers approved dburl's D37 on 2026-09-29, and dburl v0.36.0 carries it. It
 removes `Scheme.Override`, which gave a product that speaks another product's
 protocol the other product's dialect. So `memsql://`, `tidb://`, `vitess://`
 and `redshift://` now report the dialects `memsql`, `tidb`, `vitess` and

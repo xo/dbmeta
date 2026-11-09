@@ -8,7 +8,7 @@ The dump reads and writes a MySQL TIMESTAMP as the UTC clock of the session, and
 the zone of the client does not change it. A MariaDB column that is declared
 JSON is a JSON column in the snapshot.
 
-Ken chose both on 2026-11-09. usql found them while it tested the dump on dbmeta
+The maintainers chose both on 2026-11-09. usql found them while it tested the dump on dbmeta
 v0.39.0.
 
 ## The timestamp

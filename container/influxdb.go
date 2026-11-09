@@ -11,7 +11,7 @@ import (
 //
 // models/influxdb reads InfluxDB 3 through the InfluxDB driver in
 // github.com/xo/dbimp (D152), and models/influxql reads InfluxDB 1 and 2
-// through the same driver (D165). The driver has two dialects, which Ken accepted in dbimp's D78: influxdb, which
+// through the same driver (D165). The driver has two dialects, which the maintainers accepted in dbimp's D78: influxdb, which
 // is SQL on InfluxDB 3, and influxql, which is InfluxQL through /query on
 // InfluxDB 1, 2 and 3. InfluxDB 3 answers both, so its entry names influxdb
 // and also influxql, and one container serves both. See D114.
@@ -21,7 +21,7 @@ import (
 // Every line is still rebuilt on docker.io/library/influxdb, so step 2 of
 // docs/EVALUATION.md applies. Checked on 2026-09-28, 1.13.1, 1.11.8, 2.9.1 and
 // 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.11.5,
-// 3.10.6 and 3.9.13 between 2026-09-16 and 2026-09-18. Ken chose the releases
+// 3.10.6 and 3.9.13 between 2026-09-16 and 2026-09-18. The maintainers chose the releases
 // in dbimp's D79. On 2026-10-07 3.12.0 had arrived, so the InfluxDB 3 window
 // moved up one line to 3.10.6, 3.11.6 and 3.12.0. On 2026-10-22 the releases
 // of 3.11 and 3.12 were 3.11.7 and 3.12.1, both of 2026-10-17, and the window

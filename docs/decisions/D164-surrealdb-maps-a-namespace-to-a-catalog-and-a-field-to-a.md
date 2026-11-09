@@ -4,10 +4,10 @@ Status: Amended by D168 and D192.
 
 ## The decision
 
-Ken asked on 2026-10-01 for a SurrealDB dialect. `models/surrealdb` answers 18
+The maintainers asked on 2026-10-01 for a SurrealDB dialect. `models/surrealdb` answers 18
 of the 56 on 3.1.6, 3.2.4 and 3.3.0, and 1 on 2.7.0, through dbimp's
 surrealdb driver at v0.10.0, which dburl names. The dialect is `surrealdb`,
-which `dialect.go` already held. Ken reviews the mapping below. Ken chose
+which `dialect.go` already held. A maintainer reviews the mapping below. The maintainers chose
 three parts of it on 2026-10-01: no kind is a walk, a field is a column only
 when a DEFINE FIELD names it, and the version is a probe of the major release
 with the RPC answer parsed beside it.
@@ -37,7 +37,7 @@ that 3.0 made INFO a value.
 
 ## No kind is a walk
 
-Ken ruled on 2026-10-01 that a walk (D146) is not allowed for SurrealDB. None
+The maintainers ruled on 2026-10-01 that a walk (D146) is not allowed for SurrealDB. None
 is needed, because `array::map` and INFO FOR TABLE do inside one statement
 what a walk does with many. The cost was measured on 3.3.0 with 2000 tables
 of 5 fields each: Tables took 0.02 seconds, Columns took 0.34 seconds for
@@ -80,7 +80,7 @@ session and no statement reads another one. So a pattern that names another
 database matches nothing. That is the case D162 met on Neo4j, where Schemas
 returns the database of the connection alone. Here Schemas lists every
 database of the namespace, because INFO FOR NS lists them and hard rule 13
-does not withhold a fact. Ken can choose the Neo4j answer instead.
+does not withhold a fact. A maintainer can choose the Neo4j answer instead.
 
 ### A table is a table, and a view is a table defined AS SELECT
 
@@ -91,7 +91,7 @@ defined `TYPE RELATION` holds the edges of a graph and has the type
 
 ### Only a DEFINE FIELD is a column
 
-Ken chose on 2026-10-01, for Neo4j first, that D47's cost test is strict. A
+The maintainers chose on 2026-10-01, for Neo4j first, that D47's cost test is strict. A
 schemaless table holds whatever fields its records hold, and only the
 records say what those are, so a field that no DEFINE FIELD names is not a
 column. A field of a schemaless table that a DEFINE FIELD names is one.
@@ -121,7 +121,7 @@ that the record exists. 3.x has REFERENCE, which says what a delete does to
 the records that link to the deleted one. It is close to a foreign key, and
 it is left out because the server still takes a link to a record that does
 not exist: a field with REFERENCE ON DELETE REJECT took `rbook:missing` on
-3.3.0. Ken can choose otherwise.
+3.3.0. A maintainer can choose otherwise.
 
 ### An event is a trigger
 
@@ -146,7 +146,7 @@ for select, create, update and delete, as FULL, NONE or WHERE and an
 expression. Those of a field say the same for the field. Privileges returns
 the first as `access` and the second as `column_access`, one line for each
 field. A system user is held to its role and not to these, which is why
-`bypass_rls` is true on every role. Ken can call this a stretch, because the
+`bypass_rls` is true on every role. A maintainer can call this a stretch, because the
 grantee is every record user and is not named.
 
 ## The columns arrive in the order of their names
@@ -180,7 +180,7 @@ and `RETURN surrealdb::version()` are parse errors, measured by dbimp. The
 driver reads it through the RPC method `version` with `surrealdb.Version`,
 and usql prints it that way.
 
-Ken chose on 2026-10-01 to do two things. The version query is a probe that
+The maintainers chose on 2026-10-01 to do two things. The version query is a probe that
 tells 2.x from 3.x and nothing finer: `RETURN IF (<set>[2, 1])[0] = 1 THEN '3'
 ELSE '2' END`. 3.x sorts the members of a set and 2.x keeps their order, which
 dbimp recorded on all four releases, and the probe parses on both lines, where

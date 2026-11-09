@@ -60,7 +60,7 @@
 // db.schema.relTypeProperties(), which read every node and every relationship
 // to find them. On 2026.09.0 it took 0.37 seconds for 1 million nodes and 0.95
 // seconds for 4 million, so its cost grows with the data. D47 forbids that,
-// and Ken chose on 2026-10-01 to leave Columns unsupported for that reason.
+// and the maintainers chose on 2026-10-01 to leave Columns unsupported for that reason.
 //
 // There is no view, no sequence, no trigger, no user defined type, no comment
 // and no foreign key. A relationship joins two nodes and is not a constraint

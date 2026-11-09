@@ -19,7 +19,7 @@
 //
 // A database is the schema, as it is on MySQL and ClickHouse, and the catalog
 // is empty. A connection names one database in its path, and AQL cannot reach
-// another one, so Schemas and CurrentSchema return that database alone. Ken
+// another one, so Schemas and CurrentSchema return that database alone. The maintainers
 // chose this on 2026-10-02 (D168). A collection is the table. A collection's
 // JSON schema rule, when it has one, gives the columns and one check
 // constraint. A user defined AQL function is a function.

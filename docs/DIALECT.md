@@ -21,7 +21,7 @@ on one server, as one user.
 ### 1. Check it is the one to do next
 
 D66 in `decisions/` holds the order, and D67, D77, D88, D91, D94 and D129 amend
-it. Do not start a database out of order without asking Ken.
+it. Do not start a database out of order without asking the maintainers.
 
 ### 2. Choose the version range
 
@@ -52,7 +52,7 @@ A scheme can name another product's driver in `GoPackage`, because the
 product is wire compatible with it. `cockroachdb` names `pgx`, and that is the
 right answer rather than a mistake.
 
-If dburl names a driver that does not exist yet, ask Ken. rqlite was the case:
+If dburl names a driver that does not exist yet, ask a maintainer. rqlite was the case:
 dburl named dbimp's driver before dbimp wrote it, the tests used gorqlite
 meanwhile (D148), and they moved to dbimp's driver when it was released
 (D151).
@@ -115,7 +115,7 @@ Add it to the `Dialect` block in `dialect.go`, in alphabetical order. The value
 is the `dburl` driver name, which is not always the word the database calls
 itself. The constant can exist already, because a `dbrun` entry for one of
 dbimp's drivers adds one before a model does. If dburl has no scheme for the
-product, the name waits until dbimp and Ken settle it (D112). Do not invent
+product, the name waits until dbimp and the maintainers settle it (D112). Do not invent
 one.
 
 If the database is a library rather than a server, set `Embedded: true` in the
@@ -557,7 +557,7 @@ only behind `SHOW FUNCTIONS`, and a walk is allowed for Impala (D146), InfluxQL
 (D159), Elasticsearch and OpenSearch (D175) and Tablestore (D242) alone, so Functions is
 unanswered on Trino while everything with a table behind it is answered. Tablestore is
 allowed because its SQL has no catalog that a SELECT reads. A walk for any other product is a
-decision for Ken.
+decision for a maintainer.
 
 If a product still cannot be a model, that is a result rather than a failure.
 Write the decision in `decisions/`, amend D66 if the order changes, and put

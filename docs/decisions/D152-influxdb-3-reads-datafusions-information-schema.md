@@ -4,11 +4,11 @@ Status: Amended by D170.
 
 ## The decision
 
-Ken asked on 2026-10-01 for dialects for Apache Pinot, InfluxDB 3 and Apache
+The maintainers asked on 2026-10-01 for dialects for Apache Pinot, InfluxDB 3 and Apache
 Druid. InfluxDB 3 is built, and `models/influxdb` answers 8 of the 56 under
 the dialect `influxdb`, which dburl already names. The other two wait, and
 `docs/BACKLOG.md` holds each with the reason. Druid has no dburl scheme, and
-Ken chose to wait until he and dbimp settle its name and driver. Pinot keeps
+The maintainers chose to wait until he and dbimp settle its name and driver. Pinot keeps
 its catalog only in the Controller's REST API, and its driver answers no
 metadata statement.
 

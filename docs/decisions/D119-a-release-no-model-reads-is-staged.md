@@ -13,12 +13,12 @@ CI runs `dbrun test` on each Tested release. For a release that no model
 reads, that starts the container, runs the setup, and runs integration tests
 that find no variable they read, so nothing in dbmeta is tested. On
 2026-09-28 that was 95 of 158 servers and libraries, and the Tested tier had
-grown from 63 releases to 120. Ken asked for them to be kept out of CI, while
+grown from 63 releases to 120. The maintainers asked for them to be kept out of CI, while
 the record still says that each one was measured and works.
 
 ## The decision
 
-A fourth value of `container.Tier` holds them: `Staged`. Ken chose the name on
+A fourth value of `container.Tier` holds them: `Staged`. The maintainers chose the name on
 2026-09-28.
 
 A Staged release is one that `dbrun` starts and that no model reads yet. Each
@@ -79,5 +79,5 @@ this one.
    nothing to do with it. The measurement is recorded in D118, in
    `docs/EVALUATION.md` and in each product's file.
 
-A weekly job in CI that runs `dbrun test staged` was also weighed. Ken asked
+A weekly job in CI that runs `dbrun test staged` was also weighed. The maintainers asked
 for these to be kept out of CI, so there is none.

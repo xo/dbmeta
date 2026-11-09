@@ -74,7 +74,7 @@ day it is released, and only a new release gets a new build. Databend,
 rqlite, libSQL, Apache Pinot, Avatica, Apache Druid and most of
 the products D118 added work this way. For such a product,
 the floor is the newest release of the line before the newest, and the
-ceiling is the newest release. A product with one line has one release. Ken
+ceiling is the newest release. A product with one line has one release. The maintainers
 chose this rule on 2026-09-27 (D112).
 
 Warning: an image that exists is not an image that runs. A container built
@@ -321,7 +321,7 @@ When the upstream removal was put to both models, Gemini recommended dropping
 the old releases outright and DeepSeek recommended keeping them only as a named
 tier with scheduled tests.
 
-Ken kept 9.6. D20 records why the reasoning survived review, including that
+The maintainers kept 9.6. D20 records why the reasoning survived review, including that
 upstream's 2026 reason was a scope policy rather than a finding that the old
 releases cannot be tested, and that 9.6 was verified to run on 2026-09-24.
 
@@ -372,14 +372,14 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Firebird | 3.0 | 5.0 | Criteria 2 and 3 agree, which is rare enough to record |
 | SAP HANA | 2.00.076 | 2.00.088 | Criterion 3. SAP publishes an express edition of 2.0 only |
 | Apache Hive | 4.0.1 | 4.2.1 | Criterion 2. Nothing older than 4.0 is published |
-| Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images Ken chose so that a gate has something older to answer against, and D88 records why. The images are copies in `docker.io/usql/vertica` (D100) |
+| Vertica | 7.2.1 | 25.1.0 | Criterion 2 gives a floor of one, 25.1, the only current release that starts outside Kubernetes. The three older releases are community images the maintainers chose so that a gate has something older to answer against, and D88 records why. The images are copies in `docker.io/usql/vertica` (D100) |
 | Exasol | 2025.2.1 | 2026.2.0 | Criterion 2 for the container, which gives a floor of one. The floor is the Community Edition machine, a release line older, which D85 chose so that a gate has something to answer against |
 | ScyllaDB | 2025.1 | 2026.3 | Criterion 2. 2025.1 is the oldest release the vendor still rebuilds. 6.2, the last open source release, was last rebuilt in February 2025. D90 says a source available release qualifies |
 | Couchbase | 7.2.9 | 8.0.3 | Criterion 2. 7.2 is the oldest line the image still rebuilds, and 7.0 and 7.1 stopped in November 2024. The model's floor is 7.6, because 7.2 sends its columns in name order. 7.2.9 stays for the dbimp driver, and the model reports it too old (D104) |
 | Neo4j | 5.26.32 | 2026.10.0 | Criterion 2. 5.26.32 and 2026.10.0 were rebuilt on 2026-10-21, and a monthly release stops being rebuilt when the next one arrives. 4.4 is out, because its Enterprise image starts only with the commercial license. The ceiling moves each month. There is no dbmeta model, and the entry is for dbimp's driver (D106) |
 | SurrealDB | 2.7.0 | 3.3.4 | Criterion 2. 2.7.0 was rebuilt on 2026-09-23 and 3.3.4 on 2026-10-13, and between them 3.1.6 on 2026-09-01 and 3.2.6 on 2026-10-19. 1.5.6 was last rebuilt in November 2024, and 2.6.5 and 3.0.5 in March 2026. `models/surrealdb` reads all four, and dbimp's driver tests against them (D164) |
 | ArangoDB | 3.12.12 | 3.12.12 | Criterion 2. Only the 3.12 line is still built: 3.12.12 was rebuilt on 2026-09-24, and 3.11.14 was last built on 2025-05-24. The release moves with each patch. The entry was for dbimp's driver (D112), and `models/arangodb` reads it, so it is Tested (D163) |
-| InfluxDB | 1.11.8 | 3.12.1 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. 3.12.0 arrived by 2026-10-07, so the InfluxDB 3 window moved up one line: 3.10.6, 3.11.6 and 3.12.0, and 3.9.13 is out. On 2026-10-22 3.11.7 and 3.12.1 replaced 3.11.6 and 3.12.0. Ken chose the releases in dbimp's D79. The entries were for dbimp's driver. `models/influxdb` reads InfluxDB 3, whose releases are Tested and Nightly (D152), and InfluxDB 1 and 2 stay Staged (D112, D114, D119) |
+| InfluxDB | 1.11.8 | 3.12.1 | Criterion 2 for each line. 1.13.1, 1.11.8, 2.9.1 and 2.8.0 were rebuilt on 2026-09-19, and the InfluxDB 3 Core lines 3.9 to 3.11 in September 2026. 3.12.0 arrived by 2026-10-07, so the InfluxDB 3 window moved up one line: 3.10.6, 3.11.6 and 3.12.0, and 3.9.13 is out. On 2026-10-22 3.11.7 and 3.12.1 replaced 3.11.6 and 3.12.0. The maintainers chose the releases in dbimp's D79. The entries were for dbimp's driver. `models/influxdb` reads InfluxDB 3, whose releases are Tested and Nightly (D152), and InfluxDB 1 and 2 stay Staged (D112, D114, D119) |
 | CrateDB | 6.3.7 | 6.4.6 | Criterion 2. 6.4.6 and 6.3.7 were rebuilt in October 2026, and 6.2 last on 2026-07-09. Reached on the PostgreSQL port, with a dialect and a model of its own, cratedb (D112, D123) |
 | Apache Pinot | 1.4.0 | 1.5.1 | The rule for an image that is never rebuilt (D112). Apache supports only the newest release. The entry is for dbimp's driver |
 | Databend | 1.2.881 | 1.2.954 | The rule for an image that is never rebuilt (D112): the newest stable release and the newest weekly one. The weekly release moves almost every day. `models/databend` reads it, and dbimp's driver tests against it (D140) |
@@ -387,7 +387,7 @@ and D40 make that distinction, and the table must not claim more than is true.
 | libSQL | 0.24.33 | 0.24.33 | The rule for an image that is never rebuilt (D112). libSQL has one line, and its newest release was built on 2025-12-19. The entry was for dbimp's driver, and `models/libsql` reads it (D160) |
 | chai, csvq, moderncsqlite | none | none | No server. The release is whichever the driver embeds. `dbrun` knows them before their models (D116) |
 | Avatica | 1.28.0 | 1.29.0 | The rule for an image that is never rebuilt (D112). The standalone server over HSQLDB, which the Calcite project builds. The entry is for dbimp's Avatica driver (D113) |
-| Apache Phoenix | 2.0-5.0 | 2.0-5.0 | An exception to step 2, which Ken made (D113). The Phoenix project publishes no image, and the only one that runs in one container, boostport/hbase-phoenix-all-in-one, was last pushed on 2023-03-14. The entry is for dbimp's Avatica driver |
+| Apache Phoenix | 2.0-5.0 | 2.0-5.0 | An exception to step 2, which the maintainers made (D113). The Phoenix project publishes no image, and the only one that runs in one container, boostport/hbase-phoenix-all-in-one, was last pushed on 2023-03-14. The entry is for dbimp's Avatica driver |
 | Apache Druid | 37.0.0 | 38.0.0 | The rule for an image that is never rebuilt (D112). 38.0.0 was published by 2026-10-07, and 36.0.0 is out. `models/druid` reads both (D171) |
 | Qdrant | 1.19.2 | 1.20.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | Chroma | 1.4.1 | 1.5.9 | The rule for an image that is never rebuilt (D112). The 1.5.10.dev tags are development builds. The entry is for dbimp's driver (D118) |
@@ -409,12 +409,12 @@ and D40 make that distinction, and the table must not claim more than is true.
 | Virtuoso | 7.2.17 | 7.2.17 | Criterion 2. 7.2.17 was rebuilt on 2026-08-05 and 7.2.16 last on 2025-10-15. The entry is for dbimp's SPARQL driver (D118) |
 | Alternator | 2025.1 | 2026.3 | The scylla entry's range, which D90 chose. The DynamoDB interface of ScyllaDB (D118) |
 | Vitess | 23.0.8 | 24.0.5 | The rule for an image that is never rebuilt (D112). `models/vitess` reads it, and shares the mysql model (D135) |
-| SingleStore | 9.0 | 9.1 | The newest two lines the development image serves, on image 0.2.85, which ships 9.1.1 and downloads 9.0 when it starts. It runs with no license on a machine with at most 8 cores and 64 GB. Ken asked for it on 2026-09-30, which amends D118 |
-| Apache Impala | 4.4.1 | 4.5.3 | The rule for an image that is never rebuilt (D112). Apache publishes each daemon as an image of its own, and dbrun builds them into one (D145). Ken asked for it on 2026-09-30, which amends D118 |
+| SingleStore | 9.0 | 9.1 | The newest two lines the development image serves, on image 0.2.85, which ships 9.1.1 and downloads 9.0 when it starts. It runs with no license on a machine with at most 8 cores and 64 GB. The maintainers asked for it on 2026-09-30, which amends D118 |
+| Apache Impala | 4.4.1 | 4.5.3 | The rule for an image that is never rebuilt (D112). Apache publishes each daemon as an image of its own, and dbrun builds them into one (D145). The maintainers asked for it on 2026-09-30, which amends D118 |
 | Milvus | 2.6.25 | 3.0.3 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
 | OpenSearch | 2.19.7 | 3.9.0 | The rule for an image that is never rebuilt (D112). The entry is for dbimp's driver (D118) |
-| DynamoDB | 3.2.0 | 3.3.2 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary license Ken accepted (D118) |
-| Cosmos | EN20261019 | EN20261019 | The vNext emulator is a dated build each month, built once, so the rule in D112 gives the newest. A Microsoft license Ken accepted (D118) |
+| DynamoDB | 3.2.0 | 3.3.2 | The rule for an image that is never rebuilt (D112). DynamoDB Local, under a proprietary license the maintainers accepted (D118) |
+| Cosmos | EN20261019 | EN20261019 | The vNext emulator is a dated build each month, built once, so the rule in D112 gives the newest. A Microsoft license the maintainers accepted (D118) |
 | Stardog | 12.1.5 | 12.2.0 | The rule for an image that is never rebuilt (D112). Needs a license file, and not yet measured (D118) |
 | GraphDB | 11.4.3 | 11.5.2 | The rule for an image that is never rebuilt (D112). GraphDB 11 needs a license file, and not yet measured (D118) |
 | VoltDB | 14.1.0 | 15.2.0 | The rule for an image that is never rebuilt (D112). The developer edition needs a license file, and not yet measured (D118) |

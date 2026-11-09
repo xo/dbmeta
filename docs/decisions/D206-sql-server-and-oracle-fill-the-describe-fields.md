@@ -4,7 +4,7 @@ Status: Decided, amended by D211.
 
 ## The decision
 
-D197 to D203 added fields and kinds that only the PostgreSQL model filled. Ken
+D197 to D203 added fields and kinds that only the PostgreSQL model filled. The maintainers
 said on 2026-10-10 to refresh every model. This decision does it for SQL Server
 and Oracle. Each product fills a field when one statement reads a source for it
 and the cost stays bounded (D47, rule 13). A product with no source leaves the

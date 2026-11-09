@@ -12,7 +12,7 @@
 // CATALOGS. A statement of that kind takes no WHERE and no ORDER BY, and a
 // SELECT cannot use one as a source. So each kind here is a walk,
 // [dbmeta.Binding.Walk], that runs the one statement and matches the
-// patterns of the caller in Go, with [dbmeta.Like]. Ken allowed a walk for
+// patterns of the caller in Go, with [dbmeta.Like]. The maintainers allowed a walk for
 // Elasticsearch on 2026-10-07, and the cost of each one is written beside it.
 // No walk runs more than one statement. See D175 and D177.
 //

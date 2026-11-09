@@ -2,7 +2,7 @@
 
 Status: Decided.
 
-D274 built the dump for PostgreSQL, SQLite, DuckDB and MySQL. Ken asked for as many
+D274 built the dump for PostgreSQL, SQLite, DuckDB and MySQL. The maintainers asked for as many
 of the products that dbrun starts as one pass can reach. Five of them speak the SQL
 of one of the four, and one has a SQL of its own.
 

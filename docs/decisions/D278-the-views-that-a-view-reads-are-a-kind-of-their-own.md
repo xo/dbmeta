@@ -3,7 +3,7 @@
 Status: Decided.
 
 A dump writes a view after the views that it reads (D274), and no reader said what
-a view reads. Ken decided on 2026-11-08 that dbmeta adds the readers that the dump
+a view reads. The maintainers decided on 2026-11-08 that dbmeta adds the readers that the dump
 needs.
 
 ## Decision

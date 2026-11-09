@@ -14,7 +14,7 @@ answer whatever the tag list said, because the image did not initialize.
 
 ## What it does not need
 
-Every gate D77 recorded is gone. Measured on Ken's machine, on a container
+Every gate D77 recorded is gone. Measured on a maintainer's machine, on a container
 the Exasol installer started, read with `podman inspect`:
 
 	privileged=false  network=pasta  memory=0

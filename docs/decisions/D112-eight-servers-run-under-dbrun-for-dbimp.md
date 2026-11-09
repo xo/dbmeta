@@ -2,7 +2,7 @@
 
 Status: Amends D109, amended by D114, D119, D123, D134 and D153.
 
-Ken asked on 2026-09-27 for `dbrun` entries for ArangoDB, Databend, InfluxDB,
+The maintainers asked on 2026-09-27 for `dbrun` entries for ArangoDB, Databend, InfluxDB,
 CrateDB, TDengine, Apache Pinot, rqlite and libSQL. All eight are drivers that
 dbimp plans, in the order of dbimp's D73. dbmeta has no model for any of them,
 and the entries are for dbimp's tests, as the SurrealDB and Neo4j entries are
@@ -12,7 +12,7 @@ a second start. None was started by hand.
 
 ## The dialects wait for dbimp
 
-dbimp settles the name and the URL of each driver in its own step 9, and Ken
+dbimp settles the name and the URL of each driver in its own step 9, and the maintainers
 accepts each one (dbimp D26, D28 and D30). So the dialect of seven of the
 eight is empty, and `dbrun` names the test variable for the product, as
 `DBMETA_ARANGODB`. D109 removed that fallback when Neo4j got its name, and
@@ -26,7 +26,7 @@ have a plain `http://` DSN until their names are settled.
 Step 2 of `EVALUATION.md` takes the floor from the oldest release whose image
 is still rebuilt. Databend, rqlite, libSQL, TDengine and Apache Pinot build
 each tag once, on the day of the release, and never again. Read strictly, the
-rule allows only the newest release of each. Ken chose on 2026-09-27 that the
+rule allows only the newest release of each. The maintainers chose on 2026-09-27 that the
 floor of such a product is the newest release of the line before the newest,
 and the ceiling is the newest release. A product with one line, libSQL, has one
 release. `EVALUATION.md` holds the rule under step 2.
@@ -35,7 +35,7 @@ release. `EVALUATION.md` holds the rule under step 2.
 
 From v1.2.881, Databend sends a report to `telemetry.databend.com` at every
 start and stop, with the operating system, the processors and the memory of
-the machine. Only a paid Enterprise key turns it off. Ken chose on 2026-09-27
+the machine. Only a paid Enterprise key turns it off. The maintainers chose on 2026-09-27
 that the container resolves that host to 127.0.0.1, with `--add-host`, so the
 report goes nowhere. The server starts and answers with it.
 

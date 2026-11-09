@@ -7,7 +7,7 @@ that sets it gets its statements with the values in them and no bind
 arguments. Apache Hive is the only one, because it is the only product here
 whose protocol has no parameter channel at all. See D78.
 
-Ken decided this. The alternative was to leave Hive unsupported, which is
+The maintainers decided this. The alternative was to leave Hive unsupported, which is
 where D78 stood before.
 
 ## Why it is safe enough, and what that argument does not cover
@@ -19,7 +19,7 @@ rendered is a filter value for a parameter this project declared.
 The value does come from outside. In `usql` it is a pattern somebody typed
 and in `dbtpl` it is a schema name from a configuration, and in both the
 person supplying it already has full SQL access through the same session, so
-there is no privilege boundary for an injection to cross. That is Ken's
+there is no privilege boundary for an injection to cross. That is a maintainer's
 argument and it holds for both consumers.
 
 It does not hold for every consumer. `dbmeta` is a library, and something

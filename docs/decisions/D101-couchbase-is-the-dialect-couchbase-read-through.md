@@ -3,7 +3,7 @@
 Status: Amends D95.
 
 dbimp v0.1.0 shipped its Couchbase driver, `github.com/xo/dbimp/couchbase`, on
-2026-09-27, and Ken asked for it to be swapped in. D95 held the Couchbase
+2026-09-27, and the maintainers asked for it to be swapped in. D95 held the Couchbase
 model for this driver.
 
 ## The dialect is renamed

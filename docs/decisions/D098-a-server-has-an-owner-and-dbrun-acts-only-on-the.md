@@ -2,7 +2,7 @@
 
 Status: Amends D75, amended by D102, D108 and D115.
 
-Ken decided on 2026-09-27, answering the question D97 raised. Several coding
+The maintainers decided on 2026-09-27, answering the question D97 raised. Several coding
 agents use this machine at once, and D75 let one agent's fifth start stop a
 Couchbase server that another agent was using.
 
@@ -45,7 +45,7 @@ an owner, which the measurement showed with `postgres-15`.
 
 ## What was not chosen
 
-The `usql` and `dbimp` sessions asked for more, and Ken chose these for now:
+The `usql` and `dbimp` sessions asked for more, and the maintainers chose these for now:
 
 - No pin. A server is stopped for room only by its owner, which covers the
   long measurement and the design session that a pin was for.

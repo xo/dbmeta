@@ -6,7 +6,7 @@ Status: Amends D146 and D241.
 
 D241 left Columns, Indexes and IndexColumns of Tablestore unanswered, because
 D146 allows a walk for Impala, InfluxQL, Elasticsearch and OpenSearch only. It
-asked Ken whether Tablestore gets a walk. Ken decided on 2026-10-29 that it does.
+asked the maintainers whether Tablestore gets a walk. The maintainers decided on 2026-10-29 that it does.
 
 The reason is the one that D146, D159 and D175 give. The SQL feature of Tablestore
 has no catalog that a SELECT reads. No INFORMATION_SCHEMA and no system table
@@ -93,8 +93,8 @@ to see what Extra says then. The model reads nothing from Extra and does not gue
 
 The Search_type of a search index, which is KEYWORD, has no field in `IndexColumn`,
 so the model does not return it. Index_type tells a search index from a secondary
-index. Ken decided that `IndexColumn` gets no field for it, because no other product
-needs one. Ken also decided that Index.Type stays empty for the primary key, as the
+index. The maintainers decided that `IndexColumn` gets no field for it, because no other product
+needs one. The maintainers also decided that Index.Type stays empty for the primary key, as the
 service reports it.
 
 The primary key is in two kinds. Columns says that a column is in the key, and
@@ -141,5 +141,5 @@ exists between the tables.
 D146 names the products that can walk, and this decision adds Tablestore to
 them. D241 said that the model answers one kind, and it answers four now. The
 other decisions that say a walk is allowed for four products, such as D222 and
-D224, were true when Ken made them about the product they cover, and they stay as
+D224, were true when the maintainers made them about the product they cover, and they stay as
 they are.

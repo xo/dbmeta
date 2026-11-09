@@ -1,10 +1,10 @@
-# D168. Ken reviews the six dialects of 2026-10-01
+# D168. A maintainer reviews the six dialects of 2026-10-01
 
 Status: Amends D163 and D164.
 
 ## The decision
 
-On 2026-10-02 Ken reviewed the mappings that D160 to D165 proposed for
+On 2026-10-02 the maintainers reviewed the mappings that D160 to D165 proposed for
 libSQL, YDB, Neo4j, ArangoDB, SurrealDB and InfluxQL, and chose the
 following.
 
@@ -23,7 +23,7 @@ never returned is a wrong answer.
 The series index of InfluxDB is a catalog. SHOW TAG KEYS reads it and not
 the points, so Columns on InfluxQL passes D47's cost test. On InfluxDB 1 it
 grows with the number of series, 0.122 seconds at one million, and the cost
-is written beside the query (D165). Neo4j stays as Ken chose on 2026-10-01,
+is written beside the query (D165). Neo4j stays as the maintainers chose on 2026-10-01,
 because its properties are known only by reading every node (D162).
 
 The version of InfluxQL stays as D165 has it. No statement names the

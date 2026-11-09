@@ -2,10 +2,10 @@
 
 Status: Decided, amended by D182 and D190.
 
-Ken asked on 2026-09-30 for dbmeta to answer for Snowflake and Amazon
+The maintainers asked on 2026-09-30 for dbmeta to answer for Snowflake and Amazon
 Redshift, because usql deletes its own readers in W21. Both are hosted, and
 neither has an account or a cluster provisioned, so nothing here can run
-them. Hard rule 9 says a query that has never run is not finished. Ken chose
+them. Hard rule 9 says a query that has never run is not finished. The maintainers chose
 to write both models from the vendors' documentation anyway, and to finish
 them when a person provisions a connection string that dbrun resolves
 (D117).

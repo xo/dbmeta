@@ -57,7 +57,7 @@ So `parityExempt` holds a reason that says the test cannot make a principal,
 and not that Snowflake has none. Snowflake does have more than one kind. Its
 INFORMATION_SCHEMA shows each role only the objects that the role holds a
 privilege on, so a role with no grant is expected to read fewer rows. That was
-not measured. If Ken grants CREATE USER and CREATE ROLE on the account to a
+not measured. If the maintainers grants CREATE USER and CREATE ROLE on the account to a
 role the tests use, parity gets a target with an owner, a grantee and a
 stranger, as Redshift has (D182).
 

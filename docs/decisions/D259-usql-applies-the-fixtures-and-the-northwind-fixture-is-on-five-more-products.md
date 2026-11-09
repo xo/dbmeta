@@ -2,7 +2,7 @@
 
 Status: Amends D254, D256 and D257, amended by D290.
 
-Ken decided on 2026-11-04 that the fixtures target usql, the command that
+The maintainers decided on 2026-11-04 that the fixtures target usql, the command that
 applies a script, and not the command line client of each product. usql works
 like psql. It ends a statement at a semicolon and has no slash line, which comes
 from SQL*Plus. The northwind fixture also went to five more products.

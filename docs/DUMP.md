@@ -122,7 +122,7 @@ failure part way through it.
 
 ## The snapshot and its format
 
-The `Snapshot` is also the intermediate format that Ken asked for, so that a
+The `Snapshot` is also the intermediate format that the maintainers asked for, so that a
 schema can be written to a file and read back. The rules:
 
 1. The `json` tags define the format. Every encoder writes the same names, so a
@@ -228,7 +228,7 @@ that reads `xo.Schema`, and the fields that exist only to generate Go. dbtpl can
 build an `xo.Schema` from a snapshot and keep its templates as they are. dbtpl
 also has a `createdb` template of 641 lines that writes CREATE statements from an
 `xo.Schema`. It overlaps the DDL builders of the dump. dbtpl can keep it until
-the builders exist and are measured. Ken decided that the snapshot is the format that dbtpl
+the builders exist and are measured. The maintainers decided that the snapshot is the format that dbtpl
 moves to later, and the move is dbtpl's work.
 
 ## The type model

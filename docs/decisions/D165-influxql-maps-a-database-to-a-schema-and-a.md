@@ -4,11 +4,11 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-10-01 for an InfluxQL dialect. `models/influxql` answers 7
+The maintainers asked on 2026-10-01 for an InfluxQL dialect. `models/influxql` answers 7
 of the 56 on InfluxDB 1.13.1 and 1.11.8, and the server answers 4 of those 7
 on InfluxDB 2.9.1 and 2.8.0, through dbimp's influxdb driver, which dburl's
 influxql scheme names. The dialect is `influxql`, which `dialect.go` already
-named. Ken reviews the mapping below.
+named. A maintainer reviews the mapping below.
 
 InfluxQL reads metadata only through SHOW statements. Each statement reads
 one database, which ON names, and no statement reads every database at once.
@@ -70,7 +70,7 @@ hides which columns are tags. The type of time is `timestamp`.
 A point with the same tags and time replaces the one before it, which acts
 like a primary key. InfluxDB does not call it one, and the InfluxDB 3 model
 reports no primary key for the same behavior, so this model reports none
-either. Ken can reverse both.
+either. A maintainer can reverse both.
 
 ### A user is the role
 
@@ -83,7 +83,7 @@ A grant is READ, WRITE or ALL PRIVILEGES on one database. SHOW GRANTS FOR
 lists the grants of one user, so Privileges is a walk over the users: one
 statement for SHOW USERS, and one for each user. D159 names a walk over the
 databases and over the measurements, and a walk over the users is a third.
-That was asked on 2026-10-01 and is open. If Ken does not allow it,
+That was asked on 2026-10-01 and is open. If a maintainer does not allow it,
 Privileges is dropped, and the rest stays. A row is one database, with
 `user=privilege` for each grant on it. An administrator holds every privilege
 without a grant, and SHOW GRANTS lists nothing for one, so no administrator is
@@ -132,12 +132,12 @@ lacks SHOW USERS, SHOW GRANTS and SHOW DIAGNOSTICS. So Roles, Privileges and
 Settings report Supported on every release, and on InfluxDB 2 and 3 they
 return the error of the server, wrapped. The model does not turn that error
 into `dbmeta.ErrNotSupported`, because that means matching the text of a
-server message. Ken can choose otherwise.
+server message. A maintainer can choose otherwise.
 
 ## The cost of SHOW FIELD KEYS and SHOW TAG KEYS
 
 D47 leaves a kind unsupported when its only source reads the points rather
-than an index or a catalog. Ken applied that to Neo4j on 2026-10-01. SHOW
+than an index or a catalog. The maintainers applied that to Neo4j on 2026-10-01. SHOW
 FIELD KEYS and SHOW TAG KEYS read the index, and both were measured, each the
 best of three runs:
 
@@ -155,7 +155,7 @@ either. SHOW TAG KEYS on InfluxDB 1 with the default index, which keeps the
 index in memory, grows with the number of series, which is the size of the
 index. On InfluxDB 2, whose index is on disk, it does not grow. A series is
 an entry of the index, not a point, so this is the cost of reading a
-catalog, and Columns is answered. If Ken reads a series as data, Columns is
+catalog, and Columns is answered. If a maintainer reads a series as data, Columns is
 dropped.
 
 A catalog with thousands of measurements was measured too. On 1.13.1, with

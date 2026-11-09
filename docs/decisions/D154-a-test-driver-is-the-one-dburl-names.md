@@ -4,7 +4,7 @@ Status: Amends D52 and D80, amended by D157, D229, D231, D234, D243 and D253.
 
 ## The decision
 
-D52 made the test driver for each database the one `usql` imports. Ken
+D52 made the test driver for each database the one `usql` imports. The maintainers
 decided on 2026-10-01 that dburl names it instead. `usql` is downstream of
 `dbmeta`, and `dburl` is upstream of both, so the registry in `dburl`, and
 not what one consumer imports, says which driver a dialect is reached with.
@@ -43,8 +43,8 @@ The exceptions stand, and each has its own decision:
   MySQL release and cannot build the fixture on MariaDB.
 - Parity runs on the first driver of a dialect alone (D52).
 
-If dburl names a driver that does not exist yet, ask Ken. rqlite was the case:
-dburl named dbimp's driver before dbimp wrote it, Ken chose gorqlite for the
+If dburl names a driver that does not exist yet, ask a maintainer. rqlite was the case:
+dburl named dbimp's driver before dbimp wrote it, the maintainers chose gorqlite for the
 meantime (D148), and the tests moved to dbimp's driver when it was released
 (D151).
 

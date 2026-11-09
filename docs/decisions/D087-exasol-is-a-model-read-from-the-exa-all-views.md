@@ -3,7 +3,7 @@
 Status: Decided, amended by D234.
 
 D85 decided how Exasol is tested and D86 decided how `dbrun` runs a machine.
-This is what was decided building the rest, on 2026-09-27, when Ken asked for
+This is what was decided building the rest, on 2026-09-27, when the maintainers asked for
 the whole dialect. `models/exasol` answers 25 of the 55 on 2025.2.1 and
 2026.2.0, identically. `docs/COVERAGE.md` is the record of what it answers
 and why, and this holds only what had to be decided rather than measured.
@@ -92,6 +92,6 @@ created without quotes.
 The test logs in with every hostile password but one. The password containing
 a semicolon is left out, because an Exasol DSN separates its pairs with a
 semicolon and escapes one with a backslash, and that is the driver's quirk
-rather than this model's. Ken decided that. The statement itself handles it.
+rather than this model's. The maintainers decided that. The statement itself handles it.
 D234 ends the exception: the driver of dbimp reads a URL, which escapes a semicolon,
 and the test logs in with every hostile password.

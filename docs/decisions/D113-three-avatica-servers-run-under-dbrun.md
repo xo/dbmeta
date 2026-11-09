@@ -3,9 +3,9 @@
 Status: Amended by D119 and D155.
 
 dbimp asked on 2026-09-28 for `dbrun` entries for its Avatica driver, which
-Ken placed ninth in dbimp's order (dbimp D74). Avatica is the wire protocol of
+The maintainers placed ninth in dbimp's order (dbimp D74). Avatica is the wire protocol of
 Apache Calcite, JDBC calls over HTTP in protobuf or JSON, and several products
-speak it. dbimp tests one driver against each of them. Ken agreed the same day
+speak it. dbimp tests one driver against each of them. The maintainers agreed the same day
 to the three that dbimp named. dbmeta has no model for any of them, and none
 has a dialect yet, because dbimp settles the name in its step 9 (D112).
 
@@ -27,7 +27,7 @@ The Apache Phoenix project publishes no image. The only image that runs
 ZooKeeper, HBase, Phoenix and the Query Server in one container is
 `boostport/hbase-phoenix-all-in-one`, which the Go driver's own tests use. It
 was last pushed on 2023-03-14, so step 2 of `EVALUATION.md` does not admit it.
-Ken made it an exception on 2026-09-28. It answered in 20 seconds and used
+The maintainers made it an exception on 2026-09-28. It answered in 20 seconds and used
 1.7 GB. A table made through it kept its row across a stop and a start.
 
 ## Druid in one container

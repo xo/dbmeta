@@ -2,10 +2,10 @@
 
 Status: Amends D254 and D256, amended by D259.
 
-Ken found that the PostgreSQL fixture differed from the other two. The table
+The maintainers found that the PostgreSQL fixture differed from the other two. The table
 `hr.staff` had one column `started` of the type `tstzrange`, which prints as
 `["1992-05-01 00:00:00+00",)`, where SQL Server and Oracle had the columns
-`started` and `ended`. Ken asked on 2026-11-04 to compare every value of the
+`started` and `ended`. The maintainers asked on 2026-11-04 to compare every value of the
 fixture on the three servers, directly and as usql prints it.
 
 ## What changed

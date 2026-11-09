@@ -2,11 +2,11 @@
 
 Status: Decided, amended by D230, D238, D249, D250, D251, D252, D258, D261 and D266.
 
-## What Ken decided
+## What the maintainers decided
 
 usql kept facts about each product's SQL on its per-driver struct,
 `drivers.Driver`, so two drivers of one product were able to disagree, and a
-product with a model in dbmeta had its knowledge in two places. Ken went
+product with a model in dbmeta had its knowledge in two places. The maintainers went
 through every field in usql's session on 2026-09-30, after Gemini Pro and
 DeepSeek had sorted them, and moved the ones that are the product's grammar
 into dbmeta, keyed by dialect. usql keeps what belongs to a driver, a URL or
@@ -49,5 +49,5 @@ derives the lower casing of column names for display from the fold.
 ## What is open
 
 ODBC, csvq, Athena and Cosmos have rules of their own in usql and no model
-here, and an Info registers only with a model. Ken decided on 2026-09-30
+here, and an Info registers only with a model. The maintainers decided on 2026-09-30
 that they wait for a restructuring of usql, and docs/BACKLOG.md holds it.

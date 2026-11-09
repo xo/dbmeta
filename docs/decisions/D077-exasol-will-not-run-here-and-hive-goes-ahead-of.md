@@ -27,7 +27,7 @@ exadt:: searching for the first interface with state UP
 IndexError: list index out of range
 ```
 
-The container needs to be privileged, which Ken granted on 2026-09-26. The
+The container needs to be privileged, which the maintainers granted on 2026-09-26. The
 image's own README says so: privileged mode is required for permissions
 management, UDF support and environment configuration. `--cap-add SYS_ADMIN`
 alone gets past `sethostname`, which is the first thing to fail, and then

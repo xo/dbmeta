@@ -161,7 +161,7 @@ it was aimed at the wrong design.
 
 ## The floor stays at 9.6
 
-Ken reviewed this and kept 9.6. The reasoning holds up against the review.
+The maintainers reviewed this and kept 9.6. The reasoning holds up against the review.
 
 The extraction is genuinely one time for a frozen release. 9.6 left
 upstream support in 2021 and its catalog will never change again, so the
@@ -230,4 +230,4 @@ disruptive.
 
 D21 drops a version when its upstream support ends. That rule governs the other
 databases. It does not govern PostgreSQL, whose floor is fixed at 9.6 by this
-decision and moves only if Ken says so.
+decision and moves only if a maintainer says so.

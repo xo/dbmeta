@@ -2,7 +2,7 @@
 
 Status: Amends D254, amended by D257 and D259.
 
-D254 made `dbrun fixture northwind` for PostgreSQL and SQL Server only. Ken
+D254 made `dbrun fixture northwind` for PostgreSQL and SQL Server only. The maintainers
 decided on 2026-11-04 to add Oracle, because Oracle is the most like those two
 and has the same kinds of object that the Northwind database shows.
 
@@ -19,7 +19,7 @@ Each statement ends with a semicolon, and a PL/SQL unit ends with the semicolon
 after its last END. usql applies the files and ends a statement at a semicolon
 only, as psql does. The first version of the files ended each statement with a
 line that holds only a slash, as SQL*Plus does, and dbrun split them itself.
-Ken decided on 2026-11-04 to drop that form.
+The maintainers decided on 2026-11-04 to drop that form.
 
 ## How the files were made
 

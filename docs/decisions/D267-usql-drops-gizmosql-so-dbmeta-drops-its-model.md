@@ -3,7 +3,7 @@
 Status: Supersedes D187.
 
 usql dropped its h2 and gizmosql drivers, and dburl v0.56.0 removes the two
-schemes and the aliases gz and gizmo. Ken decided on 2026-11-05 that the
+schemes and the aliases gz and gizmo. The maintainers decided on 2026-11-05 that the
 gizmosql model goes with them. Two things led to it. The gizmosql driver cannot
 keep its session, which is why D187 had the tests open one themselves. The
 module of the h2 driver was last released in 2020.

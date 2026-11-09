@@ -12,7 +12,7 @@ connection, behind `sql.Conn.Raw`. The odbc session suggested a dbmeta model
 for a plain ODBC database, built on a small interface that dbmeta defines and
 that the odbc connection satisfies.
 
-Ken decided on 2026-10-07 that dbmeta builds no such model. The fallback for
+The maintainers decided on 2026-10-07 that dbmeta builds no such model. The fallback for
 a database that dbmeta has no model for belongs to the client that knows the
 driver, which is usql, or another package downstream of the driver.
 

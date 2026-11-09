@@ -7,7 +7,7 @@ Status: Amends D47 and D67, amended by D159, D175 and D242.
 D47 answers each kind with one statement, because a second statement, or a
 round trip for each row, costs more as the catalog grows. Impala has no
 catalog that a SELECT reads: it lists the tables of one database with SHOW
-TABLES IN, and the columns of one table with DESCRIBE. Ken chose on
+TABLES IN, and the columns of one table with DESCRIBE. The maintainers chose on
 2026-09-30 to allow a query to walk SHOW statements for Impala, one for each
 database, rather than to answer only what one statement can.
 
@@ -25,11 +25,11 @@ It is not a way to answer a kind that one statement answers. Every other
 model keeps one statement for each kind, and D47's cost test still holds for
 them. A walk exists where the product offers nothing else, and its cost is
 written beside it: one statement for each database, and one for each table
-where the walk goes deeper. Ken chose that Tables reads DESCRIBE FORMATTED
+where the walk goes deeper. The maintainers chose that Tables reads DESCRIBE FORMATTED
 for each table, for its type and its comment, which is one more statement
 for each table.
 
 ## Later
 
-D159 added InfluxQL, D175 added Elasticsearch and OpenSearch, and Ken added
+D159 added InfluxQL, D175 added Elasticsearch and OpenSearch, and the maintainers added
 Tablestore on 2026-10-29 in D242. Each one has a catalog that no SELECT reads.

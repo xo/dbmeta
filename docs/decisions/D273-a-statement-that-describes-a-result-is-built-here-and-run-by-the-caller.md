@@ -5,7 +5,7 @@ Status: Amends D56, amended by D274.
 psql's `\gdesc` shows the name and type of each column of the query in the
 buffer, without running it. usql runs on database/sql, which cannot describe a
 query without running it. usql asked on 2026-11-08 whether dbmeta owns this.
-Ken accepted on 2026-11-08 that it owns the part that is database knowledge.
+The maintainers accepted on 2026-11-08 that it owns the part that is database knowledge.
 
 ## Decision
 

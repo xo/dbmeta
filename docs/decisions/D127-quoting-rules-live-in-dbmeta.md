@@ -4,7 +4,7 @@ Status: Amends D56.
 
 ## The decision
 
-Ken decided on 2026-09-29 that every rule for quoting a value into a
+The maintainers decided on 2026-09-29 that every rule for quoting a value into a
 statement, and every helper that carries such a rule, lives in dbmeta. A rule
 that two products share goes in the root package, as `QuoteLiteral` and
 `QuoteIdentifier` do. A rule that one product has goes beside its model, as
@@ -19,7 +19,7 @@ now, and both models use it.
 ## Why it came up
 
 The usql session wrote a quoting fix for the nine drivers in usql that
-changed a password with no escaping at all. Ken rejected it there, because
+changed a password with no escaping at all. The maintainers rejected it there, because
 usql is meant to shed per product knowledge and take it from dbmeta or dbimp,
 and the usql session passed its rules here. D56 had already moved the
 statement for seven products, and these are the gaps the rules found:
@@ -32,7 +32,7 @@ statement for seven products, and these are the gaps the rules found:
   IDENTIFIED BY "<password>"` now, with `REPLACE "<old>"` when the caller
   gives the current password. A plain name folds to upper case, as Oracle
   stores it, and a name given between double quotes is kept as written, which
-  Ken decided for usql. A quoted identifier has no escape for a double quote,
+  The maintainers decided for usql. A quoted identifier has no escape for a double quote,
   so a password or a name that holds one is refused with
   `ErrInvalidPassword`.
 

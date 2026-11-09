@@ -5,7 +5,7 @@ Status: Amends D236.
 D236 put the native client of a product on each server in the list, so a
 caller found it by walking the releases. dbfwd runs a native client through a
 Kubernetes forward, and it knows only the type of the database, such as
-postgres, mariadb or sqlserver. It has no release and no container. Ken
+postgres, mariadb or sqlserver. It has no release and no container. The maintainers
 approved on 2026-11-08 that dbfwd reuses this table, so that the family keeps
 one copy.
 

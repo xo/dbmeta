@@ -4,7 +4,7 @@ Status: Amends D194, amended by D219.
 
 ## The decision
 
-Ken asked on 2026-10-10 for a model for Google Cloud Spanner, in the GoogleSQL
+The maintainers asked on 2026-10-10 for a model for Google Cloud Spanner, in the GoogleSQL
 dialect. D194 said that dbmeta builds no model for a hosted service other than
 Amazon Redshift and Snowflake. This decision makes Spanner the third one. It
 changes D194 for Spanner only. Athena, BigQuery, Cosmos, Databricks,
@@ -17,7 +17,7 @@ it, so this model does not.
 ## What it was measured on
 
 Spanner Omni 2026.r4-lts, which is the engine of the hosted service as a
-container. Cloud Spanner itself is not measured. Ken will have the `dbsetup`
+container. Cloud Spanner itself is not measured. A maintainer will have the `dbsetup`
 session make an instance, and the model must be run against it before anyone
 calls it finished for the hosted service.
 
@@ -46,7 +46,7 @@ for Spanner, so it runs the generic `SELECT version();`, which Spanner refuses.
 ## The analogues
 
 Three kinds are an analogue of the object that PostgreSQL has, and each is a
-choice that Ken can reverse:
+choice that a maintainer can reverse:
 
 - A change stream is a publication. It names tables and columns and says which
   kinds of change it reports, and `exclude_insert`, `exclude_update` and

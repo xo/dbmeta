@@ -9,7 +9,7 @@ entries that D282 called `hivehttp` and `impalahttp`. HiveServer2 runs in the
 HTTP transport, Hive on 10001 and Impala on 28000, and nothing answers on the
 binary ports 10000 and 21050.
 
-Ken chose this on 2026-11-09. dburl v0.58.0 names `github.com/xo/dbimp/hive` for
+The maintainers chose this on 2026-11-09. dburl v0.58.0 names `github.com/xo/dbimp/hive` for
 both products, and that driver speaks HTTP and nothing else. Rule 10 says that
 the `test` module uses the driver that dburl names, so `beltran/gohive` and
 `sclgo/impala-go` left the `test` module.

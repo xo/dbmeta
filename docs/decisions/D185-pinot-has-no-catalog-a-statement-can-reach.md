@@ -4,10 +4,10 @@ Status: Decided.
 
 ## The decision
 
-Ken asked on 2026-10-08 for an Apache Pinot dialect. An agent measured
+The maintainers asked on 2026-10-08 for an Apache Pinot dialect. An agent measured
 Pinot 1.4.0 and 1.5.1 on the same day, as the administrator and as
 `dbmeta_user`, on the single stage engine and on the multi stage engine. SQL
-on the Broker reaches no catalog. Ken chose to build no model. This is the
+on the Broker reaches no catalog. The maintainers chose to build no model. This is the
 outcome of D166, which left Pinot out, and it is the same as D180 for VoltDB
 and D184 for DynamoDB.
 
@@ -39,8 +39,8 @@ A `Queryer` cannot send an HTTP request, and dbimp's driver reads only SQL.
 A model needs one of two things. dbimp can answer `SHOW TABLES`, `DESCRIBE` and
 `SELECT version()` from the Controller, which is the SQL layer of the backlog.
 The model then needs a walk, which D146 allows for Impala, InfluxQL,
-Elasticsearch and OpenSearch only, so Ken must widen it. The other way is a
-source in the root package that a model can use besides a `Queryer`. Ken chose
+Elasticsearch and OpenSearch only, so a maintainer must widen it. The other way is a
+source in the root package that a model can use besides a `Queryer`. The maintainers chose
 neither on 2026-10-08.
 
 The entries of Pinot stay Staged with the cadence Tested, for dbimp's driver.

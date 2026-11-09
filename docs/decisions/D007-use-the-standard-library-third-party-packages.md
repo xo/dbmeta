@@ -3,7 +3,7 @@
 Status: Decided.
 
 `dbmeta` uses the Go standard library for almost everything. An agent must not
-add a third party package without asking Ken first.
+add a third party package without asking the maintainers first.
 
 There are exactly two dependencies. `database/sql` is in the standard library.
 `github.com/xo/dburl` was the one approved outside package under D19, and it
@@ -26,7 +26,7 @@ array format.
 The impala reader is the hard case. It does not run SQL. It calls
 `driver.NewMetadata` from `github.com/sclgo/impala-go` and reads the metadata
 through the driver. An agent must not port it as it stands. Either rewrite it
-as SQL queries, or leave impala out until Ken decides.
+as SQL queries, or leave impala out until a maintainer decides.
 
 The mysql reader imports `github.com/gohxs/readline` and
 `usql/drivers/completer`. Both belong to the completion feature, not to

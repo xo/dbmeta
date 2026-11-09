@@ -6,7 +6,7 @@ Four CI runs between 2026-10-31 and 2026-11-08 failed on a job that never ran a
 test, because `dbrun` failed to pull the image: `couchbase:7.2.9`,
 `elasticsearch:9.5.5`, `usql/vertica:7.2` and the ScyllaDB images. A rerun of one
 passed with no change in the code. A failure of that kind fails the whole run and
-says nothing about dbmeta. Ken decided on 2026-11-08 to take such a database out
+says nothing about dbmeta. The maintainers decided on 2026-11-08 to take such a database out
 of CI completely.
 
 ## Decision

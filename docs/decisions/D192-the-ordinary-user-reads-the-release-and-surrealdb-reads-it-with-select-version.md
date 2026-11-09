@@ -4,11 +4,11 @@ Status: Amends D191, D176 and D164.
 
 ## The decision
 
-Ken decided two things on 2026-10-08.
+The maintainers decided two things on 2026-10-08.
 
 First, the ordinary user of the Elasticsearch, OpenSearch and Solr entries can
 read the release, so `Dialect.Version` works for every user. D191 left this
-open and listed five options. Ken took the second: grant the right in the
+open and listed five options. The maintainers took the second: grant the right in the
 entry. The refusal that D191 recorded is gone.
 
 Second, the SurrealDB model reads the release with `SELECT version()`. dbimp

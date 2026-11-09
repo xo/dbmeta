@@ -78,7 +78,7 @@ statement. Today it answers yes and `Build` then returns `ErrVersionTooOld`, whi
 about the product, and the release is the error's business. Writing the test
 above raised the question of whether a caller is well served by that, because a
 caller that trusts Support walks into a query it cannot build. It is left as it
-is, and it is for Ken.
+is, and it is for a maintainer.
 
 D63 answers it: Support gained a fourth value and now says so itself.
 

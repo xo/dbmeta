@@ -6,7 +6,7 @@ Status: Decided.
 
 A dump of SQL Server writes a system versioned table with its history, and it
 writes a spatial or hierarchyid value as the binary form of the type. A dump of
-the northwind fixture failed on both. The `usql` session found them, and Ken
+the northwind fixture failed on both. The `usql` session found them, and the maintainers
 asked for the fix as a point release on 2026-11-09.
 
 ## System versioned tables

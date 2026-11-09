@@ -3,7 +3,7 @@
 Status: Amends D94, amended by D104.
 
 dbimp asked on 2026-09-27 for an ordinary Couchbase user, so that its driver
-is tested as more than the administrator. Ken accepted that for dbimp in its
+is tested as more than the administrator. The maintainers accepted that for dbimp in its
 D31. dbmeta's parity work needs the same principal (D61), so `Init` makes one
 for both.
 

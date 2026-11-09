@@ -6,7 +6,7 @@ Status: Amends D190, amended by D203 and D213.
 
 D190 left four things open for Snowflake: parity, a conformance target, the
 `ALTER USER` statement of D56, and a second look at two answers that the model
-passes through. Ken granted CREATE USER and CREATE ROLE on the account to
+passes through. The maintainers granted CREATE USER and CREATE ROLE on the account to
 DBMETA_ROLE on 2026-10-08, and all four ran the same day against release
 10.36.101. Snowflake leaves `parityExempt`.
 
@@ -132,7 +132,7 @@ Both were measured again and both are the same.
 - The model returns no ENFORCED column for a constraint.
 - The `primary_key` field of a column is the literal false, which D190 left
   as it is. A column that Snowflake does not report must be NULL under
-  `docs/NULLS.md`, and the field is not nullable. Ken decides.
+  `docs/NULLS.md`, and the field is not nullable. A maintainer decides.
 
 ## Cost
 

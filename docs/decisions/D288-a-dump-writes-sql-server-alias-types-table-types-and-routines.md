@@ -6,7 +6,7 @@ Status: Decided.
 
 A dump of SQL Server writes its alias types, its table types, its synonyms and its
 routines, so that the northwind fixture copies into an empty database with the same
-objects and the same rows. The `usql` session found the gap on 2026-11-09, and Ken
+objects and the same rows. The `usql` session found the gap on 2026-11-09, and the maintainers
 asked for a dump with no exclusions.
 
 ## Alias types and table types

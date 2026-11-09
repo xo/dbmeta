@@ -13,7 +13,7 @@ on 39b74b2 and v0.3.0 on 7cbe9bf on 2026-10-07, v0.4.0 on 9388928, v0.5.0 on
 cf48e36, v0.9.0 on 609c60b and v0.10.0 on 288a868 on 2026-10-09. v0.11.0 on
 3df0d73, v0.12.0 on 029c5ef and v0.13.0 on 54f7dec on 2026-10-10, and v0.14.0 on
 31b24d1 and v0.15.0 on a58e5c0 on 2026-10-11. The Tested
-tier passed in CI on each tagged commit. Ken chose that CI stands in for a run
+tier passed in CI on each tagged commit. The maintainers chose that CI stands in for a run
 of every tier, and the Verified tier was not run again for any of them.
 
 The `dump` package is built for PostgreSQL, SQLite, DuckDB and MySQL and not released
@@ -116,7 +116,7 @@ The commits of v0.1.0:
   `dbmeta.Open` for usql, and makes `dbrun start` print the URL that usql
   takes. usql has the hash and builds on it.
 - f8a6338 holds D167, which makes the DSN what `sql.Open` takes and adds the
-  `api` field, D168, which is Ken's review of the six dialects of
+  `api` field, D168, which is a maintainer's review of the six dialects of
   2026-10-01, and DuckDB's DollarQuotes. dbimp has the hash.
 - 724e64e holds D166: Oracle 19c, Pinot and the InfluxDB release wait.
 
@@ -134,7 +134,7 @@ an ordinary user. The vendor clients are out of the test module.
 The ClickHouse measurement for dbimp is done and sent. It is at
 `scratchpad/clickhouse-wire.md` in this session, and the raw outputs and the
 program are beside it. dbmeta offered to measure the HTTP interface next, and
-Ken has not answered.
+A maintainer has not answered.
 
 The ClickHouse entry now publishes the HTTP port 8123 as its second port,
 prints an `api` for each release, and makes an ordinary user, `dbmeta_user`,
@@ -147,7 +147,7 @@ The ClickHouse tests use dbimp's driver, `github.com/xo/dbimp/clickhouse` at
 v0.13.0, which dburl v0.44.0 names (D174). The entry's DSN and URL are the
 HTTP form on the second port. All four releases pass.
 
-Elasticsearch and OpenSearch can walk SHOW statements (D175). Ken answered
+Elasticsearch and OpenSearch can walk SHOW statements (D175). The maintainers answered
 the questions of the surveys in D176. The `DynamoDB` dialect is now
 `dynamodb`, and the DSN of every DynamoDB entry ends with `tls=false`. The
 test module pins dbimp v0.14.0 and dburl v0.46.0.
@@ -173,7 +173,7 @@ In progress:
   `athena` that follows dburl, and the move to the driver of dbimp.
 - The Tablestore model is built and measured on the hosted instance (D241, D242): 4 of the 65
   kinds. Tables comes from SHOW FULL TABLES, and Columns, Indexes and IndexColumns are a walk of
-  DESCRIBE and SHOW INDEX, which Ken allowed on 2026-10-29. The version is `SELECT @@version`.
+  DESCRIBE and SHOW INDEX, which the maintainers allowed on 2026-10-29. The version is `SELECT @@version`.
   The cost of a walk is one statement for each table, and it was measured on four tables only.
   The fixture makes its four tables with the Tablestore SDK, because SQL cannot, and the
   conformance and the parity files are recorded.

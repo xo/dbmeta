@@ -3,7 +3,7 @@
 Status: Amends D47 and D201.
 
 usql compared 184 describe commands, and `\d` and `\d+` of 97 relations, with
-psql 18.6 on PostgreSQL, and asked for what dbmeta lacked. Ken decided on
+psql 18.6 on PostgreSQL, and asked for what dbmeta lacked. The maintainers decided on
 2026-11-04 that the describe output of usql is the same as psql. dbmeta
 supplies the facts and usql decides what to show (rule 13), so each change
 here is a fact and none is the text of psql.

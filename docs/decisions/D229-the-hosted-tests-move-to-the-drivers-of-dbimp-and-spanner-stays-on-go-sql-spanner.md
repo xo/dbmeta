@@ -44,7 +44,7 @@ no change to a golden file. Three facts stop the move.
 
 - The driver of dbimp and go-sql-spanner both register the name `spanner` with
   `database/sql`. A binary that imports both fails at start with "Register called
-  twice". Ken decided that the Spanner Omni tests open go-sql-spanner by hand, and
+  twice". The maintainers decided that the Spanner Omni tests open go-sql-spanner by hand, and
   the hosted tests open the driver of dbimp. Both are in the one test binary, and in
   `dbrun`, so this cannot be built.
 - The driver of dbimp speaks REST, and Spanner Omni speaks gRPC only. It cannot

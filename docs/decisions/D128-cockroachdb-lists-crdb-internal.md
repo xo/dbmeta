@@ -2,7 +2,7 @@
 
 Status: Decided.
 
-Ken decided on 2026-09-29 that the CockroachDB model does not hide
+The maintainers decided on 2026-09-29 that the CockroachDB model does not hide
 `crdb_internal` when `with_system` is off.
 
 The statements the model shares with the postgres model hide `pg_*` and

@@ -12,7 +12,7 @@ registers at `drivers/cassandra/cassandra.go`. Nothing anywhere answers to
 `cassandra`, so the old value named a driver that does not exist.
 
 The `dburl` session found it. D80 sent a request there for a field saying
-which product a scheme drives, Ken asked whether the thirteen values matched
+which product a scheme drives, the maintainers asked whether the thirteen values matched
 the registry, and that session checked all of them. This was the one.
 
 ## Why dburl cannot absorb it instead

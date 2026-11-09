@@ -122,7 +122,7 @@ will ever connect to.
 So Vertica waits until a current release can be started. It is not next.
 
 D88 changed that on 2026-09-27. A community copy of the one-node-ce image
-at 25.1 starts, and Ken chose to take this image and three older ones like it
+at 25.1 starts, and the maintainers chose to take this image and three older ones like it
 as the release range.
 
 The four products after it on this list all have live images that need no
@@ -134,11 +134,11 @@ Below those and worth a model only if somebody asks: Couchbase, Ignite,
 VoltDB, YDB and Databend. Each runs the real engine in an image and none of
 them is shaped much like the 55.
 
-ScyllaDB was not on this list, and Ken asked for it on 2026-09-27. It is a
+ScyllaDB was not on this list, and the maintainers asked for it on 2026-09-27. It is a
 flavor of the Cassandra model rather than a model of its own, so it took no
 place in the order. D91 is the decision.
 
-Ken asked about Couchbase on the same day. It is in `container/` without a
+The maintainers asked about Couchbase on the same day. It is in `container/` without a
 model, for the n1ql driver's tests, and D94 records why the model waits.
 
 Avatica is not on the list at all. It is a wire protocol in front of whatever

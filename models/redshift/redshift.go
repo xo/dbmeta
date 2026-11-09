@@ -12,7 +12,7 @@
 //
 // # Measured
 //
-// Ken chose on 2026-09-30 to write this model from Redshift's
+// the maintainers chose on 2026-09-30 to write this model from Redshift's
 // documentation before anyone had a cluster (D144). It first ran on
 // 2026-10-08 against Redshift Serverless, release 1.0.434008, and D182 holds
 // what that changed. D204 ran it again on 2026-10-09 and added the grants,

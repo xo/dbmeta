@@ -35,7 +35,7 @@ DuckDB. That removes most of the objection without splitting anything.
 
 ## The rule: pure Go only, everywhere
 
-Ken has settled this beyond preference. `dbmeta` is pure Go, and so is the
+A maintainer has settled this beyond preference. `dbmeta` is pure Go, and so is the
 generation sub-package. The root module uses no cgo and never will. The test
 module can, and does for SQLite. D48 amends this: the separate `go.mod` is what
 makes a C toolchain safe there and absent everywhere else.

@@ -4,7 +4,7 @@ Status: Amends D182.
 
 ## The decision
 
-Ken said on 2026-10-09 to finish anything for Redshift. This decision records
+The maintainers said on 2026-10-09 to finish anything for Redshift. This decision records
 what the second run against Redshift Serverless 1.0.434008 in us-east-1 found
 and what changed. The model answers 18 of the 65 questions, where it answered
 11.

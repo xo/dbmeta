@@ -11,7 +11,7 @@ a trigger on SQLite, and a procedure on MySQL, SQL Server and Oracle.
 transit has the option `BeginEndBlocks` for its usql grammar. After CREATE of
 a PROCEDURE, FUNCTION, TRIGGER or EVENT, it counts BEGIN and END, and a
 semicolon inside the body does not end the statement. A transaction, written
-`BEGIN; ...; END;`, stays split. Ken decided on 2026-11-01 that the knowledge
+`BEGIN; ...; END;`, stays split. The maintainers decided on 2026-11-01 that the knowledge
 of which dialects need the option lives here, and not in a list in usql.
 
 ## Decision

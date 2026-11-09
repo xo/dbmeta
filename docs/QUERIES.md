@@ -165,7 +165,7 @@ PostgreSQL has a written policy that dbmeta can adopt. Ten previous major
 versions is mechanical, it is what upstream follows, and D21 already prefers a
 rule to a judgment. Against release 20 it gives a floor of release 10.
 
-This does not overturn D20. Ken decided 9.6 knowing it cost roughly five times
+This does not overturn D20. The maintainers decided 9.6 knowing it cost roughly five times
 the version work, and the argument that PostgreSQL is the specification still
 holds. What has changed is that the cost is now also a fidelity cost, not only
 an effort cost. That is new information and it belongs in front of him.

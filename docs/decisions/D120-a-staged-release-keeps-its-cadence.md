@@ -22,7 +22,7 @@ move.
 
 ## The decision
 
-Ken chose on 2026-09-28 that a Staged release keeps a cadence.
+The maintainers chose on 2026-09-28 that a Staged release keeps a cadence.
 `container.Server.Cadence` is the tier that the release takes when a model
 reads it: Tested, Nightly or Verified. `dbrun list --json` prints it as
 `cadence`. A project that runs Staged releases runs the tested ones on each

@@ -7,7 +7,7 @@ lists the functions called abs whose first argument is an integer, and a last
 pattern of `-` means that there is no more argument. `\do OPPTRN [LEFT [RIGHT]]`
 does the same for the operands. usql asked on 2026-11-08 where this belongs,
 because the matching needs the aliases of the database, such as int for
-integer. Ken accepted on 2026-11-08 that dbmeta does it.
+integer. The maintainers accepted on 2026-11-08 that dbmeta does it.
 
 ## Decision
 

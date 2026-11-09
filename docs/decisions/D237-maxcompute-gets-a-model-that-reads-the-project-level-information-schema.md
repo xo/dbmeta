@@ -4,8 +4,8 @@ Status: Amends D194 and D218, amended by D238, D240 and D243.
 
 ## The decision
 
-Ken asked on 2026-10-29 for a model for Alibaba Cloud MaxCompute. D218 said that
-the model stays unbuilt for MaxCompute and Tablestore, which had no account. Ken
+The maintainers asked on 2026-10-29 for a model for Alibaba Cloud MaxCompute. D218 said that
+the model stays unbuilt for MaxCompute and Tablestore, which had no account. The maintainers
 now has an account for MaxCompute, a project named dbmeta in the region
 ap-southeast-5, with an administrator and a reader as `dbmeta-maxcompute` and the
 files `maxcompute` and `maxcompute-reader` of D117. The model is
@@ -41,7 +41,7 @@ A user also needs CreateInstance on the project, because every statement is an
 instance. The reader has the role reader, which holds List, Describe and Select,
 and the service refuses it "odps:CreateInstance" for any statement at all. A
 grant to the reader is a change of the account, so the session that wrote this did
-not make it, and it is an open question for Ken. D240 holds it.
+not make it, and it is an open question for a maintainer. D240 holds it.
 
 ## The two levels
 
@@ -59,7 +59,7 @@ catalog odps and the project as its schema. USERS reports the catalog RAM.
 and the number after the V is the sprint of the service. The model declares that
 statement as its version query and reads the build name, so the display line is
 `MaxCompute V59.group_cn.SQL_RC60_hf9` and the main version is 59. No fragment
-gates on it, because no difference between two sprints is known, and Ken can
+gates on it, because no difference between two sprints is known, and a maintainer can
 decide to leave the number out. usql declares no version query for its maxcompute
 driver, so it runs the generic `SELECT version();`, which is the same statement.
 `select current_user();` does not exist, and `select user();` does not either.

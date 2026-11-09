@@ -102,7 +102,7 @@ func TestAHelperThatFailsIsAProblem(t *testing.T) {
 	}
 }
 
-// TestAServiceAppearsOnlyWithACredential holds what Ken asked for: a hosted
+// TestAServiceAppearsOnlyWithACredential holds what the maintainers asked for: a hosted
 // service is a target only while its connection string resolves, and what
 // dbrun prints is masked.
 func TestAServiceAppearsOnlyWithACredential(t *testing.T) {

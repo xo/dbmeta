@@ -4,7 +4,7 @@ Status: Decided.
 
 D85 left one question for when the Exasol machine was built: whether the
 machine list stays `container/windows.go` or becomes something that holds
-both kinds. This answers it. Ken decided it on 2026-09-27, after Gemini and
+both kinds. This answers it. The maintainers decided it on 2026-09-27, after Gemini and
 DeepSeek reviewed the design and agreed on its shape.
 
 ## One list

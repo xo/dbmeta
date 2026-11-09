@@ -2,7 +2,7 @@
 
 Status: Decided.
 
-Ken decided on 2026-09-29 that Db2 is out of scope, because it is not
+The maintainers decided on 2026-09-29 that Db2 is out of scope, because it is not
 possible to test here, and that usql removes its support for Db2 too.
 
 Db2 was the one database usql supported with no entry in dbrun. Its Go driver

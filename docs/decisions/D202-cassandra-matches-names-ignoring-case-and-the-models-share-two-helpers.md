@@ -5,11 +5,11 @@ Status: Amends D200.
 ## The decision
 
 D200 gave the Cassandra model a row filter, `Binding.Keep`, which matched names
-with `dbmeta.Like`, so a pattern was case sensitive. Ken decided on 2026-10-09
+with `dbmeta.Like`, so a pattern was case sensitive. The maintainers decided on 2026-10-09
 that the match ignores case, because an unquoted CQL name is case insensitive.
 usql folds an unquoted pattern to lower case before it asks, as psql does, and a
 quoted name keeps its case, so a pattern that matches only by case now matches
-more than its author wrote. Ken accepted that for Cassandra.
+more than its author wrote. The maintainers accepted that for Cassandra.
 
 The root package has a new function, `LikeFold`, which is `Like` with the case
 of letters ignored on both sides. The Cassandra model uses it for the `schema`,

@@ -4,9 +4,9 @@ Status: Amends D118, amended by D217.
 
 ## The decision
 
-Ken decided on 2026-10-10 that dbrun starts Spanner Omni and no longer starts
+The maintainers decided on 2026-10-10 that dbrun starts Spanner Omni and no longer starts
 the Cloud Spanner emulator. The emulator entry, its release 1.5.58 and
-`test/cmd/dbrun/image/spanner.Containerfile` are gone. Ken will also have the
+`test/cmd/dbrun/image/spanner.Containerfile` are gone. A maintainer will also have the
 `dbsetup` session make a Cloud Spanner instance on GCP, for tests when they
 need one.
 

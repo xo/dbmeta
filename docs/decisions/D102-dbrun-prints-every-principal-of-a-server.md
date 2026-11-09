@@ -2,7 +2,7 @@
 
 Status: Amends D98.
 
-Ken decided on 2026-09-27 that `dsn --json` and `list --json` print every
+The maintainers decided on 2026-09-27 that `dsn --json` and `list --json` print every
 principal of a server, which D98 had left out. dbimp tests Couchbase as its
 ordinary user too, and it built that user's connection string by hand.
 

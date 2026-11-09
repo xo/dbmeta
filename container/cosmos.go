@@ -26,7 +26,7 @@ import (
 //
 // # The license
 //
-// The emulator is under a Microsoft license, and is free. Ken accepted it for
+// The emulator is under a Microsoft license, and is free. The maintainers accepted it for
 // this project on 2026-09-28.
 //
 // # What it answers

@@ -5,7 +5,7 @@ Status: Amends D143.
 ## The decision
 
 usql kept a few facts about each product in its drivers, as code that names a database.
-Ken asked on 2026-10-11 for usql to apply them for every driver with no such code, and for
+The maintainers asked on 2026-10-11 for usql to apply them for every driver with no such code, and for
 dbmeta to hold the facts. Gemini and DeepSeek agreed with the split below.
 
 Four facts live here. The DSN query keys of a Go driver do not. The keys that usql

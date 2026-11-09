@@ -37,7 +37,7 @@ const (
 // longest. That is the right one to lose: the server in use is the
 // one most recently started, and starting is a minute for a container.
 //
-// It was 4 until Ken raised it to 8 (D108). Eight at 4 GB is 32 GB, and the
+// It was 4 until the maintainers raised it to 8 (D108). Eight at 4 GB is 32 GB, and the
 // machine has 60.
 const maxRunning = 8
 

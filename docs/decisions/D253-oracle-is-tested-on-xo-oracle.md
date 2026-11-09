@@ -5,7 +5,7 @@ Status: Amends D154 and D157, amended by D255.
 dburl v0.55.0 names `github.com/xo/oracle` as the driver of the oracle scheme,
 where it named `github.com/sijms/go-ora/v3` before. D154 says that the test
 driver of a dialect is the one that dburl names, so the test module moved to
-it. Ken decided this on 2026-11-03.
+it. The maintainers decided this on 2026-11-03.
 
 ## The decision
 
@@ -28,7 +28,7 @@ The driver name for `sql.Open` is still `oracle`. Two things change:
 The whole test module passed on Oracle 26ai in 478 seconds and on Oracle 11g
 in 261 seconds. The alignment test passed on 19c.
 
-The whole suite on 19c did not run to the end. Ken stopped it on 2026-11-03,
+The whole suite on 19c did not run to the end. The maintainers stopped it on 2026-11-03,
 because the tables statement below made the scan test last more than 30
 minutes. The suites of the other releases show that the driver works, and the
 slow statement is the same on both drivers.

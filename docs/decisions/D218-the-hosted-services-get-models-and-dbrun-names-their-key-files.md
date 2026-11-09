@@ -4,7 +4,7 @@ Status: Amends D194, amended by D237.
 
 ## The decision
 
-Ken decided on 2026-10-10 that dbmeta builds a model for each of BigQuery,
+The maintainers decided on 2026-10-10 that dbmeta builds a model for each of BigQuery,
 Cloud Spanner, Cosmos DB, Athena and Databricks, and that the dbsetup session
 provides the accounts. D194 said that no model is built for them. It stays
 true for MaxCompute and Tablestore, which have no account. D216 did the

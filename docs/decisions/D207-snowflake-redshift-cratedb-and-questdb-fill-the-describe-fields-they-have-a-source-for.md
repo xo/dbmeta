@@ -5,7 +5,7 @@ Status: Decided, amended by D212 and D232.
 ## The decision
 
 D198, D199 and D201 gave the root types new fields and new kinds, and only the
-PostgreSQL model filled them. Ken said on 2026-10-10 to finish it. This
+PostgreSQL model filled them. The maintainers said on 2026-10-10 to finish it. This
 decision audits four more models and fills each field that one statement can
 produce at a cost that follows the rows returned (D47, rule 13). A field with
 no such source stays NULL, and the reason is written here and in
@@ -175,10 +175,10 @@ is NULL.
 
 - The size, the rows and the options of a Redshift table are in SVV_TABLE_INFO,
   which only a superuser reads. A grant on the view to a role, or a model for
-  the administrator, can fill them. Ken decides.
+  the administrator, can fill them. A maintainer decides.
 - `Constraint.Enforced` is NULL for CrateDB and Redshift. Both enforce or do
   not enforce a key in a way that no catalog column states. D203 filled it for
-  Snowflake because INFORMATION_SCHEMA has the column. Ken can decide that a
+  Snowflake because INFORMATION_SCHEMA has the column. A maintainer can decide that a
   fact of the product is enough.
 - `RoleSettings` for CrateDB, as JSON text.
 - The size of a CrateDB table, for a superuser only.

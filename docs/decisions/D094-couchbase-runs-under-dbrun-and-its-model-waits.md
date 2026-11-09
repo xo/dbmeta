@@ -2,7 +2,7 @@
 
 Status: Amends D66, amended by D95, D96 and D104.
 
-Ken asked on 2026-09-27 whether a Couchbase dialect can be built, or at least
+The maintainers asked on 2026-09-27 whether a Couchbase dialect can be built, or at least
 whether `dbrun` can start Couchbase for the tests of the n1ql rewrite. The
 second is done. The first is possible on the catalog and not yet on the
 driver.

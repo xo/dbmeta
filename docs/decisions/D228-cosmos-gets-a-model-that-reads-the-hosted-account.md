@@ -5,7 +5,7 @@ Status: Amends D223 and D225, amended by D229 and D233.
 ## The decision
 
 D223 left Cosmos DB without a model, because the driver that dburl names read only
-documents. Ken decided on 2026-10-11 to ask dbimp for statements that read the REST
+documents. The maintainers decided on 2026-10-11 to ask dbimp for statements that read the REST
 resources, and dbimp tagged them as v0.17.0. dburl v0.50.0 names
 `github.com/xo/dbimp/cosmos` for the cosmos scheme, so D154 is met. The model is
 `models/cosmos`. It answers 10 of the 65 kinds: databases, schemas, tables, indexes,
@@ -14,7 +14,7 @@ partitioned tables, functions, triggers, roles, privileges and settings.
 The test module moves to dbimp v0.17.0 and to dburl v0.50.0, and `dbrun` registers the
 driver. dburl v0.50.0 also names the drivers of dbimp for BigQuery, Athena, Databricks and
 Spanner, and the tests of those four do not move here. They keep the drivers of D220, D222,
-D224 and D216 until Ken says otherwise, and the backlog says so.
+D224 and D216 until a maintainer says otherwise, and the backlog says so.
 
 ## What it reads
 
@@ -40,7 +40,7 @@ error or a log line, because every error of the helper is a fixed message.
 
 ## The analogues
 
-Each is a choice that Ken can reverse:
+Each is a choice that a maintainer can reverse:
 
 - A Cosmos DB database is a database and also a schema, the way an ArangoDB database is
   (D168). The catalog of every row is empty.
@@ -62,7 +62,7 @@ Each is a choice that Ken can reverse:
 A document has no declared attribute, so there is no column. A sample of the documents is a
 read of the data, and D47 does not allow it. A row of `$containers` holds many index paths,
 many unique keys and many computed properties, and a binding returns one object for each row,
-so index columns, constraints and constraint columns are not answered. Ken can decide whether
+so index columns, constraints and constraint columns are not answered. A maintainer can decide whether
 a binding can return several objects for one row. It needs one statement, so it is not a
 walk, and the backlog holds the question. Stored procedures have a statement of their own,
 and one statement answers one kind, so `Functions` reads the user defined functions. The

@@ -4,7 +4,7 @@ Status: Amends D206.
 
 ## The decision
 
-Ken decided on 2026-10-10 to add `Policy.Enabled`, a `sql.Null[bool]`, so that
+The maintainers decided on 2026-10-10 to add `Policy.Enabled`, a `sql.Null[bool]`, so that
 a policy that is switched off can be told from one that is active.
 
 D206 left a disabled policy out of `Policies` for SQL Server and Oracle,

@@ -4,7 +4,7 @@ Status: Amends D62, amended by D196.
 
 The `test` module now reads Cassandra and ScyllaDB through
 `github.com/xo/cql` v0.1.0 in place of `github.com/MichaelS11/go-cql-driver`.
-Ken asked for it on 2026-09-27, once the fork was tagged. dburl's registry
+The maintainers asked for it on 2026-09-27, once the fork was tagged. dburl's registry
 already names `github.com/xo/cql` as the package for the `cql` scheme, and
 hard rule 10 reads the package from the registry. `usql`'s `go.mod` still
 names the old driver, and the `cql` session's plan moves `usql` too. Until it

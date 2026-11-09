@@ -10,7 +10,7 @@ import (
 // The Neo4j releases dbrun starts.
 //
 // models/neo4j reads them, and dbrun also starts them for the tests of the
-// Neo4j driver in github.com/xo/dbimp, which is its third driver. Ken agreed
+// Neo4j driver in github.com/xo/dbimp, which is its third driver. The maintainers agreed
 // to the product and to its license on 2026-09-27. See D106 and D162.
 //
 // # The range, by the docs/EVALUATION.md procedure

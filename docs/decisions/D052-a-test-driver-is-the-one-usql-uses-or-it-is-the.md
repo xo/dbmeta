@@ -29,7 +29,7 @@ consumer picks its own, which is hard rule 1 and does not change.
 The DuckDB work was written against `github.com/marcboeker/go-duckdb/v2`,
 which is the widely known driver and is not the one `usql` uses. `usql` uses
 `github.com/duckdb/duckdb-go/v2`, the successor under the DuckDB organization.
-Ken caught it before it was committed.
+The maintainers caught it before it was committed.
 
 The other four were already right, and that was luck rather than method:
 `go-sql-driver/mysql`, `jackc/pgx/v5/stdlib`, `mattn/go-sqlite3` and

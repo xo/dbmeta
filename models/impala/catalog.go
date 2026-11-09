@@ -94,7 +94,7 @@ func register() {
 
 	// \dt and \dv. SHOW TABLES IN lists the tables and views of a
 	// database, and DESCRIBE FORMATTED says what each is and holds its
-	// comment. Ken chose on 2026-09-30 to read it, which is one more
+	// comment. The maintainers chose on 2026-09-30 to read it, which is one more
 	// statement for each table (D146).
 	dbmeta.Tables.Register(dbmeta.Impala, &dbmeta.Binding[dbmeta.Table]{
 		Fields: []dbmeta.Field{

@@ -11,7 +11,7 @@ the column type that a driver reports. `Info.ColumnAlign` holds it, and
 nothing for the column, and then a client aligns by the values.
 
 usql asked for the answer, so that each of its drivers can give tblfmt a column
-alignment function. usql asked for a table of type names. Ken chose a function
+alignment function. usql asked for a table of type names. The maintainers chose a function
 instead, because a name does not work everywhere. go-ora reports no name at all,
 and SQLite keeps the text of the declaration.
 

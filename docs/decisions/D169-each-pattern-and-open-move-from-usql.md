@@ -4,9 +4,9 @@ Status: Decided.
 
 ## The decision
 
-Ken wants usql's metadata layer as thin as possible over dbmeta, with what
+A maintainer wants usql's metadata layer as thin as possible over dbmeta, with what
 other projects can use moved here. usql named three general pieces on
-2026-10-02, and Ken chose to move all three.
+2026-10-02, and the maintainers chose to move all three.
 
 `Query.Each` runs a query from an `Args` and passes only the arguments the
 query takes. `All` refuses an argument a query does not take, because that

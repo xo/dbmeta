@@ -5,7 +5,7 @@ Status: Amends D118.
 usql dropped its h2 driver, and dburl v0.56.0 removes the scheme. The module of
 the driver was last released in 2020. D118 gave H2 an entry so that dbrun started
 a server for usql. Nothing reaches H2 now, and dbmeta has no H2 model.
-Ken decided on 2026-11-05 that the entries go.
+The maintainers decided on 2026-11-05 that the entries go.
 
 ## Decision
 

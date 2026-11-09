@@ -6,7 +6,7 @@ D66 put Vertica fifth and then recorded that it was not possible to start
 it: the official image was withdrawn, the maintained one runs only under the
 Kubernetes operator, and the download one-node-ce builds from went away. It
 also rejected `saadmairaj/vertica:10.1.1` as five years old, built by a
-stranger and impossible to reproduce. Ken decided on 2026-09-27 to go ahead
+stranger and impossible to reproduce. The maintainers decided on 2026-09-27 to go ahead
 with community images, and `models/vertica` answers 26 of the 55.
 
 ## The images, and why D66's objection no longer decides it

@@ -21,7 +21,7 @@ import (
 // docker.io/boostport/hbase-phoenix-all-in-one, which the Go driver
 // apache/calcite-avatica-go tests against. Its newest tag, 2.0-5.0, which is
 // HBase 2.0 and Phoenix 5.0, was pushed on 2023-03-14 and has not been rebuilt
-// since, so step 2 of docs/EVALUATION.md does not admit it. Ken made it an
+// since, so step 2 of docs/EVALUATION.md does not admit it. The maintainers made it an
 // exception on 2026-09-28 (D113).
 //
 // # No ordinary user

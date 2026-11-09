@@ -2,7 +2,7 @@
 
 Status: Amended by D125.
 
-Ken asked on 2026-09-28 for the hosted services that `usql` and dbimp
+The maintainers asked on 2026-09-28 for the hosted services that `usql` and dbimp
 support to be reachable from `dbrun`: `dsn`, `usql`, `test` and the other
 commands connect to the remote end, the secret comes from the environment, a
 file, a credential helper or another way, and a service shows up only when its
@@ -23,7 +23,7 @@ Amazon DynamoDB, Alibaba Cloud MaxCompute, Neon, PlanetScale, Amazon Redshift,
 Snowflake, Google Cloud Spanner and Alibaba Cloud Tablestore. Fauna is not
 there, because it shut down on 2025-05-30. The MongoDB Atlas Data API is not
 there, because MongoDB removed it on 2025-09-30. SingleStore is not
-there either. Its development image runs locally, and Ken chose on
+there either. Its development image runs locally, and the maintainers chose on
 2026-09-28 to give it no entry at all (D118).
 
 ## Where the connection string comes from
@@ -79,7 +79,7 @@ Staged. Gemini proposed a Hosted tier and a flag that
 lists only the services with credentials. DeepSeek said the tiers already
 answer it, because CI builds its matrix from the Tested tier, which no hosted
 service is in. A fork with no secrets therefore sees nothing new, and a
-service can move to Nightly later if Ken gives CI a secret for it.
+service can move to Nightly later if the maintainers gives CI a secret for it.
 
 ## What is tested
 

@@ -21,7 +21,7 @@ seconds to 0.07, and the removal of 92 absent servers from 8.2 seconds to
 
 ## The decision
 
-Ken asked on 2026-09-29 that every change to `dbrun` that runs podman or
+The maintainers asked on 2026-09-29 that every change to `dbrun` that runs podman or
 docker makes a best effort to call it as few times as it can. That is the
 intent, and a reviewer cannot measure effort. So these are the rules a
 reviewer checks a change by:
@@ -68,7 +68,7 @@ nothing, the way it already did for a machine.
 
 Gemini and DeepSeek were asked about the wording, and both said that "best
 effort" does not belong in the rules, because a reviewer cannot check it. It
-is kept above as Ken's intent, and the rules are what it means.
+is kept above as a maintainer's intent, and the rules are what it means.
 
 DeepSeek asked for a budget of calls for every command. Only `status` and the
 removal of absent servers have one, because those are the two that were

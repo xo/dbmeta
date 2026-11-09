@@ -257,7 +257,7 @@ there is no version directory to name. Question 4 disappears, because data
 needs no inheritance. Question 1 gets simpler, because the adapter has one
 package per driver to live in.
 
-Ken took it. D8 now holds the version fragments as data in one package, and
+The maintainers took it. D8 now holds the version fragments as data in one package, and
 `Stmt.Build` merges them.
 
 ### Both reviews attacked D9, and both partly misread it
@@ -272,7 +272,7 @@ then and is 65 now. The
 capability mechanism covers the gap.
 
 One phrase invited the misreading. "When they disagree, follow PostgreSQL" read
-as a rule about every field. Ken agreed with this assessment and D9 now carries
+as a rule about every field. The maintainers agreed with this assessment and D9 now carries
 the narrower wording. The ranking decides the shape of an answer. It does not
 decide which questions a database must be able to answer.
 
@@ -297,7 +297,7 @@ Gemini called `dbtpl` generating `dbmeta` a cyclic dependency. It is not.
 way, from `dbtpl` to `dbmeta`. This is bootstrapping, which is ordinary.
 
 Gemini said to abandon `dbtpl` and hand write the queries with `go:embed`. That
-contradicted D2, D10 and D11, which Ken had decided. The review did not know
+contradicted D2, D10 and D11, which the maintainers had decided. The review did not know
 that. D71 later made both points moot: nothing here is generated, and the
 models are written by hand.
 
@@ -332,7 +332,7 @@ each says.
 
 ## Plan
 
-Ken set these phases. They replace any earlier ordering in this file.
+The maintainers set these phases. They replace any earlier ordering in this file.
 
 D13 sets the order within them. Build the models for the primary databases
 first, starting with PostgreSQL and then MariaDB. Write the root `dbmeta`
@@ -608,7 +608,7 @@ This is not a detail. Two of the five open pull requests against
 an ordinary user does not have. D61 now measures every principal of every
 dialect.
 
-## Open questions for Ken
+## Open questions for a maintainer
 
 An open question lives here until it is answered, and then it becomes a
 decision in `decisions/` (D111). The argument behind a decision belongs with

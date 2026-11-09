@@ -17,7 +17,7 @@ import (
 // # The range
 //
 // docker.io/datafuselabs/databend builds each tag once and never again, so the
-// rule in D112 applies instead of step 2 of docs/EVALUATION.md. Ken chose the
+// rule in D112 applies instead of step 2 of docs/EVALUATION.md. The maintainers chose the
 // newest stable release and the newest weekly release. Checked on 2026-10-22,
 // the stable release is v1.2.881, of 2026-04-17, and the weekly release is
 // 1.2.954, of 2026-10-21. The vendor publishes the weekly releases as its
@@ -30,7 +30,7 @@ import (
 //
 // From v1.2.881, Databend sends a report to telemetry.databend.com at every
 // start and every stop, with the operating system, the processors and the
-// memory of the machine. Only a paid Enterprise key turns it off. Ken decided
+// memory of the machine. Only a paid Enterprise key turns it off. The maintainers decided
 // on 2026-09-27 that the container resolves that host to its own address, so
 // the report goes nowhere. See D112.
 //

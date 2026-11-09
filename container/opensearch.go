@@ -21,7 +21,7 @@ import "github.com/xo/dbmeta"
 //
 // From 2.12 the image needs an initial password for the administrator admin,
 // and its installer rates it for strength with a rule of its own. It rates
-// [Password] weak and refuses it, and no setting changes that rule. Ken chose
+// [Password] weak and refuses it, and no setting changes that rule. The maintainers chose
 // on 2026-09-28 to lower the rating rather than give OpenSearch a password of
 // its own. So the image starts with [openSearchBootstrap], which the
 // installer accepts, and Init gives admin [Password].

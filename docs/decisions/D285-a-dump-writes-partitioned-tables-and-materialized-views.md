@@ -5,7 +5,7 @@ Status: Decided.
 ## Decision
 
 The dump reads a partitioned table and a materialized view, and writes them back
-for the same product. Ken asked for both on 2026-11-09, after usql found that
+for the same product. The maintainers asked for both on 2026-11-09, after usql found that
 dbmeta v0.39.1 skipped them. The default case of the relation switch in
 `dump/read.go` put them in `Skipped`.
 

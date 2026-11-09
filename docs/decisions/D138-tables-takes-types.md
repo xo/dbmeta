@@ -11,7 +11,7 @@ it. usql found it on 2026-09-30 and filtered on `Table.Type` itself.
 
 ## The decision
 
-Ken chose on 2026-09-30 to implement it. Every model's Tables takes `types`,
+The maintainers chose on 2026-09-30 to implement it. Every model's Tables takes `types`,
 declared by `dbmeta.TypesParam`, and returns only the relations whose
 `Table.Type` is one of the types named. An empty list means every type.
 

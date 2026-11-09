@@ -12,7 +12,7 @@ import (
 //
 // Impala serves HiveServer2's protocol over HTTP on 28000, the port of the
 // hs2_http_port flag, and github.com/xo/dbimp/hive reaches it that way and no
-// other (D282 and D283). Ken asked for Impala on 2026-09-30, which amends D118
+// other (D282 and D283). The maintainers asked for Impala on 2026-09-30, which amends D118
 // (D145).
 //
 // # The range

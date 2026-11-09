@@ -2,13 +2,13 @@
 
 Status: Amended by D109 and D119.
 
-dbimp asked on 2026-09-27 for a `dbrun` entry for Neo4j, which Ken named as
-its third driver that day. dbimp's D59 chose the Enterprise Edition. Ken
+dbimp asked on 2026-09-27 for a `dbrun` entry for Neo4j, which the maintainers named as
+its third driver that day. dbimp's D59 chose the Enterprise Edition. The maintainers
 agreed to the product, to the Enterprise Edition and to its license on the
 same day. dbmeta has no Neo4j model. The entry is for dbimp's tests, as the
 SurrealDB entry is (D103).
 
-## Ken accepted the evaluation agreement
+## The maintainers accepted the evaluation agreement
 
 The Enterprise image starts only when `NEO4J_ACCEPT_LICENSE_AGREEMENT` is
 set. The value `eval` accepts the Neo4j Software Evaluation Agreement: 30

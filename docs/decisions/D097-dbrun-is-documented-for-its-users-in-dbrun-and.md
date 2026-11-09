@@ -2,7 +2,7 @@
 
 Status: Decided.
 
-Ken asked on 2026-09-27 for better documentation of `dbrun`: how to add a
+The maintainers asked on 2026-09-27 for better documentation of `dbrun`: how to add a
 container or a machine, and how to use the command on a machine that several
 people and coding agents share. It is written for a coding agent and for a
 developer alike.

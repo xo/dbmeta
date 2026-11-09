@@ -4,7 +4,7 @@ Status: Amends D194, amended by D242 and D243.
 
 ## The decision
 
-Ken asked on 2026-10-29 for a model for Alibaba Cloud Tablestore, and D218 had
+The maintainers asked on 2026-10-29 for a model for Alibaba Cloud Tablestore, and D218 had
 left it without one because it had no account. dbsetup made the account and wrote
 the credential files `tablestore` and `tablestore-reader`. The model is
 `models/tablestore`. It answers 1 of the 65 kinds: tables.
@@ -46,7 +46,7 @@ the front end claims, and the rest is its build. The model keeps the text whole 
 gates nothing on the number. usql declares no version for ots, so it runs `SELECT
 version();`, which the service refuses, and usql prints no version.
 
-## What the model does not read, and the question for Ken
+## What the model does not read, and the question for a maintainer
 
 DESCRIBE, SHOW CREATE TABLE and SHOW INDEX read the columns, the definition and the
 indexes of one table. A SELECT cannot filter or join them, and a read of every column
@@ -55,7 +55,7 @@ InfluxQL, Elasticsearch and OpenSearch only. So Columns, Indexes and IndexColumn
 not answered, and neither is anything built from them, such as the primary key of a
 column.
 
-Ken can decide whether to allow a walk for Tablestore. A walk reads one SHOW FULL TABLES
+A maintainer can decide whether to allow a walk for Tablestore. A walk reads one SHOW FULL TABLES
 and then one DESCRIBE and one SHOW INDEX for each table. It adds Columns, Indexes and
 IndexColumns, which is 3 more kinds. The cost is two statements for each table, and each
 statement is one call to the service.

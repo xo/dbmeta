@@ -33,7 +33,7 @@
 // Couchbase 7.2 returns the fields of every result in the order of their
 // names, whatever order the statement selects them in, and 7.6 keeps the
 // statement's order. Every query here is read by position, so every fragment
-// gates on 7.6, and a 7.2 server reports that it is too old. Ken chose that
+// gates on 7.6, and a 7.2 server reports that it is too old. The maintainers chose that
 // over reading by name. See D104.
 //
 // # What it answers

@@ -4,7 +4,7 @@ Status: Amends D215.
 
 ## The decision
 
-Ken decided on 2026-10-10 that dbrun starts the Cloud Spanner emulator again,
+The maintainers decided on 2026-10-10 that dbrun starts the Cloud Spanner emulator again,
 and that Spanner Omni stays. The emulator is the product `spanneremulator`,
 release 1.5.58, with the image built from
 `test/cmd/dbrun/image/spanneremulator.Containerfile`. It is Staged, because no
@@ -17,7 +17,7 @@ dbimp measured Spanner Omni on 2026-10-10 and found that no port serves the
 REST API of Spanner. Omni listens on 15000 to 15025 and speaks gRPC only. One
 port, 15012, is an HTTP status page. The emulator serves REST on 9020 through
 `gateway_main`, so a driver that speaks REST can test against it only there.
-dbimp D186 dropped the REST driver for that reason, and Ken hopes that a later
+dbimp D186 dropped the REST driver for that reason, and a maintainer hopes that a later
 Omni serves REST.
 
 ## What changes
