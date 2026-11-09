@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -86,8 +87,7 @@ func roundTripSchema(t *testing.T, db *sql.DB, m *dbmeta.Meta, filter dump.Filte
 // column came in 10, a generated column in 12, and EXECUTE FUNCTION in 11, so an
 // older release gets the older forms.
 func postgresRoundTripSQL(release int) []string {
-	steps := make([]string, len(postgresRoundTrip))
-	copy(steps, postgresRoundTrip)
+	steps := slices.Clone(postgresRoundTrip)
 	for i, s := range steps {
 		if release < 10 {
 			s = strings.ReplaceAll(s, "AS bigint START", "START")
@@ -101,7 +101,31 @@ func postgresRoundTripSQL(release int) []string {
 		}
 		steps[i] = s
 	}
+	// A key on a partitioned table came in 11.
+	if release >= 11 {
+		steps = append(steps, postgresPartitioned...)
+	}
 	return steps
+}
+
+// postgresPartitioned is a partitioned table with a key, an index, a trigger and
+// two partitions, one of them partitioned again, and a materialized view with an
+// index that reads it. The script must make the keys of the partitions from the
+// key of the table and not twice.
+var postgresPartitioned = []string{
+	`CREATE TABLE dump_rt.events (
+		event_id integer NOT NULL,
+		happened date NOT NULL,
+		kind text NOT NULL,
+		PRIMARY KEY (event_id, happened, kind)) PARTITION BY RANGE (happened)`,
+	"CREATE INDEX events_kind ON dump_rt.events (kind)",
+	"CREATE TABLE dump_rt.events_2025 PARTITION OF dump_rt.events FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')",
+	"CREATE TABLE dump_rt.events_2026 PARTITION OF dump_rt.events FOR VALUES FROM ('2026-01-01') TO ('2027-01-01') PARTITION BY LIST (kind)",
+	"CREATE TABLE dump_rt.events_2026_a PARTITION OF dump_rt.events_2026 FOR VALUES IN ('a')",
+	"CREATE TABLE dump_rt.events_2026_rest PARTITION OF dump_rt.events_2026 DEFAULT",
+	"COMMENT ON TABLE dump_rt.events IS 'an audit log'",
+	"CREATE MATERIALIZED VIEW dump_rt.event_counts AS SELECT kind, count(*) AS n FROM dump_rt.events GROUP BY kind",
+	"CREATE UNIQUE INDEX event_counts_kind ON dump_rt.event_counts (kind)",
 }
 
 var postgresRoundTrip = []string{
@@ -151,8 +175,54 @@ func TestPostgreSQLScriptRoundTrips(t *testing.T) {
 			for _, s := range postgresRoundTripSQL(pgRelease(m)) {
 				mustExec(t, db, s)
 			}
-			roundTripSchema(t, db, m, dump.Filter{Schemas: []string{"dump_rt", "dump_rt2"}}, reset)
+			filter := dump.Filter{Schemas: []string{"dump_rt", "dump_rt2"}}
+			if pgRelease(m) >= 11 {
+				checkPostgresPartitions(t, m, db, filter)
+			}
+			roundTripSchema(t, db, m, filter, reset)
 		})
+	}
+}
+
+// checkPostgresPartitions checks that the snapshot has the partitioned table, its
+// partitions with their bounds, and the materialized view with its index.
+func checkPostgresPartitions(t *testing.T, m *dbmeta.Meta, db *sql.DB, filter dump.Filter) {
+	t.Helper()
+	snap, err := dump.Read(t.Context(), m, db, filter)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	tables := map[string]dump.Table{}
+	var views map[string]dump.View
+	for _, sc := range snap.Schemas {
+		if sc.Name != "dump_rt" {
+			continue
+		}
+		for _, tb := range sc.Tables {
+			tables[tb.Name] = tb
+		}
+		views = map[string]dump.View{}
+		for _, v := range sc.Views {
+			views[v.Name] = v
+		}
+	}
+	if p := tables["events"].Partitioning; p == nil || p.Strategy != "range" || p.Expression != "happened" {
+		t.Errorf("the partitioning of events is %+v", p)
+	}
+	if p := tables["events_2026"].PartitionOf; p == nil || p.Table != "events" || !strings.HasPrefix(p.Bound, "FOR VALUES FROM") {
+		t.Errorf("events_2026 is a partition of %+v", p)
+	}
+	if !tables["events_2026"].IsPartition() || tables["events_2026"].Partitioning == nil {
+		t.Errorf("events_2026 is %+v, and it is a partition that is split again", tables["events_2026"])
+	}
+	if p := tables["events_2026_rest"].PartitionOf; p == nil || p.Bound != "DEFAULT" {
+		t.Errorf("events_2026_rest is a partition of %+v", p)
+	}
+	if v := views["event_counts"]; !v.Materialized || len(v.Indexes) != 1 {
+		t.Errorf("event_counts is %+v, and it is a materialized view with one index", v)
+	}
+	if v := views["cheap"]; v.Materialized {
+		t.Errorf("cheap is a plain view, and it reads as %+v", v)
 	}
 }
 
@@ -294,6 +364,13 @@ var mysqlRoundTrip = []string{
 		UNIQUE KEY rt_uq (owner_id, code))`,
 	"CREATE VIEW rt_cheap AS SELECT id, price FROM rt_item WHERE price < 10",
 	"CREATE TRIGGER rt_touch BEFORE INSERT ON rt_item FOR EACH ROW SET NEW.qty = 1",
+	// One table for each way that MySQL splits a table, so that each is written back
+	// as it was read.
+	"CREATE TABLE rt_range (id int NOT NULL, happened date NOT NULL, PRIMARY KEY (id, happened)) PARTITION BY RANGE (YEAR(happened)) (PARTITION p2025 VALUES LESS THAN (2026), PARTITION pmax VALUES LESS THAN MAXVALUE)",
+	"CREATE TABLE rt_cols (id int NOT NULL, happened date NOT NULL, PRIMARY KEY (id, happened)) PARTITION BY RANGE COLUMNS (happened) (PARTITION p2025 VALUES LESS THAN ('2026-01-01'), PARTITION pmax VALUES LESS THAN (MAXVALUE))",
+	"CREATE TABLE rt_list (id int NOT NULL, kind int NOT NULL, PRIMARY KEY (id, kind)) PARTITION BY LIST (kind) (PARTITION pa VALUES IN (1, 2), PARTITION pb VALUES IN (3))",
+	"CREATE TABLE rt_hash (id int NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 3",
+	"CREATE TABLE rt_key (id int NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2",
 }
 
 // TestMySQLScriptRoundTrips writes the script of a schema that has one of each
@@ -307,7 +384,9 @@ func TestMySQLScriptRoundTrips(t *testing.T) {
 		t.Skipf("the connection names no database: %v", err)
 	}
 	reset := func() {
-		for _, s := range []string{"DROP VIEW IF EXISTS rt_cheap", "DROP TABLE IF EXISTS rt_item", "DROP TABLE IF EXISTS rt_owner"} {
+		for _, s := range []string{"DROP VIEW IF EXISTS rt_cheap", "DROP TABLE IF EXISTS rt_item", "DROP TABLE IF EXISTS rt_owner",
+			"DROP TABLE IF EXISTS rt_range", "DROP TABLE IF EXISTS rt_cols", "DROP TABLE IF EXISTS rt_list",
+			"DROP TABLE IF EXISTS rt_hash", "DROP TABLE IF EXISTS rt_key"} {
 			_, _ = db.ExecContext(context.Background(), s)
 		}
 	}
@@ -316,7 +395,29 @@ func TestMySQLScriptRoundTrips(t *testing.T) {
 	for _, s := range mysqlRoundTrip {
 		mustExec(t, db, s)
 	}
-	roundTripSchema(t, db, m, dump.Filter{Schemas: []string{schema}, Tables: []string{`rt\_%`}}, reset)
+	filter := dump.Filter{Schemas: []string{schema}, Tables: []string{`rt\_%`}}
+	snap, err := dump.Read(t.Context(), m, db, filter)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	want := map[string]struct {
+		strategy string
+		parts    int
+	}{"rt_range": {"range", 2}, "rt_cols": {"range columns", 2}, "rt_list": {"list", 2}, "rt_hash": {"hash", 3}, "rt_key": {"key", 2}}
+	for _, tb := range snap.Schemas[0].Tables {
+		w, ok := want[tb.Name]
+		if !ok {
+			continue
+		}
+		if tb.Partitioning == nil || tb.Partitioning.Strategy != w.strategy || len(tb.Partitioning.Parts) != w.parts {
+			t.Errorf("the partitioning of %s is %+v, and the expected strategy is %s with %d parts", tb.Name, tb.Partitioning, w.strategy, w.parts)
+		}
+		delete(want, tb.Name)
+	}
+	if len(want) > 0 {
+		t.Errorf("the snapshot has no partitioned table for %v", want)
+	}
+	roundTripSchema(t, db, m, filter, reset)
 }
 
 // openMySQLDump opens a connection to a database of its own on the server that

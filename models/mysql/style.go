@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -18,6 +19,7 @@ func init() {
 		DefaultSchema: "*",
 		Column:        column,
 		TableOptions:  tableOptions,
+		PartitionBy:   partitionBy,
 		Index:         index,
 		KeyType:       keyType,
 		Binary:        func(hex string) string { return "X'" + hex + "'" },
@@ -101,6 +103,30 @@ func tableOptions(t dump.Table, lit func(string) string) string {
 		return ""
 	}
 	return " COMMENT=" + lit(t.Comment)
+}
+
+// partitionBy writes the partitions of a table after its options. A range or a
+// list partition has its bound, and a hash or a key partition is counted.
+func partitionBy(p dump.Partitioning, q func(string) string, _ func(string) string) string {
+	method := strings.ToUpper(p.Strategy)
+	sql := " PARTITION BY " + method + " (" + p.Expression + ")"
+	var bound string
+	switch {
+	case strings.Contains(method, "RANGE"):
+		bound = "LESS THAN"
+	case strings.Contains(method, "LIST"):
+		bound = "IN"
+	default:
+		if len(p.Parts) > 0 {
+			sql += " PARTITIONS " + strconv.Itoa(len(p.Parts))
+		}
+		return sql
+	}
+	parts := make([]string, len(p.Parts))
+	for i, part := range p.Parts {
+		parts[i] = "PARTITION " + q(part.Name) + " VALUES " + bound + " (" + part.Bound + ")"
+	}
+	return sql + " (" + strings.Join(parts, ", ") + ")"
 }
 
 // index writes CREATE INDEX with the kind of index that MySQL has, which a plain

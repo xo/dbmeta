@@ -470,8 +470,9 @@ func registerRelations() {
 		Params: schemaNameSystem("partitioned table"),
 		Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 			var v dbmeta.PartitionedTable
+			// KEY () has no expression, and the catalog says NULL.
 			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, &v.Parent,
-				&v.Strategy, &v.Expression, &v.Comment, &v.DirectSize, &v.TotalSize)
+				&v.Strategy, dbmeta.NullAsEmpty(&v.Expression), &v.Comment, &v.DirectSize, &v.TotalSize)
 			return v, err
 		},
 	})

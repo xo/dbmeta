@@ -26,6 +26,9 @@ func init() {
 		OwnedBy:            func(seq, owner string) string { return "ALTER SEQUENCE " + seq + " OWNED BY " + owner },
 		Comment:            comment,
 		View:               view,
+		MaterializedView:   materializedView,
+		PartitionBy:        partitionBy,
+		PartitionOf:        partitionOf,
 		IdentityValue:      identityValue,
 		Binary:             func(hex string) string { return "decode('" + hex + "', 'hex')" },
 		OverridingIdentity: "OVERRIDING SYSTEM VALUE",
@@ -189,6 +192,23 @@ func view(quoted string, v dump.View) string {
 		sql += " WITH LOCAL CHECK OPTION"
 	}
 	return sql
+}
+
+// materializedView writes CREATE MATERIALIZED VIEW. A script makes it after the
+// rows of its tables are loaded, so it is made with its rows.
+func materializedView(quoted string, v dump.View) string {
+	return "CREATE MATERIALIZED VIEW " + quoted + " AS " + strings.TrimRight(strings.TrimSpace(v.Definition), "; \n\t") + " WITH DATA"
+}
+
+// partitionBy writes the clause that splits a table into partitions.
+func partitionBy(p dump.Partitioning, _ func(string) string, _ func(string) string) string {
+	return " PARTITION BY " + strings.ToUpper(p.Strategy) + " (" + p.Expression + ")"
+}
+
+// partitionOf writes the statement that makes a partition. It takes its columns
+// and its keys from its parent.
+func partitionOf(quoted, parent, bound string) string {
+	return "CREATE TABLE " + quoted + " PARTITION OF " + parent + " " + bound
 }
 
 // serialType returns the serial type that stands for an integer type with

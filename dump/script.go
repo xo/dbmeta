@@ -107,7 +107,7 @@ func build(s *Snapshot, target dbmeta.Dialect, p Policy) ([]Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	g := &generator{snap: s, source: source, target: target, style: style, cross: source != target,
+	g := &generator{snap: withPartitions(s, source != target || style.PartitionOf == nil), source: source, target: target, style: style, cross: source != target,
 		plan: make(map[string]ColumnPlan, len(plan.Columns))}
 	for _, c := range plan.Columns {
 		g.plan[c.Name] = c
@@ -176,7 +176,11 @@ func (g *generator) pre() error {
 		if err != nil {
 			return err
 		}
-		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: sql, Note: g.droppedRules(t.table)})
+		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: sql,
+			Note: joinNotes(g.droppedRules(t.table), g.partitionNote(t.table))})
+	}
+	for _, t := range g.partitions() {
+		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: g.createPartition(t.schema, t.table)})
 	}
 	return nil
 }
@@ -213,7 +217,9 @@ func (g *generator) orderedTables() ([]schemaTable, error) {
 	var all []schemaTable
 	for _, sc := range g.snap.Schemas {
 		for _, t := range sc.Tables {
-			all = append(all, schemaTable{sc.Name, t})
+			if !t.IsPartition() {
+				all = append(all, schemaTable{sc.Name, t})
+			}
 		}
 	}
 	if !g.style.InlineConstraints || g.style.OrderFree {
@@ -364,6 +370,9 @@ func (g *generator) createTable(schema string, t Table) (string, error) {
 	sql := "CREATE TABLE " + g.qualified(schema, t.Name) + " (\n  " + strings.Join(parts, ",\n  ") + "\n)"
 	if g.style.TableOptions != nil {
 		sql += g.style.TableOptions(t, lit)
+	}
+	if t.Partitioning != nil && g.partitioned() {
+		sql += g.style.PartitionBy(*t.Partitioning, q, lit)
 	}
 	return sql, nil
 }
@@ -617,7 +626,14 @@ func (g *generator) indexes() {
 func (g *generator) index(schema string, t Table, ix Index) string {
 	table := g.qualified(schema, t.Name)
 	if ix.Definition != "" && !g.cross {
-		return strings.TrimRight(strings.TrimSpace(ix.Definition), "; \n\t")
+		def := strings.TrimRight(strings.TrimSpace(ix.Definition), "; \n\t")
+		// The source writes ON ONLY for the index of a partitioned table, which makes
+		// no index on the partitions. The partitions are there already, so the index is
+		// made on all of them.
+		if t.Partitioning != nil {
+			def = strings.Replace(def, " ON ONLY ", " ON ", 1)
+		}
+		return def
 	}
 	if g.style.Index != nil {
 		return g.style.Index(table, ix, g.style.Quote)
@@ -658,6 +674,9 @@ func (g *generator) identities() {
 	}
 	for _, sc := range g.snap.Schemas {
 		for _, t := range sc.Tables {
+			if t.IsPartition() {
+				continue
+			}
 			for _, c := range t.Columns {
 				if c.Identity == "" && (g.cross || c.Default == nil || !isNextval(*c.Default)) {
 					continue
@@ -707,10 +726,22 @@ func (g *generator) views() {
 	for n, i := range order {
 		e := all[i]
 		st := Statement{Stage: Post, Kind: "view", Name: e.schema + "." + e.view.Name, SQL: g.view(e.schema, e.view), Untranslated: g.cross}
+		if e.view.Materialized {
+			st.Kind = "materialized view"
+			if !g.materialized() {
+				st.Note = "the source has a materialized view here and the target has none, so this is a plain view that reads its tables each time"
+			}
+		}
 		if n == 0 && len(all) > 1 && !g.snap.ViewDependencies {
 			st.Note = "the order of the views is by name and is not checked, because the source did not say what each view reads"
 		}
 		g.add(st)
+		if g.materialized() {
+			for _, ix := range e.view.Indexes {
+				g.add(Statement{Stage: Post, Kind: "index", Name: e.schema + "." + e.view.Name + "." + ix.Name,
+					SQL: g.index(e.schema, Table{Name: e.view.Name}, ix)})
+			}
+		}
 	}
 }
 
@@ -723,8 +754,11 @@ func (g *generator) view(schema string, v View) string {
 	if src, err := styleOf(g.source); err == nil && src.DefaultSchema == "*" && schema != "" {
 		v.Definition = strings.ReplaceAll(v.Definition, src.Quote(schema)+".", "")
 	}
-	if g.cross {
+	if g.cross || (v.Materialized && !g.materialized()) {
 		return "CREATE VIEW " + name + " AS " + viewQuery(v.Definition)
+	}
+	if v.Materialized {
+		return g.style.MaterializedView(name, v)
 	}
 	if g.style.View != nil {
 		return g.style.View(name, v)

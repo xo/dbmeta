@@ -209,8 +209,12 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 		switch kind := strings.ToLower(strings.TrimSpace(t.Type)); kind {
 		case "table", "base table":
 			s.Tables = append(s.Tables, Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}})
+		case "partitioned table":
+			s.Tables = append(s.Tables, Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}})
 		case "view":
 			s.Views = append(s.Views, View{Name: t.Name, Comment: text(t.Comment)})
+		case "materialized view":
+			s.Views = append(s.Views, View{Name: t.Name, Comment: text(t.Comment), Materialized: true})
 		case "sequence":
 			// A sequence is read with the objects of its schema.
 		default:
@@ -230,13 +234,16 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 			views[tableKey{s.Name, s.Views[j].Name}] = &s.Views[j]
 		}
 	}
+	if err := r.readPartitions(ctx, a, kept, snap); err != nil {
+		return err
+	}
 	if err := r.readColumns(ctx, a, kept); err != nil {
 		return err
 	}
 	if err := r.readConstraints(ctx, a, kept); err != nil {
 		return err
 	}
-	if err := r.readIndexes(ctx, a, kept); err != nil {
+	if err := r.readIndexes(ctx, a, kept, views); err != nil {
 		return err
 	}
 	if err := r.readViews(ctx, a, views); err != nil {
@@ -252,6 +259,76 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 		return cmp.Or(cmp.Compare(a.Schema, b.Schema), cmp.Compare(a.Name, b.Name))
 	})
 	return nil
+}
+
+// readPartitions says how each partitioned table is split. PostgreSQL has a
+// table for each partition, and the partition names its parent. MySQL keeps its
+// partitions inside the table, so the table lists them. A product that has a
+// partitioned table and is not one of these two is read as a plain table.
+func (r *reader) readPartitions(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, snap *Snapshot) error {
+	d := r.m.Dialect()
+	if d != dbmeta.PostgreSQL && d != dbmeta.MySQL {
+		return nil
+	}
+	parents, err := collect(dbmeta.PartitionedTables.Each(ctx, r.m, r.db, a))
+	if err != nil {
+		return fmt.Errorf("reading partitioned tables: %w", err)
+	}
+	parts, err := collect(dbmeta.Partitions.Each(ctx, r.m, r.db, a))
+	if err != nil {
+		return fmt.Errorf("reading partitions: %w", err)
+	}
+	for _, p := range parents {
+		t, ok := kept[tableKey{p.Schema, p.Name}]
+		if !ok || p.Type == "partitioned index" {
+			continue
+		}
+		if d == dbmeta.PostgreSQL {
+			// pg_get_partkeydef writes the strategy and then the key in brackets.
+			strategy, key, _ := strings.Cut(strings.TrimSpace(p.Expression), " ")
+			t.Partitioning = &Partitioning{Strategy: strings.ToLower(strategy), Expression: unbracket(key)}
+		} else {
+			t.Partitioning = &Partitioning{Strategy: strings.ToLower(p.Strategy), Expression: p.Expression}
+		}
+	}
+	for _, p := range parts {
+		if d == dbmeta.PostgreSQL {
+			child, ok := kept[tableKey{p.PartitionSchema, p.Partition}]
+			if _, parentKept := kept[tableKey{p.Schema, p.Table}]; ok && parentKept {
+				child.PartitionOf = &PartitionOf{Schema: p.Schema, Table: p.Table, Bound: partitionBound(p)}
+			}
+			continue
+		}
+		t, ok := kept[tableKey{p.Schema, p.Table}]
+		if !ok || t.Partitioning == nil {
+			continue
+		}
+		if p.Type == "subpartition" || p.Partitioned {
+			snap.Skipped = append(snap.Skipped, Skipped{Schema: p.Schema, Name: p.Table, Kind: "subpartition",
+				Reason: "the subpartitions of a table are not written, so the table is written with its partitions only"})
+			continue
+		}
+		t.Partitioning.Parts = append(t.Partitioning.Parts, Part{Name: p.Partition, Bound: text(p.Bound)})
+	}
+	return nil
+}
+
+// partitionBound returns the text that follows the name of a partition.
+func partitionBound(p dbmeta.Partition) string {
+	b := text(p.Bound)
+	if b == "" || strings.EqualFold(b, "default") {
+		return "DEFAULT"
+	}
+	return b
+}
+
+// unbracket takes the outer brackets off a key.
+func unbracket(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
+		return s[1 : len(s)-1]
+	}
+	return s
 }
 
 // readColumns puts each column in its table, in order of position.
@@ -347,7 +424,7 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 }
 
 // readIndexes puts each index in its table, with its columns in order.
-func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
+func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, views map[tableKey]*View) error {
 	idxs, err := collect(dbmeta.Indexes.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading indexes: %w", err)
@@ -376,6 +453,14 @@ func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableK
 	for _, i := range idxs {
 		t, ok := kept[tableKey{i.Schema, i.Table}]
 		if !ok {
+			// The indexes of a materialized view are the view's own.
+			if v, isView := views[tableKey{i.Schema, i.Table}]; isView && v.Materialized {
+				v.Indexes = append(v.Indexes, Index{
+					Name: i.Name, Type: i.Type, Unique: i.Unique,
+					Columns:   byIdx[childKey{i.Schema, i.Table, i.Name}],
+					Predicate: text(i.Predicate), Definition: text(i.Definition), Comment: text(i.Comment),
+				})
+			}
 			continue
 		}
 		// SingleStore keeps an index of its own for the shard key of a table, which a
@@ -392,6 +477,9 @@ func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableK
 	}
 	for _, t := range kept {
 		slices.SortFunc(t.Indexes, func(x, y Index) int { return cmp.Compare(x.Name, y.Name) })
+	}
+	for _, v := range views {
+		slices.SortFunc(v.Indexes, func(x, y Index) int { return cmp.Compare(x.Name, y.Name) })
 	}
 	return nil
 }

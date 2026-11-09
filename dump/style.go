@@ -149,6 +149,18 @@ type Style struct {
 	Index func(quotedTable string, ix Index, q func(string) string) string
 	// View writes a CREATE VIEW from the definition that the source keeps.
 	View func(quoted string, v View) string
+	// MaterializedView writes a CREATE MATERIALIZED VIEW from the definition that
+	// the source keeps. It is nil for a product with none, and a materialized view
+	// is then written as a plain view and the script says so.
+	MaterializedView func(quoted string, v View) string
+	// PartitionBy writes what follows the closing bracket of CREATE TABLE for a
+	// table that is split into partitions, such as PARTITION BY RANGE (key). It is
+	// nil for a product that has none, and the table is then written whole.
+	PartitionBy func(p Partitioning, q func(string) string, literal func(string) string) string
+	// PartitionOf writes the CREATE TABLE of a table that is a partition of
+	// another, from the quoted name of the partition, the quoted name of its parent
+	// and its bound. It is nil for a product whose partitions are not tables.
+	PartitionOf func(quoted, parent, bound string) string
 	// Comment writes the statement that sets a comment, and is nil for a product
 	// that takes it inside CREATE TABLE or has none. The target is TABLE or
 	// COLUMN, and the name is quoted.

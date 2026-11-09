@@ -65,10 +65,53 @@ type Table struct {
 	Name    string `json:"name"`
 	Comment string `json:"comment,omitempty"`
 
+	// Partitioning says how the table is split, and is nil for a table that is
+	// not. For PostgreSQL the partitions are tables of their own, which name this
+	// one in PartitionOf. For MySQL they live inside the table, in Parts.
+	Partitioning *Partitioning `json:"partitioning,omitempty"`
+	// PartitionOf is set for a table that is a partition of another. The rows of
+	// such a table belong to its parent, and a client does not read them again.
+	// See [Table.IsPartition].
+	PartitionOf *PartitionOf `json:"partition_of,omitempty"`
+
 	Columns     []Column     `json:"columns"`
 	Constraints []Constraint `json:"constraints,omitempty"`
 	Indexes     []Index      `json:"indexes,omitempty"`
 	Triggers    []Trigger    `json:"triggers,omitempty"`
+}
+
+// IsPartition reports whether the table is a partition of another table of the
+// snapshot. The parent holds its rows, and a client that reads the rows of every
+// table leaves this one out, because the rows of the parent already include them.
+func (t Table) IsPartition() bool { return t.PartitionOf != nil }
+
+// Partitioning is how a table is split into partitions.
+type Partitioning struct {
+	// Strategy is the method in lower case, such as range, list, hash or key.
+	Strategy string `json:"strategy"`
+	// Expression is the key, as the source writes it between the brackets of
+	// PARTITION BY, such as happened_at or year(hired).
+	Expression string `json:"expression"`
+	// Parts are the partitions that live inside the table, for a product whose
+	// partitions are not tables. It is empty for PostgreSQL.
+	Parts []Part `json:"parts,omitempty"`
+}
+
+// Part is a partition that lives inside its table.
+type Part struct {
+	Name string `json:"name"`
+	// Bound is the limit of a range partition, or the values of a list one, as the
+	// source writes it. It is empty for a hash or a key partition.
+	Bound string `json:"bound,omitempty"`
+}
+
+// PartitionOf names the table that a partition belongs to.
+type PartitionOf struct {
+	Schema string `json:"schema"`
+	Table  string `json:"table"`
+	// Bound is what follows the name in CREATE TABLE ... PARTITION OF, such as
+	// FOR VALUES FROM ('2025-01-01') TO ('2026-01-01'), or DEFAULT.
+	Bound string `json:"bound"`
 }
 
 // Column is a column.
@@ -172,6 +215,12 @@ type View struct {
 	Definition  string   `json:"definition,omitempty"`
 	CheckOption string   `json:"check_option,omitempty"`
 	Comment     string   `json:"comment,omitempty"`
+	// Materialized says that the view keeps its rows, as a materialized view of
+	// PostgreSQL does. It is built after the rows of its tables are loaded.
+	Materialized bool `json:"materialized,omitempty"`
+	// Indexes are the indexes of a materialized view, which a plain view has none
+	// of.
+	Indexes []Index `json:"indexes,omitempty"`
 }
 
 // Sequence is a sequence.

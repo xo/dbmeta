@@ -155,6 +155,32 @@ is the default, and the two others refuse a data option. Reading a file back
 works only for a schema only dump, and it belongs with the phase for a target,
 where it gives the tests a fixture that needs no server.
 
+### Partitioned tables and materialized views
+
+A partitioned table and a materialized view are objects of the snapshot (D285).
+
+- `Table.Partitioning` says how a table is split, by strategy and key. For
+  PostgreSQL each partition is a table of its own, and it has `Table.PartitionOf`,
+  which names the parent and holds the bound. For MySQL and MariaDB the
+  partitions live inside the table and are listed in `Partitioning.Parts`. The
+  subpartitions of MySQL are not written, and `Skipped` says so.
+- `Table.IsPartition` is true for a partition that is a table. The parent holds
+  its rows, so a client that reads the rows of every table leaves a partition out.
+- `View.Materialized` is true for a materialized view, and `View.Indexes` holds
+  its indexes.
+- A script for the same product writes the parent with `PARTITION BY`, and each
+  partition with `PARTITION OF`, parents first. It does not write a key, an index
+  or a trigger on a partition that the parent already makes there.
+- A materialized view is written in the Post stage with `WITH DATA`, after the rows
+  and after the views that it reads, and its indexes follow it. The snapshot does
+  not say whether the source view had its rows, so a view that was empty on
+  purpose is written with its rows.
+- A script for another product writes each partitioned table as one table, and
+  each materialized view as a plain view that reads its tables each time. A note
+  on the statement says so.
+- SQL Server and Oracle keep partitions as a storage choice with a function and a
+  scheme of their own, so they read a partitioned table as a plain table.
+
 ### What dbtpl can reuse
 
 Measured against dbtpl at commit `8366044`. The YAML template of dbtpl marshals
