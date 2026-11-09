@@ -131,6 +131,16 @@ var postgresPartitioned = []string{
 var postgresRoundTrip = []string{
 	"CREATE SCHEMA dump_rt",
 	"CREATE SCHEMA dump_rt2",
+	// An extension makes its own type and functions, which the script leaves to it.
+	"CREATE EXTENSION citext WITH SCHEMA dump_rt",
+	// A domain on a domain, and a composite type with an attribute of a domain, so
+	// that the order of the names is not the order of the statements.
+	"CREATE DOMAIN dump_rt.positive AS integer DEFAULT 1 NOT NULL CHECK (VALUE > 0)",
+	"CREATE DOMAIN dump_rt.small AS dump_rt.positive CHECK (VALUE < 100)",
+	"CREATE DOMAIN dump_rt.email AS dump_rt.citext CHECK (VALUE ~ '@')",
+	"COMMENT ON DOMAIN dump_rt.positive IS 'above zero'",
+	"CREATE TYPE dump_rt.address AS (street text, city text, level dump_rt.small)",
+	"COMMENT ON TYPE dump_rt.address IS 'a place'",
 	"CREATE TYPE dump_rt.mood AS ENUM ('sad', 'it''s ok', 'back\\slash')",
 	"CREATE SEQUENCE dump_rt.counter AS bigint START 10 INCREMENT 5 MINVALUE 10 MAXVALUE 1000 CYCLE",
 	`CREATE TABLE dump_rt2.owner (
@@ -147,6 +157,7 @@ var postgresRoundTrip = []string{
 		tags text[],
 		made timestamp(3) with time zone DEFAULT now(),
 		note text)`,
+	"ALTER TABLE dump_rt.item ADD COLUMN home dump_rt.address, ADD COLUMN contact dump_rt.email DEFAULT 'a@b'",
 	"CREATE INDEX item_note ON dump_rt.item (lower(note)) WHERE note IS NOT NULL",
 	"CREATE INDEX item_price ON dump_rt.item (price DESC, qty)",
 	"CREATE UNIQUE INDEX item_mood_owner ON dump_rt.item (mood, owner_id)",
@@ -176,11 +187,55 @@ func TestPostgreSQLScriptRoundTrips(t *testing.T) {
 				mustExec(t, db, s)
 			}
 			filter := dump.Filter{Schemas: []string{"dump_rt", "dump_rt2"}}
+			checkPostgresTypes(t, m, db, filter)
 			if pgRelease(m) >= 11 {
 				checkPostgresPartitions(t, m, db, filter)
 			}
 			roundTripSchema(t, db, m, filter, reset)
 		})
+	}
+}
+
+// checkPostgresTypes checks that the snapshot has the extension, the domains and
+// the composite type, and has none of what the extension makes.
+func checkPostgresTypes(t *testing.T, m *dbmeta.Meta, db *sql.DB, filter dump.Filter) {
+	t.Helper()
+	snap, err := dump.Read(t.Context(), m, db, filter)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(snap.Extensions) != 1 || snap.Extensions[0].Name != "citext" || snap.Extensions[0].Schema != "dump_rt" {
+		t.Errorf("the extensions are %+v, and the expected one is citext in dump_rt", snap.Extensions)
+	}
+	for _, sc := range snap.Schemas {
+		if sc.Name != "dump_rt" {
+			continue
+		}
+		domains := map[string]dump.Domain{}
+		for _, d := range sc.Domains {
+			domains[d.Name] = d
+		}
+		if d := domains["positive"]; d.Type != "integer" || !d.NotNull || d.Default == nil || *d.Default != "1" ||
+			!strings.Contains(d.Constraints, "VALUE > 0") || d.Comment != "above zero" {
+			t.Errorf("the domain positive is %+v", d)
+		}
+		if d := domains["small"]; d.Type != "dump_rt.positive" || len(domains) != 3 {
+			t.Errorf("the domains are %+v", domains)
+		}
+		if len(sc.Composites) != 1 || sc.Composites[0].Name != "address" || len(sc.Composites[0].Columns) != 3 ||
+			sc.Composites[0].Comment != "a place" {
+			t.Errorf("the composite types are %+v", sc.Composites)
+		}
+		for _, r := range sc.Routines {
+			if strings.HasPrefix(r.Name, "citext") || strings.Contains(r.Name, "regex") {
+				t.Errorf("the routine %s belongs to the extension, and the script does not write it", r.Name)
+			}
+		}
+		for _, tb := range sc.Tables {
+			if tb.Name != "item" && !strings.HasPrefix(tb.Name, "events") {
+				t.Errorf("the table %s is not one of the fixture", tb.Name)
+			}
+		}
 	}
 }
 

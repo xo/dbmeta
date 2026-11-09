@@ -71,6 +71,11 @@ type Table struct {
 	// every object when it has one. It is absent where the product has no
 	// search path. See D262.
 	Visible sql.Null[bool]
+	// Extension is the extension that owns the object, and absent for an object
+	// that no extension owns. A dump leaves such an object out and writes CREATE
+	// EXTENSION instead, because the extension makes it again. It is absent where
+	// the product has no extensions.
+	Extension sql.Null[string]
 }
 
 // Schema is a namespace within a catalog.
@@ -425,6 +430,11 @@ type Function struct {
 	// every object when it has one. It is absent where the product has no
 	// search path. See D262.
 	Visible sql.Null[bool]
+	// Extension is the extension that owns the object, and absent for an object
+	// that no extension owns. A dump leaves such an object out and writes CREATE
+	// EXTENSION instead, because the extension makes it again. It is absent where
+	// the product has no extensions.
+	Extension sql.Null[string]
 }
 
 // Type is a data type. psql lists them with \dT.
@@ -448,6 +458,11 @@ type Type struct {
 	// every object when it has one. It is absent where the product has no
 	// search path. See D262.
 	Visible sql.Null[bool]
+	// Extension is the extension that owns the object, and absent for an object
+	// that no extension owns. A dump leaves such an object out and writes CREATE
+	// EXTENSION instead, because the extension makes it again. It is absent where
+	// the product has no extensions.
+	Extension sql.Null[string]
 }
 
 // Domain is a type with a constraint. psql lists them with \dD.

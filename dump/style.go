@@ -139,6 +139,14 @@ type Style struct {
 	// Enum writes the statement for an enumerated type. It is nil when the
 	// product has none as a type of its own.
 	Enum func(quoted string, values []string, literal func(string) string) string
+	// Extension writes the statement that installs an extension, from its quoted
+	// name and its quoted schema. It is nil for a product with no extensions.
+	Extension func(quotedName, quotedSchema string) string
+	// Domain writes a CREATE DOMAIN. It is nil for a product with none.
+	Domain func(quoted string, d Domain, q func(string) string, literal func(string) string) string
+	// Composite writes a CREATE TYPE of a composite type. It is nil for a product
+	// with none.
+	Composite func(quoted string, c Composite, q func(string) string) string
 	// Sequence writes a CREATE SEQUENCE. It is nil for a product with none.
 	Sequence func(quoted string, s Sequence) string
 	// OwnedBy writes the statement that ties a sequence to a column. It is nil

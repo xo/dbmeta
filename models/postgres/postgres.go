@@ -127,6 +127,16 @@ func registerSchemas() {
 	})
 }
 
+// extensionOf selects the name of the extension that owns an object, which is a
+// row of pg_depend with the type e. The lookup is by the oid of the object, so it
+// is one index probe for each row and does not grow with the catalog.
+func extensionOf(oid, catalog string) string {
+	return `, (SELECT e.extname FROM pg_catalog.pg_depend d` +
+		` JOIN pg_catalog.pg_extension e ON e.oid = d.refobjid` +
+		` WHERE d.classid = 'pg_catalog.` + catalog + `'::pg_catalog.regclass AND d.objid = ` + oid +
+		` AND d.deptype = 'e' LIMIT 1) AS "extension"`
+}
+
 // relationType is the word for a relation's kind, from pg_class.relkind.
 const relationType = `CASE c.relkind` +
 	` WHEN 'r' THEN 'table'` +
@@ -179,6 +189,7 @@ func registerTables() {
 			{{Query: `, c.relrowsecurity AS "row_security"`}},
 			{{Query: `, c.relforcerowsecurity AS "row_security_forced"`}},
 			{{Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
+			{{Query: extensionOf("c.oid", "pg_class")}},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{{Query: `LEFT JOIN pg_catalog.pg_class tc ON tc.oid = c.reltoastrelid`}},
@@ -210,6 +221,7 @@ func registerTables() {
 			{Name: "row_security", Desc: "whether row level security is on"},
 			{Name: "row_security_forced", Desc: "whether row level security applies to the owner too"},
 			{Name: "visible", Desc: "whether the object is on the search path of the session, as psql applies it to a list with no schema in its pattern. Absent where the product has no search path."},
+			{Name: "extension", Desc: "the extension that owns the relation, absent when none does"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern, empty for every schema", Default: ""},
@@ -221,7 +233,7 @@ func registerTables() {
 			var t dbmeta.Table
 			err := rows.Scan(&t.Catalog, &t.Schema, &t.Name, &t.Type, &t.Comment,
 				&t.Owner, &t.Persistence, &t.AccessMethod, &t.Size, &t.Rows,
-				&t.Options, &t.RowSecurity, &t.RowSecurityForced, &t.Visible)
+				&t.Options, &t.RowSecurity, &t.RowSecurityForced, &t.Visible, &t.Extension)
 			return t, err
 		},
 	})

@@ -86,6 +86,9 @@ type childKey struct{ schema, table, name string }
 type reader struct {
 	// viewDependencies is set when the source answered the dependencies of views.
 	viewDependencies bool
+	// columns are the columns that readColumns read, in order of position, which
+	// the composite types are made from too.
+	columns []dbmeta.Column
 
 	m      *dbmeta.Meta
 	db     dbmeta.Queryer
@@ -202,7 +205,8 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	kept := map[tableKey]*Table{}
 	views := map[tableKey]*View{}
 	for _, t := range tables {
-		if !r.wantTable(t.Schema, t.Name) {
+		// The extension that owns a relation makes it again.
+		if !r.wantTable(t.Schema, t.Name) || t.Extension.Valid {
 			continue
 		}
 		s := byName[t.Schema]
@@ -253,6 +257,9 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 		return err
 	}
 	if err := r.readObjects(ctx, a, byName); err != nil {
+		return err
+	}
+	if err := r.readExtensions(ctx, snap); err != nil {
 		return err
 	}
 	slices.SortFunc(snap.Skipped, func(a, b Skipped) int {
@@ -338,28 +345,38 @@ func (r *reader) readColumns(ctx context.Context, a dbmeta.Args, kept map[tableK
 		return fmt.Errorf("reading columns: %w", err)
 	}
 	slices.SortStableFunc(cols, func(x, y dbmeta.Column) int { return cmp.Compare(x.Ordinal, y.Ordinal) })
+	r.columns = cols
 	for _, c := range cols {
 		t, ok := kept[tableKey{c.Schema, c.Table}]
 		if !ok {
 			continue
 		}
-		typ, err := ParseType(r.m.Dialect(), c.DataType)
+		col, err := r.column(c)
 		if err != nil {
-			return fmt.Errorf("reading the type of %s.%s.%s: %w", c.Schema, c.Table, c.Name, err)
-		}
-		col := Column{
-			Name: c.Name, Type: typ, Nullable: c.Nullable,
-			Identity: text(c.Identity), Generated: text(c.Generated),
-			Collation: text(c.Collation), Comment: text(c.Comment),
-			DefaultLiteral: c.DefaultIsLiteral.Valid && c.DefaultIsLiteral.V,
-		}
-		if c.Default.Valid {
-			d := c.Default.V
-			col.Default = &d
+			return err
 		}
 		t.Columns = append(t.Columns, col)
 	}
 	return nil
+}
+
+// column reads a column of a table or of a composite type.
+func (r *reader) column(c dbmeta.Column) (Column, error) {
+	typ, err := ParseType(r.m.Dialect(), c.DataType)
+	if err != nil {
+		return Column{}, fmt.Errorf("reading the type of %s.%s.%s: %w", c.Schema, c.Table, c.Name, err)
+	}
+	col := Column{
+		Name: c.Name, Type: typ, Nullable: c.Nullable,
+		Identity: text(c.Identity), Generated: text(c.Generated),
+		Collation: text(c.Collation), Comment: text(c.Comment),
+		DefaultLiteral: c.DefaultIsLiteral.Valid && c.DefaultIsLiteral.V,
+	}
+	if c.Default.Valid {
+		d := c.Default.V
+		col.Default = &d
+	}
+	return col, nil
 }
 
 // readConstraints puts each constraint in its table, with its columns in order.
@@ -555,9 +572,47 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		k := tableKey{l.Schema, l.Enum}
 		byEnum[k] = append(byEnum[k], l.Label)
 	}
+	doms, err := collect(dbmeta.Domains.Each(ctx, r.m, r.db, a))
+	if err != nil {
+		return fmt.Errorf("reading domains: %w", err)
+	}
+	byDomain := map[tableKey]dbmeta.Domain{}
+	for _, d := range doms {
+		byDomain[tableKey{d.Schema, d.Name}] = d
+	}
+	byComposite := map[tableKey][]Column{}
+	for _, c := range r.columns {
+		col, err := r.column(c)
+		if err != nil {
+			return err
+		}
+		byComposite[tableKey{c.Schema, c.Table}] = append(byComposite[tableKey{c.Schema, c.Table}], col)
+	}
 	for _, t := range types {
-		if s, ok := schemas[t.Schema]; ok && strings.EqualFold(t.Kind, "enum") {
+		s, ok := schemas[t.Schema]
+		// The extension that owns a type makes it again.
+		if !ok || t.Extension.Valid {
+			continue
+		}
+		switch strings.ToLower(t.Kind) {
+		case "enum":
 			s.Enums = append(s.Enums, Enum{Name: t.Internal, Values: byEnum[tableKey{t.Schema, t.Internal}]})
+		case "domain":
+			if d, found := byDomain[tableKey{t.Schema, t.Internal}]; found {
+				dom := Domain{Name: d.Name, Type: d.DataType, Collation: d.Collation, NotNull: !d.Nullable,
+					Constraints: d.Constraints, Comment: text(d.Comment)}
+				if d.Default.Valid {
+					v := d.Default.V
+					dom.Default = &v
+				}
+				s.Domains = append(s.Domains, dom)
+			}
+		case "composite":
+			cols := byComposite[tableKey{t.Schema, t.Internal}]
+			if cols == nil {
+				cols = []Column{}
+			}
+			s.Composites = append(s.Composites, Composite{Name: t.Internal, Comment: text(t.Comment), Columns: cols})
 		}
 	}
 	fns, err := collect(dbmeta.Functions.Each(ctx, r.m, r.db, a))
@@ -565,7 +620,7 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		return fmt.Errorf("reading routines: %w", err)
 	}
 	for _, f := range fns {
-		if s, ok := schemas[f.Schema]; ok {
+		if s, ok := schemas[f.Schema]; ok && !f.Extension.Valid {
 			def := text(f.Definition)
 			if def == "" {
 				def = text(f.Source)
@@ -579,10 +634,29 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 	for _, s := range schemas {
 		slices.SortFunc(s.Sequences, func(x, y Sequence) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Enums, func(x, y Enum) int { return cmp.Compare(x.Name, y.Name) })
+		slices.SortFunc(s.Domains, func(x, y Domain) int { return cmp.Compare(x.Name, y.Name) })
+		slices.SortFunc(s.Composites, func(x, y Composite) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Routines, func(x, y Routine) int {
 			return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.Arguments, y.Arguments))
 		})
 	}
+	return nil
+}
+
+// readExtensions lists the installed extensions that live in a schema of the
+// filter. The language that every database has is left out.
+func (r *reader) readExtensions(ctx context.Context, snap *Snapshot) error {
+	exts, err := collect(dbmeta.Extensions.Each(ctx, r.m, r.db, dbmeta.Args{}))
+	if err != nil {
+		return fmt.Errorf("reading extensions: %w", err)
+	}
+	for _, e := range exts {
+		if e.Schema == "pg_catalog" || !r.wantSchema(e.Schema) {
+			continue
+		}
+		snap.Extensions = append(snap.Extensions, Extension{Name: e.Name, Schema: e.Schema, Version: e.Version, Comment: text(e.Comment)})
+	}
+	slices.SortFunc(snap.Extensions, func(x, y Extension) int { return cmp.Compare(x.Name, y.Name) })
 	return nil
 }
 

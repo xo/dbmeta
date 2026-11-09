@@ -27,6 +27,9 @@ func init() {
 		Comment:            comment,
 		View:               view,
 		MaterializedView:   materializedView,
+		Extension:          extension,
+		Domain:             domain,
+		Composite:          composite,
 		PartitionBy:        partitionBy,
 		PartitionOf:        partitionOf,
 		IdentityValue:      identityValue,
@@ -192,6 +195,43 @@ func view(quoted string, v dump.View) string {
 		sql += " WITH LOCAL CHECK OPTION"
 	}
 	return sql
+}
+
+// extension installs an extension in its schema, if it is not there. It names no
+// version, as pg_dump does, so the server installs the one that it has.
+func extension(quotedName, quotedSchema string) string {
+	return "CREATE EXTENSION IF NOT EXISTS " + quotedName + " WITH SCHEMA " + quotedSchema
+}
+
+// domain writes CREATE DOMAIN with its default, NOT NULL and checks. The checks
+// are the text of pg_get_constraintdef.
+func domain(quoted string, d dump.Domain, q func(string) string, _ func(string) string) string {
+	sql := "CREATE DOMAIN " + quoted + " AS " + d.Type
+	if d.Collation != "" {
+		sql += " COLLATE " + q(d.Collation)
+	}
+	if d.Default != nil {
+		sql += " DEFAULT " + *d.Default
+	}
+	if d.NotNull {
+		sql += " NOT NULL"
+	}
+	if d.Constraints != "" {
+		sql += " " + d.Constraints
+	}
+	return sql
+}
+
+// composite writes CREATE TYPE AS with the attributes in order.
+func composite(quoted string, c dump.Composite, q func(string) string) string {
+	attrs := make([]string, len(c.Columns))
+	for i, col := range c.Columns {
+		attrs[i] = q(col.Name) + " " + col.Type.Raw
+		if col.Collation != "" && col.Collation != "default" {
+			attrs[i] += " COLLATE " + q(col.Collation)
+		}
+	}
+	return "CREATE TYPE " + quoted + " AS (" + strings.Join(attrs, ", ") + ")"
 }
 
 // materializedView writes CREATE MATERIALIZED VIEW. A script makes it after the

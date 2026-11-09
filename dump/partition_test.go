@@ -174,3 +174,63 @@ func TestAPartitionIsMarked(t *testing.T) {
 		}
 	}
 }
+
+// typeSnapshot has an extension, two domains where one is built on the other, and a
+// composite type that has an attribute of a domain. The names are in an order that
+// the statements must not follow.
+func typeSnapshot() *dump.Snapshot {
+	attr := func(name, raw string) dump.Column {
+		typ, err := dump.ParseType(dbmeta.PostgreSQL, raw)
+		if err != nil {
+			panic(err)
+		}
+		return dump.Column{Name: name, Type: typ, Nullable: true}
+	}
+	zero := "0"
+	return &dump.Snapshot{
+		Version: dump.SnapshotVersion, Dialect: "postgres",
+		Extensions: []dump.Extension{{Name: "citext", Schema: "public", Comment: "case insensitive text"}},
+		Schemas: []dump.Schema{{
+			Name: "app",
+			Domains: []dump.Domain{
+				{Name: "big", Type: "app.small", Constraints: "CHECK (VALUE > 10)"},
+				{Name: "small", Type: "integer", NotNull: true, Default: &zero, Constraints: "CHECK (VALUE >= 0)", Comment: "not negative"},
+			},
+			Composites: []dump.Composite{{Name: "a_point", Comment: "a place",
+				Columns: []dump.Column{attr("x", "app.big"), attr("label", "text")}}},
+		}},
+	}
+}
+
+func TestDomainsAndCompositeTypesAreWrittenInTheOrderOfUse(t *testing.T) {
+	t.Parallel()
+	var got []string
+	for _, st := range scriptText(t, typeSnapshot(), dbmeta.PostgreSQL) {
+		switch st.Kind {
+		case "extension", "type", "comment":
+			got = append(got, st.SQL)
+		}
+	}
+	want := []string{
+		`CREATE EXTENSION IF NOT EXISTS "citext" WITH SCHEMA "public"`,
+		`CREATE DOMAIN "app"."small" AS integer DEFAULT 0 NOT NULL CHECK (VALUE >= 0)`,
+		`CREATE DOMAIN "app"."big" AS app.small CHECK (VALUE > 10)`,
+		`CREATE TYPE "app"."a_point" AS ("x" app.big, "label" text)`,
+		`COMMENT ON EXTENSION "citext" IS 'case insensitive text'`,
+		`COMMENT ON DOMAIN "app"."small" IS 'not negative'`,
+		`COMMENT ON TYPE "app"."a_point" IS 'a place'`,
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("the statements are\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestAnotherProductGetsNoExtensionDomainOrCompositeType(t *testing.T) {
+	t.Parallel()
+	for _, st := range scriptText(t, typeSnapshot(), dbmeta.SQLite3) {
+		switch st.Kind {
+		case "extension", "type":
+			t.Errorf("the script for SQLite has the %s %s", st.Kind, st.Name)
+		}
+	}
+}

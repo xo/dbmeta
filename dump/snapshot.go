@@ -30,7 +30,11 @@ type Snapshot struct {
 	// Server is the line that the server reports for its version.
 	Server string `json:"server,omitempty"`
 
-	Schemas []Schema `json:"schemas"`
+	// Extensions are the extensions that the database has installed, which a
+	// script installs first. An object that an extension owns is not in the
+	// snapshot, because the extension makes it again.
+	Extensions []Extension `json:"extensions,omitempty"`
+	Schemas    []Schema    `json:"schemas"`
 	// ViewDependencies is true when the source answered which relations each view
 	// reads, so that an empty View.DependsOn means that the view reads no other
 	// view. When it is false the order of the views is not known.
@@ -57,7 +61,42 @@ type Schema struct {
 	Views     []View     `json:"views,omitempty"`
 	Sequences []Sequence `json:"sequences,omitempty"`
 	Enums     []Enum     `json:"enums,omitempty"`
-	Routines  []Routine  `json:"routines,omitempty"`
+	Domains   []Domain   `json:"domains,omitempty"`
+	// Composites are the composite types that a person made, which are not the row
+	// type of a table.
+	Composites []Composite `json:"composites,omitempty"`
+	Routines   []Routine   `json:"routines,omitempty"`
+}
+
+// Extension is an installed extension.
+type Extension struct {
+	Name string `json:"name"`
+	// Schema is the schema that holds the objects of the extension.
+	Schema  string `json:"schema,omitempty"`
+	Version string `json:"version,omitempty"`
+	Comment string `json:"comment,omitempty"`
+}
+
+// Domain is a type that is another type with a default and constraints.
+type Domain struct {
+	Name string `json:"name"`
+	// Type is the type that the domain is built on, as the source writes it.
+	Type      string `json:"type"`
+	Collation string `json:"collation,omitempty"`
+	NotNull   bool   `json:"not_null,omitempty"`
+	// Default is the expression of the default, and nil when the domain has none.
+	Default *string `json:"default,omitempty"`
+	// Constraints are the checks as the source writes them, such as CHECK (VALUE > 0),
+	// one after the other.
+	Constraints string `json:"constraints,omitempty"`
+	Comment     string `json:"comment,omitempty"`
+}
+
+// Composite is a composite type with its attributes in order.
+type Composite struct {
+	Name    string   `json:"name"`
+	Comment string   `json:"comment,omitempty"`
+	Columns []Column `json:"columns"`
 }
 
 // Table is a table with what belongs to it.

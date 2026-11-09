@@ -181,6 +181,26 @@ A partitioned table and a materialized view are objects of the snapshot (D285).
 - SQL Server and Oracle keep partitions as a storage choice with a function and a
   scheme of their own, so they read a partitioned table as a plain table.
 
+### Extensions, domains and composite types
+
+These are objects of the snapshot too (D286).
+
+- `Snapshot.Extensions` lists the installed extensions, except the ones in
+  `pg_catalog`, and a script installs each one first with
+  `CREATE EXTENSION IF NOT EXISTS ... WITH SCHEMA`. It names no version, as
+  pg_dump does.
+- A table, a type or a function that an extension owns is not in the snapshot,
+  because the extension makes it again. `Table.Extension`, `Type.Extension` and
+  `Function.Extension` carry the name of the owner.
+- `Schema.Domains` holds the type that a domain is built on, its collation, its
+  default, NOT NULL and its checks as the source writes them. The names of the
+  checks are not kept.
+- `Schema.Composites` holds the attributes of a composite type in order.
+- A domain can be built on a domain, and a composite type can have an attribute
+  of a domain, so a script writes each one after the types that its text names.
+- Another product gets none of these. A column of a domain type is not changed
+  to the base type for another product yet.
+
 ### What dbtpl can reuse
 
 Measured against dbtpl at commit `8366044`. The YAML template of dbtpl marshals

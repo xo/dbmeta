@@ -304,3 +304,4 @@ file.
 | [D283](D283-hive-and-impala-are-reached-over-http-only.md) | Hive and Impala are reached over HTTP only | Amends D282 |
 | [D284](D284-a-mysql-timestamp-is-the-clock-of-the-session.md) | A MySQL timestamp is the clock of the session | Decided |
 | [D285](D285-a-dump-writes-partitioned-tables-and-materialized-views.md) | A dump writes partitioned tables and materialized views | Decided |
+| [D286](D286-a-dump-writes-extensions-domains-and-composite-types.md) | A dump writes extensions, domains and composite types | Decided |

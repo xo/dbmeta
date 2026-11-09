@@ -141,8 +141,18 @@ func (g *generator) pre() error {
 		}
 		g.add(Statement{Stage: Pre, Kind: "schema", Name: sc.Name, SQL: g.style.CreateSchema(g.style.Quote(sc.Name))})
 	}
-	// Enums and sequences are the objects of the source, and another dialect
-	// builds its own from the columns.
+	// Extensions come before the objects that use their types.
+	if !g.cross && g.style.Extension != nil {
+		for _, e := range g.snap.Extensions {
+			schema := e.Schema
+			if schema == "" {
+				schema = g.style.DefaultSchema
+			}
+			g.add(Statement{Stage: Pre, Kind: "extension", Name: e.Name, SQL: g.style.Extension(g.style.Quote(e.Name), g.style.Quote(schema))})
+		}
+	}
+	// Enums, domains, composite types and sequences are the objects of the source,
+	// and another dialect builds its own from the columns.
 	if !g.cross {
 		for _, sc := range g.snap.Schemas {
 			if g.style.Enum != nil {
@@ -161,6 +171,9 @@ func (g *generator) pre() error {
 				}
 			}
 		}
+	}
+	if !g.cross {
+		g.customTypes()
 	}
 	for _, sc := range g.snap.Schemas {
 		for _, r := range sc.Routines {
@@ -799,6 +812,9 @@ func (g *generator) trigger(schema string, t Table, tg Trigger) {
 func (g *generator) comments() {
 	if g.style.Comment == nil {
 		return
+	}
+	if !g.cross {
+		g.typeComments()
 	}
 	for _, sc := range g.snap.Schemas {
 		tables := slices.Clone(sc.Tables)
