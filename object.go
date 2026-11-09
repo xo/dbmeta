@@ -76,6 +76,13 @@ type Table struct {
 	// EXTENSION instead, because the extension makes it again. It is absent where
 	// the product has no extensions.
 	Extension sql.Null[string]
+	// HistorySchema and HistoryTable name the history table of a system versioned
+	// table, which is where the server keeps the rows that an update or a delete
+	// replaced. Both are absent for any other table, and for a product that has
+	// none. The history table is a table of its own in the same listing. A dump
+	// writes it first and turns versioning on after the rows are loaded.
+	HistorySchema sql.Null[string]
+	HistoryTable  sql.Null[string]
 }
 
 // Schema is a namespace within a catalog.
@@ -1422,6 +1429,69 @@ type ViewDependency struct {
 	ReferencedType string
 }
 
+// SourceLine is one line of the source text of a stored object. The lines of one
+// object, in order of Line, join to the text that follows CREATE OR REPLACE.
+//
+// It is durable. It is a separate kind rather than a field on [Function], because
+// an object has many lines and a child of an object is its own kind with flat rows
+// (D47). Oracle keeps its source this way, and has no other form of it that every
+// user can read.
+type SourceLine struct {
+	Schema string
+	// Name is the name of the object.
+	Name string
+	// Type is the kind of the object in lower case, such as function, procedure,
+	// package, package body, type, type body or trigger.
+	Type string
+	// Line is the number of the line, from 1.
+	Line int64
+	// Text is the line, with its line break.
+	Text string
+}
+
+// Synonym is another name for an object. The name is in a schema, and it points at
+// an object that need not exist, in the same database or in another one.
+type Synonym struct {
+	Schema string
+	Name   string
+	// TargetSchema and Target name the object. TargetDatabase and TargetServer are
+	// absent for an object of the same database and server. For Oracle a database
+	// link is the server.
+	TargetSchema   sql.Null[string]
+	Target         string
+	TargetDatabase sql.Null[string]
+	TargetServer   sql.Null[string]
+}
+
+// MaterializedView is a materialized view of a product that lists them apart from
+// the tables. Oracle keeps the rows of one in a table of the same name, which the
+// list of tables also holds.
+type MaterializedView struct {
+	Schema string
+	Name   string
+	// Definition is the query of the view.
+	Definition sql.Null[string]
+	// Options are the clauses that follow the name in CREATE MATERIALIZED VIEW, such
+	// as BUILD IMMEDIATE REFRESH COMPLETE ON DEMAND. It is absent where the product
+	// has none.
+	Options sql.Null[string]
+	Comment sql.Null[string]
+}
+
+// TypeAttribute is one attribute of an object type. It is the same fact as the
+// column of a composite type, and it has a kind of its own where the catalog keeps
+// the attributes of a type apart from the columns of a table, as Oracle does.
+type TypeAttribute struct {
+	Schema string
+	// Type is the name of the type that has the attribute.
+	Type string
+	Name string
+	// Ordinal is the position of the attribute, from 1.
+	Ordinal  int64
+	DataType string
+	Nullable bool
+}
+
 // ColumnStat is what the planner knows about the values in a column.
 //
 // It is runtime and it can be stale. Every database here computes it when
@@ -1466,6 +1536,20 @@ var (
 	// ViewDependencies lists, for each view, the relations that its query reads,
 	// which a dump needs to write one view after the views it reads. See D278.
 	ViewDependencies = NewQuery[ViewDependency]("view_dependencies")
+	// Source lists the lines of the source text of a stored program, a package, a
+	// type or a trigger, which a product keeps one line to a row. A dump joins the
+	// lines to write the object again. See D289.
+	Source = NewQuery[SourceLine]("source")
+	// Synonyms lists the synonyms, which are other names for an object, where the
+	// product has them. A dump writes them back. See D289.
+	Synonyms = NewQuery[Synonym]("synonyms")
+	// MaterializedViews lists the materialized views of a product that keeps them
+	// apart from its views, with the clauses that build and refresh them. A dump
+	// needs the query and the clauses. See D289.
+	MaterializedViews = NewQuery[MaterializedView]("materialized_views")
+	// TypeAttributes lists the attributes of each object type, in order, which a
+	// dump needs to read and write a column of such a type. See D289.
+	TypeAttributes = NewQuery[TypeAttribute]("type_attributes")
 	// ColumnStats lists what the planner knows about a column's values.
 	ColumnStats = NewQuery[ColumnStat]("column_stats")
 	// CurrentSchema returns the schema an unqualified name resolves in.

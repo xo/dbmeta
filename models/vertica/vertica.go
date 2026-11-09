@@ -16,7 +16,7 @@
 //
 // # What it answers
 //
-// 28 of the 68. Tables, schemas, columns, views, indexes, index columns,
+// 28 of the 72. Tables, schemas, columns, views, indexes, index columns,
 // constraints, constraint columns, sequences, partitioned tables, partitions,
 // row access policies, comments,
 // functions, aggregates, types, triggers, roles, role settings, role grants,

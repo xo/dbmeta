@@ -545,6 +545,22 @@ DuckDB and Oracle sequence, an update of `sqlite_sequence` for SQLite, an
 `AUTO_INCREMENT` for MySQL, and for SQL Server `SET IDENTITY_INSERT` around each
 table that has an identity column in the Data stage.
 
+### System versioned tables and CLR values
+
+SQL Server only (D287). A system versioned table has `Table.Versioning`, which
+names its history table and its period columns. The script drops the period
+while the rows load, and it makes the period again and turns versioning on after
+the constraints and the indexes. A spatial or hierarchyid value moves as bytes
+and is written as `CAST(0x... AS type)`. A rowversion column is left out of the
+INSERT.
+
+### SQL Server types and Oracle (D288, D289)
+
+SQL Server writes its alias types, its table types and its synonyms before its
+tables, and its routines after the rows. Oracle is a source and a target of a dump:
+it reads its source by line, writes through `ALTER SESSION SET CURRENT_SCHEMA`, and
+moves an object column as the text of the expression that builds it.
+
 ## One API for dump and copy
 
 The neutral `Type`, the value conversion and the two INSERT builders are shared.

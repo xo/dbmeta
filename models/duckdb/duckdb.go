@@ -30,7 +30,7 @@
 //
 // # What it answers
 //
-// Twenty two of the 68, which includes the named NOT NULL constraints. The catalog is unusually complete for an embedded
+// Twenty two of the 72, which includes the named NOT NULL constraints. The catalog is unusually complete for an embedded
 // database: it has comments on most objects, real enumerated types,
 // sequences, and a constraint catalog that names the columns of a key and the columns it references.
 //

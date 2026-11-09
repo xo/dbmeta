@@ -95,6 +95,8 @@ type generator struct {
 	cross  bool
 	plan   map[string]ColumnPlan
 	out    []Statement
+	// used is the schema that the last UseSchema statement of each stage named.
+	used map[Stage]string
 }
 
 func build(s *Snapshot, target dbmeta.Dialect, p Policy) ([]Statement, error) {
@@ -140,6 +142,11 @@ func (g *generator) pre() error {
 			continue
 		}
 		g.add(Statement{Stage: Pre, Kind: "schema", Name: sc.Name, SQL: g.style.CreateSchema(g.style.Quote(sc.Name))})
+		if g.style.SchemaSetup != nil {
+			for _, text := range g.style.SchemaSetup(g.style.Quote(sc.Name)) {
+				g.add(Statement{Stage: Pre, Kind: "setting", Name: sc.Name, SQL: text})
+			}
+		}
 	}
 	// Extensions come before the objects that use their types.
 	if !g.cross && g.style.Extension != nil {
@@ -175,11 +182,7 @@ func (g *generator) pre() error {
 	if !g.cross {
 		g.customTypes()
 	}
-	for _, sc := range g.snap.Schemas {
-		for _, r := range sc.Routines {
-			g.routine(sc.Name, r)
-		}
-	}
+	g.earlyRoutines()
 	tables, err := g.orderedTables()
 	if err != nil {
 		return err
@@ -190,11 +193,12 @@ func (g *generator) pre() error {
 			return err
 		}
 		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: sql,
-			Note: joinNotes(g.droppedRules(t.table), g.partitionNote(t.table))})
+			Note: joinNotes(g.droppedRules(t.table), g.partitionNote(t.table), g.versioningNote(t.table))})
 	}
 	for _, t := range g.partitions() {
 		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: g.createPartition(t.schema, t.table)})
 	}
+	g.synonyms()
 	return nil
 }
 
@@ -203,19 +207,45 @@ func (g *generator) data() {
 	for _, text := range g.style.BeforeData {
 		g.add(Statement{Stage: Data, Kind: "setting", SQL: text})
 	}
+	g.versioningOff()
 }
 
 // routine writes a routine from the definition that the source keeps. The text
 // is the source's own, so it is marked Untranslated for another dialect.
-func (g *generator) routine(schema string, r Routine) {
+func (g *generator) routine(stage Stage, schema string, r Routine) {
 	name := schema + "." + r.Name
 	def := strings.TrimSpace(r.Definition)
 	if !strings.HasPrefix(strings.ToLower(def), "create") {
-		g.add(Statement{Stage: Pre, Kind: "routine", Name: name, Untranslated: g.cross,
+		g.add(Statement{Stage: stage, Kind: "routine", Name: name, Untranslated: g.cross,
 			Note: "the source keeps no statement that creates this " + r.Kind + ", so it is not written"})
 		return
 	}
-	g.add(Statement{Stage: Pre, Kind: "routine", Name: name, SQL: strings.TrimRight(def, "; \n\t"), Untranslated: g.cross})
+	g.use(stage, schema)
+	g.add(Statement{Stage: stage, Kind: "routine", Name: name, SQL: g.endOf(def), Untranslated: g.cross})
+}
+
+// use writes the statement that makes a schema the one that a name with no schema
+// means, before a statement of the source's own text, when the product has one and
+// the last statement of the stage named another schema.
+func (g *generator) use(stage Stage, schema string) {
+	if g.style.UseSchema == nil || schema == "" || g.used[stage] == schema {
+		return
+	}
+	if g.used == nil {
+		g.used = map[Stage]string{}
+	}
+	g.used[stage] = schema
+	g.add(Statement{Stage: stage, Kind: "setting", Name: schema, SQL: g.style.UseSchema(g.style.Quote(schema))})
+}
+
+// endOf takes the closing semicolons off the text of a stored object, and keeps the
+// one that belongs to it when the product says that it does.
+func (g *generator) endOf(def string) string {
+	def = strings.TrimSpace(def)
+	if g.style.KeepTerminator != nil && g.style.KeepTerminator(def) {
+		return def
+	}
+	return strings.TrimRight(def, "; \n\t")
 }
 
 // schemaTable is a table with the schema it is in.
@@ -376,9 +406,12 @@ func (g *generator) createTable(schema string, t Table) (string, error) {
 		if !g.inCreate(c.Kind) || g.refused(t, c) != "" {
 			continue
 		}
-		if text, ok := g.constraintSQL(schema, c); ok {
+		if text, ok := g.constraintSQL(schema, t, c); ok {
 			parts = append(parts, text)
 		}
+	}
+	if t.Versioning != nil && g.versioned() {
+		parts = append(parts, g.style.SystemTime(*t.Versioning, q))
 	}
 	sql := "CREATE TABLE " + g.qualified(schema, t.Name) + " (\n  " + strings.Join(parts, ",\n  ") + "\n)"
 	if g.style.TableOptions != nil {
@@ -430,7 +463,7 @@ func genericColumn(c Column, typeSQL string, q func(string) string) string {
 // For the same dialect the definition of the source is used. For another dialect
 // a primary key, a unique key and a foreign key are built from their columns,
 // and a check keeps the text of the source.
-func (g *generator) constraintSQL(schema string, c Constraint) (string, bool) {
+func (g *generator) constraintSQL(schema string, t Table, c Constraint) (string, bool) {
 	q := g.style.Quote
 	cols := make([]string, len(c.Columns))
 	for i, name := range c.Columns {
@@ -439,10 +472,10 @@ func (g *generator) constraintSQL(schema string, c Constraint) (string, bool) {
 	body := c.Definition
 	switch c.Kind {
 	case "primary key":
-		body = "PRIMARY KEY (" + strings.Join(cols, ", ") + ")"
+		body = "PRIMARY KEY" + g.keyKind(t, c) + " (" + strings.Join(cols, ", ") + ")"
 	case "unique":
 		if body == "" || g.cross {
-			body = "UNIQUE (" + strings.Join(cols, ", ") + ")"
+			body = "UNIQUE" + g.keyKind(t, c) + " (" + strings.Join(cols, ", ") + ")"
 		}
 	case "check":
 		// A source can keep the clause alone, with or without its brackets.
@@ -526,6 +559,7 @@ func (g *generator) post() {
 	}
 	g.constraints()
 	g.indexes()
+	g.versioningOn()
 	if !g.cross {
 		for _, sc := range g.snap.Schemas {
 			for _, q := range sc.Sequences {
@@ -538,7 +572,7 @@ func (g *generator) post() {
 		}
 	}
 	g.identities()
-	g.views()
+	g.viewsAndRoutines()
 	for _, sc := range g.snap.Schemas {
 		for _, t := range sc.Tables {
 			for _, tg := range t.Triggers {
@@ -568,11 +602,15 @@ func (g *generator) constraints() {
 						g.add(Statement{Stage: Post, Kind: "constraint", Name: name, Note: why})
 						continue
 					}
-					text, ok := g.constraintSQL(sc.Name, c)
+					text, ok := g.constraintSQL(sc.Name, t, c)
 					if !ok {
 						g.add(Statement{Stage: Post, Kind: "constraint", Name: name,
 							Note: "the source keeps no text for this " + c.Kind + ", so it is not written"})
 						continue
+					}
+					if kind == "foreign key" && g.style.ReferenceGrant != nil && c.Ref != nil && c.Ref.Schema != "" && c.Ref.Schema != sc.Name {
+						g.add(Statement{Stage: Post, Kind: "grant", Name: name,
+							SQL: g.style.ReferenceGrant(g.qualified(c.Ref.Schema, c.Ref.Table), g.style.Quote(sc.Name))})
 					}
 					g.add(Statement{Stage: Post, Kind: "constraint", Name: name,
 						SQL:          "ALTER TABLE " + g.qualified(sc.Name, t.Name) + " ADD " + text,
@@ -682,7 +720,7 @@ func genericIndex(table string, ix Index, q func(string) string) string {
 // identities writes the statements that set the next value of each identity
 // column from the rows, for a product that does not follow the rows itself.
 func (g *generator) identities() {
-	if g.style.IdentityValue == nil {
+	if g.style.IdentityValue == nil && g.style.IdentityAfter == nil {
 		return
 	}
 	for _, sc := range g.snap.Schemas {
@@ -694,8 +732,13 @@ func (g *generator) identities() {
 				if c.Identity == "" && (g.cross || c.Default == nil || !isNextval(*c.Default)) {
 					continue
 				}
-				g.add(Statement{Stage: Post, Kind: "sequence value", Name: sc.Name + "." + t.Name + "." + c.Name,
-					SQL: g.style.IdentityValue(g.qualified(sc.Name, t.Name), g.style.Quote(c.Name), c.Name, g.style.Literal)})
+				var sql string
+				if g.style.IdentityAfter != nil {
+					sql = g.style.IdentityAfter(g.qualified(sc.Name, t.Name), g.style.Quote(c.Name), c)
+				} else {
+					sql = g.style.IdentityValue(g.qualified(sc.Name, t.Name), g.style.Quote(c.Name), c.Name, g.style.Literal)
+				}
+				g.add(Statement{Stage: Post, Kind: "sequence value", Name: sc.Name + "." + t.Name + "." + c.Name, SQL: sql})
 			}
 		}
 	}
@@ -705,17 +748,46 @@ func (g *generator) identities() {
 // not say what a view reads gets the views in order of name, and the first
 // statement says that the order is not checked, so that a client can run a view
 // that failed again once the others exist.
-func (g *generator) views() {
+func (g *generator) viewsAndRoutines() {
 	type entry struct {
 		schema string
 		view   View
+		// routine is set for a routine that is written with the views.
+		routine *Routine
+		words   map[string]bool
 	}
 	var all []entry
 	index := map[string]int{}
 	for _, sc := range g.snap.Schemas {
 		for _, v := range sc.Views {
 			index[sc.Name+"."+v.Name] = len(all)
-			all = append(all, entry{sc.Name, v})
+			all = append(all, entry{schema: sc.Name, view: v})
+		}
+	}
+	byName := map[string][]int{}
+	if g.style.RoutinesAfterTables {
+		early := g.earlyRoutineSet()
+		for _, sc := range g.snap.Schemas {
+			for _, r := range sc.Routines {
+				if early[sc.Name+"."+r.Name] {
+					continue
+				}
+				index[sc.Name+"."+r.Name] = len(all)
+				all = append(all, entry{schema: sc.Name, routine: &r})
+			}
+		}
+		// A routine and a view find each other by the names in their text.
+		for i := range all {
+			text := all[i].view.Definition
+			if all[i].routine != nil {
+				text = all[i].routine.Definition
+			}
+			all[i].words = identifiers(text)
+			name := all[i].view.Name
+			if all[i].routine != nil {
+				name = all[i].routine.Name
+			}
+			byName[strings.ToLower(name)] = append(byName[strings.ToLower(name)], i)
 		}
 	}
 	state := make([]int, len(all))
@@ -731,6 +803,16 @@ func (g *generator) views() {
 				visit(j)
 			}
 		}
+		for word := range all[i].words {
+			for _, j := range byName[word] {
+				// An object names itself, and its body and its specification
+				// follow the order of the snapshot.
+				if j != i && !sameObject(all[i].schema, nameOf(all[i].view.Name, all[i].routine),
+					all[j].schema, nameOf(all[j].view.Name, all[j].routine)) {
+					visit(j)
+				}
+			}
+		}
 		order = append(order, i)
 	}
 	for i := range all {
@@ -738,6 +820,11 @@ func (g *generator) views() {
 	}
 	for n, i := range order {
 		e := all[i]
+		if e.routine != nil {
+			g.routine(Post, e.schema, *e.routine)
+			continue
+		}
+		g.use(Post, e.schema)
 		st := Statement{Stage: Post, Kind: "view", Name: e.schema + "." + e.view.Name, SQL: g.view(e.schema, e.view), Untranslated: g.cross}
 		if e.view.Materialized {
 			st.Kind = "materialized view"
@@ -782,6 +869,7 @@ func (g *generator) view(schema string, v View) string {
 
 // trigger writes a trigger from what the source keeps.
 func (g *generator) trigger(schema string, t Table, tg Trigger) {
+	g.use(Post, schema)
 	name := schema + "." + t.Name + "." + tg.Name
 	def := strings.TrimSpace(tg.Definition)
 	hasStatement := strings.HasPrefix(strings.ToLower(def), "create")
@@ -789,7 +877,7 @@ func (g *generator) trigger(schema string, t Table, tg Trigger) {
 		Note: "the source keeps no statement that creates this trigger, so it is not written"}
 	switch {
 	case g.cross && hasStatement:
-		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, Untranslated: true, SQL: strings.TrimRight(def, "; \n\t")})
+		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, Untranslated: true, SQL: g.endOf(def)})
 	case g.cross:
 		g.add(missing)
 	case g.style.Trigger != nil:
@@ -801,7 +889,7 @@ func (g *generator) trigger(schema string, t Table, tg Trigger) {
 		}
 		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: sql})
 	case hasStatement:
-		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: strings.TrimRight(def, "; \n\t")})
+		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: g.endOf(def)})
 	default:
 		g.add(missing)
 	}
@@ -839,4 +927,50 @@ func (g *generator) comments() {
 // how PostgreSQL writes a serial column.
 func isNextval(def string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(def)), "nextval(")
+}
+
+// keyKind writes the word that says how the index of a key is stored, for a
+// product whose key has one. It reads the index that has the name of the key, and
+// is empty when the index is stored as the product stores a key by default or when
+// the product has no such word.
+func (g *generator) keyKind(t Table, c Constraint) string {
+	if g.cross || g.style.KeyKind == nil {
+		return ""
+	}
+	for _, ix := range t.Indexes {
+		if ix.Name == c.Name {
+			return g.style.KeyKind(c.Kind, ix)
+		}
+	}
+	return ""
+}
+
+// nameOf is the name of a view or of a routine.
+func nameOf(view string, r *Routine) string {
+	if r != nil {
+		return r.Name
+	}
+	return view
+}
+
+// synonyms writes the synonyms of the schemas, which need not point at an object
+// that exists yet. Another product has no synonym, and the script says so.
+func (g *generator) synonyms() {
+	for _, sc := range g.snap.Schemas {
+		for _, y := range sc.Synonyms {
+			name := sc.Name + "." + y.Name
+			if g.cross || g.style.Synonym == nil {
+				g.add(Statement{Stage: Pre, Kind: "synonym", Name: name,
+					Note: "the target has no synonym, so this one is not written. It names " + y.Target})
+				continue
+			}
+			g.add(Statement{Stage: Pre, Kind: "synonym", Name: name, SQL: g.style.Synonym(g.qualified(sc.Name, y.Name), y, g.style.Quote)})
+		}
+	}
+}
+
+// sameObject says that two stored objects have one name, such as a package and its
+// body, which follow the order of the snapshot and need no order of their own.
+func sameObject(schemaA, nameA, schemaB, nameB string) bool {
+	return schemaA == schemaB && strings.EqualFold(nameA, nameB)
 }

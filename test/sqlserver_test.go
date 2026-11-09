@@ -353,7 +353,7 @@ func TestSQLServerCatalogExtras(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading domains: %v", err)
 	}
-	if !ok || dom.Name != "shortname" || dom.DataType != "nvarchar" {
+	if !ok || dom.Name != "shortname" || dom.DataType != "nvarchar(64)" {
 		t.Errorf("expected the alias type, got %+v ok=%v", dom, ok)
 	}
 

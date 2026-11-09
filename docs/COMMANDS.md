@@ -239,7 +239,7 @@ the statement (D147).
 
 ## The kinds with no psql command
 
-Seven object kinds here answer no `psql` command. They exist because `usql` and
+Eleven object kinds here answer no `psql` command. They exist because `usql` and
 `dbtpl` were measured and needed them, and D47 allows them: `psql` sets the
 object model and does not set the column set.
 
@@ -250,6 +250,10 @@ object model and does not set the column set.
 | `dbmeta.EnumValues` | `EnumValue` | `\dT+` prints the labels joined into one string, which `Type.Elements` still holds |
 | `dbmeta.Views` | `View` | `\d name` on a view prints the definition, and `\sv` shows it outside `describe.c` |
 | `dbmeta.ViewDependencies` | `ViewDependency` | `psql` shows the dependents of a relation only in `\d+` of a table. A dump needs the views that a view reads (D278) |
+| `dbmeta.Source` | `SourceLine` | `psql` shows the source of a function with `\sf`, from one text. Oracle keeps source one line to a row, and a dump joins the lines (D289) |
+| `dbmeta.Synonyms` | `Synonym` | PostgreSQL has no synonym. Oracle and SQL Server do, and a dump writes them back (D289) |
+| `dbmeta.MaterializedViews` | `MaterializedView` | `psql` lists a materialized view with `\dm` among the relations. Oracle keeps the query and the refresh clauses in a view of their own, and a dump needs both (D289) |
+| `dbmeta.TypeAttributes` | `TypeAttribute` | `psql` lists the attributes of a composite type with `\d` of the type. Oracle keeps them apart from the columns of a table, and a dump needs them to read an object column (D289) |
 | `dbmeta.ColumnStats` | `ColumnStat` | `psql` has no such command. `usql` added `\ss` |
 | `dbmeta.CurrentSchema` | `Schema` | session state rather than an object. `dbtpl` reads it in every loader |
 | `dbmeta.CurrentUser` | `User` | session state rather than an object. It came from auditing `usql` (D55) |

@@ -11,6 +11,7 @@ import (
 func registerServer() {
 	registerRoutines()
 	registerTypes()
+	registerSynonyms()
 	registerSecurity()
 	registerStorage()
 }
@@ -201,6 +202,39 @@ func registerRoutines() {
 	})
 }
 
+// registerSynonyms registers the synonyms of the database.
+func registerSynonyms() {
+	dbmeta.Synonyms.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Synonym]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT s.name AS "schema"`),
+			always(`, sy.name AS "name"`),
+			always(`, PARSENAME(sy.base_object_name, 2) AS "target_schema"`),
+			always(`, PARSENAME(sy.base_object_name, 1) AS "target"`),
+			always(`, PARSENAME(sy.base_object_name, 3) AS "target_database"`),
+			always(`, PARSENAME(sy.base_object_name, 4) AS "target_server"`),
+			always(`FROM sys.synonyms sy`),
+			always(`JOIN sys.schemas s ON s.schema_id = sy.schema_id`),
+			always(`WHERE ` + notSystem),
+			always(`AND (@schema = '' OR s.name LIKE @schema)`),
+			always(`AND (@name = '' OR sy.name LIKE @name)`),
+			always(`ORDER BY 1, 2`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "name"},
+			{Name: "target_schema", Desc: "the schema of the object, and absent when base_object_name has no schema part"},
+			{Name: "target", Desc: "the name of the object"},
+			{Name: "target_database", Desc: "the database of the object, and absent for one in this database"},
+			{Name: "target_server", Desc: "the linked server of the object, and absent for one on this server"},
+		},
+		Params: schemaNameSystem("synonym"),
+		Scan: func(rows *sql.Rows) (dbmeta.Synonym, error) {
+			var v dbmeta.Synonym
+			err := rows.Scan(&v.Schema, &v.Name, &v.TargetSchema, &v.Target, &v.TargetDatabase, &v.TargetServer)
+			return v, err
+		},
+	})
+}
+
 func registerTypes() {
 	// \dT. Every type, built in and user defined alike.
 	dbmeta.Types.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Type]{
@@ -254,7 +288,7 @@ func registerTypes() {
 			always(`SELECT DB_NAME() AS "catalog"`),
 			always(`, s.name AS "schema"`),
 			always(`, ty.name AS "name"`),
-			always(`, bt.name AS "data_type"`),
+			always(`, ` + declaredType("bt.name", "ty") + ` AS "data_type"`),
 			always(`, COALESCE(ty.collation_name, '') AS "collation"`),
 			always(`, ty.is_nullable AS "nullable"`),
 			always(`, NULL AS "default"`),
@@ -272,7 +306,7 @@ func registerTypes() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "name"},
-			{Name: "data_type", Desc: "the base type the alias is built on"},
+			{Name: "data_type", Desc: "the base type the alias is built on, with its length, precision and scale"},
 			{Name: "collation", Desc: "empty where the type is not text"},
 			{Name: "nullable"},
 			{

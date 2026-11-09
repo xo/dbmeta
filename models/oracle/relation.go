@@ -120,6 +120,25 @@ func childParams(parent, kind string) []dbmeta.Param {
 	}
 }
 
+// declaredType writes the SQL that gives the declared type of a column or of an
+// attribute of a type, from the columns that the dictionary keeps its parts in.
+func declaredType(name, owner, charLength, dataLength, precision, scale, charUsed string) string {
+	return `CASE` +
+		` WHEN ` + owner + ` IS NOT NULL AND ` + owner + ` <> 'SYS'` +
+		`  THEN '"' || ` + owner + ` || '"."' || ` + name + ` || '"'` +
+		` WHEN ` + name + ` IN ('VARCHAR2', 'NVARCHAR2', 'CHAR', 'NCHAR')` +
+		`  THEN ` + name + ` || '(' || ` + charLength + ` ||` +
+		`   CASE WHEN ` + charUsed + ` = 'C' AND ` + name + ` IN ('VARCHAR2', 'CHAR') THEN ' CHAR' END || ')'` +
+		` WHEN ` + name + ` IN ('RAW', 'UROWID') THEN ` + name + ` || '(' || ` + dataLength + ` || ')'` +
+		` WHEN ` + name + ` = 'FLOAT' THEN 'FLOAT(' || ` + precision + ` || ')'` +
+		` WHEN ` + name + ` = 'NUMBER' THEN` +
+		`  CASE WHEN ` + precision + ` IS NULL AND ` + scale + ` IS NULL THEN 'NUMBER'` +
+		`   WHEN ` + precision + ` IS NULL THEN 'NUMBER(*,' || ` + scale + ` || ')'` +
+		`   WHEN ` + scale + ` = 0 THEN 'NUMBER(' || ` + precision + ` || ')'` +
+		`   ELSE 'NUMBER(' || ` + precision + ` || ',' || ` + scale + ` || ')' END` +
+		` ELSE ` + name + ` END`
+}
+
 func registerRelations() {
 	// \dn. A schema is a user in Oracle, so this reads the users.
 	dbmeta.Schemas.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Schema]{
@@ -257,7 +276,12 @@ func registerColumns() {
 			always(`, c.table_name AS "table"`),
 			always(`, c.column_name AS "name"`),
 			always(`, c.column_id AS "ordinal"`),
-			always(`, c.data_type AS "data_type"`),
+			// The declared type, with the length, the precision and the scale,
+			// which is what a person reads and what a script needs. all_tab_cols
+			// keeps them in columns of their own. A type that a person made
+			// carries its owner, and a type of Oracle does not.
+			always(`, ` + declaredType("c.data_type", "c.data_type_owner", "c.char_length",
+				"c.data_length", "c.data_precision", "c.data_scale", "c.char_used") + ` AS "data_type"`),
 			// Oracle records nullability as a Y or an N rather than a
 			// boolean, because it had no boolean type until 23ai.
 			always(`, CASE c.nullable WHEN 'Y' THEN 1 ELSE 0 END AS "nullable"`),
@@ -271,7 +295,9 @@ func registerColumns() {
 			// and Field.Min says the difference. See docs/NULLS.md.
 			dbmeta.Choice{
 				{Query: `, NULL AS "identity"`},
-				{Min: v12, Query: `, NULLIF(c.identity_column, 'NO') AS "identity"`},
+				{Min: v12, Query: `, (SELECT LOWER(ic.generation_type) FROM all_tab_identity_cols ic` +
+					` WHERE ic.owner = c.owner AND ic.table_name = c.table_name` +
+					` AND ic.column_name = c.column_name) AS "identity"`},
 			},
 			// A virtual column is Oracle's generated column, and it is
 			// reported from 11g on.
@@ -307,12 +333,17 @@ func registerColumns() {
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "table"}, {Name: "name"},
-			{Name: "ordinal"}, {Name: "data_type"}, {Name: "nullable"},
+			{Name: "ordinal"},
+			{
+				Name: "data_type",
+				Desc: "the declared type with its length, precision and scale, such as VARCHAR2(200 CHAR) or NUMBER(14,2). A type that a person made has its owner in quotes",
+			},
+			{Name: "nullable"},
 			{Name: "default", Desc: "the DEFAULT text, which Oracle stores as a LONG"},
 			{Name: "primary_key"},
 			{
 				Name: "identity", Min: v12,
-				Desc: "the identity kind, absent before 12c where Oracle had none",
+				Desc: "always or by default for an identity column, absent for any other and before 12c where Oracle had none",
 			},
 			{Name: "generated", Desc: "set for a virtual column"},
 			{Name: "comment", Desc: "the COMMENT ON COLUMN"},

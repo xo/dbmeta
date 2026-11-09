@@ -255,7 +255,9 @@ func registerExtra() {
 			always(`SELECT s.sequence_owner AS "schema"`),
 			always(`, s.sequence_name AS "name"`),
 			always(`, 'NUMBER' AS "data_type"`),
-			always(`, s.min_value AS "start"`),
+			// last_number is the value that the next NEXTVAL gives, which is what a
+			// copy must start with. Oracle does not record START WITH.
+			always(`, s.last_number AS "start"`),
 			always(`, s.min_value AS "minimum"`),
 			always(`, s.max_value AS "maximum"`),
 			always(`, s.increment_by AS "increment"`),
@@ -274,7 +276,7 @@ func registerExtra() {
 			{Name: "data_type", Desc: "always NUMBER: an Oracle sequence has no declared type"},
 			{
 				Name: "start",
-				Desc: "the minimum, which is what Oracle keeps: it does not record the START WITH",
+				Desc: "the value that the next NEXTVAL gives, which is what Oracle keeps: it does not record the START WITH",
 			},
 			{Name: "minimum"}, {Name: "maximum"}, {Name: "increment"}, {Name: "cycles"},
 			{Name: "owned_by", Desc: "always empty: an Oracle sequence is independent of any column"},
@@ -394,6 +396,77 @@ func registerExtra() {
 		Scan: func(rows *sql.Rows) (dbmeta.User, error) {
 			var v dbmeta.User
 			err := rows.Scan(&v.Name, &v.Session)
+			return v, err
+		},
+	})
+}
+
+// registerMaterializedViews registers the materialized views with the clauses that
+// build and refresh them.
+func registerMaterializedViews() {
+	dbmeta.MaterializedViews.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.MaterializedView]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT v.owner AS "schema"`),
+			always(`, v.mview_name AS "name"`),
+			// query is a LONG, which a statement can select and cannot join, so it
+			// is the only one in the list.
+			always(`, v.query AS "definition"`),
+			always(`, 'BUILD ' || CASE v.build_mode WHEN 'DEFERRED' THEN 'DEFERRED' ELSE 'IMMEDIATE' END`),
+			always(`  || ' REFRESH ' || CASE WHEN v.refresh_method = 'NEVER' THEN 'NEVER' ELSE v.refresh_method END`),
+			always(`  || CASE v.refresh_mode WHEN 'COMMIT' THEN ' ON COMMIT' WHEN 'DEMAND' THEN ' ON DEMAND' END`),
+			always(`  || CASE v.rewrite_enabled WHEN 'Y' THEN ' ENABLE QUERY REWRITE' END AS "options"`),
+			always(`, c.comments AS "comment"`),
+			always(`FROM all_mviews v`),
+			always(`LEFT JOIN all_tab_comments c`),
+			always(`  ON c.owner = v.owner AND c.table_name = v.mview_name`),
+			notSystem("WHERE", "v.owner"),
+			always(`AND (@schema IS NULL OR v.owner LIKE @schema)`),
+			always(`AND (@name IS NULL OR v.mview_name LIKE @name)`),
+			always(`ORDER BY v.owner, v.mview_name`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "name"},
+			{Name: "definition", Desc: "the query, which Oracle stores as a LONG"},
+			{Name: "options", Desc: "BUILD, REFRESH and ON clauses, and ENABLE QUERY REWRITE when it is on"},
+			{Name: "comment"},
+		},
+		Params: schemaNameSystem("materialized view"),
+		Scan: func(rows *sql.Rows) (dbmeta.MaterializedView, error) {
+			var v dbmeta.MaterializedView
+			err := rows.Scan(&v.Schema, &v.Name, &v.Definition, &v.Options, &v.Comment)
+			return v, err
+		},
+	})
+}
+
+// registerSynonyms registers the synonyms of the schemas. A public synonym belongs
+// to the schema PUBLIC, which is not one that the dump reads.
+func registerSynonyms() {
+	dbmeta.Synonyms.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Synonym]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT s.owner AS "schema"`),
+			always(`, s.synonym_name AS "name"`),
+			always(`, s.table_owner AS "target_schema"`),
+			always(`, s.table_name AS "target"`),
+			always(`, CAST(NULL AS VARCHAR2(128)) AS "target_database"`),
+			always(`, s.db_link AS "target_server"`),
+			always(`FROM all_synonyms s`),
+			notSystem("WHERE", "s.owner"),
+			always(`AND (@schema IS NULL OR s.owner LIKE @schema)`),
+			always(`AND (@name IS NULL OR s.synonym_name LIKE @name)`),
+			always(`ORDER BY s.owner, s.synonym_name`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "name"},
+			{Name: "target_schema", Desc: "the owner of the object, which is absent for a synonym of a remote object that names none"},
+			{Name: "target", Desc: "the name of the object"},
+			{Name: "target_database", Desc: "always absent: an Oracle synonym names a database link and not a database"},
+			{Name: "target_server", Desc: "the database link, and absent for an object of this database"},
+		},
+		Params: schemaNameSystem("synonym"),
+		Scan: func(rows *sql.Rows) (dbmeta.Synonym, error) {
+			var v dbmeta.Synonym
+			err := rows.Scan(&v.Schema, &v.Name, &v.TargetSchema, &v.Target, &v.TargetDatabase, &v.TargetServer)
 			return v, err
 		},
 	})

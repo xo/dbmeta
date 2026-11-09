@@ -30,6 +30,10 @@ type Style struct {
 	// product whose schema is its database, which a dump does not create.
 	CreateSchema func(quoted string) string
 
+	// SchemaSetup writes the statements that follow CREATE SCHEMA, from the quoted
+	// schema, such as the grants that let the owner of an Oracle schema make a
+	// materialized view. It is nil for a product that needs none.
+	SchemaSetup func(quoted string) []string
 	// Preamble is the statements that begin a script, such as a setting that
 	// lets a function name a table that is not there yet.
 	Preamble []string
@@ -97,6 +101,56 @@ type Style struct {
 	// in a default or in a row, such as 1 and 0 in SQL Server. It is nil where the
 	// words are right.
 	Boolean func(v bool) string
+	// TimeLiteral wraps the text of a date or a timestamp, with its quotes, in the
+	// form that the product reads whatever the format of the session is. Oracle
+	// writes DATE '...' and TIMESTAMP '...'. It is nil where the quoted text is read
+	// as it is.
+	TimeLiteral func(kind Kind, quoted string) string
+	// Synonym writes the statement that makes a synonym, from the quoted name, the
+	// synonym and the quote function. It is nil for a product with none.
+	Synonym func(quoted string, s Synonym, q func(string) string) string
+	// UseSchema writes the statement that makes a schema the one that a name with
+	// no schema means. A view, a trigger or a routine keeps the text that its author
+	// wrote, and that text names its tables with no schema. A script is run by one
+	// user for every schema, so it names the schema before each such object. It is
+	// nil for a product whose connection keeps one schema.
+	UseSchema func(quoted string) string
+	// IdentityAfter writes the statement that follows the rows of a table with an
+	// identity column, in place of IdentityValue. Oracle writes every identity
+	// column as BY DEFAULT while the rows load, and this statement gives the column
+	// its own kind and the number that follows the rows back.
+	IdentityAfter func(quotedTable, quotedColumn string, c Column) string
+	// KeepTerminator says that the semicolon at the end of the text of a stored
+	// object belongs to it, as the one after END does in a PL/SQL block. The
+	// generator takes every other trailing semicolon off. It is nil for a product
+	// whose statements never end in one.
+	KeepTerminator func(definition string) bool
+	// SelectColumn writes the expression that reads a column, for a column that the
+	// driver cannot read as it is, from the schema and the column and the quoted
+	// name of the column with the alias of its table. It returns false for a column
+	// that is read as it is. Oracle reads an object type as the text of the
+	// expression that builds it.
+	SelectColumn func(s *Snapshot, schema string, c Column, quoted string) (string, bool)
+	// ExpressionColumn says that a column of this type holds the text of an
+	// expression, and that the loader writes the text as it is and not as a string.
+	ExpressionColumn func(t Type) bool
+	// ReferenceGrant writes the statement that lets a table in one schema have a
+	// foreign key to a table in another, from the quoted parent table and the quoted
+	// schema of the child. Oracle needs the grant before the key. It is nil for a
+	// product that has no such rule.
+	ReferenceGrant func(quotedParent, quotedChildSchema string) string
+	// LongBinary writes a binary value that no literal of the product holds, as the
+	// statements that fill a variable and the name of the variable, which the INSERT
+	// names in place of the literal. Oracle has no literal of more than 2000 bytes
+	// and no way to join two. It is nil where Binary holds any value.
+	LongBinary func(n int, hex string) (declare string, fill []string, ref string)
+	// Block writes the statement that declares the variables of LongBinary, fills
+	// them and runs the INSERT. It is required with LongBinary.
+	Block func(declare, fill []string, stmt string) string
+	// MixedEndianUUID says that a driver gives a uuid as 16 bytes in the order that
+	// the product keeps it: the first three groups in little endian. The loader
+	// puts the bytes in the order of the text before it reads them.
+	MixedEndianUUID bool
 	// IdentityInsert writes the statement that lets an INSERT give a value to an
 	// identity column of a table, and the one that ends it, for a product that
 	// has a session setting for it, such as SET IDENTITY_INSERT. Both run on the
@@ -147,6 +201,21 @@ type Style struct {
 	// Composite writes a CREATE TYPE of a composite type. It is nil for a product
 	// with none.
 	Composite func(quoted string, c Composite, q func(string) string) string
+	// TableType writes a CREATE TYPE ... AS TABLE from the quoted name, the columns
+	// and the keys that the generator wrote, and the table type with its indexes. It
+	// is nil for a product with none.
+	TableType func(quoted string, parts []string, t Table, q func(string) string) string
+	// KeyKind returns the word, with a space before it, that a primary key or a
+	// unique key has in front of its columns, from the index that backs it. SQL
+	// Server says CLUSTERED or NONCLUSTERED when the index is not stored as a key
+	// is by default. It returns the empty string for the default.
+	KeyKind func(kind string, ix Index) string
+	// RoutinesAfterTables says that the product reads the tables and the views that
+	// a routine names when it creates the routine, as SQL Server does for a function
+	// that returns a table, so a script writes the routines after the rows. A
+	// routine that a column, a default or a check calls is still written before the
+	// tables, with the routines that it calls.
+	RoutinesAfterTables bool
 	// Sequence writes a CREATE SEQUENCE. It is nil for a product with none.
 	Sequence func(quoted string, s Sequence) string
 	// OwnedBy writes the statement that ties a sequence to a column. It is nil
@@ -169,6 +238,23 @@ type Style struct {
 	// another, from the quoted name of the partition, the quoted name of its parent
 	// and its bound. It is nil for a product whose partitions are not tables.
 	PartitionOf func(quoted, parent, bound string) string
+	// SystemTime writes the PERIOD FOR SYSTEM_TIME element of the CREATE TABLE of a
+	// system versioned table. It is nil for a product with none, and the table is
+	// then written as a plain table.
+	SystemTime func(v Versioning, q func(string) string) string
+	// VersioningOff writes the statement that frees the period columns of a system
+	// versioned table so that a load can give them values. The client runs it with
+	// the settings that come before the rows. It is nil for a product with none.
+	VersioningOff func(quotedTable string) string
+	// VersioningOn writes the statements that turn versioning on once the rows of
+	// the table and of its history table are loaded. It is nil for a product with
+	// none.
+	VersioningOn func(quotedTable, quotedHistory string, v Versioning, q func(string) string) []string
+	// CastBinary names the type that a binary value of a column is cast to, for a
+	// product that does not read a bare binary literal as that type. SQL Server
+	// writes CAST(0x... AS geography). It returns the empty string for a type that
+	// needs no cast, and it is nil for a product that never needs one.
+	CastBinary func(t Type) string
 	// Comment writes the statement that sets a comment, and is nil for a product
 	// that takes it inside CREATE TABLE or has none. The target is TABLE or
 	// COLUMN, and the name is quoted.

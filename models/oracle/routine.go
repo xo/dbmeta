@@ -306,3 +306,66 @@ func registerRoutines() {
 		},
 	})
 }
+
+// registerSource registers the lines of the source of a stored object.
+func registerSource() {
+	dbmeta.Source.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.SourceLine]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT s.owner AS "schema"`),
+			always(`, s.name AS "name"`),
+			always(`, LOWER(s.type) AS "type"`),
+			always(`, s.line AS "line"`),
+			always(`, s.text AS "text"`),
+			always(`FROM all_source s`),
+			always(`WHERE s.type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY', 'TYPE', 'TYPE BODY', 'TRIGGER')`),
+			notSystem("AND", "s.owner"),
+			always(`AND (@schema IS NULL OR s.owner LIKE @schema)`),
+			always(`AND (@name IS NULL OR s.name LIKE @name)`),
+			always(`ORDER BY s.owner, s.name, s.type, s.line`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "name"},
+			{Name: "type", Desc: "function, procedure, package, package body, type, type body or trigger"},
+			{Name: "line", Desc: "the number of the line, from 1"},
+			{Name: "text", Desc: "the line with its line break. The lines join to the text after CREATE OR REPLACE"},
+		},
+		Params: schemaNameSystem("object"),
+		Scan: func(rows *sql.Rows) (dbmeta.SourceLine, error) {
+			var v dbmeta.SourceLine
+			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Line, &v.Text)
+			return v, err
+		},
+	})
+}
+
+// registerTypeAttributes registers the attributes of the object types.
+func registerTypeAttributes() {
+	dbmeta.TypeAttributes.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.TypeAttribute]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT a.owner AS "schema"`),
+			always(`, a.type_name AS "type"`),
+			always(`, a.attr_name AS "name"`),
+			always(`, a.attr_no AS "ordinal"`),
+			always(`, ` + declaredType("a.attr_type_name", "a.attr_type_owner", "a.length", "a.length",
+				"a.precision", "a.scale", "a.char_used") + ` AS "data_type"`),
+			always(`, 1 AS "nullable"`),
+			always(`FROM all_type_attrs a`),
+			notSystem("WHERE", "a.owner"),
+			always(`AND (@schema IS NULL OR a.owner LIKE @schema)`),
+			always(`AND (@name IS NULL OR a.type_name LIKE @name)`),
+			always(`ORDER BY a.owner, a.type_name, a.attr_no`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "type"}, {Name: "name"},
+			{Name: "ordinal", Desc: "the position of the attribute, from 1"},
+			{Name: "data_type", Desc: "the declared type with its length, precision and scale. A type that a person made has its owner in quotes"},
+			{Name: "nullable", Desc: "always true: Oracle has no NOT NULL on an attribute"},
+		},
+		Params: schemaNameSystem("type"),
+		Scan: func(rows *sql.Rows) (dbmeta.TypeAttribute, error) {
+			var v dbmeta.TypeAttribute
+			err := rows.Scan(&v.Schema, &v.Type, &v.Name, &v.Ordinal, &v.DataType, &v.Nullable)
+			return v, err
+		},
+	})
+}

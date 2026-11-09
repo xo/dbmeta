@@ -208,6 +208,18 @@ fact that the snapshot does not hold, so a dump leaves it out.
 - The data check for a boolean by convention is a statement in the plan, and the
   client has to run it. dbmeta runs no query, so the stop is the client's.
 
+- Roles and grants are not dumped for any product. The Oracle model has no roles
+  query, and the SQL Server and Oracle privileges are not read for a dump. The
+  northwind fixtures have a role `northwind_reader` that a copy lacks.
+- A SQL Server partition function and scheme are not written. A table that uses one is
+  written as one table, and the snapshot says so.
+- An Oracle subpartition, an interval partition and a reference partition are not
+  written, and the storage clauses are not either.
+- An Oracle copy was run on 26ai Free only. `NO AUTHENTICATION` needs 18c and
+  `START WITH LIMIT VALUE` needs 12.2. Run 19c and 11g, and record the result.
+- An object column of Oracle has no placeholder form, so a copy that binds values
+  cannot move one. A collection holds at most 4000 characters of text when it is read.
+
 ## PostgreSQL model
 
 ### Read the sections of `\d` that no kind answers
@@ -435,7 +447,7 @@ columns. The vector rows of `$index_paths` were not read, for the same reason.
 
 ### Databricks table size, defaults and checks have no source
 
-Databricks answers 17 of the 68 kinds (D224). The size, the row count, the location and
+Databricks answers 17 of the 72 kinds (D224). The size, the row count, the location and
 the clustering columns of a table are in DESCRIBE DETAIL. A column default, an identity
 column, a generated column and a CHECK constraint are in SHOW CREATE TABLE and SHOW
 TBLPROPERTIES. All of them are statements that a SELECT cannot read, and INFORMATION_SCHEMA

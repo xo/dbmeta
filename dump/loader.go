@@ -26,12 +26,14 @@ type Loader struct {
 	key            []string
 	override       bool
 	identity       bool
+	snap           *Snapshot
 }
 
 // loadColumn is a column that the loader moves.
 type loadColumn struct {
 	name     string
 	from, to Type
+	col      Column
 }
 
 // NewLoader prepares the loader of one table. The plan decides the type of each
@@ -73,13 +75,13 @@ func NewLoader(s *Snapshot, schema, table string, target dbmeta.Dialect, p Polic
 	if t == nil {
 		return nil, fmt.Errorf("the snapshot has no table %s.%s: %w", schema, table, dbmeta.ErrNotFound)
 	}
-	l := &Loader{source: source, target: target, src: src, dst: dst, schema: schema, table: table}
+	l := &Loader{source: source, target: target, src: src, dst: dst, schema: schema, table: table, snap: s}
 	for _, c := range t.Columns {
-		if c.Generated != "" && source == target {
+		if computedColumn(c) && source == target {
 			continue
 		}
 		cp := byName[schema+"."+table+"."+c.Name]
-		l.cols = append(l.cols, loadColumn{name: c.Name, from: c.Type, to: cp.Type})
+		l.cols = append(l.cols, loadColumn{name: c.Name, from: c.Type, to: cp.Type, col: c})
 		if c.Identity != "" {
 			l.identity = true
 		}
@@ -147,10 +149,25 @@ func (l *Loader) Ordered() bool { return len(l.key) > 0 }
 // and passes each row to Insert or Args. dbmeta reads no row itself.
 func (l *Loader) SelectAll() string {
 	cols := make([]string, len(l.cols))
+	alias := ""
 	for i, c := range l.cols {
 		cols[i] = l.src.Quote(c.name)
+		if l.src.SelectColumn != nil {
+			// The table has an alias when a column needs one to name its own table.
+			if text, ok := l.src.SelectColumn(l.snap, l.schema, c.col, "t."+cols[i]); ok {
+				cols[i] = text + " AS " + cols[i]
+				alias = " t"
+			}
+		}
 	}
-	sql := "SELECT " + strings.Join(cols, ", ") + " FROM " + l.qualify(l.src)
+	if alias != "" {
+		for i, c := range l.cols {
+			if !strings.Contains(cols[i], " AS ") {
+				cols[i] = "t." + l.src.Quote(c.name)
+			}
+		}
+	}
+	sql := "SELECT " + strings.Join(cols, ", ") + " FROM " + l.qualify(l.src) + alias
 	if len(l.key) > 0 {
 		key := make([]string, len(l.key))
 		for i, name := range l.key {
@@ -181,13 +198,14 @@ func (l *Loader) Insert(rows [][]any) (string, error) {
 		return "", fmt.Errorf("writing an INSERT of no rows: %w", ErrBadValue)
 	}
 	groups := make([]string, len(rows))
+	vars := &variables{}
 	for i, row := range rows {
 		if len(row) != len(l.cols) {
 			return "", fmt.Errorf("row %d has %d values and the table has %d columns: %w", i+1, len(row), len(l.cols), ErrBadValue)
 		}
 		vals := make([]string, len(row))
 		for j, v := range row {
-			text, err := l.literal(l.cols[j], v)
+			text, err := l.literal(l.cols[j], v, vars)
 			if err != nil {
 				return "", fmt.Errorf("the column %s.%s.%s of row %d: %w", l.schema, l.table, l.cols[j].name, i+1, err)
 			}
@@ -195,7 +213,17 @@ func (l *Loader) Insert(rows [][]any) (string, error) {
 		}
 		groups[i] = "(" + strings.Join(vals, ", ") + ")"
 	}
-	return l.head() + strings.Join(groups, ", "), nil
+	stmt := l.head() + strings.Join(groups, ", ")
+	if len(vars.declare) > 0 {
+		return l.dst.Block(vars.declare, vars.fill, stmt), nil
+	}
+	return stmt, nil
+}
+
+// variables are the variables that the values of one INSERT need, for a value
+// that no literal holds.
+type variables struct {
+	declare, fill []string
 }
 
 // InsertArgs writes an INSERT of n rows with the placeholders of the target, for
@@ -207,6 +235,11 @@ func (l *Loader) InsertArgs(n int) string {
 		marks := make([]string, len(l.cols))
 		for j := range marks {
 			marks[j], _ = l.target.Placeholder(next)
+			if l.dst.CastBinary != nil {
+				if name := l.dst.CastBinary(l.cols[j].to); name != "" {
+					marks[j] = "CAST(" + marks[j] + " AS " + name + ")"
+				}
+			}
 			next++
 		}
 		groups[i] = "(" + strings.Join(marks, ", ") + ")"
@@ -224,7 +257,11 @@ func (l *Loader) Args(rows [][]any) ([]any, error) {
 		}
 		for j, v := range row {
 			c := l.cols[j]
-			conv, err := Convert(l.sessionClock(c, v), c.from, c.to)
+			if l.dst.ExpressionColumn != nil && l.dst.ExpressionColumn(c.to) && v != nil {
+				return nil, fmt.Errorf("the column %s.%s.%s holds the text of an expression, which a placeholder cannot take: %w",
+					l.schema, l.table, c.name, ErrNoEquivalent)
+			}
+			conv, err := Convert(l.sourceValue(c, v), c.from, c.to)
 			if err != nil {
 				return nil, fmt.Errorf("the column %s.%s.%s of row %d: %w", l.schema, l.table, c.name, i+1, err)
 			}
@@ -297,8 +334,8 @@ func (l *Loader) head() string {
 }
 
 // literal writes one value as a literal of the target.
-func (l *Loader) literal(c loadColumn, v any) (string, error) {
-	conv, err := Convert(l.sessionClock(c, v), c.from, c.to)
+func (l *Loader) literal(c loadColumn, v any, vars *variables) (string, error) {
+	conv, err := Convert(l.sourceValue(c, v), c.from, c.to)
 	if err != nil {
 		return "", err
 	}
@@ -329,11 +366,27 @@ func (l *Loader) literal(c loadColumn, v any) (string, error) {
 		if l.dst.Binary == nil {
 			return "", fmt.Errorf("%s has no binary literal: %w", l.target, ErrNoEquivalent)
 		}
-		return l.dst.Binary(hex.EncodeToString(x)), nil
+		if l.dst.LongBinary != nil && l.dst.Block != nil && len(x) > 2000 {
+			declare, fill, ref := l.dst.LongBinary(len(vars.declare)+1, hex.EncodeToString(x))
+			vars.declare = append(vars.declare, declare)
+			vars.fill = append(vars.fill, fill...)
+			return ref, nil
+		}
+		text := l.dst.Binary(hex.EncodeToString(x))
+		if l.dst.CastBinary != nil {
+			if name := l.dst.CastBinary(c.to); name != "" {
+				text = "CAST(" + text + " AS " + name + ")"
+			}
+		}
+		return text, nil
 	case time.Time:
 		return l.timeLiteral(c.to.Kind, x)
 	case string:
 		if c.to.Kind == Decimal || c.to.Kind == Integer || c.to.Kind == BigInteger {
+			return x, nil
+		}
+		// The text of an expression that builds the value is the value.
+		if l.dst.ExpressionColumn != nil && l.dst.ExpressionColumn(c.to) {
 			return x, nil
 		}
 		if strings.ContainsRune(x, 0) {
@@ -347,6 +400,15 @@ func (l *Loader) literal(c loadColumn, v any) (string, error) {
 // timeLiteral writes a date or a time, with an offset for an instant when the
 // product reads one.
 func (l *Loader) timeLiteral(kind Kind, t time.Time) (string, error) {
+	text, err := l.timeText(kind, t)
+	if err != nil || l.dst.TimeLiteral == nil {
+		return text, err
+	}
+	return l.dst.TimeLiteral(kind, text), nil
+}
+
+// timeText writes a date or a time as quoted text.
+func (l *Loader) timeText(kind Kind, t time.Time) (string, error) {
 	// A time of day has no year, and a driver gives it year 0 or 1.
 	if kind != TimeOfDay && kind != TimeOfDayOffset && (t.Year() < 1 || t.Year() > 9999) {
 		return "", fmt.Errorf("the year %d is outside the years that dump writes: %w", t.Year(), ErrBadValue)
@@ -366,4 +428,15 @@ func (l *Loader) timeLiteral(kind Kind, t time.Time) (string, error) {
 		return "'" + t.Format("2006-01-02 15:04:05.999999999") + "+00:00'", nil
 	}
 	return "'" + t.Format("2006-01-02 15:04:05.999999999") + "'", nil
+}
+
+// sourceValue gives the value of a column as the loader reads it: the instant
+// that a source with a session clock meant, and the bytes of a uuid in the order
+// of its text for a source whose driver gives them in the order of the product.
+func (l *Loader) sourceValue(c loadColumn, v any) any {
+	v = l.sessionClock(c, v)
+	if b, ok := v.([]byte); ok && len(b) == 16 && c.from.Kind == UUID && l.src.MixedEndianUUID {
+		return []byte{b[3], b[2], b[1], b[0], b[5], b[4], b[7], b[6], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}
+	}
+	return v
 }

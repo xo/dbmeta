@@ -102,6 +102,25 @@ func storageOptions(alias string) string {
 		` + ` + compression + `, 1, 2, ''), '')`
 }
 
+// declaredType writes the SQL that gives the name of a type with its length,
+// precision and scale. name is the SQL that gives the base type name, and props
+// is the alias of the row that holds max_length, precision and scale: the column,
+// or the alias type that is built on the base type.
+func declaredType(name, props string) string {
+	return name + ` + CASE` +
+		` WHEN ` + name + ` IN ('varchar', 'char', 'varbinary', 'binary')` +
+		`  THEN '(' + CASE WHEN ` + props + `.max_length = -1 THEN 'max'` +
+		`   ELSE CAST(` + props + `.max_length AS varchar(8)) END + ')'` +
+		` WHEN ` + name + ` IN ('nvarchar', 'nchar')` +
+		`  THEN '(' + CASE WHEN ` + props + `.max_length = -1 THEN 'max'` +
+		`   ELSE CAST(` + props + `.max_length / 2 AS varchar(8)) END + ')'` +
+		` WHEN ` + name + ` IN ('decimal', 'numeric')` +
+		`  THEN '(' + CAST(` + props + `.precision AS varchar(8)) + ',' + CAST(` + props + `.scale AS varchar(8)) + ')'` +
+		` WHEN ` + name + ` IN ('datetime2', 'datetimeoffset', 'time')` +
+		`  THEN '(' + CAST(` + props + `.scale AS varchar(8)) + ')'` +
+		` ELSE '' END`
+}
+
 func registerRelations() {
 	dbmeta.Schemas.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Schema]{
 		Stmt: dbmeta.Stmt{
@@ -235,11 +254,20 @@ func registerRelations() {
 				{Query: `, CAST(NULL AS bit) AS "row_security_forced"`},
 				{Min: v13, Query: `, ` + rowSecurity("t.object_id") + ` AS "row_security_forced"`},
 			},
+			{
+				{Query: `, CAST(NULL AS nvarchar(128)) AS "history_schema", CAST(NULL AS nvarchar(128)) AS "history_table"`},
+				{Min: v13, Query: `, hs.name AS "history_schema", ht.name AS "history_table"`},
+			},
 			always(`FROM sys.tables t`),
 			always(`JOIN sys.schemas s ON s.schema_id = t.schema_id`),
 			always(`LEFT JOIN sys.database_principals sp ON sp.principal_id = s.principal_id`),
 			// A table is a heap, index 0, or has a clustered index, index 1,
 			// and never both. A clustered columnstore index is index 1.
+			{
+				{Query: ``},
+				{Min: v13, Query: `LEFT JOIN sys.tables ht ON ht.object_id = t.history_table_id` +
+					` LEFT JOIN sys.schemas hs ON hs.schema_id = ht.schema_id`},
+			},
 			always(`LEFT JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id IN (0, 1)`),
 			always(joinParts(`pt.object_id = t.object_id AND pt.index_id = i.index_id`)),
 			{
@@ -261,6 +289,7 @@ func registerRelations() {
 				{Query: `, CAST(NULL AS bit), CAST(NULL AS bit)`},
 				{Min: v13, Query: `, ` + rowSecurity("v.object_id") + `, ` + rowSecurity("v.object_id")},
 			},
+			always(`, CAST(NULL AS nvarchar(128)), CAST(NULL AS nvarchar(128))`),
 			always(`FROM sys.views v`),
 			always(`JOIN sys.schemas s ON s.schema_id = v.schema_id`),
 			always(`LEFT JOIN sys.database_principals sp ON sp.principal_id = s.principal_id`),
@@ -303,13 +332,22 @@ func registerRelations() {
 				Name: "row_security_forced", Min: v13,
 				Desc: "the same value: a security predicate applies to the owner and to a sysadmin",
 			},
+			{
+				Name: "history_schema", Min: v13,
+				Desc: "the schema of the history table of a system versioned table, and absent for any other table or view",
+			},
+			{
+				Name: "history_table", Min: v13,
+				Desc: "the history table of a system versioned table, and absent for any other table or view",
+			},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
 				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows,
-				&v.Options, &v.RowSecurity, &v.RowSecurityForced)
+				&v.Options, &v.RowSecurity, &v.RowSecurityForced,
+				&v.HistorySchema, &v.HistoryTable)
 			return v, err
 		},
 	})
@@ -320,23 +358,15 @@ func registerRelations() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT DB_NAME() AS "catalog"`),
 			always(`, s.name AS "schema"`),
-			always(`, o.name AS "table"`),
+			always(`, COALESCE(tt.name, o.name) AS "table"`),
 			always(`, c.name AS "name"`),
 			always(`, c.column_id AS "ordinal"`),
 			// The declared type with its length, precision and scale, which
-			// is what a person reads and what psql prints.
-			always(`, ty.name + CASE` +
-				` WHEN ty.name IN ('varchar', 'char', 'varbinary', 'binary')` +
-				`  THEN '(' + CASE WHEN c.max_length = -1 THEN 'max'` +
-				`   ELSE CAST(c.max_length AS varchar(8)) END + ')'` +
-				` WHEN ty.name IN ('nvarchar', 'nchar')` +
-				`  THEN '(' + CASE WHEN c.max_length = -1 THEN 'max'` +
-				`   ELSE CAST(c.max_length / 2 AS varchar(8)) END + ')'` +
-				` WHEN ty.name IN ('decimal', 'numeric')` +
-				`  THEN '(' + CAST(c.precision AS varchar(8)) + ',' + CAST(c.scale AS varchar(8)) + ')'` +
-				` WHEN ty.name IN ('datetime2', 'datetimeoffset', 'time')` +
-				`  THEN '(' + CAST(c.scale AS varchar(8)) + ')'` +
-				` ELSE '' END AS "data_type"`),
+			// is what a person reads and what psql prints. A type that a
+			// person made, an alias or a CLR type, carries its schema, because
+			// a script needs it to find the type again.
+			always(`, CASE WHEN ty.is_user_defined = 1 THEN QUOTENAME(ts.name) + '.' + QUOTENAME(ty.name)` +
+				` ELSE ` + declaredType("ty.name", "c") + ` END AS "data_type"`),
 			always(`, c.is_nullable AS "nullable"`),
 			// A computed column has no default, so its expression takes the place.
 			always(`, CASE WHEN c.is_computed = 1 THEN cc.definition ELSE d.definition END AS "default"`),
@@ -346,22 +376,40 @@ func registerRelations() {
 				` WHERE i.is_primary_key = 1 AND ic.object_id = c.object_id` +
 				` AND ic.column_id = c.column_id) THEN 1 ELSE 0 END AS bit) AS "primary_key"`),
 			always(`, CASE WHEN c.is_identity = 1 THEN 'identity' ELSE NULL END AS "identity"`),
-			always(`, CASE WHEN c.is_computed = 1 THEN` +
-				` CASE WHEN cc.is_persisted = 1 THEN 'stored' ELSE 'virtual' END` +
-				` ELSE NULL END AS "generated"`),
+			// generated_always_type arrived in 2016, with temporal tables. A
+			// rowversion column is one the server fills, and the type is named
+			// timestamp in the catalog.
+			{
+				{Query: `, CASE WHEN c.is_computed = 1 THEN` +
+					` CASE WHEN cc.is_persisted = 1 THEN 'stored' ELSE 'virtual' END` +
+					` WHEN ty.name = 'timestamp' THEN 'rowversion'` +
+					` ELSE NULL END AS "generated"`},
+				{Min: v13, Query: `, CASE WHEN c.is_computed = 1 THEN` +
+					` CASE WHEN cc.is_persisted = 1 THEN 'stored' ELSE 'virtual' END` +
+					` WHEN c.generated_always_type = 1 THEN 'row start'` +
+					` WHEN c.generated_always_type = 2 THEN 'row end'` +
+					` WHEN ty.name = 'timestamp' THEN 'rowversion'` +
+					` ELSE NULL END AS "generated"`},
+			},
 			always(`, ` + columnComment("c.object_id", "c.column_id") + ` AS "comment"`),
-			always(`, c.collation_name AS "collation"`),
+			// A column of an alias type takes the collation of the database, and
+			// the server refuses a COLLATE clause on it.
+			always(`, CASE WHEN ty.is_user_defined = 1 THEN NULL ELSE c.collation_name END AS "collation"`),
 			always(`FROM sys.columns c`),
 			always(`JOIN sys.objects o ON o.object_id = c.object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			always(`JOIN sys.types ty ON ty.user_type_id = c.user_type_id`),
+			always(`JOIN sys.schemas ts ON ts.schema_id = ty.schema_id`),
 			always(`LEFT JOIN sys.default_constraints d ON d.object_id = c.default_object_id`),
 			always(`LEFT JOIN sys.computed_columns cc` +
 				` ON cc.object_id = c.object_id AND cc.column_id = c.column_id`),
-			always(`WHERE o.type IN ('U', 'V')`),
+			// A table type has a table of its own, type TT, and its columns are
+			// here under the name of that table. The Types query names it.
+			always(`WHERE o.type IN ('U', 'V', 'TT')`),
 			always(`AND ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR c.name LIKE @name)`),
 			always(`ORDER BY 2, 3, 5`),
 		},
@@ -376,9 +424,12 @@ func registerRelations() {
 			{Name: "default", Desc: "the default expression as SQL Server stores it, in brackets, and for a computed column its expression"},
 			{Name: "primary_key"},
 			{Name: "identity", Desc: "identity for an IDENTITY column, and absent otherwise"},
-			{Name: "generated", Desc: "stored for a persisted computed column, virtual for one computed on read"},
+			{
+				Name: "generated",
+				Desc: "stored for a persisted computed column, virtual for one computed on read, row start or row end for a period column of a system versioned table, and rowversion for a column that the server numbers",
+			},
 			{Name: "comment"},
-			{Name: "collation", Desc: "the collation of a text column, and absent for any other"},
+			{Name: "collation", Desc: "the collation of a text column, and absent for any other and for a column of an alias type"},
 		},
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
@@ -394,7 +445,7 @@ func registerRelations() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT DB_NAME() AS "catalog"`),
 			always(`, s.name AS "schema"`),
-			always(`, o.name AS "table"`),
+			always(`, COALESCE(tt.name, o.name) AS "table"`),
 			always(`, i.name AS "name"`),
 			always(`, LOWER(i.type_desc) AS "type"`),
 			always(`, i.is_unique AS "unique"`),
@@ -403,8 +454,8 @@ func registerRelations() {
 			// The index of a temporary table is temporary, and the index of a
 			// memory optimized table that keeps its schema only is unlogged.
 			{
-				{Query: `, CASE WHEN ` + isTemporary("o.name") + ` THEN 'temporary' ELSE 'permanent' END AS "persistence"`},
-				{Min: v12, Query: `, CASE WHEN ` + isTemporary("o.name") + ` THEN 'temporary'` +
+				{Query: `, CASE WHEN ` + isTemporary("COALESCE(tt.name, o.name)") + ` THEN 'temporary' ELSE 'permanent' END AS "persistence"`},
+				{Min: v12, Query: `, CASE WHEN ` + isTemporary("COALESCE(tt.name, o.name)") + ` THEN 'temporary'` +
 					` WHEN t.durability = 1 THEN 'unlogged' ELSE 'permanent' END AS "persistence"`},
 			},
 			{
@@ -432,7 +483,8 @@ func registerRelations() {
 			always(`, CASE WHEN i.is_primary_key = 1 THEN 'p' WHEN i.is_unique_constraint = 1 THEN 'u' END AS "constraint_type"`),
 			always(`FROM sys.indexes i`),
 			always(`JOIN sys.objects o ON o.object_id = i.object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			{
 				{Query: ``},
 				{Min: v12, Query: `LEFT JOIN sys.tables t ON t.object_id = i.object_id`},
@@ -446,7 +498,7 @@ func registerRelations() {
 			always(`WHERE i.index_id > 0 AND i.name IS NOT NULL`),
 			always(`AND ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR i.name LIKE @name)`),
 			always(`ORDER BY 2, 3, 4`),
 		},
@@ -488,7 +540,7 @@ func registerRelations() {
 	dbmeta.IndexColumns.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.IndexColumn]{
 		Stmt: dbmeta.Stmt{
 			always(`SELECT s.name AS "schema"`),
-			always(`, o.name AS "table"`),
+			always(`, COALESCE(tt.name, o.name) AS "table"`),
 			always(`, i.name AS "index"`),
 			always(`, c.name AS "name"`),
 			always(`, ic.key_ordinal AS "ordinal"`),
@@ -500,12 +552,13 @@ func registerRelations() {
 			always(`FROM sys.index_columns ic`),
 			always(`JOIN sys.indexes i ON i.object_id = ic.object_id AND i.index_id = ic.index_id`),
 			always(`JOIN sys.objects o ON o.object_id = ic.object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			always(`JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id`),
 			always(`WHERE i.name IS NOT NULL`),
 			always(`AND ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR i.name LIKE @name)`),
 			always(`ORDER BY 1, 2, 3, 5`),
 		},
@@ -699,7 +752,7 @@ func registerConstraints() {
 			// a primary key or a unique constraint, which SQL Server records
 			// as a key constraint backed by an index
 			always(`SELECT s.name AS "schema"`),
-			always(`, o.name AS "table"`),
+			always(`, COALESCE(tt.name, o.name) AS "table"`),
 			always(`, k.name AS "name"`),
 			always(`, CASE k.type WHEN 'PK' THEN 'primary key' ELSE 'unique' END AS "type"`),
 			always(`, NULL AS "definition"`),
@@ -711,51 +764,55 @@ func registerConstraints() {
 			always(`, NULL AS "on_delete"`),
 			always(`FROM sys.key_constraints k`),
 			always(`JOIN sys.objects o ON o.object_id = k.parent_object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR k.name LIKE @name)`),
 
 			always(`UNION ALL`),
-			always(`SELECT s.name, o.name, f.name, 'foreign key', NULL,` +
+			always(`SELECT s.name, COALESCE(tt.name, o.name), f.name, 'foreign key', NULL,` +
 				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("f.object_id") +
 				`, CAST(CASE WHEN f.is_disabled = 1 THEN 0 ELSE 1 END AS bit)` +
 				`, REPLACE(f.update_referential_action_desc, '_', ' ')` +
 				`, REPLACE(f.delete_referential_action_desc, '_', ' ')`),
 			always(`FROM sys.foreign_keys f`),
 			always(`JOIN sys.objects o ON o.object_id = f.parent_object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR f.name LIKE @name)`),
 
 			always(`UNION ALL`),
-			always(`SELECT s.name, o.name, c.name, 'check', c.definition,` +
+			always(`SELECT s.name, COALESCE(tt.name, o.name), c.name, 'check', c.definition,` +
 				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("c.object_id") +
 				`, CAST(CASE WHEN c.is_disabled = 1 THEN 0 ELSE 1 END AS bit), NULL, NULL`),
 			always(`FROM sys.check_constraints c`),
 			always(`JOIN sys.objects o ON o.object_id = c.parent_object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR c.name LIKE @name)`),
 
 			// A default is a named constraint here, which no other database
 			// models. It is reported, because a caller reading \d name does
 			// see it in the DDL and Column.Default holds the same expression.
 			always(`UNION ALL`),
-			always(`SELECT s.name, o.name, d.name, 'default', d.definition,` +
+			always(`SELECT s.name, COALESCE(tt.name, o.name), d.name, 'default', d.definition,` +
 				` CAST(0 AS bit), CAST(0 AS bit), ` + commentOn("d.object_id") +
 				`, CAST(1 AS bit), NULL, NULL`),
 			always(`FROM sys.default_constraints d`),
 			always(`JOIN sys.objects o ON o.object_id = d.parent_object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR d.name LIKE @name)`),
 			always(`ORDER BY 1, 2, 4, 3`),
 		},
@@ -799,7 +856,7 @@ func registerConstraints() {
 		Stmt: dbmeta.Stmt{
 			always(`SELECT DB_NAME() AS "catalog"`),
 			always(`, s.name AS "schema"`),
-			always(`, o.name AS "table"`),
+			always(`, COALESCE(tt.name, o.name) AS "table"`),
 			always(`, k.name AS "constraint"`),
 			always(`, c.name AS "name"`),
 			always(`, CAST(ic.key_ordinal AS bigint) AS "ordinal"`),
@@ -809,24 +866,26 @@ func registerConstraints() {
 			always(`, NULL AS "foreign_name"`),
 			always(`FROM sys.key_constraints k`),
 			always(`JOIN sys.objects o ON o.object_id = k.parent_object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			always(`JOIN sys.index_columns ic` +
 				` ON ic.object_id = k.parent_object_id AND ic.index_id = k.unique_index_id`),
 			always(`JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id`),
 			always(`WHERE ic.is_included_column = 0`),
 			always(`AND ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR k.name LIKE @name)`),
 
 			always(`UNION ALL`),
-			always(`SELECT DB_NAME(), s.name, o.name, f.name, c.name,` +
+			always(`SELECT DB_NAME(), s.name, COALESCE(tt.name, o.name), f.name, c.name,` +
 				` CAST(fc.constraint_column_id AS bigint),` +
 				` DB_NAME(), rs.name, ro.name, rc.name`),
 			always(`FROM sys.foreign_keys f`),
 			always(`JOIN sys.foreign_key_columns fc ON fc.constraint_object_id = f.object_id`),
 			always(`JOIN sys.objects o ON o.object_id = fc.parent_object_id`),
-			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
+			always(`JOIN sys.schemas s ON s.schema_id = COALESCE(tt.schema_id, o.schema_id)`),
 			always(`JOIN sys.columns c ON c.object_id = fc.parent_object_id AND c.column_id = fc.parent_column_id`),
 			always(`JOIN sys.objects ro ON ro.object_id = fc.referenced_object_id`),
 			always(`JOIN sys.schemas rs ON rs.schema_id = ro.schema_id`),
@@ -834,7 +893,7 @@ func registerConstraints() {
 				` ON rc.object_id = fc.referenced_object_id AND rc.column_id = fc.referenced_column_id`),
 			always(`WHERE ` + notSystem),
 			always(`AND (@schema = '' OR s.name LIKE @schema)`),
-			always(`AND (@parent = '' OR o.name LIKE @parent)`),
+			always(`AND (@parent = '' OR COALESCE(tt.name, o.name) LIKE @parent)`),
 			always(`AND (@name = '' OR f.name LIKE @name)`),
 			always(`ORDER BY 2, 3, 4, 6`),
 		},

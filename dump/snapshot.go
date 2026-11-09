@@ -65,7 +65,16 @@ type Schema struct {
 	// Composites are the composite types that a person made, which are not the row
 	// type of a table.
 	Composites []Composite `json:"composites,omitempty"`
-	Routines   []Routine   `json:"routines,omitempty"`
+	// Synonyms are other names for objects, for a product that has them.
+	Synonyms []Synonym `json:"synonyms,omitempty"`
+	// Collections are the collection types of Oracle: a varray or a nested table
+	// of one element type.
+	Collections []Collection `json:"collections,omitempty"`
+	// TableTypes are the table types of SQL Server, which a routine takes as a
+	// parameter. A table type has columns, keys and indexes like a table, and it
+	// holds no rows.
+	TableTypes []Table   `json:"table_types,omitempty"`
+	Routines   []Routine `json:"routines,omitempty"`
 }
 
 // Extension is an installed extension.
@@ -99,6 +108,25 @@ type Composite struct {
 	Columns []Column `json:"columns"`
 }
 
+// Synonym is another name for an object. The object need not exist.
+type Synonym struct {
+	Name string `json:"name"`
+	// TargetSchema and Target name the object. The database and the server are empty
+	// for an object of this database and server.
+	TargetSchema   string `json:"target_schema,omitempty"`
+	Target         string `json:"target"`
+	TargetDatabase string `json:"target_database,omitempty"`
+	TargetServer   string `json:"target_server,omitempty"`
+}
+
+// Collection is a collection type, a varray or a nested table, with the name of
+// its element type. A client that moves a value of such a type needs the element.
+type Collection struct {
+	Name string `json:"name"`
+	// Element is the name of the element type, as the source writes it.
+	Element string `json:"element"`
+}
+
 // Table is a table with what belongs to it.
 type Table struct {
 	Name    string `json:"name"`
@@ -112,6 +140,10 @@ type Table struct {
 	// such a table belong to its parent, and a client does not read them again.
 	// See [Table.IsPartition].
 	PartitionOf *PartitionOf `json:"partition_of,omitempty"`
+	// Versioning is set for a system versioned table, and is nil for any other.
+	// The history table is a table of the snapshot, and a client loads its rows
+	// like those of any table. See [Versioning].
+	Versioning *Versioning `json:"versioning,omitempty"`
 
 	Columns     []Column     `json:"columns"`
 	Constraints []Constraint `json:"constraints,omitempty"`
@@ -123,6 +155,19 @@ type Table struct {
 // snapshot. The parent holds its rows, and a client that reads the rows of every
 // table leaves this one out, because the rows of the parent already include them.
 func (t Table) IsPartition() bool { return t.PartitionOf != nil }
+
+// Versioning says that a table keeps its history, as a system versioned table of
+// SQL Server does. The server moves a row that an update or a delete replaced to
+// the history table, and the period columns say when the row held.
+type Versioning struct {
+	// Schema and Table name the history table.
+	Schema string `json:"schema"`
+	Table  string `json:"table"`
+	// Start and End name the period columns, which hold the instants that a row
+	// began and ended. The history table has columns of the same names.
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
 
 // Partitioning is how a table is split into partitions.
 type Partitioning struct {
@@ -257,6 +302,9 @@ type View struct {
 	// Materialized says that the view keeps its rows, as a materialized view of
 	// PostgreSQL does. It is built after the rows of its tables are loaded.
 	Materialized bool `json:"materialized,omitempty"`
+	// Options are the clauses that follow the name of a materialized view, such as
+	// BUILD IMMEDIATE REFRESH COMPLETE ON DEMAND, for a product that has them.
+	Options string `json:"options,omitempty"`
 	// Indexes are the indexes of a materialized view, which a plain view has none
 	// of.
 	Indexes []Index `json:"indexes,omitempty"`

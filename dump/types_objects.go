@@ -34,6 +34,15 @@ func (g *generator) customTypes() {
 				all = append(all, customType{sc.Name, c.Name, strings.Join(uses, " "), g.style.Composite(g.qualified(sc.Name, c.Name), c, g.style.Quote)})
 			}
 		}
+		if g.style.TableType != nil {
+			for _, t := range sc.TableTypes {
+				var uses []string
+				for _, col := range t.Columns {
+					uses = append(uses, col.Type.Raw)
+				}
+				all = append(all, customType{sc.Name, t.Name, strings.Join(uses, " "), g.tableType(sc.Name, t)})
+			}
+		}
 	}
 	state := make([]int, len(all))
 	var visit func(i int)
@@ -88,4 +97,40 @@ func (g *generator) typeComments() {
 			}
 		}
 	}
+}
+
+// tableType writes a table type from its columns and its keys. The same product
+// reads the type of each column as the source wrote it. A key that has a name of
+// its own in the source has none here, because the server names it.
+func (g *generator) tableType(schema string, t Table) string {
+	q, lit := g.style.Quote, g.style.Literal
+	var parts []string
+	pk := map[string]bool{}
+	for _, c := range t.Constraints {
+		if c.Kind == "primary key" {
+			for _, name := range c.Columns {
+				pk[name] = true
+			}
+		}
+	}
+	for _, c := range t.Columns {
+		if pk[c.Name] {
+			c.Nullable = false
+		}
+		if g.style.Column != nil {
+			parts = append(parts, g.style.Column(c, c.Type.Raw, q, lit))
+		} else {
+			parts = append(parts, genericColumn(c, c.Type.Raw, q))
+		}
+	}
+	for _, c := range t.Constraints {
+		c.Name = ""
+		switch c.Kind {
+		case "primary key", "unique", "check":
+			if text, ok := g.constraintSQL(schema, t, c); ok {
+				parts = append(parts, text)
+			}
+		}
+	}
+	return g.style.TableType(g.qualified(schema, t.Name), parts, t, q)
 }

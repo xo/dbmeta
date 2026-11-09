@@ -89,6 +89,14 @@ type reader struct {
 	// columns are the columns that readColumns read, in order of position, which
 	// the composite types are made from too.
 	columns []dbmeta.Column
+	// tableTypes are the table types, which the columns, the constraints and the
+	// indexes of their tables fill in, keyed by the name of the table that holds
+	// them.
+	tableTypes map[tableKey]*Table
+	// source is the source of the stored objects of a product that keeps it by line.
+	source map[sourceKey]string
+	// skipped are the objects that readObjects saw and did not read.
+	skipped []Skipped
 
 	m      *dbmeta.Meta
 	db     dbmeta.Queryer
@@ -204,17 +212,43 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 
 	kept := map[tableKey]*Table{}
 	views := map[tableKey]*View{}
+	// A product that lists its materialized views apart keeps their rows in a table
+	// of the same name, which is no table of the dump.
+	mviews := map[tableKey]dbmeta.MaterializedView{}
+	if dbmeta.MaterializedViews.Support(r.m) == dbmeta.Supported {
+		rows, err := collect(dbmeta.MaterializedViews.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading materialized views: %w", err)
+		}
+		for _, v := range rows {
+			if r.wantTable(v.Schema, v.Name) {
+				mviews[tableKey{v.Schema, v.Name}] = v
+				if _, ok := names[v.Schema]; !ok {
+					names[v.Schema] = ""
+				}
+			}
+		}
+	}
 	for _, t := range tables {
 		// The extension that owns a relation makes it again.
 		if !r.wantTable(t.Schema, t.Name) || t.Extension.Valid {
 			continue
 		}
 		s := byName[t.Schema]
+		if _, isView := mviews[tableKey{t.Schema, t.Name}]; isView {
+			continue
+		}
 		switch kind := strings.ToLower(strings.TrimSpace(t.Type)); kind {
 		case "table", "base table":
 			s.Tables = append(s.Tables, Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}})
 		case "partitioned table":
 			s.Tables = append(s.Tables, Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}})
+		case "system versioned table":
+			tb := Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}}
+			if t.HistoryTable.Valid {
+				tb.Versioning = &Versioning{Schema: text(t.HistorySchema), Table: t.HistoryTable.V}
+			}
+			s.Tables = append(s.Tables, tb)
 		case "view":
 			s.Views = append(s.Views, View{Name: t.Name, Comment: text(t.Comment)})
 		case "materialized view":
@@ -224,6 +258,12 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 		default:
 			snap.Skipped = append(snap.Skipped, Skipped{Schema: t.Schema, Name: t.Name, Kind: kind,
 				Reason: "this kind of relation is not read"})
+		}
+	}
+	for _, v := range mviews {
+		if s, ok := byName[v.Schema]; ok {
+			s.Views = append(s.Views, View{Name: v.Name, Comment: text(v.Comment), Materialized: true,
+				Definition: strings.TrimSpace(text(v.Definition)), Options: text(v.Options)})
 		}
 	}
 	// Pointers into the slices are taken after the last append.
@@ -241,9 +281,13 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	if err := r.readPartitions(ctx, a, kept, snap); err != nil {
 		return err
 	}
+	if err := r.readTableTypes(ctx, a, kept); err != nil {
+		return err
+	}
 	if err := r.readColumns(ctx, a, kept); err != nil {
 		return err
 	}
+	r.readVersioning(kept, snap)
 	if err := r.readConstraints(ctx, a, kept); err != nil {
 		return err
 	}
@@ -262,9 +306,27 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	if err := r.readExtensions(ctx, snap); err != nil {
 		return err
 	}
+	snap.Skipped = append(snap.Skipped, r.skipped...)
 	slices.SortFunc(snap.Skipped, func(a, b Skipped) int {
 		return cmp.Or(cmp.Compare(a.Schema, b.Schema), cmp.Compare(a.Name, b.Name))
 	})
+	return nil
+}
+
+// skipPartitionSchemes says which tables of SQL Server are laid out by a partition
+// scheme. A script does not write the partition function or the scheme, so each of
+// these tables is one table in the copy.
+func (r *reader) skipPartitionSchemes(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, snap *Snapshot) error {
+	parents, err := collect(dbmeta.PartitionedTables.Each(ctx, r.m, r.db, a))
+	if err != nil {
+		return fmt.Errorf("reading partitioned tables: %w", err)
+	}
+	for _, p := range parents {
+		if _, ok := kept[tableKey{p.Schema, p.Name}]; ok {
+			snap.Skipped = append(snap.Skipped, Skipped{Schema: p.Schema, Name: p.Name, Kind: "partition scheme",
+				Reason: "the partition function and the scheme " + p.Expression + " are not written, so the table is one table"})
+		}
+	}
 	return nil
 }
 
@@ -274,7 +336,10 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 // partitioned table and is not one of these two is read as a plain table.
 func (r *reader) readPartitions(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, snap *Snapshot) error {
 	d := r.m.Dialect()
-	if d != dbmeta.PostgreSQL && d != dbmeta.MySQL {
+	if d == dbmeta.SQLServer {
+		return r.skipPartitionSchemes(ctx, a, kept, snap)
+	}
+	if d != dbmeta.PostgreSQL && d != dbmeta.MySQL && d != dbmeta.Oracle {
 		return nil
 	}
 	parents, err := collect(dbmeta.PartitionedTables.Each(ctx, r.m, r.db, a))
@@ -360,6 +425,61 @@ func (r *reader) readColumns(ctx context.Context, a dbmeta.Args, kept map[tableK
 	return nil
 }
 
+// readTableTypes makes a place for each table type of SQL Server. Its columns,
+// keys and indexes are in the catalog under the name of the table that holds the
+// type, so the readers that fill a table fill it too.
+func (r *reader) readTableTypes(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
+	if r.m.Dialect() != dbmeta.SQLServer {
+		return nil
+	}
+	types, err := collect(dbmeta.Types.Each(ctx, r.m, r.db, a))
+	if err != nil {
+		return fmt.Errorf("reading types: %w", err)
+	}
+	r.tableTypes = map[tableKey]*Table{}
+	for _, t := range types {
+		if strings.ToLower(t.Kind) != "table" || !r.wantSchema(t.Schema) {
+			continue
+		}
+		tb := &Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}}
+		k := tableKey{t.Schema, t.Internal}
+		r.tableTypes[k] = tb
+		kept[k] = tb
+	}
+	return nil
+}
+
+// readVersioning finds the period columns of each system versioned table. A table
+// whose history table is not in the snapshot, or that has no period columns, is
+// written as a plain table, and the snapshot says so.
+func (r *reader) readVersioning(kept map[tableKey]*Table, snap *Snapshot) {
+	for i := range snap.Schemas {
+		sc := &snap.Schemas[i]
+		for j := range sc.Tables {
+			t := &sc.Tables[j]
+			v := t.Versioning
+			if v == nil {
+				continue
+			}
+			for _, c := range t.Columns {
+				switch c.Generated {
+				case "row start":
+					v.Start = c.Name
+				case "row end":
+					v.End = c.Name
+				}
+			}
+			_, found := kept[tableKey{v.Schema, v.Table}]
+			if found && v.Start != "" && v.End != "" {
+				continue
+			}
+			t.Versioning = nil
+			snap.Skipped = append(snap.Skipped, Skipped{Schema: sc.Name, Name: t.Name, Kind: "system versioning",
+				Reason: "the history table or the period columns were not read, so the table is a plain table"})
+		}
+	}
+}
+
 // column reads a column of a table or of a composite type.
 func (r *reader) column(c dbmeta.Column) (Column, error) {
 	typ, err := ParseType(r.m.Dialect(), c.DataType)
@@ -375,6 +495,24 @@ func (r *reader) column(c dbmeta.Column) (Column, error) {
 	if c.Default.Valid {
 		d := c.Default.V
 		col.Default = &d
+	}
+	if r.m.Dialect() == dbmeta.Oracle {
+		// The default of an identity column reads the sequence that Oracle made for
+		// it, and the sequence is made again with the column.
+		if col.Identity != "" {
+			col.Default = nil
+		}
+		if strings.EqualFold(col.Generated, "yes") {
+			col.Generated = "virtual"
+		}
+		// A column that follows the collation of the session has no collation of its own.
+		if strings.EqualFold(col.Collation, "USING_NLS_COMP") {
+			col.Collation = ""
+		}
+		if col.Default != nil {
+			d := strings.TrimSpace(*col.Default)
+			col.Default = &d
+		}
 	}
 	return col, nil
 }
@@ -528,10 +666,19 @@ func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[table
 	if err != nil {
 		return fmt.Errorf("reading triggers: %w", err)
 	}
+	source, err := r.sourceTexts(ctx, a)
+	if err != nil {
+		return err
+	}
 	for _, g := range rows {
 		if t, ok := kept[tableKey{g.Schema, g.Table}]; ok {
+			def := g.Definition
+			// A product that keeps its source by line has the whole statement there.
+			if text, found := source[sourceKey{g.Schema, "trigger", g.Name}]; found {
+				def = "CREATE OR REPLACE " + strings.TrimSpace(text)
+			}
 			t.Triggers = append(t.Triggers, Trigger{
-				Name: g.Name, Enabled: g.Enabled, Definition: g.Definition, Comment: text(g.Comment),
+				Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment),
 			})
 		}
 	}
@@ -549,6 +696,10 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		return fmt.Errorf("reading sequences: %w", err)
 	}
 	for _, q := range seqs {
+		// Oracle makes a sequence for an identity column and drops it with the column.
+		if r.m.Dialect() == dbmeta.Oracle && strings.HasPrefix(q.Name, "ISEQ$$_") {
+			continue
+		}
 		if s, ok := schemas[q.Schema]; ok {
 			s.Sequences = append(s.Sequences, Sequence{
 				Name: q.Name, DataType: text(q.DataType), Start: text(q.Start), Minimum: text(q.Minimum),
@@ -575,8 +726,10 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 	// Only PostgreSQL has a domain or a composite type that a script can make
 	// again. Another product that names such a type is read as before.
 	own := r.m.Dialect() == dbmeta.PostgreSQL
+	// An alias type of SQL Server is a domain with no default and no check.
+	aliases := own || r.m.Dialect() == dbmeta.SQLServer
 	var doms []dbmeta.Domain
-	if own {
+	if aliases {
 		if doms, err = collect(dbmeta.Domains.Each(ctx, r.m, r.db, a)); err != nil {
 			return fmt.Errorf("reading domains: %w", err)
 		}
@@ -593,6 +746,17 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		}
 		byComposite[tableKey{c.Schema, c.Table}] = append(byComposite[tableKey{c.Schema, c.Table}], col)
 	}
+	attrs := map[tableKey][]dbmeta.TypeAttribute{}
+	if r.m.Dialect() == dbmeta.Oracle {
+		list, err := collect(dbmeta.TypeAttributes.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading type attributes: %w", err)
+		}
+		slices.SortStableFunc(list, func(x, y dbmeta.TypeAttribute) int { return cmp.Compare(x.Ordinal, y.Ordinal) })
+		for _, at := range list {
+			attrs[tableKey{at.Schema, at.Type}] = append(attrs[tableKey{at.Schema, at.Type}], at)
+		}
+	}
 	for _, t := range types {
 		s, ok := schemas[t.Schema]
 		// The extension that owns a type makes it again.
@@ -602,8 +766,28 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		switch kind := strings.ToLower(t.Kind); {
 		case kind == "enum":
 			s.Enums = append(s.Enums, Enum{Name: t.Internal, Values: byEnum[tableKey{t.Schema, t.Internal}]})
-		case !own:
-		case kind == "domain":
+		case r.m.Dialect() == dbmeta.SQLServer && kind == "table":
+			if tb, found := r.tableTypes[tableKey{t.Schema, t.Internal}]; found {
+				tb.Name = t.Name
+				s.TableTypes = append(s.TableTypes, *tb)
+			}
+		case r.m.Dialect() == dbmeta.SQLServer && kind != "alias":
+			r.skipped = append(r.skipped, Skipped{Schema: t.Schema, Name: t.Name, Kind: "type " + kind,
+				Reason: "this kind of type is not read"})
+		case r.m.Dialect() == dbmeta.Oracle && kind == "object":
+			cols := []Column{}
+			for _, at := range attrs[tableKey{t.Schema, t.Internal}] {
+				col, err := r.column(dbmeta.Column{Schema: t.Schema, Table: t.Internal, Name: at.Name, DataType: at.DataType, Nullable: true})
+				if err != nil {
+					return err
+				}
+				cols = append(cols, col)
+			}
+			s.Composites = append(s.Composites, Composite{Name: t.Internal, Comment: text(t.Comment), Columns: cols})
+		case r.m.Dialect() == dbmeta.Oracle && kind == "collection":
+			s.Collections = append(s.Collections, Collection{Name: t.Internal, Element: t.Elements})
+		case !aliases:
+		case kind == "domain" || kind == "alias":
 			if d, found := byDomain[tableKey{t.Schema, t.Internal}]; found {
 				dom := Domain{Name: d.Name, Type: d.DataType, Collation: d.Collation, NotNull: !d.Nullable,
 					Constraints: d.Constraints, Comment: text(d.Comment)}
@@ -613,7 +797,7 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 				}
 				s.Domains = append(s.Domains, dom)
 			}
-		case kind == "composite":
+		case kind == "composite" && own:
 			cols := byComposite[tableKey{t.Schema, t.Internal}]
 			if cols == nil {
 				cols = []Column{}
@@ -621,9 +805,31 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 			s.Composites = append(s.Composites, Composite{Name: t.Internal, Comment: text(t.Comment), Columns: cols})
 		}
 	}
+	for _, s := range schemas {
+		slices.SortFunc(s.TableTypes, func(x, y Table) int { return cmp.Compare(x.Name, y.Name) })
+	}
+	if dbmeta.Synonyms.Support(r.m) == dbmeta.Supported {
+		syns, err := collect(dbmeta.Synonyms.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading synonyms: %w", err)
+		}
+		for _, y := range syns {
+			if s, ok := schemas[y.Schema]; ok {
+				s.Synonyms = append(s.Synonyms, Synonym{Name: y.Name, TargetSchema: text(y.TargetSchema), Target: y.Target,
+					TargetDatabase: text(y.TargetDatabase), TargetServer: text(y.TargetServer)})
+			}
+		}
+	}
+	fromSource, err := r.readSourceRoutines(ctx, a, schemas)
+	if err != nil {
+		return err
+	}
 	fns, err := collect(dbmeta.Functions.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading routines: %w", err)
+	}
+	if fromSource {
+		fns = nil
 	}
 	for _, f := range fns {
 		if s, ok := schemas[f.Schema]; ok && !f.Extension.Valid {
@@ -642,8 +848,11 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		slices.SortFunc(s.Enums, func(x, y Enum) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Domains, func(x, y Domain) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Composites, func(x, y Composite) int { return cmp.Compare(x.Name, y.Name) })
+		slices.SortFunc(s.Collections, func(x, y Collection) int { return cmp.Compare(x.Name, y.Name) })
+		slices.SortFunc(s.Synonyms, func(x, y Synonym) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Routines, func(x, y Routine) int {
-			return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.Arguments, y.Arguments))
+			return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.Arguments, y.Arguments),
+				cmp.Compare(slices.Index(routineKinds, x.Kind), slices.Index(routineKinds, y.Kind)))
 		})
 	}
 	return nil

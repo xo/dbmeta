@@ -20,7 +20,7 @@
 //
 // # What it answers
 //
-// 26 of the 68. Schemas and databases, tables, columns, views, indexes, index
+// 26 of the 72. Schemas and databases, tables, columns, views, indexes, index
 // columns, constraints, comments, partitioned tables, partitions, row
 // policies, types, collations,
 // settings, roles, role grants, privileges, functions, aggregates,

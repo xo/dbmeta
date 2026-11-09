@@ -97,6 +97,10 @@ func parseType(text string) (dump.Type, error) {
 		return dump.Type{Kind: dump.UUID}, nil
 	case "geography", "geometry":
 		return dump.Type{Kind: dump.Geometry}, nil
+	case "hierarchyid":
+		// The value is the binary form of the type. The server reads it back
+		// through a cast, and another product keeps the bytes.
+		return dump.Type{Kind: dump.Binary}, nil
 	}
 	return dump.Type{Kind: dump.Other}, nil
 }

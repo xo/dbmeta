@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Values. A driver gives a column as nil, int64, float64, bool, []byte, string or
@@ -131,6 +132,11 @@ func Convert(v any, from, to Type) (any, error) {
 		return nil, fmt.Errorf("%v is not text: %w", v, ErrBadValue)
 	}
 	_ = from
+	// A value that is not text is binary. A spatial value of SQL Server is the
+	// binary form of the type, and the target reads it as binary.
+	if b, ok := v.([]byte); ok && isBinary(b) {
+		return b, nil
+	}
 	if s, ok := valueText(v); ok {
 		return s, nil
 	}
@@ -287,4 +293,18 @@ func toUUID(v any) (any, error) {
 	}
 	s = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(s), "-", ""))
 	return s[:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:], nil
+}
+
+// isBinary says that the bytes are not text: they hold a NUL or another control
+// character that text does not, or they are not UTF-8.
+func isBinary(b []byte) bool {
+	if !utf8.Valid(b) {
+		return true
+	}
+	for _, c := range b {
+		if c < 0x20 && c != '\t' && c != '\n' && c != '\r' {
+			return true
+		}
+	}
+	return false
 }

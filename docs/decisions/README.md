@@ -305,3 +305,6 @@ file.
 | [D284](D284-a-mysql-timestamp-is-the-clock-of-the-session.md) | A MySQL timestamp is the clock of the session | Decided |
 | [D285](D285-a-dump-writes-partitioned-tables-and-materialized-views.md) | A dump writes partitioned tables and materialized views | Decided |
 | [D286](D286-a-dump-writes-extensions-domains-and-composite-types.md) | A dump writes extensions, domains and composite types | Decided |
+| [D287](D287-a-dump-writes-system-versioned-tables-and-clr-values.md) | A dump writes system versioned tables and the values of CLR types | Decided |
+| [D288](D288-a-dump-writes-sql-server-alias-types-table-types-and-routines.md) | A dump writes SQL Server alias types, table types and routines in order | Decided |
+| [D289](D289-a-dump-of-oracle.md) | A dump of Oracle | Decided |
