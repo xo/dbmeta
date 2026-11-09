@@ -511,3 +511,25 @@ one principal besides the administrator, and a RAM user with rights on some tabl
 instance and not on others was not made (D241). The walks of Columns, Indexes and
 IndexColumns run one statement for each table, and the cost was measured on four tables only
 (D242). A column of an automatic key, whose Extra the model does not read, was not measured either.
+
+### What the dump fixture shows that a dump does not write yet
+
+`TestDumpFixtureRoundTrips` in the `test` module loads the dump fixture (D291), writes the
+script of its snapshot, runs it on an empty database and compares the two snapshots. The
+files in `test/testdata/dump_fixture/` hold what differs, and an empty file will mean a
+perfect copy. It covers PostgreSQL, SQL Server, MySQL and DuckDB. These gaps are known and
+not fixed.
+
+- PostgreSQL reads the constructor function of a range type and of its multirange as a
+  routine. The script writes it before the type, which fails, and every table after it
+  fails too. The reader must leave out a function that belongs to a range type.
+- MySQL writes the tables of the second database with no database name, so a dump of two
+  databases creates `people` of `dump_extra` in the first one. A view that calls a function
+  of another database fails for the same reason.
+- SQL Server writes a columnstore index with included columns, which it refuses. A disabled
+  trigger comes back enabled, and the order of triggers that `sp_settriggerorder` set is not
+  written back.
+- DuckDB does not read a macro, scalar or table, so a view that calls one fails.
+- Oracle and SQLite are not in the test. Oracle needs the two users renamed, as the northwind
+  copy test does, and SQLite needs its attached schema in the copy. The rows are not
+  compared by value either, and nothing fires a trigger or calls a function.

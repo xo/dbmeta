@@ -1,0 +1,42 @@
+statement failed: view core.named_a: Catalog Error: Table Function with name people_named does not exist!
+statement failed: view core.people_summary: Catalog Error: Scalar Function with name people_count does not exist!
+statement failed: view extra.both_counts: Catalog Error: Scalar Function with name people_count does not exist!
+the copy differs from the source:
+line 314
+  source:         },
+  copy:           }
+line 315
+  source:         {
+  copy:         ],
+line 316
+  source:           "name": "named_a",
+  copy:         "sequences": [
+line 317
+  source:           "definition": "CREATE VIEW core.named_a AS SELECT * FROM core.people_named('A%');"
+  copy:           {
+line 318
+  source:         },
+  copy:             "name": "people_seq",
+line 319
+  source:         {
+  copy:             "data_type": "BIGINT",
+line 320
+  source:           "name": "people_summary",
+  copy:             "start": "10",
+line 321
+  source:           "definition": "CREATE VIEW core.people_summary AS SELECT p.person_id, p.full_name, core.people_count() AS total FROM core.people AS p;"
+  copy:             "minimum": "1",
+line 322
+  source:         }
+  copy:             "maximum": "9223372036854775807",
+line 323
+  source:       ],
+  copy:             "increment": "5"
+line 324
+  source:       "sequences": [
+  copy:           }
+line 325
+  source:         {
+  copy:         ]
+...
+

@@ -1,0 +1,3 @@
+statement failed: table dump_extra.people: Error 1050 (42S01): Table 'people' already exists
+statement failed: table thing.thing: Error 1050 (42S01): Table 'thing' already exists
+statement failed: view dump_core.people_total: Error 1305 (42000): FUNCTION dbmeta_dump_core.person_count does not exist

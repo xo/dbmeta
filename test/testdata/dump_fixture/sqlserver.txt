@@ -1,0 +1,40 @@
+statement failed: index extra.people.cs_extra_people: mssql: The statement failed because a columnstore index cannot have included columns.   Create the columnstore index on the desired columns without specifying any included columns. (35311)
+the copy differs from the source:
+line 414
+  source:               "enabled": "disabled",
+  copy:                 "enabled": "enabled",
+line 737
+  source:               "name": "cs_extra_people",
+  copy:                 "name": "ix_extra_people_name",
+line 738
+  source:               "type": "nonclustered columnstore",
+  copy:                 "type": "nonclustered",
+line 741
+  source:                   "name": "age",
+  copy:                     "name": "email",
+line 745
+  source:                   "name": "score",
+  copy:                     "name": "name",
+line 746
+  source:                   "include": true
+  copy:                     "descending": true
+line 751
+  source:               "name": "ix_extra_people_name",
+  copy:                 "name": "pk_extra_people",
+line 752
+  source:               "type": "nonclustered",
+  copy:                 "type": "clustered",
+line 753
+  source:               "columns": [
+  copy:                 "unique": true,
+line 754
+  source:                 {
+  copy:                 "primary": true,
+line 755
+  source:                   "name": "email",
+  copy:                 "columns": [
+line 756
+  source:                   "include": true
+  copy:                   {
+...
+

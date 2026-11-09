@@ -129,5 +129,14 @@ database. It then makes four comparisons:
 4. What each object does: call each function, fire each trigger, and read the
    order of each enum and the next value of each sequence.
 
-It is not decided whether this test lives in dbmeta, in usql or in both. usql
-runs it with usql as the client, because the dump is a usql script.
+It is not decided whether the whole test lives in dbmeta, in usql or in both.
+usql runs it with usql as the client, because the dump is a usql script.
+
+dbmeta has the first comparison, as `TestDumpFixtureRoundTrips` in the `test`
+module. The fixture holds objects that a dump does not write yet, so the test
+does not stop at the first statement that fails. It writes down each statement
+that failed and each difference between the snapshots, and compares that text
+with a file in `test/testdata/dump_fixture/`. An empty file means a perfect
+copy. A line that goes away means that the dump got better. The test covers
+PostgreSQL, SQL Server, MySQL and DuckDB, and `docs/BACKLOG.md` lists the gaps
+that it shows.
