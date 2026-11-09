@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and Ken has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-128 of them amend or replace an earlier one, and a decision read without its
+129 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -272,12 +272,12 @@ file.
 | [D251](D251-clickhouse-reads-dollar-quoted-strings.md) | ClickHouse reads dollar quoted strings | Amends D143 and D250 |
 | [D252](D252-oracle-has-anonymous-blocks.md) | Oracle has anonymous blocks | Amends D143 |
 | [D253](D253-oracle-is-tested-on-xo-oracle.md) | Oracle is tested on xo/oracle | Amends D154 and D157, amended by D255 |
-| [D254](D254-dbrun-fixture-northwind-makes-a-database-with-variety.md) | dbrun fixture northwind makes a database with variety | Amends D244, amended by D256, D257 and D259 |
+| [D254](D254-dbrun-fixture-northwind-makes-a-database-with-variety.md) | dbrun fixture northwind makes a database with variety | Amends D244, amended by D256, D257, D259 and D290 |
 | [D255](D255-the-oracle-tables-statement-keeps-its-join-out-of-all-tables.md) | The Oracle tables statement keeps its join out of all_tables | Amends D253 |
 | [D256](D256-the-northwind-fixture-is-on-oracle-too.md) | The northwind fixture is on Oracle too | Amends D254, amended by D257 and D259 |
 | [D257](D257-the-northwind-values-agree-on-the-three-servers.md) | The northwind values agree on the three servers | Amends D254 and D256, amended by D259 |
 | [D258](D258-a-binary-value-prints-as-psql-prints-bytea.md) | A binary value prints as psql prints bytea | Amends D143, amended by D263 |
-| [D259](D259-usql-applies-the-fixtures-and-the-northwind-fixture-is-on-five-more-products.md) | usql applies the fixtures, and the northwind fixture is on five more products | Amends D254, D256 and D257 |
+| [D259](D259-usql-applies-the-fixtures-and-the-northwind-fixture-is-on-five-more-products.md) | usql applies the fixtures, and the northwind fixture is on five more products | Amends D254, D256 and D257, amended by D290 |
 | [D260](D260-the-movies-fixture-is-a-graph-on-neo4j.md) | The movies fixture is a graph on Neo4j | Decided |
 | [D261](D261-cypher-and-aql-have-no-dash-comments.md) | Cypher and AQL have no comment that starts with two dashes | Amends D143 |
 | [D262](D262-the-postgresql-model-gives-usql-what-psql-describe-needs.md) | The PostgreSQL model gives usql what psql describe needs | Amends D47 and D201 |
@@ -308,3 +308,4 @@ file.
 | [D287](D287-a-dump-writes-system-versioned-tables-and-clr-values.md) | A dump writes system versioned tables and the values of CLR types | Decided |
 | [D288](D288-a-dump-writes-sql-server-alias-types-table-types-and-routines.md) | A dump writes SQL Server alias types, table types and routines in order | Decided |
 | [D289](D289-a-dump-of-oracle.md) | A dump of Oracle | Decided |
+| [D290](D290-the-northwind-fixture-has-an-hr-schema-on-four-more-products.md) | The northwind fixture has an hr schema on four more products | Amends D254 and D259 |

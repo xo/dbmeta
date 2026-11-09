@@ -1,6 +1,6 @@
 # D259. usql applies the fixtures, and the northwind fixture is on five more products
 
-Status: Amends D254, D256 and D257.
+Status: Amends D254, D256 and D257, amended by D290.
 
 Ken decided on 2026-11-04 that the fixtures target usql, the command that
 applies a script, and not the command line client of each product. usql works

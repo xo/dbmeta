@@ -25,13 +25,16 @@ import (
 // product there is the Northwind database, and a second file with a schema
 // named hr that holds what Northwind lacks.
 //
-//go:embed northwind/postgres.sql northwind/postgres-hr.sql northwind/sqlserver.sql northwind/sqlserver-hr.sql northwind/oracle.sql northwind/oracle-hr.sql northwind/mysql.sql northwind/sqlite3.sql northwind/duckdb.sql northwind/firebird.sql northwind/hana.sql
+//go:embed northwind/postgres.sql northwind/postgres-hr.sql northwind/sqlserver.sql northwind/sqlserver-hr.sql northwind/oracle.sql northwind/oracle-hr.sql northwind/mysql.sql northwind/mysql-hr.sql northwind/mysql-only-hr.sql northwind/mariadb-only-hr.sql northwind/sqlite3.sql northwind/sqlite3-hr.sql northwind/duckdb.sql northwind/duckdb-hr.sql northwind/firebird.sql northwind/hana.sql
 var northwindFiles embed.FS
 
 // northwindSource names the files of a product, in the order they load, the
 // statement that counts the rows, and what runs before them.
 type northwindSource struct {
 	files []string
+	// more names files that only one flavor of the dialect applies, by the
+	// product, and they load after files.
+	more map[string][]string
 	// count is a query that returns the number of orders and the number of
 	// customers, so that a load is checked by what it left.
 	count string
@@ -58,15 +61,19 @@ var northwindSources = map[dbmeta.Dialect]northwindSource{
 		header: "ALTER SESSION SET CURRENT_SCHEMA = northwind;\n",
 	},
 	dbmeta.MySQL: {
-		files: []string{"northwind/mysql.sql"},
+		files: []string{"northwind/mysql.sql", "northwind/mysql-hr.sql"},
+		more: map[string][]string{
+			"mysql":   {"northwind/mysql-only-hr.sql"},
+			"mariadb": {"northwind/mariadb-only-hr.sql"},
+		},
 		count: "SELECT (SELECT COUNT(*) FROM orders), (SELECT COUNT(*) FROM customers)",
 	},
 	dbmeta.SQLite3: {
-		files: []string{"northwind/sqlite3.sql"},
+		files: []string{"northwind/sqlite3.sql", "northwind/sqlite3-hr.sql"},
 		count: "SELECT (SELECT COUNT(*) FROM orders), (SELECT COUNT(*) FROM customers)",
 	},
 	dbmeta.DuckDB: {
-		files: []string{"northwind/duckdb.sql"},
+		files: []string{"northwind/duckdb.sql", "northwind/duckdb-hr.sql"},
 		count: "SELECT (SELECT COUNT(*) FROM orders), (SELECT COUNT(*) FROM customers)",
 	},
 	dbmeta.Firebird: {
@@ -110,7 +117,8 @@ func doNorthwind(ctx context.Context, r runner, t target) error {
 	if err != nil {
 		return err
 	}
-	for _, name := range src.files {
+	files := slices.Concat(src.files, src.more[t.Product])
+	for _, name := range files {
 		b, err := northwindFiles.ReadFile(name)
 		if err != nil {
 			return fmt.Errorf("reading %s: %w", name, err)
@@ -133,7 +141,7 @@ func doNorthwind(ctx context.Context, r runner, t target) error {
 		where = "the file " + northwindFile(t)
 	}
 	fmt.Printf("  %-*s northwind: %d files, %d customers and %d orders, in %s\n",
-		nameWidth(), t.Name, len(src.files), customers, orders, where)
+		nameWidth(), t.Name, len(files), customers, orders, where)
 	return nil
 }
 
@@ -153,6 +161,8 @@ func northwindPrepare(ctx context.Context, t target) error {
 	case dbmeta.MySQL:
 		return runSteps(ctx, dsn, dialectDriver(t), []string{
 			"DROP DATABASE IF EXISTS " + northwindDatabase,
+			"DROP DATABASE IF EXISTS hr",
+			"DROP ROLE IF EXISTS northwind_reader",
 			"CREATE DATABASE " + northwindDatabase + " CHARACTER SET utf8mb4",
 		})
 	case dbmeta.SQLServer:

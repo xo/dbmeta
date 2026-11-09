@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -10,7 +11,7 @@ import (
 func TestEveryNorthwindFileIsEmbedded(t *testing.T) {
 	t.Parallel()
 	for d, src := range northwindSources {
-		for _, name := range src.files {
+		for _, name := range northwindAll(src) {
 			b, err := northwindFiles.ReadFile(name)
 			if err != nil {
 				t.Errorf("%s: reading %s: %v", d, name, err)
@@ -29,7 +30,7 @@ func TestEveryNorthwindFileIsEmbedded(t *testing.T) {
 func TestNorthwindFilesNeedOnlyUsql(t *testing.T) {
 	t.Parallel()
 	for d, src := range northwindSources {
-		for _, name := range src.files {
+		for _, name := range northwindAll(src) {
 			b, err := northwindFiles.ReadFile(name)
 			if err != nil {
 				t.Fatalf("%s: reading %s: %v", d, name, err)
@@ -50,4 +51,13 @@ func TestNorthwindProductsCount(t *testing.T) {
 	if got := len(northwindSources); got != 8 {
 		t.Errorf("the fixture is written for %d products, and the test expects 8", got)
 	}
+}
+
+// northwindAll is every file of a source, whichever product applies it.
+func northwindAll(src northwindSource) []string {
+	names := slices.Clone(src.files)
+	for _, more := range src.more {
+		names = append(names, more...)
+	}
+	return names
 }

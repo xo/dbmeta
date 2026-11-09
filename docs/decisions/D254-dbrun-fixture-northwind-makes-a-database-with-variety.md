@@ -1,6 +1,6 @@
 # D254. dbrun fixture northwind makes a database with variety
 
-Status: Amends D244, amended by D256, D257 and D259.
+Status: Amends D244, amended by D256, D257, D259 and D290.
 
 usql asked for a database with many kinds of objects, so that it can test its
 describe commands and other meta commands against more than two tables. Ken
