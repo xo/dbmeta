@@ -133,10 +133,11 @@ func (g *generator) qualified(schema, name string) string {
 }
 
 // severalDatabases reports that the snapshot holds more than one schema of a
-// product whose schema is its database. The statements name each database then,
+// product whose schema is its database and that makes a database with a statement.
+// A script for another product, and one for SQLite, which has one schema, never qualify. The statements name each database then,
 // because the connection of a script has one default database at most. See D293.
 func (g *generator) severalDatabases() bool {
-	return g.snap != nil && g.style.DefaultSchema == "*" && len(g.snap.Schemas) > 1
+	return g.snap != nil && !g.cross && g.style.DefaultSchema == "*" && g.style.CreateSchema != nil && len(g.snap.Schemas) > 1
 }
 
 // pre writes the statements that come before the rows.
