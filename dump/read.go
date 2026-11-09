@@ -306,6 +306,12 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	if err := r.readExtensions(ctx, snap); err != nil {
 		return err
 	}
+	// A user of Oracle that owns nothing is no schema of the database. The image
+	// makes OPS$ORACLE for operating system authentication, and a script that made
+	// it again fails.
+	if r.m.Dialect() == dbmeta.Oracle {
+		snap.Schemas = slices.DeleteFunc(snap.Schemas, func(s Schema) bool { return s.empty() })
+	}
 	snap.Skipped = append(snap.Skipped, r.skipped...)
 	slices.SortFunc(snap.Skipped, func(a, b Skipped) int {
 		return cmp.Or(cmp.Compare(a.Schema, b.Schema), cmp.Compare(a.Name, b.Name))

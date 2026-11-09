@@ -77,6 +77,12 @@ type Schema struct {
 	Routines   []Routine `json:"routines,omitempty"`
 }
 
+// empty reports whether the schema holds no object.
+func (s Schema) empty() bool {
+	return len(s.Tables)+len(s.Views)+len(s.Sequences)+len(s.Enums)+len(s.Domains)+len(s.Composites)+
+		len(s.Synonyms)+len(s.Collections)+len(s.TableTypes)+len(s.Routines) == 0
+}
+
 // Extension is an installed extension.
 type Extension struct {
 	Name string `json:"name"`
