@@ -4,8 +4,8 @@ Every decision this project made is a file in this folder, one per decision,
 named by its number and its title. This table is the index. Find the number
 here, then open the file.
 
-Each file opens with its status. "Decided" means Ken chose it. "Proposed"
-means an agent or a peer session suggested it and Ken has not confirmed it.
+Each file opens with its status. "Decided" means the maintainers chose it. "Proposed"
+means an agent or a peer session suggested it and a maintainer has not confirmed it.
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
@@ -186,7 +186,7 @@ file.
 | [D164](D164-surrealdb-maps-a-namespace-to-a-catalog-and-a-field-to-a.md) | SurrealDB maps a namespace to a catalog and a defined field to a column | Amended by D168 and D192 |
 | [D166](D166-oracle-19c-pinot-and-the-influxdb-release-wait.md) | Oracle 19c, Pinot and the InfluxDB release wait | Amends D157 |
 | [D167](D167-the-dsn-is-what-sql-open-takes-and-api-is-the-http-address.md) | The DSN is what sql.Open takes, and api is the HTTP address | Amends D160 |
-| [D168](D168-ken-reviews-the-six-dialects-of-2026-10-01.md) | Ken reviews the six dialects of 2026-10-01 | Amends D163 and D164 |
+| [D168](D168-ken-reviews-the-six-dialects-of-2026-10-01.md) | A maintainer reviews the six dialects of 2026-10-01 | Amends D163 and D164 |
 | [D169](D169-each-pattern-and-open-move-from-usql.md) | Each, Pattern and Open move from usql | Decided |
 | [D170](D170-influxdb-3-answers-triggers-from-the-processing-engine.md) | InfluxDB 3 answers Triggers from the processing engine | Amends D152 |
 | [D171](D171-druid-maps-a-datasource-to-a-table-and-reads-information-schema.md) | Druid maps a datasource to a table and reads INFORMATION_SCHEMA | Decided |
@@ -194,7 +194,7 @@ file.
 | [D173](D173-the-odbc-fallback-belongs-to-the-client.md) | The ODBC fallback belongs to the client | Decided |
 | [D174](D174-the-clickhouse-tests-use-dbimps-driver.md) | The ClickHouse tests use dbimp's driver | Decided |
 | [D175](D175-elasticsearch-and-opensearch-can-walk-show-statements.md) | Elasticsearch and OpenSearch can walk SHOW statements | Amends D146 and D159 |
-| [D176](D176-the-first-search-dialects-follow-the-survey-answers.md) | The search dialects follow Ken's answers to the survey | Amended by D183 and D192 |
+| [D176](D176-the-first-search-dialects-follow-the-survey-answers.md) | The search dialects follow a maintainer's answers to the survey | Amended by D183 and D192 |
 | [D178](D178-drill-maps-a-workspace-to-a-schema-and-needs-the-metastore-for-file-tables.md) | Drill maps a workspace to a schema and needs the Metastore for file tables | Decided |
 | [D177](D177-elasticsearch-maps-an-index-to-a-table-and-walks-sys-and-show.md) | Elasticsearch maps an index to a table and walks SYS and SHOW | Decided, amended by D191 |
 | [D179](D179-solr-maps-a-collection-to-a-table-under-a-fixed-schema.md) | Solr maps a collection to a table under a fixed schema | Decided, amended by D191 |
@@ -309,3 +309,4 @@ file.
 | [D288](D288-a-dump-writes-sql-server-alias-types-table-types-and-routines.md) | A dump writes SQL Server alias types, table types and routines in order | Decided |
 | [D289](D289-a-dump-of-oracle.md) | A dump of Oracle | Decided |
 | [D290](D290-the-northwind-fixture-has-an-hr-schema-on-four-more-products.md) | The northwind fixture has an hr schema on four more products | Amends D254 and D259 |
+| [D291](D291-dbrun-fixture-dump-makes-a-database-that-tests-a-dump.md) | dbrun fixture dump makes a database that tests a dump | Decided |

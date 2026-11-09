@@ -61,3 +61,20 @@ func northwindAll(src northwindSource) []string {
 	}
 	return names
 }
+
+// TestEveryDumpFileIsEmbedded holds that each file of the dump fixture is in
+// the embedded files.
+func TestEveryDumpFileIsEmbedded(t *testing.T) {
+	t.Parallel()
+	for d, src := range dumpSources {
+		names := slices.Clone(src.files)
+		for _, more := range src.more {
+			names = append(names, more...)
+		}
+		for _, name := range names {
+			if b, err := dumpFiles.ReadFile(name); err != nil || len(b) == 0 {
+				t.Errorf("%s: %s is missing or empty: %v", d, name, err)
+			}
+		}
+	}
+}

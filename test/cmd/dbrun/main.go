@@ -255,7 +255,9 @@ Commands:
   fixture     drop and rebuild a data fixture. examples is the tables authors
               and books. northwind is the database northwind, for PostgreSQL,
               MySQL, MariaDB, SQL Server, Oracle, SQLite, DuckDB, Firebird and
-              SAP HANA. movies is a movie graph, for Neo4j. usql applies the
+              SAP HANA. dump is the database dump, with the objects that test a dump,
+              for PostgreSQL, SQL Server, Oracle, MySQL, MariaDB, SQLite and DuckDB.
+              movies is a movie graph, for Neo4j. usql applies the
               scripts of northwind and movies. Run as: dbrun fixture examples <selector>
   list        show what a selector expands to, without touching anything
   build       build the images this repository makes, such as Cassandra's

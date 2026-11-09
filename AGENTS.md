@@ -25,7 +25,7 @@ and a product's own goes beside its model. See D127.
 
 These hold in every `xo` repository, for every coding agent (D110).
 
-1. Stage changes for review. Commit and push only when Ken says so.
+1. Stage changes for review. Commit and push only when a maintainer says so.
 2. Load the `simple-english` skill before you write any text that a person
    reads: a document, a code comment, an error message or a commit message.
    Follow it for that text.
@@ -39,9 +39,9 @@ every other agent read the same rules. Edit this file, not that one.
 
 Two before anything else. `docs/NULLS.md` is the shortest and the one that cost
 the most to learn. `docs/decisions/` holds every decision, one file each, and
-`docs/decisions/README.md` is a table of all 290. Read the status, because 129
+`docs/decisions/README.md` is a table of all 291. Read the status, because 129
 of them amend or replace an earlier one. Do not decide an open question on
-your own. They are at the end of `docs/PLAN.md`. Ask Ken.
+your own. They are at the end of `docs/PLAN.md`. Ask the maintainers.
 
 Then by what you are doing:
 
@@ -93,7 +93,7 @@ something is written down, it is not written down, and it is an open question.
    database driver, not even for a test. A consumer brings its own driver and
    picks its own version of it, and `dbmeta` must not constrain that. Anything
    needing a driver goes in the `test` module. Do not add any third party
-   package without asking Ken first.
+   package without asking the maintainers first.
    D19 once made `github.com/xo/dburl` a direct dependency. It never became
    one, because nothing here opens a connection: the caller passes a `DB` and
    names a `Dialect`, so there is no URL to parse. That is the better answer
@@ -574,7 +574,7 @@ returns no rows, return the empty set."
 Load the `simple-english` skill before you write any text that a person reads:
 a document, a code comment, an error message or a commit message. Follow it
 for that text. Its rules include the ones above and add more, such as no
-contractions and one word for one meaning. Ken asked for this. See D89 and
+contractions and one word for one meaning. The maintainers asked for this. See D89 and
 D110.
 
 `TestProseIsSimpleEnglish` checks the rules of the skill that a machine can

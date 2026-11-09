@@ -1,0 +1,2 @@
+-- What MySQL accepts and MariaDB refuses. Nothing is needed so far, because
+-- the two accept every item of the fixture.

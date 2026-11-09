@@ -114,7 +114,7 @@ on those sent agents to an older release. So a start of a stopped container
 that another owner created removes it and creates it again, with you as its
 owner. It loses what was in it, and the setup and the tests build that again.
 A stopped machine keeps its owner, because it takes an hour to create (D108).
-Ken confirmed on 2026-10-10 that `test` and `remove` do not refuse a stopped
+The maintainers confirmed on 2026-10-10 that `test` and `remove` do not refuse a stopped
 container of another owner. A session that wants to keep one reads
 `dbrun status -a` first.
 
@@ -198,7 +198,7 @@ dbrun logs postgres-18
 | `usql` | Runs the `usql` on your `PATH` with the URL of the server, and nothing else. | no |
 | `cli` | Runs the native command line client of the product, such as `psql`, with the connection of the server. It starts nothing, and the client must be on your `PATH`. `--as` picks the user, and `--print` prints the command line with the password masked and runs nothing. Arguments after `--` go to the client. See Native clients. | no |
 | `test` | Runs dbmeta's integration tests against the server, starting and removing it around them. | yes |
-| `fixture` | Drops and makes a data fixture on the server. `dbrun fixture examples <selector>` makes the tables `authors` and `books` with fixed rows, in the default schema of the user in the URL, so that a README prints the same example on PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, SQLite and DuckDB. On MySQL and MariaDB the tables are in the database `examples`. See D244. `dbrun fixture northwind <selector>` drops and rebuilds the database `northwind` on a PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, Firebird or SAP HANA server, or the file `northwind` of SQLite or DuckDB, with the Northwind sample, and on every one of those except Firebird and SAP HANA a schema `hr` that has many kinds of objects, for the describe commands of usql (on Oracle, the users `northwind` and `hr`, on MySQL and MariaDB the databases `northwind` and `hr`, and on SQLite the tables that start with `hr_`). usql applies the files, so `usql` must be on the path. `dbrun fixture movies <selector>` replaces the graph of a Neo4j server with a small movie graph. See D254, D256, D259, D260 and D290. | yes |
+| `fixture` | Drops and makes a data fixture on the server. `dbrun fixture examples <selector>` makes the tables `authors` and `books` with fixed rows, in the default schema of the user in the URL, so that a README prints the same example on PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, SQLite and DuckDB. On MySQL and MariaDB the tables are in the database `examples`. See D244. `dbrun fixture northwind <selector>` drops and rebuilds the database `northwind` on a PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, Firebird or SAP HANA server, or the file `northwind` of SQLite or DuckDB, with the Northwind sample, and on every one of those except Firebird and SAP HANA a schema `hr` that has many kinds of objects, for the describe commands of usql (on Oracle, the users `northwind` and `hr`, on MySQL and MariaDB the databases `northwind` and `hr`, and on SQLite the tables that start with `hr_`). usql applies the files, so `usql` must be on the path. `dbrun fixture dump <selector>` builds the database `dump` with two schemas of objects that test a dump, on PostgreSQL, SQL Server, Oracle, MySQL, MariaDB, SQLite and DuckDB. See D291. `dbrun fixture movies <selector>` replaces the graph of a Neo4j server with a small movie graph. See D254, D256, D259, D260, D290 and D291. | yes |
 | `logs` | Prints what the server wrote. `-f` follows it. | no |
 | `list` | Prints what a selector names, and touches nothing. The embedded libraries come first, then the servers, containers and machines together, then the hosted services, each by product and then by release, oldest first. | no |
 | `build` | Builds the images this repository makes, such as the ones for Cassandra and Oracle 19c. Each one except Oracle 19c has a Containerfile in `test/cmd/dbrun/image/`. `start` and `test` build one when it is missing. | yes |
@@ -519,7 +519,7 @@ none:
 
 Stardog, GraphDB and Volt Active Data do not start without a license file
 that a person downloads, and each vendor gives one only after a signup. A
-coding agent never signs up or downloads one. Ken provisions each file, the
+coding agent never signs up or downloads one. The maintainers provisions each file, the
 same way he provisions a hosted credential.
 
 `dbrun` finds a product's file in the first of two places that has one:
@@ -807,7 +807,7 @@ in the same way. Check out dbmeta, run `dbrun` from its `test` directory, and
 read the connection string from `dsn --json`. A CI workflow checks out a pinned
 dbmeta commit from `main`. A server that dbmeta's list does not name yet gets
 its entry in dbmeta first. [`CONTAINERS.md`](CONTAINERS.md) holds the steps,
-and the work happens in a dbmeta session or goes to Ken. A server that no
+and the work happens in a dbmeta session or goes to a maintainer. A server that no
 dbmeta model reads is Staged, so dbmeta's CI never runs it. Select it by
 name, or with the selector `staged` (D119). To run the ones you need on each
 push and the rest at night, filter `dbrun list --json staged` on `cadence`,
@@ -861,7 +861,7 @@ outside its limit of eight.
 
 ## What dbrun does not do
 
-Ken chose on 2026-09-27 to leave these as they are for now (D98):
+The maintainers chose on 2026-09-27 to leave these as they are for now (D98):
 
 - Every failure exits 1.
 - A plain `dsn` prints two columns rather than the bare URL.
