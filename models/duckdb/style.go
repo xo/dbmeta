@@ -27,6 +27,7 @@ func init() {
 		ZoneInTimestamps:    true,
 		Sequence:            sequence,
 		Comment:             comment,
+		Column:              column,
 		View:                definitionStatement,
 		// A view can read a macro, and a macro can read a table or a view.
 		RoutinesAfterTables: true,
@@ -250,4 +251,20 @@ func sequenceValue(quoted string, s dump.Sequence, lit func(string) string) stri
 		return ""
 	}
 	return "SELECT count(nextval(" + lit(quoted) + ")) FROM range(" + strconv.FormatInt(n, 10) + ")"
+}
+
+// column writes a column with its default, or with the expression that computes it.
+func column(c dump.Column, typeSQL string, q func(string) string, _ func(string) string) string {
+	var b strings.Builder
+	b.WriteString(q(c.Name) + " " + typeSQL)
+	switch {
+	case c.Generated != "" && c.Default != nil:
+		b.WriteString(" GENERATED ALWAYS AS (" + *c.Default + ") VIRTUAL")
+	case c.Default != nil:
+		b.WriteString(" DEFAULT " + *c.Default)
+	}
+	if !c.Nullable {
+		b.WriteString(" NOT NULL")
+	}
+	return b.String()
 }

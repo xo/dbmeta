@@ -596,6 +596,12 @@ func (r *reader) column(c dbmeta.Column) (Column, error) {
 		d := c.Default.V
 		col.Default = &d
 	}
+	if r.m.Dialect() == dbmeta.DuckDB && col.Generated != "" && col.Default != nil {
+		// DuckDB wraps the expression of a generated column in a cast to the type of the
+		// column each time that it keeps it, so the casts are taken off, or each copy adds one.
+		d := stripCasts(*col.Default, c.DataType)
+		col.Default = &d
+	}
 	if r.m.Dialect() == dbmeta.Oracle {
 		// The default of an identity column reads the sequence that Oracle made for
 		// it, and the sequence is made again with the column.
@@ -1570,4 +1576,36 @@ func (r *reader) readRoles(ctx context.Context, snap *Snapshot, named map[string
 		return cmp.Or(cmp.Compare(x.Schema, y.Schema), cmp.Compare(x.Object, y.Object), cmp.Compare(x.Grantee, y.Grantee))
 	})
 	return nil
+}
+
+// stripCasts takes off the outer casts to a type from an expression, such as the CAST( ... AS
+// INTEGER) that DuckDB puts around the expression of a generated column.
+func stripCasts(expr, dataType string) string {
+	squash := func(s string) string { return strings.ToUpper(strings.ReplaceAll(s, " ", "")) }
+	for {
+		trimmed := strings.TrimSpace(expr)
+		at := strings.LastIndex(trimmed, " AS ")
+		if !strings.HasPrefix(trimmed, "CAST(") || !strings.HasSuffix(trimmed, ")") || at < 0 ||
+			squash(trimmed[at+4:len(trimmed)-1]) != squash(dataType) {
+			return expr
+		}
+		inner := trimmed[len("CAST("):at]
+		// The cast must be the whole expression, so the brackets inside it close.
+		depth := 0
+		for _, r := range inner {
+			switch r {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			}
+			if depth < 0 {
+				return expr
+			}
+		}
+		if depth != 0 {
+			return expr
+		}
+		expr = inner
+	}
 }

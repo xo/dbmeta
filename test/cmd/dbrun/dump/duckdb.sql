@@ -119,6 +119,16 @@ insert into core."Mixed Case ""Table""" values (1, 'from', 'café', 'quote''s', 
 create view core."View ""of"" a Table" as
   select "Order", "select" from core."Mixed Case ""Table""";
 
+-- A generated column, which DuckDB computes when it reads one, and a default that is not.
+create table core.costs (
+  cost_id integer primary key,
+  budget decimal(14, 2),
+  head_count integer,
+  per_head decimal(14, 2) generated always as (budget / nullif(head_count, 0)) virtual,
+  label varchar default 'none'
+);
+insert into core.costs (cost_id, budget, head_count) values (1, 1000, 4), (2, 500, 0), (3, null, 2);
+
 -- Intervals, with months, days and microseconds apart, one in a list, and a negative one.
 create table core.intervals (
   id integer primary key,

@@ -142,14 +142,16 @@ func registerRelations() {
 			always(`, c.column_index AS "ordinal"`),
 			always(`, c.data_type AS "data_type"`),
 			always(`, c.is_nullable AS "nullable"`),
-			always(`, c.column_default AS "default"`),
+			// A generated column keeps its expression apart from the default of a column.
+			always(`, CASE WHEN c.is_generated THEN c.generation_expression ELSE c.column_default END AS "default"`),
 			// One more read of the constraint catalog, which is small and in
 			// memory. See D47.
 			always(`, EXISTS (SELECT 1 FROM duckdb_constraints() k` +
 				` WHERE k.table_oid = c.table_oid AND k.constraint_type = 'PRIMARY KEY'` +
 				` AND LIST_CONTAINS(k.constraint_column_names, c.column_name)) AS "primary_key"`),
 			always(`, NULL AS "identity"`),
-			always(`, NULL AS "generated"`),
+			// DuckDB computes a generated column when it is read, and has no stored one.
+			always(`, CASE WHEN c.is_generated THEN 'virtual' END AS "generated"`),
 			always(`, c.comment AS "comment"`),
 			always(`, CAST(NULL AS VARCHAR) AS "collation"`),
 			always(`FROM duckdb_columns() c`),
@@ -164,7 +166,7 @@ func registerRelations() {
 			{Name: "ordinal", Desc: "one based, which is how duckdb_columns counts"},
 			{Name: "data_type"},
 			{Name: "nullable"},
-			{Name: "default", Desc: "the default expression as written"},
+			{Name: "default", Desc: "the default expression as written, or the expression of a generated column"},
 			{Name: "primary_key"},
 			{
 				Name: "identity",
@@ -172,7 +174,7 @@ func registerRelations() {
 			},
 			{
 				Name: "generated",
-				Desc: "always absent: duckdb_columns does not say whether a column is generated",
+				Desc: "virtual for a generated column, which DuckDB computes when it reads it, and absent for any other",
 			},
 			{Name: "comment"},
 			{Name: "collation", Desc: "always absent: duckdb_columns does not record a collation"},
