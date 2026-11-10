@@ -189,10 +189,18 @@ type Style struct {
 	// has no foreign key and takes only a unique key that holds every column of its
 	// primary key.
 	RefuseConstraint func(t Table, c Constraint) string
+	// LostValues says that the dump moves no value of a column, such as an Oracle REF
+	// column, whose value is the identifier of a row of the source. The statement
+	// that makes the table has a Note about it. See D295.
+	LostValues func(c Column) bool
 	// ObjectGrant writes the grant that lets a schema use an object of another one,
 	// for a view or a routine that names it. The kind is table, sequence or routine.
 	// It is nil for a product that needs none. See D294.
 	ObjectGrant func(kind, quotedObject, quotedGrantee string) string
+	// TableKeyword writes the words that follow CREATE for a table, such as TABLE, or
+	// GLOBAL TEMPORARY TABLE for a table whose rows live as long as a session. It is nil
+	// for a product that has one kind of table. See D296.
+	TableKeyword func(t Table) string
 	// ObjectTables says that a table made of an object type is written with OF.
 	ObjectTables bool
 	// DeferrableKeys says that a script of the same product writes DEFERRABLE and
@@ -211,6 +219,35 @@ type Style struct {
 	SQLMode func(mode string) string
 	// ResetSQLMode is the statement that puts the mode of the session back.
 	ResetSQLMode string
+	// EventTrigger writes the statement that makes a trigger that fires on a DDL event.
+	// It is nil for a product that has none. See D296.
+	EventTrigger func(e EventTriggerDef, q func(string) string, literal func(string) string) string
+	// Policies writes the statements for the policies of a table, with the statement
+	// that turns row level security on where the product has one. created holds the
+	// names of the policies that an earlier table made, for a product whose policy
+	// covers several tables. See D296.
+	Policies func(schema string, t Table, created map[string]bool, q func(string) string, literal func(string) string) []string
+	// MaterializedViewLog writes the statement that makes the log of the changes to a
+	// table. It is nil for a product that has none.
+	MaterializedViewLog func(quotedMaster string, l MaterializedViewLog) string
+	// XMLSchema writes CREATE XML SCHEMA COLLECTION.
+	XMLSchema func(quoted string, x XMLSchema, literal func(string) string) string
+	// PartitionFunction and PartitionScheme write the objects that a product keeps apart
+	// from its tables.
+	PartitionFunction func(f PartitionFunction, q func(string) string) string
+	PartitionScheme   func(sc PartitionScheme, q func(string) string) string
+	// SequenceValue writes the statement that sets the next value of a sequence that
+	// the rows do not set, from the last value that it gave.
+	SequenceValue func(quoted string, s Sequence, literal func(string) string) string
+	// TriggerPlacement writes the statements that make a trigger first or last for an
+	// event, from the text of its placement. See D296.
+	TriggerPlacement func(schema, trigger, placement string, q func(string) string) []string
+	// Event writes CREATE EVENT. It is nil for a product with no scheduled events.
+	Event func(quoted string, e ScheduledEvent, q func(string) string, literal func(string) string) string
+	// InvisibleIndex writes what follows an index that the optimizer ignores, from the
+	// line that the server reports for its version, because MySQL says INVISIBLE and
+	// MariaDB says IGNORED. See D296.
+	InvisibleIndex func(server string) string
 	// TriggerState writes the statement that sets a trigger that is not
 	// enabled, from its state: disabled, replica or always. It is nil for a product
 	// that has no such switch.

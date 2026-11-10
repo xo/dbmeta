@@ -16,7 +16,7 @@
 // parity, conformance and the password statement, and D203 reads the columns
 // of a key.
 //
-// It answers 15 of the 72 questions.
+// It answers 15 of the 77 questions.
 //
 // # Keys
 //

@@ -395,6 +395,8 @@ func registerRelations() {
 			// A column of an alias type takes the collation of the database, and
 			// the server refuses a COLLATE clause on it.
 			always(`, CASE WHEN ty.is_user_defined = 1 THEN NULL ELSE c.collation_name END AS "collation"`),
+			// The name of a default that a person gave. The server names the others.
+			always(`, CASE WHEN d.is_system_named = 0 THEN d.name END AS "default_name"`),
 			always(`FROM sys.columns c`),
 			always(`JOIN sys.objects o ON o.object_id = c.object_id`),
 			always(`LEFT JOIN sys.table_types tt ON tt.type_table_object_id = o.object_id`),
@@ -430,13 +432,14 @@ func registerRelations() {
 			},
 			{Name: "comment"},
 			{Name: "collation", Desc: "the collation of a text column, and absent for any other and for a column of an alias type"},
+			{Name: "default_name", Desc: "the name of a default constraint that a person named, and absent when the server named it"},
 		},
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity,
-				&v.Generated, &v.Comment, &v.Collation)
+				&v.Generated, &v.Comment, &v.Collation, &v.DefaultName)
 			return v, err
 		},
 	})
@@ -599,6 +602,7 @@ func registerRelations() {
 			{{Min: v11, Query: `, '' AS "owned_by"`}},
 			{{Min: v11, Query: `, ` + commentOn("q.object_id") + ` AS "comment"`}},
 			{{Min: v11, Query: `, CAST(q.cache_size AS bigint) AS "cache_size"`}},
+			{{Min: v11, Query: `, CAST(q.last_used_value AS nvarchar(40)) AS "last_value"`}},
 			{{Min: v11, Query: `FROM sys.sequences q`}},
 			{{Min: v11, Query: `JOIN sys.schemas s ON s.schema_id = q.schema_id`}},
 			{{Min: v11, Query: `JOIN sys.types ty ON ty.user_type_id = q.user_type_id`}},
@@ -618,12 +622,13 @@ func registerRelations() {
 			},
 			{Name: "comment"},
 			{Name: "cache_size", Desc: "the values a session takes at once, and absent when the sequence was made with no cache or with the default"},
+			{Name: "last_value", Desc: "the last value that the sequence gave, absent when it gave none"},
 		},
 		Params: schemaNameSystem("sequence"),
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
 			var v dbmeta.Sequence
 			err := rows.Scan(&v.Schema, &v.Name, &v.DataType, &v.Start, &v.Minimum,
-				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.CacheSize)
+				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.CacheSize, &v.LastValue)
 			return v, err
 		},
 	})
@@ -711,6 +716,10 @@ func registerRelations() {
 			always(`, CASE WHEN tr.is_disabled = 1 THEN 'disabled' ELSE 'enabled' END AS "enabled"`),
 			always(`, COALESCE(m.definition, '') AS "definition"`),
 			always(`, ` + commentOn("tr.object_id") + ` AS "comment"`),
+			// sp_settriggerorder places a trigger first or last for an event.
+			always(`, STUFF((SELECT ', ' + CASE WHEN te.is_first = 1 THEN 'first ' ELSE 'last ' END + te.type_desc`),
+			always(`    FROM sys.trigger_events te WHERE te.object_id = tr.object_id AND (te.is_first = 1 OR te.is_last = 1)`),
+			always(`    ORDER BY te.type FOR XML PATH('')), 1, 2, '') AS "placement"`),
 			always(`FROM sys.triggers tr`),
 			always(`JOIN sys.objects o ON o.object_id = tr.parent_id`),
 			always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
@@ -730,11 +739,12 @@ func registerRelations() {
 				Desc: "the CREATE TRIGGER statement, empty where it was encrypted or the caller has no right to see it",
 			},
 			{Name: "comment"},
+			{Name: "placement", Desc: "the events that sp_settriggerorder made the trigger first or last for, such as first INSERT, and absent when none"},
 		},
 		Params: schemaParentName("trigger"),
 		Scan: func(rows *sql.Rows) (dbmeta.Trigger, error) {
 			var v dbmeta.Trigger
-			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Enabled, &v.Definition, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Enabled, &v.Definition, &v.Comment, &v.Placement)
 			return v, err
 		},
 	})

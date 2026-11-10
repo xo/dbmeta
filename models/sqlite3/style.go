@@ -14,10 +14,13 @@ func init() {
 		Quote:   quoteIdentifier,
 		Literal: literal,
 		// SQLite has one schema, and every schema of a snapshot is written into it.
-		DefaultSchema:        "*",
-		InlineConstraints:    true,
-		OrderFree:            true,
-		TableText:            true,
+		DefaultSchema:     "*",
+		InlineConstraints: true,
+		OrderFree:         true,
+		TableText:         true,
+		// A view can read another view, and SQLite has no catalog that says so.
+		RoutinesAfterTables:  true,
+		SequenceValue:        sequenceValue,
 		AnonymousConstraints: true,
 		// The tables can be written in any order, and the rows can be loaded in any
 		// order when the checks are off, and checked at the end. The pragma has no
@@ -49,4 +52,10 @@ func literal(s string) string {
 // the whole CREATE VIEW and not only the query.
 func definitionStatement(_ string, v dump.View) string {
 	return strings.TrimRight(strings.TrimSpace(v.Definition), "; \n\t")
+}
+
+// sequenceValue sets the counter of a table that uses AUTOINCREMENT, which the rows set
+// to the largest rowid. A table that has no row has no counter yet.
+func sequenceValue(quoted string, s dump.Sequence, lit func(string) string) string {
+	return "UPDATE sqlite_sequence SET seq = " + s.Last + " WHERE name = " + lit(strings.Trim(quoted, `"`))
 }

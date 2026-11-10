@@ -128,8 +128,10 @@ func registerSections() {
 				` THEN sp.predicate_definition END AS "with_check"`}},
 			{{Min: v13, Query: `, ` + commentOn("pol.object_id") + ` AS "comment"`}},
 			{{Min: v13, Query: `, pol.is_enabled AS "enabled"`}},
+			{{Min: v13, Query: `, ps.name AS "policy_schema"`}},
 			{{Min: v13, Query: `FROM sys.security_predicates sp`}},
 			{{Min: v13, Query: `JOIN sys.security_policies pol ON pol.object_id = sp.object_id`}},
+			{{Min: v13, Query: `JOIN sys.schemas ps ON ps.schema_id = pol.schema_id`}},
 			{{Min: v13, Query: `JOIN sys.objects o ON o.object_id = sp.target_object_id`}},
 			{{Min: v13, Query: `JOIN sys.schemas s ON s.schema_id = o.schema_id`}},
 			{{Min: v13, Query: `WHERE ` + notSystem}},
@@ -146,12 +148,13 @@ func registerSections() {
 			{Name: "with_check", Desc: "the predicate that checks a new row, which is AFTER INSERT or AFTER UPDATE", Min: v13},
 			{Name: "comment", Min: v13},
 			{Name: "enabled", Desc: "false for a policy with STATE = OFF, which restricts nothing. The state is the policy's, so every predicate of it agrees", Min: v13},
+			{Name: "policy_schema", Desc: "the schema that holds the policy, which need not be the schema of the table", Min: v13},
 		},
 		Params: schemaParentName("policy"),
 		Scan: func(rows *sql.Rows) (dbmeta.Policy, error) {
 			var v dbmeta.Policy
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Command, &v.Permissive,
-				&v.Using, &v.WithCheck, &v.Comment, &v.Enabled)
+				&v.Using, &v.WithCheck, &v.Comment, &v.Enabled, &v.PolicySchema)
 			return v, err
 		},
 	})

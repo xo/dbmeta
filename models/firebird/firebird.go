@@ -37,7 +37,7 @@
 //
 // # What it answers
 //
-// 25 of the 72. Tables, columns, views, indexes, index columns, constraints,
+// 25 of the 77. Tables, columns, views, indexes, index columns, constraints,
 // constraint columns, not nulls, triggers, event triggers, sequences, domains,
 // functions, routine parameters, types, collations, roles, role grants,
 // privileges, comments, databases, settings, publications, publication

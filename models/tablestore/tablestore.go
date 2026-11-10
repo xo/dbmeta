@@ -29,7 +29,7 @@
 //
 // # What it answers
 //
-// 4 of the 72. Tables, Columns, Indexes and IndexColumns.
+// 4 of the 77. Tables, Columns, Indexes and IndexColumns.
 //
 // Tables is one statement. SHOW FULL TABLES takes a LIKE pattern, and it takes no
 // other filter that a statement can bind, so the statement has none and the Keep

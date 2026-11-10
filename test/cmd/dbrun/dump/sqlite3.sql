@@ -190,3 +190,12 @@ insert into main."Mixed Case ""Table""" ("Order", "select", "naïve ✓", "it's"
   (2, null, null, null, null);
 create view main."View ""of"" a Table" as
   select "Order", "select" from main."Mixed Case ""Table""";
+
+-- A unique index that a person named, and a check inside a table.
+create unique index people_name_unique on people (full_name);
+create table checked (
+  id integer primary key,
+  qty integer not null check (qty > 0),
+  kind text check (kind in ('a', 'b'))
+);
+insert into checked (id, qty, kind) values (1, 5, 'a'), (2, 7, null);

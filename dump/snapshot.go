@@ -34,7 +34,14 @@ type Snapshot struct {
 	// script installs first. An object that an extension owns is not in the
 	// snapshot, because the extension makes it again.
 	Extensions []Extension `json:"extensions,omitempty"`
-	Schemas    []Schema    `json:"schemas"`
+	// EventTriggers are the triggers that fire on a DDL event, which belong to the
+	// database or to a schema, and not to a table. See D296.
+	EventTriggers []EventTriggerDef `json:"event_triggers,omitempty"`
+	// PartitionFunctions and PartitionSchemes are what a product that partitions by a
+	// scheme keeps apart from its tables. A script writes them before the tables.
+	PartitionFunctions []PartitionFunction `json:"partition_functions,omitempty"`
+	PartitionSchemes   []PartitionScheme   `json:"partition_schemes,omitempty"`
+	Schemas            []Schema            `json:"schemas"`
 	// ViewDependencies is true when the source answered which relations each view
 	// reads, so that an empty View.DependsOn means that the view reads no other
 	// view. When it is false the order of the views is not known.
@@ -68,6 +75,14 @@ type Schema struct {
 	// Composites are the composite types that a person made, which are not the row
 	// type of a table.
 	Composites []Composite `json:"composites,omitempty"`
+	// Logs are the materialized view logs of the tables of the schema, for a product
+	// that has them. See D296.
+	Logs []MaterializedViewLog `json:"logs,omitempty"`
+	// XMLSchemas are the XML schema collections of the schema, for a product that has
+	// them.
+	XMLSchemas []XMLSchema `json:"xml_schemas,omitempty"`
+	// Events are the scheduled events of a database, for a product that has them.
+	Events []ScheduledEvent `json:"events,omitempty"`
 	// Synonyms are other names for objects, for a product that has them.
 	Synonyms []Synonym `json:"synonyms,omitempty"`
 	// Collections are the collection types of Oracle: a varray or a nested table
@@ -83,7 +98,7 @@ type Schema struct {
 // empty reports whether the schema holds no object.
 func (s Schema) empty() bool {
 	return len(s.Tables)+len(s.Views)+len(s.Sequences)+len(s.Enums)+len(s.Domains)+len(s.Ranges)+len(s.Composites)+
-		len(s.Synonyms)+len(s.Collections)+len(s.TableTypes)+len(s.Routines) == 0
+		len(s.Synonyms)+len(s.Events)+len(s.Logs)+len(s.XMLSchemas)+len(s.Collections)+len(s.TableTypes)+len(s.Routines) == 0
 }
 
 // Extension is an installed extension.
@@ -154,6 +169,11 @@ type Table struct {
 	// like those of any table. See [Versioning].
 	Versioning *Versioning `json:"versioning,omitempty"`
 
+	// Engine, Collation and Options are the storage engine, the collation and the
+	// create options of a table of MySQL or MariaDB. See D296.
+	Engine    string `json:"engine,omitempty"`
+	Collation string `json:"collation,omitempty"`
+	Options   string `json:"options,omitempty"`
 	// Definition is the statement of the source that makes the table, for a
 	// product that keeps it, so that a script of the same product writes it as it
 	// was. See D293.
@@ -162,6 +182,11 @@ type Table struct {
 	OfType string `json:"of_type,omitempty"`
 	// Organization is index for a table that keeps its rows in its primary key.
 	Organization string `json:"organization,omitempty"`
+
+	// RowSecurity says that row level security is on for the table. Policies are its
+	// row level security policies, or the security policies of SQL Server. See D296.
+	RowSecurity bool        `json:"row_security,omitempty"`
+	Policies    []PolicyDef `json:"policies,omitempty"`
 
 	Columns     []Column     `json:"columns"`
 	Constraints []Constraint `json:"constraints,omitempty"`
@@ -194,6 +219,9 @@ type Partitioning struct {
 	// Expression is the key, as the source writes it between the brackets of
 	// PARTITION BY, such as happened_at or year(hired).
 	Expression string `json:"expression"`
+	// Scheme is the partition scheme that lays the table out, for a product that keeps
+	// them apart from its tables. Expression holds the columns then.
+	Scheme string `json:"scheme,omitempty"`
 	// Parts are the partitions that live inside the table, for a product whose
 	// partitions are not tables. It is empty for PostgreSQL.
 	Parts []Part `json:"parts,omitempty"`
@@ -239,6 +267,10 @@ type Column struct {
 	// Invisible says that the column is hidden from SELECT * and from an INSERT
 	// that names no columns. See D294.
 	Invisible bool `json:"invisible,omitempty"`
+	// OnUpdate is the expression that the column takes when its row is updated.
+	OnUpdate string `json:"on_update,omitempty"`
+	// DefaultName is the name that a person gave the default constraint.
+	DefaultName string `json:"default_name,omitempty"`
 	// Storage is the table that stores a nested table column.
 	Storage string `json:"storage,omitempty"`
 }
@@ -291,6 +323,8 @@ type Index struct {
 	// constraint writes the index, so the index is not written again.
 	Constraint string `json:"constraint,omitempty"`
 	Comment    string `json:"comment,omitempty"`
+	// Invisible says that the optimizer ignores the index. See D296.
+	Invisible bool `json:"invisible,omitempty"`
 }
 
 // IndexColumn is a column of an index, or an expression.
@@ -302,6 +336,9 @@ type IndexColumn struct {
 	Descending bool   `json:"descending,omitempty"`
 	// Include is true for a column that the index stores and does not sort by.
 	Include bool `json:"include,omitempty"`
+	// Prefix is the length of the prefix of the column that the index holds, and
+	// zero when it holds the whole column. See D296.
+	Prefix int `json:"prefix,omitempty"`
 }
 
 // Trigger is a trigger. Its definition is the text of the source and is not
@@ -311,6 +348,18 @@ type Trigger struct {
 	Enabled    string `json:"enabled,omitempty"`
 	Definition string `json:"definition"`
 	Comment    string `json:"comment,omitempty"`
+	// Order is the position among the triggers of the same table, event and timing,
+	// from one, for a product that orders them. See D296.
+	Order int `json:"order,omitempty"`
+	// SQLMode is the sql_mode that the trigger was made under. It is a pointer,
+	// because an empty mode is a mode.
+	SQLMode *string `json:"sql_mode,omitempty"`
+	// Placement says which events the trigger is first or last for, as text such as
+	// first INSERT, last UPDATE.
+	Placement string `json:"placement,omitempty"`
+	// Follows is the name of the trigger that this one follows, which the script
+	// works out from Order, and the snapshot does not hold.
+	Follows string `json:"-"`
 }
 
 // View is a view. Its definition is the text of the source and is not
@@ -349,6 +398,9 @@ type Sequence struct {
 	// Identity is true for the sequence of an identity column.
 	Identity bool   `json:"identity,omitempty"`
 	Comment  string `json:"comment,omitempty"`
+	// Last is the last value that the sequence gave, and empty when it gave none or the
+	// product does not say. A script sets the next value from it. See D296.
+	Last string `json:"last,omitempty"`
 }
 
 // Enum is an enumerated type with its labels in order.
@@ -418,4 +470,86 @@ func ParseSnapshot(data []byte) (*Snapshot, error) {
 		return nil, fmt.Errorf("reading the snapshot: %w", err)
 	}
 	return &s, nil
+}
+
+// ScheduledEvent is a statement that the server runs on a schedule.
+type ScheduledEvent struct {
+	Name    string `json:"name"`
+	Definer string `json:"definer,omitempty"`
+	// Kind is one time or recurring.
+	Kind          string  `json:"kind"`
+	ExecuteAt     string  `json:"execute_at,omitempty"`
+	IntervalValue string  `json:"interval_value,omitempty"`
+	IntervalField string  `json:"interval_field,omitempty"`
+	Starts        string  `json:"starts,omitempty"`
+	Ends          string  `json:"ends,omitempty"`
+	Status        string  `json:"status"`
+	OnCompletion  string  `json:"on_completion"`
+	Body          string  `json:"body"`
+	Comment       string  `json:"comment,omitempty"`
+	SQLMode       *string `json:"sql_mode,omitempty"`
+}
+
+// EventTriggerDef is a trigger that fires on a DDL event. Definition is the statement
+// that makes it, for a product that keeps one, and the other fields make it for a
+// product that does not.
+type EventTriggerDef struct {
+	Name       string `json:"name"`
+	Schema     string `json:"schema,omitempty"`
+	Event      string `json:"event,omitempty"`
+	Tags       string `json:"tags,omitempty"`
+	Enabled    string `json:"enabled,omitempty"`
+	Function   string `json:"function,omitempty"`
+	Definition string `json:"definition,omitempty"`
+	Comment    string `json:"comment,omitempty"`
+}
+
+// PolicyDef is a row level security policy of a table, or the predicate of a security
+// policy of SQL Server on a table.
+type PolicyDef struct {
+	Name string `json:"name"`
+	// Schema is the schema that holds the policy, where it is not the schema of the
+	// table.
+	Schema     string `json:"schema,omitempty"`
+	Command    string `json:"command"`
+	Permissive bool   `json:"permissive,omitempty"`
+	Roles      string `json:"roles,omitempty"`
+	Using      string `json:"using,omitempty"`
+	WithCheck  string `json:"with_check,omitempty"`
+	Disabled   bool   `json:"disabled,omitempty"`
+	Comment    string `json:"comment,omitempty"`
+}
+
+// PartitionFunction says how the values of a column map to partitions.
+type PartitionFunction struct {
+	Name       string `json:"name"`
+	DataType   string `json:"data_type"`
+	Range      string `json:"range"`
+	Boundaries string `json:"boundaries,omitempty"`
+}
+
+// PartitionScheme puts the partitions of a function on storage.
+type PartitionScheme struct {
+	Name       string `json:"name"`
+	Function   string `json:"function"`
+	Filegroups string `json:"filegroups,omitempty"`
+}
+
+// XMLSchema is an XML schema collection.
+type XMLSchema struct {
+	Name       string `json:"name"`
+	Definition string `json:"definition,omitempty"`
+	Comment    string `json:"comment,omitempty"`
+}
+
+// MaterializedViewLog is the log of the changes to a table. LogTable is the table that
+// holds it, which the snapshot leaves out because the log makes it.
+type MaterializedViewLog struct {
+	Master     string `json:"master"`
+	LogTable   string `json:"log_table"`
+	PrimaryKey bool   `json:"primary_key,omitempty"`
+	RowID      bool   `json:"row_id,omitempty"`
+	Sequence   bool   `json:"sequence,omitempty"`
+	ObjectID   bool   `json:"object_id,omitempty"`
+	IncludeNew bool   `json:"include_new,omitempty"`
 }

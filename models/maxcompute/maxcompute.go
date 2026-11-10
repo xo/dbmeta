@@ -26,7 +26,7 @@
 //
 // # What it answers
 //
-// 15 of the 72. Databases, schemas, tables, columns, views, partitioned tables,
+// 15 of the 77. Databases, schemas, tables, columns, views, partitioned tables,
 // partitions, comments, roles, role grants, privileges, column privileges,
 // functions, the current schema and the current user.
 //

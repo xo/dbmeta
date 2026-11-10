@@ -33,7 +33,7 @@
 //
 // # What it answers
 //
-// 7 of the 72. Schemas, the current schema, tables, columns, functions,
+// 7 of the 77. Schemas, the current schema, tables, columns, functions,
 // aggregates and settings.
 //
 // # What is missing

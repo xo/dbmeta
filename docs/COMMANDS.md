@@ -254,6 +254,11 @@ object model and does not set the column set.
 | `dbmeta.Synonyms` | `Synonym` | PostgreSQL has no synonym. Oracle and SQL Server do, and a dump writes them back (D289) |
 | `dbmeta.MaterializedViews` | `MaterializedView` | `psql` lists a materialized view with `\dm` among the relations. Oracle keeps the query and the refresh clauses in a view of their own, and a dump needs both (D289) |
 | `dbmeta.TypeAttributes` | `TypeAttribute` | `psql` lists the attributes of a composite type with `\d` of the type. Oracle keeps them apart from the columns of a table, and a dump needs them to read an object column (D289) |
+| `dbmeta.Events` | `Event` | `psql` has no scheduled event. MySQL and MariaDB do, and a dump writes them back (D296) |
+| `dbmeta.XMLSchemaCollections` | `XMLSchemaCollection` | SQL Server keeps the schemas of a column of the type xml in the database, and a dump writes them back (D296) |
+| `dbmeta.PartitionFunctions` | `PartitionFunction` | PostgreSQL has no partition function. SQL Server keeps one apart from its tables, and a dump writes it before them (D296) |
+| `dbmeta.PartitionSchemes` | `PartitionScheme` | PostgreSQL has no partition scheme. SQL Server keeps one apart from its tables, and a dump writes it before them (D296) |
+| `dbmeta.MaterializedViewLogs` | `MaterializedViewLog` | PostgreSQL has no such log. Oracle keeps one for a table in a table of its own, and a dump writes the log and leaves out that table (D296) |
 | `dbmeta.ColumnStats` | `ColumnStat` | `psql` has no such command. `usql` added `\ss` |
 | `dbmeta.CurrentSchema` | `Schema` | session state rather than an object. `dbtpl` reads it in every loader |
 | `dbmeta.CurrentUser` | `User` | session state rather than an object. It came from auditing `usql` (D55) |

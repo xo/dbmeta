@@ -260,6 +260,7 @@ func registerRelations() {
 			always(`, s.cycle AS "cycles"`),
 			always(`, '' AS "owned_by"`),
 			always(`, s.comment AS "comment"`),
+			always(`, CAST(s.last_value AS VARCHAR) AS "last_value"`),
 			always(`FROM duckdb_sequences() s`),
 			always(`WHERE (@with_system OR TRUE)`),
 			always(`AND (@schema = '' OR s.schema_name LIKE @schema)`),
@@ -279,12 +280,13 @@ func registerRelations() {
 				Desc: "always empty: a DuckDB sequence is independent of the column that reads it",
 			},
 			{Name: "comment"},
+			{Name: "last_value", Desc: "the last value that the sequence gave, absent when it gave none"},
 		},
 		Params: schemaNameSystem("sequence"),
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
 			var v dbmeta.Sequence
 			err := rows.Scan(&v.Schema, &v.Name, &v.DataType, &v.Start, &v.Minimum,
-				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment)
+				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.LastValue)
 			return v, err
 		},
 	})

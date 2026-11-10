@@ -32,6 +32,9 @@ func init() {
 		Composite:          composite,
 		Range:              rangeType,
 		TriggerState:       triggerState,
+		EventTrigger:       eventTrigger,
+		Policies:           policies,
+		SequenceValue:      sequenceValue,
 		PartitionBy:        partitionBy,
 		PartitionOf:        partitionOf,
 		IdentityValue:      identityValue,
@@ -287,6 +290,18 @@ func serialType(typeSQL, identity string) string {
 
 // triggerState switches a trigger off, or sets it for the replica role.
 func triggerState(_, quotedTable, quotedTrigger, state string) string {
+	// An event trigger has no table.
+	if quotedTable == "" {
+		switch state {
+		case "disabled":
+			return "ALTER EVENT TRIGGER " + quotedTrigger + " DISABLE"
+		case "replica":
+			return "ALTER EVENT TRIGGER " + quotedTrigger + " ENABLE REPLICA"
+		case "always":
+			return "ALTER EVENT TRIGGER " + quotedTrigger + " ENABLE ALWAYS"
+		}
+		return ""
+	}
 	switch state {
 	case "disabled":
 		return "ALTER TABLE " + quotedTable + " DISABLE TRIGGER " + quotedTrigger
@@ -296,4 +311,53 @@ func triggerState(_, quotedTable, quotedTrigger, state string) string {
 		return "ALTER TABLE " + quotedTable + " ENABLE ALWAYS TRIGGER " + quotedTrigger
 	}
 	return ""
+}
+
+// eventTrigger writes CREATE EVENT TRIGGER from the event, the tags and the function.
+func eventTrigger(e dump.EventTriggerDef, q func(string) string, lit func(string) string) string {
+	sql := "CREATE EVENT TRIGGER " + q(e.Name) + " ON " + e.Event
+	if e.Tags != "" {
+		tags := strings.Split(e.Tags, ", ")
+		for i, tag := range tags {
+			tags[i] = lit(tag)
+		}
+		sql += " WHEN TAG IN (" + strings.Join(tags, ", ") + ")"
+	}
+	return sql + " EXECUTE FUNCTION " + e.Function + "()"
+}
+
+// policies turns row level security on, and writes each policy of a table.
+func policies(schema string, t dump.Table, _ map[string]bool, q func(string) string, _ func(string) string) []string {
+	table := q(schema) + "." + q(t.Name)
+	var out []string
+	if t.RowSecurity {
+		out = append(out, "ALTER TABLE "+table+" ENABLE ROW LEVEL SECURITY")
+	}
+	for _, p := range t.Policies {
+		sql := "CREATE POLICY " + q(p.Name) + " ON " + table
+		if !p.Permissive {
+			sql += " AS RESTRICTIVE"
+		}
+		sql += " FOR " + strings.ToUpper(p.Command)
+		if p.Roles != "" {
+			roles := strings.Split(p.Roles, ",")
+			for i, r := range roles {
+				roles[i] = q(r)
+			}
+			sql += " TO " + strings.Join(roles, ", ")
+		}
+		if p.Using != "" {
+			sql += " USING (" + p.Using + ")"
+		}
+		if p.WithCheck != "" {
+			sql += " WITH CHECK (" + p.WithCheck + ")"
+		}
+		out = append(out, sql)
+	}
+	return out
+}
+
+// sequenceValue sets the next value of a sequence, after the last one that it gave.
+func sequenceValue(quoted string, s dump.Sequence, lit func(string) string) string {
+	return "SELECT pg_catalog.setval(" + lit(quoted) + ", " + s.Last + ", true)"
 }

@@ -243,3 +243,17 @@ return (select 1 as allowed where @id > 0);
 create security policy extra.people_policy
   add filter predicate extra.fn_rls(id) on extra.people
   with (state = on);
+
+-- A table that a partition scheme lays out, with its function and its scheme.
+CREATE PARTITION FUNCTION pf_events (datetime2(3)) AS RANGE RIGHT FOR VALUES ('2025-01-01T00:00:00', '2026-01-01T00:00:00');
+CREATE PARTITION SCHEME ps_events AS PARTITION pf_events ALL TO ([PRIMARY]);
+CREATE TABLE extra.events (
+  id int NOT NULL,
+  happened datetime2(3) NOT NULL,
+  kind nvarchar(20) NULL,
+  CONSTRAINT pk_events PRIMARY KEY (id, happened)
+) ON ps_events (happened);
+INSERT INTO extra.events (id, happened, kind) VALUES
+  (1, '2024-06-01T00:00:00', N'before'),
+  (2, '2025-06-01T00:00:00', N'during'),
+  (3, '2026-06-01T00:00:00', N'after');

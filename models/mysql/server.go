@@ -74,6 +74,54 @@ func registerRoutines() {
 	})
 }
 
+// registerEvents lists the scheduled events. EVENTS has the same columns in MySQL and
+// in MariaDB, and the interval and the starts of a one time event are empty.
+func registerEvents() {
+	dbmeta.Events.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Event]{
+		Stmt: dbmeta.Stmt{
+			schemaAs(`SELECT `, "e.event_schema", "schema"),
+			{{Query: `, e.event_name AS "name"`}},
+			{{Query: `, e.definer AS "definer"`}},
+			{{Query: `, LOWER(e.event_type) AS "kind"`}},
+			{{Query: `, CAST(e.execute_at AS CHAR) AS "execute_at"`}},
+			{{Query: `, e.interval_value AS "interval_value"`}},
+			{{Query: `, e.interval_field AS "interval_field"`}},
+			{{Query: `, CAST(e.starts AS CHAR) AS "starts"`}},
+			{{Query: `, CAST(e.ends AS CHAR) AS "ends"`}},
+			{{Query: `, LOWER(e.status) AS "status"`}},
+			{{Query: `, LOWER(e.on_completion) AS "on_completion"`}},
+			{{Query: `, e.event_definition AS "body"`}},
+			{{Query: `, NULLIF(e.event_comment, '') AS "comment"`}},
+			{{Query: `, e.sql_mode AS "sql_mode"`}},
+			{{Query: `FROM information_schema.EVENTS e`}},
+			notSystem("WHERE", "e.event_schema"),
+			schemaLike("schema", "e.event_schema"),
+			{{Query: `AND (@name = '' OR e.event_name LIKE @name)`}},
+			{{Query: `ORDER BY 1, 2`}},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "name"}, {Name: "definer", Desc: "the account as user@host"},
+			{Name: "kind", Desc: "one time or recurring"},
+			{Name: "execute_at", Desc: "the instant of a one time event, absent for a recurring one"},
+			{Name: "interval_value", Desc: "the period of a recurring event"},
+			{Name: "interval_field", Desc: "the unit of the period, such as DAY"},
+			{Name: "starts", Desc: "when a recurring event starts, absent when it has no start"},
+			{Name: "ends", Desc: "when a recurring event ends, absent when it has no end"},
+			{Name: "status", Desc: "enabled, disabled or slaveside_disabled"},
+			{Name: "on_completion", Desc: "preserve or not preserve"},
+			{Name: "body", Desc: "the statement that the event runs"},
+			{Name: "comment"}, {Name: "sql_mode", Desc: "the sql_mode that the event was made under"},
+		},
+		Params: schemaNameSystem("event"),
+		Scan: func(rows *sql.Rows) (dbmeta.Event, error) {
+			var v dbmeta.Event
+			err := rows.Scan(&v.Schema, &v.Name, &v.Definer, &v.Kind, &v.ExecuteAt, &v.IntervalValue,
+				&v.IntervalField, &v.Starts, &v.Ends, &v.Status, &v.OnCompletion, &v.Body, &v.Comment, &v.SQLMode)
+			return v, err
+		},
+	})
+}
+
 func registerServer() {
 	// A storage engine is the closest thing MariaDB has to an access method.
 	// Both answer "how is this stored and searched", and psql prints the

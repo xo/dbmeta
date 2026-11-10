@@ -31,6 +31,12 @@ func init() {
 		Column:              column,
 		TableOptions:        tableOptions,
 		ObjectTables:        true,
+		TableKeyword:        tableKeyword,
+		MaterializedViewLog: materializedViewLog,
+		EventTrigger: func(e dump.EventTriggerDef, _ func(string) string, _ func(string) string) string {
+			return strings.TrimRight(strings.TrimSpace(e.Definition), " \n\t")
+		},
+		LostValues: func(c dump.Column) bool { return isRef(c.Type.Raw) },
 		ObjectGrant: func(kind, object, grantee string) string {
 			if kind == "routine" {
 				return "GRANT EXECUTE ON " + object + " TO " + grantee
@@ -310,10 +316,72 @@ func tableOptions(t dump.Table, _ func(string) string) string {
 	if t.Organization == "index" {
 		b.WriteString(" ORGANIZATION INDEX")
 	}
+	// A temporary table says what happens to its rows when the transaction ends.
+	for option := range strings.SplitSeq(t.Options, ", ") {
+		switch option {
+		case "on_commit=delete_rows":
+			b.WriteString(" ON COMMIT DELETE ROWS")
+		case "on_commit=preserve_rows":
+			b.WriteString(" ON COMMIT PRESERVE ROWS")
+		}
+	}
+	// The storage options that the model lists when they are not the default.
+	moves := false
+	for option := range strings.SplitSeq(t.Options, ", ") {
+		name, value, _ := strings.Cut(option, "=")
+		switch name {
+		case "nologging":
+			b.WriteString(" NOLOGGING")
+		case "pctfree":
+			b.WriteString(" PCTFREE " + value)
+		case "compress":
+			b.WriteString(" COMPRESS")
+		case "row_movement":
+			moves = true
+		}
+	}
 	for _, c := range t.Columns {
 		if c.Storage != "" {
 			b.WriteString(" NESTED TABLE " + quoteIdentifier(c.Name) + " STORE AS " + quoteIdentifier(c.Storage))
 		}
 	}
+	// ENABLE ROW MOVEMENT is the last clause, after the partitions.
+	if moves && t.Partitioning == nil {
+		b.WriteString(" ENABLE ROW MOVEMENT")
+	}
 	return b.String()
+}
+
+// materializedViewLog writes CREATE MATERIALIZED VIEW LOG with what each entry holds.
+func materializedViewLog(master string, l dump.MaterializedViewLog) string {
+	var with []string
+	if l.PrimaryKey {
+		with = append(with, "PRIMARY KEY")
+	}
+	if l.RowID {
+		with = append(with, "ROWID")
+	}
+	if l.ObjectID {
+		with = append(with, "OBJECT ID")
+	}
+	if l.Sequence {
+		with = append(with, "SEQUENCE")
+	}
+	sql := "CREATE MATERIALIZED VIEW LOG ON " + master
+	if len(with) > 0 {
+		sql += " WITH " + strings.Join(with, ", ")
+	}
+	if l.IncludeNew {
+		sql += " INCLUDING NEW VALUES"
+	}
+	return sql
+}
+
+// tableKeyword says GLOBAL TEMPORARY for a table that keeps its rows for a session or a
+// transaction.
+func tableKeyword(t dump.Table) string {
+	if strings.Contains(t.Options, "on_commit=") {
+		return "GLOBAL TEMPORARY TABLE"
+	}
+	return "TABLE"
 }

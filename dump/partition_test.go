@@ -239,8 +239,10 @@ func TestAProductWithoutTheseObjectsWritesNoCommentOnThem(t *testing.T) {
 	t.Parallel()
 	s := typeSnapshot()
 	s.Dialect = "duckdb"
+	// DuckDB has no extension and no domain. It has a type that a person made from
+	// another type, and a comment on it says TYPE.
 	for _, st := range scriptText(t, s, dbmeta.DuckDB) {
-		if strings.Contains(st.SQL, "EXTENSION") || strings.Contains(st.SQL, "DOMAIN") || st.Kind == "comment" {
+		if strings.Contains(st.SQL, "EXTENSION") || strings.Contains(st.SQL, "DOMAIN") {
 			t.Errorf("the script for DuckDB has the %s %s: %s", st.Kind, st.Name, st.SQL)
 		}
 	}

@@ -1,6 +1,6 @@
 # D294. A dump lists what it leaves out and writes more of Oracle
 
-Status: Amends D293.
+Status: Amends D293, amended by D295 and D296.
 
 `usql` ran the round trips of the dump fixture on v0.43.0 and sent what was left.
 These are the changes that answer it.

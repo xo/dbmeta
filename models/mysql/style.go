@@ -21,15 +21,17 @@ func init() {
 		CreateSchema: func(quoted string) string { return "CREATE DATABASE " + quoted },
 		// A view, a routine and a trigger keep names that mean the database they
 		// are in, so a script of several databases chooses it first.
-		UseSchema:     func(quoted string) string { return "USE " + quoted },
-		Column:        column,
-		TableOptions:  tableOptions,
-		PartitionBy:   partitionBy,
-		Index:         index,
-		KeyType:       keyType,
-		Binary:        func(hex string) string { return "X'" + hex + "'" },
-		MaxParameters: 65535,
-		Trigger:       trigger,
+		UseSchema:      func(quoted string) string { return "USE " + quoted },
+		Column:         column,
+		TableOptions:   tableOptions,
+		PartitionBy:    partitionBy,
+		Index:          index,
+		KeyType:        keyType,
+		Binary:         func(hex string) string { return "X'" + hex + "'" },
+		MaxParameters:  65535,
+		Trigger:        trigger,
+		Event:          event,
+		InvisibleIndex: invisibleIndex,
 		// A view can call a function, and a function can read a view.
 		RoutinesAfterTables: true,
 		// A routine keeps the mode that it was made under.
@@ -98,8 +100,14 @@ func column(c dump.Column, typeSQL string, q func(string) string, lit func(strin
 		}
 		b.WriteString(" DEFAULT " + text)
 	}
+	if c.OnUpdate != "" {
+		b.WriteString(" ON UPDATE " + c.OnUpdate)
+	}
 	if c.Identity != "" {
 		b.WriteString(" AUTO_INCREMENT")
+	}
+	if c.Invisible {
+		b.WriteString(" INVISIBLE")
 	}
 	if c.Comment != "" {
 		b.WriteString(" COMMENT " + lit(c.Comment))
@@ -109,10 +117,29 @@ func column(c dump.Column, typeSQL string, q func(string) string, lit func(strin
 
 // tableOptions writes the comment of the table after the closing bracket.
 func tableOptions(t dump.Table, lit func(string) string) string {
-	if t.Comment == "" {
-		return ""
+	var b strings.Builder
+	if t.Engine != "" {
+		b.WriteString(" ENGINE=" + t.Engine)
 	}
-	return " COMMENT=" + lit(t.Comment)
+	if t.Collation != "" {
+		charset, _, _ := strings.Cut(t.Collation, "_")
+		b.WriteString(" DEFAULT CHARSET=" + charset + " COLLATE=" + t.Collation)
+	}
+	// CREATE_OPTIONS also says partitioned and temporary, which are not options that a
+	// script gives.
+	var options []string
+	for option := range strings.FieldsSeq(t.Options) {
+		if lower := strings.ToLower(option); lower != "partitioned" && lower != "temporary" {
+			options = append(options, strings.ToUpper(option))
+		}
+	}
+	if len(options) > 0 {
+		b.WriteString(" " + strings.Join(options, " "))
+	}
+	if t.Comment != "" {
+		b.WriteString(" COMMENT=" + lit(t.Comment))
+	}
+	return b.String()
 }
 
 // partitionBy writes the partitions of a table after its options. A range or a
@@ -145,6 +172,9 @@ func index(table string, ix dump.Index, q func(string) string) string {
 	cols := make([]string, len(ix.Columns))
 	for i, c := range ix.Columns {
 		cols[i] = q(c.Name)
+		if c.Prefix > 0 {
+			cols[i] += "(" + strconv.Itoa(c.Prefix) + ")"
+		}
 		if c.Expression != "" {
 			cols[i] = "(" + c.Expression + ")"
 		}
@@ -180,8 +210,55 @@ func trigger(table string, tg dump.Trigger, q func(string) string) string {
 	if m == nil {
 		return ""
 	}
+	follows := ""
+	if tg.Follows != "" {
+		follows = " FOLLOWS " + q(tg.Follows)
+	}
 	return "CREATE TRIGGER " + q(tg.Name) + " " + strings.ToUpper(m[1]) + " " + strings.ToUpper(m[2]) +
-		" ON " + table + " FOR EACH ROW " + strings.TrimSpace(m[3])
+		" ON " + table + " FOR EACH ROW" + follows + " " + strings.TrimSpace(m[3])
+}
+
+// event writes CREATE EVENT from its schedule and the statement that it runs.
+func event(quoted string, e dump.ScheduledEvent, q func(string) string, lit func(string) string) string {
+	var b strings.Builder
+	b.WriteString("CREATE ")
+	if user, host, ok := strings.Cut(e.Definer, "@"); ok {
+		b.WriteString("DEFINER = " + q(user) + "@" + q(host) + " ")
+	}
+	b.WriteString("EVENT " + quoted + " ON SCHEDULE ")
+	if e.Kind == "one time" {
+		b.WriteString("AT " + lit(e.ExecuteAt))
+	} else {
+		b.WriteString("EVERY " + e.IntervalValue + " " + e.IntervalField)
+		if e.Starts != "" {
+			b.WriteString(" STARTS " + lit(e.Starts))
+		}
+		if e.Ends != "" {
+			b.WriteString(" ENDS " + lit(e.Ends))
+		}
+	}
+	b.WriteString(" ON COMPLETION " + strings.ToUpper(e.OnCompletion))
+	switch e.Status {
+	case "disabled":
+		b.WriteString(" DISABLE")
+	case "slaveside_disabled":
+		b.WriteString(" DISABLE ON SLAVE")
+	default:
+		b.WriteString(" ENABLE")
+	}
+	if e.Comment != "" {
+		b.WriteString(" COMMENT " + lit(e.Comment))
+	}
+	b.WriteString(" DO " + strings.TrimSpace(e.Body))
+	return b.String()
+}
+
+// invisibleIndex says INVISIBLE for MySQL and IGNORED for MariaDB.
+func invisibleIndex(server string) string {
+	if strings.Contains(strings.ToLower(server), "mariadb") {
+		return " IGNORED"
+	}
+	return " INVISIBLE"
 }
 
 // keyType gives a text or a binary value of no length a length, because MySQL

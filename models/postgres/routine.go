@@ -23,6 +23,18 @@ func init() {
 // prokind column, which is where all eight of the version gates in
 // describeFunctions come from. Both alternatives produce the same kind names,
 // so the column set does not change.
+// aggregateText is the SQL that writes CREATE AGGREGATE for an ordinary aggregate, from its
+// row of pg_aggregate. An ordered set aggregate and a hypothetical set aggregate have no
+// text, and the dump lists them as skipped.
+const aggregateText = `'CREATE AGGREGATE ' || pg_catalog.quote_ident(n.nspname) || '.' || pg_catalog.quote_ident(p.proname)` +
+	` || '(' || pg_catalog.pg_get_function_arguments(p.oid) || ') (SFUNC = ' || ag.aggtransfn::pg_catalog.regproc::pg_catalog.text` +
+	` || ', STYPE = ' || pg_catalog.format_type(ag.aggtranstype, NULL)` +
+	` || CASE WHEN ag.aggfinalfn <> 0 THEN ', FINALFUNC = ' || ag.aggfinalfn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
+	` || CASE WHEN ag.agginitval IS NOT NULL THEN ', INITCOND = ' || pg_catalog.quote_literal(ag.agginitval) ELSE '' END` +
+	` || CASE WHEN ag.aggcombinefn <> 0 THEN ', COMBINEFUNC = ' || ag.aggcombinefn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
+	` || CASE WHEN ag.aggsortop <> 0 THEN ', SORTOP = OPERATOR(' || ag.aggsortop::pg_catalog.regoperator::pg_catalog.text || ')' ELSE '' END` +
+	` || ')'`
+
 func functionStmt(kindFilter string) dbmeta.Stmt {
 	kindOld := `, CASE WHEN p.proisagg THEN 'agg'` +
 		` WHEN p.proiswindow THEN 'window'` +
@@ -58,9 +70,10 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		{{Query: `, pg_catalog.obj_description(p.oid, 'pg_proc') AS "comment"`}},
 		// pg_get_functiondef refuses an aggregate, so an aggregate has no
 		// definition. psql's \sf refuses one too.
+		// An ordinary aggregate has a statement that the catalog builds from pg_aggregate.
 		{
-			{Query: `, CASE WHEN NOT p.proisagg THEN pg_catalog.pg_get_functiondef(p.oid) END AS "definition"`},
-			{Min: v11, Query: `, CASE WHEN p.prokind <> 'a' THEN pg_catalog.pg_get_functiondef(p.oid) END AS "definition"`},
+			{Query: `, CASE WHEN NOT p.proisagg THEN pg_catalog.pg_get_functiondef(p.oid) WHEN ag.aggkind = 'n' THEN ` + aggregateText + ` END AS "definition"`},
+			{Min: v11, Query: `, CASE WHEN p.prokind <> 'a' THEN pg_catalog.pg_get_functiondef(p.oid) WHEN ag.aggkind = 'n' THEN ` + aggregateText + ` END AS "definition"`},
 		},
 		{{Query: `, p.proleakproof AS "leakproof"`}},
 		{{Query: `, p.prosrc AS "prosrc"`}},
@@ -69,6 +82,7 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		{{Query: `FROM pg_catalog.pg_proc p`}},
 		{{Query: `LEFT JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
 		{{Query: `LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang`}},
+		{{Query: `LEFT JOIN pg_catalog.pg_aggregate ag ON ag.aggfnoid = p.oid`}},
 		{{Query: `WHERE (@with_system OR (n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema'))`}},
 	}
 	if kindFilter != "" {

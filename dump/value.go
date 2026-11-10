@@ -132,6 +132,15 @@ func Convert(v any, from, to Type) (any, error) {
 		return nil, fmt.Errorf("%v is not text: %w", v, ErrBadValue)
 	}
 	_ = from
+	// An array of PostgreSQL arrives as the text {a,"b c"}, and another product reads the
+	// list as [a, "b c"].
+	if to.Kind == Array {
+		if text, ok := v.(string); ok && strings.HasPrefix(strings.TrimSpace(text), "{") {
+			if list, ok := arrayList(text); ok {
+				return list, nil
+			}
+		}
+	}
 	// A value that is not text is binary. A spatial value of SQL Server is the
 	// binary form of the type, and the target reads it as binary.
 	if b, ok := v.([]byte); ok && isBinary(b) {
@@ -307,4 +316,74 @@ func isBinary(b []byte) bool {
 		}
 	}
 	return false
+}
+
+// arrayList turns the text of an array of PostgreSQL, such as {a,"b c",NULL} or
+// {{1,2},{3,4}}, into the text of a list, such as ["a", "b c", NULL]. It says whether
+// the text was an array.
+func arrayList(text string) (string, bool) {
+	text = strings.TrimSpace(text)
+	var out strings.Builder
+	i := 0
+	var parse func() bool
+	parse = func() bool {
+		if i >= len(text) || text[i] != '{' {
+			return false
+		}
+		i++
+		out.WriteByte('[')
+		first := true
+		for i < len(text) && text[i] != '}' {
+			if !first {
+				if text[i] != ',' {
+					return false
+				}
+				i++
+				out.WriteString(", ")
+			}
+			first = false
+			switch {
+			case i < len(text) && text[i] == '{':
+				if !parse() {
+					return false
+				}
+			case i < len(text) && text[i] == '"':
+				i++
+				var b strings.Builder
+				for i < len(text) && text[i] != '"' {
+					if text[i] == '\\' && i+1 < len(text) {
+						i++
+					}
+					b.WriteByte(text[i])
+					i++
+				}
+				if i >= len(text) {
+					return false
+				}
+				i++
+				out.WriteString(`"` + strings.ReplaceAll(strings.ReplaceAll(b.String(), `\`, `\\`), `"`, `\"`) + `"`)
+			default:
+				start := i
+				for i < len(text) && text[i] != ',' && text[i] != '}' {
+					i++
+				}
+				item := text[start:i]
+				if item == "NULL" {
+					out.WriteString("NULL")
+				} else {
+					out.WriteString(`"` + strings.ReplaceAll(strings.ReplaceAll(item, `\`, `\\`), `"`, `\"`) + `"`)
+				}
+			}
+		}
+		if i >= len(text) {
+			return false
+		}
+		i++
+		out.WriteByte(']')
+		return true
+	}
+	if !parse() || i != len(text) {
+		return "", false
+	}
+	return out.String(), true
 }

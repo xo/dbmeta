@@ -312,3 +312,11 @@ commit;
 create view "Mixed View" as select "Id", "select" from "Mixed Case";
 create sequence "Seq Ünï";
 create table "a'b" (id number);
+
+-- Storage options that are not the default.
+create table tuned (
+  id number(10) primary key,
+  note varchar2(40)
+) pctfree 20 nologging compress enable row movement;
+insert into tuned (id, note) values (1, 'one');
+commit;

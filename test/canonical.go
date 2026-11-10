@@ -86,6 +86,8 @@ var canonicalFields = map[string]string{
 	"Column.Identity":      "dropped: only PostgreSQL has an identity column",
 	"Column.Generated":     "dropped: not every product reports a generated column",
 	"Column.Invisible":     "dropped: only Oracle reports an invisible column",
+	"Column.OnUpdate":      "dropped: only MySQL and MariaDB have an ON UPDATE expression for a column",
+	"Column.DefaultName":   "dropped: only SQL Server names a default constraint",
 	"Column.NestedStorage": "dropped: only Oracle has a nested table column",
 	"Column.Collation":     "dropped: a collation name is per product, and most products have none (D139)",
 	// dropped, because storage, compression and a statistics target are

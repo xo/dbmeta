@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/dump"
 )
 
@@ -109,5 +110,28 @@ func TestAnObjectColumnIsReadAsTheTextOfItsConstructor(t *testing.T) {
 	}
 	if _, ok := selectColumn(snap, "HR", dump.Column{Name: "N", Type: dump.Type{Kind: dump.String, Raw: "VARCHAR2(4)"}}, `t."N"`); ok {
 		t.Error("a column of a type of Oracle needs no expression")
+	}
+}
+
+func TestAnOracleTableWithARefColumnHasANoteAboutItsValues(t *testing.T) {
+	t.Parallel()
+	typ := dump.Type{Kind: dump.Other, Raw: `REF "HR"."ADDRESS_T"`}
+	snap := &dump.Snapshot{
+		Version: dump.SnapshotVersion, Dialect: "oracle",
+		Schemas: []dump.Schema{{Name: "HR", Tables: []dump.Table{{
+			Name: "CONTACTS", Columns: []dump.Column{{Name: "HOME", Type: typ, Nullable: true}},
+		}}}},
+	}
+	var note string
+	for st, err := range dump.Script(snap, dbmeta.Oracle, dump.Policy{}) {
+		if err != nil {
+			t.Fatalf("writing the script: %v", err)
+		}
+		if st.Kind == "table" {
+			note = st.Note
+		}
+	}
+	if !strings.Contains(note, "no value of HOME") {
+		t.Errorf("the note of the table is %q", note)
 	}
 }

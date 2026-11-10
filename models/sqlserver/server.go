@@ -12,6 +12,7 @@ func registerServer() {
 	registerRoutines()
 	registerTypes()
 	registerSynonyms()
+	registerPartitioning()
 	registerSecurity()
 	registerStorage()
 }
@@ -168,6 +169,7 @@ func registerRoutines() {
 			always(`, tr.name AS "function"`),
 			always(`, '' AS "tags"`),
 			always(`, ` + commentOn("tr.object_id") + ` AS "comment"`),
+			always(`, OBJECT_DEFINITION(tr.object_id) AS "definition"`),
 			always(`FROM sys.triggers tr`),
 			always(`WHERE tr.parent_class = 0`),
 			always(`AND (@with_system = 1 OR tr.is_ms_shipped = 0)`),
@@ -188,6 +190,7 @@ func registerRoutines() {
 			},
 			{Name: "tags", Desc: "always empty: SQL Server has no tag filter on a DDL trigger"},
 			{Name: "comment"},
+			{Name: "definition", Desc: "the CREATE TRIGGER statement, absent where it was encrypted or the caller has no right to see it"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "name", Desc: "trigger name pattern, empty for every one", Default: ""},
@@ -196,13 +199,100 @@ func registerRoutines() {
 		Scan: func(rows *sql.Rows) (dbmeta.EventTrigger, error) {
 			var v dbmeta.EventTrigger
 			err := rows.Scan(&v.Name, &v.Event, &v.Owner, &v.Enabled, &v.Function,
-				&v.Tags, &v.Comment)
+				&v.Tags, &v.Comment, &v.Definition)
 			return v, err
 		},
 	})
 }
 
 // registerSynonyms registers the synonyms of the database.
+// registerPartitioning lists the partition functions and the partition schemes, and
+// the XML schema collections, which a dump writes before the tables that use them.
+func registerPartitioning() {
+	dbmeta.PartitionFunctions.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.PartitionFunction]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT pf.name AS "name"`),
+			always(`, (SELECT ` + declaredType("ty.name", "pp") + ` FROM sys.partition_parameters pp`),
+			always(`    JOIN sys.types ty ON ty.user_type_id = pp.user_type_id`),
+			always(`    WHERE pp.function_id = pf.function_id) AS "data_type"`),
+			always(`, CASE WHEN pf.boundary_value_on_right = 1 THEN 'right' ELSE 'left' END AS "range"`),
+			// A boundary is a literal that CREATE PARTITION FUNCTION reads back.
+			always(`, COALESCE((SELECT STUFF((SELECT ', ' + CASE`),
+			always(`      WHEN SQL_VARIANT_PROPERTY(prv.value, 'BaseType') IN ('date', 'datetime', 'datetime2', 'smalldatetime')`),
+			always(`      THEN CHAR(39) + CONVERT(nvarchar(40), CAST(prv.value AS datetime2(7)), 126) + CHAR(39)`),
+			always(`      WHEN SQL_VARIANT_PROPERTY(prv.value, 'BaseType') IN ('char', 'varchar', 'nchar', 'nvarchar')`),
+			always(`      THEN CHAR(39) + REPLACE(CAST(prv.value AS nvarchar(4000)), CHAR(39), CHAR(39) + CHAR(39)) + CHAR(39)`),
+			always(`      ELSE CAST(prv.value AS nvarchar(100)) END`),
+			always(`    FROM sys.partition_range_values prv WHERE prv.function_id = pf.function_id`),
+			always(`    ORDER BY prv.boundary_id FOR XML PATH('')), 1, 2, '')), '') AS "boundaries"`),
+			always(`FROM sys.partition_functions pf`),
+			always(`WHERE (@name = '' OR pf.name LIKE @name)`),
+			always(`ORDER BY 1`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name"}, {Name: "data_type", Desc: "the type of the column that the function takes"},
+			{Name: "range", Desc: "left or right: which side of a boundary holds the boundary value"},
+			{Name: "boundaries", Desc: "the boundary values as literals, in order, joined by a comma and a space"},
+		},
+		Params: []dbmeta.Param{{Name: "name", Desc: "function name pattern, empty for every one", Default: ""}},
+		Scan: func(rows *sql.Rows) (dbmeta.PartitionFunction, error) {
+			var v dbmeta.PartitionFunction
+			err := rows.Scan(&v.Name, &v.DataType, &v.Range, &v.Boundaries)
+			return v, err
+		},
+	})
+	dbmeta.PartitionSchemes.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.PartitionScheme]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT ps.name AS "name"`),
+			always(`, pf.name AS "function"`),
+			always(`, COALESCE((SELECT STUFF((SELECT ', ' + ds.name FROM sys.destination_data_spaces dds`),
+			always(`    JOIN sys.data_spaces ds ON ds.data_space_id = dds.data_space_id`),
+			always(`    WHERE dds.partition_scheme_id = ps.data_space_id`),
+			always(`    ORDER BY dds.destination_id FOR XML PATH('')), 1, 2, '')), '') AS "filegroups"`),
+			always(`FROM sys.partition_schemes ps`),
+			always(`JOIN sys.partition_functions pf ON pf.function_id = ps.function_id`),
+			always(`WHERE (@name = '' OR ps.name LIKE @name)`),
+			always(`ORDER BY 1`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "name"}, {Name: "function", Desc: "the partition function of the scheme"},
+			{Name: "filegroups", Desc: "the filegroup of each partition, in order, joined by a comma and a space"},
+		},
+		Params: []dbmeta.Param{{Name: "name", Desc: "scheme name pattern, empty for every one", Default: ""}},
+		Scan: func(rows *sql.Rows) (dbmeta.PartitionScheme, error) {
+			var v dbmeta.PartitionScheme
+			err := rows.Scan(&v.Name, &v.Function, &v.Filegroups)
+			return v, err
+		},
+	})
+	dbmeta.XMLSchemaCollections.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.XMLSchemaCollection]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT s.name AS "schema"`),
+			always(`, c.name AS "name"`),
+			always(`, CAST(XML_SCHEMA_NAMESPACE(s.name, c.name) AS nvarchar(max)) AS "definition"`),
+			always(`, ` + commentOn("c.xml_collection_id") + ` AS "comment"`),
+			always(`FROM sys.xml_schema_collections c`),
+			always(`JOIN sys.schemas s ON s.schema_id = c.schema_id`),
+			always(`WHERE ` + notSystem),
+			always(`AND c.xml_collection_id > 65535`),
+			always(`AND (@schema = '' OR s.name LIKE @schema)`),
+			always(`AND (@name = '' OR c.name LIKE @name)`),
+			always(`ORDER BY 1, 2`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "name"},
+			{Name: "definition", Desc: "the schemas of the collection, as the text that CREATE XML SCHEMA COLLECTION takes"},
+			{Name: "comment"},
+		},
+		Params: schemaNameSystem("collection"),
+		Scan: func(rows *sql.Rows) (dbmeta.XMLSchemaCollection, error) {
+			var v dbmeta.XMLSchemaCollection
+			err := rows.Scan(&v.Schema, &v.Name, &v.Definition, &v.Comment)
+			return v, err
+		},
+	})
+}
+
 func registerSynonyms() {
 	dbmeta.Synonyms.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Synonym]{
 		Stmt: dbmeta.Stmt{
@@ -593,6 +683,10 @@ func registerStorage() {
 			always(`, ` + commentOn("t.object_id") + ` AS "comment"`),
 			always(`, USER_NAME(COALESCE(t.principal_id, s.principal_id)) AS "owner"`),
 			always(`, LOWER(i.type_desc) AS "access_method"`),
+			always(`, (SELECT STUFF((SELECT ', ' + kc.name FROM sys.index_columns ic JOIN sys.columns kc`),
+			always(`    ON kc.object_id = ic.object_id AND kc.column_id = ic.column_id`),
+			always(`    WHERE ic.object_id = t.object_id AND ic.index_id = i.index_id AND ic.partition_ordinal > 0`),
+			always(`    ORDER BY ic.partition_ordinal FOR XML PATH('')), 1, 2, '')) AS "key_columns"`),
 			// A partition is not a table of its own, so the partitions one
 			// level below are every partition.
 			{
@@ -629,6 +723,7 @@ func registerStorage() {
 			{Name: "comment"},
 			{Name: "owner", Desc: "the principal named by ALTER AUTHORIZATION, and the owner of the schema when none was"},
 			{Name: "access_method", Desc: "heap, clustered or clustered columnstore"},
+			{Name: "key_columns", Desc: "the columns that the partition scheme is given, joined by a comma and a space"},
 			{Name: "direct_size", Min: v11, Desc: "allocated bytes of every partition, as Table.Size counts them"},
 			{Name: "total_size", Min: v11, Desc: "the same: SQL Server has one level of partitions"},
 		},
@@ -636,7 +731,7 @@ func registerStorage() {
 		Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 			var v dbmeta.PartitionedTable
 			err := rows.Scan(&v.Schema, &v.Name, &v.Type, &v.Parent, &v.Strategy,
-				&v.Expression, &v.Comment, dbmeta.NullAsEmpty(&v.Owner), &v.AccessMethod,
+				&v.Expression, &v.Comment, dbmeta.NullAsEmpty(&v.Owner), &v.AccessMethod, &v.KeyColumns,
 				&v.DirectSize, &v.TotalSize)
 			return v, err
 		},

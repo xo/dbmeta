@@ -165,12 +165,12 @@ call and filter in the loop.
 | ---------- | ------------------ | ------- | ----------- |
 | PostgreSQL | native             | 68      | Complete    |
 | any with an information_schema | shared | 12 | Ready to build on |
-| MariaDB    | native             | 31      | Complete    |
-| MySQL      | native             | 28      | Complete    |
+| MariaDB    | native             | 32      | Complete    |
+| MySQL      | native             | 29      | Complete    |
 | SQLite3    | native             | 15      | Complete    |
 | DuckDB     | native             | 22      | Complete    |
-| SQL Server | native             | 37      | Complete    |
-| Oracle     | native             | 34      | In progress |
+| SQL Server | native             | 40      | Complete    |
+| Oracle     | native             | 35      | In progress |
 | Cassandra  | native             | 17      | In progress |
 | ScyllaDB   | native             | 18      | In progress |
 | ClickHouse | native             | 26      | In progress |
@@ -235,12 +235,12 @@ the shared model serves.
 
 SQL Server was on that list too. `usql` reads it through the shared reader with
 sequences and constraints switched off and a small plugin for catalogs and
-indexes, and the native model here answers 32 kinds instead, including the
+indexes, and the native model here answers 40 kinds instead, including the
 sequences and constraints that reader turns off.
 
 [`COVERAGE.md`](docs/COVERAGE.md) says what each database answers, what it cannot,
-and which analogues were found and rejected. MariaDB answers 31 of the 72 and
-MySQL answers 27, because a native model beats the shared one by seventeen.
+and which analogues were found and rejected. MariaDB answers 32 of the 77 and
+MySQL answers 29, because a native model beats the shared one by seventeen.
 
 MariaDB and MySQL share one model. A query written for one of them gates on the
 product rather than on the release number, because MariaDB is at 13.0 and MySQL
@@ -357,7 +357,7 @@ Everything else is in [`docs/`](docs/):
 | Document | What it holds |
 | --- | --- |
 | [`PLAN.md`](docs/PLAN.md) | The plan: the purpose, the architecture, what exists, the testing plan and the open questions for a maintainer. |
-| [`decisions/`](docs/decisions/README.md) | Every decision, 294 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 131 amend or replace an earlier one. |
+| [`decisions/`](docs/decisions/README.md) | Every decision, 296 of them, one file each, with the reasoning and what was rejected. The index lists them with their status, because 133 amend or replace an earlier one. |
 | [`NULLS.md`](docs/NULLS.md) | One rule: never collapse a NULL. |
 | [`COVERAGE.md`](docs/COVERAGE.md) | What each database can and cannot answer, per object kind, and which analogues were rejected and why. |
 | [`COMMANDS.md`](docs/COMMANDS.md) | Every `psql` metadata command mapped to the Go value that answers it, which is what wiring up a client needs. |

@@ -105,6 +105,7 @@ func registerRelations() {
 			{{Query: `, CASE WHEN t.table_type = 'VIEW' THEN NULL ELSE CAST(t.data_length + t.index_length AS SIGNED) END AS "size"`}},
 			{{Query: `, CASE WHEN t.table_type = 'VIEW' THEN NULL ELSE CAST(t.table_rows AS SIGNED) END AS "rows"`}},
 			{{Query: `, NULLIF(t.create_options, '') AS "options"`}},
+			{{Query: `, CASE WHEN t.table_type = 'VIEW' THEN NULL ELSE t.table_collation END AS "collation"`}},
 			{{Query: `FROM information_schema.TABLES t`}},
 			notSystem("WHERE", "t.table_schema"),
 			schemaLike("schema", "t.table_schema"),
@@ -119,12 +120,13 @@ func registerRelations() {
 			{Name: "size", Desc: "DATA_LENGTH plus INDEX_LENGTH in bytes, absent for a view"},
 			{Name: "rows", Desc: "TABLE_ROWS, an estimate for InnoDB, absent for a view"},
 			{Name: "options", Desc: "CREATE_OPTIONS, such as row_format=COMPRESSED, separated by a space, absent when none is set"},
+			{Name: "collation", Desc: "TABLE_COLLATION, absent for a view"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
-				&v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options)
+				&v.Persistence, &v.AccessMethod, &v.Size, &v.Rows, &v.Options, &v.Collation)
 			return v, err
 		},
 	})
@@ -176,6 +178,9 @@ func registerRelations() {
 				{Query: `, c.column_default IS NOT NULL AND c.extra NOT LIKE '%GENERATED%' AS "default_is_literal"`},
 				frag(onMaria, `, FALSE AS "default_is_literal"`),
 			},
+			// INVISIBLE and the expression of ON UPDATE are in EXTRA, in both products.
+			{{Query: `, c.extra LIKE '%INVISIBLE%' AS "invisible"`}},
+			{{Query: `, CASE WHEN c.extra LIKE '%on update %' THEN SUBSTRING(c.extra, LOCATE('on update ', c.extra) + 10) END AS "on_update"`}},
 			{{Query: `FROM information_schema.COLUMNS c`}},
 			notSystem("WHERE", "c.table_schema"),
 			schemaLike("schema", "c.table_schema"),
@@ -192,13 +197,15 @@ func registerRelations() {
 				Min: mariaAgg.Min, Key: mariaAgg.Key,
 			},
 			{Name: "default_is_literal", Desc: "true when the default is a value that a statement must quote, which is a MySQL default that is not an expression (D276)"},
+			{Name: "invisible", Desc: "true for an INVISIBLE column"},
+			{Name: "on_update", Desc: "the expression of ON UPDATE, such as CURRENT_TIMESTAMP, absent when the column has none"},
 		},
 		Params: schemaParentName("column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey, &v.Identity, &v.Generated,
-				&v.Comment, &v.Collation, &v.Compression, &v.DefaultIsLiteral)
+				&v.Comment, &v.Collation, &v.Compression, &v.DefaultIsLiteral, &v.Invisible, &v.OnUpdate)
 			return v, err
 		},
 	})
@@ -217,6 +224,13 @@ func registerRelations() {
 			// BTREE, HASH, FULLTEXT, SPATIAL or RTREE, which is what follows
 			// USING in the statement that made the index. See D205.
 			{{Query: `, MIN(s.index_type) AS "using"`}},
+			// An index that the optimizer ignores is INVISIBLE in MySQL from 8.0.13
+			// and IGNORED in MariaDB from 10.6.
+			{
+				{Query: `, NULL AS "invisible"`},
+				{Min: dbmeta.V(8, 0, 13), Key: MySQL, Query: `, MIN(s.is_visible) = 'NO' AS "invisible"`},
+				frag(onMaria, `, MIN(s.ignored) = 'YES' AS "invisible"`),
+			},
 			{{Query: `FROM information_schema.STATISTICS s`}},
 			notSystem("WHERE", "s.table_schema"),
 			schemaLike("schema", "s.table_schema"),
@@ -225,12 +239,13 @@ func registerRelations() {
 			{{Query: `GROUP BY 1, 2, 3, 4`}},
 			{{Query: `ORDER BY 2, 3, 4`}},
 		},
-		Fields: fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment", "using"),
+		Fields: append(fields("catalog", "schema", "table", "name", "type", "unique", "primary", "comment", "using"),
+			dbmeta.Field{Name: "invisible", Desc: "true for an INVISIBLE index of MySQL or an IGNORED index of MariaDB, absent below MySQL 8.0.13"}),
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment, &v.Using)
+				&v.Unique, &v.Primary, &v.Comment, &v.Using, &v.Invisible)
 			return v, err
 		},
 	})
@@ -244,10 +259,16 @@ func registerRelations() {
 			{{Query: `, s.seq_in_index AS "ordinal"`}},
 			// MariaDB's STATISTICS has no expression column: a functional
 			// index records only the column it was built from
-			{{Query: `, NULL AS "expression"`}},
+			{
+				{Query: `, NULL AS "expression"`},
+				{Min: dbmeta.V(8, 0, 13), Key: MySQL, Query: `, s.expression AS "expression"`},
+			},
 			// COLLATION is NULL for an index that keeps no order, such as a hash
 			// or a full text index, and no key of it is descending.
 			{{Query: `, s.collation <=> 'D' AS "descending"`}},
+			// SUB_PART is the length of a prefix. A spatial index shows 32, which is no
+			// prefix.
+			{{Query: `, CASE WHEN s.index_type = 'SPATIAL' THEN NULL ELSE s.sub_part END AS "prefix_length"`}},
 			{{Query: `FROM information_schema.STATISTICS s`}},
 			notSystem("WHERE", "s.table_schema"),
 			schemaLike("schema", "s.table_schema"),
@@ -269,14 +290,15 @@ func registerRelations() {
 		Fields: []dbmeta.Field{
 			{Name: "schema"}, {Name: "table"}, {Name: "index"}, {Name: "name"},
 			{Name: "ordinal"},
-			{Name: "expression", Desc: "always absent: MariaDB records no index expression"},
+			{Name: "expression", Desc: "the expression of a functional key part, from MySQL 8.0.13. Absent on MariaDB, which records none"},
 			{Name: "descending"},
+			{Name: "prefix_length", Desc: "the length of the prefix that the index holds, absent when it holds the whole column"},
 		},
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
 			var v dbmeta.IndexColumn
 			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &v.Name, &v.Ordinal,
-				&v.Expression, &v.Descending)
+				&v.Expression, &v.Descending, &v.PrefixLength)
 			return v, err
 		},
 	})
@@ -381,6 +403,8 @@ func registerRelations() {
 			{{Query: `, 'enabled' AS "enabled"`}},
 			{{Query: `, CONCAT(t.action_timing, ' ', t.event_manipulation, ' ', t.action_statement) AS "definition"`}},
 			{{Query: `, NULL AS "comment"`}},
+			{{Query: `, t.action_order AS "action_order"`}},
+			{{Query: `, t.sql_mode AS "sql_mode"`}},
 			{{Query: `FROM information_schema.TRIGGERS t`}},
 			notSystem("WHERE", "t.trigger_schema"),
 			schemaLike("schema", "t.trigger_schema"),
@@ -392,11 +416,13 @@ func registerRelations() {
 			{Name: "schema"}, {Name: "table"}, {Name: "name"},
 			{Name: "enabled", Desc: "always enabled: a MariaDB trigger cannot be disabled"},
 			{Name: "definition"}, {Name: "comment"},
+			{Name: "action_order", Desc: "the position among the triggers of the same table, event and timing, from one"},
+			{Name: "sql_mode", Desc: "the sql_mode that the trigger was made under"},
 		},
 		Params: schemaParentName("trigger"),
 		Scan: func(rows *sql.Rows) (dbmeta.Trigger, error) {
 			var v dbmeta.Trigger
-			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Enabled, &v.Definition, &v.Comment)
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Enabled, &v.Definition, &v.Comment, &v.ActionOrder, &v.SQLMode)
 			return v, err
 		},
 	})

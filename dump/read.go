@@ -9,6 +9,7 @@ import (
 	"iter"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -245,6 +246,15 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 			if strings.EqualFold(text(t.AccessMethod), "index organized") {
 				tb.Organization = "index"
 			}
+			if r.m.Dialect() == dbmeta.MySQL {
+				tb.Engine, tb.Collation, tb.Options = text(t.AccessMethod), text(t.Collation), text(t.Options)
+			}
+			if r.m.Dialect() == dbmeta.PostgreSQL {
+				tb.RowSecurity = t.RowSecurity.Valid && t.RowSecurity.V
+			}
+			if r.m.Dialect() == dbmeta.Oracle {
+				tb.Options = text(t.Options)
+			}
 			if r.m.Dialect() == dbmeta.SQLite3 {
 				tb.Definition = text(t.Definition)
 			} else if kind == "virtual" {
@@ -308,6 +318,9 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	if err := r.readIndexes(ctx, a, kept, views); err != nil {
 		return err
 	}
+	if r.m.Dialect() == dbmeta.SQLite3 {
+		dropUniqueIndexConstraints(kept)
+	}
 	if err := r.readViews(ctx, a, views); err != nil {
 		return err
 	}
@@ -320,7 +333,7 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	if err := r.readExtensions(ctx, snap); err != nil {
 		return err
 	}
-	if err := r.readUnwritten(ctx, a); err != nil {
+	if err := r.readUnwritten(ctx, a, kept, snap, byName); err != nil {
 		return err
 	}
 	// A user of Oracle that owns nothing is no schema of the database. The image
@@ -337,18 +350,17 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	return nil
 }
 
-// skipPartitionSchemes says which tables of SQL Server are laid out by a partition
-// scheme. A script does not write the partition function or the scheme, so each of
-// these tables is one table in the copy.
-func (r *reader) skipPartitionSchemes(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, snap *Snapshot) error {
+// readPartitionSchemes says which tables of SQL Server are laid out by a partition
+// scheme, and which columns the scheme is given. The script writes the partition
+// function and the scheme before the table. See D296.
+func (r *reader) readPartitionSchemes(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
 	parents, err := collect(dbmeta.PartitionedTables.Each(ctx, r.m, r.db, a))
 	if err != nil {
 		return fmt.Errorf("reading partitioned tables: %w", err)
 	}
 	for _, p := range parents {
-		if _, ok := kept[tableKey{p.Schema, p.Name}]; ok {
-			snap.Skipped = append(snap.Skipped, Skipped{Schema: p.Schema, Name: p.Name, Kind: "partition scheme",
-				Reason: "the partition function and the scheme " + p.Expression + " are not written, so the table is one table"})
+		if t, ok := kept[tableKey{p.Schema, p.Name}]; ok {
+			t.Partitioning = &Partitioning{Strategy: strings.ToLower(p.Strategy), Scheme: p.Expression, Expression: text(p.KeyColumns)}
 		}
 	}
 	return nil
@@ -361,7 +373,7 @@ func (r *reader) skipPartitionSchemes(ctx context.Context, a dbmeta.Args, kept m
 func (r *reader) readPartitions(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, snap *Snapshot) error {
 	d := r.m.Dialect()
 	if d == dbmeta.SQLServer {
-		return r.skipPartitionSchemes(ctx, a, kept, snap)
+		return r.readPartitionSchemes(ctx, a, kept)
 	}
 	if d != dbmeta.PostgreSQL && d != dbmeta.MySQL && d != dbmeta.Oracle {
 		return nil
@@ -516,6 +528,7 @@ func (r *reader) column(c dbmeta.Column) (Column, error) {
 		Collation: text(c.Collation), Comment: text(c.Comment),
 		DefaultLiteral: c.DefaultIsLiteral.Valid && c.DefaultIsLiteral.V,
 		Invisible:      c.Invisible.Valid && c.Invisible.V, Storage: text(c.NestedStorage),
+		OnUpdate: text(c.OnUpdate), DefaultName: text(c.DefaultName),
 	}
 	if c.Default.Valid {
 		d := c.Default.V
@@ -586,6 +599,17 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 			Definition: text(c.Definition), OnUpdate: text(c.OnUpdate), OnDelete: text(c.OnDelete),
 			Deferrable: c.Deferrable, Deferred: c.Deferred, Comment: text(c.Comment),
 		}
+		// MySQL and MariaDB check a key at once for RESTRICT and for NO ACTION, and
+		// MariaDB reports one or the other for the same key, by how the table was
+		// opened. So both are the one rule, which is RESTRICT.
+		if r.m.Dialect() == dbmeta.MySQL && con.Kind == "foreign key" {
+			if strings.EqualFold(con.OnUpdate, "NO ACTION") {
+				con.OnUpdate = "RESTRICT"
+			}
+			if strings.EqualFold(con.OnDelete, "NO ACTION") {
+				con.OnDelete = "RESTRICT"
+			}
+		}
 		for _, cc := range byCons[childKey{c.Schema, c.Table, c.Name}] {
 			con.Columns = append(con.Columns, cc.Name)
 			if cc.ForeignTable.Valid {
@@ -618,6 +642,9 @@ func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableK
 	for _, c := range icols {
 		k := childKey{c.Schema, c.Table, c.Index}
 		col := IndexColumn{Descending: c.Descending.Valid && c.Descending.V, Include: c.Include}
+		if c.PrefixLength.Valid {
+			col.Prefix = int(c.PrefixLength.V)
+		}
 		// A plain column has the expression that equals its name. An included column
 		// is a plain one, whatever a model puts in its expression.
 		if c.Name.Valid && (c.Include || !c.Expression.Valid || c.Expression.V == c.Name.V) {
@@ -653,6 +680,7 @@ func (r *reader) readIndexes(ctx context.Context, a dbmeta.Args, kept map[tableK
 			Columns:   byIdx[childKey{i.Schema, i.Table, i.Name}],
 			Predicate: text(i.Predicate), Definition: text(i.Definition),
 			Constraint: text(i.ConstraintType), Comment: text(i.Comment),
+			Invisible: i.Invisible.Valid && i.Invisible.V,
 		})
 	}
 	for _, t := range kept {
@@ -702,7 +730,8 @@ func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[table
 			if text, found := source[sourceKey{g.Schema, "trigger", g.Name}]; found {
 				def = "CREATE OR REPLACE " + strings.TrimSpace(text)
 			}
-			v.Triggers = append(v.Triggers, Trigger{Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment)})
+			v.Triggers = append(v.Triggers, Trigger{Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment),
+				Placement: text(g.Placement)})
 			continue
 		}
 		if t, ok := kept[tableKey{g.Schema, g.Table}]; ok {
@@ -711,9 +740,15 @@ func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[table
 			if text, found := source[sourceKey{g.Schema, "trigger", g.Name}]; found {
 				def = "CREATE OR REPLACE " + strings.TrimSpace(text)
 			}
-			t.Triggers = append(t.Triggers, Trigger{
-				Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment),
-			})
+			trg := Trigger{Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment), Placement: text(g.Placement)}
+			if g.ActionOrder.Valid {
+				trg.Order = int(g.ActionOrder.V)
+			}
+			if g.SQLMode.Valid {
+				mode := g.SQLMode.V
+				trg.SQLMode = &mode
+			}
+			t.Triggers = append(t.Triggers, trg)
 			continue
 		}
 		// A trigger of a schema or of the database, such as one that fires on DDL,
@@ -739,6 +774,16 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 	if err != nil {
 		return fmt.Errorf("reading sequences: %w", err)
 	}
+	if r.m.Dialect() == dbmeta.SQLite3 {
+		// The counter of a table that uses AUTOINCREMENT is in sqlite_sequence, which
+		// exists once one does. The model does not call it a sequence, so the dump
+		// reads it itself. See D296.
+		counters, err := r.sqliteCounters(ctx)
+		if err != nil {
+			return err
+		}
+		seqs = append(seqs, counters...)
+	}
 	for _, q := range seqs {
 		// Oracle makes a sequence for an identity column and drops it with the column.
 		if r.m.Dialect() == dbmeta.Oracle && strings.HasPrefix(q.Name, "ISEQ$$_") {
@@ -749,8 +794,20 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 				Name: q.Name, DataType: text(q.DataType), Start: text(q.Start), Minimum: text(q.Minimum),
 				Maximum: text(q.Maximum), Increment: text(q.Increment),
 				Cycles: q.Cycles.Valid && q.Cycles.V, OwnedBy: q.OwnedBy, Identity: q.Identity.Valid && q.Identity.V,
-				Comment: text(q.Comment),
+				Comment: text(q.Comment), Last: text(q.LastValue),
 			})
+			// DuckDB writes the next value of a sequence as its start, so a sequence that
+			// gave values reads with a start after its last value. The copy starts there
+			// too, and has no value to draw.
+			if r.m.Dialect() == dbmeta.DuckDB {
+				seq := &s.Sequences[len(s.Sequences)-1]
+				last, e1 := strconv.ParseInt(seq.Last, 10, 64)
+				start, e2 := strconv.ParseInt(seq.Start, 10, 64)
+				step, e3 := strconv.ParseInt(seq.Increment, 10, 64)
+				if e1 == nil && e2 == nil && e3 == nil && ((step > 0 && last < start) || (step < 0 && last > start)) {
+					seq.Last = ""
+				}
+			}
 		}
 	}
 	types, err := collect(dbmeta.Types.Each(ctx, r.m, r.db, a))
@@ -836,9 +893,14 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 				Multirange: text(t.RangeMultirange), Comment: text(t.Comment)})
 		case own && kind == "multirange":
 			// The range type makes it again.
+		case r.m.Dialect() == dbmeta.DuckDB && !slices.Contains([]string{"struct", "union", "map", "list", "array"}, kind) &&
+			!strings.HasPrefix(kind, "struct") && !strings.HasPrefix(kind, "map") && !strings.HasPrefix(kind, "union"):
+			// A type that a person made from another type is an alias, and its type is
+			// what the catalog says it is.
+			s.Domains = append(s.Domains, Domain{Name: t.Internal, Type: strings.ToUpper(kind), Comment: text(t.Comment)})
 		case r.m.Dialect() == dbmeta.DuckDB:
 			r.skipped = append(r.skipped, Skipped{Schema: t.Schema, Name: t.Name, Kind: "type " + kind,
-				Reason: "this kind of type is not read, and a column of it keeps the text of its type"})
+				Reason: "the catalog says no more of this type than its kind, so the dump does not write it, and a column of it keeps the text of its type"})
 		case !aliases:
 		case kind == "domain" || kind == "alias":
 			if d, found := byDomain[tableKey{t.Schema, t.Internal}]; found {
@@ -870,6 +932,53 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 			if s, ok := schemas[y.Schema]; ok {
 				s.Synonyms = append(s.Synonyms, Synonym{Name: y.Name, TargetSchema: text(y.TargetSchema), Target: y.Target,
 					TargetDatabase: text(y.TargetDatabase), TargetServer: text(y.TargetServer)})
+			}
+		}
+	}
+	if dbmeta.MaterializedViewLogs.Support(r.m) == dbmeta.Supported {
+		logs, err := collect(dbmeta.MaterializedViewLogs.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading materialized view logs: %w", err)
+		}
+		for _, l := range logs {
+			s, ok := schemas[l.Schema]
+			if !ok {
+				continue
+			}
+			if l.FilterColumns {
+				r.skipped = append(r.skipped, Skipped{Schema: l.Schema, Name: l.Master, Kind: "materialized view log",
+					Reason: "the log holds columns that a person named, and the dump does not write them"})
+			}
+			s.Logs = append(s.Logs, MaterializedViewLog{Master: l.Master, LogTable: l.LogTable, PrimaryKey: l.PrimaryKey,
+				RowID: l.RowID, Sequence: l.Sequence, ObjectID: l.ObjectID, IncludeNew: l.IncludeNew})
+		}
+	}
+	if dbmeta.XMLSchemaCollections.Support(r.m) == dbmeta.Supported {
+		xs, err := collect(dbmeta.XMLSchemaCollections.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading XML schema collections: %w", err)
+		}
+		for _, x := range xs {
+			if s, ok := schemas[x.Schema]; ok {
+				s.XMLSchemas = append(s.XMLSchemas, XMLSchema{Name: x.Name, Definition: text(x.Definition), Comment: text(x.Comment)})
+			}
+		}
+	}
+	if dbmeta.Events.Support(r.m) == dbmeta.Supported {
+		events, err := collect(dbmeta.Events.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading events: %w", err)
+		}
+		for _, e := range events {
+			if s, ok := schemas[e.Schema]; ok {
+				ev := ScheduledEvent{Name: e.Name, Definer: e.Definer, Kind: e.Kind, ExecuteAt: text(e.ExecuteAt),
+					IntervalValue: text(e.IntervalValue), IntervalField: text(e.IntervalField), Starts: text(e.Starts),
+					Ends: text(e.Ends), Status: e.Status, OnCompletion: e.OnCompletion, Body: e.Body, Comment: text(e.Comment)}
+				if e.SQLMode.Valid {
+					mode := e.SQLMode.V
+					ev.SQLMode = &mode
+				}
+				s.Events = append(s.Events, ev)
 			}
 		}
 	}
@@ -937,6 +1046,9 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 		slices.SortFunc(s.Ranges, func(x, y RangeType) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Collections, func(x, y Collection) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Synonyms, func(x, y Synonym) int { return cmp.Compare(x.Name, y.Name) })
+		slices.SortFunc(s.Events, func(x, y ScheduledEvent) int { return cmp.Compare(x.Name, y.Name) })
+		slices.SortFunc(s.Logs, func(x, y MaterializedViewLog) int { return cmp.Compare(x.Master, y.Master) })
+		slices.SortFunc(s.XMLSchemas, func(x, y XMLSchema) int { return cmp.Compare(x.Name, y.Name) })
 		slices.SortFunc(s.Routines, func(x, y Routine) int {
 			return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.Arguments, y.Arguments),
 				cmp.Compare(slices.Index(routineKinds, x.Kind), slices.Index(routineKinds, y.Kind)))
@@ -945,21 +1057,31 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 	return nil
 }
 
-// readUnwritten lists the objects that the model reads and the dump does not
-// write, so that a client can warn about each one. See D294.
-func (r *reader) readUnwritten(ctx context.Context, a dbmeta.Args) error {
-	if dbmeta.EventTriggers.Support(r.m) == dbmeta.Supported {
+// readUnwritten reads the objects that belong to the database or to a table and not to
+// a schema: the triggers that fire on a DDL event, the policies, and for SQL Server the
+// partition functions and schemes. It lists as skipped what the model reads and the dump
+// does not write. See D294 and D296.
+func (r *reader) readUnwritten(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, snap *Snapshot, schemas map[string]*Schema) error {
+	if dbmeta.EventTriggers.Support(r.m) == dbmeta.Supported && len(r.filter.Schemas) == 0 {
 		rows, err := collect(dbmeta.EventTriggers.Each(ctx, r.m, r.db, a))
 		if err != nil {
 			return fmt.Errorf("reading event triggers: %w", err)
 		}
-		kind := "event trigger"
-		if r.m.Dialect() == dbmeta.SQLServer {
-			kind = "database trigger"
+		source, err := r.sourceTexts(ctx, a)
+		if err != nil {
+			return err
 		}
 		for _, e := range rows {
-			r.skipped = append(r.skipped, Skipped{Name: e.Name, Kind: kind,
-				Reason: "the dump does not write a trigger that fires on a DDL event"})
+			def := text(e.Definition)
+			if text, found := source[sourceKey{e.Owner, "trigger", e.Name}]; found {
+				def = "CREATE OR REPLACE " + strings.TrimSpace(text)
+			}
+			d := EventTriggerDef{Name: e.Name, Event: e.Event, Tags: text(e.Tags), Enabled: e.Enabled,
+				Function: e.Function, Definition: def, Comment: text(e.Comment)}
+			if r.m.Dialect() == dbmeta.Oracle {
+				d.Schema = e.Owner
+			}
+			snap.EventTriggers = append(snap.EventTriggers, d)
 		}
 	}
 	if dbmeta.Aggregates.Support(r.m) == dbmeta.Supported && r.m.Dialect() == dbmeta.PostgreSQL {
@@ -968,10 +1090,23 @@ func (r *reader) readUnwritten(ctx context.Context, a dbmeta.Args) error {
 			return fmt.Errorf("reading aggregates: %w", err)
 		}
 		for _, f := range rows {
-			if r.wantSchema(f.Schema) && !f.Extension.Valid {
-				r.skipped = append(r.skipped, Skipped{Schema: f.Schema, Name: f.Name + "(" + text(f.ArgTypes) + ")", Kind: "aggregate",
-					Reason: "the dump does not write an aggregate"})
+			s, ok := schemas[f.Schema]
+			if !ok || f.Extension.Valid {
+				continue
 			}
+			if !f.Definition.Valid {
+				r.skipped = append(r.skipped, Skipped{Schema: f.Schema, Name: f.Name + "(" + text(f.ArgTypes) + ")", Kind: "aggregate",
+					Reason: "the dump writes an ordinary aggregate, and this one is an ordered set aggregate"})
+				continue
+			}
+			s.Routines = append(s.Routines, Routine{Name: f.Name, Kind: "agg", Arguments: text(f.ArgTypes),
+				Language: f.Language, Definition: f.Definition.V, Comment: text(f.Comment)})
+		}
+		// An aggregate names functions, so it comes after every function.
+		for _, s := range schemas {
+			slices.SortStableFunc(s.Routines, func(x, y Routine) int {
+				return cmp.Compare(b2i(x.Kind == "agg"), b2i(y.Kind == "agg"))
+			})
 		}
 	}
 	if dbmeta.Policies.Support(r.m) == dbmeta.Supported {
@@ -980,10 +1115,36 @@ func (r *reader) readUnwritten(ctx context.Context, a dbmeta.Args) error {
 			return fmt.Errorf("reading policies: %w", err)
 		}
 		for _, p := range rows {
-			if r.wantTable(p.Schema, p.Table) {
+			if !r.wantTable(p.Schema, p.Table) {
+				continue
+			}
+			t, ok := kept[tableKey{p.Schema, p.Table}]
+			if !ok || (r.m.Dialect() != dbmeta.PostgreSQL && r.m.Dialect() != dbmeta.SQLServer) {
 				r.skipped = append(r.skipped, Skipped{Schema: p.Schema, Name: p.Table + "." + p.Name, Kind: "policy",
 					Reason: "the dump does not write a row level security policy"})
+				continue
 			}
+			t.Policies = append(t.Policies, PolicyDef{Name: p.Name, Schema: text(p.PolicySchema), Command: p.Command,
+				Permissive: p.Permissive, Roles: text(p.Roles), Using: text(p.Using), WithCheck: text(p.WithCheck),
+				Disabled: p.Enabled.Valid && !p.Enabled.V, Comment: text(p.Comment)})
+		}
+	}
+	if dbmeta.PartitionFunctions.Support(r.m) == dbmeta.Supported && len(r.filter.Schemas) == 0 {
+		funcs, err := collect(dbmeta.PartitionFunctions.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading partition functions: %w", err)
+		}
+		for _, f := range funcs {
+			snap.PartitionFunctions = append(snap.PartitionFunctions, PartitionFunction{Name: f.Name, DataType: f.DataType,
+				Range: f.Range, Boundaries: f.Boundaries})
+		}
+		schemes, err := collect(dbmeta.PartitionSchemes.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading partition schemes: %w", err)
+		}
+		for _, f := range schemes {
+			snap.PartitionSchemes = append(snap.PartitionSchemes, PartitionScheme{Name: f.Name, Function: f.Function,
+				Filegroups: f.Filegroups})
 		}
 	}
 	return nil
@@ -1113,6 +1274,12 @@ func dropOracleSystemObjects(snap *Snapshot) {
 				}
 			}
 		}
+		for _, l := range s.Logs {
+			storage[l.LogTable] = true
+			// A log with a primary key makes a temporary table for updatable materialized
+			// views, which the log makes again.
+			storage["RUPD$_"+l.Master] = true
+		}
 		s.Tables = slices.DeleteFunc(s.Tables, func(t Table) bool { return storage[t.Name] })
 		for j := range s.Tables {
 			t := &s.Tables[j]
@@ -1154,4 +1321,61 @@ func sameExpression(a, b string) bool {
 		return strings.Join(strings.Fields(s), "")
 	}
 	return norm(a) == norm(b)
+}
+
+// dropUniqueIndexConstraints also adds the checks of the table, from its text. It takes out the unique constraints of SQLite that a CREATE
+// UNIQUE INDEX made, which the model lists as constraints with the name of the index.
+// The index is the object, and the script writes it as an index. A UNIQUE clause of a
+// table has an index that SQLite names itself, and stays a constraint. See D296.
+func dropUniqueIndexConstraints(kept map[tableKey]*Table) {
+	for _, t := range kept {
+		named := map[string]bool{}
+		t.Constraints = slices.DeleteFunc(t.Constraints, func(c Constraint) bool {
+			if c.Kind == "unique" && !strings.HasPrefix(c.Name, "sqlite_autoindex_") {
+				named[c.Name] = true
+				return true
+			}
+			return false
+		})
+		for i := range t.Indexes {
+			if named[t.Indexes[i].Name] {
+				t.Indexes[i].Constraint = ""
+			}
+		}
+		// The checks are in the text of the table and nowhere else.
+		if t.Definition != "" {
+			t.Constraints = append(t.Constraints, sqliteChecks(t.Definition)...)
+		}
+	}
+}
+
+// b2i is 1 for true and 0 for false.
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// sqliteCounters reads the counter of each table that uses AUTOINCREMENT, as a
+// sequence named for the table. A database with no such table has no sqlite_sequence,
+// and has no counter.
+func (r *reader) sqliteCounters(ctx context.Context) ([]dbmeta.Sequence, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT name, CAST(seq AS TEXT) FROM sqlite_sequence ORDER BY name`)
+	if err != nil {
+		if strings.Contains(err.Error(), "sqlite_sequence") {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading the counters of the tables: %w", err)
+	}
+	defer rows.Close()
+	var out []dbmeta.Sequence
+	for rows.Next() {
+		var name, last string
+		if err := rows.Scan(&name, &last); err != nil {
+			return nil, fmt.Errorf("reading the counters of the tables: %w", err)
+		}
+		out = append(out, dbmeta.Sequence{Schema: "main", Name: name, LastValue: sql.Null[string]{V: last, Valid: true}})
+	}
+	return out, rows.Err()
 }

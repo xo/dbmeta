@@ -30,7 +30,7 @@
 //
 // # What it answers
 //
-// 34 of the 72. Schemas, tables, columns, indexes, index columns,
+// 35 of the 77. Schemas, tables, columns, indexes, index columns,
 // constraints, constraint columns, sequences, views, the current schema and
 // the current user. Then comments, triggers, event triggers, functions,
 // aggregates, routine parameters, types, domains, operators, privileges,
@@ -106,6 +106,7 @@ func init() {
 	registerSource()
 	registerTypeAttributes()
 	registerMaterializedViews()
+	registerMaterializedViewLogs()
 	registerSynonyms()
 	registerTables()
 	registerCatalog()

@@ -276,6 +276,12 @@ func registerSequences() {
 				` AND d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass` +
 				` AND d.refobjsubid > 0 AND d.deptype IN ('a', 'i') LIMIT 1) AS "identity"`}},
 			{{Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
+			// The last value that the sequence gave, absent when it gave none. A dump sets
+			// the next value from it.
+			{
+				{Query: `, NULL::text AS "last_value"`},
+				{Min: v10, Query: `, pg_catalog.pg_sequence_last_value(c.oid)::text AS "last_value"`},
+			},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
 			{
@@ -297,12 +303,13 @@ func registerSequences() {
 			{Name: "cache_size", Desc: "values a session takes at once, absent below release 10", Min: v10},
 			{Name: "identity", Desc: "whether an identity column owns the sequence, absent when no column does"},
 			{Name: "visible", Desc: "whether the object is on the search path of the session, as psql applies it to a list with no schema in its pattern. Absent where the product has no search path."},
+			{Name: "last_value", Desc: "the last value that the sequence gave, absent when it gave none and below release 10", Min: v10},
 		},
 		Params: schemaNameSystem("sequence"),
 		Scan: func(rows *sql.Rows) (dbmeta.Sequence, error) {
 			var v dbmeta.Sequence
 			err := rows.Scan(&v.Schema, &v.Name, &v.DataType, &v.Start, &v.Minimum,
-				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.CacheSize, &v.Identity, &v.Visible)
+				&v.Maximum, &v.Increment, &v.Cycles, &v.OwnedBy, &v.Comment, &v.CacheSize, &v.Identity, &v.Visible, &v.LastValue)
 			return v, err
 		},
 	})

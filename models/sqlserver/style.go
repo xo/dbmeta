@@ -2,6 +2,7 @@ package sqlserver
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -21,6 +22,14 @@ func init() {
 		Sequence:          sequence,
 		Index:             index,
 		TriggerState:      triggerState,
+		EventTrigger:      eventTrigger,
+		Policies:          policies,
+		XMLSchema:         xmlSchema,
+		PartitionFunction: partitionFunction,
+		PartitionScheme:   partitionScheme,
+		PartitionBy:       partitionBy,
+		SequenceValue:     sequenceValue,
+		TriggerPlacement:  triggerPlacement,
 		View:              view,
 		KeyType:           keyType,
 		PrimaryKeyNotNull: true,
@@ -103,6 +112,10 @@ func column(c dump.Column, typeSQL string, q func(string) string, lit func(strin
 		text := *c.Default
 		if c.DefaultLiteral {
 			text = lit(text)
+		}
+		// A default that a person named keeps its name.
+		if c.DefaultName != "" {
+			b.WriteString(" CONSTRAINT " + q(c.DefaultName))
 		}
 		b.WriteString(" DEFAULT " + text)
 	}
@@ -347,5 +360,143 @@ func triggerState(quotedSchema, quotedTable, quotedTrigger, state string) string
 	if state != "disabled" {
 		return ""
 	}
+	// A trigger of the database has no table.
+	if quotedTable == "" {
+		return "DISABLE TRIGGER " + quotedTrigger + " ON DATABASE"
+	}
 	return "DISABLE TRIGGER " + quotedSchema + "." + quotedTrigger + " ON " + quotedTable
+}
+
+// eventTrigger is the statement of the trigger on the database, which SQL Server keeps.
+func eventTrigger(e dump.EventTriggerDef, _ func(string) string, _ func(string) string) string {
+	return strings.TrimSpace(e.Definition)
+}
+
+// predicate takes the brackets off a predicate that the catalog wraps in them, because
+// the statement names the function and its arguments with no brackets round them.
+func predicate(expr string) string {
+	expr = strings.TrimSpace(expr)
+	if strings.HasPrefix(expr, "(") && strings.HasSuffix(expr, ")") {
+		depth := 0
+		for i, r := range expr {
+			switch r {
+			case '(':
+				depth++
+			case ')':
+				depth--
+				if depth == 0 && i < len(expr)-1 {
+					return expr
+				}
+			}
+		}
+		return strings.TrimSpace(expr[1 : len(expr)-1])
+	}
+	return expr
+}
+
+// policies writes a security policy for each name, and adds the predicates of the
+// other tables to it.
+func policies(schema string, t dump.Table, created map[string]bool, q func(string) string, _ func(string) string) []string {
+	var out []string
+	for _, p := range t.Policies {
+		owner := p.Schema
+		if owner == "" {
+			owner = schema
+		}
+		name := q(owner) + "." + q(p.Name)
+		kind, expr := "FILTER", p.Using
+		switch p.Command {
+		case "insert":
+			kind, expr = "BLOCK", p.WithCheck
+		case "update":
+			kind, expr = "BLOCK", p.WithCheck
+			if p.WithCheck == "" {
+				expr = p.Using
+			}
+		case "delete":
+			kind, expr = "BLOCK", p.Using
+		}
+		clause := kind + " PREDICATE " + predicate(expr) + " ON " + q(schema) + "." + q(t.Name)
+		switch {
+		case kind == "BLOCK" && p.Command == "insert":
+			clause += " AFTER INSERT"
+		case kind == "BLOCK" && p.Command == "update" && p.WithCheck != "":
+			clause += " AFTER UPDATE"
+		case kind == "BLOCK" && p.Command == "update":
+			clause += " BEFORE UPDATE"
+		case kind == "BLOCK":
+			clause += " BEFORE DELETE"
+		}
+		if !created[name] {
+			state := "ON"
+			if p.Disabled {
+				state = "OFF"
+			}
+			out = append(out, "CREATE SECURITY POLICY "+name+" ADD "+clause+" WITH (STATE = "+state+")")
+			created[name] = true
+			continue
+		}
+		out = append(out, "ALTER SECURITY POLICY "+name+" ADD "+clause)
+	}
+	return out
+}
+
+// xmlSchema writes CREATE XML SCHEMA COLLECTION from the text of the schemas.
+func xmlSchema(quoted string, x dump.XMLSchema, lit func(string) string) string {
+	return "CREATE XML SCHEMA COLLECTION " + quoted + " AS " + lit(x.Definition)
+}
+
+// partitionFunction writes CREATE PARTITION FUNCTION.
+func partitionFunction(f dump.PartitionFunction, q func(string) string) string {
+	sql := "CREATE PARTITION FUNCTION " + q(f.Name) + " (" + f.DataType + ") AS RANGE " + strings.ToUpper(f.Range) + " FOR VALUES ("
+	return sql + f.Boundaries + ")"
+}
+
+// partitionScheme writes CREATE PARTITION SCHEME. The copy has the filegroup PRIMARY
+// and the filegroups that a person made are not made again, so every partition is put
+// on PRIMARY.
+func partitionScheme(sc dump.PartitionScheme, q func(string) string) string {
+	return "CREATE PARTITION SCHEME " + q(sc.Name) + " AS PARTITION " + q(sc.Function) + " ALL TO ([PRIMARY])"
+}
+
+// partitionBy writes the clause that lays a table out by its scheme.
+func partitionBy(p dump.Partitioning, q func(string) string, _ func(string) string) string {
+	var cols []string
+	for name := range strings.SplitSeq(p.Expression, ", ") {
+		cols = append(cols, q(name))
+	}
+	return " ON " + q(p.Scheme) + "(" + strings.Join(cols, ", ") + ")"
+}
+
+// sequenceValue gives the sequence the values that it gave, so that its next value is
+// the one after the last. RESTART WITH changes the start value of the sequence, so
+// the values are drawn, which leaves the start as it was. A sequence that gave more
+// values than a script can draw is restarted.
+func sequenceValue(quoted string, s dump.Sequence, _ func(string) string) string {
+	last, err1 := strconv.ParseInt(s.Last, 10, 64)
+	step, err2 := strconv.ParseInt(s.Increment, 10, 64)
+	start, err3 := strconv.ParseInt(s.Start, 10, 64)
+	if err1 != nil || err2 != nil {
+		return ""
+	}
+	if err3 == nil && step != 0 && (last-start)%step == 0 && (last-start)/step >= 0 && (last-start)/step < 10000 {
+		return "DECLARE @drawn int = 0, @value bigint; WHILE @drawn <= " + strconv.FormatInt((last-start)/step, 10) +
+			" BEGIN SET @value = NEXT VALUE FOR " + quoted + "; SET @drawn = @drawn + 1; END"
+	}
+	return "ALTER SEQUENCE " + quoted + " RESTART WITH " + strconv.FormatInt(last+step, 10)
+}
+
+// triggerPlacement writes sp_settriggerorder for each event that the trigger is first or
+// last for.
+func triggerPlacement(schema, trigger, placement string, q func(string) string) []string {
+	var out []string
+	for part := range strings.SplitSeq(placement, ", ") {
+		order, event, ok := strings.Cut(part, " ")
+		if !ok {
+			continue
+		}
+		out = append(out, "EXEC sp_settriggerorder @triggername = N'"+strings.ReplaceAll(q(schema)+"."+q(trigger), "'", "''")+
+			"', @order = '"+strings.ToUpper(order[:1])+order[1:]+"', @stmttype = '"+event+"'")
+	}
+	return out
 }

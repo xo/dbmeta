@@ -92,6 +92,10 @@ type Table struct {
 	// OfType is the object type that the table is made of, for an object table
 	// of Oracle, as schema.type. It is absent for any other table. See D294.
 	OfType sql.Null[string]
+
+	// Collation is the default collation of the columns of the table, for a product
+	// that sets one for each table. It is absent where it has none. See D296.
+	Collation sql.Null[string]
 }
 
 // Schema is a namespace within a catalog.
@@ -168,6 +172,15 @@ type Column struct {
 	// NestedStorage is the name of the table that stores the rows of a nested
 	// table column, and absent for any other column. Oracle makes it with STORE AS.
 	NestedStorage sql.Null[string]
+
+	// OnUpdate is the expression that a column takes when its row is updated, such
+	// as CURRENT_TIMESTAMP in MySQL, and absent for a column that has none.
+	OnUpdate sql.Null[string]
+
+	// DefaultName is the name that a person gave the default constraint of the
+	// column, for a product that names them. It is absent when the system named it
+	// or the product has none. See D296.
+	DefaultName sql.Null[string]
 }
 
 // Index is an index on a table.
@@ -236,6 +249,11 @@ type Index struct {
 	// every object when it has one. It is absent where the product has no
 	// search path. See D262.
 	Visible sql.Null[bool]
+
+	// Invisible says that the optimizer ignores the index, as an INVISIBLE index of
+	// MySQL or an IGNORED index of MariaDB is. It is absent where the product has no
+	// such index. See D296.
+	Invisible sql.Null[bool]
 }
 
 // Queries. One value per object kind.
@@ -360,6 +378,10 @@ type EventTrigger struct {
 	Function string
 	Tags     sql.Null[string]
 	Comment  sql.Null[string]
+
+	// Definition is the statement that makes the trigger, for a product that keeps
+	// one, and absent where it keeps none. See D296.
+	Definition sql.Null[string]
 }
 
 // Setting is a configuration parameter. psql lists them with \dconfig.
@@ -1107,6 +1129,11 @@ type IndexColumn struct {
 	ColumnType  sql.Null[string]
 	Storage     sql.Null[string]
 	StatsTarget sql.Null[int64]
+
+	// PrefixLength is the number of characters or bytes of the column that the index
+	// holds, for an index on a prefix such as name(10), and absent when the index
+	// holds the whole column. See D296.
+	PrefixLength sql.Null[int64]
 }
 
 // Constraint is a check, unique, primary key, foreign key or exclusion
@@ -1146,6 +1173,18 @@ type Trigger struct {
 	Enabled    string
 	Definition string
 	Comment    sql.Null[string]
+
+	// ActionOrder is the position of the trigger among those of the same table,
+	// event and timing, from one, for a product that orders them. See D296.
+	ActionOrder sql.Null[int64]
+	// SQLMode is the sql_mode that the trigger was made under, which MySQL and
+	// MariaDB keep with it.
+	SQLMode sql.Null[string]
+
+	// Placement says which events the trigger is first or last for, as text such as
+	// first INSERT, last UPDATE, for a product that lets a person place a trigger
+	// among those of the same event. It is absent when none is placed. See D296.
+	Placement sql.Null[string]
 }
 
 // Sequence generates numbers. psql lists them with \ds and shows the detail
@@ -1178,6 +1217,11 @@ type Sequence struct {
 	// every object when it has one. It is absent where the product has no
 	// search path. See D262.
 	Visible sql.Null[bool]
+
+	// LastValue is the last value that the sequence gave, as text, and absent when
+	// it gave none or the product does not say. A dump sets the next value from it.
+	// See D296.
+	LastValue sql.Null[string]
 }
 
 // PartitionedTable is a table split into partitions. psql lists them with \dP.
@@ -1212,6 +1256,10 @@ type PartitionedTable struct {
 	// every object when it has one. It is absent where the product has no
 	// search path. See D262.
 	Visible sql.Null[bool]
+
+	// KeyColumns are the columns that the partition scheme of a table is given, for
+	// a product that partitions by a scheme, and absent otherwise. See D296.
+	KeyColumns sql.Null[string]
 }
 
 // Queries for the detail of a table.
@@ -1324,6 +1372,11 @@ type Policy struct {
 	// Table.RowSecurity, so a PostgreSQL policy is always active and this is
 	// absent. See D211.
 	Enabled sql.Null[bool]
+
+	// PolicySchema is the schema that holds the policy, where it is not the schema
+	// of the table, as in SQL Server. It is absent where the policy belongs to its
+	// table. See D296.
+	PolicySchema sql.Null[string]
 }
 
 // Rule is a rewrite rule of a table. psql prints them in Rules of \d+ name.
@@ -1591,6 +1644,22 @@ var (
 	// apart from its views, with the clauses that build and refresh them. A dump
 	// needs the query and the clauses. See D289.
 	MaterializedViews = NewQuery[MaterializedView]("materialized_views")
+	// Events lists the scheduled events of a product that has them, with the schedule
+	// and the statement that runs. A dump writes them back. See D296.
+	Events = NewQuery[Event]("events")
+	// MaterializedViewLogs lists the logs that record the changes to a table, for a
+	// product that has them, such as the materialized view log of Oracle. A dump
+	// writes them back, and leaves out the table that holds each one. See D296.
+	MaterializedViewLogs = NewQuery[MaterializedViewLog]("materialized_view_logs")
+	// XMLSchemaCollections lists the XML schema collections of a product that has
+	// them, with the text of each. A dump writes them back. See D296.
+	XMLSchemaCollections = NewQuery[XMLSchemaCollection]("xml_schema_collections")
+	// PartitionFunctions lists the functions that decide which partition a row is in,
+	// for a product that keeps them apart from its tables. See D296.
+	PartitionFunctions = NewQuery[PartitionFunction]("partition_functions")
+	// PartitionSchemes lists the schemes that put the partitions of a function on
+	// storage, for a product that keeps them apart from its tables. See D296.
+	PartitionSchemes = NewQuery[PartitionScheme]("partition_schemes")
 	// TypeAttributes lists the attributes of each object type, in order, which a
 	// dump needs to read and write a column of such a type. See D289.
 	TypeAttributes = NewQuery[TypeAttribute]("type_attributes")
@@ -1622,3 +1691,86 @@ var (
 	// is not always the database. See D265.
 	CurrentDatabase = NewQuery[DatabaseName]("current_database")
 )
+
+// Event is a statement that the server runs on a schedule, as a MySQL or a
+// MariaDB event does. A dump writes it back with CREATE EVENT.
+type Event struct {
+	Schema string
+	Name   string
+	// Definer is the account that runs the event, as user@host.
+	Definer string
+	// Kind is one time or recurring.
+	Kind string
+	// ExecuteAt is the instant of a one time event.
+	ExecuteAt sql.Null[string]
+	// IntervalValue and IntervalField are the period of a recurring event, such as
+	// 1 and DAY.
+	IntervalValue sql.Null[string]
+	IntervalField sql.Null[string]
+	// Starts and Ends bound a recurring event, and are absent when it has no bound.
+	Starts sql.Null[string]
+	Ends   sql.Null[string]
+	// Status is enabled, disabled or slaveside_disabled.
+	Status string
+	// OnCompletion is preserve or not preserve.
+	OnCompletion string
+	// Body is the statement that the event runs.
+	Body    string
+	Comment sql.Null[string]
+	SQLMode sql.Null[string]
+}
+
+// XMLSchemaCollection is a set of XML schemas that a column of the type xml can be
+// checked against. SQL Server keeps them in the database.
+type XMLSchemaCollection struct {
+	Schema string
+	Name   string
+	// Definition is the text of the schemas, which CREATE XML SCHEMA COLLECTION
+	// takes. It is absent where the caller cannot read it.
+	Definition sql.Null[string]
+	Comment    sql.Null[string]
+}
+
+// PartitionFunction says how the values of a column map to partitions. SQL Server
+// keeps it in the database, apart from the tables that use it.
+type PartitionFunction struct {
+	Name string
+	// DataType is the type of the column that the function takes, as declared.
+	DataType string
+	// Range is left or right, which side of a boundary value holds the value.
+	Range string
+	// Boundaries are the boundary values as literals, joined by a comma and a space,
+	// in order, and empty for a function that has one partition.
+	Boundaries string
+}
+
+// PartitionScheme puts the partitions of a function on storage. SQL Server keeps it
+// in the database, apart from the tables that use it.
+type PartitionScheme struct {
+	Name string
+	// Function is the name of the partition function of the scheme.
+	Function string
+	// Filegroups are the filegroups of the partitions, in order, joined by a comma
+	// and a space.
+	Filegroups string
+}
+
+// MaterializedViewLog is the log of the changes to a table, which a fast refresh of a
+// materialized view reads. The product keeps it in a table of its own.
+type MaterializedViewLog struct {
+	Schema string
+	// Master is the table that the log records.
+	Master string
+	// LogTable is the table that holds the log, which the log makes and drops.
+	LogTable string
+	// PrimaryKey, RowID, Sequence and ObjectID say what each entry holds besides
+	// the changed values.
+	PrimaryKey bool
+	RowID      bool
+	Sequence   bool
+	ObjectID   bool
+	// IncludeNew says that an entry holds the new values of a changed row.
+	IncludeNew bool
+	// FilterColumns says that the log holds columns that a person named.
+	FilterColumns bool
+}

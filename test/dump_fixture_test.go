@@ -54,14 +54,12 @@ type fixtureSide struct {
 func TestDumpFixtureRoundTrips(t *testing.T) {
 	sides := map[string]fixtureSide{
 		"postgres": {
-			skips:   []string{"aggregate", "event trigger"},
 			rows:    true,
 			dialect: dbmeta.PostgreSQL,
 			source:  func(t *testing.T) *sql.DB { return openPostgresDatabase(t, "dump", false) },
 			fresh:   func(t *testing.T) *sql.DB { return openPostgresDatabase(t, "dbmeta_dump_fixture", true) },
 		},
 		"sqlserver": {
-			skips:   []string{"database trigger", "policy"},
 			rows:    true,
 			dialect: dbmeta.SQLServer,
 			source: func(t *testing.T) *sql.DB {
@@ -87,7 +85,6 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 		},
 		"oracle": {
 			rows:    true,
-			skips:   []string{"event trigger"},
 			dialect: dbmeta.Oracle,
 			source:  openOracle,
 			fresh:   openOracleCopy,
@@ -95,7 +92,7 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			rename:  map[string]string{"DUMP_CORE": "CP_CORE", "DUMP_EXTRA": "CP_EXTRA"},
 		},
 		"duckdb": {
-			skips:   []string{"type struct", "type varchar"},
+			skips:   []string{"type struct"},
 			rows:    true,
 			dialect: dbmeta.DuckDB,
 			source:  func(t *testing.T) *sql.DB { return openEmbeddedFixture(t, "duckdb", "dump.duckdb") },
@@ -187,11 +184,18 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 				report.Reset()
 				report.WriteString(fixed)
 			}
+			// A second dump of the copy writes the views and the routines in the same
+			// order as the first one.
+			if a, b := objectOrder(stmts), objectOrder(scriptOf(t, second, side.dialect)); a != b {
+				report.WriteString("the order of the views and the routines differs:\n" + lineDiff(a, b) + "\n")
+			}
 			if string(got) != string(wantJSON) {
 				report.WriteString("the copy differs from the source:\n" + lineDiff(string(wantJSON), string(got)) + "\n")
 			}
 			if out := os.Getenv("DBMETA_SCRIPT_OUT"); out != "" {
 				_ = os.WriteFile(filepath.Join(out, "fixture-"+name+".sql"), []byte(script.String()), 0o644)
+				_ = os.WriteFile(filepath.Join(out, "fixture-"+name+"-source.json"), wantJSON, 0o644)
+				_ = os.WriteFile(filepath.Join(out, "fixture-"+name+"-copy.json"), got, 0o644)
 			}
 			product := name
 			if name == "mysql" {
@@ -338,7 +342,9 @@ func openMySQLCopy(t *testing.T) *sql.DB {
 		}
 	}
 	drop()
-	t.Cleanup(drop)
+	if os.Getenv("DBMETA_KEEP") == "" {
+		t.Cleanup(drop)
+	}
 	return admin
 }
 
@@ -492,4 +498,17 @@ func connCells(t *testing.T, conn *sql.Conn, query string) ([][]any, error) {
 		out = append(out, row)
 	}
 	return out, rows.Err()
+}
+
+// objectOrder lists the views and the routines of a script in the order that it
+// writes them.
+func objectOrder(stmts []dump.Statement) string {
+	var out strings.Builder
+	for _, st := range stmts {
+		if st.Kind != "view" && st.Kind != "routine" && st.Kind != "materialized view" {
+			continue
+		}
+		out.WriteString(st.Kind + " " + st.Name + "\n")
+	}
+	return out.String()
 }

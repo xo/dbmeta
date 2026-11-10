@@ -471,3 +471,40 @@ func registerSynonyms() {
 		},
 	})
 }
+
+// registerMaterializedViewLogs lists the logs of the changes to a table. The log table
+// is a table to the dictionary, and a dump leaves it out and writes the log. See D296.
+func registerMaterializedViewLogs() {
+	dbmeta.MaterializedViewLogs.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.MaterializedViewLog]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT l.log_owner AS "schema"`),
+			always(`, l.master AS "master"`),
+			always(`, l.log_table AS "log_table"`),
+			always(`, CASE l.primary_key WHEN 'YES' THEN 1 ELSE 0 END AS "primary_key"`),
+			always(`, CASE l.rowids WHEN 'YES' THEN 1 ELSE 0 END AS "row_id"`),
+			always(`, CASE l.sequence WHEN 'YES' THEN 1 ELSE 0 END AS "sequence"`),
+			always(`, CASE l.object_id WHEN 'YES' THEN 1 ELSE 0 END AS "object_id"`),
+			always(`, CASE l.include_new_values WHEN 'YES' THEN 1 ELSE 0 END AS "include_new"`),
+			always(`, CASE l.filter_columns WHEN 'YES' THEN 1 ELSE 0 END AS "filter_columns"`),
+			always(`FROM all_mview_logs l`),
+			notSystem("WHERE", "l.log_owner"),
+			always(`AND (@schema IS NULL OR l.log_owner LIKE @schema)`),
+			always(`AND (@name IS NULL OR l.master LIKE @name)`),
+			always(`ORDER BY l.log_owner, l.master`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "master", Desc: "the table that the log records"},
+			{Name: "log_table", Desc: "the table that holds the log"},
+			{Name: "primary_key"}, {Name: "row_id"}, {Name: "sequence"}, {Name: "object_id"},
+			{Name: "include_new", Desc: "true when an entry holds the new values of a changed row"},
+			{Name: "filter_columns", Desc: "true when the log holds columns that a person named"},
+		},
+		Params: schemaNameSystem("log"),
+		Scan: func(rows *sql.Rows) (dbmeta.MaterializedViewLog, error) {
+			var v dbmeta.MaterializedViewLog
+			err := rows.Scan(&v.Schema, &v.Master, &v.LogTable, &v.PrimaryKey, &v.RowID, &v.Sequence, &v.ObjectID,
+				&v.IncludeNew, &v.FilterColumns)
+			return v, err
+		},
+	})
+}

@@ -27,7 +27,7 @@
 //
 // # What it answers
 //
-// 22 of the 72. Schemas, tables, columns, indexes, index columns, constraints,
+// 22 of the 77. Schemas, tables, columns, indexes, index columns, constraints,
 // constraint columns, not null constraints, views, sequences, functions,
 // routine parameters, roles, role grants, privileges, column privileges,
 // settings, the current schema, the current user, publications, publication tables and

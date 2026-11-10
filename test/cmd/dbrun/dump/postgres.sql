@@ -312,3 +312,8 @@ CREATE TABLE "same"."same" (
     id int
 );
 INSERT INTO "same"."same" VALUES ('one', 1), ('two', NULL);
+
+-- Row level security: a policy that restricts, a policy for a role, and the switch.
+CREATE POLICY people_visible ON core.people FOR SELECT USING (id > 0);
+CREATE POLICY people_edit ON core.people AS RESTRICTIVE FOR UPDATE TO PUBLIC USING (true) WITH CHECK (id > 0);
+ALTER TABLE core.people ENABLE ROW LEVEL SECURITY;

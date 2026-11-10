@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"iter"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -202,6 +203,8 @@ func (g *generator) pre() error {
 	}
 	if !g.cross {
 		g.customTypes()
+		g.partitionObjects()
+		g.xmlSchemas()
 	}
 	g.earlyRoutines()
 	tables, err := g.orderedTables()
@@ -214,7 +217,7 @@ func (g *generator) pre() error {
 			return err
 		}
 		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: sql,
-			Note: joinNotes(g.droppedRules(t.table), g.partitionNote(t.table), g.versioningNote(t.table))})
+			Note: joinNotes(g.droppedRules(t.table), g.partitionNote(t.table), g.versioningNote(t.table), g.lostValues(t.table))})
 	}
 	for _, t := range g.partitions() {
 		g.add(Statement{Stage: Pre, Kind: "table", Name: t.schema + "." + t.table.Name, SQL: g.createPartition(t.schema, t.table)})
@@ -450,7 +453,11 @@ func (g *generator) createTable(schema string, t Table) (string, error) {
 	if t.Versioning != nil && g.versioned() {
 		parts = append(parts, g.style.SystemTime(*t.Versioning, q))
 	}
-	sql := "CREATE TABLE " + g.qualified(schema, t.Name) + " (\n  " + strings.Join(parts, ",\n  ") + "\n)"
+	keyword := "TABLE"
+	if g.style.TableKeyword != nil && !g.cross {
+		keyword = g.style.TableKeyword(t)
+	}
+	sql := "CREATE " + keyword + " " + g.qualified(schema, t.Name) + " (\n  " + strings.Join(parts, ",\n  ") + "\n)"
 	if g.style.TableOptions != nil {
 		sql += g.style.TableOptions(t, lit)
 	}
@@ -458,6 +465,24 @@ func (g *generator) createTable(schema string, t Table) (string, error) {
 		sql += g.style.PartitionBy(*t.Partitioning, q, lit)
 	}
 	return sql, nil
+}
+
+// lostValues says which columns of a table the dump moves no value of, for a product
+// that has such a column, so that a client can warn about it. See D295.
+func (g *generator) lostValues(t Table) string {
+	if g.style.LostValues == nil || g.cross {
+		return ""
+	}
+	var names []string
+	for _, c := range t.Columns {
+		if g.style.LostValues(c) {
+			names = append(names, c.Name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return "the dump moves no value of " + strings.Join(names, ", ") + ", so the copy has NULL"
 }
 
 // droppedRules says which foreign key rules a product that has none leaves out.
@@ -615,10 +640,11 @@ func (g *generator) post() {
 		}
 	}
 	g.identities()
+	g.sequenceValues()
 	g.viewsAndRoutines()
 	for _, sc := range g.snap.Schemas {
 		for _, t := range sc.Tables {
-			for _, tg := range t.Triggers {
+			for _, tg := range triggersInOrder(t.Triggers) {
 				g.trigger(sc.Name, t, tg)
 			}
 		}
@@ -627,7 +653,11 @@ func (g *generator) post() {
 				g.trigger(sc.Name, Table{Name: v.Name}, tg)
 			}
 		}
+		g.events(sc)
 	}
+	g.policies()
+	g.viewLogs()
+	g.eventTriggers()
 	g.comments()
 }
 
@@ -734,10 +764,14 @@ func (g *generator) index(schema string, t Table, ix Index) string {
 		}
 		return def
 	}
+	sql := genericIndex(table, ix, g.style.Quote)
 	if g.style.Index != nil {
-		return g.style.Index(table, ix, g.style.Quote)
+		sql = g.style.Index(table, ix, g.style.Quote)
 	}
-	return genericIndex(table, ix, g.style.Quote)
+	if ix.Invisible && g.style.InvisibleIndex != nil && !g.cross {
+		sql += g.style.InvisibleIndex(g.snap.Server)
+	}
+	return sql
 }
 
 // genericIndex writes CREATE INDEX with the columns, the direction and the
@@ -851,7 +885,8 @@ func (g *generator) viewsAndRoutines() {
 				visit(j)
 			}
 		}
-		for word := range all[i].words {
+		// The words are in order of the names, so two scripts of one snapshot are the same.
+		for _, word := range slices.Sorted(maps.Keys(all[i].words)) {
 			for _, j := range byName[word] {
 				// An object names itself, and its body and its specification
 				// follow the order of the snapshot.
@@ -965,9 +1000,62 @@ func (g *generator) view(schema string, v View) string {
 	return sql
 }
 
+// events writes the scheduled events of a schema, with the mode of the session that
+// made each one.
+func (g *generator) events(sc Schema) {
+	if g.style.Event == nil || g.cross {
+		return
+	}
+	for _, e := range sc.Events {
+		g.use(Post, sc.Name)
+		if e.SQLMode != nil && g.style.SQLMode != nil {
+			g.add(Statement{Stage: Post, Kind: "setting", Name: sc.Name + "." + e.Name, SQL: g.style.SQLMode(*e.SQLMode)})
+		}
+		g.add(Statement{Stage: Post, Kind: "event", Name: sc.Name + "." + e.Name,
+			SQL: g.style.Event(g.qualified(sc.Name, e.Name), e, g.style.Quote, g.style.Literal)})
+		if e.SQLMode != nil && g.style.SQLMode != nil {
+			g.add(Statement{Stage: Post, Kind: "setting", Name: sc.Name + "." + e.Name, SQL: g.style.ResetSQLMode})
+		}
+	}
+}
+
+// triggersInOrder returns the triggers of a table in the order that a script writes
+// them. A trigger that has a position follows the one before it among those of the
+// same timing and event, so it comes after that one and names it.
+func triggersInOrder(triggers []Trigger) []Trigger {
+	out := slices.Clone(triggers)
+	slices.SortStableFunc(out, func(a, b Trigger) int { return cmp.Compare(a.Order, b.Order) })
+	for i := range out {
+		if out[i].Order < 2 {
+			continue
+		}
+		key := triggerGroup(out[i])
+		for j := range out {
+			if out[j].Order == out[i].Order-1 && triggerGroup(out[j]) == key {
+				out[i].Follows = out[j].Name
+			}
+		}
+	}
+	return out
+}
+
+// triggerGroup is the timing and the event of a trigger, from the head of its
+// definition, such as AFTER UPDATE.
+func triggerGroup(tg Trigger) string {
+	words := strings.Fields(strings.ToUpper(tg.Definition))
+	if len(words) < 2 {
+		return ""
+	}
+	return words[0] + " " + words[1]
+}
+
 // trigger writes a trigger from what the source keeps.
 func (g *generator) trigger(schema string, t Table, tg Trigger) {
 	g.use(Post, schema)
+	if tg.SQLMode != nil && g.style.SQLMode != nil && !g.cross {
+		g.add(Statement{Stage: Post, Kind: "setting", Name: schema + "." + t.Name + "." + tg.Name, SQL: g.style.SQLMode(*tg.SQLMode)})
+		defer g.add(Statement{Stage: Post, Kind: "setting", Name: schema + "." + t.Name + "." + tg.Name, SQL: g.style.ResetSQLMode})
+	}
 	name := schema + "." + t.Name + "." + tg.Name
 	def := strings.TrimSpace(tg.Definition)
 	hasStatement := strings.HasPrefix(strings.ToLower(def), "create")
@@ -987,9 +1075,11 @@ func (g *generator) trigger(schema string, t Table, tg Trigger) {
 		}
 		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: sql})
 		g.triggerState(schema, t, tg)
+		g.triggerPlacement(schema, tg)
 	case hasStatement:
 		g.add(Statement{Stage: Post, Kind: "trigger", Name: name, SQL: g.endOf(def)})
 		g.triggerState(schema, t, tg)
+		g.triggerPlacement(schema, tg)
 	default:
 		g.add(missing)
 	}
@@ -1084,4 +1174,118 @@ func (g *generator) synonyms() {
 // body, which follow the order of the snapshot and need no order of their own.
 func sameObject(schemaA, nameA, schemaB, nameB string) bool {
 	return schemaA == schemaB && strings.EqualFold(nameA, nameB)
+}
+
+// triggerPlacement makes a trigger first or last for an event, where the source did.
+func (g *generator) triggerPlacement(schema string, tg Trigger) {
+	if g.style.TriggerPlacement == nil || tg.Placement == "" || g.cross {
+		return
+	}
+	for _, text := range g.style.TriggerPlacement(schema, tg.Name, tg.Placement, g.style.Quote) {
+		g.add(Statement{Stage: Post, Kind: "trigger placement", Name: schema + "." + tg.Name, SQL: text})
+	}
+}
+
+// partitionObjects writes the partition functions and the partition schemes, which a
+// table that is laid out by a scheme needs first.
+func (g *generator) partitionObjects() {
+	if g.style.PartitionFunction == nil {
+		return
+	}
+	for _, f := range g.snap.PartitionFunctions {
+		g.add(Statement{Stage: Pre, Kind: "partition function", Name: f.Name, SQL: g.style.PartitionFunction(f, g.style.Quote)})
+	}
+	if g.style.PartitionScheme != nil {
+		for _, sc := range g.snap.PartitionSchemes {
+			g.add(Statement{Stage: Pre, Kind: "partition scheme", Name: sc.Name, SQL: g.style.PartitionScheme(sc, g.style.Quote)})
+		}
+	}
+}
+
+// xmlSchemas writes the XML schema collections, which a column of the type xml can
+// name.
+func (g *generator) xmlSchemas() {
+	if g.style.XMLSchema == nil {
+		return
+	}
+	for _, sc := range g.snap.Schemas {
+		for _, x := range sc.XMLSchemas {
+			g.add(Statement{Stage: Pre, Kind: "xml schema collection", Name: sc.Name + "." + x.Name,
+				SQL: g.style.XMLSchema(g.qualified(sc.Name, x.Name), x, g.style.Literal)})
+		}
+	}
+}
+
+// policies writes the row level security policies of each table, after the tables and
+// the functions that a predicate calls.
+func (g *generator) policies() {
+	if g.style.Policies == nil || g.cross {
+		return
+	}
+	created := map[string]bool{}
+	for _, sc := range g.snap.Schemas {
+		for _, t := range sc.Tables {
+			if len(t.Policies) == 0 && !t.RowSecurity {
+				continue
+			}
+			for _, text := range g.style.Policies(sc.Name, t, created, g.style.Quote, g.style.Literal) {
+				g.add(Statement{Stage: Post, Kind: "policy", Name: sc.Name + "." + t.Name, SQL: text})
+			}
+		}
+	}
+}
+
+// eventTriggers writes the triggers that fire on a DDL event.
+func (g *generator) eventTriggers() {
+	if g.style.EventTrigger == nil || g.cross {
+		return
+	}
+	for _, e := range g.snap.EventTriggers {
+		if e.Schema != "" {
+			g.use(Post, e.Schema)
+		}
+		text := g.style.EventTrigger(e, g.style.Quote, g.style.Literal)
+		if text == "" {
+			continue
+		}
+		g.add(Statement{Stage: Post, Kind: "event trigger", Name: e.Name, SQL: text})
+		if state := strings.ToLower(e.Enabled); g.style.TriggerState != nil && state != "" && state != "enabled" && state != "o" && e.Schema == "" {
+			if sql := g.style.TriggerState("", "", g.style.Quote(e.Name), state); sql != "" {
+				g.add(Statement{Stage: Post, Kind: "trigger state", Name: e.Name, SQL: sql})
+			}
+		}
+	}
+}
+
+// sequenceValues sets the next value of each sequence that the rows do not set, for a
+// product that can.
+func (g *generator) sequenceValues() {
+	if g.style.SequenceValue == nil || g.cross {
+		return
+	}
+	for _, sc := range g.snap.Schemas {
+		for _, q := range sc.Sequences {
+			if q.Last == "" || q.OwnedBy != "" || q.Identity {
+				continue
+			}
+			sql := g.style.SequenceValue(g.qualified(sc.Name, q.Name), q, g.style.Literal)
+			if sql == "" {
+				continue
+			}
+			g.add(Statement{Stage: Post, Kind: "sequence value", Name: sc.Name + "." + q.Name, SQL: sql})
+		}
+	}
+}
+
+// viewLogs writes the logs of the changes to a table, after the tables.
+func (g *generator) viewLogs() {
+	if g.style.MaterializedViewLog == nil || g.cross {
+		return
+	}
+	for _, sc := range g.snap.Schemas {
+		for _, l := range sc.Logs {
+			g.add(Statement{Stage: Post, Kind: "materialized view log", Name: sc.Name + "." + l.Master,
+				SQL: g.style.MaterializedViewLog(g.qualified(sc.Name, l.Master), l)})
+		}
+	}
 }

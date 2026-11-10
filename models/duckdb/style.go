@@ -31,6 +31,8 @@ func init() {
 		// A view can read a macro, and a macro can read a table or a view.
 		RoutinesAfterTables: true,
 		Enum:                enum,
+		SequenceValue:       sequenceValue,
+		Domain:              aliasType,
 		ValueLiteral:        nestedLiteral,
 		RowPerSelfReference: true,
 	})
@@ -71,6 +73,11 @@ func sequence(quoted string, s dump.Sequence) string {
 
 // comment writes COMMENT ON.
 func comment(target, quotedName, text string, lit func(string) string) string {
+	// A type that a person made from another type is a domain to the dump, and a type
+	// to DuckDB.
+	if target == "DOMAIN" {
+		target = "TYPE"
+	}
 	return "COMMENT ON " + target + " " + quotedName + " IS " + lit(text)
 }
 
@@ -204,4 +211,25 @@ func valueText(rv reflect.Value) (string, bool) {
 		return "union_value(" + quoteIdentifier(tag.String()) + " := " + text + ")", true
 	}
 	return "", false
+}
+
+// aliasType writes CREATE TYPE AS for a type that a person made from another type.
+func aliasType(quoted string, d dump.Domain, _ func(string) string, _ func(string) string) string {
+	return "CREATE TYPE " + quoted + " AS " + d.Type
+}
+
+// sequenceValue draws the values that the sequence gave, because DuckDB has no statement
+// that sets a sequence. It gives up on a sequence that gave more than a script can draw.
+func sequenceValue(quoted string, s dump.Sequence, lit func(string) string) string {
+	last, err1 := strconv.ParseInt(s.Last, 10, 64)
+	start, err2 := strconv.ParseInt(s.Start, 10, 64)
+	step, err3 := strconv.ParseInt(s.Increment, 10, 64)
+	if err1 != nil || err2 != nil || err3 != nil || step == 0 || (last-start)%step != 0 {
+		return ""
+	}
+	n := (last-start)/step + 1
+	if n < 1 || n > 100000 {
+		return ""
+	}
+	return "SELECT count(nextval(" + lit(quoted) + ")) FROM range(" + strconv.FormatInt(n, 10) + ")"
 }

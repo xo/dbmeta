@@ -156,69 +156,51 @@ release can change that.
 
 ## Dump
 
-Found by the round trip tests of `dump` on 2026-11-08 (D274, D276, D278). Each is a
-fact that the snapshot does not hold, so a dump leaves it out.
+Found by the round trip tests of `dump` (D274, D276, D278, D291 to D296). Each is a fact
+that the snapshot does not hold, or an object that a script does not write, so a dump
+leaves it out. `TestDumpFixtureRoundTrips` holds what the fixture shows, and its files in
+`test/testdata/dump_fixture/` are empty for every product that has the fixture, so what
+follows is what the fixture does not hold.
 
-- SQLite check constraints. The model reads none, and a CHECK of a SQLite table is
-  not in the snapshot. A dump of SQLite writes the table with no check, and says
-  nothing about it.
-- MySQL `ON UPDATE CURRENT_TIMESTAMP` of a column is in `EXTRA` and not read.
-- The prefix length of a MySQL index column, such as `name(10)`, and the visibility
-  of an index are not read.
-- The engine, the character set and the row format of a MySQL table are not read.
-  The table takes the defaults of the server that runs the script.
-- The relations that a view reads are answered for PostgreSQL only. SQL Server has
-  `sys.sql_expression_dependencies` and Oracle has `all_dependencies`, both named
-  from memory. MySQL, SQLite and DuckDB have none, so their views are in order of
-  name.
-- The next value of a sequence that no column owns is not set after the rows. A
-  serial or identity column of PostgreSQL is set from its rows. DuckDB has no way to
-  set a sequence.
-- An identity column becomes `AUTO_INCREMENT` in MySQL and a serial in PostgreSQL.
-  It is not kept in DuckDB, which numbers with a sequence, and SQLite numbers only
-  an integer primary key.
+- Roles and grants are not dumped for any product, except the grant on an object of another
+  schema that an Oracle view or routine needs. The Oracle model has no roles query, and the
+  SQL Server and Oracle privileges are not read for a dump. The northwind fixtures have a role
+  `northwind_reader` that a copy lacks.
+- An Oracle subpartition, an interval partition and a reference partition are not written.
+  An Oracle `TIMESTAMP WITH TIME ZONE` keeps its instant and loses its offset. A collection
+  holds at most 4000 characters of text when it is read. A materialized view log that holds
+  named columns is listed as skipped.
+- The object column of Oracle has no placeholder form, so a copy that binds values cannot move
+  one. A REF column is written with no value, and the statement of its table says so.
+- A PostgreSQL ordered set aggregate, a user function that is the canonical function or the
+  difference function of a range type, and the grants and the owners of an object are not
+  written.
+- MySQL does not write the DEFINER of a trigger, and MariaDB has no style of its own, so a
+  script for it is the one of MySQL.
+- A DuckDB struct type has no form in the catalog, so it is listed as skipped. A macro
+  default is not read. A foreign key across schemas is refused by DuckDB.
+- SQL Server writes every partition on the filegroup PRIMARY, because a script makes no
+  filegroup.
+- The relations that a view reads are answered for PostgreSQL and SQL Server. The views of the
+  other products are ordered by the names in their text.
+- An identity column becomes `AUTO_INCREMENT` in MySQL and a serial in PostgreSQL. It is not
+  kept in DuckDB, which numbers with a sequence, and SQLite numbers only an integer primary
+  key.
 - An enum is a string with its values for another dialect and has no CHECK there. A
   PostgreSQL target does not create the type of a MySQL enum.
-- An unbounded text in a key is a `varchar(255)` in MySQL, and the plan says Lossy.
-  A key longer than the limit of the engine is not checked.
-- A partitioned table, a materialized view and a foreign table are in
-  `Snapshot.Skipped`. The extensions of PostgreSQL, the grants and the owners are not
-  read.
-- MariaDB has no style of its own, so a script for it is the one of MySQL. Oracle
-  has type functions and a style to write, which D274 puts after the four. The
-  other products that dbrun starts have none either, and a type function for each
-  makes it a source at least.
-- A PostgreSQL array value moves to DuckDB as the text of PostgreSQL, such as
-  `{a,"b c"}`, and DuckDB refuses the cast. `Convert` has no form of an array for
-  another dialect. usql found it on 2026-11-08.
-- A unique index of SQLite that was made with `CREATE UNIQUE INDEX` is read as a
-  unique constraint with a made up name, so the script writes it unnamed inside
-  `CREATE TABLE` and loses the name. SQLite also loses `AUTOINCREMENT`, which the
-  model does not read. usql found both on 2026-11-08.
-- The next value of a sequence that a column does not own needs `last_value` and
-  `is_called` of the sequence, and a snapshot holds neither. A script can set one
-  only when the client reads them, one statement for each sequence. usql found it
-  on 2026-11-08 with `app.ticket_seq`.
-- `Style.CheckAfterData` is a query that returns rows for a fault, and a client
-  that cannot stop on a row only prints them. A text script has no statement that
-  raises an error on a fault in every product, so the stop stays with the client.
-- A script for SingleStore leaves out its foreign keys and the unique keys that do
-  not hold its primary key, and says so in the note of the statement. A client
-  that must keep them has no way to ask for it.
-- The data check for a boolean by convention is a statement in the plan, and the
-  client has to run it. dbmeta runs no query, so the stop is the client's.
-
-- Roles and grants are not dumped for any product. The Oracle model has no roles
-  query, and the SQL Server and Oracle privileges are not read for a dump. The
-  northwind fixtures have a role `northwind_reader` that a copy lacks.
-- A SQL Server partition function and scheme are not written. A table that uses one is
-  written as one table, and the snapshot says so.
-- An Oracle subpartition, an interval partition and a reference partition are not
-  written, and the storage clauses are not either.
-- An Oracle copy was run on 26ai Free only. `NO AUTHENTICATION` needs 18c and
-  `START WITH LIMIT VALUE` needs 12.2. Run 19c and 11g, and record the result.
-- An object column of Oracle has no placeholder form, so a copy that binds values
-  cannot move one. A collection holds at most 4000 characters of text when it is read.
+- An unbounded text in a key is a `varchar(255)` in MySQL, and the plan says Lossy. A key
+  longer than the limit of the engine is not checked.
+- `Style.CheckAfterData` is a query that returns rows for a fault, and a client that cannot
+  stop on a row only prints them. A text script has no statement that raises an error on a
+  fault in every product, so the stop stays with the client.
+- A script for SingleStore leaves out its foreign keys and the unique keys that do not hold its
+  primary key, and says so in the note of the statement. A client that must keep them has no
+  way to ask for it.
+- The data check for a boolean by convention is a statement in the plan, and the client has to
+  run it. dbmeta runs no query, so the stop is the client's.
+- The Oracle copy ran on 26ai, 21c, 19c and 18c. `NO AUTHENTICATION` needs 18c and `START WITH
+  LIMIT VALUE` needs 12.2, so 11g is not a target. The round trip does not call each function,
+  fire each trigger or compare the effect of an event.
 
 ## PostgreSQL model
 
@@ -447,7 +429,7 @@ columns. The vector rows of `$index_paths` were not read, for the same reason.
 
 ### Databricks table size, defaults and checks have no source
 
-Databricks answers 17 of the 72 kinds (D224). The size, the row count, the location and
+Databricks answers 17 of the 77 kinds (D224). The size, the row count, the location and
 the clustering columns of a table are in DESCRIBE DETAIL. A column default, an identity
 column, a generated column and a CHECK constraint are in SHOW CREATE TABLE and SHOW
 TBLPROPERTIES. All of them are statements that a SELECT cannot read, and INFORMATION_SCHEMA
@@ -511,45 +493,3 @@ one principal besides the administrator, and a RAM user with rights on some tabl
 instance and not on others was not made (D241). The walks of Columns, Indexes and
 IndexColumns run one statement for each table, and the cost was measured on four tables only
 (D242). A column of an automatic key, whose Extra the model does not read, was not measured either.
-
-### What the dump fixture shows that a dump does not write yet
-
-`TestDumpFixtureRoundTrips` in the `test` module loads the dump fixture (D291), writes the
-script of its snapshot, runs it on an empty database, moves the rows of each table and
-compares the snapshots and the rows. The files in `test/testdata/dump_fixture/` hold what
-differs, and an empty file means a perfect copy. Every product copies with no difference,
-except MariaDB (D292, D293, D294). A copy that matches the snapshot is not a copy of
-everything, because an object that the dump does not read is in neither snapshot. These are
-known and not fixed.
-
-- MariaDB reports a foreign key that the source made with no action as RESTRICT, and the copy
-  of the same foreign key, written with ON DELETE RESTRICT, as NO ACTION. The cause is not
-  known. `mariadb.txt` holds the difference.
-- A second dump of a MySQL copy writes a routine that a view calls after the other routines,
-  where the first dump wrote it first. The order of routines that the dump writes with the
-  views is by the names in their text, and it is not the same for two snapshots of one schema.
-- Grants and roles are not dumped for any product, except the grant on an object of another
-  schema that an Oracle view or routine needs. Oracle has no query for roles.
-- A REF column of Oracle is written as a REF column, and the dump moves no value of it, because
-  a reference holds the identifier of a row of the source. The copy has NULL.
-- Oracle keeps the offset of a `TIMESTAMP WITH TIME ZONE` value, and the copy keeps the
-  instant and writes it in UTC. It does not write the schema DDL trigger, the materialized view
-  log, a subpartition, an interval partition or a storage clause.
-- PostgreSQL does not write an aggregate, an event trigger, a policy, a user function that is
-  the canonical function or the difference function of a range type, or the value of a
-  sequence that no column owns.
-- SQL Server does not write the name of a named default constraint, a database DDL trigger, a
-  security policy, an XML schema collection, the order that `sp_settriggerorder` set, or the
-  position of a sequence.
-- MySQL does not write the INVISIBLE attribute of a column, the length of a prefix index, an
-  event, or the order of triggers that FOLLOWS and PRECEDES set. A trigger does not run under
-  its own `sql_mode`.
-- SQLite does not write the value of AUTOINCREMENT in `sqlite_sequence`, and the FTS5 table of
-  the fixture is a known skip because the SQLite of usql has no `fts5` module.
-- DuckDB does not write a struct type or an alias type, a macro default, the position of a
-  sequence, or a foreign key across schemas, which DuckDB refuses.
-- A MySQL event, an XML schema collection of SQL Server and a materialized view log of Oracle have
-  no kind in dbmeta, so the dump cannot list them as skipped. An attribute that is dropped,
-  such as the order of triggers, is not listed either.
-- The round trip does not call each function, fire each trigger or read the next value of each
-  sequence.
