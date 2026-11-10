@@ -29,7 +29,8 @@ func TestParseTypeReadsADeclaredType(t *testing.T) {
 		{"DATE", dump.Type{Kind: dump.Date}},
 		{"DATETIME", dump.Type{Kind: dump.LocalTimestamp}},
 		{"UUID", dump.Type{Kind: dump.UUID}},
-		{"", dump.Type{Kind: dump.Other}},
+		{"", dump.Type{Kind: dump.Untyped}},
+		{"NUM", dump.Type{Kind: dump.Decimal}},
 		{"FOO", dump.Type{Kind: dump.Other}},
 	} {
 		got, err := dump.ParseType(dbmeta.SQLite3, tt.text)

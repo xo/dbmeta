@@ -36,6 +36,7 @@ const (
 	Vector          Kind = "vector"
 	Geometry        Kind = "geometry"
 	Range           Kind = "range"
+	Untyped         Kind = "untyped"
 	Other           Kind = "other"
 )
 

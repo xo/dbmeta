@@ -31,6 +31,9 @@ func parseType(text string) (dump.Type, error) {
 		return 0
 	}
 	switch s.Key() {
+	case "":
+		// A column with no type has no affinity, and it holds a value as it is given.
+		return dump.Type{Kind: dump.Untyped}, nil
 	case "boolean", "bool":
 		return dump.Type{Kind: dump.Boolean}, nil
 	case "tinyint":
@@ -45,7 +48,7 @@ func parseType(text string) (dump.Type, error) {
 		return dump.Type{Kind: dump.Integer, Bits: 64, Unsigned: true}, nil
 	case "real", "double", "double precision", "float":
 		return dump.Type{Kind: dump.Float, Bits: 64}, nil
-	case "decimal", "numeric":
+	case "decimal", "numeric", "num":
 		return dump.Type{Kind: dump.Decimal, Precision: arg(0), Scale: arg(1)}, nil
 	case "char", "character", "nchar", "native character":
 		return dump.Type{Kind: dump.String, Fixed: true, Length: arg(0)}, nil
@@ -79,6 +82,8 @@ func renderType(t dump.Type) (dump.Rendering, error) {
 		return dump.Rendering{SQL: sql}, nil
 	}
 	switch t.Kind {
+	case dump.Untyped:
+		return exact("")
 	case dump.Boolean:
 		return exact("boolean")
 	case dump.Integer:

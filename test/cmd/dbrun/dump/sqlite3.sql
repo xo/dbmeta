@@ -51,6 +51,14 @@ insert into extra_people (person_id, full_name, score, photo, born, note) values
   (2, 'Łukasz Żółć', null, null, null, null),
   (3, '田中太郎', 12, x'bb00', '2010-10-10', 'Unicode: 日本語');
 
+-- A column with no type, which keeps a value as it is given, and a table that
+-- CREATE TABLE AS SELECT made, whose columns take the types of their expressions.
+create table main.untyped (id integer primary key, orders, sales, label text);
+insert into untyped (id, orders, sales, label) values (1, 3, 9.5, 'a'), (2, 'many', null, 'b');
+create table main.made_from as
+  select person_id, person_id + 1 as next_id, full_name || '!' as shout, score * 2 as double_score, person_id * 1.5 as ratio, x'01' as blob_col, 1 as untyped_literal
+  from people;
+
 -- A STRICT table with every type that it allows, and a check that stands in
 -- for an enum.
 create table main.strict_kinds (

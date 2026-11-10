@@ -175,3 +175,30 @@ func TestADumpToTheSameDialectKeepsTheTypeAsRead(t *testing.T) {
 		}
 	}
 }
+
+func TestAnUntypedSQLiteColumnIsExactToSQLiteAndTextToAnother(t *testing.T) {
+	t.Parallel()
+	typ, err := dump.ParseType(dbmeta.SQLite3, "")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	snap := &dump.Snapshot{
+		Version: dump.SnapshotVersion, Dialect: "sqlite3",
+		Schemas: []dump.Schema{{Name: "main", Tables: []dump.Table{{
+			Name: "t", Columns: []dump.Column{{Name: "orders", Type: typ, Nullable: true}},
+		}}}},
+	}
+	if _, err := dump.MakePlan(snap, dbmeta.SQLite3, dump.Policy{}); err != nil {
+		t.Errorf("a plan to SQLite: expected no error, got: %v", err)
+	}
+	if _, err := dump.MakePlan(snap, dbmeta.PostgreSQL, dump.Policy{}); !errors.Is(err, dump.ErrNoEquivalent) {
+		t.Errorf("a plan to PostgreSQL with no text allowed: got %v, want ErrNoEquivalent", err)
+	}
+	plan, err := dump.MakePlan(snap, dbmeta.PostgreSQL, dump.Policy{Default: dump.Allow{Text: true}})
+	if err != nil {
+		t.Fatalf("a plan to PostgreSQL with text allowed: expected no error, got: %v", err)
+	}
+	if got := plan.Columns[0]; got.SQL != "text" || got.Level != dump.Text {
+		t.Errorf("expected text at the level Text, got %q at %v", got.SQL, got.Level)
+	}
+}
