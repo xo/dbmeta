@@ -398,7 +398,11 @@ func copyViaScript(t *testing.T, source *sql.DB, m *dbmeta.Meta, filter dump.Fil
 // openSQLiteAt opens a second, empty SQLite database.
 func openSQLiteAt(t *testing.T, driver string) *sql.DB {
 	t.Helper()
-	db, err := sql.Open(driver, filepath.Join(t.TempDir(), "copy.db"))
+	dsn := filepath.Join(t.TempDir(), "copy.db")
+	if driver == "sqlite3" {
+		dsn += "?_loc=auto"
+	}
+	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		t.Fatalf("opening the copy: %v", err)
 	}

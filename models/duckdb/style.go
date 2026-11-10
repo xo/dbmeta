@@ -105,7 +105,7 @@ func nestedLiteral(t dump.Type, v any) (string, bool) {
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Map:
 	case reflect.Struct:
-		if rv.FieldByName("Tag").IsValid() || rv.FieldByName("keys").IsValid() {
+		if rv.FieldByName("Tag").IsValid() || rv.FieldByName("keys").IsValid() || isInterval(rv) {
 			break
 		}
 		return "", false
@@ -123,6 +123,20 @@ func nestedLiteral(t dump.Type, v any) (string, bool) {
 		text = "CAST(" + text + " AS " + t.Raw + ")"
 	}
 	return text, true
+}
+
+// isInterval says that a value is the interval of the driver, which keeps the months, the
+// days and the microseconds apart.
+func isInterval(rv reflect.Value) bool {
+	return rv.Kind() == reflect.Struct && rv.NumField() == 3 &&
+		rv.FieldByName("Days").IsValid() && rv.FieldByName("Months").IsValid() && rv.FieldByName("Micros").IsValid()
+}
+
+// intervalText writes an interval with its three parts, so that none of them changes.
+func intervalText(rv reflect.Value) string {
+	return "INTERVAL '" + strconv.FormatInt(rv.FieldByName("Months").Int(), 10) + " months " +
+		strconv.FormatInt(rv.FieldByName("Days").Int(), 10) + " days " +
+		strconv.FormatInt(rv.FieldByName("Micros").Int(), 10) + " microseconds'"
 }
 
 // valueText writes one value, and the values inside it.
@@ -199,6 +213,9 @@ func valueText(rv reflect.Value) (string, bool) {
 				parts[i] = kt + ": " + vt
 			}
 			return "MAP {" + strings.Join(parts, ", ") + "}", true
+		}
+		if isInterval(rv) {
+			return intervalText(rv), true
 		}
 		tag := rv.FieldByName("Tag")
 		value := rv.FieldByName("Value")

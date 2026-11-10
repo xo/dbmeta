@@ -389,6 +389,17 @@ insert into orders_parent (id, placed) values (1, date '2025-01-01');
 insert into orders_item (item_id, order_id) values (10, 1);
 commit;
 
+-- Intervals of both kinds, one negative and one with fractions of a second.
+create table intervals (
+  id number(10) primary key,
+  ds interval day(3) to second(4),
+  ym interval year(3) to month
+);
+insert into intervals values (1, interval '2 03:04:05.6789' day to second, interval '3-4' year to month);
+insert into intervals values (2, interval '-5 01:00:00' day to second, interval '-1-2' year to month);
+insert into intervals values (3, null, null);
+commit;
+
 -- A role, a user with no way to log in, and grants on a table, on a column and on a package.
 create role dump_reader;
 create user dump_user no authentication;

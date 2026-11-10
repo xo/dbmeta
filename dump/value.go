@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -139,6 +140,11 @@ func Convert(v any, from, to Type) (any, error) {
 			if list, ok := arrayList(text); ok {
 				return list, nil
 			}
+		}
+	}
+	if to.Kind == Interval {
+		if text, ok := intervalText(v); ok {
+			return text, nil
 		}
 	}
 	// A value that is not text is binary. A spatial value of SQL Server is the
@@ -386,4 +392,23 @@ func arrayList(text string) (string, bool) {
 		return "", false
 	}
 	return out.String(), true
+}
+
+// intervalText writes an interval that a driver gives as a duration, or as a value that keeps
+// the months, the days and the microseconds apart, in the words that PostgreSQL and DuckDB
+// both read.
+func intervalText(v any) (string, bool) {
+	if d, ok := v.(time.Duration); ok {
+		return "0 months 0 days " + strconv.FormatInt(d.Microseconds(), 10) + " microseconds", true
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Struct || rv.NumField() != 3 {
+		return "", false
+	}
+	days, months, micros := rv.FieldByName("Days"), rv.FieldByName("Months"), rv.FieldByName("Micros")
+	if !days.IsValid() || !months.IsValid() || !micros.IsValid() {
+		return "", false
+	}
+	return strconv.FormatInt(months.Int(), 10) + " months " + strconv.FormatInt(days.Int(), 10) + " days " +
+		strconv.FormatInt(micros.Int(), 10) + " microseconds", true
 }

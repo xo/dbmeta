@@ -118,3 +118,14 @@ create index "Mixed ""Index""" on core."Mixed Case ""Table""" ("select");
 insert into core."Mixed Case ""Table""" values (1, 'from', 'café', 'quote''s', 1.5), (2, null, null, null, null);
 create view core."View ""of"" a Table" as
   select "Order", "select" from core."Mixed Case ""Table""";
+
+-- Intervals, with months, days and microseconds apart, one in a list, and a negative one.
+create table core.intervals (
+  id integer primary key,
+  every interval,
+  gaps interval[]
+);
+insert into core.intervals values
+  (1, interval '1 year 2 months 3 days 4 hours 5 minutes 6.789 seconds', [interval '1 day', interval '2 months']),
+  (2, interval '-5 days -1 hour', []),
+  (3, null, null);

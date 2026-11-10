@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	mysqldriver "github.com/go-sql-driver/mysql"
 
@@ -54,6 +55,30 @@ type fixtureSide struct {
 // go test -update and read the diff, because a line that goes away means that
 // the dump got better, and a new line means that it got worse.
 func TestDumpFixtureRoundTrips(t *testing.T) {
+	roundTrips(t)
+}
+
+// TestDumpFixtureRoundTripsInOtherZones runs the products that have no server of their own in
+// zones that have historic offsets and a skipped hour, because a driver that reads a time
+// in the zone of the machine moves a value there, and a machine in UTC never shows it. See D300.
+func TestDumpFixtureRoundTripsInOtherZones(t *testing.T) {
+	for _, name := range []string{"Asia/Jakarta", "America/New_York"} {
+		loc, err := time.LoadLocation(name)
+		if err != nil {
+			t.Skipf("no zone %s: %v", name, err)
+		}
+		t.Run(name, func(t *testing.T) {
+			saved := time.Local
+			time.Local = loc
+			t.Cleanup(func() { time.Local = saved })
+			roundTrips(t, "sqlite3")
+		})
+	}
+}
+
+// roundTrips reads each fixture, writes it as a script, runs the script on a copy, and compares
+// what it finds. It runs the products that it names, or every product.
+func roundTrips(t *testing.T, only ...string) {
 	sides := map[string]fixtureSide{
 		"postgres": {
 			eventTriggers: true,
@@ -104,6 +129,9 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 		},
 	}
 	for name, side := range sides {
+		if len(only) > 0 && !slices.Contains(only, name) {
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
 			src := side.source(t)
 			m := metaFor(t, side.dialect, src)
@@ -290,8 +318,12 @@ func openEmbeddedFixture(t *testing.T, driver, file string) *sql.DB {
 		t.Skipf("no %s: run dbrun fixture dump %s", path, driver)
 	}
 	dsn := path
-	if driver == "duckdb" {
+	switch driver {
+	case "duckdb":
 		dsn += "?access_mode=read_only"
+	case "sqlite3":
+		// What dburl asks for, so that the driver reads a time in the zone of the machine.
+		dsn += "?_loc=auto"
 	}
 	db, err := sql.Open(driver, dsn)
 	if err != nil {

@@ -22,6 +22,8 @@ func init() {
 		RoutinesAfterTables:  true,
 		SequenceValue:        sequenceValue,
 		AnonymousConstraints: true,
+		SelectColumn:         selectTime,
+		ValueLiteral:         timeText,
 		// The tables can be written in any order, and the rows can be loaded in any
 		// order when the checks are off, and checked at the end. The pragma has no
 		// effect inside a transaction, so it comes before one. See docs/DUMP.md.
@@ -58,4 +60,32 @@ func definitionStatement(_ string, v dump.View) string {
 // to the largest rowid. A table that has no row has no counter yet.
 func sequenceValue(quoted string, s dump.Sequence, lit func(string) string) string {
 	return "UPDATE sqlite_sequence SET seq = " + s.Last + " WHERE name = " + lit(strings.Trim(quoted, `"`))
+}
+
+// timeKind says that a column is read by the driver as a time, which SQLite does not have.
+func timeKind(k dump.Kind) bool {
+	return k == dump.Date || k == dump.TimeOfDay || k == dump.LocalTimestamp || k == dump.Timestamp
+}
+
+// selectTime reads a column of a time kind as the text that SQLite holds. A column of that
+// kind holds whatever text it was given, and the driver turns the text into a time in the
+// zone of the machine, which moves the value. See D300.
+func selectTime(_ *dump.Snapshot, _ string, c dump.Column, quoted string) (string, bool) {
+	if !timeKind(c.Type.Kind) {
+		return "", false
+	}
+	return "CAST(" + quoted + " AS TEXT)", true
+}
+
+// timeText writes the text of a time column as it was read, so that a copy to SQLite holds
+// the text of the source and not a time that was formatted again.
+func timeText(t dump.Type, v any) (string, bool) {
+	if !timeKind(t.Kind) {
+		return "", false
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", false
+	}
+	return literal(s), true
 }

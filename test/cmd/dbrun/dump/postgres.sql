@@ -341,6 +341,18 @@ CREATE AGGREGATE core.moving_total(int) (
     PARALLEL = SAFE
 );
 
+-- Intervals, with months, days and a time apart, and a negative one.
+CREATE TABLE core.intervals (
+    id int PRIMARY KEY,
+    every interval,
+    short interval day to second(3),
+    span interval year to month
+);
+INSERT INTO core.intervals VALUES
+    (1, '1 year 2 months 3 days 04:05:06.789', '2 days 03:04:05.678', '3 years 4 months'),
+    (2, '-5 days -01:00:00', '-00:00:01.5', '-1 year -2 months'),
+    (3, NULL, NULL, NULL);
+
 -- Roles and grants: a role that cannot log in, one that is a member of it, and grants on a table, on columns
 -- and on a sequence. A role belongs to the cluster, so the file makes it when it is not there.
 DO $$

@@ -59,6 +59,21 @@ create table main.made_from as
   select person_id, person_id + 1 as next_id, full_name || '!' as shout, score * 2 as double_score, person_id * 1.5 as ratio, x'01' as blob_col, 1 as untyped_literal
   from people;
 
+-- Columns of a time type, which hold whatever text they were given: a date, a date and a
+-- time with no zone, a zone, a number, and a date from before the offsets of today.
+create table main.stamps (
+  stamp_id integer primary key,
+  born date,
+  seen datetime,
+  logged timestamp,
+  at_time time
+);
+insert into stamps values
+  (1, '1948-12-08', '1948-12-08', '1948-12-08 00:00:00', '07:30'),
+  (2, '2024-03-10', '2024-03-10 02:30:00.123', '2024-03-10T02:30:00Z', '23:59:59'),
+  (3, '2000-01-01', '2000-01-01 12:00:00+07:00', '2000-01-01 12:00:00 +0700', null),
+  (4, null, 1700000000, 2459000.5, '00:00');
+
 -- A STRICT table with every type that it allows, and a check that stands in
 -- for an enum.
 create table main.strict_kinds (

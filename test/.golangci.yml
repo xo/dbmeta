@@ -147,6 +147,11 @@ linters:
       - path: cmd/dbrun/runner.go
         linters:
           - tagliatelle
+      # The test sets the zone of the machine on purpose, because a driver that reads a time
+      # in that zone moves a value, and a machine in UTC never shows it (D300).
+      - path: dump_fixture_test.go
+        linters:
+          - gosmopolitan
       # Elasticsearch writes open_contexts, and the test reads it.
       - path: elasticsearch_test.go
         linters:

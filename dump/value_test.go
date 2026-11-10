@@ -1,6 +1,9 @@
 package dump
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestAnArrayOfPostgreSQLBecomesAList(t *testing.T) {
 	t.Parallel()
@@ -17,5 +20,27 @@ func TestAnArrayOfPostgreSQLBecomesAList(t *testing.T) {
 	}
 	if _, ok := arrayList(`{a,b`); ok {
 		t.Error("an array with no closing bracket is no array")
+	}
+}
+
+func TestAnIntervalOfADriverIsWrittenAsWords(t *testing.T) {
+	t.Parallel()
+	type interval struct {
+		Days   int32
+		Months int32
+		Micros int64
+	}
+	iv := Type{Kind: Interval}
+	for _, tt := range []struct {
+		in   any
+		want string
+	}{
+		{interval{Days: 3, Months: 14, Micros: -1500000}, "14 months 3 days -1500000 microseconds"},
+		{-5 * time.Hour, "0 months 0 days -18000000000 microseconds"},
+	} {
+		got, err := Convert(tt.in, iv, iv)
+		if err != nil || got != tt.want {
+			t.Errorf("Convert(%v) = %v, %v, want %q", tt.in, got, err, tt.want)
+		}
 	}
 }

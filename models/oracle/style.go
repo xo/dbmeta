@@ -1,10 +1,12 @@
 package oracle
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/xo/dbmeta"
 	"github.com/xo/dbmeta/dump"
@@ -33,6 +35,7 @@ func init() {
 		TableOptions:        tableOptions,
 		ObjectTables:        true,
 		Principal:           principal,
+		ValueLiteral:        intervalLiteral,
 		Grant:               grant,
 		TableKeyword:        tableKeyword,
 		MaterializedViewLog: materializedViewLog,
@@ -468,4 +471,31 @@ func grant(_, _, _, qualified string, grants []dump.GrantDef, q func(string) str
 		}
 	}
 	return out
+}
+
+// yearMonth matches the text of an interval of years and months, as the driver writes it.
+var yearMonth = regexp.MustCompile(`^[+-]\d+-\d+$`)
+
+// intervalLiteral writes the value of an interval column. The driver gives an interval of
+// days and seconds as a duration, and an interval of years and months as a value with its
+// own text, and neither is a literal that an INSERT reads.
+func intervalLiteral(t dump.Type, v any) (string, bool) {
+	if t.Kind != dump.Interval {
+		return "", false
+	}
+	switch x := v.(type) {
+	case time.Duration:
+		sign, n := "", int64(x)
+		if n < 0 {
+			sign, n = "-", -n
+		}
+		const second, minute, hour, day = int64(time.Second), int64(time.Minute), int64(time.Hour), 24 * int64(time.Hour)
+		return fmt.Sprintf("INTERVAL '%s%d %02d:%02d:%02d.%09d' DAY(9) TO SECOND(9)", sign,
+			n/day, n%day/hour, n%hour/minute, n%minute/second, n%second), true
+	case fmt.Stringer:
+		if s := x.String(); yearMonth.MatchString(s) {
+			return "INTERVAL '" + s + "' YEAR(9) TO MONTH", true
+		}
+	}
+	return "", false
 }

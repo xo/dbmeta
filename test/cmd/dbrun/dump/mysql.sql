@@ -182,6 +182,20 @@ create view dump_core.active_people as
 create view dump_extra.active_names as
   select full_name from dump_core.active_people;
 
+-- Times, with a value that falls in the hour that a clock skips in New York, a value from the
+-- start of the range of a timestamp, and a fraction of a second.
+set time_zone = '+00:00';
+create table dump_core.stamps (
+  stamp_id integer not null primary key,
+  seen timestamp null,
+  logged datetime,
+  precise timestamp(3) null
+);
+insert into dump_core.stamps values
+  (1, '2024-03-10 07:30:00', '2024-03-10 02:30:00', '2024-03-10 07:30:00.123'),
+  (2, '1970-01-02 00:00:01', '1948-12-08 00:00:00', '1970-01-02 00:00:01.999'),
+  (3, null, null, null);
+
 -- Section: triggers.
 
 create table dump_core.audit (
