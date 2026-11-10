@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	mysqldriver "github.com/go-sql-driver/mysql"
 
@@ -98,7 +97,6 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			rename:        map[string]string{"DUMP_CORE": "CP_CORE", "DUMP_EXTRA": "CP_EXTRA"},
 		},
 		"duckdb": {
-			skips:   []string{"type struct"},
 			rows:    true,
 			dialect: dbmeta.DuckDB,
 			source:  func(t *testing.T) *sql.DB { return openEmbeddedFixture(t, "duckdb", "dump.duckdb") },
@@ -447,16 +445,6 @@ func copyFixtureRows(t *testing.T, src *sql.DB, dst *sql.Conn, first, want *dump
 		if err != nil {
 			fmt.Fprintf(report, "rows failed: %s: reading the copy: %v\n", st.Name, err)
 			continue
-		}
-		// A value that holds an offset comes back as the same instant in UTC.
-		for _, set := range [][][]any{cells, got} {
-			for _, row := range set {
-				for i, v := range row {
-					if tv, ok := v.(time.Time); ok {
-						row[i] = tv.UTC()
-					}
-				}
-			}
 		}
 		if !equalCells(cells, got) {
 			if os.Getenv("DBMETA_SHOW_SKIPPED") != "" {

@@ -15,9 +15,11 @@ ALTER TYPE core.mood ADD VALUE 'calm' AFTER 'sad';
 -- A domain over an enum, with a default and a check.
 CREATE DOMAIN core.mood_d AS core.mood DEFAULT 'ok' NOT NULL CHECK (VALUE <> 'angry');
 -- A range type and its multirange. The multirange has a name that is not the default.
+CREATE FUNCTION extra.float_gap(a float8, b float8) RETURNS float8
+    LANGUAGE sql IMMUTABLE STRICT AS $$ SELECT a - b $$;
 CREATE TYPE extra.floatrange AS RANGE (
     subtype = float8,
-    subtype_diff = float8mi,
+    subtype_diff = extra.float_gap,
     multirange_type_name = extra.floatmulti
 );
 CREATE TYPE core.pair AS (left_side text, right_side int);
@@ -317,3 +319,46 @@ INSERT INTO "same"."same" VALUES ('one', 1), ('two', NULL);
 CREATE POLICY people_visible ON core.people FOR SELECT USING (id > 0);
 CREATE POLICY people_edit ON core.people AS RESTRICTIVE FOR UPDATE TO PUBLIC USING (true) WITH CHECK (id > 0);
 ALTER TABLE core.people ENABLE ROW LEVEL SECURITY;
+
+-- An ordered set aggregate.
+CREATE AGGREGATE core.pick_disc(float8 ORDER BY anyelement) (
+    SFUNC = ordered_set_transition,
+    STYPE = internal,
+    FINALFUNC = percentile_disc_final,
+    FINALFUNC_EXTRA
+);
+
+-- A moving aggregate, with the options of a parallel plan and of the size of the state.
+CREATE AGGREGATE core.moving_total(int) (
+    SFUNC = int4pl,
+    STYPE = int,
+    SSPACE = 16,
+    INITCOND = '0',
+    MSFUNC = int4pl,
+    MINVFUNC = int4mi,
+    MSTYPE = int,
+    MINITCOND = '0',
+    PARALLEL = SAFE
+);
+
+-- Roles and grants: a role that cannot log in, one that is a member of it, and grants on a table, on columns
+-- and on a sequence. A role belongs to the cluster, so the file makes it when it is not there.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'dump_reader') THEN
+    CREATE ROLE dump_reader NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'dump_member') THEN
+    CREATE ROLE dump_member NOLOGIN CREATEDB;
+  END IF;
+END
+$$;
+GRANT dump_reader TO dump_member;
+GRANT SELECT ON core.people TO dump_reader;
+GRANT SELECT, INSERT, UPDATE ON core.audit TO dump_reader WITH GRANT OPTION;
+GRANT SELECT (id), UPDATE (b_id) ON core.parent_a TO dump_member;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA core TO dump_reader;
+GRANT SELECT ON core.people_total TO PUBLIC;
+GRANT USAGE ON SCHEMA core TO dump_reader;
+GRANT EXECUTE ON FUNCTION core.add(integer, integer) TO dump_reader;
+GRANT USAGE ON TYPE core.mood TO dump_reader;

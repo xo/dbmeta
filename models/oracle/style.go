@@ -2,6 +2,7 @@ package oracle
 
 import (
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -31,6 +32,8 @@ func init() {
 		Column:              column,
 		TableOptions:        tableOptions,
 		ObjectTables:        true,
+		Principal:           principal,
+		Grant:               grant,
 		TableKeyword:        tableKeyword,
 		MaterializedViewLog: materializedViewLog,
 		EventTrigger: func(e dump.EventTriggerDef, _ func(string) string, _ func(string) string) string {
@@ -65,6 +68,7 @@ func init() {
 		FloatSpecial:     floatSpecial,
 		TimeLiteral:      timeLiteral,
 		ZoneInTimestamps: true,
+		KeepOffset:       true,
 		// Both sides read and write an instant in UTC.
 		Session: []string{"ALTER SESSION SET TIME_ZONE = 'UTC'"},
 		// A statement holds one row, because a release before 23ai has no list of
@@ -264,10 +268,24 @@ func comment(target, quoted, text string, literal func(string) string) string {
 	return "COMMENT ON " + target + " " + quoted + " IS " + literal(text)
 }
 
-// partitionBy writes the clause that splits a table into partitions.
+// partitionBy writes the clause that splits a table into partitions. An interval makes
+// partitions as rows need them, a subpartition template splits each partition again, and a
+// table of reference partitioning takes its partitions from its parent.
 func partitionBy(p dump.Partitioning, q func(string) string, _ func(string) string) string {
+	if p.Strategy == "reference" {
+		return " PARTITION BY REFERENCE (" + q(p.Reference) + ")"
+	}
 	method := strings.ToUpper(p.Strategy)
 	sql := " PARTITION BY " + method + " (" + p.Expression + ")"
+	if p.Interval != "" {
+		sql += " INTERVAL (" + p.Interval + ")"
+	}
+	if p.SubStrategy != "" {
+		sql += " SUBPARTITION BY " + strings.ToUpper(p.SubStrategy) + " (" + p.SubKey + ")"
+		if p.SubTemplate != "" {
+			sql += " SUBPARTITION TEMPLATE (" + p.SubTemplate + ")"
+		}
+	}
 	var bound string
 	switch {
 	case strings.Contains(method, "RANGE"):
@@ -283,6 +301,9 @@ func partitionBy(p dump.Partitioning, q func(string) string, _ func(string) stri
 	parts := make([]string, len(p.Parts))
 	for i, part := range p.Parts {
 		parts[i] = "PARTITION " + q(part.Name) + " VALUES " + strings.TrimSpace(bound+" ("+part.Bound+")")
+		if len(part.Subs) > 0 {
+			parts[i] += " (" + strings.Join(part.Subs, ", ") + ")"
+		}
 	}
 	return sql + " (" + strings.Join(parts, ", ") + ")"
 }
@@ -368,8 +389,11 @@ func materializedViewLog(master string, l dump.MaterializedViewLog) string {
 		with = append(with, "SEQUENCE")
 	}
 	sql := "CREATE MATERIALIZED VIEW LOG ON " + master
-	if len(with) > 0 {
+	if len(with) > 0 || l.Columns != "" {
 		sql += " WITH " + strings.Join(with, ", ")
+	}
+	if l.Columns != "" {
+		sql += " (" + l.Columns + ")"
 	}
 	if l.IncludeNew {
 		sql += " INCLUDING NEW VALUES"
@@ -384,4 +408,64 @@ func tableKeyword(t dump.Table) string {
 		return "GLOBAL TEMPORARY TABLE"
 	}
 	return "TABLE"
+}
+
+// principal makes a user or a role that a grant names when it is not there. A user has no
+// way to log in. The statements ignore the error for a name that exists.
+func principal(name, kind string, q func(string) string) string {
+	create, code := "CREATE USER "+q(name)+" NO AUTHENTICATION", "-1920"
+	if kind == "role" {
+		create, code = "CREATE ROLE "+q(name), "-1921"
+	}
+	return "BEGIN EXECUTE IMMEDIATE '" + strings.ReplaceAll(create, "'", "''") +
+		"'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != " + code + " THEN RAISE; END IF; END;"
+}
+
+// grant writes the grants of one object, with the privileges of each grantee and the ones
+// that it can pass on apart. A privilege on a column is given one column at a time.
+func grant(_, _, _, qualified string, grants []dump.GrantDef, q func(string) string) []string {
+	type who struct {
+		grantee string
+		option  bool
+	}
+	var order []who
+	whole := map[who][]string{}
+	columns := map[who]map[string][]string{}
+	for _, gr := range grants {
+		w := who{gr.Grantee, gr.Option}
+		if _, ok := whole[w]; !ok && columns[w] == nil {
+			order = append(order, w)
+		}
+		if gr.Column == "" {
+			whole[w] = append(whole[w], gr.Privilege)
+			continue
+		}
+		if columns[w] == nil {
+			columns[w] = map[string][]string{}
+		}
+		columns[w][gr.Privilege] = append(columns[w][gr.Privilege], q(gr.Column))
+	}
+	var out []string
+	for _, w := range order {
+		to := "PUBLIC"
+		if w.grantee != "" {
+			to = q(w.grantee)
+		}
+		tail := " ON " + qualified + " TO " + to
+		if w.option {
+			tail += " WITH GRANT OPTION"
+		}
+		if privs := whole[w]; len(privs) > 0 {
+			out = append(out, "GRANT "+strings.Join(privs, ", ")+tail)
+		}
+		var parts []string
+		for priv, list := range columns[w] {
+			parts = append(parts, priv+" ("+strings.Join(list, ", ")+")")
+		}
+		slices.Sort(parts)
+		if len(parts) > 0 {
+			out = append(out, "GRANT "+strings.Join(parts, ", ")+tail)
+		}
+	}
+	return out
 }

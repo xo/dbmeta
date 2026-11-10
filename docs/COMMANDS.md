@@ -126,6 +126,7 @@ triggers and window functions. They are the same query narrowed by
 | `\drg` | `dbmeta.RoleGrants` | `RoleGrant` | no |
 | `\dp` | `dbmeta.Privileges` | `Privilege` | yes |
 | `\z` | `dbmeta.Privileges` | `Privilege` | no |
+| `\dp` per column | `dbmeta.Grants` | `Grant` | no |
 | `\ddp` | `dbmeta.DefaultACLs` | `DefaultACL` | no |
 
 `\z` and `\dp` are the same command in `psql`.
@@ -259,6 +260,8 @@ object model and does not set the column set.
 | `dbmeta.PartitionFunctions` | `PartitionFunction` | PostgreSQL has no partition function. SQL Server keeps one apart from its tables, and a dump writes it before them (D296) |
 | `dbmeta.PartitionSchemes` | `PartitionScheme` | PostgreSQL has no partition scheme. SQL Server keeps one apart from its tables, and a dump writes it before them (D296) |
 | `dbmeta.MaterializedViewLogs` | `MaterializedViewLog` | PostgreSQL has no such log. Oracle keeps one for a table in a table of its own, and a dump writes the log and leaves out that table (D296) |
+| `dbmeta.SubpartitionTemplates` | `SubpartitionTemplate` | PostgreSQL has no subpartition template. Oracle gives each partition the subpartitions of a template, and a dump writes it (D297) |
+| `dbmeta.Subpartitions` | `Subpartition` | PostgreSQL has no subpartition, because a partition is a table that can be partitioned itself. Oracle splits a partition again, and a dump writes the ones of a table that has no template (D299) |
 | `dbmeta.ColumnStats` | `ColumnStat` | `psql` has no such command. `usql` added `\ss` |
 | `dbmeta.CurrentSchema` | `Schema` | session state rather than an object. `dbtpl` reads it in every loader |
 | `dbmeta.CurrentUser` | `User` | session state rather than an object. It came from auditing `usql` (D55) |

@@ -486,6 +486,16 @@ func registerMaterializedViewLogs() {
 			always(`, CASE l.object_id WHEN 'YES' THEN 1 ELSE 0 END AS "object_id"`),
 			always(`, CASE l.include_new_values WHEN 'YES' THEN 1 ELSE 0 END AS "include_new"`),
 			always(`, CASE l.filter_columns WHEN 'YES' THEN 1 ELSE 0 END AS "filter_columns"`),
+			// The dictionary view of the filter columns is for an administrator only, so the
+			// columns come from the log table. Its columns are the filter columns, the columns
+			// of the primary key of the master, and columns that end in $$.
+			always(`, CASE WHEN l.filter_columns = 'YES' THEN (SELECT `),
+			listagg(`'"' || f.column_name || '"'`, "f.column_id"),
+			always(` FROM all_tab_columns f WHERE f.owner = l.log_owner AND f.table_name = l.log_table` +
+				` AND f.column_name NOT LIKE '%$$' AND NOT EXISTS (SELECT 1 FROM all_constraints k` +
+				` JOIN all_cons_columns kc ON kc.owner = k.owner AND kc.constraint_name = k.constraint_name` +
+				` WHERE k.constraint_type = 'P' AND k.owner = l.log_owner AND k.table_name = l.master` +
+				` AND kc.column_name = f.column_name)) END AS "columns"`),
 			always(`FROM all_mview_logs l`),
 			notSystem("WHERE", "l.log_owner"),
 			always(`AND (@schema IS NULL OR l.log_owner LIKE @schema)`),
@@ -498,12 +508,109 @@ func registerMaterializedViewLogs() {
 			{Name: "primary_key"}, {Name: "row_id"}, {Name: "sequence"}, {Name: "object_id"},
 			{Name: "include_new", Desc: "true when an entry holds the new values of a changed row"},
 			{Name: "filter_columns", Desc: "true when the log holds columns that a person named"},
+			{Name: "columns", Desc: "the columns that a person named, quoted and joined by commas, or absent"},
 		},
 		Params: schemaNameSystem("log"),
 		Scan: func(rows *sql.Rows) (dbmeta.MaterializedViewLog, error) {
 			var v dbmeta.MaterializedViewLog
 			err := rows.Scan(&v.Schema, &v.Master, &v.LogTable, &v.PrimaryKey, &v.RowID, &v.Sequence, &v.ObjectID,
-				&v.IncludeNew, &v.FilterColumns)
+				&v.IncludeNew, &v.FilterColumns, &v.Columns)
+			return v, err
+		},
+	})
+}
+
+// registerViewDependencies lists the relations that each view reads, which a dump needs
+// to write one view after the views that it reads. The dictionary keeps them for a view
+// and for a materialized view, and a reference over a database link is left out. See D297.
+func registerViewDependencies() {
+	dbmeta.ViewDependencies.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.ViewDependency]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT d.owner AS "schema"`),
+			always(`, d.name AS "view"`),
+			always(`, d.referenced_owner AS "referenced_schema"`),
+			always(`, d.referenced_name AS "referenced"`),
+			always(`, CASE d.referenced_type WHEN 'VIEW' THEN 'view' WHEN 'MATERIALIZED VIEW' THEN 'materialized view' ELSE 'table' END AS "referenced_type"`),
+			always(`FROM all_dependencies d`),
+			always(`WHERE d.type = 'VIEW' AND d.referenced_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')`),
+			always(`AND d.referenced_link_name IS NULL`),
+			always(`AND NOT (d.owner = d.referenced_owner AND d.name = d.referenced_name)`),
+			notSystem("AND", "d.owner"),
+			always(`AND (@schema IS NULL OR d.owner LIKE @schema)`),
+			always(`AND (@name IS NULL OR d.name LIKE @name)`),
+			always(`ORDER BY d.owner, d.name, d.referenced_owner, d.referenced_name`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "view"}, {Name: "referenced_schema"}, {Name: "referenced"}, {Name: "referenced_type"},
+		},
+		Params: schemaNameSystem("view"),
+		Scan: func(rows *sql.Rows) (dbmeta.ViewDependency, error) {
+			var v dbmeta.ViewDependency
+			err := rows.Scan(&v.Schema, &v.View, &v.ReferencedSchema, &v.Referenced, &v.ReferencedType)
+			return v, err
+		},
+	})
+}
+
+// registerSubpartitionTemplates lists the subpartitions that each partition of a table
+// gets. HIGH_BOUND is a LONG, which no expression can use, so the rows come apart from
+// the partitioned tables. See D297.
+func registerSubpartitionTemplates() {
+	dbmeta.SubpartitionTemplates.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.SubpartitionTemplate]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT t.user_name AS "schema"`),
+			always(`, t.table_name AS "table"`),
+			always(`, t.subpartition_name AS "name"`),
+			always(`, t.subpartition_position AS "position"`),
+			always(`, t.high_bound AS "bound"`),
+			always(`FROM all_subpartition_templates t`),
+			notSystem("WHERE", "t.user_name"),
+			always(`AND (@schema IS NULL OR t.user_name LIKE @schema)`),
+			always(`AND (@parent IS NULL OR t.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR t.subpartition_name LIKE @name)`),
+			always(`ORDER BY t.user_name, t.table_name, t.subpartition_position`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "table"}, {Name: "name"},
+			{Name: "position", Desc: "the order in the template, from one"},
+			{Name: "bound", Desc: "the upper bound of a range subpartition or the values of a list one, absent for hash"},
+		},
+		Params: childParams("table", "subpartition"),
+		Scan: func(rows *sql.Rows) (dbmeta.SubpartitionTemplate, error) {
+			var v dbmeta.SubpartitionTemplate
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Position, &v.Bound)
+			return v, err
+		},
+	})
+}
+
+// registerSubpartitions lists the subpartitions of every partition. HIGH_VALUE is a LONG,
+// so the rows come apart from the partitions. See D299.
+func registerSubpartitions() {
+	dbmeta.Subpartitions.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Subpartition]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT p.table_owner AS "schema"`),
+			always(`, p.table_name AS "table"`),
+			always(`, p.partition_name AS "partition"`),
+			always(`, p.subpartition_name AS "name"`),
+			always(`, p.subpartition_position AS "position"`),
+			always(`, p.high_value AS "bound"`),
+			always(`FROM all_tab_subpartitions p`),
+			notSystem("WHERE", "p.table_owner"),
+			always(`AND (@schema IS NULL OR p.table_owner LIKE @schema)`),
+			always(`AND (@parent IS NULL OR p.table_name LIKE @parent)`),
+			always(`AND (@name IS NULL OR p.subpartition_name LIKE @name)`),
+			always(`ORDER BY p.table_owner, p.table_name, p.partition_name, p.subpartition_position`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "table"}, {Name: "partition"}, {Name: "name"},
+			{Name: "position", Desc: "the order in the partition, from one"},
+			{Name: "bound", Desc: "HIGH_VALUE as the dictionary keeps it, and absent for hash"},
+		},
+		Params: childParams("table", "subpartition"),
+		Scan: func(rows *sql.Rows) (dbmeta.Subpartition, error) {
+			var v dbmeta.Subpartition
+			err := rows.Scan(&v.Schema, &v.Table, &v.Partition, &v.Name, &v.Position, &v.Bound)
 			return v, err
 		},
 	})

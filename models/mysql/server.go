@@ -402,3 +402,55 @@ func registerServer() {
 		},
 	})
 }
+
+// registerGrants lists the privileges on tables, on columns and on schemas, one for each
+// row, from the three views that hold them. The grantee is the account as MySQL writes it,
+// such as 'reader'@'%'. A privilege on a routine, and the global privileges of an
+// account, are in no view of information_schema, so they are not rows. See D298.
+func registerGrants() {
+	part := func(first bool, table, schema, name, column, kind string) dbmeta.Stmt {
+		var stmt dbmeta.Stmt
+		lead := `SELECT `
+		if !first {
+			lead = `UNION ALL SELECT `
+		}
+		stmt = append(stmt,
+			dbmeta.Choice{{Query: lead + schema + ` AS "schema"`}},
+			dbmeta.Choice{{Query: `, ` + name + ` AS "object"`}},
+			dbmeta.Choice{{Query: `, ` + kind + ` AS "object_type"`}},
+			dbmeta.Choice{{Query: `, NULL AS "arguments"`}},
+			dbmeta.Choice{{Query: `, ` + column + ` AS "column"`}},
+			dbmeta.Choice{{Query: `, p.grantee AS "grantee"`}},
+			dbmeta.Choice{{Query: `, p.privilege_type AS "privilege"`}},
+			dbmeta.Choice{{Query: `, p.is_grantable = 'YES' AS "grantable"`}},
+			dbmeta.Choice{{Query: `, FALSE AS "denied"`}},
+			dbmeta.Choice{{Query: `FROM information_schema.` + table + ` p`}},
+			notSystem("WHERE", "p.table_schema"),
+			schemaLike("schema", "p.table_schema"))
+		return stmt
+	}
+	var stmt dbmeta.Stmt
+	stmt = append(stmt, part(true, "TABLE_PRIVILEGES", "p.table_schema", "p.table_name", "NULL",
+		`CASE WHEN EXISTS (SELECT 1 FROM information_schema.VIEWS w WHERE w.table_schema = p.table_schema AND w.table_name = p.table_name) THEN 'view' ELSE 'table' END`)...)
+	stmt = append(stmt, part(false, "COLUMN_PRIVILEGES", "p.table_schema", "p.table_name", "p.column_name",
+		`CASE WHEN EXISTS (SELECT 1 FROM information_schema.VIEWS w WHERE w.table_schema = p.table_schema AND w.table_name = p.table_name) THEN 'view' ELSE 'table' END`)...)
+	stmt = append(stmt, part(false, "SCHEMA_PRIVILEGES", "p.table_schema", "p.table_schema", "NULL", `'schema'`)...)
+	stmt = append(stmt, dbmeta.Choice{{Query: `ORDER BY 1, 2, 3, 6, 7`}})
+	dbmeta.Grants.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.Grant]{
+		Stmt: stmt,
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "object"}, {Name: "object_type"},
+			{Name: "arguments", Desc: "always absent: a routine privilege is in no view of information_schema"},
+			{Name: "column"}, {Name: "grantee", Desc: "the account, such as 'reader'@'%'"},
+			{Name: "privilege"}, {Name: "grantable"},
+			{Name: "denied", Desc: "always false: MySQL has no entry that takes a privilege away"},
+		},
+		Params: schemaNameSystem("object"),
+		Scan: func(rows *sql.Rows) (dbmeta.Grant, error) {
+			var v dbmeta.Grant
+			err := rows.Scan(&v.Schema, &v.Object, &v.ObjectType, &v.Arguments, &v.Column, &v.Grantee,
+				&v.Privilege, &v.Grantable, &v.Denied)
+			return v, err
+		},
+	})
+}

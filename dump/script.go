@@ -99,6 +99,8 @@ type generator struct {
 	out    []Statement
 	// used is the schema that the last UseSchema statement of each stage named.
 	used map[Stage]string
+	// rangeWritten holds the routines that came before a range type that names them.
+	rangeWritten map[string]bool
 	// granted holds the grants that were written, by grantee and object.
 	granted map[string]bool
 }
@@ -170,6 +172,7 @@ func (g *generator) pre() error {
 			}
 		}
 	}
+	g.roles()
 	// Extensions come before the objects that use their types.
 	if !g.cross && g.style.Extension != nil {
 		for _, e := range g.snap.Extensions {
@@ -202,6 +205,7 @@ func (g *generator) pre() error {
 		}
 	}
 	if !g.cross {
+		g.rangeFunctions()
 		g.customTypes()
 		g.partitionObjects()
 		g.xmlSchemas()
@@ -298,7 +302,21 @@ func (g *generator) orderedTables() ([]schemaTable, error) {
 			}
 		}
 	}
-	if !g.style.InlineConstraints || g.style.OrderFree {
+	// A product that writes its foreign keys after the tables has no order to keep, except
+	// for a table of reference partitioning, which has its key in its own statement.
+	referenceOnly := !g.style.InlineConstraints
+	if referenceOnly {
+		found := false
+		for _, t := range all {
+			if t.table.Partitioning != nil && t.table.Partitioning.Reference != "" {
+				found = true
+			}
+		}
+		if !found {
+			return all, nil
+		}
+	}
+	if g.style.OrderFree {
 		return all, nil
 	}
 	key := func(schema, table string) string { return schema + "\x00" + table }
@@ -310,6 +328,9 @@ func (g *generator) orderedTables() ([]schemaTable, error) {
 	for i, t := range all {
 		for _, c := range t.table.Constraints {
 			if c.Kind != "foreign key" || c.Ref == nil {
+				continue
+			}
+			if referenceOnly && (t.table.Partitioning == nil || t.table.Partitioning.Reference != c.Name) {
 				continue
 			}
 			schema := c.Ref.Schema
@@ -443,7 +464,10 @@ func (g *generator) createTable(schema string, t Table) (string, error) {
 		}
 	}
 	for _, c := range t.Constraints {
-		if !g.inCreate(c.Kind) || g.refused(t, c) != "" {
+		// A table of reference partitioning has the foreign key that names its partitions in
+		// the statement that makes it.
+		inline := t.Partitioning != nil && t.Partitioning.Reference != "" && c.Name == t.Partitioning.Reference && c.Kind == "foreign key"
+		if (!g.inCreate(c.Kind) && !inline) || g.refused(schema, t, c) != "" {
 			continue
 		}
 		if text, ok := g.constraintSQL(schema, t, c); ok {
@@ -655,6 +679,7 @@ func (g *generator) post() {
 		}
 		g.events(sc)
 	}
+	g.grants()
 	g.policies()
 	g.viewLogs()
 	g.eventTriggers()
@@ -672,11 +697,11 @@ func (g *generator) constraints() {
 		for _, sc := range g.snap.Schemas {
 			for _, t := range sc.Tables {
 				for _, c := range t.Constraints {
-					if c.Kind != kind {
+					if c.Kind != kind || (t.Partitioning != nil && t.Partitioning.Reference != "" && c.Name == t.Partitioning.Reference) {
 						continue
 					}
 					name := sc.Name + "." + t.Name + "." + c.Name
-					if why := g.refused(t, c); why != "" {
+					if why := g.refused(sc.Name, t, c); why != "" {
 						g.add(Statement{Stage: Post, Kind: "constraint", Name: name, Note: why})
 						continue
 					}
@@ -701,7 +726,10 @@ func (g *generator) constraints() {
 
 // refused returns why the target cannot hold a constraint of a table, or the empty
 // string when it can.
-func (g *generator) refused(t Table, c Constraint) string {
+func (g *generator) refused(schema string, t Table, c Constraint) string {
+	if g.style.SameSchemaKeys && c.Kind == "foreign key" && c.Ref != nil && c.Ref.Schema != "" && c.Ref.Schema != schema {
+		return "the target has no foreign key across schemas, so " + c.Name + " is not written"
+	}
 	if g.style.RefuseConstraint == nil {
 		return ""
 	}
@@ -726,7 +754,7 @@ func (g *generator) indexes() {
 					for i, c := range ix.Columns {
 						cols[i] = c.Name
 					}
-					if why := g.refused(t, Constraint{Name: ix.Name, Kind: "unique", Columns: cols}); why != "" {
+					if why := g.refused(sc.Name, t, Constraint{Name: ix.Name, Kind: "unique", Columns: cols}); why != "" {
 						g.add(Statement{Stage: Post, Kind: "index", Name: name, Note: why})
 						continue
 					}
@@ -1287,5 +1315,76 @@ func (g *generator) viewLogs() {
 			g.add(Statement{Stage: Post, Kind: "materialized view log", Name: sc.Name + "." + l.Master,
 				SQL: g.style.MaterializedViewLog(g.qualified(sc.Name, l.Master), l)})
 		}
+	}
+}
+
+// roles writes the roles that the grants name, and the memberships among them, which
+// come before the objects that the grants are on.
+func (g *generator) roles() {
+	if g.cross {
+		return
+	}
+	g.principals()
+	if g.style.Role != nil {
+		for _, r := range g.snap.Roles {
+			g.add(Statement{Stage: Pre, Kind: "role", Name: r.Name, SQL: g.style.Role(r, g.style.Quote, g.style.Literal)})
+		}
+	}
+	if g.style.Membership == nil {
+		return
+	}
+	for _, r := range g.snap.Roles {
+		for _, of := range r.MemberOf {
+			g.add(Statement{Stage: Pre, Kind: "role membership", Name: r.Name + "." + of, SQL: g.style.Membership(of, r.Name, g.style.Quote)})
+		}
+	}
+}
+
+// grants writes the grants of each object, after the objects.
+func (g *generator) grants() {
+	if g.style.Grant == nil || g.cross {
+		return
+	}
+	type object struct{ schema, name, kind, arguments string }
+	var order []object
+	by := map[object][]GrantDef{}
+	for _, gr := range g.snap.Grants {
+		k := object{gr.Schema, gr.Object, gr.Kind, gr.Arguments}
+		if _, ok := by[k]; !ok {
+			order = append(order, k)
+		}
+		by[k] = append(by[k], gr)
+	}
+	for _, k := range order {
+		qualified := g.qualified(k.schema, k.name)
+		if k.kind == "schema" {
+			qualified = ""
+			if q := g.qualified(k.schema, "x"); q != g.style.Quote("x") {
+				qualified = g.style.Quote(k.schema)
+			}
+		}
+		for _, text := range g.style.Grant(k.schema, k.name, k.kind, qualified, by[k], g.style.Quote) {
+			g.add(Statement{Stage: Post, Kind: "grant", Name: k.schema + "." + k.name, SQL: text})
+		}
+	}
+}
+
+// principals makes the roles and the accounts that the grants name, for a product that
+// does not read its roles with the grants. A schema of the snapshot is made already.
+func (g *generator) principals() {
+	if g.style.Principal == nil || g.cross {
+		return
+	}
+	schemas := map[string]bool{}
+	for _, sc := range g.snap.Schemas {
+		schemas[sc.Name] = true
+	}
+	seen := map[string]bool{}
+	for _, gr := range g.snap.Grants {
+		if gr.Grantee == "" || seen[gr.Grantee] || schemas[gr.Grantee] {
+			continue
+		}
+		seen[gr.Grantee] = true
+		g.add(Statement{Stage: Pre, Kind: "role", Name: gr.Grantee, SQL: g.style.Principal(gr.Grantee, gr.GranteeType, g.style.Quote)})
 	}
 }

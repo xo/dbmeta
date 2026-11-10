@@ -13,6 +13,7 @@ func registerServer() {
 	registerTypes()
 	registerSynonyms()
 	registerPartitioning()
+	registerGrants()
 	registerSecurity()
 	registerStorage()
 }
@@ -1074,6 +1075,67 @@ func registerStats() {
 			var v dbmeta.ExtendedStat
 			err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Table, &v.Kinds, &v.Comment,
 				&v.Definition, &v.Ndistinct, &v.Dependencies, &v.MCV)
+			return v, err
+		},
+	})
+}
+
+// registerGrants lists the permissions on objects, on columns and on schemas, one for each
+// row, with the state that each one has: granted, granted with the option to pass it on, or
+// denied. A grant of the database itself, and a grant on a type, are not rows. See D298.
+func registerGrants() {
+	head := func(first bool) string {
+		if first {
+			return `SELECT `
+		}
+		return `UNION ALL SELECT `
+	}
+	tail := `, CAST(g.name AS nvarchar(256)) AS "grantee"` +
+		`, CASE WHEN g.type = 'R' THEN 'role' ELSE 'user' END AS "grantee_type"` +
+		`, CAST(dp.permission_name AS nvarchar(128)) AS "privilege"` +
+		`, CAST(CASE WHEN dp.state = 'W' THEN 1 ELSE 0 END AS bit) AS "grantable"` +
+		`, CAST(CASE WHEN dp.state = 'D' THEN 1 ELSE 0 END AS bit) AS "denied"`
+	var stmt dbmeta.Stmt
+	stmt = append(stmt,
+		always(head(true)+`s.name AS "schema", o.name AS "object"`),
+		always(`, CASE o.type WHEN 'U' THEN 'table' WHEN 'V' THEN 'view' WHEN 'SO' THEN 'sequence'`+
+			` WHEN 'P' THEN 'procedure' WHEN 'PC' THEN 'procedure' ELSE 'function' END AS "object_type"`),
+		always(`, CAST(NULL AS nvarchar(1)) AS "arguments"`),
+		always(`, CAST(c.name AS nvarchar(256)) AS "column"`),
+		always(tail),
+		always(`FROM sys.database_permissions dp`),
+		always(`JOIN sys.objects o ON o.object_id = dp.major_id`),
+		always(`JOIN sys.schemas s ON s.schema_id = o.schema_id`),
+		always(`JOIN sys.database_principals g ON g.principal_id = dp.grantee_principal_id`),
+		always(`LEFT JOIN sys.columns c ON c.object_id = dp.major_id AND c.column_id = dp.minor_id AND dp.minor_id > 0`),
+		always(`WHERE dp.class = 1 AND o.type IN ('U', 'V', 'SO', 'P', 'PC', 'FN', 'IF', 'TF', 'FS', 'FT')`),
+		always(`AND g.principal_id <> 1`),
+		always(`AND (@with_system = 1 OR o.is_ms_shipped = 0)`),
+		always(`AND (@schema = '' OR s.name LIKE @schema)`),
+		always(`UNION ALL SELECT s.name, s.name, 'schema', CAST(NULL AS nvarchar(1)), CAST(NULL AS nvarchar(256))`),
+		always(tail),
+		always(`FROM sys.database_permissions dp`),
+		always(`JOIN sys.schemas s ON s.schema_id = dp.major_id`),
+		always(`JOIN sys.database_principals g ON g.principal_id = dp.grantee_principal_id`),
+		always(`WHERE dp.class = 3 AND g.principal_id <> 1`),
+		always(`AND (@with_system = 1 OR s.name NOT IN ('sys', 'INFORMATION_SCHEMA'))`),
+		always(`AND (@schema = '' OR s.name LIKE @schema)`),
+		always(`ORDER BY 1, 2, 3, 6, 8`))
+	dbmeta.Grants.Register(dbmeta.SQLServer, &dbmeta.Binding[dbmeta.Grant]{
+		Stmt: stmt,
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "object"}, {Name: "object_type"},
+			{Name: "arguments", Desc: "always absent: SQL Server does not overload a routine"},
+			{Name: "column"}, {Name: "grantee", Desc: "the user or the role of the database"},
+			{Name: "grantee_type", Desc: "user or role"},
+			{Name: "privilege"}, {Name: "grantable", Desc: "true for GRANT WITH GRANT OPTION"},
+			{Name: "denied", Desc: "true for DENY"},
+		},
+		Params: schemaNameSystem("object"),
+		Scan: func(rows *sql.Rows) (dbmeta.Grant, error) {
+			var v dbmeta.Grant
+			err := rows.Scan(&v.Schema, &v.Object, &v.ObjectType, &v.Arguments, &v.Column, &v.Grantee,
+				&v.GranteeType, &v.Privilege, &v.Grantable, &v.Denied)
 			return v, err
 		},
 	})

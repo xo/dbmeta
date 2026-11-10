@@ -160,6 +160,8 @@ func dumpPrepare(ctx context.Context, t target) error {
 			// Tables of the two databases refer to each other, so a drop
 			// must not check the keys.
 			"SET FOREIGN_KEY_CHECKS = 0",
+			"DROP USER IF EXISTS 'dump_reader'@'%'",
+			"DROP USER IF EXISTS 'dump_writer'@'localhost'",
 			"DROP DATABASE IF EXISTS dump_core",
 			"DROP DATABASE IF EXISTS dump_extra",
 			"SET FOREIGN_KEY_CHECKS = 1",
@@ -184,7 +186,8 @@ func dumpOraclePrepare() []string {
 	drop := func(name string) string {
 		return fmt.Sprintf("BEGIN EXECUTE IMMEDIATE 'DROP USER %s CASCADE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1918 THEN RAISE; END IF; END;", name)
 	}
-	steps := []string{drop("dump_core"), drop("dump_extra")}
+	steps := []string{drop("dump_core"), drop("dump_extra"), drop("dump_user"),
+		"BEGIN EXECUTE IMMEDIATE 'DROP ROLE dump_reader'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1919 THEN RAISE; END IF; END;"}
 	for _, user := range []string{"dump_core", "dump_extra"} {
 		steps = append(steps,
 			fmt.Sprintf(`CREATE USER %s IDENTIFIED BY "%s"`, user, container.Password),

@@ -30,6 +30,8 @@ func registerSections() {
 			always(`, p.high_value AS "bound"`),
 			always(`, CASE WHEN p.subpartition_count > 0 THEN 1 ELSE 0 END AS "partitioned"`),
 			always(`, 0 AS "detach_pending"`),
+			// A partition that the server made for an interval.
+			always(`, CASE WHEN p.interval = 'YES' THEN 1 ELSE 0 END AS "generated"`),
 			always(`FROM all_tab_partitions p`),
 			notSystem("WHERE", "p.table_owner"),
 			always(`AND (@schema IS NULL OR p.table_owner LIKE @schema)`),
@@ -50,6 +52,7 @@ func registerSections() {
 			},
 			{Name: "partitioned", Desc: "true when the partition has subpartitions"},
 			{Name: "detach_pending", Desc: "always false: Oracle has no detach that can wait"},
+			{Name: "generated", Desc: "true for a partition that the server made for an interval"},
 		},
 		Params: []dbmeta.Param{
 			{Name: "schema", Desc: "schema name pattern of the partitioned table, empty for every schema", Default: ""},
@@ -61,7 +64,7 @@ func registerSections() {
 		Scan: func(rows *sql.Rows) (dbmeta.Partition, error) {
 			var v dbmeta.Partition
 			err := rows.Scan(&v.Schema, &v.Table, &v.PartitionSchema, &v.Partition, &v.Type,
-				&v.Bound, &v.Partitioned, &v.DetachPending)
+				&v.Bound, &v.Partitioned, &v.DetachPending, &v.Generated)
 			return v, err
 		},
 	})

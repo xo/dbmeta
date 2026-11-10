@@ -152,3 +152,55 @@ func registerCatalog() {
 		},
 	})
 }
+
+// registerGrants lists the privileges on objects and the privileges on columns, one for each
+// row. The privileges of the owner of an object are not rows. A column privilege is in
+// ALL_COL_PRIVS, which holds no object type, so the type is looked up in ALL_OBJECTS for those
+// rows alone. See D298.
+func registerGrants() {
+	grantee := `, CASE WHEN p.grantee = 'PUBLIC' THEN '' ELSE p.grantee END AS "grantee"` +
+		`, CASE WHEN p.grantee = 'PUBLIC' THEN NULL WHEN EXISTS (SELECT 1 FROM all_users u WHERE u.username = p.grantee)` +
+		` THEN 'user' ELSE 'role' END AS "grantee_type"`
+	typeOf := `NVL((SELECT LOWER(o.object_type) FROM all_objects o WHERE o.owner = p.table_schema` +
+		` AND o.object_name = p.table_name AND o.object_type NOT IN ('INDEX', 'PACKAGE BODY', 'TYPE BODY') AND ROWNUM = 1), 'table')`
+	stmt := dbmeta.Stmt{
+		always(`SELECT p.table_schema AS "schema", p.table_name AS "object"`),
+		dbmeta.Choice{
+			{Query: `, ` + typeOf + ` AS "object_type"`},
+			{Min: v18, Query: `, CASE WHEN p.type <> 'UNKNOWN' THEN LOWER(p.type) ELSE ` + typeOf + ` END AS "object_type"`},
+		},
+		always(`, CAST(NULL AS VARCHAR2(1)) AS "arguments", CAST(NULL AS VARCHAR2(128)) AS "column"`),
+		always(grantee),
+		always(`, p.privilege AS "privilege", CASE WHEN p.grantable = 'YES' THEN 1 ELSE 0 END AS "grantable", 0 AS "denied"`),
+		always(`FROM all_tab_privs p`),
+		notSystem("WHERE", "p.table_schema"),
+		always(`AND p.grantee <> p.table_schema AND p.privilege <> 'INHERIT PRIVILEGES'`),
+		always(`AND (@schema IS NULL OR p.table_schema LIKE @schema)`),
+		always(`UNION ALL SELECT p.table_schema, p.table_name, ` + typeOf + `, CAST(NULL AS VARCHAR2(1)), p.column_name`),
+		always(grantee),
+		always(`, p.privilege, CASE WHEN p.grantable = 'YES' THEN 1 ELSE 0 END, 0`),
+		always(`FROM all_col_privs p`),
+		notSystem("WHERE", "p.table_schema"),
+		always(`AND p.grantee <> p.table_schema`),
+		always(`AND (@schema IS NULL OR p.table_schema LIKE @schema)`),
+		always(`ORDER BY 1, 2, 3, 6, 8`),
+	}
+	dbmeta.Grants.Register(dbmeta.Oracle, &dbmeta.Binding[dbmeta.Grant]{
+		Stmt: stmt,
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "object"}, {Name: "object_type"},
+			{Name: "arguments", Desc: "always absent: a routine of a package is one object"},
+			{Name: "column"}, {Name: "grantee", Desc: "the user or the role, and empty for PUBLIC"},
+			{Name: "grantee_type", Desc: "user or role, and absent for PUBLIC"},
+			{Name: "privilege"}, {Name: "grantable", Desc: "true for WITH GRANT OPTION"},
+			{Name: "denied", Desc: "always false: Oracle has no entry that takes a privilege away"},
+		},
+		Params: schemaNameSystem("object"),
+		Scan: func(rows *sql.Rows) (dbmeta.Grant, error) {
+			var v dbmeta.Grant
+			err := rows.Scan(&v.Schema, &v.Object, &v.ObjectType, &v.Arguments, &v.Column, dbmeta.NullAsEmpty(&v.Grantee),
+				&v.GranteeType, &v.Privilege, &v.Grantable, &v.Denied)
+			return v, err
+		},
+	})
+}

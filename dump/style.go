@@ -125,6 +125,9 @@ type Style struct {
 	// generator takes every other trailing semicolon off. It is nil for a product
 	// whose statements never end in one.
 	KeepTerminator func(definition string) bool
+	// KeepOffset says that a timestamp with a zone keeps the offset that it was stored
+	// with, so a copy from the same product writes the offset and not the instant in UTC.
+	KeepOffset bool
 	// RowPerSelfReference says that a table with a foreign key to itself loads one
 	// row in each INSERT, because the product checks the key of each row against
 	// the rows that come before it in the statement. See D294.
@@ -189,6 +192,9 @@ type Style struct {
 	// has no foreign key and takes only a unique key that holds every column of its
 	// primary key.
 	RefuseConstraint func(t Table, c Constraint) string
+	// SameSchemaKeys says that the product refuses a foreign key that names a table of
+	// another schema, as DuckDB does. The key is not written and the script says why.
+	SameSchemaKeys bool
 	// LostValues says that the dump moves no value of a column, such as an Oracle REF
 	// column, whose value is the identifier of a row of the source. The statement
 	// that makes the table has a Note about it. See D295.
@@ -242,6 +248,19 @@ type Style struct {
 	// TriggerPlacement writes the statements that make a trigger first or last for an
 	// event, from the text of its placement. See D296.
 	TriggerPlacement func(schema, trigger, placement string, q func(string) string) []string
+	// Role writes the statement that makes a role when it is not there, and Membership
+	// the statement that makes a role a member of another. Grant writes the grants of
+	// an object, given as the privileges of each grantee. All are nil for a product that
+	// does not dump grants. See D297.
+	Role       func(r RoleDef, q func(string) string, literal func(string) string) string
+	Membership func(role, member string, q func(string) string) string
+	Grant      func(schema, object, kind, qualified string, grants []GrantDef, q func(string) string) []string
+	// Principal writes the statement that makes a role or an account that a grant names
+	// when it is not there, with no way to log in. It is nil for a product whose roles
+	// the dump makes with Role. For Grant, qualified is the name of the object as the script
+	// writes it, and for a schema it is the quoted name of the schema, or empty where the
+	// script means the current one. See D298.
+	Principal func(name, kind string, q func(string) string) string
 	// Event writes CREATE EVENT. It is nil for a product with no scheduled events.
 	Event func(quoted string, e ScheduledEvent, q func(string) string, literal func(string) string) string
 	// InvisibleIndex writes what follows an index that the optimizer ignores, from the

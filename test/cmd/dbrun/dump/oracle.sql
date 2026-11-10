@@ -129,6 +129,8 @@ create table contacts (
   who employee_t
 ) nested table tags store as contacts_tags_nt;
 insert into contacts select 1, tag_table('a', 'ü'), phone_list('1', '2'), ref(a), employee_t('Eve', date '1999-09-09', 5000) from addresses a;
+-- a collection whose text is longer than 4000 characters, with a quote in it
+insert into contacts select 2, cast(multiset(select rpad('t' || level || '''&<', 40, 'z') from dual connect by level <= 150) as tag_table), phone_list('3'), null, null from dual;
 commit;
 
 -- an index organized table
@@ -291,6 +293,8 @@ create view people_stats as
   select count(*) as rows_in_table, calc.people_count as rows_by_package, calc.area(3, 4) as area
   from dual;
 create materialized view log on people with primary key;
+create table log_filtered (id number(10) primary key, a number, b varchar2(10));
+create materialized view log on log_filtered with sequence (a, b) including new values;
 create view cross_view as
   select p.id, p.name, e.name as extra_name
   from people p join dump_extra.people e on e.core_id = p.id;
@@ -321,3 +325,74 @@ create table tuned (
 ) pctfree 20 nologging compress enable row movement;
 insert into tuned (id, note) values (1, 'one');
 commit;
+
+-- Partitions: an interval, a subpartition with a template, and a reference partition.
+create table sales_interval (
+  id number(10) not null,
+  sold date not null,
+  constraint sales_interval_pk primary key (id)
+) partition by range (sold) interval (numtoyminterval(1, 'MONTH')) (
+  partition p0 values less than (date '2025-01-01')
+);
+insert into sales_interval (id, sold) values (1, date '2024-06-01');
+insert into sales_interval (id, sold) values (2, date '2025-03-15');
+commit;
+create table sales_sub (
+  id number(10) not null,
+  region varchar2(5) not null,
+  sold date not null
+) partition by range (sold) subpartition by list (region)
+  subpartition template (
+    subpartition sp_a values ('A'),
+    subpartition sp_other values (default)
+  ) (
+  partition p1 values less than (date '2026-01-01'),
+  partition p2 values less than (maxvalue)
+);
+insert into sales_sub (id, region, sold) values (1, 'A', date '2025-05-05');
+insert into sales_sub (id, region, sold) values (2, 'B', date '2027-05-05');
+commit;
+-- subpartitions that a person named, with no template, and a hash one
+create table sales_named (
+  id number(10) not null,
+  region varchar2(5) not null,
+  sold date not null
+) partition by range (sold) subpartition by list (region) (
+  partition n1 values less than (date '2026-01-01') (
+    subpartition n1_east values ('E'),
+    subpartition n1_rest values (default)
+  ),
+  partition n2 values less than (maxvalue) (
+    subpartition n2_east values ('E'),
+    subpartition n2_west values ('W', 'X'),
+    subpartition n2_rest values (default)
+  )
+);
+insert into sales_named (id, region, sold) values (1, 'E', date '2025-05-05');
+insert into sales_named (id, region, sold) values (2, 'W', date '2027-05-05');
+commit;
+create table orders_parent (
+  id number(10) not null,
+  placed date not null,
+  constraint orders_parent_pk primary key (id)
+) partition by range (placed) (
+  partition o1 values less than (date '2026-01-01'),
+  partition o2 values less than (maxvalue)
+);
+create table orders_item (
+  item_id number(10) not null,
+  order_id number(10) not null,
+  constraint orders_item_pk primary key (item_id),
+  constraint orders_item_fk foreign key (order_id) references orders_parent (id)
+) partition by reference (orders_item_fk);
+insert into orders_parent (id, placed) values (1, date '2025-01-01');
+insert into orders_item (item_id, order_id) values (10, 1);
+commit;
+
+-- A role, a user with no way to log in, and grants on a table, on a column and on a package.
+create role dump_reader;
+create user dump_user no authentication;
+grant select on dump_core.people to dump_reader;
+grant select, insert on dump_core.tickets to dump_user with grant option;
+grant update (name) on dump_extra.people to dump_user;
+grant execute on dump_core.calc to dump_reader;

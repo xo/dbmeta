@@ -24,7 +24,7 @@
 //
 // # What it answers
 //
-// 8 of the 77. Databases, schemas, tables, columns, views, partitioned tables,
+// 8 of the 80. Databases, schemas, tables, columns, views, partitioned tables,
 // the current schema and the current user.
 //
 // A partitioned table is a Hive table with a partition column. Athena marks the

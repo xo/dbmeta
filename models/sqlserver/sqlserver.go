@@ -31,7 +31,7 @@
 //
 // # What it answers
 //
-// 40 of the 77. SQL Server is the only database
+// 41 of the 80. SQL Server is the only database
 // with a model of its own, besides PostgreSQL and CockroachDB, with roles,
 // privileges, tablespaces and DDL triggers, and the only one with a catalog
 // of comments rather than a comment on each object.

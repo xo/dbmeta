@@ -1,6 +1,6 @@
 # D296. A dump writes the rest of what the catalogs hold
 
-Status: Amends D294.
+Status: Amends D294, amended by D297.
 
 The maintainers asked on 2026-11-10 that the dump be correct for every product that
 has the dump fixture, and that the dump backlog be finished. This is what closed. The

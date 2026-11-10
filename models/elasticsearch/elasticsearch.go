@@ -43,7 +43,7 @@
 //
 // # What it answers
 //
-// 8 of the 77. The cluster as the database, indices as tables, aliases as
+// 8 of the 80. The cluster as the database, indices as tables, aliases as
 // views, the fields of a mapping as columns, the functions, the aggregate
 // functions, the types and the current user.
 //

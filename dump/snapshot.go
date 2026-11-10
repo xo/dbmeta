@@ -34,6 +34,13 @@ type Snapshot struct {
 	// script installs first. An object that an extension owns is not in the
 	// snapshot, because the extension makes it again.
 	Extensions []Extension `json:"extensions,omitempty"`
+	// Roles are the roles that the grants of the snapshot name, and the roles that
+	// those are members of. A script makes each one that is not there, with the
+	// attributes that it had, and with no password. Grants are the privileges on the
+	// tables, the views and the sequences, and on columns, for a product that has them.
+	// See D297.
+	Roles  []RoleDef  `json:"roles,omitempty"`
+	Grants []GrantDef `json:"grants,omitempty"`
 	// EventTriggers are the triggers that fire on a DDL event, which belong to the
 	// database or to a schema, and not to a table. See D296.
 	EventTriggers []EventTriggerDef `json:"event_triggers,omitempty"`
@@ -219,6 +226,15 @@ type Partitioning struct {
 	// Expression is the key, as the source writes it between the brackets of
 	// PARTITION BY, such as happened_at or year(hired).
 	Expression string `json:"expression"`
+	// Interval is the expression of an interval partitioned table, Reference the foreign
+	// key of a table of reference partitioning, and SubStrategy, SubKey and SubTemplate
+	// say how each partition is split again. They are empty for a table that has none.
+	// See D297.
+	Interval    string `json:"interval,omitempty"`
+	Reference   string `json:"reference,omitempty"`
+	SubStrategy string `json:"sub_strategy,omitempty"`
+	SubKey      string `json:"sub_key,omitempty"`
+	SubTemplate string `json:"sub_template,omitempty"`
 	// Scheme is the partition scheme that lays the table out, for a product that keeps
 	// them apart from its tables. Expression holds the columns then.
 	Scheme string `json:"scheme,omitempty"`
@@ -233,6 +249,9 @@ type Part struct {
 	// Bound is the limit of a range partition, or the values of a list one, as the
 	// source writes it. It is empty for a hash or a key partition.
 	Bound string `json:"bound,omitempty"`
+	// Subs are the subpartitions that a person named, each written as its own clause,
+	// for a table that has no template.
+	Subs []string `json:"subs,omitempty"`
 }
 
 // PartitionOf names the table that a partition belongs to.
@@ -354,6 +373,8 @@ type Trigger struct {
 	// SQLMode is the sql_mode that the trigger was made under. It is a pointer,
 	// because an empty mode is a mode.
 	SQLMode *string `json:"sql_mode,omitempty"`
+	// Definer is the account that the trigger runs as, as user@host.
+	Definer string `json:"definer,omitempty"`
 	// Placement says which events the trigger is first or last for, as text such as
 	// first INSERT, last UPDATE.
 	Placement string `json:"placement,omitempty"`
@@ -552,4 +573,38 @@ type MaterializedViewLog struct {
 	Sequence   bool   `json:"sequence,omitempty"`
 	ObjectID   bool   `json:"object_id,omitempty"`
 	IncludeNew bool   `json:"include_new,omitempty"`
+	// Columns are the columns that a person named, quoted and joined by commas.
+	Columns string `json:"columns,omitempty"`
+}
+
+// RoleDef is a role that a grant names. MemberOf lists the roles that it is a member of.
+type RoleDef struct {
+	Name        string   `json:"name"`
+	CanLogin    bool     `json:"can_login,omitempty"`
+	Superuser   bool     `json:"superuser,omitempty"`
+	CreateDB    bool     `json:"create_db,omitempty"`
+	CreateRole  bool     `json:"create_role,omitempty"`
+	Replication bool     `json:"replication,omitempty"`
+	BypassRLS   bool     `json:"bypass_rls,omitempty"`
+	NoInherit   bool     `json:"no_inherit,omitempty"`
+	ConnLimit   int64    `json:"conn_limit,omitempty"`
+	MemberOf    []string `json:"member_of,omitempty"`
+	Comment     string   `json:"comment,omitempty"`
+}
+
+// GrantDef is one privilege on an object, or on one column of it, given to a role or an
+// account. An empty Grantee is every role. Option says that the grantee can pass the
+// privilege on, and Denied that the entry takes the privilege away.
+type GrantDef struct {
+	Schema    string `json:"schema"`
+	Object    string `json:"object"`
+	Kind      string `json:"kind"`
+	Arguments string `json:"arguments,omitempty"`
+	Grantee   string `json:"grantee,omitempty"`
+	// GranteeType is user or role, for a product that tells them apart.
+	GranteeType string `json:"grantee_type,omitempty"`
+	Privilege   string `json:"privilege"`
+	Column      string `json:"column,omitempty"`
+	Option      bool   `json:"option,omitempty"`
+	Denied      bool   `json:"denied,omitempty"`
 }

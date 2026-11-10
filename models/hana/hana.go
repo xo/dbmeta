@@ -19,7 +19,7 @@
 //
 // # What it answers
 //
-// 33 of the 77. Every one was run against SAP HANA 2.0 SPS 08 and SPS 07,
+// 33 of the 80. Every one was run against SAP HANA 2.0 SPS 08 and SPS 07,
 // which answer identically, so this model has no version fragment.
 //
 // The ones worth naming are the ones no other model here answers from a

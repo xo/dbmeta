@@ -159,6 +159,13 @@ func registerTables() {
 				always(`  WHERE k.owner = p.owner AND k.name = p.table_name`),
 				always(`  AND k.object_type = 'TABLE'), '') AS "expression"`),
 				always(`, m.comments AS "comment"`),
+				always(`, p.interval AS "interval"`),
+				always(`, p.ref_ptn_constraint_name AS "reference"`),
+				always(`, CASE WHEN p.subpartitioning_type <> 'NONE' THEN p.subpartitioning_type END AS "sub_strategy"`),
+				always(`, CASE WHEN p.subpartitioning_type <> 'NONE' THEN (SELECT `),
+				listagg("sk.column_name", "sk.column_position"),
+				always(`  FROM all_subpart_key_columns sk WHERE sk.owner = p.owner AND sk.name = p.table_name`),
+				always(`  AND sk.object_type = 'TABLE') END AS "sub_key_columns"`),
 				always(`FROM all_part_tables p`),
 				always(`LEFT JOIN all_tab_comments m ON m.owner = p.owner` +
 					` AND m.table_name = p.table_name`),
@@ -182,12 +189,17 @@ func registerTables() {
 				{Name: "strategy"},
 				{Name: "expression", Desc: "the partitioning key columns, in order"},
 				{Name: "comment"},
+				{Name: "interval", Desc: "the interval expression of an interval partitioned table, or NO"},
+				{Name: "reference", Desc: "the foreign key that a table of reference partitioning takes its partitions from"},
+				{Name: "sub_strategy", Desc: "how each partition is split again, absent when it is not"},
+				{Name: "sub_key_columns", Desc: "the columns that each partition is split by"},
 			},
 			Params: schemaNameSystem("table"),
 			Scan: func(rows *sql.Rows) (dbmeta.PartitionedTable, error) {
 				var v dbmeta.PartitionedTable
 				err := rows.Scan(&v.Schema, &v.Name, &v.Owner, &v.Type, dbmeta.NullAsEmpty(&v.Parent),
-					&v.Strategy, dbmeta.NullAsEmpty(&v.Expression), &v.Comment)
+					&v.Strategy, dbmeta.NullAsEmpty(&v.Expression), &v.Comment, &v.Interval, &v.Reference,
+					&v.SubStrategy, &v.SubKeyColumns)
 				return v, err
 			},
 		})

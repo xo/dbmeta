@@ -299,6 +299,10 @@ func supported(t *testing.T, m *dbmeta.Meta) []dbmeta.AnyQuery {
 // order, by reading every AS "name" it contains.
 func namedColumns(s string) []string {
 	var out []string
+	// A statement of several parts names its columns in the first one.
+	if i := strings.Index(s, "UNION ALL"); i >= 0 {
+		s = s[:i]
+	}
 	for {
 		i := strings.Index(s, ` AS "`)
 		if i < 0 {

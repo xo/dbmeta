@@ -67,7 +67,12 @@ func (b builder) value(declared, ref string, depth int) (string, bool) {
 			return "", false
 		}
 		// A value that is NULL is the word, which an INSERT reads as NULL.
-		return "CASE WHEN " + ref + " IS NULL THEN 'NULL' ELSE " + text + " END", true
+		null := "'NULL'"
+		if strings.Contains(text, "XMLAGG(") {
+			// A CASE cannot mix text with a CLOB.
+			null = "TO_CLOB('NULL')"
+		}
+		return "CASE WHEN " + ref + " IS NULL THEN " + null + " ELSE " + text + " END", true
 	}
 	return scalar(declared, ref), true
 }
@@ -102,7 +107,10 @@ func (b builder) typed(owner, name, ref string, depth int) (string, bool) {
 				return "", false
 			}
 			// The order of the elements is the order that the collection gives them.
-			list := `(SELECT LISTAGG(` + text + `, ',') WITHIN GROUP (ORDER BY ROWNUM) FROM TABLE(` + ref + `) e)`
+			// LISTAGG stops at 4000 bytes, so the elements go through XMLAGG, which makes a CLOB.
+			// The text is made of entities, and CONVERT turns them back.
+			list := `(SELECT DBMS_XMLGEN.CONVERT(RTRIM(XMLAGG(XMLELEMENT(x, ` + text + `, ',') ORDER BY ROWNUM).EXTRACT('//text()').GETCLOBVAL(), ','), 1)` +
+				` FROM TABLE(` + ref + `) e)`
 			return `'` + quote(owner) + "." + quote(name) + `(' || ` + list + ` || ')'`, true
 		}
 	}

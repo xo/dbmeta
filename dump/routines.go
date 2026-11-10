@@ -90,6 +90,9 @@ func (g *generator) earlyRoutines() {
 	byName := map[string][]int{}
 	for _, sc := range g.snap.Schemas {
 		for _, r := range sc.Routines {
+			if g.rangeWritten[sc.Name+"."+r.Name] {
+				continue
+			}
 			if g.style.RoutinesAfterTables && !early[sc.Name+"."+r.Name] {
 				continue
 			}
@@ -121,4 +124,73 @@ func (g *generator) earlyRoutines() {
 	for i := range all {
 		visit(i)
 	}
+}
+
+// rangeFunctions writes the functions that a range type names as its canonical function
+// or its difference function, before the type. The canonical function returns the range
+// type, so the type is first made as a shell, which the full statement fills in. See D297.
+func (g *generator) rangeFunctions() {
+	if g.style.Range == nil || g.cross {
+		return
+	}
+	for _, sc := range g.snap.Schemas {
+		for _, rt := range sc.Ranges {
+			var funcs []string
+			for _, ref := range []string{rt.Canonical, rt.SubtypeDiff} {
+				if name, ok := g.userRoutine(sc.Name, ref); ok {
+					funcs = append(funcs, name)
+				}
+			}
+			if len(funcs) == 0 {
+				continue
+			}
+			if _, ok := g.userRoutine(sc.Name, rt.Canonical); ok {
+				g.add(Statement{Stage: Pre, Kind: "type", Name: sc.Name + "." + rt.Name, SQL: "CREATE TYPE " + g.qualified(sc.Name, rt.Name)})
+			}
+			for _, key := range funcs {
+				schema, name, _ := strings.Cut(key, ".")
+				for _, s2 := range g.snap.Schemas {
+					if s2.Name != schema {
+						continue
+					}
+					for _, r := range s2.Routines {
+						if r.Name == name {
+							g.routine(Pre, s2.Name, r)
+						}
+					}
+				}
+				if g.rangeWritten == nil {
+					g.rangeWritten = map[string]bool{}
+				}
+				g.rangeWritten[key] = true
+			}
+		}
+	}
+}
+
+// userRoutine finds the routine that a range type names, as schema.name, when the
+// snapshot holds it. A name with no schema is in the schema of the type.
+func (g *generator) userRoutine(schema, ref string) (string, bool) {
+	ref = strings.TrimSpace(strings.ReplaceAll(ref, `"`, ""))
+	if ref == "" {
+		return "", false
+	}
+	if i := strings.IndexByte(ref, '('); i >= 0 {
+		ref = ref[:i]
+	}
+	owner, name := schema, ref
+	if o, n, ok := strings.Cut(ref, "."); ok {
+		owner, name = o, n
+	}
+	for _, sc := range g.snap.Schemas {
+		if sc.Name != owner {
+			continue
+		}
+		for _, r := range sc.Routines {
+			if r.Name == name {
+				return owner + "." + name, true
+			}
+		}
+	}
+	return "", false
 }

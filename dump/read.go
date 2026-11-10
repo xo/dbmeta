@@ -302,7 +302,7 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 			views[tableKey{s.Name, s.Views[j].Name}] = &s.Views[j]
 		}
 	}
-	if err := r.readPartitions(ctx, a, kept, snap); err != nil {
+	if err := r.readPartitions(ctx, a, kept); err != nil {
 		return err
 	}
 	if err := r.readTableTypes(ctx, a, kept); err != nil {
@@ -334,6 +334,9 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 		return err
 	}
 	if err := r.readUnwritten(ctx, a, kept, snap, byName); err != nil {
+		return err
+	}
+	if err := r.readGrants(ctx, a, snap); err != nil {
 		return err
 	}
 	// A user of Oracle that owns nothing is no schema of the database. The image
@@ -370,7 +373,7 @@ func (r *reader) readPartitionSchemes(ctx context.Context, a dbmeta.Args, kept m
 // table for each partition, and the partition names its parent. MySQL keeps its
 // partitions inside the table, so the table lists them. A product that has a
 // partitioned table and is not one of these two is read as a plain table.
-func (r *reader) readPartitions(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, snap *Snapshot) error {
+func (r *reader) readPartitions(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table) error {
 	d := r.m.Dialect()
 	if d == dbmeta.SQLServer {
 		return r.readPartitionSchemes(ctx, a, kept)
@@ -397,6 +400,60 @@ func (r *reader) readPartitions(ctx context.Context, a dbmeta.Args, kept map[tab
 			t.Partitioning = &Partitioning{Strategy: strings.ToLower(strategy), Expression: unbracket(key)}
 		} else {
 			t.Partitioning = &Partitioning{Strategy: strings.ToLower(p.Strategy), Expression: p.Expression}
+			if iv := text(p.Interval); iv != "" && !strings.EqualFold(iv, "NO") {
+				t.Partitioning.Interval = iv
+			}
+			t.Partitioning.Reference = text(p.Reference)
+			t.Partitioning.SubStrategy = strings.ToLower(text(p.SubStrategy))
+			t.Partitioning.SubKey = text(p.SubKeyColumns)
+		}
+	}
+	if d == dbmeta.Oracle && dbmeta.SubpartitionTemplates.Support(r.m) == dbmeta.Supported {
+		templates, err := collect(dbmeta.SubpartitionTemplates.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading subpartition templates: %w", err)
+		}
+		slices.SortStableFunc(templates, func(x, y dbmeta.SubpartitionTemplate) int { return cmp.Compare(x.Position, y.Position) })
+		clauses := map[tableKey][]string{}
+		for _, tpl := range templates {
+			t, ok := kept[tableKey{tpl.Schema, tpl.Table}]
+			if !ok || t.Partitioning == nil {
+				continue
+			}
+			clause := "SUBPARTITION " + oracleQuote(tpl.Name)
+			switch t.Partitioning.SubStrategy {
+			case "list":
+				clause += " VALUES (" + text(tpl.Bound) + ")"
+			case "range":
+				clause += " VALUES LESS THAN (" + text(tpl.Bound) + ")"
+			}
+			clauses[tableKey{tpl.Schema, tpl.Table}] = append(clauses[tableKey{tpl.Schema, tpl.Table}], clause)
+		}
+		for k, list := range clauses {
+			kept[k].Partitioning.SubTemplate = strings.Join(list, ", ")
+		}
+	}
+	subs := map[[3]string][]string{}
+	if d == dbmeta.Oracle && dbmeta.Subpartitions.Support(r.m) == dbmeta.Supported {
+		list, err := collect(dbmeta.Subpartitions.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading subpartitions: %w", err)
+		}
+		slices.SortStableFunc(list, func(x, y dbmeta.Subpartition) int { return cmp.Compare(x.Position, y.Position) })
+		for _, sp := range list {
+			t, ok := kept[tableKey{sp.Schema, sp.Table}]
+			if !ok || t.Partitioning == nil || t.Partitioning.SubTemplate != "" {
+				continue
+			}
+			clause := "SUBPARTITION " + oracleQuote(sp.Name)
+			switch t.Partitioning.SubStrategy {
+			case "list":
+				clause += " VALUES (" + text(sp.Bound) + ")"
+			case "range":
+				clause += " VALUES LESS THAN (" + text(sp.Bound) + ")"
+			}
+			k := [3]string{sp.Schema, sp.Table, sp.Partition}
+			subs[k] = append(subs[k], clause)
 		}
 	}
 	for _, p := range parts {
@@ -411,12 +468,17 @@ func (r *reader) readPartitions(ctx context.Context, a dbmeta.Args, kept map[tab
 		if !ok || t.Partitioning == nil {
 			continue
 		}
-		if p.Type == "subpartition" || p.Partitioned {
-			snap.Skipped = append(snap.Skipped, Skipped{Schema: p.Schema, Name: p.Table, Kind: "subpartition",
-				Reason: "the subpartitions of a table are not written, so the table is written with its partitions only"})
+		// A partition that the server made for an interval is made again by the rows.
+		if p.Generated.Valid && p.Generated.V {
 			continue
 		}
-		t.Partitioning.Parts = append(t.Partitioning.Parts, Part{Name: p.Partition, Bound: text(p.Bound)})
+		// A table with a template gets its subpartitions from it. A table with none lists
+		// each one apart.
+		if p.Type == "subpartition" {
+			continue
+		}
+		t.Partitioning.Parts = append(t.Partitioning.Parts, Part{Name: p.Partition, Bound: text(p.Bound),
+			Subs: subs[[3]string{p.Schema, p.Table, p.Partition}]})
 	}
 	return nil
 }
@@ -601,7 +663,7 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 		}
 		// Oracle names a constraint that a person did not name SYS_C and a number, and the
 		// copy gets another number, so the name is left out.
-		if r.m.Dialect() == dbmeta.Oracle && oracleSystemName.MatchString(con.Name) {
+		if r.m.Dialect() == dbmeta.Oracle && oracleSystemName.MatchString(con.Name) && (t.Partitioning == nil || t.Partitioning.Reference != con.Name) {
 			con.Name = ""
 		}
 		// MySQL and MariaDB check a key at once for RESTRICT and for NO ACTION, and
@@ -745,7 +807,7 @@ func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[table
 			if text, found := source[sourceKey{g.Schema, "trigger", g.Name}]; found {
 				def = "CREATE OR REPLACE " + strings.TrimSpace(text)
 			}
-			trg := Trigger{Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment), Placement: text(g.Placement)}
+			trg := Trigger{Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment), Placement: text(g.Placement), Definer: text(g.Definer)}
 			if g.ActionOrder.Valid {
 				trg.Order = int(g.ActionOrder.V)
 			}
@@ -898,14 +960,20 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 				Multirange: text(t.RangeMultirange), Comment: text(t.Comment)})
 		case own && kind == "multirange":
 			// The range type makes it again.
-		case r.m.Dialect() == dbmeta.DuckDB && !slices.Contains([]string{"struct", "union", "map", "list", "array"}, kind) &&
-			!strings.HasPrefix(kind, "struct") && !strings.HasPrefix(kind, "map") && !strings.HasPrefix(kind, "union"):
-			// A type that a person made from another type is an alias, and its type is
-			// what the catalog says it is.
-			s.Domains = append(s.Domains, Domain{Name: t.Internal, Type: strings.ToUpper(kind), Comment: text(t.Comment)})
 		case r.m.Dialect() == dbmeta.DuckDB:
-			r.skipped = append(r.skipped, Skipped{Schema: t.Schema, Name: t.Name, Kind: "type " + kind,
-				Reason: "the catalog says no more of this type than its kind, so the dump does not write it, and a column of it keeps the text of its type"})
+			// A type that a person made from another type is an alias. The catalog names only
+			// the kind of a struct, a union or a map, so the type is read from typeof, which
+			// writes it in full.
+			def := strings.ToUpper(kind)
+			if slices.Contains([]string{"struct", "union", "map", "list", "array"}, kind) {
+				var err error
+				if def, err = r.typeText(ctx, t.Schema, t.Internal); err != nil {
+					r.skipped = append(r.skipped, Skipped{Schema: t.Schema, Name: t.Name, Kind: "type " + kind,
+						Reason: "the type could not be read: " + err.Error()})
+					continue
+				}
+			}
+			s.Domains = append(s.Domains, Domain{Name: t.Internal, Type: def, Comment: text(t.Comment)})
 		case !aliases:
 		case kind == "domain" || kind == "alias":
 			if d, found := byDomain[tableKey{t.Schema, t.Internal}]; found {
@@ -950,12 +1018,8 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 			if !ok {
 				continue
 			}
-			if l.FilterColumns {
-				r.skipped = append(r.skipped, Skipped{Schema: l.Schema, Name: l.Master, Kind: "materialized view log",
-					Reason: "the log holds columns that a person named, and the dump does not write them"})
-			}
 			s.Logs = append(s.Logs, MaterializedViewLog{Master: l.Master, LogTable: l.LogTable, PrimaryKey: l.PrimaryKey,
-				RowID: l.RowID, Sequence: l.Sequence, ObjectID: l.ObjectID, IncludeNew: l.IncludeNew})
+				RowID: l.RowID, Sequence: l.Sequence, ObjectID: l.ObjectID, IncludeNew: l.IncludeNew, Columns: text(l.Columns)})
 		}
 	}
 	if dbmeta.XMLSchemaCollections.Support(r.m) == dbmeta.Supported {
@@ -1110,7 +1174,7 @@ func (r *reader) readUnwritten(ctx context.Context, a dbmeta.Args, kept map[tabl
 			}
 			if !f.Definition.Valid {
 				r.skipped = append(r.skipped, Skipped{Schema: f.Schema, Name: f.Name + "(" + text(f.ArgTypes) + ")", Kind: "aggregate",
-					Reason: "the dump writes an ordinary aggregate, and this one is an ordered set aggregate"})
+					Reason: "the catalog gives no statement for this aggregate"})
 				continue
 			}
 			s.Routines = append(s.Routines, Routine{Name: f.Name, Kind: "agg", Arguments: text(f.ArgTypes),
@@ -1371,6 +1435,25 @@ func b2i(b bool) int {
 	return 0
 }
 
+// typeText reads the definition of a type that a person made in DuckDB, as typeof writes it.
+func (r *reader) typeText(ctx context.Context, schema, name string) (string, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT typeof(NULL::`+oracleQuote(schema)+`.`+oracleQuote(name)+`)`)
+	if err != nil {
+		return "", fmt.Errorf("reading the type %s.%s: %w", schema, name, err)
+	}
+	defer rows.Close()
+	var def string
+	if rows.Next() {
+		if err := rows.Scan(&def); err != nil {
+			return "", fmt.Errorf("reading the type %s.%s: %w", schema, name, err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return "", fmt.Errorf("reading the type %s.%s: %w", schema, name, err)
+	}
+	return def, nil
+}
+
 // sqliteCounters reads the counter of each table that uses AUTOINCREMENT, as a
 // sequence named for the table. A database with no such table has no sqlite_sequence,
 // and has no counter.
@@ -1396,3 +1479,95 @@ func (r *reader) sqliteCounters(ctx context.Context) ([]dbmeta.Sequence, error) 
 
 // oracleSystemName matches the name that Oracle gives a constraint that has none.
 var oracleSystemName = regexp.MustCompile(`^SYS_C[0-9]+$`)
+
+// oracleQuote quotes a name of Oracle with double quotes.
+func oracleQuote(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+// readGrants reads the privileges that were given on the objects of the snapshot, one for
+// each row, and the roles that they name, for a product that records them. See D298.
+func (r *reader) readGrants(ctx context.Context, a dbmeta.Args, snap *Snapshot) error {
+	if dbmeta.Grants.Support(r.m) != dbmeta.Supported {
+		return nil
+	}
+	rows, err := collect(dbmeta.Grants.Each(ctx, r.m, r.db, a))
+	if err != nil {
+		return fmt.Errorf("reading grants: %w", err)
+	}
+	named := map[string]bool{}
+	for _, g := range rows {
+		if !r.wantSchema(g.Schema) {
+			continue
+		}
+		switch g.ObjectType {
+		case "table", "view", "materialized view", "foreign table", "partitioned table":
+			if !r.wantTable(g.Schema, g.Object) {
+				continue
+			}
+		}
+		named[g.Grantee] = true
+		snap.Grants = append(snap.Grants, GrantDef{Schema: g.Schema, Object: g.Object, Kind: g.ObjectType,
+			Arguments: text(g.Arguments), Column: text(g.Column), Grantee: g.Grantee, GranteeType: text(g.GranteeType), Privilege: g.Privilege,
+			Option: g.Grantable, Denied: g.Denied})
+	}
+	if len(snap.Grants) == 0 {
+		return nil
+	}
+	slices.SortStableFunc(snap.Grants, func(x, y GrantDef) int {
+		return cmp.Or(cmp.Compare(x.Schema, y.Schema), cmp.Compare(x.Object, y.Object), cmp.Compare(x.Kind, y.Kind),
+			cmp.Compare(x.Arguments, y.Arguments), cmp.Compare(x.Grantee, y.Grantee), cmp.Compare(x.Column, y.Column),
+			cmp.Compare(x.Privilege, y.Privilege))
+	})
+	if r.m.Dialect() == dbmeta.PostgreSQL || r.m.Dialect() == dbmeta.SQLServer {
+		return r.readRoles(ctx, snap, named)
+	}
+	return nil
+}
+
+// readRoles reads the roles that the grants name, and the roles that these are members
+// of, which a script makes before the grants. A role of the system, which the product
+// makes itself, is left out.
+func (r *reader) readRoles(ctx context.Context, snap *Snapshot, named map[string]bool) error {
+	roles, err := collect(dbmeta.Roles.Each(ctx, r.m, r.db, dbmeta.Args{}))
+	if err != nil {
+		return fmt.Errorf("reading roles: %w", err)
+	}
+	memberships, err := collect(dbmeta.RoleGrants.Each(ctx, r.m, r.db, dbmeta.Args{}))
+	if err != nil {
+		return fmt.Errorf("reading role grants: %w", err)
+	}
+	// A role that a named role is a member of is needed too.
+	for changed := true; changed; {
+		changed = false
+		for _, m := range memberships {
+			if named[m.Role] && !named[m.MemberOf] && !strings.HasPrefix(m.MemberOf, "pg_") {
+				named[m.MemberOf] = true
+				changed = true
+			}
+		}
+	}
+	for _, role := range roles {
+		if !named[role.Name] || strings.HasPrefix(role.Name, "pg_") || role.Name == "dbo" || role.Name == "public" {
+			continue
+		}
+		def := RoleDef{Name: role.Name, CanLogin: role.CanLogin, Superuser: role.Superuser, CreateDB: role.CreateDB,
+			CreateRole: role.CreateRole, Replication: role.Replication, BypassRLS: role.BypassRLS,
+			NoInherit: !role.Inherit, Comment: text(role.Comment)}
+		if role.ConnLimit > 0 {
+			def.ConnLimit = role.ConnLimit
+		}
+		for _, m := range memberships {
+			if m.Role == role.Name && named[m.MemberOf] {
+				def.MemberOf = append(def.MemberOf, m.MemberOf)
+			}
+		}
+		slices.Sort(def.MemberOf)
+		snap.Roles = append(snap.Roles, def)
+	}
+	slices.SortFunc(snap.Roles, func(x, y RoleDef) int { return cmp.Compare(x.Name, y.Name) })
+	slices.SortStableFunc(snap.Grants, func(x, y GrantDef) int {
+		return cmp.Or(cmp.Compare(x.Schema, y.Schema), cmp.Compare(x.Object, y.Object), cmp.Compare(x.Grantee, y.Grantee))
+	})
+	return nil
+}

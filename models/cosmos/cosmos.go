@@ -38,7 +38,7 @@
 //
 // # What it answers
 //
-// 15 of the 77. Databases, schemas, tables, indexes, index columns,
+// 15 of the 80. Databases, schemas, tables, indexes, index columns,
 // constraints, constraint columns, partitioned tables, partitions, functions,
 // triggers, roles, privileges, settings and the current schema. Every one is an
 // analogue, and docs/COVERAGE.md says why. A database is a database and also a

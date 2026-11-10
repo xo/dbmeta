@@ -208,3 +208,12 @@ create event dump_extra.trim_people
   disable
   comment 'would remove people with no name'
   do delete from dump_extra.people where full_name = '';
+
+-- Accounts and grants: a table, a view, columns and a whole database. The accounts cannot log in.
+CREATE USER IF NOT EXISTS 'dump_reader'@'%' ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS 'dump_writer'@'localhost' ACCOUNT LOCK;
+GRANT SELECT ON dump_core.people TO 'dump_reader'@'%';
+GRANT SELECT, INSERT ON dump_core.audit TO 'dump_reader'@'%' WITH GRANT OPTION;
+GRANT SELECT ON dump_core.active_people TO 'dump_reader'@'%';
+GRANT SELECT (person_id), UPDATE (full_name) ON dump_core.people TO 'dump_writer'@'localhost';
+GRANT SELECT ON dump_extra.* TO 'dump_reader'@'%';

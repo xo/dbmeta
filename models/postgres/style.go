@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/xo/dbmeta"
@@ -35,6 +36,9 @@ func init() {
 		EventTrigger:       eventTrigger,
 		Policies:           policies,
 		SequenceValue:      sequenceValue,
+		Role:               role,
+		Membership:         membership,
+		Grant:              grant,
 		PartitionBy:        partitionBy,
 		PartitionOf:        partitionOf,
 		IdentityValue:      identityValue,
@@ -360,4 +364,109 @@ func policies(schema string, t dump.Table, _ map[string]bool, q func(string) str
 // sequenceValue sets the next value of a sequence, after the last one that it gave.
 func sequenceValue(quoted string, s dump.Sequence, lit func(string) string) string {
 	return "SELECT pg_catalog.setval(" + lit(quoted) + ", " + s.Last + ", true)"
+}
+
+// role makes a role when it is not there, with the attributes that it had and with no
+// password, because the catalog does not give one to a person who is no superuser.
+func role(r dump.RoleDef, q func(string) string, lit func(string) string) string {
+	attrs := []string{}
+	if r.Superuser {
+		attrs = append(attrs, "SUPERUSER")
+	}
+	if r.CreateDB {
+		attrs = append(attrs, "CREATEDB")
+	}
+	if r.CreateRole {
+		attrs = append(attrs, "CREATEROLE")
+	}
+	if r.Replication {
+		attrs = append(attrs, "REPLICATION")
+	}
+	if r.BypassRLS {
+		attrs = append(attrs, "BYPASSRLS")
+	}
+	if r.NoInherit {
+		attrs = append(attrs, "NOINHERIT")
+	}
+	if r.CanLogin {
+		attrs = append(attrs, "LOGIN")
+	} else {
+		attrs = append(attrs, "NOLOGIN")
+	}
+	if r.ConnLimit > 0 {
+		attrs = append(attrs, "CONNECTION LIMIT "+strconv.FormatInt(r.ConnLimit, 10))
+	}
+	sql := "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = " + lit(r.Name) +
+		") THEN CREATE ROLE " + q(r.Name) + " " + strings.Join(attrs, " ") + "; END IF; END $$"
+	return sql
+}
+
+// membership makes a role a member of another.
+func membership(role, member string, q func(string) string) string {
+	return "GRANT " + q(role) + " TO " + q(member)
+}
+
+// grant writes the grants of one table, view or sequence. A grant with a column names
+// the column, and the privileges of a grantee that it can pass on are given apart.
+func grant(schema, object, kind, _ string, grants []dump.GrantDef, q func(string) string) []string {
+	var target string
+	switch kind {
+	case "sequence":
+		target = "SEQUENCE " + q(schema) + "." + q(object)
+	case "schema":
+		target = "SCHEMA " + q(schema)
+	case "function", "aggregate":
+		target = "FUNCTION " + q(schema) + "." + q(object) + "(" + grants[0].Arguments + ")"
+	case "procedure":
+		target = "PROCEDURE " + q(schema) + "." + q(object) + "(" + grants[0].Arguments + ")"
+	case "type":
+		target = "TYPE " + q(schema) + "." + q(object)
+	default:
+		target = "TABLE " + q(schema) + "." + q(object)
+	}
+	type who struct {
+		grantee string
+		option  bool
+	}
+	var order []who
+	whole := map[who][]string{}
+	columns := map[who]map[string][]string{}
+	for _, gr := range grants {
+		w := who{gr.Grantee, gr.Option}
+		if _, ok := whole[w]; !ok && columns[w] == nil {
+			order = append(order, w)
+		}
+		if gr.Column == "" {
+			whole[w] = append(whole[w], gr.Privilege)
+			continue
+		}
+		if columns[w] == nil {
+			columns[w] = map[string][]string{}
+		}
+		columns[w][gr.Privilege] = append(columns[w][gr.Privilege], q(gr.Column))
+	}
+	var out []string
+	for _, w := range order {
+		to := "PUBLIC"
+		if w.grantee != "" {
+			to = q(w.grantee)
+		}
+		tail := " ON " + target + " TO " + to
+		if w.option {
+			tail += " WITH GRANT OPTION"
+		}
+		if privs := whole[w]; len(privs) > 0 {
+			out = append(out, "GRANT "+strings.Join(privs, ", ")+tail)
+		}
+		if cols := columns[w]; len(cols) > 0 {
+			var parts []string
+			for _, priv := range []string{"SELECT", "INSERT", "UPDATE", "REFERENCES"} {
+				if list := cols[priv]; len(list) > 0 {
+					parts = append(parts, priv+" ("+strings.Join(list, ", ")+")")
+				}
+			}
+			out = append(out, "GRANT "+strings.Join(parts, ", ")+tail)
+		}
+	}
+	return out
 }

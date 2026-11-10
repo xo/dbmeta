@@ -35,6 +35,7 @@ func init() {
 		Domain:              aliasType,
 		ValueLiteral:        nestedLiteral,
 		RowPerSelfReference: true,
+		SameSchemaKeys:      true,
 	})
 }
 

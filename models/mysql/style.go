@@ -31,6 +31,8 @@ func init() {
 		MaxParameters:  65535,
 		Trigger:        trigger,
 		Event:          event,
+		Principal:      principal,
+		Grant:          grant,
 		InvisibleIndex: invisibleIndex,
 		// A view can call a function, and a function can read a view.
 		RoutinesAfterTables: true,
@@ -214,7 +216,11 @@ func trigger(table string, tg dump.Trigger, q func(string) string) string {
 	if tg.Follows != "" {
 		follows = " FOLLOWS " + q(tg.Follows)
 	}
-	return "CREATE TRIGGER " + q(tg.Name) + " " + strings.ToUpper(m[1]) + " " + strings.ToUpper(m[2]) +
+	definer := ""
+	if user, host, ok := strings.Cut(tg.Definer, "@"); ok {
+		definer = "DEFINER = " + q(user) + "@" + q(host) + " "
+	}
+	return "CREATE " + definer + "TRIGGER " + q(tg.Name) + " " + strings.ToUpper(m[1]) + " " + strings.ToUpper(m[2]) +
 		" ON " + table + " FOR EACH ROW" + follows + " " + strings.TrimSpace(m[3])
 }
 
@@ -275,4 +281,63 @@ func keyType(t dump.Type) (dump.Rendering, bool) {
 			Note: "MySQL cannot key a blob with no length, so the column is a varbinary of " + length}, true
 	}
 	return dump.Rendering{}, false
+}
+
+// principal makes an account that a grant names when it is not there, locked, so that it
+// cannot log in. The name is the account as the catalog writes it.
+func principal(name, _ string, _ func(string) string) string {
+	return "CREATE USER IF NOT EXISTS " + name + " ACCOUNT LOCK"
+}
+
+// grant writes the grants of one table, view or schema, with the privileges of each
+// account and the ones that it can pass on apart.
+func grant(schema, _, kind, qualified string, grants []dump.GrantDef, q func(string) string) []string {
+	target := qualified
+	if kind == "schema" {
+		target = "*"
+		if qualified != "" {
+			target = qualified + ".*"
+		}
+	}
+	type who struct {
+		grantee string
+		option  bool
+	}
+	var order []who
+	whole := map[who][]string{}
+	columns := map[who]map[string][]string{}
+	for _, gr := range grants {
+		w := who{gr.Grantee, gr.Option}
+		if _, ok := whole[w]; !ok && columns[w] == nil {
+			order = append(order, w)
+		}
+		if gr.Column == "" {
+			whole[w] = append(whole[w], gr.Privilege)
+			continue
+		}
+		if columns[w] == nil {
+			columns[w] = map[string][]string{}
+		}
+		columns[w][gr.Privilege] = append(columns[w][gr.Privilege], q(gr.Column))
+	}
+	var out []string
+	for _, w := range order {
+		tail := " ON " + target + " TO " + w.grantee
+		if w.option {
+			tail += " WITH GRANT OPTION"
+		}
+		if privs := whole[w]; len(privs) > 0 {
+			out = append(out, "GRANT "+strings.Join(privs, ", ")+tail)
+		}
+		if cols := columns[w]; len(cols) > 0 {
+			var parts []string
+			for _, priv := range []string{"SELECT", "INSERT", "UPDATE", "REFERENCES"} {
+				if list := cols[priv]; len(list) > 0 {
+					parts = append(parts, priv+" ("+strings.Join(list, ", ")+")")
+				}
+			}
+			out = append(out, "GRANT "+strings.Join(parts, ", ")+tail)
+		}
+	}
+	return out
 }

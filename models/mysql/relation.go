@@ -405,6 +405,7 @@ func registerRelations() {
 			{{Query: `, NULL AS "comment"`}},
 			{{Query: `, t.action_order AS "action_order"`}},
 			{{Query: `, t.sql_mode AS "sql_mode"`}},
+			{{Query: `, t.definer AS "definer"`}},
 			{{Query: `FROM information_schema.TRIGGERS t`}},
 			notSystem("WHERE", "t.trigger_schema"),
 			schemaLike("schema", "t.trigger_schema"),
@@ -418,11 +419,12 @@ func registerRelations() {
 			{Name: "definition"}, {Name: "comment"},
 			{Name: "action_order", Desc: "the position among the triggers of the same table, event and timing, from one"},
 			{Name: "sql_mode", Desc: "the sql_mode that the trigger was made under"},
+			{Name: "definer", Desc: "the account that the trigger runs as, as user@host"},
 		},
 		Params: schemaParentName("trigger"),
 		Scan: func(rows *sql.Rows) (dbmeta.Trigger, error) {
 			var v dbmeta.Trigger
-			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Enabled, &v.Definition, &v.Comment, &v.ActionOrder, &v.SQLMode)
+			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Enabled, &v.Definition, &v.Comment, &v.ActionOrder, &v.SQLMode, &v.Definer)
 			return v, err
 		},
 	})
@@ -602,4 +604,37 @@ const (
 // MariaDB 11.5, and MySQL has no sequences at any release.
 func seqField(name string) dbmeta.Field {
 	return dbmeta.Field{Name: name, Min: mariaSeq.Min, Key: mariaSeq.Key}
+}
+
+// registerViewDependencies lists the tables and the views that each view reads, which
+// MySQL keeps from 8.0.13 in VIEW_TABLE_USAGE. MariaDB has no such view, so the query is
+// refused there. See D297.
+func registerViewDependencies() {
+	gate := dbmeta.Gate{Key: MySQL, Min: dbmeta.V(8, 0, 13)}
+	dbmeta.ViewDependencies.Register(dbmeta.MySQL, &dbmeta.Binding[dbmeta.ViewDependency]{
+		Stmt: dbmeta.Stmt{
+			{frag(gate, `SELECT u.view_schema AS "schema"`)},
+			{frag(gate, `, u.view_name AS "view"`)},
+			{frag(gate, `, u.table_schema AS "referenced_schema"`)},
+			{frag(gate, `, u.table_name AS "referenced"`)},
+			{frag(gate, `, CASE WHEN EXISTS (SELECT 1 FROM information_schema.VIEWS w WHERE w.table_schema = u.table_schema`+
+				` AND w.table_name = u.table_name) THEN 'view' ELSE 'table' END AS "referenced_type"`)},
+			{frag(gate, `FROM information_schema.VIEW_TABLE_USAGE u`)},
+			{frag(gate, `WHERE u.view_schema NOT IN ('mysql', 'sys', 'information_schema', 'performance_schema')`)},
+			{frag(gate, `AND (@schema = '' OR u.view_schema LIKE @schema)`)},
+			{frag(gate, `AND (@name = '' OR u.view_name LIKE @name)`)},
+			{frag(gate, `ORDER BY 1, 2, 3, 4`)},
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema", Min: gate.Min, Key: gate.Key}, {Name: "view", Min: gate.Min, Key: gate.Key},
+			{Name: "referenced_schema", Min: gate.Min, Key: gate.Key}, {Name: "referenced", Min: gate.Min, Key: gate.Key},
+			{Name: "referenced_type", Min: gate.Min, Key: gate.Key},
+		},
+		Params: schemaNameSystem("view"),
+		Scan: func(rows *sql.Rows) (dbmeta.ViewDependency, error) {
+			var v dbmeta.ViewDependency
+			err := rows.Scan(&v.Schema, &v.View, &v.ReferencedSchema, &v.Referenced, &v.ReferencedType)
+			return v, err
+		},
+	})
 }

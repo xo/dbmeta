@@ -13,6 +13,7 @@ func init() {
 	registerRoleSettings()
 	registerRoleGrants()
 	registerPrivileges()
+	registerGrants()
 	registerDefaultACLs()
 	registerForeignDataWrappers()
 	registerForeignServers()
@@ -431,6 +432,102 @@ func registerColumnPrivileges() {
 			var v dbmeta.ColumnPrivilege
 			err := rows.Scan(&v.Schema, &v.Table, &v.Column, &v.Ordinal, &v.Access,
 				&v.Grantee, &v.Grantor, &v.Privileges)
+			return v, err
+		},
+	})
+}
+
+// registerGrants lists the privileges that the ACL columns hold, one for each row. aclexplode
+// takes an ACL apart, and the entries of the owner, who holds a privilege that it gave
+// itself, are left out. See D298.
+func registerGrants() {
+	grantee := `, CASE WHEN a.grantee = 0 THEN '' ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS "grantee"`
+	tail := `, a.privilege_type AS "privilege", a.is_grantable AS "grantable", false AS "denied"`
+	relations := dbmeta.Stmt{
+		{{Query: `SELECT n.nspname AS "schema", c.relname AS "object"`}},
+		{{Query: `, CASE c.relkind WHEN 'S' THEN 'sequence' WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view'` +
+			` WHEN 'f' THEN 'foreign table' ELSE 'table' END AS "object_type"`}},
+		{{Query: `, NULL::text AS "arguments", NULL::text AS "column"`}},
+		{{Query: grantee}},
+		{{Query: tail}},
+		{{Query: `FROM pg_catalog.pg_class c`}},
+		{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+		{{Query: `CROSS JOIN LATERAL pg_catalog.aclexplode(c.relacl) a`}},
+		{{Query: `WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S') AND a.grantee <> c.relowner`}},
+	}
+	columns := dbmeta.Stmt{
+		{{Query: `UNION ALL SELECT n.nspname, c.relname`}},
+		{{Query: `, CASE c.relkind WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view' WHEN 'f' THEN 'foreign table' ELSE 'table' END`}},
+		{{Query: `, NULL::text, att.attname::text`}},
+		{{Query: grantee}},
+		{{Query: tail}},
+		{{Query: `FROM pg_catalog.pg_attribute att`}},
+		{{Query: `JOIN pg_catalog.pg_class c ON c.oid = att.attrelid`}},
+		{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},
+		{{Query: `CROSS JOIN LATERAL pg_catalog.aclexplode(att.attacl) a`}},
+		{{Query: `WHERE NOT att.attisdropped AND a.grantee <> c.relowner`}},
+	}
+	schemas := dbmeta.Stmt{
+		{{Query: `UNION ALL SELECT n.nspname, n.nspname, 'schema', NULL::text, NULL::text`}},
+		{{Query: grantee}},
+		{{Query: tail}},
+		{{Query: `FROM pg_catalog.pg_namespace n`}},
+		{{Query: `CROSS JOIN LATERAL pg_catalog.aclexplode(n.nspacl) a`}},
+		{{Query: `WHERE a.grantee <> n.nspowner`}},
+	}
+	functions := dbmeta.Stmt{
+		{{Query: `UNION ALL SELECT n.nspname, p.proname`}},
+		{
+			{Query: `, 'function'`},
+			{Min: v11, Query: `, CASE p.prokind WHEN 'p' THEN 'procedure' WHEN 'a' THEN 'aggregate' ELSE 'function' END`},
+		},
+		{{Query: `, pg_catalog.pg_get_function_identity_arguments(p.oid), NULL::text`}},
+		{{Query: grantee}},
+		{{Query: tail}},
+		{{Query: `FROM pg_catalog.pg_proc p`}},
+		{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace`}},
+		{{Query: `CROSS JOIN LATERAL pg_catalog.aclexplode(p.proacl) a`}},
+		{{Query: `WHERE a.grantee <> p.proowner`}},
+	}
+	types := dbmeta.Stmt{
+		{{Query: `UNION ALL SELECT n.nspname, t.typname, 'type', NULL::text, NULL::text`}},
+		{{Query: grantee}},
+		{{Query: tail}},
+		{{Query: `FROM pg_catalog.pg_type t`}},
+		{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace`}},
+		{{Query: `CROSS JOIN LATERAL pg_catalog.aclexplode(t.typacl) a`}},
+		{{Query: `WHERE a.grantee <> t.typowner`}},
+	}
+	// Every part is filtered to the schemas that the caller asked for, and the schemas of the
+	// system are left out unless the caller asks for them.
+	filter := func(stmt dbmeta.Stmt) dbmeta.Stmt {
+		const nsp = "n.nspname"
+		return append(stmt,
+			dbmeta.Choice{{Query: `AND (@with_system OR (` + nsp + ` !~ '^pg_' AND ` + nsp + ` <> 'information_schema'))`}},
+			dbmeta.Choice{{Query: `AND (@schema = '' OR ` + nsp + ` LIKE @schema)`}})
+	}
+	var stmt dbmeta.Stmt
+	stmt = append(stmt, filter(relations)...)
+	stmt = append(stmt, filter(columns)...)
+	stmt = append(stmt, filter(schemas)...)
+	stmt = append(stmt, filter(functions)...)
+	stmt = append(stmt, filter(types)...)
+	stmt = append(stmt, dbmeta.Choice{{Query: `ORDER BY 1, 2, 3, 6, 7`}})
+	dbmeta.Grants.Register(dbmeta.PostgreSQL, &dbmeta.Binding[dbmeta.Grant]{
+		Stmt: stmt,
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "object"}, {Name: "object_type"},
+			{Name: "arguments", Desc: "the argument types of a function, absent for any other object"},
+			{Name: "column", Desc: "the column of a grant on a column, absent otherwise"},
+			{Name: "grantee", Desc: "the role, and empty for PUBLIC"},
+			{Name: "privilege"}, {Name: "grantable"},
+			{Name: "denied", Desc: "always false: PostgreSQL has no entry that takes a privilege away"},
+		},
+		Params: schemaNameSystem("object"),
+		Scan: func(rows *sql.Rows) (dbmeta.Grant, error) {
+			var v dbmeta.Grant
+			err := rows.Scan(&v.Schema, &v.Object, &v.ObjectType, &v.Arguments, &v.Column, &v.Grantee,
+				&v.Privilege, &v.Grantable, &v.Denied)
 			return v, err
 		},
 	})

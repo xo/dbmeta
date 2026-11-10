@@ -450,6 +450,11 @@ func (l *Loader) timeText(kind Kind, t time.Time) (string, error) {
 	case TimeOfDayOffset:
 		return "'" + t.Format("15:04:05.999999999Z07:00") + "'", nil
 	}
+	// A product that keeps the offset of a value, as Oracle does for TIMESTAMP WITH TIME
+	// ZONE, gets it back, when the source is the same product. See D297.
+	if kind == Timestamp && l.dst.KeepOffset && l.source == l.target {
+		return "'" + t.Format("2006-01-02 15:04:05.999999999 -07:00") + "'", nil
+	}
 	t = t.UTC()
 	if l.dst.ZoneInTimestamps {
 		return "'" + t.Format("2006-01-02 15:04:05.999999999") + "+00:00'", nil

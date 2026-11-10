@@ -257,3 +257,14 @@ INSERT INTO extra.events (id, happened, kind) VALUES
   (1, '2024-06-01T00:00:00', N'before'),
   (2, '2025-06-01T00:00:00', N'during'),
   (3, '2026-06-01T00:00:00', N'after');
+
+-- Principals and permissions: a role, a user with no login, a membership, and a grant on an
+-- object, on columns, on a function and on a schema, one granted with the option and one denied.
+CREATE ROLE dump_reader;
+CREATE USER dump_user WITHOUT LOGIN;
+ALTER ROLE dump_reader ADD MEMBER dump_user;
+GRANT SELECT ON core.people TO dump_reader;
+GRANT SELECT, INSERT ON core.audit TO dump_reader WITH GRANT OPTION;
+GRANT SELECT (id), UPDATE (name) ON extra.people TO dump_user;
+GRANT SELECT ON SCHEMA::extra TO dump_reader;
+DENY DELETE ON core.people TO dump_user;

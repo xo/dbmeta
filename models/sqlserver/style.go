@@ -2,6 +2,7 @@ package sqlserver
 
 import (
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -23,6 +24,9 @@ func init() {
 		Index:             index,
 		TriggerState:      triggerState,
 		EventTrigger:      eventTrigger,
+		Principal:         principal,
+		Membership:        membership,
+		Grant:             grant,
 		Policies:          policies,
 		XMLSchema:         xmlSchema,
 		PartitionFunction: partitionFunction,
@@ -497,6 +501,78 @@ func triggerPlacement(schema, trigger, placement string, q func(string) string) 
 		}
 		out = append(out, "EXEC sp_settriggerorder @triggername = N'"+strings.ReplaceAll(q(schema)+"."+q(trigger), "'", "''")+
 			"', @order = '"+strings.ToUpper(order[:1])+order[1:]+"', @stmttype = '"+event+"'")
+	}
+	return out
+}
+
+// principal makes a user or a role of the database when it is not there. A user has no
+// login, so nobody can sign in as it. dbo, public and guest are in every database.
+func principal(name, kind string, q func(string) string) string {
+	switch strings.ToLower(name) {
+	case "dbo", "public", "guest":
+		return ""
+	}
+	create := "CREATE USER " + q(name) + " WITHOUT LOGIN"
+	if kind == "role" {
+		create = "CREATE ROLE " + q(name)
+	}
+	return "IF DATABASE_PRINCIPAL_ID(N'" + strings.ReplaceAll(name, "'", "''") + "') IS NULL " + create
+}
+
+// membership makes a principal a member of a role.
+func membership(role, member string, q func(string) string) string {
+	return "ALTER ROLE " + q(role) + " ADD MEMBER " + q(member)
+}
+
+// grant writes the permissions on one object or one schema, with the ones that were
+// granted, granted with the option and denied apart.
+func grant(_, _, kind, qualified string, grants []dump.GrantDef, q func(string) string) []string {
+	target := "OBJECT::" + qualified
+	if kind == "schema" {
+		target = "SCHEMA::" + qualified
+	}
+	type who struct {
+		grantee string
+		option  bool
+		denied  bool
+	}
+	var order []who
+	whole := map[who][]string{}
+	columns := map[who]map[string][]string{}
+	for _, gr := range grants {
+		w := who{gr.Grantee, gr.Option, gr.Denied}
+		if _, ok := whole[w]; !ok && columns[w] == nil {
+			order = append(order, w)
+		}
+		if gr.Column == "" {
+			whole[w] = append(whole[w], gr.Privilege)
+			continue
+		}
+		if columns[w] == nil {
+			columns[w] = map[string][]string{}
+		}
+		columns[w][gr.Privilege] = append(columns[w][gr.Privilege], q(gr.Column))
+	}
+	var out []string
+	for _, w := range order {
+		verb, tail := "GRANT", ""
+		to := " TO "
+		switch {
+		case w.denied:
+			verb = "DENY"
+		case w.option:
+			tail = " WITH GRANT OPTION"
+		}
+		suffix := " ON " + target + to + q(w.grantee) + tail
+		var parts []string
+		parts = append(parts, whole[w]...)
+		for priv, list := range columns[w] {
+			parts = append(parts, priv+" ("+strings.Join(list, ", ")+")")
+		}
+		slices.Sort(parts)
+		if len(parts) > 0 {
+			out = append(out, verb+" "+strings.Join(parts, ", ")+suffix)
+		}
 	}
 	return out
 }

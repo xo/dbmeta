@@ -1185,6 +1185,10 @@ type Trigger struct {
 	// first INSERT, last UPDATE, for a product that lets a person place a trigger
 	// among those of the same event. It is absent when none is placed. See D296.
 	Placement sql.Null[string]
+
+	// Definer is the account that the trigger runs as, as user@host, for a product
+	// that keeps one. It is absent otherwise. See D297.
+	Definer sql.Null[string]
 }
 
 // Sequence generates numbers. psql lists them with \ds and shows the detail
@@ -1260,6 +1264,17 @@ type PartitionedTable struct {
 	// KeyColumns are the columns that the partition scheme of a table is given, for
 	// a product that partitions by a scheme, and absent otherwise. See D296.
 	KeyColumns sql.Null[string]
+
+	// Interval is the expression of an interval partitioned table, which makes a
+	// partition when a row needs one, and absent for any other. Reference is the name
+	// of the foreign key that a table of reference partitioning takes its partitions
+	// from. SubStrategy and SubKeyColumns say how each partition is split again, and
+	// SubpartitionTemplates lists the subpartitions of the template. All four are absent
+	// for a table that has none. See D297.
+	Interval      sql.Null[string]
+	Reference     sql.Null[string]
+	SubStrategy   sql.Null[string]
+	SubKeyColumns sql.Null[string]
 }
 
 // Queries for the detail of a table.
@@ -1319,6 +1334,11 @@ type Partition struct {
 	// their names with no schema. See D201.
 	TableVisible     sql.Null[bool]
 	PartitionVisible sql.Null[bool]
+
+	// Generated says that the server made the partition for an interval, and a person
+	// did not, so a script does not write it. It is absent where the product makes none.
+	// See D297.
+	Generated sql.Null[bool]
 }
 
 // Inherit is one parent of a table by inheritance. psql prints the parents in
@@ -1654,6 +1674,16 @@ var (
 	// XMLSchemaCollections lists the XML schema collections of a product that has
 	// them, with the text of each. A dump writes them back. See D296.
 	XMLSchemaCollections = NewQuery[XMLSchemaCollection]("xml_schema_collections")
+	// SubpartitionTemplates lists the subpartitions that a partitioned table gives each of
+	// its partitions, for a product that has such a template. See D297.
+	SubpartitionTemplates = NewQuery[SubpartitionTemplate]("subpartition_templates")
+	// Subpartitions lists the subpartitions of the partitions of a table, one for each row,
+	// for a product that splits a partition again. See D299.
+	Subpartitions = NewQuery[Subpartition]("subpartitions")
+	// Grants lists the privileges that were given on objects and on columns, one for each
+	// row, for a product that records them. Privileges is the gathered list that psql
+	// prints, and a dump needs each privilege on its own. See D298.
+	Grants = NewQuery[Grant]("grants")
 	// PartitionFunctions lists the functions that decide which partition a row is in,
 	// for a product that keeps them apart from its tables. See D296.
 	PartitionFunctions = NewQuery[PartitionFunction]("partition_functions")
@@ -1773,4 +1803,61 @@ type MaterializedViewLog struct {
 	IncludeNew bool
 	// FilterColumns says that the log holds columns that a person named.
 	FilterColumns bool
+	// Columns are the columns that a person named, each quoted and joined by commas. It is
+	// absent when the log names none. See D299.
+	Columns sql.Null[string]
+}
+
+// SubpartitionTemplate is a subpartition that a partitioned table gives each of its
+// partitions.
+type SubpartitionTemplate struct {
+	Schema string
+	Table  string
+	Name   string
+	// Position is the order of the subpartitions in the template, from one.
+	Position int64
+	// Bound is the upper bound of a range subpartition, the values of a list one, and
+	// absent for a hash one.
+	Bound sql.Null[string]
+}
+
+// Subpartition is one part of a partition that is split again.
+type Subpartition struct {
+	Schema    string
+	Table     string
+	Partition string
+	Name      string
+	// Position is the order of the subpartitions in the partition, from one.
+	Position int64
+	// Bound is the upper bound of a range subpartition, the values of a list one, and
+	// absent for a hash one.
+	Bound sql.Null[string]
+}
+
+// Grant is one privilege that was given to one grantee on one object, or on one column of
+// it. The owner's own privileges are not rows.
+type Grant struct {
+	Schema string
+	// Object is the name of the object, and the schema itself for a grant on a schema.
+	Object string
+	// ObjectType is table, view, sequence, schema, function, procedure, type or another
+	// word of the product.
+	ObjectType string
+	// Arguments are the argument types of a function, which tell one of a name that is
+	// overloaded from another, and absent for any other object.
+	Arguments sql.Null[string]
+	// Column is the column that the grant is on, and absent for a grant on the object.
+	Column sql.Null[string]
+	// Grantee is the role or the account that holds the privilege, as the product writes
+	// it, and empty for every role.
+	Grantee string
+	// Privilege is the privilege in upper case, such as SELECT or EXECUTE.
+	Privilege string
+	// Grantable says that the grantee can give the privilege to others.
+	Grantable bool
+	// Denied says that the entry takes the privilege away, as DENY does in SQL Server.
+	Denied bool
+	// GranteeType says what the grantee is, such as user, role or account, for a product
+	// that tells them apart, and absent otherwise.
+	GranteeType sql.Null[string]
 }

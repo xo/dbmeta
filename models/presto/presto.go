@@ -48,7 +48,7 @@
 //
 // # What it answers
 //
-// 9 of the 77. Catalogs as databases, schemas, tables, columns, views, types,
+// 9 of the 80. Catalogs as databases, schemas, tables, columns, views, types,
 // access methods, privileges and the current user.
 //
 // Four that models/trino answers are missing here and none is a gap in this

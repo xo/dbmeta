@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and a maintainer has not confirmed
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-133 of them amend or replace an earlier one, and a decision read without its
+136 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -314,4 +314,7 @@ file.
 | [D293](D293-a-dump-reads-what-the-fixture-showed-it-missed.md) | A dump reads what the dump fixture showed it missed | Amends D291, amended by D294 |
 | [D294](D294-a-dump-lists-what-it-leaves-out-and-writes-more-of-oracle.md) | A dump lists what it leaves out and writes more of Oracle | Amends D293, amended by D295 and D296 |
 | [D295](D295-a-dump-says-when-it-moves-no-value-of-a-column.md) | A dump says when it moves no value of a column | Amends D294 |
-| [D296](D296-a-dump-writes-the-rest-of-what-the-catalogs-hold.md) | A dump writes the rest of what the catalogs hold | Amends D294 |
+| [D296](D296-a-dump-writes-the-rest-of-what-the-catalogs-hold.md) | A dump writes the rest of what the catalogs hold | Amends D294, amended by D297 |
+| [D297](D297-a-dump-writes-oracle-partitions-and-the-views-that-a-view-reads.md) | A dump writes Oracle partitions, and orders the views by what they read | Amends D296, amended by D298 |
+| [D298](D298-a-dump-writes-the-privileges-of-every-product-and-closes-the-rest.md) | A dump writes the privileges of every product, and states what it leaves out | Amends D297, amended by D299 |
+| [D299](D299-a-dump-writes-named-subpartitions-and-more-options.md) | A dump writes named subpartitions and more options | Amends D298 |

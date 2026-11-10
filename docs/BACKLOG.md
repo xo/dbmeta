@@ -156,51 +156,10 @@ release can change that.
 
 ## Dump
 
-Found by the round trip tests of `dump` (D274, D276, D278, D291 to D296). Each is a fact
-that the snapshot does not hold, or an object that a script does not write, so a dump
-leaves it out. `TestDumpFixtureRoundTrips` holds what the fixture shows, and its files in
-`test/testdata/dump_fixture/` are empty for every product that has the fixture, so what
-follows is what the fixture does not hold.
-
-- Roles and grants are not dumped for any product, except the grant on an object of another
-  schema that an Oracle view or routine needs. The Oracle model has no roles query, and the
-  SQL Server and Oracle privileges are not read for a dump. The northwind fixtures have a role
-  `northwind_reader` that a copy lacks.
-- An Oracle subpartition, an interval partition and a reference partition are not written.
-  An Oracle `TIMESTAMP WITH TIME ZONE` keeps its instant and loses its offset. A collection
-  holds at most 4000 characters of text when it is read. A materialized view log that holds
-  named columns is listed as skipped.
-- The object column of Oracle has no placeholder form, so a copy that binds values cannot move
-  one. A REF column is written with no value, and the statement of its table says so.
-- A PostgreSQL ordered set aggregate, a user function that is the canonical function or the
-  difference function of a range type, and the grants and the owners of an object are not
-  written.
-- MySQL does not write the DEFINER of a trigger, and MariaDB has no style of its own, so a
-  script for it is the one of MySQL.
-- A DuckDB struct type has no form in the catalog, so it is listed as skipped. A macro
-  default is not read. A foreign key across schemas is refused by DuckDB.
-- SQL Server writes every partition on the filegroup PRIMARY, because a script makes no
-  filegroup.
-- The relations that a view reads are answered for PostgreSQL and SQL Server. The views of the
-  other products are ordered by the names in their text.
-- An identity column becomes `AUTO_INCREMENT` in MySQL and a serial in PostgreSQL. It is not
-  kept in DuckDB, which numbers with a sequence, and SQLite numbers only an integer primary
-  key.
-- An enum is a string with its values for another dialect and has no CHECK there. A
-  PostgreSQL target does not create the type of a MySQL enum.
-- An unbounded text in a key is a `varchar(255)` in MySQL, and the plan says Lossy. A key
-  longer than the limit of the engine is not checked.
-- `Style.CheckAfterData` is a query that returns rows for a fault, and a client that cannot
-  stop on a row only prints them. A text script has no statement that raises an error on a
-  fault in every product, so the stop stays with the client.
-- A script for SingleStore leaves out its foreign keys and the unique keys that do not hold its
-  primary key, and says so in the note of the statement. A client that must keep them has no
-  way to ask for it.
-- The data check for a boolean by convention is a statement in the plan, and the client has to
-  run it. dbmeta runs no query, so the stop is the client's.
-- The Oracle copy ran on 26ai, 21c, 19c and 18c. `NO AUTHENTICATION` needs 18c and `START WITH
-  LIMIT VALUE` needs 12.2, so 11g is not a target. The round trip does not call each function,
-  fire each trigger or compare the effect of an event.
+Found by the round trip tests of `dump` (D274, D276, D278, D291 to D299). `TestDumpFixtureRoundTrips`
+holds what the fixture shows, and its files in `test/testdata/dump_fixture/` are empty for
+every product that has the fixture. D298 and D299 record what a dump leaves out, and why.
+No dump item is open.
 
 ## PostgreSQL model
 
@@ -429,7 +388,7 @@ columns. The vector rows of `$index_paths` were not read, for the same reason.
 
 ### Databricks table size, defaults and checks have no source
 
-Databricks answers 17 of the 77 kinds (D224). The size, the row count, the location and
+Databricks answers 17 of the 80 kinds (D224). The size, the row count, the location and
 the clustering columns of a table are in DESCRIBE DETAIL. A column default, an identity
 column, a generated column and a CHECK constraint are in SHOW CREATE TABLE and SHOW
 TBLPROPERTIES. All of them are statements that a SELECT cannot read, and INFORMATION_SCHEMA

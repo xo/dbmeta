@@ -105,7 +105,7 @@ func TestAnObjectColumnIsReadAsTheTextOfItsConstructor(t *testing.T) {
 	}
 	tags := dump.Column{Name: "TAGS", Type: dump.Type{Kind: dump.Other, Raw: `"HR"."TAG_LIST"`}}
 	got, ok = selectColumn(snap, "HR", tags, `t."TAGS"`)
-	if !ok || !strings.Contains(got, `LISTAGG(`) || !strings.Contains(got, `TABLE(t."TAGS")`) {
+	if !ok || !strings.Contains(got, `XMLAGG(`) || !strings.Contains(got, `TABLE(t."TAGS")`) {
 		t.Errorf("a collection column is read as %s", got)
 	}
 	if _, ok := selectColumn(snap, "HR", dump.Column{Name: "N", Type: dump.Type{Kind: dump.String, Raw: "VARCHAR2(4)"}}, `t."N"`); ok {

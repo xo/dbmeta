@@ -39,7 +39,7 @@
 //
 // # What it answers
 //
-// 10 of the 77. Schemas, the current schema, tables, columns, views,
+// 10 of the 80. Schemas, the current schema, tables, columns, views,
 // databases, functions, column statistics, settings and the current user.
 //
 // # What is missing

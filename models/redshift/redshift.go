@@ -23,7 +23,7 @@
 // the caller sets with_table_info, because Redshift refuses that view to every
 // user who is not a superuser (D232). Otherwise the three are NULL.
 //
-// It answers 18 of the 77 questions.
+// It answers 18 of the 80 questions.
 package redshift
 
 import (

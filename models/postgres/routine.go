@@ -23,17 +23,40 @@ func init() {
 // prokind column, which is where all eight of the version gates in
 // describeFunctions come from. Both alternatives produce the same kind names,
 // so the column set does not change.
-// aggregateText is the SQL that writes CREATE AGGREGATE for an ordinary aggregate, from its
-// row of pg_aggregate. An ordered set aggregate and a hypothetical set aggregate have no
-// text, and the dump lists them as skipped.
-const aggregateText = `'CREATE AGGREGATE ' || pg_catalog.quote_ident(n.nspname) || '.' || pg_catalog.quote_ident(p.proname)` +
-	` || '(' || pg_catalog.pg_get_function_arguments(p.oid) || ') (SFUNC = ' || ag.aggtransfn::pg_catalog.regproc::pg_catalog.text` +
-	` || ', STYPE = ' || pg_catalog.format_type(ag.aggtranstype, NULL)` +
-	` || CASE WHEN ag.aggfinalfn <> 0 THEN ', FINALFUNC = ' || ag.aggfinalfn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
-	` || CASE WHEN ag.agginitval IS NOT NULL THEN ', INITCOND = ' || pg_catalog.quote_literal(ag.agginitval) ELSE '' END` +
-	` || CASE WHEN ag.aggcombinefn <> 0 THEN ', COMBINEFUNC = ' || ag.aggcombinefn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
-	` || CASE WHEN ag.aggsortop <> 0 THEN ', SORTOP = OPERATOR(' || ag.aggsortop::pg_catalog.regoperator::pg_catalog.text || ')' ELSE '' END` +
-	` || ')'`
+// aggregateText is the SQL that writes CREATE AGGREGATE for an aggregate, from its row
+// of pg_aggregate, with the moving aggregate options, the parallel options and the size
+// of the state. Release 11 added how a final function changes the state, and that is the
+// one option that modify says to write. See D299.
+func aggregateText(modify bool) string {
+	finalModify, movingModify := "", ""
+	if modify {
+		finalModify = ` || CASE WHEN ag.aggfinalfn <> 0 AND ag.aggfinalmodify <> 'r' THEN ', FINALFUNC_MODIFY = ' ||` +
+			` CASE ag.aggfinalmodify WHEN 's' THEN 'SHAREABLE' ELSE 'READ_WRITE' END ELSE '' END`
+		movingModify = ` || CASE WHEN ag.aggmfinalfn <> 0 AND ag.aggmfinalmodify <> 'r' THEN ', MFINALFUNC_MODIFY = ' ||` +
+			` CASE ag.aggmfinalmodify WHEN 's' THEN 'SHAREABLE' ELSE 'READ_WRITE' END ELSE '' END`
+	}
+	return `'CREATE AGGREGATE ' || pg_catalog.quote_ident(n.nspname) || '.' || pg_catalog.quote_ident(p.proname)` +
+		` || '(' || pg_catalog.pg_get_function_arguments(p.oid) || ') (SFUNC = ' || ag.aggtransfn::pg_catalog.regproc::pg_catalog.text` +
+		` || ', STYPE = ' || pg_catalog.format_type(ag.aggtranstype, NULL)` +
+		` || CASE WHEN ag.aggtransspace <> 0 THEN ', SSPACE = ' || ag.aggtransspace ELSE '' END` +
+		` || CASE WHEN ag.aggfinalfn <> 0 THEN ', FINALFUNC = ' || ag.aggfinalfn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
+		` || CASE WHEN ag.aggfinalextra THEN ', FINALFUNC_EXTRA' ELSE '' END` + finalModify +
+		` || CASE WHEN ag.aggcombinefn <> 0 THEN ', COMBINEFUNC = ' || ag.aggcombinefn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
+		` || CASE WHEN ag.aggserialfn <> 0 THEN ', SERIALFUNC = ' || ag.aggserialfn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
+		` || CASE WHEN ag.aggdeserialfn <> 0 THEN ', DESERIALFUNC = ' || ag.aggdeserialfn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
+		` || CASE WHEN ag.agginitval IS NOT NULL THEN ', INITCOND = ' || pg_catalog.quote_literal(ag.agginitval) ELSE '' END` +
+		` || CASE WHEN ag.aggmtransfn <> 0 THEN ', MSFUNC = ' || ag.aggmtransfn::pg_catalog.regproc::pg_catalog.text ||` +
+		` ', MINVFUNC = ' || ag.aggminvtransfn::pg_catalog.regproc::pg_catalog.text ||` +
+		` ', MSTYPE = ' || pg_catalog.format_type(ag.aggmtranstype, NULL) ELSE '' END` +
+		` || CASE WHEN ag.aggmtransfn <> 0 AND ag.aggmtransspace <> 0 THEN ', MSSPACE = ' || ag.aggmtransspace ELSE '' END` +
+		` || CASE WHEN ag.aggmfinalfn <> 0 THEN ', MFINALFUNC = ' || ag.aggmfinalfn::pg_catalog.regproc::pg_catalog.text ELSE '' END` +
+		` || CASE WHEN ag.aggmfinalextra THEN ', MFINALFUNC_EXTRA' ELSE '' END` + movingModify +
+		` || CASE WHEN ag.aggminitval IS NOT NULL THEN ', MINITCOND = ' || pg_catalog.quote_literal(ag.aggminitval) ELSE '' END` +
+		` || CASE WHEN ag.aggsortop <> 0 THEN ', SORTOP = OPERATOR(' || ag.aggsortop::pg_catalog.regoperator::pg_catalog.text || ')' ELSE '' END` +
+		` || CASE WHEN ag.aggkind = 'h' THEN ', HYPOTHETICAL' ELSE '' END` +
+		` || CASE p.proparallel WHEN 's' THEN ', PARALLEL = SAFE' WHEN 'r' THEN ', PARALLEL = RESTRICTED' ELSE '' END` +
+		` || ')'`
+}
 
 func functionStmt(kindFilter string) dbmeta.Stmt {
 	kindOld := `, CASE WHEN p.proisagg THEN 'agg'` +
@@ -72,8 +95,8 @@ func functionStmt(kindFilter string) dbmeta.Stmt {
 		// definition. psql's \sf refuses one too.
 		// An ordinary aggregate has a statement that the catalog builds from pg_aggregate.
 		{
-			{Query: `, CASE WHEN NOT p.proisagg THEN pg_catalog.pg_get_functiondef(p.oid) WHEN ag.aggkind = 'n' THEN ` + aggregateText + ` END AS "definition"`},
-			{Min: v11, Query: `, CASE WHEN p.prokind <> 'a' THEN pg_catalog.pg_get_functiondef(p.oid) WHEN ag.aggkind = 'n' THEN ` + aggregateText + ` END AS "definition"`},
+			{Query: `, CASE WHEN NOT p.proisagg THEN pg_catalog.pg_get_functiondef(p.oid) WHEN ag.aggkind IS NOT NULL THEN ` + aggregateText(false) + ` END AS "definition"`},
+			{Min: v11, Query: `, CASE WHEN p.prokind <> 'a' THEN pg_catalog.pg_get_functiondef(p.oid) WHEN ag.aggkind IS NOT NULL THEN ` + aggregateText(true) + ` END AS "definition"`},
 		},
 		{{Query: `, p.proleakproof AS "leakproof"`}},
 		{{Query: `, p.prosrc AS "prosrc"`}},
