@@ -13,7 +13,13 @@ import (
 
 // expressionColumn says that the column holds a type that a person made.
 func expressionColumn(t dump.Type) bool {
-	return t.Kind == dump.Other && strings.HasPrefix(t.Raw, `"`)
+	return t.Kind == dump.Other && (strings.HasPrefix(t.Raw, `"`) || isRef(t.Raw))
+}
+
+// isRef says that a declared type is a REF, which points at a row of an object
+// table.
+func isRef(raw string) bool {
+	return strings.HasPrefix(strings.TrimSpace(raw), "REF ")
 }
 
 // typeName splits "OWNER"."NAME" into its two names.
@@ -49,6 +55,11 @@ const maxDepth = 8
 func (b builder) value(declared, ref string, depth int) (string, bool) {
 	if depth > maxDepth {
 		return "", false
+	}
+	// A reference holds the identifier of a row of the source, which the copy does
+	// not have, so the copy gets no reference.
+	if isRef(declared) {
+		return "'NULL'", true
 	}
 	if owner, name, ok := typeName(declared); ok {
 		text, found := b.typed(owner, name, ref, depth)

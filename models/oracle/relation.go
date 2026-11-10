@@ -287,7 +287,12 @@ func registerColumns() {
 			// which is what a person reads and what a script needs. all_tab_cols
 			// keeps them in columns of their own. A type that a person made
 			// carries its owner, and a type of Oracle does not.
-			always(`, ` + declaredType("c.data_type", "c.data_type_owner", "c.char_length",
+			// A REF column reports the type that it points at, so ALL_REFS says which
+			// column is a reference. Only a column of a type that a person made can be
+			// one, and the view is read for those columns alone.
+			always(`, CASE WHEN c.data_type_owner IS NOT NULL AND EXISTS (SELECT 1 FROM all_refs rf`),
+			always(`    WHERE rf.owner = c.owner AND rf.table_name = c.table_name AND rf.column_name = c.column_name)`),
+			always(`    THEN 'REF ' ELSE '' END || ` + declaredType("c.data_type", "c.data_type_owner", "c.char_length",
 				"c.data_length", "c.data_precision", "c.data_scale", "c.char_used") + ` AS "data_type"`),
 			// Oracle records nullability as a Y or an N rather than a
 			// boolean, because it had no boolean type until 23ai.

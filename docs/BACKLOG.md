@@ -525,8 +525,13 @@ known and not fixed.
 - MariaDB reports a foreign key that the source made with no action as RESTRICT, and the copy
   of the same foreign key, written with ON DELETE RESTRICT, as NO ACTION. The cause is not
   known. `mariadb.txt` holds the difference.
+- A second dump of a MySQL copy writes a routine that a view calls after the other routines,
+  where the first dump wrote it first. The order of routines that the dump writes with the
+  views is by the names in their text, and it is not the same for two snapshots of one schema.
 - Grants and roles are not dumped for any product, except the grant on an object of another
   schema that an Oracle view or routine needs. Oracle has no query for roles.
+- A REF column of Oracle is written as a REF column, and the dump moves no value of it, because
+  a reference holds the identifier of a row of the source. The copy has NULL.
 - Oracle keeps the offset of a `TIMESTAMP WITH TIME ZONE` value, and the copy keeps the
   instant and writes it in UTC. It does not write the schema DDL trigger, the materialized view
   log, a subpartition, an interval partition or a storage clause.
