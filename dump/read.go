@@ -599,6 +599,11 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 			Definition: text(c.Definition), OnUpdate: text(c.OnUpdate), OnDelete: text(c.OnDelete),
 			Deferrable: c.Deferrable, Deferred: c.Deferred, Comment: text(c.Comment),
 		}
+		// Oracle names a constraint that a person did not name SYS_C and a number, and the
+		// copy gets another number, so the name is left out.
+		if r.m.Dialect() == dbmeta.Oracle && oracleSystemName.MatchString(con.Name) {
+			con.Name = ""
+		}
 		// MySQL and MariaDB check a key at once for RESTRICT and for NO ACTION, and
 		// MariaDB reports one or the other for the same key, by how the table was
 		// opened. So both are the one rule, which is RESTRICT.
@@ -1062,7 +1067,7 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 // partition functions and schemes. It lists as skipped what the model reads and the dump
 // does not write. See D294 and D296.
 func (r *reader) readUnwritten(ctx context.Context, a dbmeta.Args, kept map[tableKey]*Table, snap *Snapshot, schemas map[string]*Schema) error {
-	if dbmeta.EventTriggers.Support(r.m) == dbmeta.Supported && len(r.filter.Schemas) == 0 {
+	if dbmeta.EventTriggers.Support(r.m) == dbmeta.Supported {
 		rows, err := collect(dbmeta.EventTriggers.Each(ctx, r.m, r.db, a))
 		if err != nil {
 			return fmt.Errorf("reading event triggers: %w", err)
@@ -1072,6 +1077,15 @@ func (r *reader) readUnwritten(ctx context.Context, a dbmeta.Args, kept map[tabl
 			return err
 		}
 		for _, e := range rows {
+			// A trigger of a schema is in the dump of that schema. A trigger of the database
+			// is in the dump of the whole database, and a dump of some schemas leaves it out.
+			if r.m.Dialect() == dbmeta.Oracle {
+				if !r.wantSchema(e.Owner) {
+					continue
+				}
+			} else if len(r.filter.Schemas) > 0 {
+				continue
+			}
 			def := text(e.Definition)
 			if text, found := source[sourceKey{e.Owner, "trigger", e.Name}]; found {
 				def = "CREATE OR REPLACE " + strings.TrimSpace(text)
@@ -1379,3 +1393,6 @@ func (r *reader) sqliteCounters(ctx context.Context) ([]dbmeta.Sequence, error) 
 	}
 	return out, rows.Err()
 }
+
+// oracleSystemName matches the name that Oracle gives a constraint that has none.
+var oracleSystemName = regexp.MustCompile(`^SYS_C[0-9]+$`)

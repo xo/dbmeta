@@ -148,7 +148,8 @@ create table tickets (
   title varchar2(60),
   created timestamp default systimestamp
 );
-insert into tickets (title) values ('first');
+-- The time is a fixed one, so that two builds of the fixture hold the same row.
+insert into tickets (title, created) values ('first', timestamp '2024-01-02 03:04:05.678');
 commit;
 
 -- Section: routines

@@ -33,6 +33,9 @@ type fixtureSide struct {
 	// skips are the kinds of object that the dump reads and does not write, which
 	// the snapshot lists as skipped, so that a client can warn about them.
 	skips []string
+	// eventTriggers says that the fixture has a trigger on a DDL event, which the
+	// snapshot must hold.
+	eventTriggers bool
 	// rows says that the test also moves the rows of every table and compares them.
 	rows bool
 	// schemas are the schemas to read. None means every schema that is not a
@@ -54,14 +57,16 @@ type fixtureSide struct {
 func TestDumpFixtureRoundTrips(t *testing.T) {
 	sides := map[string]fixtureSide{
 		"postgres": {
-			rows:    true,
-			dialect: dbmeta.PostgreSQL,
-			source:  func(t *testing.T) *sql.DB { return openPostgresDatabase(t, "dump", false) },
-			fresh:   func(t *testing.T) *sql.DB { return openPostgresDatabase(t, "dbmeta_dump_fixture", true) },
+			eventTriggers: true,
+			rows:          true,
+			dialect:       dbmeta.PostgreSQL,
+			source:        func(t *testing.T) *sql.DB { return openPostgresDatabase(t, "dump", false) },
+			fresh:         func(t *testing.T) *sql.DB { return openPostgresDatabase(t, "dbmeta_dump_fixture", true) },
 		},
 		"sqlserver": {
-			rows:    true,
-			dialect: dbmeta.SQLServer,
+			eventTriggers: true,
+			rows:          true,
+			dialect:       dbmeta.SQLServer,
 			source: func(t *testing.T) *sql.DB {
 				openSQLServer(t)
 				return openSQLServerAt(t, "dump")
@@ -84,12 +89,13 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			schemas: []string{"main"},
 		},
 		"oracle": {
-			rows:    true,
-			dialect: dbmeta.Oracle,
-			source:  openOracle,
-			fresh:   openOracleCopy,
-			schemas: []string{"DUMP_CORE", "DUMP_EXTRA"},
-			rename:  map[string]string{"DUMP_CORE": "CP_CORE", "DUMP_EXTRA": "CP_EXTRA"},
+			eventTriggers: true,
+			rows:          true,
+			dialect:       dbmeta.Oracle,
+			source:        openOracle,
+			fresh:         openOracleCopy,
+			schemas:       []string{"DUMP_CORE", "DUMP_EXTRA"},
+			rename:        map[string]string{"DUMP_CORE": "CP_CORE", "DUMP_EXTRA": "CP_EXTRA"},
 		},
 		"duckdb": {
 			skips:   []string{"type struct"},
@@ -112,6 +118,9 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 				if !slices.ContainsFunc(first.Skipped, func(sk dump.Skipped) bool { return sk.Kind == kind }) {
 					t.Errorf("the snapshot does not list a skipped %s", kind)
 				}
+			}
+			if side.eventTriggers && len(first.EventTriggers) == 0 {
+				t.Errorf("the snapshot holds no trigger on a DDL event")
 			}
 			want := first
 			filter2 := filter
