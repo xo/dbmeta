@@ -1,6 +1,6 @@
 # D293. A dump reads what the dump fixture showed it missed
 
-Status: Amends D291.
+Status: Amends D291, amended by D294.
 
 `TestDumpFixtureRoundTrips` (D291) loads the dump fixture, runs the script of its
 snapshot on an empty database and compares the two snapshots. It showed gaps in

@@ -29,19 +29,28 @@ func init() {
 		Preamble:            []string{"ALTER SESSION SET TIME_ZONE = 'UTC'"},
 		RoutinesAfterTables: true,
 		Column:              column,
-		Sequence:            sequence,
-		Index:               index,
-		MaterializedView:    materializedView,
-		Comment:             comment,
-		PartitionBy:         partitionBy,
-		UseSchema:           func(quoted string) string { return "ALTER SESSION SET CURRENT_SCHEMA = " + quoted },
-		IdentityAfter:       identityAfter,
-		KeepTerminator:      keepTerminator,
-		SelectColumn:        selectColumn,
-		ExpressionColumn:    expressionColumn,
-		Binary:              binary,
-		Synonym:             synonym,
-		LongBinary:          longBinary,
+		TableOptions:        tableOptions,
+		ObjectTables:        true,
+		ObjectGrant: func(kind, object, grantee string) string {
+			if kind == "routine" {
+				return "GRANT EXECUTE ON " + object + " TO " + grantee
+			}
+			return "GRANT SELECT ON " + object + " TO " + grantee
+		},
+		DeferrableKeys:   true,
+		Sequence:         sequence,
+		Index:            index,
+		MaterializedView: materializedView,
+		Comment:          comment,
+		PartitionBy:      partitionBy,
+		UseSchema:        func(quoted string) string { return "ALTER SESSION SET CURRENT_SCHEMA = " + quoted },
+		IdentityAfter:    identityAfter,
+		KeepTerminator:   keepTerminator,
+		SelectColumn:     selectColumn,
+		ExpressionColumn: expressionColumn,
+		Binary:           binary,
+		Synonym:          synonym,
+		LongBinary:       longBinary,
 		ReferenceGrant: func(parent, child string) string {
 			return "GRANT REFERENCES ON " + parent + " TO " + child
 		},
@@ -152,6 +161,9 @@ func column(c dump.Column, typeSQL string, q func(string) string, lit func(strin
 	b.WriteString(q(c.Name) + " " + typeSQL)
 	if c.Collation != "" {
 		b.WriteString(" COLLATE " + c.Collation)
+	}
+	if c.Invisible {
+		b.WriteString(" INVISIBLE")
 	}
 	switch {
 	case c.Generated != "" && c.Default != nil:
@@ -289,4 +301,19 @@ func synonym(quoted string, y dump.Synonym, q func(string) string) string {
 		target += "@" + q(y.TargetServer)
 	}
 	return "CREATE OR REPLACE SYNONYM " + quoted + " FOR " + target
+}
+
+// tableOptions writes what follows the columns: an index organized table keeps its
+// rows in its primary key, and a nested table column has the table that stores it.
+func tableOptions(t dump.Table, _ func(string) string) string {
+	var b strings.Builder
+	if t.Organization == "index" {
+		b.WriteString(" ORGANIZATION INDEX")
+	}
+	for _, c := range t.Columns {
+		if c.Storage != "" {
+			b.WriteString(" NESTED TABLE " + quoteIdentifier(c.Name) + " STORE AS " + quoteIdentifier(c.Storage))
+		}
+	}
+	return b.String()
 }

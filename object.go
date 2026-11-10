@@ -88,6 +88,10 @@ type Table struct {
 	// TABLE, with the clauses that no catalog lists, such as STRICT and WITHOUT
 	// ROWID. See D293.
 	Definition sql.Null[string]
+
+	// OfType is the object type that the table is made of, for an object table
+	// of Oracle, as schema.type. It is absent for any other table. See D294.
+	OfType sql.Null[string]
 }
 
 // Schema is a namespace within a catalog.
@@ -156,6 +160,14 @@ type Column struct {
 	// It is absent where Default is already the text of SQL, which is every
 	// other model. See D276.
 	DefaultIsLiteral sql.Null[bool]
+
+	// Invisible says that the column is hidden from SELECT * and from the column
+	// list of an INSERT, as an INVISIBLE column of Oracle or MySQL is. It is absent
+	// where the product has no such column. See D294.
+	Invisible sql.Null[bool]
+	// NestedStorage is the name of the table that stores the rows of a nested
+	// table column, and absent for any other column. Oracle makes it with STORE AS.
+	NestedStorage sql.Null[string]
 }
 
 // Index is an index on a table.

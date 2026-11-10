@@ -83,9 +83,11 @@ var canonicalFields = map[string]string{
 	// dropped, because only PostgreSQL has an identity column and only
 	// PostgreSQL, MySQL and SQLite report a generated one. They are asserted
 	// by the tests of the databases that have them.
-	"Column.Identity":  "dropped: only PostgreSQL has an identity column",
-	"Column.Generated": "dropped: not every product reports a generated column",
-	"Column.Collation": "dropped: a collation name is per product, and most products have none (D139)",
+	"Column.Identity":      "dropped: only PostgreSQL has an identity column",
+	"Column.Generated":     "dropped: not every product reports a generated column",
+	"Column.Invisible":     "dropped: only Oracle reports an invisible column",
+	"Column.NestedStorage": "dropped: only Oracle has a nested table column",
+	"Column.Collation":     "dropped: a collation name is per product, and most products have none (D139)",
 	// dropped, because storage, compression and a statistics target are
 	// PostgreSQL's alone. They are asserted by the PostgreSQL tests (D198).
 	"Column.Storage":     "dropped: only PostgreSQL has a storage strategy for a column",

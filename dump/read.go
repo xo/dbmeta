@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -240,7 +241,10 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 		}
 		switch kind := strings.ToLower(strings.TrimSpace(t.Type)); kind {
 		case "table", "base table", "virtual":
-			tb := Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}}
+			tb := Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}, OfType: text(t.OfType)}
+			if strings.EqualFold(text(t.AccessMethod), "index organized") {
+				tb.Organization = "index"
+			}
 			if r.m.Dialect() == dbmeta.SQLite3 {
 				tb.Definition = text(t.Definition)
 			} else if kind == "virtual" {
@@ -316,10 +320,14 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	if err := r.readExtensions(ctx, snap); err != nil {
 		return err
 	}
+	if err := r.readUnwritten(ctx, a); err != nil {
+		return err
+	}
 	// A user of Oracle that owns nothing is no schema of the database. The image
 	// makes OPS$ORACLE for operating system authentication, and a script that made
 	// it again fails.
 	if r.m.Dialect() == dbmeta.Oracle {
+		dropOracleSystemObjects(snap)
 		snap.Schemas = slices.DeleteFunc(snap.Schemas, func(s Schema) bool { return s.empty() })
 	}
 	snap.Skipped = append(snap.Skipped, r.skipped...)
@@ -507,6 +515,7 @@ func (r *reader) column(c dbmeta.Column) (Column, error) {
 		Identity: text(c.Identity), Generated: text(c.Generated),
 		Collation: text(c.Collation), Comment: text(c.Comment),
 		DefaultLiteral: c.DefaultIsLiteral.Valid && c.DefaultIsLiteral.V,
+		Invisible:      c.Invisible.Valid && c.Invisible.V, Storage: text(c.NestedStorage),
 	}
 	if c.Default.Valid {
 		d := c.Default.V
@@ -705,6 +714,13 @@ func (r *reader) readTriggers(ctx context.Context, a dbmeta.Args, kept map[table
 			t.Triggers = append(t.Triggers, Trigger{
 				Name: g.Name, Enabled: g.Enabled, Definition: def, Comment: text(g.Comment),
 			})
+			continue
+		}
+		// A trigger of a schema or of the database, such as one that fires on DDL,
+		// has no table of the dump to belong to.
+		if r.wantSchema(g.Schema) {
+			r.skipped = append(r.skipped, Skipped{Schema: g.Schema, Name: g.Name, Kind: "trigger",
+				Reason: "the trigger belongs to no table or view, and the dump does not write it"})
 		}
 	}
 	for _, t := range kept {
@@ -820,6 +836,9 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 				Multirange: text(t.RangeMultirange), Comment: text(t.Comment)})
 		case own && kind == "multirange":
 			// The range type makes it again.
+		case r.m.Dialect() == dbmeta.DuckDB:
+			r.skipped = append(r.skipped, Skipped{Schema: t.Schema, Name: t.Name, Kind: "type " + kind,
+				Reason: "this kind of type is not read, and a column of it keeps the text of its type"})
 		case !aliases:
 		case kind == "domain" || kind == "alias":
 			if d, found := byDomain[tableKey{t.Schema, t.Internal}]; found {
@@ -896,6 +915,10 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 			case dbmeta.DuckDB:
 				def, args = duckdbMacroStatement(f, mysqlParams[tableKey{f.Schema, f.Name}])
 			}
+			if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(def)), "create") {
+				r.skipped = append(r.skipped, Skipped{Schema: f.Schema, Name: f.Name, Kind: f.Kind,
+					Reason: "the source keeps no statement that creates it, so the dump does not write it"})
+			}
 			s.Routines = append(s.Routines, Routine{
 				Name: f.Name, Kind: f.Kind, Arguments: args,
 				ResultType: text(f.ResultType), Language: f.Language, Definition: def, Comment: text(f.Comment),
@@ -918,6 +941,50 @@ func (r *reader) readObjects(ctx context.Context, a dbmeta.Args, schemas map[str
 			return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.Arguments, y.Arguments),
 				cmp.Compare(slices.Index(routineKinds, x.Kind), slices.Index(routineKinds, y.Kind)))
 		})
+	}
+	return nil
+}
+
+// readUnwritten lists the objects that the model reads and the dump does not
+// write, so that a client can warn about each one. See D294.
+func (r *reader) readUnwritten(ctx context.Context, a dbmeta.Args) error {
+	if dbmeta.EventTriggers.Support(r.m) == dbmeta.Supported {
+		rows, err := collect(dbmeta.EventTriggers.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading event triggers: %w", err)
+		}
+		kind := "event trigger"
+		if r.m.Dialect() == dbmeta.SQLServer {
+			kind = "database trigger"
+		}
+		for _, e := range rows {
+			r.skipped = append(r.skipped, Skipped{Name: e.Name, Kind: kind,
+				Reason: "the dump does not write a trigger that fires on a DDL event"})
+		}
+	}
+	if dbmeta.Aggregates.Support(r.m) == dbmeta.Supported && r.m.Dialect() == dbmeta.PostgreSQL {
+		rows, err := collect(dbmeta.Aggregates.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading aggregates: %w", err)
+		}
+		for _, f := range rows {
+			if r.wantSchema(f.Schema) && !f.Extension.Valid {
+				r.skipped = append(r.skipped, Skipped{Schema: f.Schema, Name: f.Name + "(" + text(f.ArgTypes) + ")", Kind: "aggregate",
+					Reason: "the dump does not write an aggregate"})
+			}
+		}
+	}
+	if dbmeta.Policies.Support(r.m) == dbmeta.Supported {
+		rows, err := collect(dbmeta.Policies.Each(ctx, r.m, r.db, a))
+		if err != nil {
+			return fmt.Errorf("reading policies: %w", err)
+		}
+		for _, p := range rows {
+			if r.wantTable(p.Schema, p.Table) {
+				r.skipped = append(r.skipped, Skipped{Schema: p.Schema, Name: p.Table + "." + p.Name, Kind: "policy",
+					Reason: "the dump does not write a row level security policy"})
+			}
+		}
 	}
 	return nil
 }
@@ -1029,4 +1096,62 @@ func (r *reader) readViewDependencies(ctx context.Context, a dbmeta.Args, views 
 		slices.Sort(v.DependsOn)
 	}
 	return nil
+}
+
+// dropOracleSystemObjects takes out what Oracle makes for a table and makes again:
+// the table that stores a nested table column, which STORE AS names, and a key on
+// a hidden column that the system added, such as the object identifier of an
+// object table. See D294.
+func dropOracleSystemObjects(snap *Snapshot) {
+	for i := range snap.Schemas {
+		s := &snap.Schemas[i]
+		storage := map[string]bool{}
+		for _, t := range s.Tables {
+			for _, c := range t.Columns {
+				if c.Storage != "" {
+					storage[c.Storage] = true
+				}
+			}
+		}
+		s.Tables = slices.DeleteFunc(s.Tables, func(t Table) bool { return storage[t.Name] })
+		for j := range s.Tables {
+			t := &s.Tables[j]
+			t.Constraints = slices.DeleteFunc(t.Constraints, func(c Constraint) bool {
+				return slices.ContainsFunc(c.Columns, func(name string) bool { return strings.HasPrefix(name, "SYS_NC") })
+			})
+			// An index on a virtual column shows as an index on its expression, and
+			// Oracle 21c refuses an index on an expression that a virtual column holds.
+			for k := range t.Indexes {
+				for m := range t.Indexes[k].Columns {
+					ic := &t.Indexes[k].Columns[m]
+					if ic.Expression == "" {
+						continue
+					}
+					for _, c := range t.Columns {
+						if c.Generated != "" && c.Default != nil && sameExpression(*c.Default, ic.Expression) {
+							ic.Name, ic.Expression = c.Name, ""
+						}
+					}
+				}
+			}
+			t.Indexes = slices.DeleteFunc(t.Indexes, func(ix Index) bool {
+				return slices.ContainsFunc(ix.Columns, func(c IndexColumn) bool { return strings.HasPrefix(c.Name, "SYS_NC") && c.Expression == "" })
+			})
+		}
+	}
+}
+
+// qualifiers matches a name and the dot that follows it, as in OWNER. before a
+// function.
+var qualifiers = regexp.MustCompile(`[A-Za-z0-9_$#"]+\.`)
+
+// sameExpression reports whether two texts of an expression are the same one, once
+// the case, the quotes, the white space and the owner of a name are taken away.
+func sameExpression(a, b string) bool {
+	norm := func(s string) string {
+		s = qualifiers.ReplaceAllString(s, "")
+		s = strings.ReplaceAll(strings.ToLower(s), `"`, "")
+		return strings.Join(strings.Fields(s), "")
+	}
+	return norm(a) == norm(b)
 }

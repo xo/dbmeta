@@ -32,6 +32,7 @@ func init() {
 		RoutinesAfterTables: true,
 		Enum:                enum,
 		ValueLiteral:        nestedLiteral,
+		RowPerSelfReference: true,
 	})
 }
 

@@ -27,6 +27,8 @@ type Loader struct {
 	override       bool
 	identity       bool
 	snap           *Snapshot
+	// selfRef is set for a table that has a foreign key to itself.
+	selfRef bool
 }
 
 // loadColumn is a column that the loader moves.
@@ -76,6 +78,11 @@ func NewLoader(s *Snapshot, schema, table string, target dbmeta.Dialect, p Polic
 		return nil, fmt.Errorf("the snapshot has no table %s.%s: %w", schema, table, dbmeta.ErrNotFound)
 	}
 	l := &Loader{source: source, target: target, src: src, dst: dst, schema: schema, table: table, snap: s}
+	for _, c := range t.Constraints {
+		if c.Kind == "foreign key" && c.Ref != nil && c.Ref.Table == table && (c.Ref.Schema == "" || c.Ref.Schema == schema) {
+			l.selfRef = true
+		}
+	}
 	for _, c := range t.Columns {
 		if computedColumn(c) && source == target {
 			continue
@@ -167,7 +174,7 @@ func (l *Loader) SelectAll() string {
 			}
 		}
 	}
-	sql := "SELECT " + strings.Join(cols, ", ") + " FROM " + l.qualify(l.src) + alias
+	sql := "SELECT " + strings.Join(cols, ", ") + " FROM " + l.qualifySource() + alias
 	if len(l.key) > 0 {
 		key := make([]string, len(l.key))
 		for i, name := range l.key {
@@ -181,6 +188,11 @@ func (l *Loader) SelectAll() string {
 // BatchSize is the most rows that one INSERT takes: the limit of the product, and
 // the number of parameters that it takes divided by the columns.
 func (l *Loader) BatchSize() int {
+	// DuckDB checks each row of a statement against the rows that come before it in
+	// the same statement, so a table that refers to itself loads a row at a time.
+	if l.selfRef && l.dst.RowPerSelfReference {
+		return 1
+	}
 	n := l.dst.MaxRows
 	if n == 0 {
 		n = defaultBatch
@@ -316,8 +328,18 @@ func (l *Loader) boundClock(c loadColumn, v any) any {
 
 // qualify writes the name of the table in a style.
 func (l *Loader) qualify(s Style) string {
-	g := &generator{style: s}
+	g := &generator{style: s, snap: l.snap, cross: l.source != l.target}
 	return g.qualified(l.schema, l.table)
+}
+
+// qualifySource writes the name of the table in the source. A product whose schema
+// is its database reads a table of another database than the one that the
+// connection has, so the name has its database. See D294.
+func (l *Loader) qualifySource() string {
+	if l.src.DefaultSchema == "*" && l.schema != "" && l.src.CreateSchema != nil {
+		return l.src.Quote(l.schema) + "." + l.src.Quote(l.table)
+	}
+	return l.qualify(l.src)
 }
 
 // head writes INSERT INTO name (columns) and the clause for an identity column.

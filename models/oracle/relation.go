@@ -214,6 +214,11 @@ func registerRelations() {
 			always(`  || CASE WHEN t.read_only = 'YES' THEN ', read_only' END, ', ') AS "options"`),
 			always(`, CASE WHEN pol.object_name IS NULL THEN 0 ELSE 1 END AS "row_security"`),
 			always(`, CASE WHEN pol.object_name IS NULL THEN 0 ELSE 1 END AS "row_security_forced"`),
+			// An object table is made of a type.
+			// A relational table is in ALL_TABLES, so only a table that is not there
+			// can be an object table, and the view of object tables is read for it alone.
+			always(`, CASE WHEN o.object_type = 'TABLE' AND t.table_name IS NULL THEN (SELECT ot.table_type_owner || '.' || ot.table_type`),
+			always(`    FROM all_object_tables ot WHERE ot.owner = o.owner AND ot.table_name = o.object_name) END AS "of_type"`),
 			always(`FROM all_objects o`),
 			always(`LEFT JOIN all_tab_comments c`),
 			always(`  ON c.owner = o.owner AND c.table_name = o.object_name`),
@@ -254,13 +259,14 @@ func registerRelations() {
 			},
 			{Name: "row_security", Desc: "true when an enabled virtual private database policy is on the object"},
 			{Name: "row_security_forced", Desc: "the same value: a policy applies to the owner of the table"},
+			{Name: "of_type", Desc: "the object type of an object table, as owner.type, and absent for any other table"},
 		},
 		Params: append(schemaNameSystem("table"), dbmeta.TypesParam()),
 		Scan: func(rows *sql.Rows) (dbmeta.Table, error) {
 			var v dbmeta.Table
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Name, &v.Type, &v.Comment,
 				&v.Owner, &v.Persistence, &v.AccessMethod, &v.Size, &v.Rows,
-				&v.Options, &v.RowSecurity, &v.RowSecurityForced)
+				&v.Options, &v.RowSecurity, &v.RowSecurityForced, &v.OfType)
 			return v, err
 		},
 	})
@@ -275,7 +281,8 @@ func registerColumns() {
 			always(`, c.owner AS "schema"`),
 			always(`, c.table_name AS "table"`),
 			always(`, c.column_name AS "name"`),
-			always(`, c.column_id AS "ordinal"`),
+			// An invisible column has no column_id, and comes after the others.
+			always(`, NVL(c.column_id, 1000 + c.internal_column_id) AS "ordinal"`),
 			// The declared type, with the length, the precision and the scale,
 			// which is what a person reads and what a script needs. all_tab_cols
 			// keeps them in columns of their own. A type that a person made
@@ -309,6 +316,14 @@ func registerColumns() {
 				{Query: `, NULL AS "collation"`},
 				{Min: v122, Query: `, c.collation AS "collation"`},
 			},
+			// An invisible column is hidden and made by a person. The system makes the
+			// other hidden columns, such as the one behind a function based index.
+			always(`, CASE WHEN c.hidden_column = 'YES' AND c.user_generated = 'YES' THEN 1 ELSE 0 END AS "invisible"`),
+			// A nested table column has a type that a person made, so the view of nested
+			// tables is read for those columns alone.
+			always(`, CASE WHEN c.data_type_owner IS NOT NULL THEN (SELECT nt.table_name FROM all_nested_tables nt`),
+			always(`    WHERE nt.owner = c.owner AND nt.parent_table_name = c.table_name`),
+			always(`    AND nt.parent_table_column = c.column_name) END AS "nested_storage"`),
 			always(`FROM all_tab_cols c`),
 			always(`LEFT JOIN all_col_comments m`),
 			always(`  ON m.owner = c.owner AND m.table_name = c.table_name` +
@@ -324,12 +339,12 @@ func registerColumns() {
 			// A hidden column is one the system made, such as the one behind
 			// a function based index. Nobody asked for it and psql shows no
 			// equivalent.
-			always(`WHERE c.hidden_column = 'NO'`),
+			always(`WHERE (c.hidden_column = 'NO' OR (c.hidden_column = 'YES' AND c.user_generated = 'YES'))`),
 			notSystem("AND", "c.owner"),
 			always(`AND (@schema IS NULL OR c.owner LIKE @schema)`),
 			always(`AND (@parent IS NULL OR c.table_name LIKE @parent)`),
 			always(`AND (@name IS NULL OR c.column_name LIKE @name)`),
-			always(`ORDER BY c.owner, c.table_name, c.column_id`),
+			always(`ORDER BY c.owner, c.table_name, NVL(c.column_id, 1000 + c.internal_column_id)`),
 		},
 		Fields: []dbmeta.Field{
 			{Name: "catalog"}, {Name: "schema"}, {Name: "table"}, {Name: "name"},
@@ -348,13 +363,15 @@ func registerColumns() {
 			{Name: "generated", Desc: "set for a virtual column"},
 			{Name: "comment", Desc: "the COMMENT ON COLUMN"},
 			{Name: "collation", Min: v122, Desc: "the collation of a text column, absent before 12.2 where Oracle had none per column"},
+			{Name: "invisible", Desc: "true for an INVISIBLE column, which is hidden from SELECT * and from an INSERT with no column list"},
+			{Name: "nested_storage", Desc: "the table that stores a nested table column, absent for any other column"},
 		},
 		Params: childParams("table", "column"),
 		Scan: func(rows *sql.Rows) (dbmeta.Column, error) {
 			var v dbmeta.Column
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Ordinal,
 				&v.DataType, &v.Nullable, &v.Default, &v.PrimaryKey,
-				&v.Identity, &v.Generated, &v.Comment, &v.Collation)
+				&v.Identity, &v.Generated, &v.Comment, &v.Collation, &v.Invisible, &v.NestedStorage)
 			return v, err
 		},
 	})

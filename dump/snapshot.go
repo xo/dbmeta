@@ -158,6 +158,10 @@ type Table struct {
 	// product that keeps it, so that a script of the same product writes it as it
 	// was. See D293.
 	Definition string `json:"definition,omitempty"`
+	// OfType is the object type that an object table is made of, as owner.type.
+	OfType string `json:"of_type,omitempty"`
+	// Organization is index for a table that keeps its rows in its primary key.
+	Organization string `json:"organization,omitempty"`
 
 	Columns     []Column     `json:"columns"`
 	Constraints []Constraint `json:"constraints,omitempty"`
@@ -232,6 +236,11 @@ type Column struct {
 	Generated string `json:"generated,omitempty"`
 	Collation string `json:"collation,omitempty"`
 	Comment   string `json:"comment,omitempty"`
+	// Invisible says that the column is hidden from SELECT * and from an INSERT
+	// that names no columns. See D294.
+	Invisible bool `json:"invisible,omitempty"`
+	// Storage is the table that stores a nested table column.
+	Storage string `json:"storage,omitempty"`
 }
 
 // Constraint is a primary key, a unique key, a foreign key or a check. Kind is

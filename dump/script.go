@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"iter"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -97,6 +98,8 @@ type generator struct {
 	out    []Statement
 	// used is the schema that the last UseSchema statement of each stage named.
 	used map[Stage]string
+	// granted holds the grants that were written, by grantee and object.
+	granted map[string]bool
 }
 
 func build(s *Snapshot, target dbmeta.Dialect, p Policy) ([]Statement, error) {
@@ -126,7 +129,7 @@ func (g *generator) add(st Statement) { g.out = append(g.out, st) }
 
 // qualified writes the name of an object, with its schema where the style asks.
 func (g *generator) qualified(schema, name string) string {
-	if g.style.QualifyAll || g.severalDatabases() || (g.style.DefaultSchema != "*" && schema != g.style.DefaultSchema && schema != "") {
+	if g.style.QualifyAll || g.severalDatabases() || g.otherDatabase(schema) || (g.style.DefaultSchema != "*" && schema != g.style.DefaultSchema && schema != "") {
 		return g.style.Quote(schema) + "." + g.style.Quote(name)
 	}
 	return g.style.Quote(name)
@@ -138,6 +141,16 @@ func (g *generator) qualified(schema, name string) string {
 // because the connection of a script has one default database at most. See D293.
 func (g *generator) severalDatabases() bool {
 	return g.snap != nil && !g.cross && g.style.DefaultSchema == "*" && g.style.CreateSchema != nil && len(g.snap.Schemas) > 1
+}
+
+// otherDatabase reports that a name is in a database other than the one that the
+// snapshot holds alone. A foreign key can point at it, and the script has no
+// default database that means it. See D294.
+func (g *generator) otherDatabase(schema string) bool {
+	if g.snap == nil || g.cross || g.style.DefaultSchema != "*" || g.style.CreateSchema == nil || schema == "" {
+		return false
+	}
+	return len(g.snap.Schemas) == 1 && g.snap.Schemas[0].Name != schema
 }
 
 // pre writes the statements that come before the rows.
@@ -392,6 +405,10 @@ func (g *generator) inCreate(kind string) bool {
 
 // createTable writes the CREATE TABLE of a table.
 func (g *generator) createTable(schema string, t Table) (string, error) {
+	if t.OfType != "" && !g.cross && g.style.ObjectTables {
+		owner, name, _ := strings.Cut(t.OfType, ".")
+		return "CREATE TABLE " + g.qualified(schema, t.Name) + " OF " + g.qualified(owner, name), nil
+	}
 	if g.style.TableText && !g.cross && t.Definition != "" {
 		return strings.TrimRight(strings.TrimSpace(t.Definition), "; \n\t"), nil
 	}
@@ -563,6 +580,12 @@ func (g *generator) foreignKey(schema string, c Constraint, cols []string) strin
 	}
 	if upd != "" && upd != "NO ACTION" {
 		body += " ON UPDATE " + upd
+	}
+	if g.style.DeferrableKeys && c.Deferrable && !g.cross {
+		body += " DEFERRABLE"
+		if c.Deferred {
+			body += " INITIALLY DEFERRED"
+		}
 	}
 	return body
 }
@@ -846,9 +869,11 @@ func (g *generator) viewsAndRoutines() {
 	for n, i := range order {
 		e := all[i]
 		if e.routine != nil {
+			g.grantsFor(e.schema, e.routine.Definition)
 			g.routine(Post, e.schema, *e.routine)
 			continue
 		}
+		g.grantsFor(e.schema, e.view.Definition)
 		g.use(Post, e.schema)
 		st := Statement{Stage: Post, Kind: "view", Name: e.schema + "." + e.view.Name, SQL: g.view(e.schema, e.view), Untranslated: g.cross}
 		if e.view.Materialized {
@@ -866,6 +891,48 @@ func (g *generator) viewsAndRoutines() {
 				g.add(Statement{Stage: Post, Kind: "index", Name: e.schema + "." + e.view.Name + "." + ix.Name,
 					SQL: g.index(e.schema, Table{Name: e.view.Name}, ix)})
 			}
+		}
+	}
+}
+
+// grantsFor writes the grants that a view or a routine needs on the objects of
+// another schema that its text names, for a product that wants them given directly.
+// The grant comes before the object, and is written once. See D294.
+func (g *generator) grantsFor(schema, text string) {
+	if g.style.ObjectGrant == nil || g.cross || text == "" {
+		return
+	}
+	if g.granted == nil {
+		g.granted = map[string]bool{}
+	}
+	mentions := func(other, name string) bool {
+		re := regexp.MustCompile(`(?i)\b"?` + regexp.QuoteMeta(other) + `"?\s*\.\s*"?` + regexp.QuoteMeta(name) + `"?(?:[^A-Za-z0-9_$#]|$)`)
+		return re.MatchString(text)
+	}
+	give := func(kind, other, name string) {
+		key := schema + "<" + other + "." + name
+		if g.granted[key] || !mentions(other, name) {
+			return
+		}
+		g.granted[key] = true
+		g.add(Statement{Stage: Post, Kind: "grant", Name: other + "." + name,
+			SQL: g.style.ObjectGrant(kind, g.qualified(other, name), g.style.Quote(schema))})
+	}
+	for _, sc := range g.snap.Schemas {
+		if sc.Name == schema {
+			continue
+		}
+		for _, t := range sc.Tables {
+			give("table", sc.Name, t.Name)
+		}
+		for _, v := range sc.Views {
+			give("table", sc.Name, v.Name)
+		}
+		for _, q := range sc.Sequences {
+			give("sequence", sc.Name, q.Name)
+		}
+		for _, r := range sc.Routines {
+			give("routine", sc.Name, r.Name)
 		}
 	}
 }

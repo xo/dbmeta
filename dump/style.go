@@ -125,6 +125,10 @@ type Style struct {
 	// generator takes every other trailing semicolon off. It is nil for a product
 	// whose statements never end in one.
 	KeepTerminator func(definition string) bool
+	// RowPerSelfReference says that a table with a foreign key to itself loads one
+	// row in each INSERT, because the product checks the key of each row against
+	// the rows that come before it in the statement. See D294.
+	RowPerSelfReference bool
 	// ValueLiteral writes the literal of a value that the driver gives as a Go value
 	// of its own, such as a list, a struct, a map or a union of DuckDB. It says
 	// whether it did. See D293.
@@ -185,6 +189,16 @@ type Style struct {
 	// has no foreign key and takes only a unique key that holds every column of its
 	// primary key.
 	RefuseConstraint func(t Table, c Constraint) string
+	// ObjectGrant writes the grant that lets a schema use an object of another one,
+	// for a view or a routine that names it. The kind is table, sequence or routine.
+	// It is nil for a product that needs none. See D294.
+	ObjectGrant func(kind, quotedObject, quotedGrantee string) string
+	// ObjectTables says that a table made of an object type is written with OF.
+	ObjectTables bool
+	// DeferrableKeys says that a script of the same product writes DEFERRABLE and
+	// INITIALLY DEFERRED after a foreign key that has them, in place of a text of the
+	// source that says so.
+	DeferrableKeys bool
 	// TableOptions writes what follows the closing bracket of CREATE TABLE.
 	TableOptions func(t Table, literal func(string) string) string
 	// ImplicitIndex says that the product builds an index of its own for a

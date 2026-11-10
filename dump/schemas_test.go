@@ -57,3 +57,26 @@ func TestADumpOfSeveralMySQLDatabasesNamesEachOne(t *testing.T) {
 		}
 	}
 }
+
+// TestAForeignKeyToAnotherMySQLDatabaseNamesIt holds that a dump of one database
+// names the database of a table that a foreign key points at, and that the read of a
+// table names its database.
+func TestAForeignKeyToAnotherMySQLDatabaseNamesIt(t *testing.T) {
+	s := twoSchemas(dbmeta.MySQL)
+	s.Schemas = s.Schemas[:1]
+	s.Schemas[0].Tables[0].Constraints = []dump.Constraint{{
+		Name: "fk", Kind: "foreign key", Columns: []string{"id"},
+		Ref: &dump.Reference{Schema: "extra", Table: "egg", Columns: []string{"id"}},
+	}}
+	got := joined(t, s, dbmeta.MySQL)
+	if !strings.Contains(got, "REFERENCES `extra`.`egg`") {
+		t.Errorf("the foreign key does not name the other database:\n%s", got)
+	}
+	l, err := dump.NewLoader(s, "app", "authors", dbmeta.MySQL, dump.Policy{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "FROM `app`.`authors`"; !strings.Contains(l.SelectAll(), want) {
+		t.Errorf("the read is %q, and it has no %q", l.SelectAll(), want)
+	}
+}

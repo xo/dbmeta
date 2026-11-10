@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	mysqldriver "github.com/go-sql-driver/mysql"
 
@@ -28,6 +30,11 @@ type fixtureSide struct {
 	// rename gives the schemas other names, so that the copy lives in the server
 	// of the source. A product whose schema is a database needs it.
 	rename map[string]string
+	// skips are the kinds of object that the dump reads and does not write, which
+	// the snapshot lists as skipped, so that a client can warn about them.
+	skips []string
+	// rows says that the test also moves the rows of every table and compares them.
+	rows bool
 	// schemas are the schemas to read. None means every schema that is not a
 	// system schema.
 	schemas []string
@@ -47,11 +54,15 @@ type fixtureSide struct {
 func TestDumpFixtureRoundTrips(t *testing.T) {
 	sides := map[string]fixtureSide{
 		"postgres": {
+			skips:   []string{"aggregate", "event trigger"},
+			rows:    true,
 			dialect: dbmeta.PostgreSQL,
 			source:  func(t *testing.T) *sql.DB { return openPostgresDatabase(t, "dump", false) },
 			fresh:   func(t *testing.T) *sql.DB { return openPostgresDatabase(t, "dbmeta_dump_fixture", true) },
 		},
 		"sqlserver": {
+			skips:   []string{"database trigger", "policy"},
+			rows:    true,
 			dialect: dbmeta.SQLServer,
 			source: func(t *testing.T) *sql.DB {
 				openSQLServer(t)
@@ -60,6 +71,7 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			fresh: func(t *testing.T) *sql.DB { return openSQLServerNamed(t, "dbmeta_dump_fixture") },
 		},
 		"mysql": {
+			rows:    true,
 			dialect: dbmeta.MySQL,
 			source:  func(t *testing.T) *sql.DB { return openMySQLAt(t, "dump_core") },
 			fresh:   openMySQLCopy,
@@ -67,12 +79,15 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			rename:  map[string]string{"dump_core": "cp_dump_core", "dump_extra": "cp_dump_extra", "thing": "cp_thing"},
 		},
 		"sqlite3": {
+			rows:    true,
 			dialect: dbmeta.SQLite3,
 			source:  func(t *testing.T) *sql.DB { return openEmbeddedFixture(t, sqliteDrivers[0], "dump.db") },
 			fresh:   func(t *testing.T) *sql.DB { return openSQLiteAt(t, sqliteDrivers[0]) },
 			schemas: []string{"main"},
 		},
 		"oracle": {
+			rows:    true,
+			skips:   []string{"event trigger"},
 			dialect: dbmeta.Oracle,
 			source:  openOracle,
 			fresh:   openOracleCopy,
@@ -80,6 +95,8 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			rename:  map[string]string{"DUMP_CORE": "CP_CORE", "DUMP_EXTRA": "CP_EXTRA"},
 		},
 		"duckdb": {
+			skips:   []string{"type struct", "type varchar"},
+			rows:    true,
 			dialect: dbmeta.DuckDB,
 			source:  func(t *testing.T) *sql.DB { return openEmbeddedFixture(t, "duckdb", "dump.duckdb") },
 			fresh:   openDuckDBAt,
@@ -93,6 +110,11 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			first, err := dump.Read(t.Context(), m, src, filter)
 			if err != nil {
 				t.Fatalf("reading: %v", err)
+			}
+			for _, kind := range side.skips {
+				if !slices.ContainsFunc(first.Skipped, func(sk dump.Skipped) bool { return sk.Kind == kind }) {
+					t.Errorf("the snapshot does not list a skipped %s", kind)
+				}
 			}
 			want := first
 			filter2 := filter
@@ -118,9 +140,15 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 				t.Fatalf("taking a connection: %v", err)
 			}
 			defer conn.Close()
+			rowsDone := !side.rows
 			for _, st := range stmts {
 				if st.SQL == "" {
 					continue
+				}
+				// The rows go in after the tables and before the keys, as a client does.
+				if !rowsDone && st.Stage == dump.Post {
+					rowsDone = true
+					copyFixtureRows(t, src, conn, first, want, side, stmts, &report)
 				}
 				script.WriteString(st.SQL + ";\n")
 				if _, err := conn.ExecContext(t.Context(), st.SQL); err != nil {
@@ -131,6 +159,11 @@ func TestDumpFixtureRoundTrips(t *testing.T) {
 			second, err := dump.Read(t.Context(), m, dst, filter2)
 			if err != nil {
 				t.Fatalf("reading the copy: %v", err)
+			}
+			if os.Getenv("DBMETA_SHOW_SKIPPED") != "" {
+				for _, sk := range first.Skipped {
+					t.Logf("skipped %s: %s.%s %s: %s", name, sk.Schema, sk.Name, sk.Kind, sk.Reason)
+				}
 			}
 			want.Skipped, second.Skipped = nil, nil
 			if side.dialect == dbmeta.SQLServer {
@@ -326,3 +359,137 @@ func openOracleCopy(t *testing.T) *sql.DB {
 
 // generatedNames matches the names that Oracle gives to what it makes itself.
 var generatedNames = regexp.MustCompile(`SYS_[A-Z]+[0-9]+[A-Z0-9$]*`)
+
+// copyFixtureRows moves the rows of every table that the script made, in the
+// order that it made them, and compares the rows of the copy with the source.
+// A table that fails, or that has other rows, adds a line to the report.
+func copyFixtureRows(t *testing.T, src *sql.DB, dst *sql.Conn, first, want *dump.Snapshot, side fixtureSide, stmts []dump.Statement, report *strings.Builder) {
+	t.Helper()
+	back := map[string]string{}
+	for from, to := range side.rename {
+		back[to] = from
+	}
+	for _, st := range stmts {
+		if st.Kind != "table" || st.Stage != dump.Pre {
+			continue
+		}
+		schema, table, _ := strings.Cut(st.Name, ".")
+		tb := findFixtureTable(want, schema, table)
+		if tb == nil || tb.IsPartition() {
+			continue
+		}
+		origin := schema
+		if o, ok := back[schema]; ok {
+			origin = o
+		}
+		from, err := dump.NewLoader(first, origin, table, side.dialect, dump.Policy{})
+		if err != nil {
+			fmt.Fprintf(report, "rows failed: %s: %v\n", st.Name, err)
+			continue
+		}
+		to, err := dump.NewLoader(want, schema, table, side.dialect, dump.Policy{})
+		if err != nil {
+			fmt.Fprintf(report, "rows failed: %s: %v\n", st.Name, err)
+			continue
+		}
+		cells := readCells(t, src, from.SelectAll())
+		// A constructor of an object type names its schema, and the copy has another.
+		for _, row := range cells {
+			for i, v := range row {
+				if text, ok := v.(string); ok {
+					for old, now := range side.rename {
+						text = regexp.MustCompile(`(?i)\b`+old+`\b`).ReplaceAllString(text, now)
+					}
+					row[i] = text
+				}
+			}
+		}
+		var failed error
+		if p := to.Prologue(); p != "" {
+			if _, err := dst.ExecContext(t.Context(), p); err != nil {
+				failed = err
+			}
+		}
+		for start := 0; start < len(cells) && failed == nil; start += to.BatchSize() {
+			stmt, err := to.Insert(cells[start:min(start+to.BatchSize(), len(cells))])
+			if err != nil {
+				failed = err
+				break
+			}
+			_, failed = dst.ExecContext(t.Context(), stmt)
+		}
+		if e := to.Epilogue(); e != "" {
+			if _, err := dst.ExecContext(t.Context(), e); err != nil && failed == nil {
+				failed = err
+			}
+		}
+		if failed != nil {
+			msg, _, _ := strings.Cut(strings.TrimSpace(failed.Error()), "\n")
+			fmt.Fprintf(report, "rows failed: %s: %s\n", st.Name, msg)
+			continue
+		}
+		got, err := connCells(t, dst, to.SelectAll())
+		if err != nil {
+			fmt.Fprintf(report, "rows failed: %s: reading the copy: %v\n", st.Name, err)
+			continue
+		}
+		// A value that holds an offset comes back as the same instant in UTC.
+		for _, set := range [][][]any{cells, got} {
+			for _, row := range set {
+				for i, v := range row {
+					if tv, ok := v.(time.Time); ok {
+						row[i] = tv.UTC()
+					}
+				}
+			}
+		}
+		if !equalCells(cells, got) {
+			if os.Getenv("DBMETA_SHOW_SKIPPED") != "" {
+				t.Logf("source %v\ncopy   %v", cells, got)
+			}
+			fmt.Fprintf(report, "rows differ: %s: %d in the source and %d in the copy\n", st.Name, len(cells), len(got))
+		}
+	}
+}
+
+// findFixtureTable finds a table of a snapshot.
+func findFixtureTable(s *dump.Snapshot, schema, table string) *dump.Table {
+	for i := range s.Schemas {
+		if s.Schemas[i].Name != schema {
+			continue
+		}
+		for j := range s.Schemas[i].Tables {
+			if s.Schemas[i].Tables[j].Name == table {
+				return &s.Schemas[i].Tables[j]
+			}
+		}
+	}
+	return nil
+}
+
+// connCells reads every row of a query on one connection.
+func connCells(t *testing.T, conn *sql.Conn, query string) ([][]any, error) {
+	t.Helper()
+	rows, err := conn.QueryContext(t.Context(), query)
+	if err != nil {
+		return nil, fmt.Errorf("querying: %w", err)
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("reading the columns: %w", err)
+	}
+	var out [][]any
+	for rows.Next() {
+		row := make([]any, len(cols))
+		dest := make([]any, len(cols))
+		for i := range dest {
+			dest[i] = &row[i]
+		}
+		if err := rows.Scan(dest...); err != nil {
+			return nil, fmt.Errorf("scanning: %w", err)
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}

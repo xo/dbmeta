@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and a maintainer has not confirmed
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-130 of them amend or replace an earlier one, and a decision read without its
+131 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -311,4 +311,5 @@ file.
 | [D290](D290-the-northwind-fixture-has-an-hr-schema-on-four-more-products.md) | The northwind fixture has an hr schema on four more products | Amends D254 and D259 |
 | [D291](D291-dbrun-fixture-dump-makes-a-database-that-tests-a-dump.md) | dbrun fixture dump makes a database that tests a dump | Decided, amended by D293 |
 | [D292](D292-a-dump-writes-range-types-and-the-state-of-a-trigger.md) | A dump writes range types and the state of a trigger | Decided |
-| [D293](D293-a-dump-reads-what-the-fixture-showed-it-missed.md) | A dump reads what the dump fixture showed it missed | Amends D291 |
+| [D293](D293-a-dump-reads-what-the-fixture-showed-it-missed.md) | A dump reads what the dump fixture showed it missed | Amends D291, amended by D294 |
+| [D294](D294-a-dump-lists-what-it-leaves-out-and-writes-more-of-oracle.md) | A dump lists what it leaves out and writes more of Oracle | Amends D293 |
