@@ -29,6 +29,9 @@ type Loader struct {
 	snap           *Snapshot
 	// selfRef is set for a table that has a foreign key to itself.
 	selfRef bool
+	// selfKey and selfRefKey are the column of that key and the column that it names, when
+	// each is one column. They put the rows of the parent first. See D301.
+	selfKey, selfRefKey string
 }
 
 // loadColumn is a column that the loader moves.
@@ -81,6 +84,9 @@ func NewLoader(s *Snapshot, schema, table string, target dbmeta.Dialect, p Polic
 	for _, c := range t.Constraints {
 		if c.Kind == "foreign key" && c.Ref != nil && c.Ref.Table == table && (c.Ref.Schema == "" || c.Ref.Schema == schema) {
 			l.selfRef = true
+			if len(c.Columns) == 1 && len(c.Ref.Columns) == 1 {
+				l.selfKey, l.selfRefKey = c.Columns[0], c.Ref.Columns[0]
+			}
 		}
 	}
 	for _, c := range t.Columns {
@@ -173,6 +179,9 @@ func (l *Loader) SelectAll() string {
 				cols[i] = "t." + l.src.Quote(c.name)
 			}
 		}
+	}
+	if l.selfKey != "" && l.dst.RowPerSelfReference {
+		return l.parentFirst(cols)
 	}
 	sql := "SELECT " + strings.Join(cols, ", ") + " FROM " + l.qualifySource() + alias
 	if len(l.key) > 0 {
@@ -471,4 +480,28 @@ func (l *Loader) sourceValue(c loadColumn, v any) any {
 		return []byte{b[3], b[2], b[1], b[0], b[5], b[4], b[7], b[6], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}
 	}
 	return v
+}
+
+// parentFirst reads the rows of a table that refers to itself, with each row after the row that
+// it names, for a product that checks each row against the rows that come before it. The level
+// of a row is the number of rows between it and a row with no reference. A row that no level
+// reaches, because it is part of a cycle or names itself, comes last. See D301.
+func (l *Loader) parentFirst(cols []string) string {
+	q := l.src.Quote
+	from := l.qualifySource()
+	for i, c := range l.cols {
+		if !strings.Contains(cols[i], " AS ") {
+			cols[i] = "t." + q(c.name)
+		}
+	}
+	fk, ref := q(l.selfKey), q(l.selfRefKey)
+	sql := "WITH RECURSIVE dbmeta_level (k, n) AS (SELECT " + ref + ", 0 FROM " + from + " WHERE " + fk + " IS NULL" +
+		" UNION ALL SELECT s." + ref + ", d.n + 1 FROM " + from + " s JOIN dbmeta_level d ON s." + fk + " = d.k)" +
+		" SELECT " + strings.Join(cols, ", ") + " FROM " + from + " t LEFT JOIN (SELECT k, MIN(n) AS n FROM dbmeta_level GROUP BY k) d ON d.k = t." + ref +
+		" ORDER BY "
+	order := []string{"COALESCE(d.n, 1000000)"}
+	for _, name := range l.key {
+		order = append(order, "t."+q(name))
+	}
+	return sql + strings.Join(order, ", ")
 }

@@ -319,3 +319,4 @@ file.
 | [D298](D298-a-dump-writes-the-privileges-of-every-product-and-closes-the-rest.md) | A dump writes the privileges of every product, and states what it leaves out | Amends D297, amended by D299 |
 | [D299](D299-a-dump-writes-named-subpartitions-and-more-options.md) | A dump writes named subpartitions and more options | Amends D298 |
 | [D300](D300-a-sqlite-time-column-is-copied-as-the-text-that-it-holds.md) | A SQLite time column is copied as the text that it holds | Decided |
+| [D301](D301-a-copy-loads-the-parent-of-a-row-first.md) | A copy loads the parent of a row first | Decided |

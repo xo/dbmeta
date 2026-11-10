@@ -50,6 +50,10 @@ insert into core.people (person_id, full_name, manager_id, mood, attrs, contact,
   (4, 'Ёлка Müller', 2, 'sad', map {'z': 0}, union_value(email := ''), [0.0, 0.0, 0.0],
     {'name': '', 'tags': ['ü'], 'history': [map {'é': 9}]}, '2001-01-01', '2000-02-29 23:59:59', 0.00, '');
 
+-- A row with a key that comes before the key of the row that it names, so that a copy in the
+-- order of the keys meets the child first, and a row that names a row of a deeper level.
+insert into core.people (person_id, full_name, manager_id, note) values (0, 'Zero Reports Late', 4, 'child first');
+insert into core.people (person_id, full_name, manager_id, note) values (-1, 'Minus One', 0, 'a level deeper');
 create table extra.people (
   person_id integer primary key default nextval('extra.people_seq'),
   full_name varchar not null,
