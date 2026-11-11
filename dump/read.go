@@ -37,7 +37,7 @@ type Filter struct {
 // answer is empty, and the snapshot says nothing about it. Read never reads a row
 // of data.
 func Read(ctx context.Context, m *dbmeta.Meta, db dbmeta.Queryer, f Filter) (*Snapshot, error) {
-	r := &reader{m: m, db: db, filter: f}
+	r := &reader{m: m, db: db, filter: f, flagged: map[tableKey][]string{}}
 	if err := r.scope(ctx); err != nil {
 		return nil, err
 	}
@@ -99,6 +99,9 @@ type reader struct {
 	source map[sourceKey]string
 	// skipped are the objects that readObjects saw and did not read.
 	skipped []Skipped
+	// flagged are the columns that the catalog flags as part of the primary key, for a
+	// product that gives the key in no other way. See [Style.PrimaryKeyFromColumns].
+	flagged map[tableKey][]string
 
 	m      *dbmeta.Meta
 	db     dbmeta.Queryer
@@ -315,6 +318,7 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 	if err := r.readConstraints(ctx, a, kept); err != nil {
 		return err
 	}
+	r.primaryKeysFromColumns(kept)
 	if err := r.readIndexes(ctx, a, kept, views); err != nil {
 		return err
 	}
@@ -520,8 +524,23 @@ func (r *reader) readColumns(ctx context.Context, a dbmeta.Args, kept map[tableK
 			return err
 		}
 		t.Columns = append(t.Columns, col)
+		if style.PrimaryKeyFromColumns && c.PrimaryKey {
+			r.flagged[tableKey{c.Schema, c.Table}] = append(r.flagged[tableKey{c.Schema, c.Table}], c.Name)
+		}
 	}
 	return nil
+}
+
+// primaryKeysFromColumns makes the primary key constraint of a table whose catalog gives
+// the key only as a flag on its columns. A table that has the constraint is left as it is.
+func (r *reader) primaryKeysFromColumns(kept map[tableKey]*Table) {
+	for k, names := range r.flagged {
+		t := kept[k]
+		if t == nil || slices.ContainsFunc(t.Constraints, func(c Constraint) bool { return c.Kind == "primary key" }) {
+			continue
+		}
+		t.Constraints = append(t.Constraints, Constraint{Name: "PRIMARY", Kind: "primary key", Columns: names})
+	}
 }
 
 // readTableTypes makes a place for each table type of SQL Server. Its columns,

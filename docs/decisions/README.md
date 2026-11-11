@@ -321,3 +321,4 @@ file.
 | [D300](D300-a-sqlite-time-column-is-copied-as-the-text-that-it-holds.md) | A SQLite time column is copied as the text that it holds | Decided |
 | [D301](D301-a-copy-loads-the-parent-of-a-row-first.md) | A copy loads the parent of a row first | Decided |
 | [D302](D302-a-basic-dump-is-the-goal-for-most-products-and-the-order-of-them.md) | A basic dump is the goal for most products, and the order of them | Decided |
+| [D303](D303-a-basic-dump-of-clickhouse-and-spanner.md) | A basic dump of ClickHouse and Spanner | Decided |

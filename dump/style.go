@@ -140,6 +140,10 @@ type Style struct {
 	// array that arrives as the text of PostgreSQL, such as {a,"b c"}, is written as a
 	// list. A product that does not say so reads the text as it is. DuckDB says so.
 	ArrayList bool
+	// PrimaryKeyFromColumns says that the catalog of the product gives its primary key only
+	// as a flag on each column, and not as a constraint. The reader makes a primary key
+	// constraint of the flagged columns in the order of the columns. ClickHouse is one.
+	PrimaryKeyFromColumns bool
 	// NestedColumn says that a name in the column catalog is a field of an object column
 	// and not a column of its own, such as o['x'] in CrateDB. The reader leaves it out,
 	// because the column that holds it already has the type of the whole object.
