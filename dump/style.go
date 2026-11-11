@@ -101,6 +101,10 @@ type Style struct {
 	// in a default or in a row, such as 1 and 0 in SQL Server. It is nil where the
 	// words are right.
 	Boolean func(v bool) string
+	// DecimalLiteral writes a decimal from its digits, for a product that reads a number
+	// with a point as a float and needs a suffix to make it a decimal. QuestDB writes
+	// 12.50m. It is nil where the digits are the literal.
+	DecimalLiteral func(digits string) string
 	// TimeLiteral wraps the text of a date or a timestamp, with its quotes, in the
 	// form that the product reads whatever the format of the session is. Oracle
 	// writes DATE '...' and TIMESTAMP '...'. It is nil where the quoted text is read
@@ -136,6 +140,10 @@ type Style struct {
 	// array that arrives as the text of PostgreSQL, such as {a,"b c"}, is written as a
 	// list. A product that does not say so reads the text as it is. DuckDB says so.
 	ArrayList bool
+	// NestedColumn says that a name in the column catalog is a field of an object column
+	// and not a column of its own, such as o['x'] in CrateDB. The reader leaves it out,
+	// because the column that holds it already has the type of the whole object.
+	NestedColumn func(name string) bool
 	// ValueLiteral writes the literal of a value that the driver gives as a Go value
 	// of its own, such as a list, a struct, a map or a union of DuckDB. It says
 	// whether it did. See D293.

@@ -159,7 +159,23 @@ release can change that.
 Found by the round trip tests of `dump` (D274, D276, D278, D291 to D299). `TestDumpFixtureRoundTrips`
 holds what the fixture shows, and its files in `test/testdata/dump_fixture/` are empty for
 every product that has the fixture. D298 and D299 record what a dump leaves out, and why.
-No dump item is open.
+
+### Basic dump for more products
+
+D302 holds the order and the reasons. A basic dump is the columns of a table and its rows. CrateDB
+and QuestDB are done, and CockroachDB, TiDB, Vitess, SingleStore, libSQL and rqlite were done in D280.
+What is left, in order:
+
+1. Redshift. It needs a credential that the maintainers enter (D117), so it cannot be started here.
+2. ClickHouse, Snowflake, BigQuery, Databricks and Spanner. ClickHouse needs an engine and an order for
+   every table. Spanner needs a primary key. The three hosted services have no local test.
+3. SAP HANA, Firebird, Exasol, Vertica, Databend, Avatica and Phoenix, Cassandra and ScyllaDB.
+4. A source only dump of Trino, Presto, Athena, Hive, Impala, Elasticsearch, OpenSearch, Solr, Druid,
+   Drill, InfluxDB, InfluxQL, MaxCompute, Tablestore, SurrealDB and ArangoDB. Each model answers `Tables`
+   and `Columns`, so the work is the type functions and a test.
+5. A load of staged files for the warehouses, which D274 leaves out because a dump is a list of statements.
+6. A QuestDB DECIMAL and a QuestDB array read as `unknown`. `table_columns` names the type, one table at a
+   time, so the model cannot give it without a second statement for each table (rule 13).
 
 ## PostgreSQL model
 

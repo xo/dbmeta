@@ -126,9 +126,22 @@ func registerRelations() {
 			always(`, c.table_name AS "table"`),
 			always(`, c.column_name AS "name"`),
 			always(`, c.ordinal_position AS "ordinal"`),
-			always(`, c.data_type AS "data_type"`),
+			// The catalog keeps the digits of a numeric and the length of a string in
+			// columns of their own, and psql prints them as part of the type.
+			always(`, CASE WHEN c.data_type = 'numeric' AND c.numeric_precision IS NOT NULL` +
+				` THEN 'numeric(' || c.numeric_precision || ',' || COALESCE(c.numeric_scale, 0) || ')'` +
+				` WHEN c.data_type = 'character' AND c.character_maximum_length IS NOT NULL` +
+				` THEN 'character(' || c.character_maximum_length || ')'` +
+				` WHEN c.data_type = 'text' AND c.character_maximum_length IS NOT NULL` +
+				` THEN 'character varying(' || c.character_maximum_length || ')'` +
+				` WHEN c.data_type IN ('bit', 'float_vector') AND c.character_maximum_length IS NOT NULL` +
+				` THEN c.data_type || '(' || c.character_maximum_length || ')'` +
+				` ELSE c.data_type END AS "data_type"`),
 			always(`, c.is_nullable = 'YES' AS "nullable"`),
-			always(`, c.column_default AS "default"`),
+			// A generated column has no default, and the catalog keeps its expression in
+			// a column of its own. The postgres model reports the expression as the
+			// default of such a column, and so does this one.
+			always(`, CASE c.is_generated WHEN 'ALWAYS' THEN c.generation_expression ELSE c.column_default END AS "default"`),
 			always(`, EXISTS (SELECT 1 FROM information_schema.key_column_usage k` +
 				` JOIN information_schema.table_constraints tc` +
 				` ON tc.constraint_schema = k.constraint_schema AND tc.constraint_name = k.constraint_name` +

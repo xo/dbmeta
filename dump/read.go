@@ -509,9 +509,10 @@ func (r *reader) readColumns(ctx context.Context, a dbmeta.Args, kept map[tableK
 	}
 	slices.SortStableFunc(cols, func(x, y dbmeta.Column) int { return cmp.Compare(x.Ordinal, y.Ordinal) })
 	r.columns = cols
+	style, _ := styleOf(r.m.Dialect())
 	for _, c := range cols {
 		t, ok := kept[tableKey{c.Schema, c.Table}]
-		if !ok {
+		if !ok || (style.NestedColumn != nil && style.NestedColumn(c.Name)) {
 			continue
 		}
 		col, err := r.column(c)

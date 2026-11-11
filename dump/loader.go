@@ -418,6 +418,9 @@ func (l *Loader) literal(c loadColumn, v any, vars *variables) (string, error) {
 	case time.Time:
 		return l.timeLiteral(c.to.Kind, x)
 	case string:
+		if c.to.Kind == Decimal && l.dst.DecimalLiteral != nil {
+			return l.dst.DecimalLiteral(x), nil
+		}
 		if c.to.Kind == Decimal || c.to.Kind == Integer || c.to.Kind == BigInteger {
 			return x, nil
 		}
