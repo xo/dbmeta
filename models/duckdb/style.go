@@ -1,6 +1,7 @@
 package duckdb
 
 import (
+	"math"
 	"reflect"
 	"slices"
 	"strconv"
@@ -35,10 +36,23 @@ func init() {
 		SequenceValue:       sequenceValue,
 		Domain:              aliasType,
 		ArrayList:           true,
+		FloatSpecial:        floatSpecial,
 		ValueLiteral:        nestedLiteral,
 		RowPerSelfReference: true,
 		SameSchemaKeys:      true,
 	})
+}
+
+// floatSpecial writes NaN and the two infinities of a float. DuckDB reads the text of each
+// one as a double.
+func floatSpecial(v float64) (string, bool) {
+	switch {
+	case math.IsNaN(v):
+		return "'NaN'::DOUBLE", true
+	case math.IsInf(v, 1):
+		return "'Infinity'::DOUBLE", true
+	}
+	return "'-Infinity'::DOUBLE", true
 }
 
 // quoteIdentifier quotes a name with double quotes.

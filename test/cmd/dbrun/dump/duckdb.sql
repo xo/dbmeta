@@ -143,3 +143,11 @@ insert into core.intervals values
   (1, interval '1 year 2 months 3 days 4 hours 5 minutes 6.789 seconds', [interval '1 day', interval '2 months']),
   (2, interval '-5 days -1 hour', []),
   (3, null, null);
+
+-- Floats that are not finite, which have no number to write.
+create table core.floats (
+  id integer primary key,
+  d double,
+  r float
+);
+insert into core.floats values (1, 'NaN', 'NaN'), (2, 'Infinity', 'Infinity'), (3, '-Infinity', '-Infinity'), (4, 1.5, null);
