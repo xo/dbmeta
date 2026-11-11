@@ -282,7 +282,7 @@ func (l *Loader) Args(rows [][]any) ([]any, error) {
 				return nil, fmt.Errorf("the column %s.%s.%s holds the text of an expression, which a placeholder cannot take: %w",
 					l.schema, l.table, c.name, ErrNoEquivalent)
 			}
-			conv, err := Convert(l.sourceValue(c, v), c.from, c.to)
+			conv, err := convert(l.sourceValue(c, v), c.to, l.dst.ArrayList)
 			if err != nil {
 				return nil, fmt.Errorf("the column %s.%s.%s of row %d: %w", l.schema, l.table, c.name, i+1, err)
 			}
@@ -371,7 +371,7 @@ func (l *Loader) literal(c loadColumn, v any, vars *variables) (string, error) {
 			return text, nil
 		}
 	}
-	conv, err := Convert(l.sourceValue(c, v), c.from, c.to)
+	conv, err := convert(l.sourceValue(c, v), c.to, l.dst.ArrayList)
 	if err != nil {
 		return "", err
 	}

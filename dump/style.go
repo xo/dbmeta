@@ -132,6 +132,10 @@ type Style struct {
 	// row in each INSERT, because the product checks the key of each row against
 	// the rows that come before it in the statement. See D294.
 	RowPerSelfReference bool
+	// ArrayList says that the product reads an array as a list, such as [a, "b c"], so an
+	// array that arrives as the text of PostgreSQL, such as {a,"b c"}, is written as a
+	// list. A product that does not say so reads the text as it is. DuckDB says so.
+	ArrayList bool
 	// ValueLiteral writes the literal of a value that the driver gives as a Go value
 	// of its own, such as a list, a struct, a map or a union of DuckDB. It says
 	// whether it did. See D293.

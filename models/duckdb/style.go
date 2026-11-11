@@ -34,6 +34,7 @@ func init() {
 		Enum:                enum,
 		SequenceValue:       sequenceValue,
 		Domain:              aliasType,
+		ArrayList:           true,
 		ValueLiteral:        nestedLiteral,
 		RowPerSelfReference: true,
 		SameSchemaKeys:      true,

@@ -23,6 +23,20 @@ func TestAnArrayOfPostgreSQLBecomesAList(t *testing.T) {
 	}
 }
 
+func TestAnArrayIsAListOnlyForATargetThatReadsLists(t *testing.T) {
+	t.Parallel()
+	typ := Type{Kind: Array, Elem: &Type{Kind: String}}
+	const text = `{a,"b c","d\"e"}`
+	got, err := Convert(text, typ, typ)
+	if err != nil || got != text {
+		t.Errorf("Convert(%s) = %v, %v, want the text as it is", text, got, err)
+	}
+	got, err = convert(text, typ, true)
+	if want := `["a", "b c", "d\"e"]`; err != nil || got != want {
+		t.Errorf("convert(%s) for a list = %v, %v, want %s", text, got, err, want)
+	}
+}
+
 func TestAnIntervalOfADriverIsWrittenAsWords(t *testing.T) {
 	t.Parallel()
 	type interval struct {

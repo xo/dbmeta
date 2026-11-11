@@ -341,6 +341,17 @@ CREATE AGGREGATE core.moving_total(int) (
     PARALLEL = SAFE
 );
 
+-- Arrays of text and of numbers, with a quote, a space, a comma, a NULL and an empty array.
+CREATE TABLE core.lists (
+    id integer PRIMARY KEY,
+    words text[],
+    nums integer[]
+);
+INSERT INTO core.lists VALUES
+    (1, ARRAY['a', 'b c', 'd"e', 'f,g', NULL], ARRAY[1, 2, NULL]),
+    (2, '{}', '{}'),
+    (3, NULL, NULL);
+
 -- Intervals, with months, days and a time apart, and a negative one.
 CREATE TABLE core.intervals (
     id int PRIMARY KEY,

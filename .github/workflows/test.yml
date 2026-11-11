@@ -117,6 +117,16 @@ jobs:
         # The test module can use cgo and is built separately. See D48.
         run: CGO_ENABLED=0 go build ./...
 
+      - name: Vet for 32-bit targets
+        # A consumer builds for 32-bit ARM, where int and uint are 32 bits.
+        # A constant that fits in 64 bits can overflow there, so type check
+        # both word sizes. This compiles for the target and does not test on it.
+        run: |
+          for arch in 386 arm; do
+            echo "vetting GOARCH=$arch"
+            GOARCH=$arch CGO_ENABLED=0 go vet ./...
+          done
+
       - name: Build the model tiers
         # a consumer chooses how many models to compile in, so each tier must
         # build. no_base is the tier with none.

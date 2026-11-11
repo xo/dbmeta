@@ -86,6 +86,12 @@ var (
 // string for a decimal, a string or a binary value, time.Time for a date or a
 // time, and string for the rest.
 func Convert(v any, from, to Type) (any, error) {
+	return convert(v, to, false)
+}
+
+// convert is [Convert]. If lists is true, an array of PostgreSQL that arrives as text
+// becomes a list, for a target that reads an array as a list. See [Style.ArrayList].
+func convert(v any, to Type, lists bool) (any, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -132,10 +138,9 @@ func Convert(v any, from, to Type) (any, error) {
 		}
 		return nil, fmt.Errorf("%v is not text: %w", v, ErrBadValue)
 	}
-	_ = from
-	// An array of PostgreSQL arrives as the text {a,"b c"}, and another product reads the
-	// list as [a, "b c"].
-	if to.Kind == Array {
+	// An array of PostgreSQL arrives as the text {a,"b c"}. A target that reads an array
+	// as a list reads it as [a, "b c"]. Any other target reads the text as it is.
+	if lists && to.Kind == Array {
 		if text, ok := v.(string); ok && strings.HasPrefix(strings.TrimSpace(text), "{") {
 			if list, ok := arrayList(text); ok {
 				return list, nil
@@ -202,7 +207,7 @@ func asInt64(v any) (int64, bool) {
 	case int64:
 		return x, true
 	case uint:
-		return int64(x), x <= math.MaxInt64
+		return int64(x), uint64(x) <= math.MaxInt64
 	case uint8:
 		return int64(x), true
 	case uint16:
