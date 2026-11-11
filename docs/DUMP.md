@@ -1,7 +1,7 @@
 # Dump and copy
 
 Status: decided in D274 and D275 on 2026-11-08, and built for PostgreSQL, SQLite,
-DuckDB, MySQL, SQL Server and Oracle. D280 and D302 add the products that share or reach a basic dump.
+DuckDB, MySQL, SQL Server and Oracle. D280, D302, D303 and D304 add the products that share or reach a basic dump.
 The section "As built" says where the code differs from the
 design below. This document is the design of the `dump` package. usql asked for a `\dump` command,
 a `--dump` flag, a target dialect and a rewritten `\copy`, and this is the

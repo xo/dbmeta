@@ -163,7 +163,8 @@ every product that has the fixture. D298 and D299 record what a dump leaves out,
 ### Basic dump for more products
 
 D302 holds the order and the reasons. A basic dump is the columns of a table and its rows. CrateDB
-and QuestDB are done, ClickHouse and Spanner are done (D303), and CockroachDB, TiDB, Vitess, SingleStore,
+and QuestDB are done, ClickHouse and Spanner are done (D303), SAP HANA, Firebird, Exasol, Vertica, Databend, Avatica and
+Cassandra (with ScyllaDB) are done (D304), and CockroachDB, TiDB, Vitess, SingleStore,
 libSQL and rqlite were done in D280.
 What is left, in order:
 
@@ -171,7 +172,7 @@ What is left, in order:
 2. Snowflake, BigQuery and Databricks. They are hosted services with no local test, so each needs a
    credential that the maintainers enter (D117). An INSERT of one row is slow and costs money there, so the
    batches must be large.
-3. SAP HANA, Firebird, Exasol, Vertica, Databend, Avatica and Phoenix, Cassandra and ScyllaDB.
+3. Apache Phoenix. It speaks the protocol of Avatica and has no model and no dialect, so it needs both first.
 4. A source only dump of Trino, Presto, Athena, Hive, Impala, Elasticsearch, OpenSearch, Solr, Druid,
    Drill, InfluxDB, InfluxQL, MaxCompute, Tablestore, SurrealDB and ArangoDB. Each model answers `Tables`
    and `Columns`, so the work is the type functions and a test.

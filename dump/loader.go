@@ -282,6 +282,10 @@ func (l *Loader) Args(rows [][]any) ([]any, error) {
 				return nil, fmt.Errorf("the column %s.%s.%s holds the text of an expression, which a placeholder cannot take: %w",
 					l.schema, l.table, c.name, ErrNoEquivalent)
 			}
+			if l.dst.NoBind != nil && l.dst.NoBind(c.to) {
+				return nil, fmt.Errorf("the column %s.%s.%s of type %s cannot be bound as a placeholder, so write the rows as literals: %w",
+					l.schema, l.table, c.name, c.to.Kind, ErrNoEquivalent)
+			}
 			conv, err := convert(l.sourceValue(c, v), c.to, l.dst.ArrayList)
 			if err != nil {
 				return nil, fmt.Errorf("the column %s.%s.%s of row %d: %w", l.schema, l.table, c.name, i+1, err)

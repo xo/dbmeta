@@ -95,6 +95,8 @@ linters:
             - github.com/microsoft/go-mssqldb
             - github.com/xo/oracle
             - github.com/xo/cassandra
+            # The driver of Cassandra binds a decimal only as an inf.Dec.
+            - gopkg.in/inf.v0
             - github.com/xo/dbimp
             - github.com/xo/dburl
             - github.com/nakagami/firebirdsql

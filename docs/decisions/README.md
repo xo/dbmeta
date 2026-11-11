@@ -322,3 +322,4 @@ file.
 | [D301](D301-a-copy-loads-the-parent-of-a-row-first.md) | A copy loads the parent of a row first | Decided |
 | [D302](D302-a-basic-dump-is-the-goal-for-most-products-and-the-order-of-them.md) | A basic dump is the goal for most products, and the order of them | Decided |
 | [D303](D303-a-basic-dump-of-clickhouse-and-spanner.md) | A basic dump of ClickHouse and Spanner | Decided |
+| [D304](D304-a-basic-dump-of-seven-more-products.md) | A basic dump of seven more products | Decided |

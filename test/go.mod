@@ -20,6 +20,7 @@ require (
 	github.com/xo/dburl v0.58.0
 	github.com/xo/oracle v0.3.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.156.1
+	gopkg.in/inf.v0 v0.9.1
 	modernc.org/sqlite v1.61.1
 )
 
@@ -113,7 +114,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261104224025-d1e00e9f33ab // indirect
 	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
-	gopkg.in/inf.v0 v0.9.1 // indirect
 	howett.net/plist v1.0.1 // indirect
 	modernc.org/libc v1.79.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

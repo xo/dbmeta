@@ -144,6 +144,15 @@ type Style struct {
 	// as a flag on each column, and not as a constraint. The reader makes a primary key
 	// constraint of the flagged columns in the order of the columns. ClickHouse is one.
 	PrimaryKeyFromColumns bool
+	// NoBind says that a driver of the product cannot bind a value of this type as a
+	// placeholder from the Go values that dump gives, so the rows of a column of the type go
+	// in the literal form only. The driver of Cassandra takes a decimal only as an inf.Dec,
+	// which this module cannot name.
+	NoBind func(t Type) bool
+	// ImplicitConstraint says that the catalog lists as a constraint something that is
+	// not one, from its kind and its definition, such as HSQLDB, which records each NOT NULL
+	// as a check. The reader leaves it out, because the column already says it.
+	ImplicitConstraint func(kind, definition string) bool
 	// NestedColumn says that a name in the column catalog is a field of an object column
 	// and not a column of its own, such as o['x'] in CrateDB. The reader leaves it out,
 	// because the column that holds it already has the type of the whole object.

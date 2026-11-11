@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"math"
 	"regexp"
 	"slices"
 	"strconv"
@@ -244,7 +245,7 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 			continue
 		}
 		switch kind := strings.ToLower(strings.TrimSpace(t.Type)); kind {
-		case "table", "base table", "virtual":
+		case "table", "base table", "virtual", "memory table", "cached table", "text table", "column table", "row table":
 			tb := Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}, OfType: text(t.OfType)}
 			if strings.EqualFold(text(t.AccessMethod), "index organized") {
 				tb.Organization = "index"
@@ -511,7 +512,16 @@ func (r *reader) readColumns(ctx context.Context, a dbmeta.Args, kept map[tableK
 	if err != nil {
 		return fmt.Errorf("reading columns: %w", err)
 	}
-	slices.SortStableFunc(cols, func(x, y dbmeta.Column) int { return cmp.Compare(x.Ordinal, y.Ordinal) })
+	// Cassandra numbers the columns of its key and gives the others no position, which is -1.
+	// The columns with no position come after the ones that have one, in the order that the
+	// catalog lists them.
+	position := func(c dbmeta.Column) int {
+		if c.Ordinal < 0 {
+			return math.MaxInt
+		}
+		return c.Ordinal
+	}
+	slices.SortStableFunc(cols, func(x, y dbmeta.Column) int { return cmp.Compare(position(x), position(y)) })
 	r.columns = cols
 	style, _ := styleOf(r.m.Dialect())
 	for _, c := range cols {
@@ -682,6 +692,10 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 			}
 			continue
 		}
+		if style, _ := styleOf(r.m.Dialect()); style.ImplicitConstraint != nil &&
+			style.ImplicitConstraint(strings.ToLower(strings.TrimSpace(c.Type)), text(c.Definition)) {
+			continue
+		}
 		con := Constraint{
 			Name: c.Name, Kind: strings.ToLower(strings.TrimSpace(c.Type)),
 			Definition: text(c.Definition), OnUpdate: text(c.OnUpdate), OnDelete: text(c.OnDelete),
@@ -690,6 +704,11 @@ func (r *reader) readConstraints(ctx context.Context, a dbmeta.Args, kept map[ta
 		// Oracle names a constraint that a person did not name SYS_C and a number, and the
 		// copy gets another number, so the name is left out.
 		if r.m.Dialect() == dbmeta.Oracle && oracleSystemName.MatchString(con.Name) && (t.Partitioning == nil || t.Partitioning.Reference != con.Name) {
+			con.Name = ""
+		}
+		// Cassandra names the key of a table for the table, and another product has no use
+		// for a name that the table already has.
+		if r.m.Dialect() == dbmeta.Cassandra {
 			con.Name = ""
 		}
 		// MySQL and MariaDB check a key at once for RESTRICT and for NO ACTION, and
