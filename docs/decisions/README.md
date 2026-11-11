@@ -323,3 +323,4 @@ file.
 | [D302](D302-a-basic-dump-is-the-goal-for-most-products-and-the-order-of-them.md) | A basic dump is the goal for most products, and the order of them | Decided |
 | [D303](D303-a-basic-dump-of-clickhouse-and-spanner.md) | A basic dump of ClickHouse and Spanner | Decided |
 | [D304](D304-a-basic-dump-of-seven-more-products.md) | A basic dump of seven more products | Decided |
+| [D305](D305-a-source-only-dump-of-sixteen-products.md) | A source only dump of sixteen products | Decided |

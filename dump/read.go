@@ -245,7 +245,7 @@ func (r *reader) read(ctx context.Context, snap *Snapshot) error {
 			continue
 		}
 		switch kind := strings.ToLower(strings.TrimSpace(t.Type)); kind {
-		case "table", "base table", "virtual", "memory table", "cached table", "text table", "column table", "row table":
+		case "table", "base table", "virtual", "memory table", "cached table", "text table", "column table", "row table", "external table", "managed table", "foreign table", "collection":
 			tb := Table{Name: t.Name, Comment: text(t.Comment), Columns: []Column{}, OfType: text(t.OfType)}
 			if strings.EqualFold(text(t.AccessMethod), "index organized") {
 				tb.Organization = "index"

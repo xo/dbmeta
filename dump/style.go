@@ -144,6 +144,15 @@ type Style struct {
 	// as a flag on each column, and not as a constraint. The reader makes a primary key
 	// constraint of the flagged columns in the order of the columns. ClickHouse is one.
 	PrimaryKeyFromColumns bool
+	// SelectAll writes the statement that reads every row of a table, from the quoted name of
+	// the table and the quoted names of the columns, for a product whose query language is
+	// not SQL. ArangoDB writes FOR ... RETURN. It is nil where SELECT is right.
+	SelectAll func(quotedTable string, quotedColumns []string) string
+	// LeadingColumns is the number of columns that the driver of the product puts before the
+	// columns of a table in every row that SelectAll reads, such as the name of the series that
+	// the driver of InfluxQL gives first. A client drops them before it gives the rows to
+	// [Loader.Insert]. See [Loader.LeadingColumns].
+	LeadingColumns int
 	// NoBind says that a driver of the product cannot bind a value of this type as a
 	// placeholder from the Go values that dump gives, so the rows of a column of the type go
 	// in the literal form only. The driver of Cassandra takes a decimal only as an inf.Dec,
@@ -154,8 +163,9 @@ type Style struct {
 	// as a check. The reader leaves it out, because the column already says it.
 	ImplicitConstraint func(kind, definition string) bool
 	// NestedColumn says that a name in the column catalog is a field of an object column
-	// and not a column of its own, such as o['x'] in CrateDB. The reader leaves it out,
-	// because the column that holds it already has the type of the whole object.
+	// and not a column of its own, such as o['x'] in CrateDB, or a name that a select cannot
+	// read, such as the score of a search in Solr. The reader leaves it out, because the
+	// column that holds a field already has the type of the whole object.
 	NestedColumn func(name string) bool
 	// ValueLiteral writes the literal of a value that the driver gives as a Go value
 	// of its own, such as a list, a struct, a map or a union of DuckDB. It says

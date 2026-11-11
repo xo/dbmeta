@@ -164,7 +164,7 @@ every product that has the fixture. D298 and D299 record what a dump leaves out,
 
 D302 holds the order and the reasons. A basic dump is the columns of a table and its rows. CrateDB
 and QuestDB are done, ClickHouse and Spanner are done (D303), SAP HANA, Firebird, Exasol, Vertica, Databend, Avatica and
-Cassandra (with ScyllaDB) are done (D304), and CockroachDB, TiDB, Vitess, SingleStore,
+Cassandra (with ScyllaDB) are done (D304), the source only dump of sixteen products is done (D305), and CockroachDB, TiDB, Vitess, SingleStore,
 libSQL and rqlite were done in D280.
 What is left, in order:
 
@@ -173,9 +173,9 @@ What is left, in order:
    credential that the maintainers enter (D117). An INSERT of one row is slow and costs money there, so the
    batches must be large.
 3. Apache Phoenix. It speaks the protocol of Avatica and has no model and no dialect, so it needs both first.
-4. A source only dump of Trino, Presto, Athena, Hive, Impala, Elasticsearch, OpenSearch, Solr, Druid,
-   Drill, InfluxDB, InfluxQL, MaxCompute, Tablestore, SurrealDB and ArangoDB. Each model answers `Tables`
-   and `Columns`, so the work is the type functions and a test.
+4. Run the source only dump of Athena, MaxCompute and Tablestore against a real service. They have type functions and a
+   style (D305), and no container that `dbrun` starts, so the test of each skips until a maintainer enters a
+   credential (D117).
 5. A load of staged files for the warehouses, which D274 leaves out because a dump is a list of statements.
 6. A QuestDB DECIMAL and a QuestDB array read as `unknown`. `table_columns` names the type, one table at a
    time, so the model cannot give it without a second statement for each table (rule 13).

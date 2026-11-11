@@ -3,6 +3,7 @@ package dump
 import (
 	"database/sql/driver"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -136,6 +137,14 @@ func convert(v any, to Type, lists bool) (any, error) {
 		if s, ok := valueText(v); ok {
 			return s, nil
 		}
+		if s, ok := nestedText(v); ok {
+			return s, nil
+		}
+		// A product that reports a boolean or a number as text gives it as its own type.
+		switch v.(type) {
+		case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+			return fmt.Sprint(v), nil
+		}
 		return nil, fmt.Errorf("%v is not text: %w", v, ErrBadValue)
 	}
 	// An array of PostgreSQL arrives as the text {a,"b c"}. A target that reads an array
@@ -160,7 +169,22 @@ func convert(v any, to Type, lists bool) (any, error) {
 	if s, ok := valueText(v); ok {
 		return s, nil
 	}
+	if s, ok := nestedText(v); ok {
+		return s, nil
+	}
 	return v, nil
+}
+
+// nestedText writes a value that a driver gives as a Go map or list, such as the object of a
+// search engine, as JSON.
+func nestedText(v any) (string, bool) {
+	switch reflect.ValueOf(v).Kind() {
+	case reflect.Map, reflect.Slice, reflect.Array:
+		if out, err := json.Marshal(v); err == nil {
+			return string(out), true
+		}
+	}
+	return "", false
 }
 
 // toBool reads a boolean, which a product writes as true and false, as 0 and 1,

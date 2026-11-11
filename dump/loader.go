@@ -180,6 +180,9 @@ func (l *Loader) SelectAll() string {
 			}
 		}
 	}
+	if l.src.SelectAll != nil {
+		return l.src.SelectAll(l.qualifySource(), cols)
+	}
 	if l.selfKey != "" && l.dst.RowPerSelfReference {
 		return l.parentFirst(cols)
 	}
@@ -193,6 +196,10 @@ func (l *Loader) SelectAll() string {
 	}
 	return sql
 }
+
+// LeadingColumns is the number of values at the start of each row of SelectAll that are
+// not columns of the table, and that the client drops before it calls Insert or Args.
+func (l *Loader) LeadingColumns() int { return l.src.LeadingColumns }
 
 // BatchSize is the most rows that one INSERT takes: the limit of the product, and
 // the number of parameters that it takes divided by the columns.
