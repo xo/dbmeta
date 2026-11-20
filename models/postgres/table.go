@@ -277,10 +277,13 @@ func registerSequences() {
 				` AND d.refobjsubid > 0 AND d.deptype IN ('a', 'i') LIMIT 1) AS "identity"`}},
 			{{Query: `, pg_catalog.pg_table_is_visible(c.oid) AS "visible"`}},
 			// The last value that the sequence gave, absent when it gave none. A dump sets
-			// the next value from it.
+			// the next value from it. The function refuses a sequence that the user cannot
+			// read, and that refuses the whole query, so the sequence gives NULL, as the
+			// view pg_sequences does.
 			{
 				{Query: `, NULL::text AS "last_value"`},
-				{Min: v10, Query: `, pg_catalog.pg_sequence_last_value(c.oid)::text AS "last_value"`},
+				{Min: v10, Query: `, CASE WHEN pg_catalog.has_sequence_privilege(c.oid, 'SELECT, USAGE')` +
+					` THEN pg_catalog.pg_sequence_last_value(c.oid)::text END AS "last_value"`},
 			},
 			{{Query: `FROM pg_catalog.pg_class c`}},
 			{{Query: `JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace`}},

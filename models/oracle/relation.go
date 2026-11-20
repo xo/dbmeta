@@ -322,8 +322,13 @@ func registerColumns() {
 				{Min: v122, Query: `, c.collation AS "collation"`},
 			},
 			// An invisible column is hidden and made by a person. The system makes the
-			// other hidden columns, such as the one behind a function based index.
-			always(`, CASE WHEN c.hidden_column = 'YES' AND c.user_generated = 'YES' THEN 1 ELSE 0 END AS "invisible"`),
+			// other hidden columns, such as the one behind a function based index. The
+			// invisible column and the view column USER_GENERATED arrived in 12c, so no
+			// column is invisible before it.
+			dbmeta.Choice{
+				{Query: `, 0 AS "invisible"`},
+				{Min: v12, Query: `, CASE WHEN c.hidden_column = 'YES' AND c.user_generated = 'YES' THEN 1 ELSE 0 END AS "invisible"`},
+			},
 			// A nested table column has a type that a person made, so the view of nested
 			// tables is read for those columns alone.
 			always(`, CASE WHEN c.data_type_owner IS NOT NULL THEN (SELECT nt.table_name FROM all_nested_tables nt`),
@@ -344,7 +349,10 @@ func registerColumns() {
 			// A hidden column is one the system made, such as the one behind
 			// a function based index. Nobody asked for it and psql shows no
 			// equivalent.
-			always(`WHERE (c.hidden_column = 'NO' OR (c.hidden_column = 'YES' AND c.user_generated = 'YES'))`),
+			dbmeta.Choice{
+				{Query: `WHERE c.hidden_column = 'NO'`},
+				{Min: v12, Query: `WHERE (c.hidden_column = 'NO' OR (c.hidden_column = 'YES' AND c.user_generated = 'YES'))`},
+			},
 			notSystem("AND", "c.owner"),
 			always(`AND (@schema IS NULL OR c.owner LIKE @schema)`),
 			always(`AND (@parent IS NULL OR c.table_name LIKE @parent)`),

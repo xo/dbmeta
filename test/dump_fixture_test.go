@@ -134,11 +134,23 @@ func roundTrips(t *testing.T, only ...string) {
 		}
 		t.Run(name, func(t *testing.T) {
 			src := side.source(t)
+			// CI has no usql to load the fixture, so a server without it skips the test,
+			// the way an embedded database does. A person loads it with dbrun fixture dump.
+			if err := src.PingContext(t.Context()); err != nil {
+				t.Skipf("no dump fixture, run dbrun fixture dump: %v", err)
+			}
 			m := metaFor(t, side.dialect, src)
 			filter := dump.Filter{Schemas: side.schemas}
 			first, err := dump.Read(t.Context(), m, src, filter)
 			if err != nil {
 				t.Fatalf("reading: %v", err)
+			}
+			tables := 0
+			for _, sc := range first.Schemas {
+				tables += len(sc.Tables)
+			}
+			if tables == 0 {
+				t.Skip("the dump fixture is empty, run dbrun fixture dump")
 			}
 			for _, kind := range side.skips {
 				if !slices.ContainsFunc(first.Skipped, func(sk dump.Skipped) bool { return sk.Kind == kind }) {
