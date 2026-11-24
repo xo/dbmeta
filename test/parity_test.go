@@ -1103,6 +1103,10 @@ func parityArgs(q dbmeta.AnyQuery, m *dbmeta.Meta, schema string) (map[string]an
 	return out, nil
 }
 
+// prettySize matches the text of pg_size_pretty, such as 7633 kB. No other product writes a size
+// that way, and the size of a type is a number alone, which must stay exact.
+var prettySize = regexp.MustCompile(`^\d+ (bytes|kB|MB|GB|TB)$`)
+
 // parityAsk runs one statement and returns its rows as text.
 //
 // It reads the result generically rather than through the typed iterator,
@@ -1134,6 +1138,13 @@ func parityAsk(ctx context.Context, db *sql.DB, query string, vals []any) parity
 				c = string(b)
 			}
 			parts[i] = fmt.Sprintf("%v", c)
+			// A size changes between the read of the administrator and the read of the
+			// principal, because the server writes while the test runs, and a size
+			// that moved by a page is not a difference in privilege. What matters is
+			// whether the principal got a size at all, so the text of one is masked.
+			if cols[i] == "size" && prettySize.MatchString(parts[i]) {
+				parts[i] = "(a size)"
+			}
 		}
 		out = append(out, strings.Join(parts, "\x1f"))
 	}

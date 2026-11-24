@@ -367,8 +367,21 @@ subscription_connections refused: ERROR: permission denied for table pg_subscrip
 tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
 user_mappings the same rows with different values
 
+[postgres@9.6/same/grantee]
+current_user the same rows with different values
+settings fewer rows than the administrator
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+user_mappings the same rows with different values
+
+[postgres@9.6/same/owner]
+current_user the same rows with different values
+settings fewer rows than the administrator
+tablespaces refused: ERROR: permission denied for tablespace pg_global (SQLSTATE 42501)
+user_mappings the same rows with different values
+
 [postgres@10/same/grantee]
 current_user the same rows with different values
+sequences the same rows with different values
 settings fewer rows than the administrator
 subscription_connections refused: ERROR: permission denied for relation pg_subscription (SQLSTATE 42501)
 subscriptions refused: ERROR: permission denied for relation pg_subscription (SQLSTATE 42501)
@@ -385,6 +398,7 @@ user_mappings the same rows with different values
 
 [postgres@11/same/grantee]
 current_user the same rows with different values
+sequences the same rows with different values
 settings fewer rows than the administrator
 subscription_connections refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
 subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
@@ -401,6 +415,7 @@ user_mappings the same rows with different values
 
 [postgres@12/same/grantee]
 current_user the same rows with different values
+sequences the same rows with different values
 settings fewer rows than the administrator
 subscription_connections refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
 subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
@@ -417,6 +432,7 @@ user_mappings the same rows with different values
 
 [postgres@13/same/grantee]
 current_user the same rows with different values
+sequences the same rows with different values
 settings fewer rows than the administrator
 subscription_connections refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)
 subscriptions refused: ERROR: permission denied for table pg_subscription (SQLSTATE 42501)

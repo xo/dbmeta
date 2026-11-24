@@ -53,7 +53,15 @@ var productSpecific = map[string][]string{
 	// samples pages, and a server counts differently after a restart. The
 	// create options are spelled their own way, so MariaDB reads
 	// `transactional=1` and MySQL reads nothing for the same table (D205).
-	"tables": {"rows", "options"},
+	//
+	// A table has the default collation of its product too, as a column does.
+	"tables": {"rows", "options", "collation"},
+	// A routine, a trigger and an event record the sql_mode they were made under,
+	// and each product has its own default: MySQL adds ONLY_FULL_GROUP_BY and the
+	// NO_ZERO modes, and MariaDB adds NO_AUTO_CREATE_USER.
+	"functions": {"sql_mode"},
+	"triggers":  {"sql_mode"},
+	"events":    {"sql_mode"},
 	// The same display width difference as columns, reaching a parameter
 	// through dtd_identifier.
 	"routine_parameters": {"data_type"},
