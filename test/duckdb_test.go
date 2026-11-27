@@ -304,7 +304,14 @@ func TestDuckDBLists(t *testing.T) {
 		}
 		schemas = append(schemas, v.Catalog+"."+v.Name)
 	}
-	if !slices.Contains(schemas, "dbm.main") || slices.Contains(schemas, "system.main") || slices.Contains(schemas, "temp.main") {
+	// the catalog is named after the file, so count the main schemas instead
+	var mains int
+	for _, v := range schemas {
+		if strings.HasSuffix(v, ".main") {
+			mains++
+		}
+	}
+	if mains != 1 || slices.Contains(schemas, "system.main") || slices.Contains(schemas, "temp.main") {
 		t.Errorf("expected main of the user database and none of the system ones, got %v", schemas)
 	}
 	// the macro's parameters, which is the only routine a caller can create
