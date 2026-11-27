@@ -16,7 +16,8 @@
 // unnest(list) WITH ORDINALITY turns one into rows. That is how the columns of
 // a constraint, the columns of an index, the labels of an enum and the
 // parameters of a function are read, and it is the same shape the PostgreSQL
-// model uses for the same four things.
+// model uses for the same four things. The expressions of an index are the one
+// list that has the type VARCHAR, and a cast to VARCHAR[] makes it a list.
 //
 // # An embedded database with no server
 //
@@ -30,7 +31,7 @@
 //
 // # What it answers
 //
-// Twenty two of the 80, which includes the named NOT NULL constraints. The catalog is unusually complete for an embedded
+// Twenty three of the 80, which includes the named NOT NULL constraints. The catalog is unusually complete for an embedded
 // database: it has comments on most objects, real enumerated types,
 // sequences, and a constraint catalog that names the columns of a key and the columns it references.
 //
@@ -98,6 +99,18 @@ func parseVersion(cols []string) (dbmeta.VersionSet, error) {
 func internalOf(prefix, alias string) dbmeta.Choice {
 	return dbmeta.Choice{
 		{Query: prefix + ` (@with_system OR NOT ` + alias + `.internal)`},
+	}
+}
+
+// userSchemas is internalOf for a schema. DuckDB marks main internal in every
+// database, including the one a person created, so the plain filter hides the
+// schema that holds their tables. A schema of the system and temp databases
+// stays hidden, and so do information_schema and pg_catalog.
+func userSchemas(prefix, alias string) dbmeta.Choice {
+	return dbmeta.Choice{
+		{Query: prefix + ` (@with_system OR NOT ` + alias + `.internal` +
+			` OR (` + alias + `.schema_name = 'main'` +
+			` AND ` + alias + `.database_name NOT IN ('system', 'temp')))`},
 	}
 }
 

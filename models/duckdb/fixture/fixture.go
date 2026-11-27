@@ -102,6 +102,7 @@ var Everything = Fixture{
 	CONSTRAINT title_not_empty CHECK (title <> '')
 )`),
 		at("book index", `CREATE INDEX book_published ON dbmeta_fixture.book (published)`),
+		at("book expression index", `CREATE INDEX book_title_lower ON dbmeta_fixture.book (lower(title), published)`),
 
 		at("view", `CREATE VIEW dbmeta_fixture.recent AS
 	SELECT book_id, title FROM dbmeta_fixture.book WHERE published IS NOT NULL`),

@@ -249,9 +249,9 @@ func TestDuckDBLists(t *testing.T) {
 		t.Errorf("expected %v in declaration order, got %v", want, labels)
 	}
 
-	// IndexColumns is not one of them, and it is the one place DuckDB looks
-	// like it can answer and cannot: duckdb_indexes.expressions prints as a
-	// list and its type is VARCHAR. The index itself is listed.
+	// IndexColumns reads duckdb_indexes.expressions, which is VARCHAR and
+	// prints as a list, through a cast to VARCHAR[]. A key is a column and an
+	// expression stays whole, even one that holds a comma.
 	var indexed bool
 	for v, err := range dbmeta.Indexes.All(ctx, m, db, dkArgs()) {
 		if err != nil {
@@ -262,10 +262,51 @@ func TestDuckDBLists(t *testing.T) {
 	if !indexed {
 		t.Error("expected the fixture index to be listed")
 	}
-	if got := dbmeta.IndexColumns.Support(m); got != dbmeta.NotSupported {
-		t.Errorf("expected index columns to be unsupported, got %v", got)
+	if got := dbmeta.IndexColumns.Support(m); got != dbmeta.Supported {
+		t.Errorf("expected index columns to be supported, got %v", got)
 	}
-
+	type part struct {
+		name, expr string
+	}
+	parts := map[string][]part{}
+	for v, err := range dbmeta.IndexColumns.All(ctx, m, db, dkArgs()) {
+		if err != nil {
+			t.Fatalf("reading index columns: %v", err)
+		}
+		if int(v.Ordinal) != len(parts[v.Index])+1 {
+			t.Errorf("%s: expected ordinal %d, got %d", v.Index, len(parts[v.Index])+1, v.Ordinal)
+		}
+		parts[v.Index] = append(parts[v.Index], part{v.Name.V, v.Expression.V})
+	}
+	for index, want := range map[string][]part{
+		"book_published":           {{"published", ""}},
+		"book_title_lower":         {{"", "(lower(title))"}, {"published", ""}},
+		"region_country_area_pkey": {{"country", ""}, {"area", ""}},
+	} {
+		if got := parts[index]; !slices.Equal(got, want) {
+			t.Errorf("%s: expected %v, got %v", index, want, got)
+		}
+	}
+	// a primary key has an index, which is listed under its constraint name
+	for v, err := range dbmeta.Indexes.All(ctx, m, db, dkArgs()) {
+		if err != nil {
+			t.Fatalf("reading indexes: %v", err)
+		}
+		if v.Name == "region_country_area_pkey" && (!v.Primary || v.ConstraintType.V != "p" || v.Definition.Valid) {
+			t.Errorf("expected a primary index with no statement, got %+v", v)
+		}
+	}
+	// main is internal in every database, and it is the schema of the tables
+	var schemas []string
+	for v, err := range dbmeta.Schemas.All(ctx, m, db, dbmeta.Args{}.Map()) {
+		if err != nil {
+			t.Fatalf("reading schemas: %v", err)
+		}
+		schemas = append(schemas, v.Catalog+"."+v.Name)
+	}
+	if !slices.Contains(schemas, "dbm.main") || slices.Contains(schemas, "system.main") || slices.Contains(schemas, "temp.main") {
+		t.Errorf("expected main of the user database and none of the system ones, got %v", schemas)
+	}
 	// the macro's parameters, which is the only routine a caller can create
 	var params []string
 	a := dbmeta.Args{Schema: dkfixture.Everything.Schema, Parent: "addup"}.Map()
@@ -426,7 +467,8 @@ func TestDuckDBDescribeFields(t *testing.T) {
 			t.Fatalf("reading indexes: %v", err)
 		}
 		indexes[v.Name] = v
-		if v.Using.V != "art" || !strings.HasPrefix(v.Definition.V, "CREATE INDEX "+v.Name) {
+		// the index of a constraint has no statement
+		if v.Using.V != "art" || (!v.ConstraintType.Valid && !strings.HasPrefix(v.Definition.V, "CREATE INDEX "+v.Name)) {
 			t.Errorf("%s: expected art and the statement, got %+v", v.Name, v)
 		}
 	}

@@ -9,7 +9,7 @@ means an agent or a peer session suggested it and a maintainer has not confirmed
 "Open" means nobody has chosen yet. A decision that changes an earlier one
 says so in its status, as "Amends D50", and the earlier one says it back, as
 "Amended by D111". Read the status before the decision.
-136 of them amend or replace an earlier one, and a decision read without its
+137 of them amend or replace an earlier one, and a decision read without its
 amendment is worse than no decision.
 
 A new decision gets the next number and a file of its own. Add its row here.
@@ -226,7 +226,7 @@ file.
 | [D205](D205-the-mysql-family-fills-the-new-fields-of-d198-to-d203.md) | The MySQL family fills the new fields of D198 to D203 | Decided, amended by D212 |
 | [D206](D206-sql-server-and-oracle-fill-the-describe-fields.md) | SQL Server and Oracle fill the describe fields | Decided, amended by D211 |
 | [D207](D207-snowflake-redshift-cratedb-and-questdb-fill-the-describe-fields-they-have-a-source-for.md) | Snowflake, Redshift, CrateDB and QuestDB fill the describe fields they have a source for | Decided, amended by D212 and D232 |
-| [D208](D208-clickhouse-duckdb-sqlite3-databend-and-vertica-fill-the-describe-fields-they-have-a-source-for.md) | ClickHouse, DuckDB, SQLite3, Databend and Vertica fill the describe fields they have a source for | Decided |
+| [D208](D208-clickhouse-duckdb-sqlite3-databend-and-vertica-fill-the-describe-fields-they-have-a-source-for.md) | ClickHouse, DuckDB, SQLite3, Databend and Vertica fill the describe fields they have a source for | Decided, amended by D306 |
 | [D209](D209-firebird-sap-hana-exasol-hive-and-impala-fill-the-describe-fields-they-have-a-source-for.md) | Firebird, SAP HANA, Exasol, Hive and Impala fill the describe fields they have a source for | Decided, amended by D212 |
 | [D210](D210-the-products-without-a-relational-catalog-fill-the-describe-fields-they-have-a-source-for.md) | The products without a relational catalog fill the describe fields they have a source for | Decided, amended by D212 |
 | [D211](D211-policy-has-an-enabled-field-that-sql-server-oracle-and-vertica-fill.md) | Policy has an Enabled field that SQL Server, Oracle and Vertica fill | Amends D206 |
@@ -324,3 +324,4 @@ file.
 | [D303](D303-a-basic-dump-of-clickhouse-and-spanner.md) | A basic dump of ClickHouse and Spanner | Decided |
 | [D304](D304-a-basic-dump-of-seven-more-products.md) | A basic dump of seven more products | Decided |
 | [D305](D305-a-source-only-dump-of-sixteen-products.md) | A source only dump of sixteen products | Decided |
+| [D306](D306-duckdb-reads-the-index-of-a-key-and-the-columns-of-an-index.md) | DuckDB reads the index of a key and the columns of an index | Amends D208 |

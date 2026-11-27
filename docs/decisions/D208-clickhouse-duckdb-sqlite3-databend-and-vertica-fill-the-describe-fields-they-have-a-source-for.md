@@ -1,6 +1,6 @@
 # D208. ClickHouse, DuckDB, SQLite3, Databend and Vertica fill the describe fields they have a source for
 
-Status: Decided.
+Status: Decided, amended by D306.
 
 ## The decision
 

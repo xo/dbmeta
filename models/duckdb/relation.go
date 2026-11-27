@@ -16,7 +16,7 @@ func registerRelations() {
 			always(`, '' AS "owner"`),
 			always(`, s.comment AS "comment"`),
 			always(`FROM duckdb_schemas() s`),
-			internalOf("WHERE", "s"),
+			userSchemas("WHERE", "s"),
 			always(`AND (@name = '' OR s.schema_name LIKE @name)`),
 			always(`ORDER BY 1, 2`),
 		},
@@ -189,10 +189,16 @@ func registerRelations() {
 		},
 	})
 
-	// \di. DuckDB creates an index for a UNIQUE or PRIMARY KEY constraint and
-	// lists it here with is_primary set, the same way SQLite does.
+	// \di. A UNIQUE or PRIMARY KEY constraint builds an index, and DuckDB
+	// does not list it in duckdb_indexes, so the second half of the statement
+	// reads it from duckdb_constraints. That index has no name and no CREATE
+	// INDEX text, so it takes the name of the constraint and an absent
+	// definition, and constraint_type says which constraint owns it.
 	dbmeta.Indexes.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.Index]{
 		Stmt: dbmeta.Stmt{
+			always(`SELECT x."catalog", x."schema", x."table", x."name", x."type", x."unique", x."primary"`),
+			always(`, x."comment", x."persistence", x."definition", x."using", x."constraint_type"`),
+			always(`FROM (`),
 			always(`SELECT i.database_name AS "catalog"`),
 			always(`, i.schema_name AS "schema"`),
 			always(`, i.table_name AS "table"`),
@@ -205,11 +211,28 @@ func registerRelations() {
 			always(`, CASE WHEN i.database_name = 'temp' THEN 'temporary' ELSE 'permanent' END AS "persistence"`),
 			always(`, i.sql AS "definition"`),
 			always(`, 'art' AS "using"`),
+			always(`, NULL AS "constraint_type"`),
 			always(`FROM duckdb_indexes() i`),
-			always(`WHERE (@schema = '' OR i.schema_name LIKE @schema)`),
-			always(`AND (@parent = '' OR i.table_name LIKE @parent)`),
-			always(`AND (@name = '' OR i.index_name LIKE @name)`),
-			always(`AND (@with_system OR TRUE)`),
+			always(`UNION ALL`),
+			always(`SELECT k.database_name`),
+			always(`, k.schema_name`),
+			always(`, k.table_name`),
+			always(`, k.constraint_name`),
+			always(`, 'art'`),
+			always(`, TRUE`),
+			always(`, k.constraint_type = 'PRIMARY KEY'`),
+			always(`, NULL`),
+			always(`, CASE WHEN k.database_name = 'temp' THEN 'temporary' ELSE 'permanent' END`),
+			always(`, NULL`),
+			always(`, 'art'`),
+			always(`, CASE k.constraint_type WHEN 'PRIMARY KEY' THEN 'p' ELSE 'u' END`),
+			always(`FROM duckdb_constraints() k`),
+			always(`WHERE k.constraint_type IN ('PRIMARY KEY', 'UNIQUE')`),
+			always(`) x`),
+			always(`WHERE (@schema = '' OR x."schema" LIKE @schema)`),
+			always(`AND (@parent = '' OR x."table" LIKE @parent)`),
+			always(`AND (@name = '' OR x."name" LIKE @name)`),
+			always(`AND (@with_system OR x."schema" NOT IN ('information_schema', 'pg_catalog'))`),
 			always(`ORDER BY 2, 3, 4`),
 		},
 		Fields: []dbmeta.Field{
@@ -221,31 +244,21 @@ func registerRelations() {
 			{Name: "unique"}, {Name: "primary"},
 			{Name: "comment"},
 			{Name: "persistence", Desc: "temporary for an index on a temporary table, which is in the temp database, and permanent otherwise"},
-			{Name: "definition", Desc: "the CREATE INDEX statement, as DuckDB renders it"},
+			{Name: "definition", Desc: "the CREATE INDEX statement, as DuckDB renders it, and absent for the index of a constraint, which has none"},
 			{Name: "using", Desc: "always art"},
+			{Name: "constraint_type", Desc: "p or u for the index of a primary key or a unique constraint, which takes the name of the constraint, and absent for any other index"},
 		},
 		Params: schemaParentName("index"),
 		Scan: func(rows *sql.Rows) (dbmeta.Index, error) {
 			var v dbmeta.Index
 			err := rows.Scan(&v.Catalog, &v.Schema, &v.Table, &v.Name, &v.Type,
-				&v.Unique, &v.Primary, &v.Comment, &v.Persistence, &v.Definition, &v.Using)
+				&v.Unique, &v.Primary, &v.Comment, &v.Persistence, &v.Definition, &v.Using,
+				&v.ConstraintType)
 			return v, err
 		},
 	})
 
-	// \d name is not answered. IndexColumns is unsupported, and this is the
-	// one place DuckDB looks like it can answer and cannot.
-	//
-	// duckdb_indexes.expressions prints as [title] and its type is VARCHAR,
-	// not VARCHAR[]. It is a rendering of a list rather than a list, so
-	// unnest refuses it, and splitting the text on a comma breaks the moment
-	// an index is on an expression that contains one, such as concat(a, b).
-	// duckdb_constraints.constraint_column_names is a real VARCHAR[], which
-	// is why ConstraintColumns works and this does not.
-	//
-	// The columns of a primary key or a unique constraint are readable from
-	// ConstraintColumns. The columns of an index someone created are not
-	// readable at all.
+	registerIndexColumns()
 
 	registerConstraints()
 	registerNotNulls()
@@ -517,6 +530,66 @@ func registerNotNulls() {
 			var v dbmeta.NotNull
 			err := rows.Scan(&v.Schema, &v.Table, &v.Name, &v.Column, &v.NoInherit,
 				&v.Local, &v.Inherited, &v.Validated)
+			return v, err
+		},
+	})
+}
+
+// registerIndexColumns answers IndexColumns, which is the kind that \d name
+// of an index prints.
+//
+// duckdb_indexes.expressions has the type VARCHAR and prints as a list, such
+// as ['"name"', '(upper("name"))']. Unnest refuses the text, but a cast to
+// VARCHAR[] reads it as a list and keeps an element whole when it holds a
+// comma, such as concat(a, b), or a quote. DuckDB writes a column bare or in
+// double quotes, and anything it computes inside parentheses, so an element
+// that starts with a parenthesis is an expression and any other is a column.
+//
+// The index of a primary key or a unique constraint is not in duckdb_indexes.
+// Its columns are in duckdb_constraints, and the Indexes query lists it under
+// the name of the constraint.
+func registerIndexColumns() {
+	dbmeta.IndexColumns.Register(dbmeta.DuckDB, &dbmeta.Binding[dbmeta.IndexColumn]{
+		Stmt: dbmeta.Stmt{
+			always(`SELECT x."schema", x."table", x."index"`),
+			always(`, CASE WHEN x.item LIKE '(%' THEN NULL`),
+			always(`  WHEN x.item LIKE '"%"' THEN replace(substr(x.item, 2, length(x.item) - 2), '""', '"')`),
+			always(`  ELSE x.item END AS "name"`),
+			always(`, x.ordinal AS "ordinal"`),
+			always(`, CASE WHEN x.item LIKE '(%' THEN x.item ELSE NULL END AS "expression"`),
+			always(`, NULL AS "descending"`),
+			always(`FROM (`),
+			always(`SELECT i.schema_name AS "schema", i.table_name AS "table", i.index_name AS "index"`),
+			always(`, e.item AS item, e.ordinal AS ordinal`),
+			always(`FROM duckdb_indexes() i,`),
+			always(` unnest(CAST(i.expressions AS VARCHAR[])) WITH ORDINALITY AS e(item, ordinal)`),
+			always(`UNION ALL`),
+			always(`SELECT k.schema_name, k.table_name, k.constraint_name`),
+			always(`, CASE WHEN e.col SIMILAR TO '[A-Za-z_][A-Za-z0-9_]*' THEN e.col`),
+			always(`  ELSE '"' || replace(e.col, '"', '""') || '"' END`),
+			always(`, e.ordinality`),
+			always(`FROM duckdb_constraints() k,`),
+			always(` unnest(k.constraint_column_names) WITH ORDINALITY AS e(col, ordinality)`),
+			always(`WHERE k.constraint_type IN ('PRIMARY KEY', 'UNIQUE')`),
+			always(`) x`),
+			always(`WHERE (@schema = '' OR x."schema" LIKE @schema)`),
+			always(`AND (@parent = '' OR x."table" LIKE @parent)`),
+			always(`AND (@name = '' OR x."index" LIKE @name)`),
+			always(`AND (@with_system OR x."schema" NOT IN ('information_schema', 'pg_catalog'))`),
+			always(`ORDER BY 1, 2, 3, 5`),
+		},
+		Fields: []dbmeta.Field{
+			{Name: "schema"}, {Name: "table"}, {Name: "index"},
+			{Name: "name", Desc: "absent for a column the index computes rather than stores"},
+			{Name: "ordinal", Desc: "one based position within the index"},
+			{Name: "expression", Desc: "the expression, in the parentheses DuckDB writes it in, and absent for a column"},
+			{Name: "descending", Desc: "always absent: duckdb_indexes does not publish the direction"},
+		},
+		Params: schemaParentName("index"),
+		Scan: func(rows *sql.Rows) (dbmeta.IndexColumn, error) {
+			var v dbmeta.IndexColumn
+			err := rows.Scan(&v.Schema, &v.Table, &v.Index, &v.Name, &v.Ordinal,
+				&v.Expression, &v.Descending)
 			return v, err
 		},
 	})

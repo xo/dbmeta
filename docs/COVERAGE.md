@@ -34,7 +34,7 @@ rather than reading one.
 | `models/postgres` | 69 | 80 | PostgreSQL 9.6 through 18 |
 | `models/mysql` | 33 on MariaDB, 31 on MySQL | 80 | MariaDB 10.6 to 13.0, MySQL 8.4 to 26.7 |
 | `models/sqlite3` | 15 | 80 | both drivers: mattn/go-sqlite3 and modernc.org/sqlite |
-| `models/duckdb` | 22 | 80 | duckdb/duckdb-go, the driver usql uses |
+| `models/duckdb` | 23 | 80 | duckdb/duckdb-go, the driver usql uses |
 | `models/sqlserver` | 41 | 80 | SQL Server 2017, 2019, 2022 and 2025 |
 | `models/oracle` | 39 | 80 | Oracle 11g, 18c, 19c, 21c, 23ai and 26ai |
 | `models/cassandra` | 17 on Cassandra, 18 on ScyllaDB | 80 | Cassandra 3.11, 4.0, 4.1 and 5.0, ScyllaDB 2025.1, 2026.1, 2026.2 and 2026.3 |
@@ -2628,7 +2628,7 @@ caller writes one join for every database.
 
 ## DuckDB
 
-DuckDB answers 22 of the 80. Its catalog is
+DuckDB answers 23 of the 80. Its catalog is
 unusually complete for an embedded database: comments on most objects, real
 enumerated types, sequences with their bounds, and a constraint catalog that
 names both the columns of a key and the columns they reference.
@@ -2657,8 +2657,8 @@ better than every other model here manages.
 
 ### What it answers
 
-Schemas, databases, tables, columns, indexes, constraints, constraint columns,
-sequences, views, comments, types, enum values, functions, aggregates, routine
+Schemas, databases, tables, columns, indexes, index columns, constraints,
+constraint columns, sequences, views, comments, types, enum values, functions, aggregates, routine
 parameters, collations, settings, extensions, the current schema and the
 current user.
 
@@ -2668,18 +2668,45 @@ comments. `Extensions` is a real answer rather than an analogue: a DuckDB
 extension is installed and loaded separately, which is closer to a PostgreSQL
 extension than anything else here manages.
 
-### The one that looks answerable and is not
+### The one that looked unanswerable
 
-`IndexColumns`. `duckdb_indexes` has an `expressions` column that prints as
-`[title]`, and its type is `VARCHAR` rather than `VARCHAR[]`. It is a rendering
-of a list rather than a list, so `unnest` refuses it, and splitting the text on
-a comma breaks the moment an index is on an expression containing one, such as
-`concat(a, b)`.
+`IndexColumns`. `duckdb_indexes` has an `expressions` column that prints as a
+list, such as `['"name"', '(upper("name"))']`, and its type is `VARCHAR` rather
+than `VARCHAR[]`. `unnest` refuses the text, and the first review of this
+model stopped there. Splitting the text on a comma is wrong, because an
+expression such as `concat(a, b)` holds one.
 
-`duckdb_constraints.constraint_column_names` is a real `VARCHAR[]`, which is
-why `ConstraintColumns` works and this does not. The columns of a primary key
-or a unique constraint are therefore readable and the columns of an index
-someone created are not.
+A cast to `VARCHAR[]` reads the text as a list. It keeps an element whole when
+the element holds a comma or a quote, so `unnest(CAST(expressions AS
+VARCHAR[]))` works. DuckDB writes a column bare or in double quotes and writes
+anything it computes inside parentheses, so an element that starts with a
+parenthesis is an expression and any other element is a column.
+`duckdb_indexes` does not publish the direction of a key, so `Descending` is
+absent.
+
+### The index of a key is not in the catalog of indexes
+
+A primary key and a unique constraint each build an index, and
+`duckdb_indexes` does not list it. The `Indexes` query reads those two kinds
+from `duckdb_constraints` and unions them in. DuckDB gives the index no name
+and no `CREATE INDEX` text, so the row takes the name of the constraint, such
+as `products_id_pkey`, and `Definition` is absent. `ConstraintType` is `p` or
+`u`, and `IndexColumns` reads the columns from the constraint.
+
+### The schema of the tables is marked internal
+
+DuckDB marks `main` internal in every database, including one that a person
+created. A filter on `internal` hid the schema that holds the tables, so
+`Schemas` answered with no row for a database that had tables in it. The
+filter now keeps `main` in every database but `system` and `temp`.
+
+### One schema for each database
+
+`duckdb_schemas` has one row for each schema in each attached database, and
+`main` is in three of them: the user database, `system` and `temp`. With the
+system objects the `Schemas` query returns all three, and the `Catalog` field
+tells them apart. A consumer that shows a schema with no catalog must take the
+catalog into account. `dbmeta` does not drop a row for that (rule 13).
 
 ### Analogues that were found and rejected
 
